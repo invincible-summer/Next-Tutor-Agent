@@ -25,6 +25,7 @@ Toggled by ASSESSMENT_ENGINE_MODE (default on).
 """
 from __future__ import annotations
 
+import asyncio
 import os
 from typing import Any
 
@@ -34,9 +35,32 @@ from .evaluator import (derive_concept_status, evaluate_mc, grade_open_prompt,
 from .question import Question, QuestionType
 from .state import (AssessmentContext, AssessmentGoal, AssessmentResult,
                     ScoreLevel)
-from .adaptive_test import (AssessmentSession, next_difficulty, should_stop,
+from .adaptive_test import (AssessmentSession, new_assessment_id,
+                             next_difficulty, should_stop,
                              summary as cat_summary)
 from . import session_store
+
+# W2/A03: per-path asyncio guard for the CAT lifecycle. ``file_lock`` is a
+# threading.RLock — reentrant on the SAME thread, so two coroutines of the
+# event loop could still interleave at an await inside the "critical section".
+# This lock is what actually serializes concurrent tabs; the RLock keeps the
+# individual load/save segments safe for cross-thread callers.
+_ASYNC_LOCKS: dict[str, tuple[asyncio.AbstractEventLoop, asyncio.Lock]] = {}
+
+
+def _lifecycle_lock(student_id: str) -> asyncio.Lock:
+    """Per-student lifecycle lock, rebuilt when the running loop changes
+    (each asyncio.run() gets a fresh loop; a stale bound lock would raise)."""
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        loop = None
+    key = str(session_store.session_path(student_id))
+    entry = _ASYNC_LOCKS.get(key)
+    if entry is None or entry[0] is not loop:
+        entry = (loop, asyncio.Lock())
+        _ASYNC_LOCKS[key] = entry
+    return entry[1]
 
 
 def is_enabled() -> bool:
@@ -190,12 +214,24 @@ class AssessmentManager:
 
     # --- Phase 3: Computerized Adaptive Test -----------------------------
 
-    def get_active_session(self, student_id: str) -> AssessmentSession | None:
-        """Load the student's active CAT session, or None."""
+    def get_session(self, student_id: str) -> AssessmentSession | None:
+        """Load the student's CAT session in ANY status (active or terminal).
+
+        W2/A03: finished/abandoned sessions stay on disk for report/audit;
+        this is the read side. Mutation entry points must use
+        get_active_session so a terminal session can never be appended to."""
         data = session_store.load_session(student_id)
         if not data:
             return None
         return _session_from_dict(data)
+
+    def get_active_session(self, student_id: str) -> AssessmentSession | None:
+        """Load the student's ACTIVE CAT session, or None (no session, or a
+        finished/abandoned one — those are read via get_session/cat_report)."""
+        session = self.get_session(student_id)
+        if session is None or session.status != "active":
+            return None
+        return session
 
     async def start_adaptive_test(self, goal: AssessmentGoal, ctx: AssessmentContext,
                                   *, llm: AsyncLLMClient,
@@ -205,91 +241,146 @@ class AssessmentManager:
         Returns (session, first_question). first_question is None if generation
         failed. The seed difficulty comes from ctx.base_difficulty (filled by
         the caller from teaching_engine.seed_from_mastery)."""
-        diff = max(1, min(5, int(goal.difficulty or ctx.base_difficulty or 2)))
-        session = AssessmentSession(
-            student_id=student_id, goal=goal, ctx=ctx,
-            current_difficulty=diff, status="active")
-        ctx.base_difficulty = diff
-        q = await self._gen_for_session(session, llm)
-        if q is not None:
-            session.questions.append(q)
-            try:
-                from ...core.learning_records import record_question
-                record_question(student_id, f"assessment:{student_id}", q.to_dict(),
-                                topic=goal.concept, subject=ctx.subject,
-                                grade=ctx.grade, source_kind="assessment")
-            except Exception:
-                pass
-        session_store.save_session(student_id, session.to_dict())
-        return session, q
+        async with _lifecycle_lock(student_id):
+            diff = max(1, min(5, int(goal.difficulty or ctx.base_difficulty or 2)))
+            session = AssessmentSession(
+                assessment_id=new_assessment_id(),
+                student_id=student_id, goal=goal, ctx=ctx,
+                current_difficulty=diff, status="active")
+            ctx.base_difficulty = diff
+            q = await self._gen_for_session(session, llm)
+            if q is not None:
+                session.questions.append(q)
+                try:
+                    from ...core.learning_records import record_question
+                    record_question(student_id, f"assessment:{student_id}", q.to_dict(),
+                                    topic=goal.concept, subject=ctx.subject,
+                                    grade=ctx.grade, source_kind="assessment")
+                except Exception:
+                    pass
+            session_store.save_session(student_id, session.to_dict())
+            return session, q
 
     async def next_question(self, student_id: str, *,
                             llm: AsyncLLMClient) -> tuple[AssessmentSession | None, Question | None, str]:
         """Advance a CAT after the current answer was graded. Returns
         (session, next_question_or_None, stop_reason). stop_reason is "" when a
         next question was produced; otherwise the session is finalized and the
-        caller should render summary()."""
-        session = self.get_active_session(student_id)
-        if session is None:
-            return None, None, "no_active_session"
-        reason = should_stop(session)
-        if reason:
-            session.status = ("mastered" if reason == "mastered" else "stopped")
-            session.stop_reason = reason
+        caller should render summary().
+
+        W2/A03 guards, all inside the per-student lifecycle lock so two tabs
+        serialize:
+        - terminal session -> its persisted stop state, never a new question;
+        - current question unanswered -> re-issue THAT question (idempotent
+          retry), never stack a second one on top of an ungraded question."""
+        async with _lifecycle_lock(student_id):
+            session = self.get_session(student_id)
+            if session is None:
+                return None, None, "no_active_session"
+            if session.status != "active":
+                return session, None, session.stop_reason
+            if len(session.results) < len(session.questions):
+                return session, session.questions[-1], ""
+            # Belt-and-suspenders for legacy sessions whose stop was never
+            # persisted (pre-W2 answer path skipped persistence): finalize here.
+            reason = should_stop(session)
+            if reason:
+                session.status = ("mastered" if reason == "mastered" else "stopped")
+                session.stop_reason = reason
+                session_store.save_session(student_id, session.to_dict())
+                return session, None, reason
+            session.current_difficulty = next_difficulty(session)
+            q = await self._gen_for_session(session, llm)
+            if q is not None:
+                session.questions.append(q)
+                try:
+                    from ...core.learning_records import record_question
+                    record_question(student_id, f"assessment:{student_id}", q.to_dict(),
+                                    topic=session.goal.concept,
+                                    subject=session.ctx.subject,
+                                    grade=session.ctx.grade, source_kind="assessment")
+                except Exception:
+                    pass
+            # q is None on generation failure: session state is unchanged, the
+            # caller gets a retryable error -- recovery stays possible.
             session_store.save_session(student_id, session.to_dict())
-            return session, None, reason
-        session.current_difficulty = next_difficulty(session)
-        q = await self._gen_for_session(session, llm)
-        if q is not None:
-            session.questions.append(q)
-            try:
-                from ...core.learning_records import record_question
-                record_question(student_id, f"assessment:{student_id}", q.to_dict(),
-                                topic=session.goal.concept,
-                                subject=session.ctx.subject,
-                                grade=session.ctx.grade, source_kind="assessment")
-            except Exception:
-                pass
-        session_store.save_session(student_id, session.to_dict())
-        return session, q, ""
+            return session, q, ""
 
     async def record_cat_answer(self, student_id: str, *,
                                 answer: str, raw_grade: str | None = None,
                                 llm: AsyncLLMClient | None = None) -> AssessmentResult | None:
         """Grade the current (last) question of an active CAT and append the
-        result. Uses evaluate_and_record so the mastery loop stays single."""
-        session = self.get_active_session(student_id)
-        if session is None or not session.questions:
-            return None
-        q = session.questions[-1]
-        if len(session.results) >= len(session.questions):
-            return None  # current question already graded
-        result = await self.evaluate_and_record(
-            q, answer, session.ctx, llm=llm, raw_grade=raw_grade,
-            student_id=student_id)
-        session.results.append(result)
-        try:
-            from ...core.learning_records import record_verdict
-            record_verdict(student_id, f"assessment:{student_id}", stem=q.stem,
-                           verdict=result.verdict, student_answer=answer,
-                           score=result.score,
-                           concept=result.concept or q.concept or session.ctx.concept,
-                           subject=session.ctx.subject, source_kind="assessment")
-        except Exception:
-            pass
-        session_store.save_session(student_id, session.to_dict())
-        return result
+        result. Uses evaluate_and_record so the mastery loop stays single.
+
+        W2/A03: the whole load->grade->save cycle runs under the per-student
+        lifecycle lock (two tabs serialize instead of double-appending), and a
+        stop condition triggered by this answer is persisted in the SAME save —
+        the terminal state survives refresh/restart instead of living only in
+        a response. Re-submitting the same answer replays the recorded verdict;
+        a terminal session replays its last result with zero writes."""
+        async with _lifecycle_lock(student_id):
+            session = self.get_session(student_id)
+            if session is None or not session.questions:
+                return None
+            q = session.questions[-1]
+            if session.status != "active":
+                # Terminal: idempotent replay of the same submission so a
+                # refreshed tab still sees its graded answer; a different
+                # answer has no active question to grade. Zero writes either way.
+                prior = session.results[-1] if session.results else None
+                if (prior is not None
+                        and prior.student_answer[:200] == (answer or "")[:200]):
+                    return prior
+                return None
+            if len(session.results) >= len(session.questions):
+                prior = session.results[-1] if session.results else None
+                # persisted answers are capped at 200 chars (same cap as the
+                # chat writeback), so compare under the same truncation.
+                if (prior is not None
+                        and prior.student_answer[:200] == (answer or "")[:200]):
+                    return prior  # same submission replay, not a second grading
+                return None  # current question already graded (different answer)
+            result = await self.evaluate_and_record(
+                q, answer, session.ctx, llm=llm, raw_grade=raw_grade,
+                student_id=student_id)
+            result.student_answer = answer
+            session.results.append(result)
+            try:
+                from ...core.learning_records import record_verdict
+                record_verdict(student_id, f"assessment:{student_id}", stem=q.stem,
+                               verdict=result.verdict, student_answer=answer,
+                               score=result.score,
+                               concept=result.concept or q.concept or session.ctx.concept,
+                               subject=session.ctx.subject, source_kind="assessment")
+            except Exception:
+                pass
+            reason = should_stop(session)
+            if reason:
+                session.status = ("mastered" if reason == "mastered" else "stopped")
+                session.stop_reason = reason
+            session_store.save_session(student_id, session.to_dict())
+            return result
 
     def cat_report(self, student_id: str) -> dict[str, Any] | None:
         """Compact summary of the active/finished CAT for rendering."""
-        session = self.get_active_session(student_id)
+        session = self.get_session(student_id)
         if session is None:
             return None
         return cat_summary(session)
 
     def abandon_session(self, student_id: str) -> None:
-        """End a CAT without a verdict (user navigated away)."""
-        session_store.clear_session(student_id)
+        """End a CAT without a verdict (user navigated away).
+
+        W2/A03: mark abandoned in place instead of deleting the file, so the
+        report/audit can still read how far the student got. A later start
+        replaces the slot as before."""
+        from ...core.atomic import file_lock
+        with file_lock(session_store.session_path(student_id)):
+            data = session_store.load_session(student_id)
+            if not data or data.get("status") == "abandoned":
+                return
+            data["status"] = "abandoned"
+            session_store.save_session(student_id, data)
 
     async def _gen_for_session(self, session: AssessmentSession,
                                llm: AsyncLLMClient) -> Question | None:
@@ -313,6 +404,7 @@ def _session_from_dict(data: dict[str, Any]) -> AssessmentSession:
         g = data.get("goal")
         return AssessmentSession(
             session_id=str(data.get("session_id", "") or ""),
+            assessment_id=str(data.get("assessment_id", "") or ""),
             student_id=str(data.get("student_id", "") or ""),
             goal=AssessmentGoal(**g) if isinstance(g, dict) else AssessmentGoal(),
             ctx=AssessmentContext.from_dict(data.get("ctx") or {}),

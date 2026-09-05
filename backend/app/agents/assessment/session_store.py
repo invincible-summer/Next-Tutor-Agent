@@ -26,6 +26,13 @@ def _resolve(student_id: str) -> Path:
     return _STUDENTS_DIR / f"{bare}.assessment.json"
 
 
+def session_path(student_id: str) -> Path:
+    """Public path helper so the manager can hold the SAME per-file lock key
+    that save_session uses internally across a whole load->grade->save cycle
+    (W2/A03: two tabs must not both append a result for one question)."""
+    return _resolve(student_id)
+
+
 def _ensure_dir() -> None:
     _STUDENTS_DIR.mkdir(parents=True, exist_ok=True)
 

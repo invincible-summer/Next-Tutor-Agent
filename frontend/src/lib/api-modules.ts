@@ -3,6 +3,7 @@
 import { API_BASE } from "./api";
 import { apiFetch } from "./api-fetch";
 import type {
+  AssessmentActiveResp,
   AssessmentAnswerResp,
   AssessmentNextResp,
   AssessmentStartResp,
@@ -222,6 +223,10 @@ export const assessmentNext = () =>
 
 export const assessmentReport = () =>
   get<{ status: string; summary?: unknown }>(`/assessment/report`);
+
+/** W2/A03 恢复端点：当前 CAT 的待答题目/进度或已持久化的终止状态。 */
+export const assessmentActive = () =>
+  get<AssessmentActiveResp>(`/assessment/active`);
 
 export const assessmentAbandon = () =>
   post<{ status: string }>("/assessment/abandon", {});

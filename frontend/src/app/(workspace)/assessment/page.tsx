@@ -8,9 +8,9 @@ import { EmptyState, ErrorNote, Skeleton } from "@/components/ui/EmptyState";
 import {
   addOrchWeekConcept,
   assessmentAbandon,
+  assessmentActive,
   assessmentAnswer,
   assessmentNext,
-  assessmentReport,
   assessmentStart,
   getErrorNotebook,
   getOrchPlan,
@@ -93,13 +93,32 @@ export default function AssessmentPage() {
     setSessionsVersion((v) => v + 1);
   };
 
-  // 挂载后探测 M4 开关 + 加载会话列表（sessionsVersion 变化时重取）。
+  // 挂载后探测 M4 开关并恢复进行中/已终止的 CAT（sessionsVersion 变化时重取）。
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
-        const res = await assessmentReport();
-        if (!cancelled && res.status === "disabled") setDisabled(true);
+        // W2/A03：服务端状态是唯一事实——刷新/重开/双标签都从这里恢复，
+        // 不再只探测 disabled 后重置为 idle。
+        const res = await assessmentActive();
+        if (cancelled) return;
+        if (res.status === "disabled") {
+          setDisabled(true);
+          return;
+        }
+        if (res.status !== "ok") return; // none：无会话，停留 idle
+        if (res.session_status === "active" && res.question) {
+          setQuestion(res.question);
+          setDifficulty(difficultyOf(res.question));
+          setAnswered(res.answered ?? 0);
+          setQIndex(res.answered ?? 0);
+          setStage("asking");
+        } else if (res.summary) {
+          setSummary(res.summary);
+          setStopReason(res.stop_reason || null);
+          setAnswered(res.answered ?? 0);
+          setStage("done");
+        }
       } catch {
         // 探测失败不阻塞页面：真正调用时会再报
       } finally {
@@ -269,7 +288,13 @@ export default function AssessmentPage() {
         return;
       }
       if (!res.question) {
-        fail(tr("err.next"), handleNext);
+        // 无新题且无停止理由（如旧数据终态无 stop_reason）：有总结则进总结。
+        if (res.summary) {
+          setSummary(res.summary);
+          setStage("done");
+        } else {
+          fail(tr("err.next"), handleNext);
+        }
         return;
       }
       setQuestion(res.question);

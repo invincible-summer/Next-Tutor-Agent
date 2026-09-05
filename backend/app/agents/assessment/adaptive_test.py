@@ -17,6 +17,7 @@ half, clamp [1,5]) so the two difficulty systems agree.
 from __future__ import annotations
 
 import time
+import uuid
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -35,14 +36,27 @@ STOP_MAX = "max_reached"
 STOP_OSCILLATING = "oscillating"
 
 
+def new_assessment_id() -> str:
+    """A fresh independent assessment id (W2/A03: the CAT lifecycle key).
+
+    ``session_id`` on the session predates this and was never populated (the
+    API even echoed the *student* id under that name); assessment_id is the
+    real per-run identity that survives refresh and appears in responses,
+    the ledger and M2 events."""
+    return "asmt_" + uuid.uuid4().hex[:16]
+
+
 @dataclass
 class AssessmentSession:
     """The cross-question state of one adaptive test.
 
     Held in memory during a turn and persisted between turns
     (students/<id>.assessment.json) so a CAT can resume across messages.
+    Terminal states (mastered/stopped/abandoned) also stay persisted — the
+    report and audit read them; only a new start replaces the slot.
     """
     session_id: str = ""
+    assessment_id: str = ""
     student_id: str = ""
     goal: AssessmentGoal = field(default_factory=AssessmentGoal)
     ctx: AssessmentContext = field(default_factory=AssessmentContext)
@@ -56,7 +70,8 @@ class AssessmentSession:
 
     def to_dict(self) -> dict[str, Any]:
         return {
-            "session_id": self.session_id, "student_id": self.student_id,
+            "session_id": self.session_id, "assessment_id": self.assessment_id,
+            "student_id": self.student_id,
             "goal": self.goal.to_dict(), "ctx": self.ctx.to_dict(),
             "questions": [q.to_dict() for q in self.questions],
             "results": [r.to_dict() for r in self.results],
@@ -148,6 +163,7 @@ def summary(session: AssessmentSession) -> dict[str, Any]:
         bloom_breakdown = {}
     return {
         "concept": session.goal.concept or session.ctx.concept,
+        "assessment_id": session.assessment_id,
         "answered": session.answered_count,
         "correct": correct, "wrong": wrong, "partial": partial,
         "accuracy": round(session.accuracy, 2),

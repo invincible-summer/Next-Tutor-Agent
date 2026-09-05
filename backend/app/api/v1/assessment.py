@@ -4,12 +4,18 @@ These expose the CAT loop to the frontend / supervisor. They are deliberately
 thin: all logic lives in AssessmentManager. Each endpoint degrades gracefully
 (returns a clear status) and never raises into the response.
 
-Lifecycle:
-  POST /assessment/start   -> {session_id, question}      (first question)
-  POST /assessment/answer  -> {result, stop_reason, summary?}  (grade current)
-  POST /assessment/next    -> {question?, stop_reason, summary?} (advance or stop)
+Lifecycle (W2/A03: every state below is persisted; a refresh resumes it):
+  POST /assessment/start   -> {assessment_id, question}   (first question)
+  POST /assessment/answer  -> {result, stop_reason, summary?}  (grade current;
+                               a stop triggered here is persisted in the same
+                               write, so restart/report agree with the response)
+  POST /assessment/next    -> {question?, stop_reason, summary?} (advance or
+                               stop; re-issues the current question instead of
+                               stacking a new one while it is unanswered)
+  GET  /assessment/active  -> recovery view of the current session (question /
+                               progress / terminal state)
   GET  /assessment/report  -> summary of active/finished session
-  POST /assessment/abandon -> end without verdict
+  POST /assessment/abandon -> end without verdict (persisted, file kept)
 """
 from __future__ import annotations
 
@@ -23,6 +29,16 @@ from app.agents.assessment import (AssessmentContext, AssessmentGoal,
 from app.identity.deps import resolve_student_id
 
 router = APIRouter(prefix="/assessment", tags=["assessment"])
+
+
+def _public_question(qd: dict | None) -> dict | None:
+    """Strip the authoritative answer/rationale from a question payload.
+
+    Grading is server-side (W1/A02); the client only renders stem/options, so
+    nothing after the reveal time should ship with an unanswered question."""
+    if not isinstance(qd, dict):
+        return None
+    return {k: v for k, v in qd.items() if k not in ("answer", "explanation")}
 
 
 class StartRequest(BaseModel):
@@ -84,8 +100,9 @@ async def start_test(req: StartRequest, _token_sid: str = Depends(resolve_studen
     try:
         session, q = await am.start_adaptive_test(goal, ctx, llm=llm, student_id=sid)
         return {"status": "ok", "session_id": sid,
+                "assessment_id": session.assessment_id,
                 "difficulty": session.current_difficulty,
-                "question": q.to_dict() if q else None}
+                "question": _public_question(q.to_dict()) if q else None}
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
@@ -118,13 +135,16 @@ async def record_answer(req: AnswerRequest, _token_sid: str = Depends(resolve_st
             raw_grade=None, llm=llm)
         if result is None:
             return {"status": "no_active_question"}
-        # check if the test should stop after this answer
-        from app.agents.assessment.adaptive_test import should_stop
-        session = am.get_active_session(sid)
-        stop_reason = should_stop(session) if session else "no_session"
-        out = {"status": "ok", "result": result.to_dict(),
+        # W2/A03: read the PERSISTED stop state — record_cat_answer finalized
+        # the session in the same write when this answer triggered a stop, so
+        # refresh/report/restart can no longer disagree with this response.
+        session = am.get_session(sid)
+        stop_reason = session.stop_reason if session else "no_session"
+        out = {"status": "ok",
+               "assessment_id": session.assessment_id if session else "",
+               "result": result.to_dict(),
                "stop_reason": stop_reason}
-        if stop_reason:
+        if session is not None and session.status != "active":
             out["summary"] = am.cat_report(sid)
         return out
     except Exception as e:
@@ -149,10 +169,12 @@ async def next_question(req: NextRequest, _token_sid: str = Depends(resolve_stud
         session, q, stop_reason = await am.next_question(sid, llm=llm)
         if session is None:
             return {"status": "no_active_session"}
-        out = {"status": "ok", "stop_reason": stop_reason,
+        out = {"status": "ok",
+               "assessment_id": session.assessment_id,
+               "stop_reason": stop_reason,
                "difficulty": session.current_difficulty,
-               "question": q.to_dict() if q else None}
-        if stop_reason:
+               "question": _public_question(q.to_dict()) if q else None}
+        if session.status != "active" or stop_reason:
             out["summary"] = am.cat_report(sid)
         return out
     except Exception as e:
@@ -167,6 +189,36 @@ async def report(student_id: str = "", _token_sid: str = Depends(resolve_student
     sid = _token_sid
     summary = get_assessment_manager().cat_report(sid)
     return {"status": "ok" if summary else "no_active_session", "summary": summary}
+
+
+@router.get("/active")
+async def active_state(_token_sid: str = Depends(resolve_student_id)):
+    """Recovery view of the caller's current CAT (W2/A03).
+
+    Refresh/multi-tab/restart all resume from here: the pending question (its
+    public content only) plus answered progress while asking, or the persisted
+    terminal state once the test finished or was abandoned."""
+    if not assessment_enabled():
+        return {"status": "disabled"}
+    sid = _token_sid
+    session = get_assessment_manager().get_session(sid)
+    if session is None:
+        return {"status": "none"}
+    out: dict = {
+        "status": "ok",
+        "assessment_id": session.assessment_id,
+        "session_status": session.status,
+        "answered": session.answered_count,
+        "stop_reason": session.stop_reason,
+    }
+    pending = (session.status == "active" and session.questions
+               and len(session.results) < len(session.questions))
+    if pending:
+        out["question"] = _public_question(session.questions[-1].to_dict())
+    else:
+        out["question"] = None
+        out["summary"] = get_assessment_manager().cat_report(sid)
+    return out
 
 
 class AbandonRequest(BaseModel):

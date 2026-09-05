@@ -155,6 +155,9 @@ class AssessmentResult:
     diagnosis_note: str = ""              # <=60 char note for misconception engine
     feedback: str = ""                    # student-facing feedback
     difficulty_at: int = 0                # difficulty of the question answered
+    # W2/A03: the submitted answer this verdict grades, so a re-submit can be
+    # recognized as a replay instead of graded (and recorded) a second time.
+    student_answer: str = ""
     # M10 evidence audit; additive API fields, never a second mastery store.
     evidence_level: str = ""
     evidence_gate: dict[str, Any] = field(default_factory=dict)
@@ -171,6 +174,7 @@ class AssessmentResult:
             "diagnosis_note": self.diagnosis_note,
             "feedback": self.feedback,
             "difficulty_at": self.difficulty_at,
+            "student_answer": self.student_answer[:200],
             "evidence_level": self.evidence_level,
             "evidence_gate": dict(self.evidence_gate),
         }
@@ -200,6 +204,7 @@ class AssessmentResult:
             diagnosis_note=str(d.get("diagnosis_note", "") or ""),
             feedback=str(d.get("feedback", "") or ""),
             difficulty_at=int(d.get("difficulty_at", 0)),
+            student_answer=str(d.get("student_answer", "") or "")[:200],
             evidence_level=str(d.get("evidence_level", "") or ""),
             evidence_gate=dict(d.get("evidence_gate", {}) or {}),
         )

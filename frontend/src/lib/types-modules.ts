@@ -525,6 +525,8 @@ export interface AssessmentQuestion {
 export interface AssessmentStartResp {
   status: string;
   session_id?: string;
+  /** W2/A03：本次 CAT 的独立 id（session_id 字段历史上回显的是学生 id）。 */
+  assessment_id?: string;
   difficulty?: number;
   question?: AssessmentQuestion;
   message?: string;
@@ -532,6 +534,7 @@ export interface AssessmentStartResp {
 
 export interface AssessmentAnswerResp {
   status: string;
+  assessment_id?: string;
   result?: { verdict?: string; score?: number; feedback?: string; [key: string]: unknown };
   stop_reason?: string | null;
   summary?: AssessmentSummary;
@@ -539,9 +542,24 @@ export interface AssessmentAnswerResp {
 
 export interface AssessmentNextResp {
   status: string;
+  assessment_id?: string;
   question?: AssessmentQuestion | null;
   difficulty?: number;
   stop_reason?: string | null;
+  summary?: AssessmentSummary;
+}
+
+/** GET /assessment/active：刷新/重开/双标签共用的恢复视图。 */
+export interface AssessmentActiveResp {
+  /** ok（有会话）| none（无会话）| disabled | error */
+  status: string;
+  assessment_id?: string;
+  /** active | mastered | stopped | abandoned */
+  session_status?: string;
+  answered?: number;
+  stop_reason?: string | null;
+  /** 待答时为当前题公开内容（不含答案/解析），否则为 null。 */
+  question?: AssessmentQuestion | null;
   summary?: AssessmentSummary;
 }
 

@@ -29,6 +29,7 @@ from app.api.v1 import assessment as assessment_api  # noqa: E402
 
 class _FakeSession:
     current_difficulty = 3
+    assessment_id = "asmt_fake"
 
 
 class _FakeManager:
