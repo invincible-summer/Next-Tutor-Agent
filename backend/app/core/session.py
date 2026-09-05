@@ -51,6 +51,12 @@ def _resolve(session_id: str, ext: str = ".json") -> Path:
     return _SESSIONS_DIR / f"{bare}{ext}"
 
 
+def session_path(session_id: str) -> Path:
+    """Public path helper so external load-modify-save callers can hold the
+    SAME per-file lock key that load/save_session use internally."""
+    return _resolve(session_id)
+
+
 def new_session_id(topic: str) -> str:
     """Stable, timestamped id created eagerly at first turn.
 

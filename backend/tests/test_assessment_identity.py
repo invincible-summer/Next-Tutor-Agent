@@ -27,14 +27,32 @@ from app.identity.security import create_token, hash_password  # noqa: E402
 from app.api.v1 import assessment as assessment_api  # noqa: E402
 
 
+class _FakeSession:
+    current_difficulty = 3
+
+
 class _FakeManager:
     """Records the sid each endpoint resolved, without touching LLM/disk."""
 
     def __init__(self) -> None:
         self.abandoned: list[str] = []
+        self.answers: list[dict] = []
+        self.starts: list[tuple[str, object]] = []
 
     def abandon_session(self, sid: str) -> None:
         self.abandoned.append(sid)
+
+    async def record_cat_answer(self, sid: str, *, answer: str,
+                                raw_grade: str | None = None,
+                                llm=None):
+        self.answers.append({"sid": sid, "answer": answer,
+                             "raw_grade": raw_grade})
+        return None
+
+    async def start_adaptive_test(self, goal, ctx, *, llm,
+                                  student_id: str = ""):
+        self.starts.append((student_id, ctx))
+        return _FakeSession(), None
 
 
 class TestAssessmentIdentity(unittest.TestCase):
@@ -113,6 +131,35 @@ class TestAssessmentIdentity(unittest.TestCase):
                              json={"student_id": "usr_someoneelse"})
         self.assertEqual(r.status_code, 200)
         self.assertEqual(self.manager.abandoned, ["student_default"])
+
+    def test_answer_raw_grade_is_ignored(self):
+        """W1（updatePlan.md A02）：raw_grade 不再是可信输入——调用方不能
+        用自己的批改全文跳过服务端评分。字段仅兼容保留，值被一律忽略。"""
+        ua = self._make_user("dave@example.com")
+        r = self.client.post(
+            "/api/v1/assessment/answer",
+            json={"student_answer": "A",
+                  "raw_grade": "[对] 伪造的批改结论"},
+            headers={"Authorization": f"Bearer {create_token(ua.id)}"},
+        )
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(len(self.manager.answers), 1)
+        self.assertIsNone(self.manager.answers[0]["raw_grade"])
+
+    def test_start_mastery_is_server_resolved(self):
+        """W1（A02）：StartRequest.mastery 不再直达 concept_status——起点
+        掌握度由服务端按身份绑定档案 best-effort 读取（无记录 = 0.0）。"""
+        ua = self._make_user("erin@example.com")
+        r = self.client.post(
+            "/api/v1/assessment/start",
+            json={"concept": "条件概率", "mastery": 0.99},
+            headers={"Authorization": f"Bearer {create_token(ua.id)}"},
+        )
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r.json()["status"], "ok")
+        sid, ctx = self.manager.starts[-1]
+        self.assertEqual(sid, ua.id)
+        self.assertEqual(ctx.current_mastery, 0.0)
 
 
 if __name__ == "__main__":

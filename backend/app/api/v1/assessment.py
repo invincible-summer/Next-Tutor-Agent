@@ -36,8 +36,30 @@ class StartRequest(BaseModel):
     grade: str = Field("本科", description="学段")
     subject: str = Field("", description="学科")
     difficulty: int = Field(0, description="起始难度 1-5，0=按掌握度推断")
-    mastery: float = Field(0.0, description="当前掌握度（caller 从 student_model 填）")
+    mastery: float = Field(0.0, description="（仅兼容保留，一律忽略）当前掌握度由服务端按身份读取")
     student_id: str = Field("", description="学生 id（默认 default）")
+
+
+def _server_mastery(sid: str, concept: str) -> float:
+    """Best-effort current mastery from the identity-bound student profile.
+
+    W1（updatePlan.md A02）：client-supplied mastery 不是可信输入——它此前
+    直达 derive_concept_status，可把一次答对标成「已掌握」。读不到（能力
+    关闭/无记录）时保持 0.0 起点推断。"""
+    try:
+        from app.agents.student_model import (get_student_model,
+                                              is_enabled as sm_enabled)
+        if not sm_enabled():
+            return 0.0
+        sm = get_student_model(sid).load()
+        node = sm.graph.match_concept(concept or "", threshold=0.6)
+        if node is not None:
+            rec = sm.mastery.records.get(node.id)
+            if rec is not None:
+                return float(rec.p_known or 0.0)
+    except Exception:
+        pass
+    return 0.0
 
 
 @router.post("/start")
@@ -56,7 +78,8 @@ async def start_test(req: StartRequest, _token_sid: str = Depends(resolve_studen
         difficulty=max(0, min(5, int(req.difficulty))),
         bloom_focus=req.bloom_focus or "")
     ctx = AssessmentContext(concept=req.concept, subject=req.subject,
-                            grade=req.grade, current_mastery=float(req.mastery))
+                            grade=req.grade,
+                            current_mastery=_server_mastery(sid, req.concept))
     am = get_assessment_manager()
     try:
         session, q = await am.start_adaptive_test(goal, ctx, llm=llm, student_id=sid)
@@ -69,15 +92,18 @@ async def start_test(req: StartRequest, _token_sid: str = Depends(resolve_studen
 
 class AnswerRequest(BaseModel):
     student_answer: str = Field(..., description="学生作答（MC 为字母）")
-    raw_grade: str = Field("", description="主观题时，调用方已得到的 LLM 批改全文；MC 留空")
+    raw_grade: str = Field("", description="（仅兼容保留，一律忽略）批改一律由服务端完成")
     student_id: str = Field("")
 
 
 @router.post("/answer")
 async def record_answer(req: AnswerRequest, _token_sid: str = Depends(resolve_student_id)):
     """Grade the current question of an active CAT. MC is deterministic; for
-    open questions the caller should pre-stream the LLM grade and pass raw_grade
-    (so the SSE delta reaches the client), or leave it empty to grade here."""
+    open questions the LLM grades here (non-streaming).
+
+    W1（updatePlan.md A02）：``raw_grade`` 不再是可信输入——任何调用方都
+    无法再用自己的批改全文跳过服务端评分。字段仅为旧客户端 schema 兼容
+    保留，值被一律忽略。"""
     if not assessment_enabled():
         return {"status": "disabled"}
     # M0 隔离：student_id 只认 JWT 解析结果（游客回退 DEFAULT_STUDENT_ID），
@@ -85,11 +111,11 @@ async def record_answer(req: AnswerRequest, _token_sid: str = Depends(resolve_st
     # 登录用户都能读写他人/游客命名空间的 CAT 会话。
     sid = _token_sid
     am = get_assessment_manager()
-    llm = get_llm() if not req.raw_grade else None
+    llm = get_llm()
     try:
         result = await am.record_cat_answer(
             sid, answer=req.student_answer,
-            raw_grade=(req.raw_grade or None), llm=llm)
+            raw_grade=None, llm=llm)
         if result is None:
             return {"status": "no_active_question"}
         # check if the test should stop after this answer

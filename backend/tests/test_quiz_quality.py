@@ -473,7 +473,7 @@ class TestMcVerdictAndMerge(unittest.TestCase):
             delete_session(session.session_id)
 
 
-class TestGradeRecordFlag(unittest.TestCase):
+class TestGradeRecordFlag(StorageSandboxTestCase):
     """record=false（MC 点评）必须只产出点评，不写掌握度/作答记录。"""
 
     def test_record_false_writes_nothing(self):
@@ -485,24 +485,31 @@ class TestGradeRecordFlag(unittest.TestCase):
                 yield {"kind": "answer", "delta": "[对] 选择正确，中和点判断准确。"}
                 yield {"kind": "done", "finish_reason": "stop", "usage": {}}
 
+        # W1（A01）：session_id 现在先过归属校验——给调用者一份本人会话。
+        from app.core.session import TutorSession, delete_session, save_session
+        save_session(TutorSession(session_id="sess_norecord",
+                                  student_id="st_norecord", title="t"))
         req = quiz_api.GradeRequest(
             stem="题干Z", q_type="multiple_choice", student_answer="B",
             correct_answer="B", knowledge_point="滴定", session_id="sess_norecord",
             record=False)
-        with mock.patch.object(quiz_api, "get_llm", return_value=GradeLLM()):
-            resp = asyncio.run(quiz_api.grade_answer(req, student_id="st_norecord"))
+        try:
+            with mock.patch.object(quiz_api, "get_llm", return_value=GradeLLM()):
+                resp = asyncio.run(quiz_api.grade_answer(req, student_id="st_norecord"))
 
-        async def drain():
-            out = []
-            async for chunk in resp.body_iterator:
-                out.append(chunk if isinstance(chunk, str) else chunk.decode())
-            return "".join(out)
+            async def drain():
+                out = []
+                async for chunk in resp.body_iterator:
+                    out.append(chunk if isinstance(chunk, str) else chunk.decode())
+                return "".join(out)
 
-        body = asyncio.run(drain())
-        self.assertIn('"verdict": "correct"', body)
-        # record=false：不产生 transcript、不写 M6 episode
-        from app.core.context import transcript_path
-        self.assertFalse(transcript_path("sess_norecord").exists())
+            body = asyncio.run(drain())
+            self.assertIn('"verdict": "correct"', body)
+            # record=false：不产生 transcript、不写 M6 episode
+            from app.core.context import transcript_path
+            self.assertFalse(transcript_path("sess_norecord").exists())
+        finally:
+            delete_session("sess_norecord")
 
 
 class TestReasoningSummarizer(unittest.TestCase):

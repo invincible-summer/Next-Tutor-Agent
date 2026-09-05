@@ -68,8 +68,13 @@ class AssessmentManager:
                                   ctx: AssessmentContext,
                                   *, llm: AsyncLLMClient | None = None,
                                   raw_grade: str | None = None,
-                                  student_id: str = "") -> AssessmentResult:
-        """The single closed-loop point: grade, classify, write back."""
+                                  student_id: str = "",
+                                  is_variant: bool = False) -> AssessmentResult:
+        """The single closed-loop point: grade, classify, write back.
+
+        ``is_variant`` marks same-family variant tasks (fit_quiz): their
+        evidence enters the gate at VARIANT_TASK level instead of masquerading
+        as an independent observation (updatePlan.md A05 minimal wiring)."""
         try:
             grading_confidence = 0.0
             grading_source = "assessment_unknown"
@@ -123,6 +128,7 @@ class AssessmentManager:
         self._record(
             result, student_id=student_id, student_answer=student_answer,
             grading_confidence=grading_confidence, grading_source=grading_source,
+            is_variant=is_variant,
         )
         return result
 
@@ -144,7 +150,8 @@ class AssessmentManager:
 
     def _record(self, result: AssessmentResult, *, student_id: str = "",
                 student_answer: str = "", grading_confidence: float = 0.0,
-                grading_source: str = "assessment") -> None:
+                grading_source: str = "assessment",
+                is_variant: bool = False) -> None:
         """Write the result to the Student Model via its public facade.
 
         Lazy import keeps the module-scope import graph clean. Maps the
@@ -161,6 +168,7 @@ class AssessmentManager:
                 verdict=result.verdict, student_answer=student_answer,
                 question_id=result.question_id, source=grading_source,
                 grading_confidence=grading_confidence,
+                is_variant=is_variant,
             )
             gate = evaluate_learning_evidence(evidence)
             result.evidence_level = evidence.level.name
