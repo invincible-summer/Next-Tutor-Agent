@@ -137,6 +137,34 @@ def record_question(student_id: str, session_id: str, question: dict[str, Any], 
     return question_id
 
 
+def flag_attempt_disputed(student_id: str, attempt_id: str, *,
+                          reason: str = "") -> bool:
+    """Mark one attempt as disputed by the student (W3/F05 minimal).
+
+    Conservative semantics: a dispute is an auditable objection, NOT an
+    erasure — the attempt keeps counting until it is superseded by a re-answer
+    or a future review job decides otherwise (§9.2 review contract). The
+    marker survives later appends (it is set on the attempt itself).
+    """
+    if not student_id or not attempt_id:
+        return False
+    path = _path(student_id)
+    with file_lock(path):
+        data = _load(student_id)
+        found = False
+        for record in data["records"]:
+            for attempt in (record.get("attempts") or []):
+                if (isinstance(attempt, dict)
+                        and str(attempt.get("attempt_id") or "") == attempt_id):
+                    attempt["evidence_status"] = "disputed"
+                    attempt["dispute_reason"] = str(reason)[:200]
+                    attempt["disputed_at"] = time.time()
+                    found = True
+        if found:
+            _save(student_id, data)
+        return found
+
+
 def record_verdict(student_id: str, session_id: str, *, stem: str,
                    verdict: str, student_answer: str = "", score: float | None = None,
                    concept: str = "", subject: str = "",

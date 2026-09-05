@@ -244,6 +244,9 @@ async def grade_answer(req: GradeRequest,
 
     prior = (_prior_result(snap[0], req.student_answer)
              if req.record and snap is not None else None)
+    # W3/§8.5：同题不同答的重评会在账本 supersede 旧 attempt，BKT 需重放。
+    had_prior_verdict = bool(req.record and snap is not None
+                             and snap[0].get("result"))
 
     async def _duplicate_stream(verdict: str):
         payload = {"verdict": verdict, "feedback": "", "full": "",
@@ -352,6 +355,9 @@ async def grade_answer(req: GradeRequest,
                 subject=req.subject, student_id=student_id,
                 correct=(verdict == "correct"), note=(body or "")[:60],
                 attempt_id=attempt_id)
+            _maybe_rebuild_mastery(student_id,
+                                   had_prior_verdict=had_prior_verdict,
+                                   attempt_id=attempt_id)
             done["attempt_id"] = attempt_id
         elif req.record:
             # Unresolved question: practice-only, explicitly marked so the
@@ -388,6 +394,21 @@ def _is_variant_set(qh: dict) -> bool:
     """fit_quiz variant sets carry ``reference`` instead of ``topic``; their
     questions are same-family variants, not independent evidence."""
     return isinstance(qh, dict) and "reference" in qh and "topic" not in qh
+
+
+def _maybe_rebuild_mastery(student_id: str, *, had_prior_verdict: bool,
+                           attempt_id: str) -> None:
+    """W3/§8.5: a re-answer superseded a prior attempt — the legacy BKT
+    posterior is replayed from the valid event sequence (a Bayesian update
+    cannot be subtracted back out). Idempotent, low-frequency (re-answers
+    only), best-effort."""
+    if not had_prior_verdict:
+        return
+    try:
+        from app.agents.student_model import rebuild_mastery
+        rebuild_mastery(student_id, reason=f"reanswer:{attempt_id}")
+    except Exception:
+        pass
 
 
 @router.post("/record")
@@ -430,6 +451,9 @@ async def record_answer(req: RecordRequest,
     # W2/A14: server-generated attempt id shared by the M2 event, the ledger
     # attempt and the session write-back (one submission, one record).
     attempt_id = "att_" + uuid.uuid4().hex[:16]
+    # W3/§8.5: a DIFFERENT answer to an already-graded question supersedes the
+    # prior attempt in the ledger — the BKT posterior needs a replay after.
+    had_prior_verdict = bool(qd.get("result"))
 
     def _finalize(verdict: str) -> None:
         _write_back_answer(req.session_id, stem=req.stem, verdict=verdict,
@@ -441,6 +465,8 @@ async def record_answer(req: RecordRequest,
             student_answer=req.student_answer, concept=concept,
             subject=req.subject, student_id=student_id,
             correct=(verdict == "correct"), attempt_id=attempt_id)
+        _maybe_rebuild_mastery(student_id, had_prior_verdict=had_prior_verdict,
+                               attempt_id=attempt_id)
 
     if not assessment_enabled():
         result = evaluate_mc(question, req.student_answer)

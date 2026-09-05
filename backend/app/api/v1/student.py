@@ -134,9 +134,35 @@ def student_mastery(student_id: str = Depends(resolve_student_id)) -> dict:
                 "correct": (m or {}).get("correct", 0),
                 "last_review": (m or {}).get("last_review", 0.0),
                 "mistakes": list((m or {}).get("mistakes", []) or []),
+                # W3/§9.4 兼容增键：p_known 是未校准的贝叶斯估计，不是掌握
+                # 概率声明；能力结论以 evidence-profile 的证据投影为准。
+                "source": "m2_bkt",
+                "estimate_kind": "uncalibrated_bayesian",
             })
         skills.sort(key=lambda s: (s["p_known"], s["skill_id"]))
         return {"status": "ok", "skills": skills, "count": len(skills)}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+
+@router.get("/evidence-profile")
+def student_evidence_profile(concept: str = Query(""),
+                             student_id: str = Depends(resolve_student_id)) -> dict:
+    """W3/F05 evidence profile: what the student has DEMONSTRATED (per concept
+    × capability dimension), which attempts support it, and what has never
+    been observed — derived on read from the events log + ledger (no second
+    mastery store; §8.2 CapabilityProjection rebuildable by construction)."""
+    if not _sm.is_enabled():
+        return {"status": "disabled"}
+    try:
+        projection = _sm.project_capabilities(student_id,
+                                              concept=concept.strip())
+        concepts = projection.get("concepts") or []
+        if not concepts:
+            return {"status": "empty", "concepts": [], "count": 0,
+                    "dimensions": projection.get("dimensions", [])}
+        return {"status": "ok", "concepts": concepts, "count": len(concepts),
+                "dimensions": projection.get("dimensions", [])}
     except Exception as e:
         return {"status": "error", "message": str(e)}
 

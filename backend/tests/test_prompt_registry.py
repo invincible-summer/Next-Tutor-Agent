@@ -54,12 +54,18 @@ class TestPromptRegistry(unittest.TestCase):
             self.assertIn(av[pid], versions)
         # 品牌改名触及 tutor_system 文本，bump 至 2.9.0。
         self.assertEqual(av["tutor_system"], "2.9.0")
-        # understand_system 增补 search_queries 字段（预检索查询精炼），bump 至 1.2.0。
-        self.assertEqual(av["understand_system"], "1.2.0")
+        # understand_system 增补 search_queries 字段（预检索查询精炼）→ 1.2.0；
+        # W3/D02 增【会话上下文】块使用规则 → 1.3.0（1.2.0 保留非 active）。
+        self.assertEqual(av["understand_system"], "1.3.0")
         # 出题两轮化：蓝图 prompt 已注册（第一轮设计，第二轮生成见 tools/quiz.py）
         self.assertEqual(av["quiz_blueprint"], "1.0.0")
         self.assertIn("quiz_blueprint_anchor", av)
         self.assertIn("quiz_blueprint_anchor_auto", av)
+        # W3/D04：M4 出题/批改 prompt 迁入注册表（含量规契约）。
+        self.assertEqual(av["assessment_generate"], "1.0.0")
+        self.assertEqual(av["assessment_generate_auto"], "1.0.0")
+        self.assertEqual(av["assessment_grade"], "1.0.0")
+        self.assertEqual(av["assessment_analyze"], "1.0.0")
 
     def test_get_unknown_raises(self):
         with self.assertRaises(KeyError):

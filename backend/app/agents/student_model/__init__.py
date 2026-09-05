@@ -27,6 +27,7 @@ from __future__ import annotations
 
 from .adaptation import TeachingStrategy, adapt
 from .events import EventCollector, EventProcessor
+from .capability_projection import project_capabilities, rebuild_mastery
 from .manager import (StudentModel, get_student_model, is_enabled,
                       record_quiz_result)
 from .mastery import BKTParams, Mastery, MasteryTracker
@@ -56,5 +57,7 @@ __all__ = [
     "adapt",
     "get_student_model",
     "is_enabled",
+    "project_capabilities",
+    "rebuild_mastery",
     "record_quiz_result",
 ]
