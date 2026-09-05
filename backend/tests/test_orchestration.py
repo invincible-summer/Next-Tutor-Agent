@@ -35,6 +35,7 @@ from app.agents.learning_orchestration.schema import (
 from app.agents.learning_orchestration.manager import (LearningOrchestrationService,
     get_orchestration_service)
 from app.agents.learning_orchestration import is_enabled
+from tests.storage_sandbox import StorageSandboxTestCase
 
 
 def _temp_students_dir():
@@ -878,6 +879,36 @@ class TestSingleTruthSourceBoundary(unittest.TestCase):
                          f"M9 must not write M6 files directly: {non_orch}")
 
 
+class TestSummaryIdentity(StorageSandboxTestCase):
+    """W4/A13 双学生回归（§13.3「两个学生的 needs_replan 各读各的」）：
+    summary 的 needs_replan 必须读本人 M2 档案——漏传 student_id 时登录
+    学生静默回退游客命名空间（审查确认在 W4 前仍未修）。"""
+
+    def _seed_plan(self, sid: str) -> None:
+        state = store.load_state(sid)
+        state.goals = [LearningGoal(id="g1", title="数学", subjects=["数学"])]
+        state.weekly_plan = [WeeklyPlan(
+            week_index=0, week_start=time.time() - 86400,
+            concepts=[PlanConcept(concept_id="c_plan", name="规划概念",
+                                  planned_mastery=0.75)])]
+        store.save_state(sid, state)
+
+    def test_needs_replan_reads_own_namespace(self):
+        from app.agents.student_model import record_quiz_result
+        self._seed_plan("stu_own")
+        self._seed_plan("stu_other")
+        # stu_own 档案里 c_plan 已掌握（多次正确）→ 计划落后于现实，应触发。
+        for i in range(10):
+            record_quiz_result(concept="c_plan", skill_id="c_plan",
+                               correct=True, student_id="stu_own",
+                               verdict="correct", attempt_id=f"att_idn{i}")
+        svc = get_orchestration_service()
+        self.assertTrue(svc.summary("stu_own")["needs_replan"])
+        # 另一学生无档案 → 不触发；同名概念互不串档（旧缺陷会读游客空档，
+        # 双方都 False，掩盖了 stu_own 的重规划信号）。
+        self.assertFalse(svc.summary("stu_other")["needs_replan"])
+
+
 if __name__ == "__main__":
     unittest.main()
 
@@ -921,13 +952,45 @@ class TestGoalAnalyzer(unittest.TestCase):
         self.assertEqual(gs.required_skills, ["s2"])
 
     def test_gap_analysis_missing_skill(self):
+        """W4/A13：无观测记录 → unknown（未测），不再宣称「缺失」缺口；
+        unknown 仍进入 required_skills（计划照常覆盖未测概念）。"""
         state = OrchestrationState()
         state.goals = [LearningGoal(title="数学", subjects=["数学"])]
         skills = [{"skill_id": "s1", "name": "极限", "subject": "数学",
                    "difficulty": 3}]
         gs = goal_analyzer.compute_gap_analysis(
             state.goals[0], subject_skills=skills, mastery_view={})
-        self.assertEqual(gs.gaps[0].status, "missing")
+        self.assertEqual(gs.gaps[0].status, "unknown")
+        self.assertIn("s1", gs.required_skills)
+
+    def test_gap_analysis_legacy_missing_row_roundtrips(self):
+        """旧持久化行的 missing 值原样往返（历史数据不改写）。"""
+        from app.agents.learning_orchestration.schema import GapItem
+        item = GapItem.from_dict({"skill_id": "s1", "status": "missing"})
+        self.assertEqual(item.status, "missing")
+        self.assertEqual(GapItem.from_dict({"skill_id": "s2"}).status,
+                         "unknown")
+
+    def test_estimate_schedule_range_from_time_budget(self):
+        """W4/A13：估期按时间容量形成区间——周容量 45×7=315 分钟、
+        每概念 20 分钟 → 时间节奏 15/周；惯例节奏 5/周 → 区间 [1,2]，
+        单点 est_weeks 保持 5/周 语义不变。"""
+        now = time.time()
+        est = goal_analyzer.estimate_schedule(
+            10, now + 30 * 86400, now, weekly_pace=5,
+            daily_minutes=45, available_days=7, minutes_per_concept=20)
+        self.assertEqual(est["est_weeks"], 2)      # legacy 单点不变
+        self.assertEqual(est["time_pace"], 15)
+        self.assertEqual(est["est_weeks_min"], 1)  # ceil(10/15)
+        self.assertEqual(est["est_weeks_max"], 2)  # ceil(10/5)
+        self.assertEqual(est["weekly_capacity_minutes"], 315)
+        # 时间预算收紧（每天 15 分钟 → 5/周）：区间退化为单点，不夸大。
+        est2 = goal_analyzer.estimate_schedule(
+            10, now + 30 * 86400, now, weekly_pace=5,
+            daily_minutes=15, available_days=7, minutes_per_concept=20)
+        self.assertEqual(est2["time_pace"], 5)
+        self.assertEqual(est2["est_weeks_min"], 2)
+        self.assertEqual(est2["est_weeks_max"], 2)
 
     def test_level_mapping(self):
         from app.agents.learning_orchestration.schema import GoalAnalysisLevel

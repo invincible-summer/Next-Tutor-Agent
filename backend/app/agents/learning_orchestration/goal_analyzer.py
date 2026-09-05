@@ -116,16 +116,36 @@ def prerequisite_closure(target_ids: list[str],
 
 
 def estimate_schedule(required_count: int, deadline: float,
-                      now: float, *, weekly_pace: int = 5) -> dict[str, Any]:
+                      now: float, *, weekly_pace: int = 5,
+                      daily_minutes: int = 45, available_days: int = 7,
+                      minutes_per_concept: int = 20) -> dict[str, Any]:
     """Deterministic "can I make it" estimate for the GoalCard.
 
-    Pure arithmetic, zero LLM: at `weekly_pace` concepts per week the chain
-    needs est_weeks; compare with the weeks left until the deadline.
+    Pure arithmetic, zero LLM. Two independent paces bound the estimate
+    (W4/A13: a single concept-count point hid the time-budget reality):
+
+      - weekly_pace (default 5 concepts/week): the planning convention;
+      - time pace: daily_minutes x available_days of weekly study capacity
+        divided by minutes_per_concept — what the student's schedule can
+        actually absorb.
+
+    est_weeks (legacy single point) keeps the weekly_pace semantics; the new
+    est_weeks_min / est_weeks_max bracket it with the faster/slower pace.
     fit: "tight" (needs more than the weeks left), "ok", "loose" (plenty of
-    slack), "none" (no deadline). The note is a one-line human summary.
+    slack), "none" (no deadline) — computed on the legacy point, unchanged.
     """
     pace = max(1, int(weekly_pace))
     est_weeks = max(1, -(-int(required_count) // pace)) if required_count > 0 else 0
+    days = max(1, min(7, int(available_days or 7)))
+    minutes = max(5, int(daily_minutes or 45))
+    per_concept = max(5, int(minutes_per_concept or 20))
+    weekly_capacity = minutes * days
+    time_pace = max(1, weekly_capacity // per_concept)
+    pace_fast, pace_slow = max(pace, time_pace), max(1, min(pace, time_pace))
+    est_weeks_min = (max(1, -(-int(required_count) // pace_fast))
+                     if required_count > 0 else 0)
+    est_weeks_max = (max(1, -(-int(required_count) // pace_slow))
+                     if required_count > 0 else 0)
     weeks_left: float | None = None
     fit = "none"
     if deadline and deadline > 0:
@@ -141,6 +161,9 @@ def estimate_schedule(required_count: int, deadline: float,
         else:
             fit = "ok"
     return {"weekly_pace": pace, "est_weeks": est_weeks,
+            "est_weeks_min": est_weeks_min, "est_weeks_max": est_weeks_max,
+            "weekly_capacity_minutes": weekly_capacity,
+            "time_pace": time_pace,
             "weeks_left": weeks_left, "fit": fit,
             "required_count": int(required_count)}
 
@@ -152,7 +175,9 @@ def compute_gap_analysis(goal: LearningGoal, *,
                          target_mastery: float = 0.75,
                          now: float | None = None,
                          chain_mode: str = "subject",
-                         weekly_pace: int = 5) -> GoalState:
+                         weekly_pace: int = 5,
+                         daily_minutes: int = 45,
+                         available_days: int = 7) -> GoalState:
     """Compute a GoalState from one goal + a read-only mastery/graph projection.
 
     subject_skills: [{skill_id, name, subject, difficulty}] from the M5 graph.
@@ -163,6 +188,13 @@ def compute_gap_analysis(goal: LearningGoal, *,
         backward-plan topo-sort. Optional -- without it, gaps are unordered.
     chain_mode: "concept_chain" | "subject" -- echoed into the GoalState so
         the UI can label which口径 gaps/progress describe.
+    daily_minutes/available_days: the student's schedule (W4/A13 estimate
+        range input), forwarded to estimate_schedule.
+
+    W4/A13 gap status: "unknown" = no observation yet (未测，不宣称缺口——
+    未测可能被当缺口是 A13 的缺陷); "weak" = observed below target
+    (确认的薄弱). Planning still covers unknown concepts — a plan teaches
+    what has not been tested; the status only labels the evidence state.
 
     Never raises; returns a best-effort GoalState on any failure.
     """
@@ -182,7 +214,7 @@ def compute_gap_analysis(goal: LearningGoal, *,
             if p >= target_mastery:
                 mastered += 1
                 continue
-            status = "weak" if attempts > 0 else "missing"
+            status = "weak" if attempts > 0 else "unknown"
             gaps.append(GapItem(
                 skill_id=sid, name=str(s.get("name", "")),
                 subject=str(s.get("subject", "")),
@@ -219,7 +251,8 @@ def compute_gap_analysis(goal: LearningGoal, *,
             chain_mode=chain_mode,
             target_concept_ids=list(goal.target_concept_ids or []),
             estimate=estimate_schedule(
-                len(required), goal.deadline, now, weekly_pace=weekly_pace))
+                len(required), goal.deadline, now, weekly_pace=weekly_pace,
+                daily_minutes=daily_minutes, available_days=available_days))
     except Exception:
         return GoalState(goal_id=goal.id, goal_title=goal.title,
                          goal_type=goal.goal_type)

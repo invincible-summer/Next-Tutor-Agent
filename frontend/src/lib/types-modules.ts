@@ -628,7 +628,7 @@ export interface OrchGap {
   name: string;
   subject: string;
   difficulty: number;
-  /** missing | weak */
+  /** unknown=未测（W4/A13，不宣称缺口） | weak=有证据的薄弱 | missing=旧数据 */
   status: string;
   current_mastery: number;
   target_mastery: number;
@@ -640,6 +640,11 @@ export interface OrchGap {
 export interface OrchGoalEstimate {
   weekly_pace: number;
   est_weeks: number;
+  /** W4/A13 时间容量区间（daily_minutes×可用天 折算的快/慢节奏上下界）。 */
+  est_weeks_min?: number;
+  est_weeks_max?: number;
+  weekly_capacity_minutes?: number;
+  time_pace?: number;
   weeks_left: number | null;
   fit: "tight" | "ok" | "loose" | "none" | string;
   required_count: number;

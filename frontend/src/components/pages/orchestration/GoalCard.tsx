@@ -32,7 +32,12 @@ function GapRow({ gap, tr }: { gap: OrchGap; tr: Tr }) {
     router.push(`/chat?q=${encodeURIComponent(tr("goal.gap.learn", "帮我学") + gap.name)}&send=1`);
   return (
     <div className="group/gap flex items-center gap-2 py-1.5">
-      <Badge tone={gap.status === "missing" ? "danger" : "warning"}>
+      {/* W4/A13：unknown=未测（中性，不宣称缺口）；weak=有证据的确认薄弱；
+          legacy "missing" 行按旧语义渲染为 danger。 */}
+      <Badge tone={
+        gap.status === "unknown" ? "muted"
+          : gap.status === "missing" ? "danger" : "warning"
+      }>
         {tr(`goal.gap.${gap.status}`, gap.status)}
       </Badge>
       <span className="min-w-0 flex-1 truncate text-xs font-medium text-fg">{gap.name}</span>
@@ -189,6 +194,14 @@ export function GoalCard({ goal, gs, tr, onEdit, onDelete }: {
               .replace("%p", String(est.weekly_pace))
               .replace("%e", String(est.est_weeks))}
           </span>
+          {est.est_weeks_min != null && est.est_weeks_max != null
+            && est.est_weeks_min !== est.est_weeks_max && (
+            <span className="tnum text-muted">
+              · {tr("goal.estimate.range", "按你的可用时间约 %a–%b 周")
+                .replace("%a", String(est.est_weeks_min))
+                .replace("%b", String(est.est_weeks_max))}
+            </span>
+          )}
           {est.weeks_left != null && est.weeks_left > 0 && (
             <span className="tnum">
               · {tr("goal.estimate.left", "距截止还有 %w 周").replace("%w", String(est.weeks_left))}

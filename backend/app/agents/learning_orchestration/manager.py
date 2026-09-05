@@ -1292,8 +1292,10 @@ class LearningOrchestrationService:
         out = store.state_summary(student_id)
         try:
             state = self._load(student_id)
+            # W4/A13：needs_replan 必须读本人档案——漏传 student_id 会让登录
+            # 学生的重规划信号静默回退游客命名空间（审查 A13 复核确认未修）。
             out["needs_replan"] = learning_planner.needs_replan(
-                state, self._mastery_view_safe())
+                state, self._mastery_view_safe(student_id))
         except Exception:
             out["needs_replan"] = False
         return out
@@ -1490,6 +1492,10 @@ class LearningOrchestrationService:
         previous/default state). Never raises."""
         try:
             binding = [c for c in (goal.target_concept_ids or []) if c]
+            # W4/A13：估期区间输入——学生的日程容量随分析传入。
+            sched_days = len(state.schedule.available_days
+                             or ["mon"]) or 7
+            sched_minutes = int(state.schedule.daily_minutes or 45)
             if binding:
                 skills = self._concept_chain_skills_safe(
                     binding, student_id=student_id)
@@ -1498,7 +1504,9 @@ class LearningOrchestrationService:
                         goal, subject_skills=skills,
                         mastery_view=mastery_view, prereq_map=prereq_map,
                         now=now, chain_mode="concept_chain",
-                        weekly_pace=learning_planner._MAX_CONCEPTS_PER_WEEK)
+                        weekly_pace=learning_planner._MAX_CONCEPTS_PER_WEEK,
+                        daily_minutes=sched_minutes,
+                        available_days=sched_days)
                 # bound concepts unresolvable in the graph -> fall through
                 # to subject mode rather than an empty state
 
@@ -1513,7 +1521,8 @@ class LearningOrchestrationService:
             return goal_analyzer.compute_gap_analysis(
                 goal, subject_skills=skills, mastery_view=mastery_view,
                 prereq_map=prereq_map, now=now, chain_mode="subject",
-                weekly_pace=learning_planner._MAX_CONCEPTS_PER_WEEK)
+                weekly_pace=learning_planner._MAX_CONCEPTS_PER_WEEK,
+                daily_minutes=sched_minutes, available_days=sched_days)
         except Exception:
             return None
 

@@ -197,15 +197,17 @@ class LearningGoal:
 class GapItem:
     """One identified knowledge gap between the goal and current mastery.
 
-    Produced by GoalAnalyzer. 'missing' skills are ones the student has not
-    touched; 'weak' skills are seen but below target mastery. All mastery
-    values are read-only projections from M2.
+    Produced by GoalAnalyzer. W4/A13: 'unknown' skills have NO observation
+    yet (未测——不宣称缺口，也不等于不会); 'weak' skills are observed below
+    target mastery (确认的薄弱). Legacy persisted rows may still read
+    'missing' (pre-W4 wording for unknown) and round-trip unchanged. All
+    mastery values are read-only projections from M2.
     """
     skill_id: str = ""
     name: str = ""
     subject: str = ""
     difficulty: int = 3
-    status: str = "missing"  # "missing" | "weak"
+    status: str = "unknown"  # "unknown" | "weak" (legacy rows: "missing")
     current_mastery: float = 0.0
     target_mastery: float = 0.75
     # 拓扑层级（1 = 无未掌握前置，现在就能学；2 = 需先完成某层-1 概念…）。
@@ -223,7 +225,7 @@ class GapItem:
         d = d or {}
         return cls(skill_id=str(d.get("skill_id", "")), name=str(d.get("name", "")),
             subject=str(d.get("subject", "")), difficulty=int(d.get("difficulty", 3)),
-            status=str(d.get("status", "missing")),
+            status=str(d.get("status", "unknown")),
             current_mastery=float(d.get("current_mastery", 0.0)),
             target_mastery=float(d.get("target_mastery", 0.75)),
             layer=int(d.get("layer", 0)))
