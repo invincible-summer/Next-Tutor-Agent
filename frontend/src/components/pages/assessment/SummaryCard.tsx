@@ -30,6 +30,10 @@ const HANDLED = new Set([
   "final_difficulty",
   "recommendation",
   "bloom",
+  // stop_reason / status 由专用行映射渲染：原始值（mastered 等）是诊断性
+  // 内部结论，直接展示会夸大为「已掌握」（updatePlan.md A06）。
+  "stop_reason",
+  "status",
 ]);
 
 function StatBox({ label, value }: { label: string; value: React.ReactNode }) {
@@ -180,6 +184,40 @@ export function SummaryCard({
           </div>
         </div>
       )}
+
+      {(() => {
+        // 结束原因 / 状态映射为诊断性表述：不让内部枚举（mastered 等）
+        // 以原文直达学生，避免把「本轮表现稳定」读成「长期已掌握」。
+        const stopReason =
+          typeof summary.stop_reason === "string" && summary.stop_reason
+            ? summary.stop_reason
+            : null;
+        const status =
+          typeof summary.status === "string" && summary.status
+            ? summary.status
+            : null;
+        if (!stopReason && !status) return null;
+        return (
+          <div className="mt-4 flex flex-col gap-1.5 border-t border-border-light pt-3">
+            {stopReason && (
+              <div className="flex items-baseline gap-2 text-xs">
+                <span className="shrink-0 text-muted">{tr("sum.stop_reason")}</span>
+                <span className="text-fg-secondary">
+                  {tr(`sum.stop_reason.${stopReason}`, stopReason)}
+                </span>
+              </div>
+            )}
+            {status && (
+              <div className="flex items-baseline gap-2 text-xs">
+                <span className="shrink-0 text-muted">{tr("sum.status")}</span>
+                <span className="text-fg-secondary">
+                  {tr(`sum.status.${status}`, status)}
+                </span>
+              </div>
+            )}
+          </div>
+        );
+      })()}
 
       {rest.length > 0 && (
         <div className="mt-4 flex flex-col gap-1.5 border-t border-border-light pt-3">
