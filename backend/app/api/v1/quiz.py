@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import json
 import logging
+import uuid
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
@@ -124,7 +125,8 @@ def _audit_answer_mismatch(session_id: str, client_answer: str,
 
 def _write_back_answer(session_id: str, *, stem: str, verdict: str,
                        student_answer: str,
-                       owner_student_id: str = "") -> None:
+                       owner_student_id: str = "",
+                       attempt_id: str = "") -> None:
     """Attach the graded result to the matching question in the session's
     quiz_history, so the NEXT chat turn sees what the student answered.
 
@@ -133,7 +135,9 @@ def _write_back_answer(session_id: str, *, stem: str, verdict: str,
     them ("我这边没有收到你的作答"). Matches by stem prefix within the newest
     quiz set first. Never raises. W1: the load-modify-save critical section
     holds the session file lock, and a caller identity that does not own the
-    session is skipped (defense in depth — routes already 404).
+    session is skipped (defense in depth — routes already 404). W2/A14: the
+    attempt id rides on the result so a replay can return the SAME recorded
+    attempt instead of re-grading.
     """
     try:
         if not session_id or not verdict or verdict == "unknown":
@@ -160,6 +164,8 @@ def _write_back_answer(session_id: str, *, stem: str, verdict: str,
                         continue
                     result = {"verdict": verdict,
                               "student_answer": (student_answer or "")[:200]}
+                    if attempt_id:
+                        result["attempt_id"] = attempt_id
                     q["result"] = result
                     # Also sync the result into the persisted assistant message's
                     # tool payload, so a reloaded chat restores the card's
@@ -183,7 +189,8 @@ def _write_back_answer(session_id: str, *, stem: str, verdict: str,
                     # 同步回填跨会话「最近习题」库的判分状态
                     record_recent_verdict(
                         session_id, getattr(session, "student_id", "") or "",
-                        stem=stem, verdict=verdict, student_answer=student_answer)
+                        stem=stem, verdict=verdict, student_answer=student_answer,
+                        attempt_id=attempt_id)
                     return
     except Exception:
         pass
@@ -239,10 +246,13 @@ async def grade_answer(req: GradeRequest,
              if req.record and snap is not None else None)
 
     async def _duplicate_stream(verdict: str):
+        payload = {"verdict": verdict, "feedback": "", "full": "",
+                   "score": _SCORE_MAP.get(verdict, 0.0),
+                   "duplicate": True}
+        if prior and prior.get("attempt_id"):
+            payload["attempt_id"] = prior["attempt_id"]
         yield ("event: done\ndata: "
-               + json.dumps({"verdict": verdict, "feedback": "", "full": "",
-                             "score": _SCORE_MAP.get(verdict, 0.0),
-                             "duplicate": True}, ensure_ascii=False) + "\n\n")
+               + json.dumps(payload, ensure_ascii=False) + "\n\n")
 
     if prior is not None:
         # Same submission scored once: resubmitting re-plays the recorded
@@ -275,6 +285,10 @@ async def grade_answer(req: GradeRequest,
         # compatible: old frontends read verdict/feedback/full only.
         authoritative = question is not None
         result = None
+        # W2/A14: one server-generated attempt id per accepted grading; it keys
+        # the M2 event, the ledger attempt and the session write-back as ONE
+        # submission (idempotent replay, supersede on re-answer).
+        attempt_id = "att_" + uuid.uuid4().hex[:16]
         if req.record and authoritative and assessment_enabled():
             try:
                 result = await get_assessment_manager().evaluate_and_record(
@@ -284,7 +298,8 @@ async def grade_answer(req: GradeRequest,
                                       skill_id=""),
                     raw_grade=full, student_id=student_id,
                     is_variant=_is_variant_set(qh),
-                    question_verified=question_verified(qh.get("verification")))
+                    question_verified=question_verified(qh.get("verification")),
+                    attempt_id=attempt_id)
             except Exception:
                 result = None
         # fall back to the legacy inline parse if the engine is off / failed,
@@ -328,13 +343,16 @@ async def grade_answer(req: GradeRequest,
             _write_back_answer(req.session_id, stem=req.stem,
                                verdict=verdict or "",
                                student_answer=req.student_answer,
-                               owner_student_id=student_id)
+                               owner_student_id=student_id,
+                               attempt_id=attempt_id)
             record_quiz_attempt(
                 req.session_id, stem=req.stem, verdict=verdict or "",
                 student_answer=req.student_answer,
                 concept=req.knowledge_point,
                 subject=req.subject, student_id=student_id,
-                correct=(verdict == "correct"), note=(body or "")[:60])
+                correct=(verdict == "correct"), note=(body or "")[:60],
+                attempt_id=attempt_id)
+            done["attempt_id"] = attempt_id
         elif req.record:
             # Unresolved question: practice-only, explicitly marked so the
             # client can show why nothing was recorded.
@@ -399,23 +417,30 @@ async def record_answer(req: RecordRequest,
         # Same submission scored once: replay the recorded verdict, no
         # second mastery/ledger write.
         verdict = str(prior.get("verdict"))
-        return {"status": "ok", "duplicate": True,
-                "result": {"verdict": verdict,
-                           "score": _SCORE_MAP.get(verdict, 0.0),
-                           "concept_status": ""}}
+        out = {"status": "ok", "duplicate": True,
+               "result": {"verdict": verdict,
+                          "score": _SCORE_MAP.get(verdict, 0.0),
+                          "concept_status": ""}}
+        if prior.get("attempt_id"):
+            out["attempt_id"] = prior["attempt_id"]
+        return out
     question = Question.from_quiz_dict(qd, difficulty=req.difficulty)
     concept = ", ".join(question.knowledge_points) or req.knowledge_point
     ctx = AssessmentContext(concept=concept, subject=req.subject, grade=req.grade)
+    # W2/A14: server-generated attempt id shared by the M2 event, the ledger
+    # attempt and the session write-back (one submission, one record).
+    attempt_id = "att_" + uuid.uuid4().hex[:16]
 
     def _finalize(verdict: str) -> None:
         _write_back_answer(req.session_id, stem=req.stem, verdict=verdict,
                            student_answer=req.student_answer,
-                           owner_student_id=student_id)
+                           owner_student_id=student_id,
+                           attempt_id=attempt_id)
         record_quiz_attempt(
             req.session_id, stem=req.stem, verdict=verdict,
             student_answer=req.student_answer, concept=concept,
             subject=req.subject, student_id=student_id,
-            correct=(verdict == "correct"))
+            correct=(verdict == "correct"), attempt_id=attempt_id)
 
     if not assessment_enabled():
         result = evaluate_mc(question, req.student_answer)
@@ -426,9 +451,11 @@ async def record_answer(req: RecordRequest,
         result = await get_assessment_manager().evaluate_and_record(
             question, req.student_answer, ctx, student_id=student_id,
             is_variant=_is_variant_set(qh),
-            question_verified=question_verified(qh.get("verification")))
+            question_verified=question_verified(qh.get("verification")),
+            attempt_id=attempt_id)
         _finalize(result.verdict)
-        return {"status": "ok", "result": result.to_dict()}
+        return {"status": "ok", "attempt_id": attempt_id,
+                "result": result.to_dict()}
     except Exception as e:
         result = evaluate_mc(question, req.student_answer)
         _finalize(result.verdict)

@@ -27,6 +27,7 @@ from __future__ import annotations
 
 import asyncio
 import os
+import uuid
 from typing import Any
 
 from ...core.llm_async import AsyncLLMClient
@@ -357,10 +358,12 @@ class AssessmentManager:
                         and prior.student_answer[:200] == (answer or "")[:200]):
                     return prior  # same submission replay, not a second grading
                 return None  # current question already graded (different answer)
+            attempt_id = "att_" + uuid.uuid4().hex[:16]
             result = await self.evaluate_and_record(
                 q, answer, session.ctx, llm=llm, raw_grade=raw_grade,
                 student_id=student_id,
-                question_verified=content_verified(q.verification))
+                question_verified=content_verified(q.verification),
+                attempt_id=attempt_id)
             result.student_answer = answer
             session.results.append(result)
             try:
@@ -369,7 +372,10 @@ class AssessmentManager:
                                verdict=result.verdict, student_answer=answer,
                                score=result.score,
                                concept=result.concept or q.concept or session.ctx.concept,
-                               subject=session.ctx.subject, source_kind="assessment")
+                               subject=session.ctx.subject,
+                               source_kind="assessment",
+                               attempt_id=attempt_id,
+                               assessment_id=session.assessment_id)
             except Exception:
                 pass
             reason = should_stop(session)

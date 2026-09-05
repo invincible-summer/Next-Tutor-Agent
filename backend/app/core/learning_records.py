@@ -53,10 +53,12 @@ def _save(student_id: str, data: dict[str, Any]) -> None:
 def _unique_ids(records: list[dict[str, Any]]) -> bool:
     """Re-key duplicate/empty record_ids in place; True when anything changed.
 
-    Question ids are per-quiz in-set numbers (each quiz restarts at 1, every
-    CAT question is "1"), so legacy ledgers can hold the same id several
-    times. Nothing joins on record_id — verdicts match by session+stem,
-    trash handlers by session — so re-keying is safe.
+    Legacy question ids were per-quiz in-set numbers (each quiz restarted at
+    1, every CAT question was "1"), so old ledgers can hold the same id
+    several times; W2/A14 delivers per-set prefixed ids ("q_<uid>_<i>") for
+    new questions, but the healing stays for pre-W2 data. Nothing joins on
+    record_id at write time — verdicts match by session+stem (plus attempt
+    ids since W2), trash handlers by session — so re-keying is safe.
     """
     seen: set[str] = set()
     changed = False
@@ -128,10 +130,29 @@ def record_question(student_id: str, session_id: str, question: dict[str, Any], 
 def record_verdict(student_id: str, session_id: str, *, stem: str,
                    verdict: str, student_answer: str = "", score: float | None = None,
                    concept: str = "", subject: str = "",
-                   source_kind: str = "chat") -> bool:
+                   source_kind: str = "chat",
+                   attempt_id: str = "", assessment_id: str = "",
+                   evidence_status: str = "accepted") -> str:
+    """Append one graded attempt to the matching record and refresh its
+    current projection.
+
+    W2/A14: verdicts are an append-only attempt chain per question record —
+    a re-grade supersedes the previous attempt (``superseded_by``) instead of
+    silently overwriting it, and the top-level verdict/score/student_answer
+    stay the "current effective" view for every legacy reader (error notebook,
+    quiz_recent, dashboards). The identical submission (same answer+verdict)
+    is a replay: nothing is appended and the recorded attempt id is returned —
+    this also collapses the double record_verdict call from the write-back +
+    record_quiz_attempt path into one recorded attempt. Pre-W2 records get a
+    ``legacy`` snapshot attempt synthesized from their current top-level
+    values on first write, with provenance unknown (never fabricated high
+    confidence; updatePlan.md §8.5 migration discipline). Returns the attempt
+    id, or "" when nothing could be recorded.
+    """
     if not student_id or not session_id or not stem:
-        return False
+        return ""
     key = str(stem).strip()[:100]
+    attempt_id = attempt_id or ("att_" + uuid.uuid4().hex[:16])
     path = _path(student_id)
     with file_lock(path):
         data = _load(student_id)
@@ -148,8 +169,44 @@ def record_verdict(student_id: str, session_id: str, *, stem: str,
                           if x.get("session_id") == _safe(session_id)
                           and str(x.get("stem") or "").strip()[:100] == key]
         if not candidates:
-            return False
+            return ""
         item = candidates[0]
+        attempts = item.get("attempts")
+        if not isinstance(attempts, list):
+            attempts = []
+            if item.get("verdict"):
+                attempts.append({
+                    "attempt_id": "att_legacy_" + uuid.uuid4().hex[:12],
+                    "verdict": str(item.get("verdict") or ""),
+                    "student_answer": str(item.get("student_answer") or "")[:1000],
+                    "score": item.get("score"),
+                    "evidence_status": "legacy",
+                    "provenance": "unknown",
+                    "created_at": float(item.get("updated_at")
+                                        or item.get("created_at") or 0.0),
+                })
+            item["attempts"] = attempts
+        latest = attempts[-1] if attempts else None
+        if (latest is not None
+                and str(latest.get("student_answer") or "")[:200]
+                == str(student_answer or "")[:200]
+                and str(latest.get("verdict") or "") == str(verdict or "")):
+            # identical submission replay: keep the recorded attempt, no append
+            return str(latest.get("attempt_id") or attempt_id)
+        if latest is not None:
+            latest["superseded_by"] = attempt_id
+        attempts.append({
+            "attempt_id": attempt_id,
+            "verdict": str(verdict or ""),
+            "student_answer": str(student_answer or "")[:1000],
+            "score": (float(score) if score is not None else None),
+            "evidence_status": (evidence_status
+                                if evidence_status in {"accepted", "abstained"}
+                                else "accepted"),
+            "created_at": time.time(),
+        })
+        if assessment_id:
+            item["assessment_id"] = str(assessment_id)
         item["verdict"] = str(verdict or "")
         item["student_answer"] = str(student_answer or "")[:1000]
         if score is not None:
@@ -160,7 +217,7 @@ def record_verdict(student_id: str, session_id: str, *, stem: str,
             item["subject"] = str(subject)[:80]
         item["updated_at"] = time.time()
         _save(student_id, data)
-        return True
+        return attempt_id
 
 
 def mark_source_deleted(student_id: str, session_id: str) -> int:

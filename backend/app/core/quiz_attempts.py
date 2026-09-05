@@ -185,19 +185,22 @@ def quiz_digest_for_session(session: Any) -> str:
 def record_quiz_attempt(session_id: str, *, stem: str, verdict: str,
                         student_answer: str, concept: str = "",
                         subject: str = "", student_id: str = "",
-                        correct: bool | None = None, note: str = "") -> None:
+                        correct: bool | None = None, note: str = "",
+                        attempt_id: str = "") -> None:
     """Persist one graded answer to transcript + M6 episodic + M3 teaching_log.
 
     ``unknown`` verdicts (grading could not run, e.g. malformed request) are
     skipped entirely — they carry no signal and must not pollute the
-    transcript or long-term memory."""
+    transcript or long-term memory. ``attempt_id`` (W2/A14) keys the ledger
+    attempt; the write-back path passes the same id so the two writes fold
+    into one append-only attempt record."""
     if verdict == "unknown":
         return
     try:
         from .learning_records import record_verdict
         record_verdict(student_id, session_id, stem=stem, verdict=verdict,
                        student_answer=student_answer, concept=concept,
-                       subject=subject,
+                       subject=subject, attempt_id=attempt_id,
                        score={"correct": 1.0, "partial": 0.5, "wrong": 0.0}.get(verdict))
     except Exception:
         pass

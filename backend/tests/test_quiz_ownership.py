@@ -101,6 +101,71 @@ class QuizOwnershipTestBase(StorageSandboxTestCase):
         return out
 
 
+class TestAttemptFlow(QuizOwnershipTestBase):
+    """W2/A14：一次判分 = 一个服务端 attempt_id 贯穿 M2 事件/账本/会话写回；
+    同作答重放同 id；重练（不同作答）在账本 supersede 而非覆写历史。"""
+
+    def _ledger_item(self, session_id: str, owner_id: str) -> dict:
+        from app.core import learning_records as lr
+        items = [x for x in lr.list_records(owner_id)
+                 if x.get("session_id") == session_id]
+        self.assertEqual(len(items), 1)
+        return items[0]
+
+    def test_attempt_id_flows_through_all_stores(self):
+        from app.core.session import load_session
+        from app.agents.student_model.store import read_events
+        self._make_session("sess_att", self.alice.id)
+        r = self.client.post(
+            "/api/v1/quiz/record",
+            json=self._record_payload("sess_att", student_answer="B"),
+            headers=self.headers_a)
+        body = r.json()
+        self.assertEqual(body["status"], "ok")
+        att = body.get("attempt_id")
+        self.assertTrue(str(att).startswith("att_"))
+        # 会话 quiz_history 的 result 携带同一 attempt_id（重放可识别）。
+        res = load_session("sess_att").quiz_history[0]["questions"][0]["result"]
+        self.assertEqual(res.get("attempt_id"), att)
+        # 账本 attempts 链第一条是它。
+        item = self._ledger_item("sess_att", self.alice.id)
+        self.assertEqual(item["attempts"][0]["attempt_id"], att)
+        # M2 事件同 id（同一证据单次影响）。
+        graded = [e for e in read_events(self.alice.id)
+                  if e.type.name == "QUIZ_GRADED"]
+        self.assertTrue(graded)
+        self.assertEqual(graded[-1].payload.get("attempt_id"), att)
+        # 同作答重放：返回同一 attempt_id，账本不追加第二条。
+        r2 = self.client.post(
+            "/api/v1/quiz/record",
+            json=self._record_payload("sess_att", student_answer="B"),
+            headers=self.headers_a)
+        self.assertEqual(r2.json().get("attempt_id"), att)
+        item = self._ledger_item("sess_att", self.alice.id)
+        self.assertEqual(len(item["attempts"]), 1)
+
+    def test_reanswer_supersedes_instead_of_overwriting(self):
+        self._make_session("sess_re", self.alice.id)
+        r1 = self.client.post(
+            "/api/v1/quiz/record",
+            json=self._record_payload("sess_re", student_answer="A"),
+            headers=self.headers_a).json()
+        self.assertEqual(r1["result"]["verdict"], "wrong")
+        r2 = self.client.post(
+            "/api/v1/quiz/record",
+            json=self._record_payload("sess_re", student_answer="B"),
+            headers=self.headers_a).json()
+        self.assertEqual(r2["result"]["verdict"], "correct")
+        item = self._ledger_item("sess_re", self.alice.id)
+        attempts = item["attempts"]
+        self.assertEqual(len(attempts), 2)
+        self.assertEqual(attempts[0]["superseded_by"], r2["attempt_id"])
+        self.assertNotIn("superseded_by", attempts[1])
+        # 顶层投影 = 最新判定；历史 attempt 保留审计（不再被覆写抹掉）。
+        self.assertEqual(item["verdict"], "correct")
+        self.assertEqual(attempts[0]["verdict"], "wrong")
+
+
 class TestQuizOwnership(QuizOwnershipTestBase):
 
     def test_record_into_foreign_session_is_404_zero_writes(self):

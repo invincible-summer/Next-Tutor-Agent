@@ -109,8 +109,12 @@ def record_recent_quiz(session_id: str, student_id: str, quiz: dict[str, Any]) -
 
 
 def record_recent_verdict(session_id: str, student_id: str, *, stem: str,
-                          verdict: str, student_answer: str = "") -> None:
-    """答题卡判分回填：按 (session_id, 题干前缀) 匹配最新一条未判记录。"""
+                          verdict: str, student_answer: str = "",
+                          attempt_id: str = "") -> None:
+    """答题卡判分回填：按 (session_id, 题干前缀) 匹配最新一条未判记录。
+
+    ``attempt_id``（W2/A14）透传给账本：与 record_quiz_attempt 的第二路
+    写入合并为同一条 attempt 记录（同作答幂等），而不是两份。"""
     try:
         if not student_id or not session_id or not verdict:
             return
@@ -120,7 +124,7 @@ def record_recent_verdict(session_id: str, student_id: str, *, stem: str,
         try:
             from .learning_records import record_verdict
             record_verdict(student_id, session_id, stem=stem, verdict=verdict,
-                           student_answer=student_answer)
+                           student_answer=student_answer, attempt_id=attempt_id)
         except Exception:
             pass
         with file_lock(_resolve(student_id)):

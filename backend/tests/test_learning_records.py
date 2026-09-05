@@ -86,6 +86,114 @@ class TestRecordIdUniqueness(StorageSandboxTestCase):
         self.assertEqual(len(set(on_disk)), 4)  # 写入路径已把文件治愈
 
 
+class TestAttemptLedger(StorageSandboxTestCase):
+    """W2/A14：判分是追加式 attempt 链——重评 supersede 而非覆写，同作答幂等，
+    顶层字段保持「当前有效投影」供既有读方（错题本/最近习题）零改动使用。"""
+
+    SID = "sandbox_attempt_student"
+
+    def _record(self, stem: str = "条件概率题干"):
+        lr.record_question(self.SID, "chat_a",
+                           {"id": "q_ab12cd34_1", "stem": stem,
+                            "type": "multiple_choice", "answer": "B"})
+
+    def test_attempts_append_and_supersede(self):
+        self._record()
+        a1 = lr.record_verdict(self.SID, "chat_a", stem="条件概率题干",
+                               verdict="wrong", student_answer="A", score=0.0,
+                               attempt_id="att_1")
+        a2 = lr.record_verdict(self.SID, "chat_a", stem="条件概率题干",
+                               verdict="correct", student_answer="B", score=1.0,
+                               attempt_id="att_2")
+        self.assertEqual(a1, "att_1")
+        self.assertEqual(a2, "att_2")
+        item = lr.list_records(self.SID)[0]
+        attempts = item["attempts"]
+        self.assertEqual(len(attempts), 2)
+        self.assertEqual(attempts[0]["superseded_by"], "att_2")
+        self.assertNotIn("superseded_by", attempts[1])
+        # 顶层投影 = 最新 attempt（既有读方零改动）。
+        self.assertEqual(item["verdict"], "correct")
+        self.assertEqual(item["student_answer"], "B")
+        self.assertEqual(item["score"], 1.0)
+
+    def test_same_submission_replay_folds_into_one_attempt(self):
+        """同一作答的重复 record_verdict（写回 + 账本双路径）合并为一条。"""
+        self._record()
+        first = lr.record_verdict(self.SID, "chat_a", stem="条件概率题干",
+                                  verdict="wrong", student_answer="A",
+                                  score=0.0, attempt_id="att_x")
+        replay = lr.record_verdict(self.SID, "chat_a", stem="条件概率题干",
+                                   verdict="wrong", student_answer="A",
+                                   score=0.0, attempt_id="att_x")
+        self.assertEqual(first, replay)
+        item = lr.list_records(self.SID)[0]
+        self.assertEqual(len(item["attempts"]), 1)
+        # 不带 attempt_id 的第二路写入同样折叠（同作答幂等）。
+        again = lr.record_verdict(self.SID, "chat_a", stem="条件概率题干",
+                                  verdict="wrong", student_answer="A")
+        self.assertEqual(again, "att_x")
+        self.assertEqual(len(lr.list_records(self.SID)[0]["attempts"]), 1)
+
+    def test_legacy_record_gets_snapshot_attempt_without_fabrication(self):
+        """pre-W2 记录首次再判分：旧顶层值合成为 legacy 快照 attempt，
+        provenance 一律 unknown——不补造置信度/量规信息（§8.5 迁移纪律）。"""
+        lr._save(self.SID, {"records": [{
+            "record_id": "1", "session_id": "chat_old", "stem": "旧题",
+            "verdict": "wrong", "student_answer": "A", "score": 0.0,
+            "created_at": 100.0, "updated_at": 101.0,
+        }]})
+        lr.record_verdict(self.SID, "chat_old", stem="旧题",
+                          verdict="correct", student_answer="B", score=1.0,
+                          attempt_id="att_new")
+        item = lr.list_records(self.SID)[0]
+        attempts = item["attempts"]
+        self.assertEqual(len(attempts), 2)
+        legacy = attempts[0]
+        self.assertEqual(legacy["evidence_status"], "legacy")
+        self.assertEqual(legacy["verdict"], "wrong")
+        self.assertEqual(legacy.get("provenance"), "unknown")
+        self.assertNotIn("confidence", legacy)
+        self.assertEqual(legacy["superseded_by"], "att_new")
+        self.assertEqual(item["verdict"], "correct")
+
+    def test_assessment_id_recorded_for_cat(self):
+        self._record()
+        lr.record_verdict(self.SID, "assessment:sb", stem="条件概率题干",
+                          verdict="correct", student_answer="B", score=1.0,
+                          source_kind="assessment", attempt_id="att_c1",
+                          assessment_id="asmt_abc123")
+        item = lr.list_records(self.SID)[0]
+        self.assertEqual(item.get("assessment_id"), "asmt_abc123")
+
+    def test_pre_w2_ledger_reconciles_after_upgrade(self):
+        """W2 验收「旧资产数量与来源状态对账通过」：升级写入不改记录数量、
+        既有顶层判定可读、来源状态语义保留。"""
+        lr._save(self.SID, {"records": [
+            {"record_id": "r1", "session_id": "chat_a", "stem": "旧题一",
+             "verdict": "wrong", "student_answer": "A", "score": 0.0,
+             "source_kind": "chat", "source_status": "active",
+             "created_at": 1.0, "updated_at": 2.0},
+            {"record_id": "r2", "session_id": "chat_a", "stem": "旧题二",
+             "verdict": "", "student_answer": "", "score": None,
+             "source_kind": "chat", "source_status": "active",
+             "created_at": 3.0, "updated_at": 3.0},
+        ]})
+        before = {r["record_id"]: r for r in lr.list_records(self.SID)}
+        self.assertEqual(len(before), 2)
+        # 对旧题一再判分（升级路径）。
+        lr.record_verdict(self.SID, "chat_a", stem="旧题一",
+                          verdict="partial", student_answer="半个答案",
+                          score=0.5, attempt_id="att_up1")
+        after = {r["record_id"]: r for r in lr.list_records(self.SID)}
+        self.assertEqual(set(after), set(before))       # 数量不变
+        self.assertEqual(after["r1"]["verdict"], "partial")
+        self.assertEqual(after["r1"]["score"], 0.5)
+        self.assertEqual(after["r1"]["source_status"], "active")
+        self.assertEqual(after["r2"]["verdict"], "")     # 未触碰
+        self.assertEqual(len(after["r1"]["attempts"]), 2)
+
+
 def _mock_student_model() -> MagicMock:
     """graph 命中 + memory 命中两个解析源（name 须逐一赋值，绕开
     MagicMock(name=...) 的命名陷阱）。"""

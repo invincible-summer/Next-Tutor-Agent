@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import json
 import re
+import uuid
 from typing import Any, Callable
 
 from .config import settings
@@ -230,8 +231,12 @@ async def generate_verified_questions(
                      "reason": b.get("_drop_reason", ""),
                      "critic_answer": b.get("_critic_answer", "")} for b in bad]
         if questions:
+            # W2/A14: a per-set prefix makes delivered question ids unique
+            # across sets — bare 1..N renumbering made every set's "1" the
+            # same "question" in the ledger and M2 events.
+            set_uid = uuid.uuid4().hex[:8]
             for i, q in enumerate(questions, 1):
-                q["id"] = i
+                q["id"] = f"q_{set_uid}_{i}"
             meta["answer_verified"] = mode != "off" and meta["critic"] != "error"
             return questions, meta
     return [], meta

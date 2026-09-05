@@ -151,17 +151,23 @@ class TestQuestionVerifiedFlag(unittest.TestCase):
 
 
 class TestGenerateVerified(unittest.TestCase):
-    def test_full_pipeline_drops_ill_formed_and_renumbers(self):
+    def test_full_pipeline_drops_ill_formed_and_assigns_stable_ids(self):
         from app.core.quiz_verify import generate_verified_questions
         good, bad_letter = _q(1), _q(2, answer="E")
-        llm = QueueLLM([_gen_json([good, bad_letter]), _critic_json([(1, "correct")])])
+        llm = QueueLLM([_gen_json([good, bad_letter, _q(3)]),
+                        _critic_json([(1, "correct"), (3, "correct")])])
         questions, meta = asyncio.run(generate_verified_questions(
             llm, make_prompt=lambda: "p", parse=lambda raw: json.loads(raw)["questions"],
             topic="浮力", grade="初中", temperature=0.4, max_tokens=1000))
-        self.assertEqual(len(questions), 1)
-        self.assertEqual(questions[0]["id"], 1)
+        self.assertEqual(len(questions), 2)
         self.assertEqual(meta["dropped_ill_formed"], 1)
         self.assertTrue(meta["answer_verified"])
+        # W2/A14：每套唯一前缀 + 套内序号——跨套不再共用裸数字 id。
+        qid1, qid2 = questions[0]["id"], questions[1]["id"]
+        self.assertRegex(qid1, r"^q_[0-9a-f]{8}_1$")
+        self.assertRegex(qid2, r"^q_[0-9a-f]{8}_2$")
+        set_uid = qid1.rsplit("_", 1)[0]
+        self.assertEqual(qid2.rsplit("_", 1)[0], set_uid)
 
     def test_all_flagged_triggers_one_regeneration(self):
         from app.core.quiz_verify import generate_verified_questions
