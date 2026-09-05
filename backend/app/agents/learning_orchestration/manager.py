@@ -137,16 +137,26 @@ class LearningOrchestrationService:
             state = self._load(student_id)
             changed = False
 
-            # SRS: if a concept was touched, create/update its review card
+            # SRS: if a concept was touched, create/update its review card.
+            # A07（updatePlan.md）：exposure（只听讲、无作答判定）与 unknown
+            # 判定都只是「接触」——登记/建卡、安排首次检查，但不喂给 SM-2
+            # 通过路径，否则听两轮课也会被当成两次成功召回，复习间隔被
+            # 无证据拉长。只有有效 recall 判定才更新复习质量。
             if concept:
                 cid = concept.strip()
                 card = state.review_queue.get(cid)
-                quality = srs.quality_from_verdict(verdict) if verdict else 3
-                if card is None:
-                    card = srs.create_card(cid, concept_name=cid, now=now)
-                card = srs.update_review(card, quality, now=now)
-                state.review_queue[cid] = card
-                changed = True
+                quality = srs.quality_from_verdict(verdict) if verdict else None
+                if quality is None:
+                    if card is None:
+                        card = srs.create_card(cid, concept_name=cid, now=now)
+                        state.review_queue[cid] = card
+                        changed = True
+                else:
+                    if card is None:
+                        card = srs.create_card(cid, concept_name=cid, now=now)
+                    card = srs.update_review(card, quality, now=now)
+                    state.review_queue[cid] = card
+                    changed = True
 
             # habit refresh (read-only over the unified activity day-union,
             # the same L1 source M8 reads) + streak-threshold detect
@@ -1051,7 +1061,10 @@ class LearningOrchestrationService:
 
     def submit_review(self, student_id: str, *, concept_id: str,
                       quality: int, now: float | None = None) -> dict[str, Any]:
-        """应用一次 SM-2 反馈（如 记得5/模糊3/忘了1），返回更新后的卡片。"""
+        """应用一次 SM-2 反馈（如 记得5/模糊3/忘了1），返回更新后的卡片。
+
+        自评可调日程，但与作答证据分开标记（A07）：事件带
+        ``source="self_report"``，下游统计有效召回时不与 quiz 判定混算。"""
         try:
             cid = str(concept_id or "").strip()
             state = self._load(student_id)
@@ -1064,7 +1077,8 @@ class LearningOrchestrationService:
                 type="srs_review",
                 payload={"concept_id": cid,
                          "quality": max(0, min(5, int(quality))),
-                         "next_review": card.next_review}))
+                         "next_review": card.next_review,
+                         "source": "self_report"}))
             return card.to_dict()
         except Exception:
             return {}

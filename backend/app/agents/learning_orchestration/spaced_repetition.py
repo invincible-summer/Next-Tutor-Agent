@@ -113,7 +113,7 @@ def due_cards(review_queue: dict[str, ReviewItem], *,
     return due[:limit]
 
 
-def quality_from_verdict(verdict: str) -> int:
+def quality_from_verdict(verdict: str) -> int | None:
     """Map an M4 quiz verdict string to an SM-2 quality [0,5].
 
     M4 verdicts are correctness labels ([correct/partial/wrong] or the zh
@@ -121,6 +121,11 @@ def quality_from_verdict(verdict: str) -> int:
     M9: after a quiz is graded, the caller feeds the verdict here to get the
     SRS quality, then update_review schedules the next review. The mastery
     update (BKT) is M2's separate, independent responsibility.
+
+    Returns None for ``unknown``/unrecognized verdicts: without valid recall
+    evidence there is NO SM-2 observation (updatePlan.md A07) — the caller
+    must register contact only (create/refresh the card, schedule the first
+    check) instead of extending the review interval.
     """
     v = (verdict or "").lower().strip()
     if v in ("correct", "对", "right"):
@@ -129,5 +134,5 @@ def quality_from_verdict(verdict: str) -> int:
         return 3
     if v in ("wrong", "错", "incorrect"):
         return 1
-    # unknown verdict -> assume a difficult-but-not-blackout recall
-    return 3
+    # unknown verdict -> no valid recall evidence, no SM-2 update
+    return None

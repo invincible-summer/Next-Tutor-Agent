@@ -280,7 +280,12 @@ class TestSpacedRepetition(unittest.TestCase):
         self.assertEqual(spaced_repetition.quality_from_verdict("部分对"), 3)
         self.assertEqual(spaced_repetition.quality_from_verdict("wrong"), 1)
         self.assertEqual(spaced_repetition.quality_from_verdict("错"), 1)
-        self.assertEqual(spaced_repetition.quality_from_verdict("unknown"), 3)
+
+    def test_quality_from_verdict_unknown_is_no_evidence(self):
+        """A07：unknown 不是有效召回证据——无 SM-2 观测，调用方只登记接触。"""
+        self.assertIsNone(spaced_repetition.quality_from_verdict("unknown"))
+        self.assertIsNone(spaced_repetition.quality_from_verdict(""))
+        self.assertIsNone(spaced_repetition.quality_from_verdict("别的什么"))
 
 
 # ---------------------------------------------------------------------------
@@ -605,6 +610,40 @@ class TestManager(unittest.TestCase):
         svc.record_turn(student_id="s1", concept="导数", verdict="correct")
         summary = svc.summary("s1")
         self.assertIn("导数", summary["review_queue"])
+
+    def test_record_turn_exposure_only_does_not_grow_srs(self):
+        """A07：无作答判定的纯讲解（exposure）只建卡安排首检，
+        不进 SM-2 通过路径——听两轮课不等于两次成功召回。"""
+        svc = get_orchestration_service()
+        svc.add_goal("s1", title="test")
+        svc.record_turn(student_id="s1", concept="积分", verdict="")
+        svc.record_turn(student_id="s1", concept="积分", verdict="")
+        summary = svc.summary("s1")
+        card = summary["review_queue"]["积分"]
+        self.assertEqual(card["repetitions"], 0)
+        self.assertEqual(card["interval"], 0)
+
+    def test_record_turn_unknown_verdict_does_not_grow_srs(self):
+        """A07：unknown 判定同样不延长复习间隔。"""
+        svc = get_orchestration_service()
+        svc.add_goal("s1", title="test")
+        svc.record_turn(student_id="s1", concept="概率", verdict="correct")
+        svc.record_turn(student_id="s1", concept="概率", verdict="unknown")
+        summary = svc.summary("s1")
+        card = summary["review_queue"]["概率"]
+        self.assertEqual(card["repetitions"], 1)  # 仅第一次有效判定计入
+        self.assertEqual(card["interval"], 1)
+
+    def test_submit_review_marks_self_report_source(self):
+        """A07：自评反馈事件带 source=self_report，与作答证据分开统计。"""
+        svc = get_orchestration_service()
+        svc.upsert_review_card("s1", concept_id="note:n1")
+        card = svc.submit_review("s1", concept_id="note:n1", quality=5)
+        self.assertEqual(card["repetitions"], 1)
+        events = store.read_events("s1")
+        srs = [e for e in events if e.type == "srs_review"]
+        self.assertTrue(srs)
+        self.assertEqual(srs[-1].payload.get("source"), "self_report")
 
     def test_record_turn_updates_srs_on_fail(self):
         svc = get_orchestration_service()
