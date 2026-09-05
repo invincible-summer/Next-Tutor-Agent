@@ -833,6 +833,21 @@ export interface OrchSchedule {
   exam_dates: Record<string, number>;
 }
 
+/** W4 容量可行性：确定性按日负载 vs 时间预算（advisory）。 */
+export interface OrchCapacityDay {
+  /** YYYY-MM-DD */
+  day: string;
+  planned_minutes: number;
+  tasks: number;
+  overload: boolean;
+}
+
+export interface OrchCapacity {
+  daily_minutes: number;
+  days: OrchCapacityDay[];
+  overload_days: string[];
+}
+
 /** GET /orchestration/plan — 异常兜底时 goals/goal_states/schedule/habit 退化为空。 */
 export interface OrchPlanSummary {
   student_id: string;
@@ -850,6 +865,8 @@ export interface OrchPlanSummary {
   pending_today: number;
   /** 进度与计划出现偏差，建议重新规划（前端 banner 引导）。 */
   needs_replan: boolean;
+  /** W4：按日负载报告（读侧聚合，缺失时视为无超载）。 */
+  capacity?: OrchCapacity;
   event_count: number;
   events_processed: number;
   created_at: number;

@@ -12,7 +12,7 @@ import { ConfirmModal, Modal } from "@/components/ui/Modal";
 import { Pager, paged } from "@/components/ui/Pager";
 import { cn } from "@/lib/cn";
 import type { OrchTaskCreatePayload, OrchTaskPatchPayload } from "@/lib/api-modules";
-import type { OrchDailyTask } from "@/lib/types-modules";
+import type { OrchCapacity, OrchDailyTask } from "@/lib/types-modules";
 import { taskDisplayName, taskGoLabel, useTaskLaunch } from "./task-link";
 
 type Tr = (key: string, fallback?: string) => string;
@@ -275,6 +275,7 @@ export function TodayCard({
   tasks,
   pendingCount,
   tr,
+  capacity,
   completingId,
   onComplete,
   onAdd,
@@ -284,6 +285,8 @@ export function TodayCard({
   tasks: OrchDailyTask[];
   pendingCount: number;
   tr: Tr;
+  /** W4 容量可行性（/plan 附载；null/undefined = 无数据，不展示）。 */
+  capacity?: OrchCapacity | null;
   completingId: string | null;
   onComplete: (id: string) => void;
   onAdd: (payload: OrchTaskCreatePayload) => Promise<boolean>;
@@ -310,6 +313,15 @@ export function TodayCard({
   const open = rest.filter((t) => t.status !== "completed");
   const done = rest.filter((t) => t.status === "completed");
   const ordered = [...carryover, ...open, ...done];
+
+  // W4 容量可行性：今日超载 advisory。渲染纯净——day 取自任务行自身
+  //（无任务的天不可能超载，不引入渲染期时钟）。
+  const todayLoad = (() => {
+    if (!capacity?.days?.length) return null;
+    const days = new Set(tasks.map((t) => t.day).filter(Boolean));
+    const entry = capacity.days.find((d) => days.has(d.day));
+    return entry?.overload ? entry : null;
+  })();
 
   const submitModal = async (payload: OrchTaskCreatePayload | { id: string; patch: OrchTaskPatchPayload }) => {
     const ok =
@@ -364,6 +376,13 @@ export function TodayCard({
         {tabBtn("plan", tr("today.tab.plan"), planTasks.filter((t) => t.status !== "completed").length)}
         {tabBtn("review", tr("today.tab.review"), reviewPending)}
       </div>
+      {todayLoad && (
+        <p className="mb-2 rounded-[8px] border border-warning/40 bg-warning/5 px-3 py-1.5 text-[0.7rem] text-warning">
+          {tr("today.overload", "今日共 %p 分钟，超出计划的 %d 分钟")
+            .replace("%p", String(todayLoad.planned_minutes))
+            .replace("%d", String(capacity?.daily_minutes ?? ""))}
+        </p>
+      )}
       {ordered.length === 0 ? (
         <p className="py-3 text-center text-xs text-muted">
           {tab === "review" ? tr("today.review.empty") : tr("today.empty")}

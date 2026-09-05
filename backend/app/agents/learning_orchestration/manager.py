@@ -1296,6 +1296,8 @@ class LearningOrchestrationService:
             # 学生的重规划信号静默回退游客命名空间（审查 A13 复核确认未修）。
             out["needs_replan"] = learning_planner.needs_replan(
                 state, self._mastery_view_safe(student_id))
+            # W4 容量可行性：确定性按日负载 vs 时间预算（advisory，不阻断）。
+            out["capacity"] = schedule_engine.capacity_report(state)
         except Exception:
             out["needs_replan"] = False
         return out

@@ -115,3 +115,38 @@ def plan_week_dates(*, week_index: int, week_start: float | None = None,
         if day_available(schedule, day_ts):
             days.append(day_ts)
     return days
+
+
+def capacity_report(state, *, limit_days: int = 30) -> dict[str, Any]:
+    """Deterministic per-day load vs time budget (W4 容量可行性).
+
+    Sums estimate_minutes over all persisted daily tasks grouped by day and
+    flags days whose planned load exceeds schedule.daily_minutes. Pure read
+    over the state, zero LLM — the advisory counterpart to slots_per_day
+    (which bounds PIPELINE-generated tasks; user tasks and day moves were
+    previously invisible to any feasibility check). Consumers surface it as
+    a warning, never a block: the student stays free to over-plan a day
+    (§11.1 用户可调整自己的计划).
+    """
+    try:
+        daily = max(1, int(getattr(state.schedule, "daily_minutes", 45) or 45))
+        per_day: dict[str, dict[str, Any]] = {}
+        for t in (getattr(state, "daily_tasks", None) or []):
+            day = str(getattr(t, "day", "") or "")
+            if not day:
+                continue
+            entry = per_day.setdefault(
+                day, {"day": day, "planned_minutes": 0, "tasks": 0})
+            entry["planned_minutes"] += max(0, int(
+                getattr(t, "estimate_minutes", 0) or 0))
+            entry["tasks"] += 1
+        days = sorted(per_day.values(), key=lambda d: d["day"])[-limit_days:]
+        for d in days:
+            d["overload"] = bool(d["planned_minutes"] > daily)
+        return {
+            "daily_minutes": daily,
+            "days": days,
+            "overload_days": [d["day"] for d in days if d["overload"]],
+        }
+    except Exception:
+        return {"daily_minutes": 45, "days": [], "overload_days": []}

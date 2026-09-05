@@ -459,6 +459,7 @@ export default function OrchestrationPage() {
                 tasks={today}
                 pendingCount={plan!.pending_today ?? today.filter((t) => t.status === "pending").length}
                 tr={tr}
+                capacity={plan!.capacity ?? null}
                 completingId={completingId}
                 onComplete={handleComplete}
                 onAdd={handleAddTask}

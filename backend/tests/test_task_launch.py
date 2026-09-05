@@ -217,6 +217,66 @@ class TestManualCompletion(LaunchTestBase):
         self.assertEqual(ep.status, learning_episodes.EPISODE_COMPLETED)
 
 
+class TestCapacityFeasibility(LaunchTestBase):
+    """W4 容量可行性：确定性按日负载 vs 时间预算（advisory，不阻断）。"""
+
+    def test_capacity_report_flags_overloaded_days(self):
+        from app.agents.learning_orchestration import schedule_engine
+        day = _day_str(time.time())
+        state = orch_store.load_state(self.alice.id)
+        state.schedule.daily_minutes = 60
+        state.daily_tasks = [
+            DailyTask(id="a", day=day, concept_id="c1", estimate_minutes=30),
+            DailyTask(id="b", day=day, concept_id="c2", estimate_minutes=40),
+            DailyTask(id="c", day="2099-01-01", concept_id="c3",
+                      estimate_minutes=15),
+        ]
+        report = schedule_engine.capacity_report(state)
+        self.assertEqual(report["daily_minutes"], 60)
+        by_day = {d["day"]: d for d in report["days"]}
+        self.assertEqual(by_day[day]["planned_minutes"], 70)
+        self.assertTrue(by_day[day]["overload"])
+        self.assertEqual(by_day["2099-01-01"]["planned_minutes"], 15)
+        self.assertFalse(by_day["2099-01-01"]["overload"])
+        self.assertEqual(report["overload_days"], [day])
+
+    def test_plan_summary_carries_capacity(self):
+        r = self.client.get("/api/v1/orchestration/plan", headers=self.headers)
+        self.assertEqual(r.status_code, 200)
+        body = r.json()
+        self.assertIn("capacity", body)
+        self.assertIn("daily_minutes", body["capacity"])
+        self.assertEqual(body["capacity"]["overload_days"], [])
+
+    def test_add_task_response_warns_on_overload(self):
+        day = _day_str(time.time())
+        r = self.client.post(
+            "/api/v1/orchestration/task",
+            json={"day": day, "title": "长任务", "estimate_minutes": 90},
+            headers=self.headers)
+        self.assertEqual(r.status_code, 200)
+        body = r.json()
+        # 默认预算 45 分钟 < 90 → advisory 载荷返回但任务照常创建。
+        self.assertTrue(body["ok"])
+        self.assertEqual(body["capacity_warning"]["day"], day)
+        self.assertEqual(body["capacity_warning"]["daily_minutes"], 45)
+        self.assertEqual(body["capacity_warning"]["planned_minutes"], 90)
+
+    def test_schedule_patch_recomputes_capacity(self):
+        day = _day_str(time.time())
+        self.client.post(
+            "/api/v1/orchestration/task",
+            json={"day": day, "title": "t", "estimate_minutes": 30},
+            headers=self.headers)
+        r = self.client.patch(
+            "/api/v1/orchestration/schedule",
+            json={"daily_minutes": 20},
+            headers=self.headers)
+        body = r.json()
+        self.assertTrue(body["ok"])
+        self.assertIn(day, body["capacity"]["overload_days"])
+
+
 class TestStorageRegistration(StorageSandboxTestCase):
     """AGENTS 铁律：新存储根必须被账号清除与孤儿扫描覆盖（students/ 前缀
     通用清扫已覆盖，这里钉死证据）。"""

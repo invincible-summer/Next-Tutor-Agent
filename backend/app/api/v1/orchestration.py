@@ -21,7 +21,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 
 from app.agents.learning_orchestration import get_orchestration_service
-from app.agents.learning_orchestration import task_executor
+from app.agents.learning_orchestration import schedule_engine, task_executor
 from app.identity.deps import resolve_student_id
 
 router = APIRouter(prefix="/orchestration", tags=["orchestration"])
@@ -217,6 +217,26 @@ async def orchestration_regenerate(student_id: str = Depends(resolve_student_id)
     return {"ok": ok, "reason": reason, "weeks": weeks}
 
 
+def _day_capacity_warning(student_id: str, day: str) -> dict[str, Any] | None:
+    """W4 容量可行性：当日负载超预算时的 advisory 载荷（不阻断写入）。
+    None = 该日在预算内或读取失败（静默降级，永不抛）。"""
+    try:
+        if not day:
+            return None
+        svc = get_orchestration_service()
+        report = schedule_engine.capacity_report(svc._load(student_id))
+        for entry in report.get("days", []):
+            if entry.get("day") == day and entry.get("overload"):
+                return {
+                    "day": day,
+                    "planned_minutes": int(entry.get("planned_minutes", 0)),
+                    "daily_minutes": int(report.get("daily_minutes", 0)),
+                }
+    except Exception:
+        pass
+    return None
+
+
 @router.post("/task")
 def orchestration_add_task(body: TaskCreateBody,
                            student_id: str = Depends(resolve_student_id)) -> dict:
@@ -231,22 +251,39 @@ def orchestration_add_task(body: TaskCreateBody,
             milestone_id=body.milestone_id)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
-    return {"ok": True, "task": task.to_dict()}
+    out = {"ok": True, "task": task.to_dict()}
+    warning = _day_capacity_warning(student_id, task.day)
+    if warning:
+        out["capacity_warning"] = warning
+    return out
 
 
 @router.patch("/task/{task_id}")
 def orchestration_update_task(task_id: str, body: TaskPatchBody,
                               student_id: str = Depends(resolve_student_id)) -> dict:
     """Patch mutable fields of a daily task. 400 on illegal values."""
+    svc = get_orchestration_service()
     try:
-        ok = get_orchestration_service().update_task(
+        ok = svc.update_task(
             student_id, task_id, title=body.title, day=body.day,
             kind=body.kind, phase=body.phase,
             estimate_minutes=body.estimate_minutes, priority=body.priority,
             milestone_id=body.milestone_id, status=body.status)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
-    return {"ok": ok}
+    out: dict[str, Any] = {"ok": ok}
+    # 容量 advisory：改期或改时长后重算受影响日（无 day 字段时取任务当前日）。
+    if body.day is not None or body.estimate_minutes is not None:
+        try:
+            day = body.day or next(
+                (t.day for t in svc._load(student_id).daily_tasks
+                 if t.id == task_id), "")
+            warning = _day_capacity_warning(student_id, day)
+            if warning:
+                out["capacity_warning"] = warning
+        except Exception:
+            pass
+    return out
 
 
 @router.delete("/task/{task_id}")
@@ -439,11 +476,18 @@ def orchestration_launch_task(task_id: str,
 def orchestration_patch_schedule(body: SchedulePatchBody,
                                  student_id: str = Depends(resolve_student_id)) -> dict:
     """Patch the schedule config (daily time budget)."""
-    out = get_orchestration_service().update_schedule(
-        student_id, daily_minutes=body.daily_minutes)
+    svc = get_orchestration_service()
+    out = svc.update_schedule(student_id, daily_minutes=body.daily_minutes)
     if out is None:
         raise HTTPException(status_code=500, detail="schedule update failed")
-    return {"ok": True, "schedule": out}
+    # W4 容量可行性：预算变化后重算全日负载（advisory——存量超载日可见，
+    # 不回滚学生的既有任务）。
+    resp: dict[str, Any] = {"ok": True, "schedule": out}
+    try:
+        resp["capacity"] = schedule_engine.capacity_report(svc._load(student_id))
+    except Exception:
+        pass
+    return resp
 
 
 @router.get("/habit")
