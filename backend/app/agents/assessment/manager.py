@@ -342,6 +342,10 @@ class AssessmentManager:
                 return session, None, reason
             session.current_difficulty = next_difficulty(session)
             q = await self._gen_for_session(session, llm)
+            # W3/D10: a probe decision (active mode) targeted this generation;
+            # consume the directive whether or not generation succeeded so a
+            # retry regenerates from the default goal.
+            session.probe_assesses = []
             if q is not None:
                 session.questions.append(q)
                 try:
@@ -408,10 +412,33 @@ class AssessmentManager:
                                subject=session.ctx.subject,
                                source_kind="assessment",
                                attempt_id=attempt_id,
-                               assessment_id=session.assessment_id)
+                               assessment_id=session.assessment_id,
+                               criterion_results=(result.structured or {}).get(
+                                   "criterion_results"),
+                               hypotheses=(result.structured or {}).get("hypotheses"))
             except Exception:
                 pass
+            # W3/D10: hard caps (should_stop, unchanged pure rules) always win;
+            # only when they allow continuing may the structured analysis's
+            # suggestion apply (active) or be recorded for comparison (shadow).
             reason = should_stop(session)
+            try:
+                from ...core.config import settings
+                mode = settings.structured_assessment_mode
+            except Exception:
+                mode = "off"
+            decision = None
+            if mode in ("shadow", "active") and result.structured:
+                from .continuation_policy import decide_continuation
+                decision = decide_continuation(
+                    session, result.structured, hard_stop=reason)
+            if mode == "shadow" and decision is not None:
+                session.continuation_shadow = decision.to_dict()
+            elif (mode == "active" and decision is not None and not reason):
+                if decision.stop_reason:
+                    reason = decision.stop_reason
+                elif decision.probe_assesses:
+                    session.probe_assesses = list(decision.probe_assesses)
             if reason:
                 session.status = ("mastered" if reason == "mastered" else "stopped")
                 session.stop_reason = reason
@@ -441,13 +468,21 @@ class AssessmentManager:
 
     async def _gen_for_session(self, session: AssessmentSession,
                                llm: AsyncLLMClient) -> Question | None:
-        """Generate one question at the session's current difficulty."""
+        """Generate one question at the session's current difficulty.
+
+        W3/D10: pending probe_assesses (an active-mode probe decision) are
+        injected as THIS question's targeted sub-abilities; the caller clears
+        the directive after the attempt."""
         from .generator import generate_question
+        assesses = list(session.goal.assesses)
+        for probe in (session.probe_assesses or []):
+            if probe and probe not in assesses:
+                assesses.append(probe)
         goal = AssessmentGoal(
             concept=session.goal.concept or session.ctx.concept,
             purpose="adaptive", difficulty=session.current_difficulty,
             count=session.goal.count, q_type=session.goal.q_type,
-            assesses=list(session.goal.assesses),
+            assesses=assesses,
             forbidden=list(session.goal.forbidden),
             bloom_focus=session.goal.bloom_focus)
         session.ctx.base_difficulty = session.current_difficulty
@@ -472,6 +507,9 @@ def _session_from_dict(data: dict[str, Any]) -> AssessmentSession:
             current_difficulty=int(data.get("current_difficulty", 2)),
             status=str(data.get("status", "active") or "active"),
             stop_reason=str(data.get("stop_reason", "") or ""),
+            probe_assesses=[str(p) for p in (data.get("probe_assesses") or [])
+                            if str(p).strip()],
+            continuation_shadow=dict(data.get("continuation_shadow", {}) or {}),
             created_at=float(data.get("created_at", 0.0)),
             updated_at=float(data.get("updated_at", 0.0)))
     except Exception:

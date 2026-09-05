@@ -34,6 +34,9 @@ STOP_MASTERED = "mastered"
 STOP_CONFIRMED_GAP = "confirmed_gap"
 STOP_MAX = "max_reached"
 STOP_OSCILLATING = "oscillating"
+# W3/D10：结构化 continuation 建议落盘的新停止理由（前端映射为中性表述）。
+STOP_SUFFICIENT = "sufficient_evidence"
+STOP_INSUFFICIENT = "insufficient_evidence"
 
 
 def new_assessment_id() -> str:
@@ -65,6 +68,11 @@ class AssessmentSession:
     current_difficulty: int = 2
     status: str = "active"   # active | mastered | stuck | stopped | abandoned
     stop_reason: str = ""
+    # W3/D10：LLM continuation 建议（active 模式生效；shadow 只落盘对照）。
+    # probe_assesses 是下一题要定向检测的子能力（生成后消费清空）；
+    # continuation_shadow 是未生效建议的审计副本。
+    probe_assesses: list[str] = field(default_factory=list)
+    continuation_shadow: dict[str, Any] = field(default_factory=dict)
     created_at: float = field(default_factory=time.time)
     updated_at: float = field(default_factory=time.time)
 
@@ -77,6 +85,8 @@ class AssessmentSession:
             "results": [r.to_dict() for r in self.results],
             "current_difficulty": self.current_difficulty,
             "status": self.status, "stop_reason": self.stop_reason,
+            "probe_assesses": list(self.probe_assesses),
+            "continuation_shadow": dict(self.continuation_shadow),
             "created_at": self.created_at, "updated_at": self.updated_at,
         }
 
