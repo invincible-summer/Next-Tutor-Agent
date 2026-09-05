@@ -17,7 +17,7 @@ import json
 import logging
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
@@ -302,7 +302,8 @@ async def grade_answer(req: GradeRequest,
                     raw_grade=full, student_id=student_id,
                     is_variant=_is_variant_set(qh),
                     question_verified=question_verified(qh.get("verification")),
-                    attempt_id=attempt_id)
+                    attempt_id=attempt_id,
+                    assistance="hint" if qd.get("hint_requested") else "")
             except Exception:
                 result = None
         # fall back to the legacy inline parse if the engine is off / failed,
@@ -312,6 +313,10 @@ async def grade_answer(req: GradeRequest,
             body = result.feedback
             done = {"verdict": verdict, "feedback": body, "full": full,
                     "score": result.score, "concept_status": result.concept_status}
+            # W3/F01: the structured block (first error / hypotheses /
+            # next_step) rides the done payload for the card's detail panel.
+            if result.structured:
+                done["structured"] = result.structured
         else:
             verdict = None
             stripped = full.lstrip()
@@ -478,7 +483,8 @@ async def record_answer(req: RecordRequest,
             question, req.student_answer, ctx, student_id=student_id,
             is_variant=_is_variant_set(qh),
             question_verified=question_verified(qh.get("verification")),
-            attempt_id=attempt_id)
+            attempt_id=attempt_id,
+            assistance="hint" if qd.get("hint_requested") else "")
         _finalize(result.verdict)
         return {"status": "ok", "attempt_id": attempt_id,
                 "result": result.to_dict()}
@@ -487,6 +493,65 @@ async def record_answer(req: RecordRequest,
         _finalize(result.verdict)
         return {"status": "error", "message": str(e),
                 "result": result.to_dict()}
+
+
+@router.get("/hint")
+async def quiz_hint(session_id: str = Query(...), stem: str = Query(...),
+                    student_id: str = Depends(resolve_student_id)) -> dict:
+    """F02 关键步骤提示：从该题的冻结量规派生（W3/D04），只含步骤描述、
+    不含答案与判定——先答后揭晓原则不破。提示请求由服务端记录
+   （hint_requested 标记随题落盘），判分时自动携带 assistance=hint；
+    客户端自报的帮助状态一律不采信（A02 纪律）。"""
+    session = _load_owned_session(session_id, student_id)
+    snap = _resolve_question_snapshot(session, stem)
+    if snap is None:
+        return {"status": "question_unresolved", "hint": ""}
+    qd, _qh = snap
+    if qd.get("result"):
+        return {"status": "already_answered", "hint": ""}
+    rubric = qd.get("rubric") if isinstance(qd.get("rubric"), dict) else {}
+    criteria = rubric.get("criteria") or []
+    if not criteria:
+        return {"status": "no_rubric", "hint": "",
+                "message": "这道题还没有关键步骤提示。"}
+    steps = [f"{i}. {str(c.get('description') or '').strip()}"
+             for i, c in enumerate(criteria[:4], 1) if c.get("description")]
+    hint = "这道题可以按这些关键步骤来检查：\n" + "\n".join(steps)
+    # load-modify-save（锁内重载，避免覆盖并发的判分写回）
+    try:
+        with file_lock(session_path(session_id)):
+            fresh = load_session(session_id)
+            if fresh is not None and _session_owned_by(fresh, student_id):
+                snap2 = _resolve_question_snapshot(fresh, stem)
+                if snap2 is not None:
+                    q2, _ = snap2
+                    if not q2.get("result"):   # 期间已作答则不记
+                        q2["hint_requested"] = True
+                        q2["hint_count"] = int(q2.get("hint_count") or 0) + 1
+                        save_session(fresh)
+    except Exception:
+        pass
+    return {"status": "ok", "hint": hint}
+
+
+class DisputeRequest(BaseModel):
+    attempt_id: str = Field(..., min_length=4, description="被异议的作答 attempt id")
+    reason: str = Field("", max_length=200, description="异议理由")
+
+
+@router.post("/dispute")
+async def quiz_dispute(req: DisputeRequest,
+                       student_id: str = Depends(resolve_student_id)) -> dict:
+    """F05 异议最小形式：标记该 attempt 为 disputed（账本审计）。
+
+    保守语义：异议不抹除证据、不改当前投影；修正走 W2 的重答 supersede
+    路径（同一道题重新作答会 supersede 旧判定并触发 BKT 重放）。完整的
+    独立复核 job（§9.2 POST /learning/assessments/{id}/review）属后续迭代。"""
+    from app.core.learning_records import flag_attempt_disputed
+    ok = flag_attempt_disputed(student_id, req.attempt_id.strip(),
+                               reason=req.reason)
+    return {"status": "ok" if ok else "not_found",
+            "message": "" if ok else "未找到属于你的这条作答记录。"}
 
 
 @router.get("/recent")

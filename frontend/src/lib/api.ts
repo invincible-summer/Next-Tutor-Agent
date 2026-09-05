@@ -767,6 +767,39 @@ export async function getUxGreeting(lang: string, grade: string): Promise<UxGree
 
 export type GradeVerdict = "correct" | "partial" | "wrong" | null;
 
+/** W3/D06 结构化批改明细（F01 展示；由服务端按冻结量规计算）。 */
+export interface QuizStructuredFeedback {
+  first_error?: { description?: string; preceding_correct?: string };
+  hypotheses?: { kind?: string; statement?: string }[];
+  uncertainties?: string[];
+  feedback?: { strength?: string; next_step?: string };
+  score?: number | null;
+  rubric_id?: string;
+}
+
+/** W3/F02 关键步骤提示（量规派生；服务端记录 assistance）。 */
+export async function fetchQuizHint(sessionId: string, stem: string): Promise<{
+  status: string; hint: string; message?: string;
+}> {
+  const res = await apiFetch(
+    `${BASE}/quiz/hint?session_id=${encodeURIComponent(sessionId)}&stem=${encodeURIComponent(stem)}`);
+  if (!res.ok) throw new Error(`Hint failed: ${res.status}`);
+  return res.json();
+}
+
+/** W3/F05 异议标记（账本审计；修正走重答 supersede）。 */
+export async function disputeQuizAttempt(attemptId: string, reason = ""): Promise<{
+  status: string; message?: string;
+}> {
+  const res = await apiFetch(`${BASE}/quiz/dispute`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ attempt_id: attemptId, reason }),
+  });
+  if (!res.ok) throw new Error(`Dispute failed: ${res.status}`);
+  return res.json();
+}
+
 export async function recordAnswer(body: {
   stem: string;
   q_type: string;
@@ -807,7 +840,9 @@ export async function* gradeAnswer(
 ): AsyncGenerator<
   | { type: "delta"; content: string }
   | { type: "retry"; attempt?: number; reason?: string }
-  | { type: "done"; verdict: GradeVerdict; feedback: string; full: string }
+  | { type: "done"; verdict: GradeVerdict; feedback: string; full: string;
+      score?: number; concept_status?: string; attempt_id?: string;
+      structured?: QuizStructuredFeedback }
   | { type: "error"; message: string }
 > {
   const res = await apiFetch(`${BASE}/quiz/grade`, {

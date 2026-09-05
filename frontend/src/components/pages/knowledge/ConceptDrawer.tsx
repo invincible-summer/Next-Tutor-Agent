@@ -8,8 +8,8 @@ import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Skeleton, ErrorNote, EmptyState } from "@/components/ui/EmptyState";
 import { MasteryRing } from "@/components/charts/MasteryRing";
-import { getConceptDetail } from "@/lib/api-modules";
-import type { ConceptDetailResp, Episode, KnowledgeNode, TeachingLogEntry } from "@/lib/types-modules";
+import { getConceptDetail, getEvidenceProfile } from "@/lib/api-modules";
+import type { ConceptDetailResp, Episode, EvidenceConcept, KnowledgeNode, TeachingLogEntry } from "@/lib/types-modules";
 import { dt, modeTone, stateTone } from "@/lib/labels";
 import { relTime } from "@/lib/format";
 import type { Lang } from "@/lib/i18n";
@@ -22,6 +22,93 @@ function Section({ title, children }: { title: string; children: React.ReactNode
       <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted">{title}</div>
       {children}
     </section>
+  );
+}
+
+const EVIDENCE_DIMENSIONS: { key: string; labelKey: string; fallback: string }[] = [
+  { key: "concept", labelKey: "evidence.dim.concept", fallback: "概念理解" },
+  { key: "procedure", labelKey: "evidence.dim.procedure", fallback: "过程操作" },
+  { key: "reasoning", labelKey: "evidence.dim.reasoning", fallback: "推理解释" },
+  { key: "transfer", labelKey: "evidence.dim.transfer", fallback: "迁移应用" },
+  { key: "retention", labelKey: "evidence.dim.retention", fallback: "延迟保持" },
+  { key: "self_check", labelKey: "evidence.dim.self_check", fallback: "自我检查" },
+];
+
+const EVIDENCE_STATUS_TONE: Record<string, "success" | "accent" | "warning" | "outline"> = {
+  demonstrated_in_scope: "success",
+  developing: "accent",
+  needs_recheck: "warning",
+  not_observed: "outline",
+};
+
+/** W3/F05 依据区：已能做什么 / 哪份作答支持 / 哪些条件未测（v2 证据投影，
+ *  读时派生）。无证据的概念不渲染——没有证据不宣称会。 */
+function EvidenceSection({
+  conceptName,
+  lang,
+  tr,
+  onDispute,
+}: {
+  conceptName: string;
+  lang: Lang;
+  tr: Tr;
+  onDispute: () => void;
+}) {
+  // 一次异步装填；setState 只发生在 promise 回调里（不在 effect 体内同步调用）。
+  const [loaded, setLoaded] = useState<{ for: string; profile: EvidenceConcept | null } | null>(null);
+  const load = useCallback(() => {
+    if (!conceptName) return;
+    getEvidenceProfile(conceptName)
+      .then((res) => {
+        setLoaded({
+          for: conceptName,
+          profile: res.status === "ok" ? res.concepts[0] ?? null : null,
+        });
+      })
+      .catch(() => { /* 无证据/失败 → 不渲染 */ });
+  }, [conceptName]);
+  useEffect(() => {
+    load();
+  }, [load]);
+  const profile = loaded?.for === conceptName ? loaded.profile : null;
+  if (!profile) return null;
+  const dim = (k: string) => profile.dimensions?.[k];
+  return (
+    <Section title={dt(lang, "evidence.title", "依据（能力证据）")}>
+      <div className="flex flex-wrap gap-1.5">
+        {EVIDENCE_DIMENSIONS.map(({ key, labelKey, fallback }) => {
+          const d = dim(key);
+          if (!d || d.status === "not_observed") {
+            return (
+              <span key={key} className="rounded-full border border-dashed border-border px-2 py-0.5 text-[11px] text-muted/70">
+                {dt(lang, labelKey, fallback)} · {dt(lang, "evidence.status.not_observed", "未测")}
+              </span>
+            );
+          }
+          return (
+            <Badge key={key} tone={EVIDENCE_STATUS_TONE[d.status] ?? "outline"} dot>
+              {dt(lang, labelKey, fallback)} · {dt(lang, `evidence.status.${d.status}`, d.status)}
+            </Badge>
+          );
+        })}
+      </div>
+      <div className="mt-2 flex flex-col gap-1">
+        <div className="text-[11px] text-muted">
+          {tr("attemptsTxt")} {profile.evidence_count} · {dt(lang, "evidence.independent", "独立作答")} {profile.independent_count}
+        </div>
+        {profile.evidence.slice(0, 3).map((ev, i) => (
+          <div key={i} className="flex items-center gap-1.5 text-[11px] text-fg-secondary">
+            <Badge tone={ev.verdict === "correct" ? "success" : ev.verdict === "partial" ? "warning" : "danger"}>
+              {ev.verdict}
+            </Badge>
+            {ev.assistance && <span className="text-muted">（{dt(lang, "evidence.assisted", "求助后完成")}）</span>}
+          </div>
+        ))}
+        <button onClick={onDispute} className="mt-1 w-fit text-[11px] text-accent transition-colors hover:text-accent-strong">
+          {dt(lang, "evidence.dispute", "对判定有异议？到测评中心重练该题")}
+        </button>
+      </div>
+    </Section>
   );
 }
 
@@ -279,6 +366,15 @@ export function ConceptDrawer({
                 </div>
               </div>
             </Section>
+          )}
+
+          {concept?.name && (
+            <EvidenceSection
+              conceptName={concept.name}
+              lang={lang}
+              tr={tr}
+              onDispute={() => router.push("/assessment")}
+            />
           )}
 
           {concept.common_errors && concept.common_errors.length > 0 && (

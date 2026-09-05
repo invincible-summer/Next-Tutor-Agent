@@ -397,6 +397,27 @@ export interface BloomWeakness {
   rate: number;
 }
 
+/** W3/F05 证据档案（v2 能力投影：概念×维度，读时派生自 events+账本）。 */
+export interface EvidenceDimension {
+  status: "demonstrated_in_scope" | "developing" | "needs_recheck" | "not_observed";
+  evidence_count: number;
+}
+export interface EvidenceConcept {
+  concept: string;
+  evidence_count: number;
+  independent_count: number;
+  dimensions: Record<string, EvidenceDimension>;
+  not_observed: string[];
+  evidence: { attempt_id: string; verdict: string; assistance?: boolean; ts?: number }[];
+}
+export interface EvidenceProfileResp {
+  status: "ok" | "empty" | "disabled" | "error";
+  concepts: EvidenceConcept[];
+  count: number;
+  dimensions: string[];
+  message?: string;
+}
+
 export interface BloomProfileResp {
   status: string;
   concepts: Record<string, { levels: Record<string, BloomLevelStat>; last_at: number }>;

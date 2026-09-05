@@ -4,7 +4,7 @@ import { Check, ChevronDown, Eye, Lightbulb, Loader2, Send, X } from "lucide-rea
 import { cn } from "@/lib/cn";
 import { useUIStore } from "@/lib/store";
 import { t } from "@/lib/i18n";
-import { gradeAnswer, recordAnswer, type GradeVerdict } from "@/lib/api";
+import { fetchQuizHint, gradeAnswer, recordAnswer, type GradeVerdict, type QuizStructuredFeedback } from "@/lib/api";
 import { Badge } from "@/components/ui/Badge";
 import { MiniMarkdown } from "./markdown";
 import type { QuizQuestion } from "@/lib/types";
@@ -45,6 +45,36 @@ export function QuizQuestionCard({
   const abortRef = useRef<AbortController | null>(null);
   const noteFiredRef = useRef(false);
   const appendAssistantNote = useChatStore((s) => s.appendAssistantNote);
+  // W3/F01 结构化批改明细（量规条目驱动；刷新后从已存 result 恢复）。
+  const [structured, setStructured] = useState<QuizStructuredFeedback | null>(
+    (savedResult as { structured?: QuizStructuredFeedback } | null)?.structured ?? null,
+  );
+  const nextStepFiredRef = useRef(false);
+  // W3/F02 关键步骤提示（量规派生；服务端记录 assistance=hint）。
+  const [hint, setHint] = useState("");
+  const [hintLoading, setHintLoading] = useState(false);
+
+  async function loadHint() {
+    if (!sessionId || hintLoading) return;
+    setHintLoading(true);
+    try {
+      const res = await fetchQuizHint(sessionId, q.stem);
+      setHint(res.status === "ok" ? res.hint : (res.message || tr("quiz.hint.none")));
+    } catch {
+      setHint(tr("quiz.hint.error"));
+    } finally {
+      setHintLoading(false);
+    }
+  }
+
+  /** F01「就此练习」：把下一步追问追加到对话流，学生在对话里回应——
+   *  D02 之后短消息/追问的指代由会话上下文保持。 */
+  function fireNextStep() {
+    const next = structured?.feedback?.next_step?.trim();
+    if (nextStepFiredRef.current || !next) return;
+    nextStepFiredRef.current = true;
+    appendAssistantNote(next);
+  }
 
   const isMC = q.type === "multiple_choice" && q.options;
   const correct = selected !== null && selected === q.answer;
@@ -138,6 +168,7 @@ export function QuizQuestionCard({
         if (ev.type === "delta") setFeedback((p) => p + ev.content);
         else if (ev.type === "done") {
           setVerdict(ev.verdict);
+          if (ev.structured) setStructured(ev.structured);
           // 完整批改讲解移到对话流底部的 agent 点评，卡片只保留判定，
           // 避免卡片与 agent 反馈内容重复。
           const fb = ev.feedback || ev.full || "";
@@ -262,7 +293,24 @@ export function QuizQuestionCard({
             {tr("quiz.reference")}
           </button>
         )}
+        {sessionId && !graded && (
+          <button
+            onClick={loadHint}
+            disabled={hintLoading || !!hint}
+            className="flex items-center gap-1 text-[0.7rem] text-muted transition-colors hover:text-accent disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {hintLoading ? <Loader2 size={12} className="animate-spin" /> : <Lightbulb size={12} />}
+            {tr("quiz.hint")}
+          </button>
+        )}
       </div>
+
+      {/* W3/F02 关键步骤提示（不含答案，先答后揭晓不破） */}
+      {hint && !graded && (
+        <div className="mt-2 rounded-[8px] border border-warning/30 bg-warning/5 px-3 py-2">
+          <p className="whitespace-pre-wrap text-[0.75rem] leading-relaxed text-fg-secondary">{hint}</p>
+        </div>
+      )}
 
       {/* 判定结果 */}
       {isMC && revealed && (
@@ -306,6 +354,42 @@ export function QuizQuestionCard({
           <button onClick={() => setRevealed(false)} className="text-[0.72rem] text-accent transition-colors hover:text-accent-strong">
             {tr("quiz.back.grading")}
           </button>
+        </div>
+      )}
+
+      {/* W3/F01 结构化明细：首个实质错误 / 此前做对的部分 / 错因假设 / 下一步 */}
+      {graded && structured && (verdict || revealed) && (
+        <div className="mt-2.5 space-y-1.5 rounded-[8px] border border-border-light bg-bg/60 px-3 py-2">
+          {!!structured.first_error?.description && (
+            <p className="text-[0.75rem] text-fg-secondary">
+              <span className="font-medium text-danger">{tr("quiz.f01.first_error")}</span>
+              {" "}{structured.first_error.description}
+              {!!structured.first_error.preceding_correct && (
+                <span className="text-muted"> · {tr("quiz.f01.correct_prefix")}{structured.first_error.preceding_correct}</span>
+              )}
+            </p>
+          )}
+          {!!structured.hypotheses?.length && (
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="text-[0.7rem] text-muted">{tr("quiz.f01.hypotheses")}</span>
+              {structured.hypotheses.slice(0, 2).map((h, i) => (
+                <Badge key={i} tone="outline">{h.statement}</Badge>
+              ))}
+            </div>
+          )}
+          {!!structured.feedback?.next_step && (
+            <div className="flex items-start justify-between gap-2">
+              <p className="text-[0.75rem] text-accent-strong">
+                {tr("quiz.f01.next_step")}{structured.feedback.next_step}
+              </p>
+              <button
+                onClick={fireNextStep}
+                className="shrink-0 text-[0.7rem] font-medium text-accent transition-colors hover:text-accent-strong"
+              >
+                {tr("quiz.f01.practice")}
+              </button>
+            </div>
+          )}
         </div>
       )}
 

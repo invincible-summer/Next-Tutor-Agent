@@ -16,6 +16,7 @@ import type {
   EvalReport,
   EvalTrace,
   ContextBudgetReport,
+  EvidenceProfileResp,
   KnowledgeCatalogResp,
   KnowledgeGraphResp,
   KnowledgeTaxonomyResp,
@@ -139,6 +140,12 @@ export const getLearningRecords = (limit = 50, offset = 0) => {
 /** 布鲁姆认知档案（L1 共享档案：每概念每层级表现 + 薄弱项，只读）。 */
 export const getBloomProfile = () =>
   get<BloomProfileResp>("/student/bloom-profile");
+
+/** W3/F05 证据档案（概念×维度投影 + 支持作答引用，concept 可选过滤）。 */
+export const getEvidenceProfile = (concept?: string) => {
+  const q = concept ? `?concept=${encodeURIComponent(concept)}` : "";
+  return get<EvidenceProfileResp>(`/student/evidence-profile${q}`);
+};
 
 // --- 使用文档（/docs：全员读、管理员写） ---
 

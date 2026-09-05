@@ -354,5 +354,98 @@ class TestIdempotentScoring(QuizOwnershipTestBase):
         self.assertEqual(len(self._learning_records_for_stem()), 1)
 
 
+class TestHintAndDispute(QuizOwnershipTestBase):
+    """W3/F02+F05：量规派生提示（服务端记录 assistance）与异议标记。"""
+
+    def _rubric_mc(self):
+        q = _mc_question()
+        q["rubric"] = {
+            "rubric_id": q["id"], "version": 1,
+            "criteria": [
+                {"id": "c1", "description": "识别条件事件与交集事件",
+                 "weight": 1.0, "critical": True},
+                {"id": "c2", "description": "用交集概率除以条件概率",
+                 "weight": 1.0},
+            ],
+            "equivalent_solutions": [], "frozen_at": 1757000000.0,
+        }
+        return q
+
+    def test_hint_from_rubric_without_answer_leak(self):
+        self._make_session("sess_h", self.alice.id, [self._rubric_mc()])
+        r = self.client.get("/api/v1/quiz/hint",
+                            params={"session_id": "sess_h", "stem": _STEM},
+                            headers=self.headers_a)
+        self.assertEqual(r.status_code, 200)
+        body = r.json()
+        self.assertEqual(body["status"], "ok")
+        self.assertIn("识别条件事件", body["hint"])
+        self.assertNotIn("0.4", body["hint"])  # 不泄答案
+        # 服务端标记落盘
+        from app.core.session import load_session
+        qd = load_session("sess_h").quiz_history[0]["questions"][0]
+        self.assertTrue(qd.get("hint_requested"))
+
+    def test_hint_foreign_session_404(self):
+        self._make_session("sess_h2", self.alice.id, [self._rubric_mc()])
+        r = self.client.get("/api/v1/quiz/hint",
+                            params={"session_id": "sess_h2", "stem": _STEM},
+                            headers=self.headers_b)
+        self.assertEqual(r.status_code, 404)
+
+    def test_hint_without_rubric_is_recoverable(self):
+        self._make_session("sess_h3", self.alice.id)
+        r = self.client.get("/api/v1/quiz/hint",
+                            params={"session_id": "sess_h3", "stem": _STEM},
+                            headers=self.headers_a)
+        self.assertEqual(r.json()["status"], "no_rubric")
+
+    def test_hint_after_answer_not_recorded(self):
+        self._make_session("sess_h4", self.alice.id, [self._rubric_mc()])
+        self.client.post("/api/v1/quiz/record",
+                         json=self._record_payload("sess_h4"),
+                         headers=self.headers_a)
+        r = self.client.get("/api/v1/quiz/hint",
+                            params={"session_id": "sess_h4", "stem": _STEM},
+                            headers=self.headers_a)
+        self.assertEqual(r.json()["status"], "already_answered")
+
+    def test_hint_marks_assistance_in_m2_event_with_confidence_cap(self):
+        from app.agents.student_model.store import read_events
+        self._make_session("sess_h5", self.alice.id, [self._rubric_mc()])
+        self.client.get("/api/v1/quiz/hint",
+                        params={"session_id": "sess_h5", "stem": _STEM},
+                        headers=self.headers_a)
+        r = self.client.post("/api/v1/quiz/record",
+                             json=self._record_payload("sess_h5"),
+                             headers=self.headers_a)
+        self.assertEqual(r.json()["status"], "ok")
+        gate = r.json()["result"].get("evidence_gate") or {}
+        self.assertLessEqual(gate.get("max_confidence", 1.0), 0.70)
+        graded = [e for e in read_events(self.alice.id)
+                  if e.type.name == "QUIZ_GRADED"]
+        self.assertTrue(graded)
+        self.assertEqual(graded[-1].payload.get("assistance"), "hint")
+
+    def test_dispute_flags_own_attempt(self):
+        from app.core.learning_records import record_verdict
+        record_verdict(self.alice.id, "sess_d", stem="争议题", verdict="wrong",
+                       student_answer="x", concept="条件概率",
+                       attempt_id="att_disp1")
+        r = self.client.post("/api/v1/quiz/dispute",
+                             json={"attempt_id": "att_disp1",
+                                   "reason": "判错了"},
+                             headers=self.headers_a)
+        self.assertEqual(r.json()["status"], "ok")
+        from app.core.learning_records import list_records
+        rec = {x["stem"]: x for x in list_records(self.alice.id)}["争议题"]
+        self.assertEqual(rec["attempts"][-1]["evidence_status"], "disputed")
+        # 不属于本人的/不存在的 id → not_found
+        r2 = self.client.post("/api/v1/quiz/dispute",
+                              json={"attempt_id": "att_nope"},
+                              headers=self.headers_b)
+        self.assertEqual(r2.json()["status"], "not_found")
+
+
 if __name__ == "__main__":
     unittest.main()

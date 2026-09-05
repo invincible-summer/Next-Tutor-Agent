@@ -97,7 +97,8 @@ class AssessmentManager:
                                   student_id: str = "",
                                   is_variant: bool = False,
                                   question_verified: bool | None = None,
-                                  attempt_id: str = "") -> AssessmentResult:
+                                  attempt_id: str = "",
+                                  assistance: str = "") -> AssessmentResult:
         """The single closed-loop point: grade, classify, write back.
 
         ``is_variant`` marks same-family variant tasks (fit_quiz): their
@@ -183,7 +184,7 @@ class AssessmentManager:
             result, student_id=student_id, student_answer=student_answer,
             grading_confidence=grading_confidence, grading_source=grading_source,
             is_variant=is_variant, question_verified=question_verified,
-            attempt_id=attempt_id,
+            attempt_id=attempt_id, assistance=assistance,
         )
         return result
 
@@ -208,7 +209,7 @@ class AssessmentManager:
                 grading_source: str = "assessment",
                 is_variant: bool = False,
                 question_verified: bool | None = None,
-                attempt_id: str = "") -> None:
+                attempt_id: str = "", assistance: str = "") -> None:
         """Write the result to the Student Model via its public facade.
 
         Lazy import keeps the module-scope import graph clean. Never raises.
@@ -217,12 +218,19 @@ class AssessmentManager:
         a binary wrong at the M2 event processor), the gate-capped
         max_confidence, and the attempt id (same submission -> single M2
         influence). The binary ``correct`` view stays for legacy consumers.
+
+        W3/F02: ``assistance`` (server-recorded hint request) caps the grading
+        confidence at 0.70 — helped performance must not masquerade as
+        independent mastery — and rides the event payload for the v2
+        projection's independence tally.
         """
         if not is_enabled():
             return
         try:
             from ..skill_runtime import (assessment_evidence,
                                          evaluate_learning_evidence)
+            if assistance:
+                grading_confidence = min(grading_confidence, 0.70)
             evidence = assessment_evidence(
                 learning_skill_id=result.skill_id or result.concept or "",
                 verdict=result.verdict, student_answer=student_answer,
@@ -241,12 +249,15 @@ class AssessmentManager:
             # dimensions / rubric id) rides the event as additive keys so the
             # v2 capability projection can aggregate it; legacy BKT ignores.
             structured_payload = None
-            if result.structured:
-                structured_payload = {
-                    k: result.structured.get(k)
-                    for k in ("criterion_results", "observed_capabilities",
-                              "rubric_id") if result.structured.get(k) is not None
-                } or None
+            if result.structured or assistance:
+                structured_payload = {}
+                for k in ("criterion_results", "observed_capabilities",
+                          "rubric_id"):
+                    if result.structured.get(k) is not None:
+                        structured_payload[k] = result.structured.get(k)
+                if assistance:
+                    structured_payload["assistance"] = assistance
+                structured_payload = structured_payload or None
             record_quiz_result(
                 concept=result.concept or "",
                 correct=result.correct,
