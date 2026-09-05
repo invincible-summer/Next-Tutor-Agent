@@ -100,7 +100,7 @@ def record_question(student_id: str, session_id: str, question: dict[str, Any], 
         taken = {str(item.get("record_id") or "") for item in data["records"]}
         while question_id in taken:
             question_id = "lr_" + uuid.uuid4().hex[:16]
-        data["records"].append({
+        record = {
             "record_id": question_id,
             "session_id": _safe(session_id),
             "source_kind": source_kind if source_kind in {"chat", "assessment"} else "chat",
@@ -122,7 +122,17 @@ def record_question(student_id: str, session_id: str, question: dict[str, Any], 
             "student_answer": "",
             "verdict": "",
             "score": None,
-        })
+        }
+        # W3/D04: 冻结量规的审计引用（量规本体随题目快照留在会话/测评文件，
+        # 账本只记 rubric_id/version；旧题与生成失败无此键安全缺省）。
+        rubric = question.get("rubric")
+        if isinstance(rubric, dict) and str(rubric.get("rubric_id") or "").strip():
+            record["rubric_id"] = str(rubric["rubric_id"])[:80]
+            try:
+                record["rubric_version"] = int(rubric.get("version", 1))
+            except (TypeError, ValueError):
+                record["rubric_version"] = 1
+        data["records"].append(record)
         _save(student_id, data)
     return question_id
 

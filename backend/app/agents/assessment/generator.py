@@ -24,68 +24,23 @@ from __future__ import annotations
 
 import json
 import re
+import uuid
 from typing import Any
 
 from ...core.config import settings
 from ...core.llm_async import AsyncLLMClient
-from ...core.quiz_verify import is_well_formed, verify_questions
+from ...core.quiz_verify import freeze_rubric, is_well_formed, verify_questions
+from ...prompts.registry import get as _prompt
 from .question import Question, QuestionType
 from .state import AssessmentContext, AssessmentGoal
 
 # 1..5 internal difficulty -> human label for the prompt
 _DIFFICULTY_ZH = {1: "入门", 2: "基础", 3: "中等", 4: "进阶", 5: "挑战"}
 
-_GEN_PROMPT = """你是命题专家。为学段「{grade}」学生，围绕知识点「{concept}」出 1 道检测题，难度：{difficulty_zh}（{difficulty}/5）。
-{constraints}
-{blueprint}
-只输出一个 JSON 对象，不要任何其它文字、不要 markdown 代码块。格式：
-{{
-  "questions": [
-    {{
-      "id": 1,
-      "type": "{q_type}",
-      "stem": "题干",
-      "options": {{"A": "...", "B": "...", "C": "...", "D": "..."}},
-      "answer": "B",
-      "explanation": "为什么选 B，分步讲解（80-200 字）",
-      "knowledge_point": "对应知识点",
-      "difficulty": "{difficulty_label}"
-    }}
-  ]
-}}
-要求：
- - 题目难度与学段、目标难度匹配，{grade} 学生能看懂。该学段难度锚点（难度标定的参照系，必须遵守）：{anchor}
- - options 仅在 type 为 multiple_choice 时提供；填空题用 fill_blank，简答用 short_answer，这两类不需要 options，answer 直接写答案文本。
- - explanation 分步：先点明考点与切入点，再列公式/数据/中间结果，最后给结论与易错点。禁止只重复答案。
- - 所有公式用 LaTeX（$...$ 行内，$$...$$ 独立）；数学环境内的中文（含中文下标）用 \\text{{}} 包裹，如 $c_{{\\text{{待测}}}}$。数字与中英文间保留空格。
- - 严格输出可被 json.loads 解析的纯 JSON。"""
-
-
-# 自动学段专用检测题 prompt（P1）：省略学段锚点，难度按知识点本身标定。
-_GEN_PROMPT_AUTO = """你是命题专家。围绕知识点「{concept}」出 1 道检测题，难度：{difficulty_zh}（{difficulty}/5，按知识点本身标定）。
-{constraints}
-{blueprint}
-只输出一个 JSON 对象，不要任何其它文字、不要 markdown 代码块。格式：
-{{
-  "questions": [
-    {{
-      "id": 1,
-      "type": "{q_type}",
-      "stem": "题干",
-      "options": {{"A": "...", "B": "...", "C": "...", "D": "..."}},
-      "answer": "B",
-      "explanation": "为什么选 B，分步讲解（80-200 字）",
-      "knowledge_point": "对应知识点",
-      "difficulty": "{difficulty_label}"
-    }}
-  ]
-}}
-要求：
- - 题目难度与知识点、目标难度匹配。
- - options 仅在 type 为 multiple_choice 时提供；填空题用 fill_blank，简答用 short_answer，这两类不需要 options，answer 直接写答案文本。
- - explanation 分步：先点明考点与切入点，再列公式/数据/中间结果，最后给结论与易错点。禁止只重复答案。
- - 所有公式用 LaTeX（$...$ 行内，$$...$$ 独立）；数学环境内的中文（含中文下标）用 \\text{{}} 包裹，如 $c_{{\\text{{待测}}}}$。数字与中英文间保留空格。
- - 严格输出可被 json.loads 解析的纯 JSON。"""
+# W3/D04: prompt 文本统一入注册表（assessment_generate@1.0.0 / _auto），
+# 文本含追加的量规契约；此处薄 re-export 兼容旧引用。
+_GEN_PROMPT = _prompt("assessment_generate").text
+_GEN_PROMPT_AUTO = _prompt("assessment_generate_auto").text
 
 
 def _difficulty_label(d: int) -> str:
@@ -215,6 +170,10 @@ async def generate_question(goal: AssessmentGoal, ctx: AssessmentContext,
         verification["answer_verified"] = (
             settings.quiz_verify_mode == "critic"
             and verification["critic"] == "ok")
+        # W3/D04（承接 W2/A14）：CAT 单题路径此前沿用 LLM 的裸 "id": 1，
+        # 跨会话/跨题套不唯一；稳定 id 后在其上冻结量规。
+        raw_q["id"] = f"q_{uuid.uuid4().hex[:8]}_1"
+        rubric = freeze_rubric(raw_q, raw_q["id"])
         q = Question.from_quiz_dict(raw_q, concept=concept, difficulty=difficulty)
         if not q.stem or not q.answer:
             return None
@@ -223,6 +182,8 @@ async def generate_question(goal: AssessmentGoal, ctx: AssessmentContext,
         # W2/A05: the verification audit rides WITH the question (into the
         # session file) so the evidence gate can weigh it at grading time.
         q.verification = verification
+        if rubric is not None:
+            q.rubric = rubric
         return q
     except Exception:
         return None

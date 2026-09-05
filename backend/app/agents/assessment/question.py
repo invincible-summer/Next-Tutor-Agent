@@ -57,6 +57,10 @@ class Question:
     # W2/A05: generation-time verification audit (quiz_verify meta shape) so
     # the evidence gate can distinguish content-checked from merely structural.
     verification: dict[str, Any] = field(default_factory=dict)
+    # W3/D04: frozen scoring rubric (quiz_verify.freeze_rubric shape). Frozen
+    # at generation time — before any student answer exists — and versioned;
+    # empty for legacy questions and malformed generation output alike.
+    rubric: dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -74,6 +78,7 @@ class Question:
             "distractor_targets": dict(self.distractor_targets),
             "bloom_level": self.bloom_level,
             "verification": dict(self.verification),
+            "rubric": dict(self.rubric),
         }
 
     @property
@@ -116,4 +121,5 @@ class Question:
             explanation=str(d.get("explanation", "") or ""),
             bloom_level=normalize_level(d.get("bloom_level")),
             verification=dict(d.get("verification", {}) or {}),
+            rubric=dict(d.get("rubric", {}) or {}),
         )

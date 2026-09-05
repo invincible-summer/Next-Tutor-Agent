@@ -23,11 +23,20 @@ from __future__ import annotations
 
 import json
 import re
+import time
 import uuid
 from typing import Any, Callable
 
 from .config import settings
 from .llm_async import AsyncLLMClient
+
+# W3/D04: 量规随出题同一次调用生成（§7.5 成本合并纪律）。这段要求追加到
+# 每个出题 prompt 末尾；花括号一律双写（{{}}），因为宿主 prompt 都会再
+# .format() 一次，双写后才在 LLM 眼里还原成单括号。
+RUBRIC_REQUIREMENT = """
+量规（与题目一起生成，用于在看学生作答前冻结判分标准）——每道题对象内额外输出两个字段：
+- "rubric_criteria": 2-4 条评分点数组。每条为 {{"id": "c1", "description": "可从学生作答直接观察的判分点（关键步骤/条件/结果）", "weight": 1.0, "critical": true}}。critical=true 表示关键步骤（该步不成立则整题不能算对）；description 写判分点本身（如「正确写出归一化分母」），禁止抄题目答案原文；weight 为该条权重（正数，一般 1.0）。
+- "equivalent_solutions": 可接受的等价解法/写法数组（没有则 []）。"""
 
 _CRITIC_PROMPT = """你是严格的审题员。下面是为「{grade}」学生出的 {count} 道练习题（知识点：{topic}），每题附拟定答案。{difficulty_line}
 请你逐题**独立求解**——先自己算出/推出正确答案，再核对拟定答案。不要被拟定答案带偏。
@@ -172,13 +181,81 @@ def question_verified(verification: dict | None) -> bool | None:
     True only when the critic independently re-solved the question and the
     critic itself succeeded. None for basic structural checks, critic-off,
     missing metadata and fail-open critic errors alike — missing must never
-    default to trusted ("缺失不默认高置信"). The finer four-way label split
-    (structural_valid/content_checked/ambiguous/unchecked) stays W3/A17."""
-    if (isinstance(verification, dict)
-            and verification.get("mode") == "critic"
-            and verification.get("critic") == "ok"):
-        return True
-    return None
+    default to trusted ("缺失不默认高置信").
+    """
+    return True if verification_label(verification) == "content_checked" else None
+
+
+def verification_label(verification: dict | None) -> str:
+    """Four-way content-verification label (W3/A17; audit & projection input).
+
+    content_checked    critic mode, independent re-solve succeeded
+    ambiguous          critic mode but the critic itself errored (fail-open —
+                       the questions were delivered without real verification)
+    structural_valid  basic deterministic checks only (no content check)
+    unchecked         off mode / missing metadata / critic never ran
+
+    This refines, never overrides, :func:`question_verified`: only
+    content_checked counts as content-verified for the evidence gate.
+    """
+    if not isinstance(verification, dict):
+        return "unchecked"
+    mode = str(verification.get("mode") or "")
+    critic = str(verification.get("critic") or "")
+    if mode == "critic":
+        if critic == "ok":
+            return "content_checked"
+        if critic == "error":
+            return "ambiguous"
+        return "unchecked"
+    if mode == "basic":
+        return "structural_valid"
+    return "unchecked"
+
+
+def freeze_rubric(q: dict[str, Any], question_id: str) -> dict[str, Any] | None:
+    """Validate + freeze a generation-time rubric onto a question (W3/D04).
+
+    The rubric is produced by the generation call — before any student answer
+    exists — so freezing is by construction ("量规在看学生答案前形成并版本化").
+    Malformed criteria degrade to None: the question stays usable and the
+    structured analyzer (D06) simply falls back to three-level grading. Never
+    raises, never rejects a question.
+    """
+    raw = q.get("rubric_criteria")
+    if not isinstance(raw, list) or not raw:
+        return None
+    criteria: list[dict[str, Any]] = []
+    seen_ids: set[str] = set()
+    for item in raw:
+        if not isinstance(item, dict):
+            continue
+        desc = str(item.get("description") or "").strip()
+        if len(desc) < 4:
+            continue
+        cid = str(item.get("id") or "").strip() or f"c{len(criteria) + 1}"
+        if cid in seen_ids:
+            continue
+        seen_ids.add(cid)
+        try:
+            weight = float(item.get("weight", 1.0))
+        except (TypeError, ValueError):
+            weight = 1.0
+        if not weight > 0:
+            weight = 1.0
+        criteria.append({"id": cid, "description": desc[:120],
+                         "weight": round(weight, 2),
+                         "critical": bool(item.get("critical", False))})
+        if len(criteria) >= 6:
+            break
+    if not criteria:
+        return None
+    eq = q.get("equivalent_solutions")
+    eq_list = ([str(e).strip()[:200] for e in eq if str(e).strip()][:3]
+               if isinstance(eq, list) else [])
+    return {"rubric_id": str(question_id or ""), "version": 1,
+            "criteria": criteria, "equivalent_solutions": eq_list,
+            "frozen_at": time.time()}
 
 
 async def generate_verified_questions(
@@ -237,6 +314,11 @@ async def generate_verified_questions(
             set_uid = uuid.uuid4().hex[:8]
             for i, q in enumerate(questions, 1):
                 q["id"] = f"q_{set_uid}_{i}"
+                # W3/D04: freeze the rubric onto the final stable id (before
+                # any student answer can exist); malformed criteria -> absent.
+                rubric = freeze_rubric(q, q["id"])
+                if rubric is not None:
+                    q["rubric"] = rubric
             meta["answer_verified"] = mode != "off" and meta["critic"] != "error"
             return questions, meta
     return [], meta

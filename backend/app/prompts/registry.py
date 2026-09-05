@@ -308,6 +308,81 @@ _QUIZ_BLUEPRINT = """你是资深命题设计专家。正式出题之前，先�
 _QUIZ_BLUEPRINT_ANCHOR = "该学段难度锚点（标定 easy/medium/hard 的参照系，设计必须遵守）：{anchor}"
 _QUIZ_BLUEPRINT_ANCHOR_AUTO = "学生未指定学段：难度按知识点本身标定（easy=一步直接应用；medium=一次转化或综合两点；hard=多步推理/变式/陷阱）。"
 
+# --- W3/D04：M4 约束驱动单题生成（原 agents/assessment/generator.py 模块常量迁入，
+# 追加量规契约；文本改动即 bump，现版 1.0.0） -----------------------------------
+
+from ..core.quiz_verify import RUBRIC_REQUIREMENT as _RUBRIC_REQUIREMENT
+
+_ASSESSMENT_GENERATE = """你是命题专家。为学段「{grade}」学生，围绕知识点「{concept}」出 1 道检测题，难度：{difficulty_zh}（{difficulty}/5）。
+{constraints}
+{blueprint}
+只输出一个 JSON 对象，不要任何其它文字、不要 markdown 代码块。格式：
+{{
+  "questions": [
+    {{
+      "id": 1,
+      "type": "{q_type}",
+      "stem": "题干",
+      "options": {{"A": "...", "B": "...", "C": "...", "D": "..."}},
+      "answer": "B",
+      "explanation": "为什么选 B，分步讲解（80-200 字）",
+      "knowledge_point": "对应知识点",
+      "difficulty": "{difficulty_label}"
+    }}
+  ]
+}}
+要求：
+ - 题目难度与学段、目标难度匹配，{grade} 学生能看懂。该学段难度锚点（难度标定的参照系，必须遵守）：{anchor}
+ - options 仅在 type 为 multiple_choice 时提供；填空题用 fill_blank，简答用 short_answer，这两类不需要 options，answer 直接写答案文本。
+ - explanation 分步：先点明考点与切入点，再列公式/数据/中间结果，最后给结论与易错点。禁止只重复答案。
+ - 所有公式用 LaTeX（$...$ 行内，$$...$$ 独立）；数学环境内的中文（含中文下标）用 \\text{{}} 包裹，如 $c_{{\\text{{待测}}}}$。数字与中英文间保留空格。
+ - 严格输出可被 json.loads 解析的纯 JSON。""" + _RUBRIC_REQUIREMENT
+
+_ASSESSMENT_GENERATE_AUTO = """你是命题专家。围绕知识点「{concept}」出 1 道检测题，难度：{difficulty_zh}（{difficulty}/5，按知识点本身标定）。
+{constraints}
+{blueprint}
+只输出一个 JSON 对象，不要任何其它文字、不要 markdown 代码块。格式：
+{{
+  "questions": [
+    {{
+      "id": 1,
+      "type": "{q_type}",
+      "stem": "题干",
+      "options": {{"A": "...", "B": "...", "C": "...", "D": "..."}},
+      "answer": "B",
+      "explanation": "为什么选 B，分步讲解（80-200 字）",
+      "knowledge_point": "对应知识点",
+      "difficulty": "{difficulty_label}"
+    }}
+  ]
+}}
+要求：
+ - 题目难度与知识点、目标难度匹配。
+ - options 仅在 type 为 multiple_choice 时提供；填空题用 fill_blank，简答用 short_answer，这两类不需要 options，answer 直接写答案文本。
+ - explanation 分步：先点明考点与切入点，再列公式/数据/中间结果，最后给结论与易错点。禁止只重复答案。
+ - 所有公式用 LaTeX（$...$ 行内，$$...$$ 独立）；数学环境内的中文（含中文下标）用 \\text{{}} 包裹，如 $c_{{\\text{{待测}}}}$。数字与中英文间保留空格。
+ - 严格输出可被 json.loads 解析的纯 JSON。""" + _RUBRIC_REQUIREMENT
+
+# W3/D06 之前的既有三级批改 prompt（原 evaluator.py 模块常量迁入，文本未改）。
+_ASSESSMENT_GRADE = """你是批改老师，按学段「{grade}」批改学生作答。
+
+题目：{stem}
+题型：{q_type}
+参考答案：{correct_answer}
+参考解析：{explanation}
+学生作答：{student_answer}
+
+判断学生作答，按三档评分：
+- [对]：完全正确（思路对、计算对、表达清楚）。等价即算对，不要求字面一致。
+- [部分对]：思路或方向对，但缺少关键步骤、推理不完整，或有计算/书写小错。
+- [错]：方向就错了，或完全不会。
+
+输出格式（严格遵守）：
+第一行只写 [对]、[部分对]、[错] 三者之一（方括号）。
+第二行起用不超过 120 字给出批改要点：对了就肯定思路并点明关键步骤；部分对就指出缺了什么、还差哪一步；错了就指出具体错在哪、并给出正确思路。不要复述题目。批改时优先检查该学段典型错因：{mistakes}。
+批改要点的最后一句请用自然的一句话点到该作答体现的认知层级（如"能复述结论但还不能在新情境中运用"/"已能自行拆解条件并比较两种方案"），说明学生当前"会到什么程度"——用具体描述，不要罗列层级术语贴标签。
+批改要点中的公式、数值计算和符号必须用 LaTeX 数学语法（行内 $...$，独立公式 $$...$$），例如 $P(A|B)=\\frac{{0.95\\times0.005}}{{0.95\\times0.005+0.01\\times0.995}}\\approx0.32$；禁止用纯文本写公式（如 P(A|B)=0.95×0.005/...）。数学环境内的中文（含中文下标）用 \\text{{}} 包裹。"""
+
 _PROMPT_MEMORY_COMPACT = """你负责压缩学生的提示词记忆。输入已经过隐私过滤，只允许保留：
 1. 学习情况的总体概括；2. 学生当前总体水平；3. 语气偏好；4. 讲解方式偏好。
 禁止写入具体课程、知识点、题目、作答、对话摘要、姓名或文件内容。
@@ -379,6 +454,15 @@ _register(PromptDef(id="tutor_system", version="2.9.0", text=_TUTOR_SYSTEM))
 _register(PromptDef(id="understand_system", version="1.3.0", text=_UNDERSTAND_SYSTEM))
 _register(PromptDef(id="understand_system", version="1.2.0",
                     text=_UNDERSTAND_SYSTEM_V120), active=False)
+
+# W3/D04: M4 出题/批改 prompt 自模块常量迁入注册表（文本含追加的量规契约；
+# 批改 prompt 文本与迁移前一致）。版本纪律：文本任何改动 bump。
+_register(PromptDef(id="assessment_generate", version="1.0.0",
+                    text=_ASSESSMENT_GENERATE))
+_register(PromptDef(id="assessment_generate_auto", version="1.0.0",
+                    text=_ASSESSMENT_GENERATE_AUTO))
+_register(PromptDef(id="assessment_grade", version="1.0.0",
+                    text=_ASSESSMENT_GRADE))
 _register(PromptDef(id="planner_system", version="1.1.0", text=_PLANNER_SYSTEM))
 _register(PromptDef(id="compact_system", version="1.0.0", text=_COMPACT_SYSTEM))
 _register(PromptDef(id="workspace_memory_system", version="1.0.0", text=_WS_MEMORY_SYSTEM))

@@ -33,24 +33,11 @@ _MET = 0.6  # mastery threshold for promoting a concept to "mastered"
 # Open-answer grade prompt. Upgrades the original binary scale to three levels;
 # [partial] is the qualitatively new signal a tutor needs (right direction,
 # incomplete execution).
-_GRADE_PROMPT = """你是批改老师，按学段「{grade}」批改学生作答。
+# W3/D04: 文本迁入 prompts/registry（assessment_grade@1.0.0，文本未改），
+# 此处薄 re-export 兼容旧引用。
+from ...prompts.registry import get as _prompt  # noqa: E402
 
-题目：{stem}
-题型：{q_type}
-参考答案：{correct_answer}
-参考解析：{explanation}
-学生作答：{student_answer}
-
-判断学生作答，按三档评分：
-- [对]：完全正确（思路对、计算对、表达清楚）。等价即算对，不要求字面一致。
-- [部分对]：思路或方向对，但缺少关键步骤、推理不完整，或有计算/书写小错。
-- [错]：方向就错了，或完全不会。
-
-输出格式（严格遵守）：
-第一行只写 [对]、[部分对]、[错] 三者之一（方括号）。
-第二行起用不超过 120 字给出批改要点：对了就肯定思路并点明关键步骤；部分对就指出缺了什么、还差哪一步；错了就指出具体错在哪、并给出正确思路。不要复述题目。批改时优先检查该学段典型错因：{mistakes}。
-批改要点的最后一句请用自然的一句话点到该作答体现的认知层级（如"能复述结论但还不能在新情境中运用"/"已能自行拆解条件并比较两种方案"），说明学生当前"会到什么程度"——用具体描述，不要罗列层级术语贴标签。
-批改要点中的公式、数值计算和符号必须用 LaTeX 数学语法（行内 $...$，独立公式 $$...$$），例如 $P(A|B)=\\frac{{0.95\\times0.005}}{{0.95\\times0.005+0.01\\times0.995}}\\approx0.32$；禁止用纯文本写公式（如 P(A|B)=0.95×0.005/...）。数学环境内的中文（含中文下标）用 \\text{{}} 包裹。"""
+_GRADE_PROMPT = _prompt("assessment_grade").text
 
 
 def grade_open_prompt(*, stem: str, q_type: str, correct_answer: str,

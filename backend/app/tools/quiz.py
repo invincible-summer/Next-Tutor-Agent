@@ -11,7 +11,7 @@ import re
 from typing import Any
 
 from ..core.llm_async import AsyncLLMClient
-from ..core.quiz_verify import generate_verified_questions
+from ..core.quiz_verify import RUBRIC_REQUIREMENT, generate_verified_questions
 from ..core.tool_base import Tool
 from ..core.tool_protocol import ErrorCode, err, ok, partial_result
 
@@ -51,7 +51,7 @@ _QUIZ_PROMPT = """你是出题专家。为学段「{grade}」的学生，围绕�
 - explanation 字段只写给学生看的讲解，不要写你的思考过程、不要自我质疑、不要修改题目。如果想改题目，就在 stem 里直接写最终版本。
 - 所有公式、推导步骤、计算结果必须用 LaTeX 数学语法：行内公式用 $...$，独立公式用 $$...$$。例如 $F=ma$、$\\rho=\\frac{{m}}{{V}}$、$\\sum_{{i=1}}^{{n}}i$。禁止用纯文本写公式（如 F=ma、x^2+y^2=25），必须用 LaTeX。数学环境内不要直接写中文（包括中文下标），必须写中文时用 \\text{{}} 包裹：正确写法 $c_{{\\text{{待测}}}}$，错误写法 $c_{{待测}}$。
 - 数字与中英文之间保留一个空格：如「物体质量 5 kg」「$F=10 N$」「$g=10 N/kg$」「$\\rho=1.0\\times10^3 kg/m^3$」。中文与英文/数字之间也要有空格，如「代入 $F=ma$」「$v=10 m/s$」。
-- 严格输出可被 json.loads 解析的纯 JSON。"""
+- 严格输出可被 json.loads 解析的纯 JSON。""" + RUBRIC_REQUIREMENT
 
 _DIFFICULTY_ZH = {"easy": "基础", "medium": "中等", "hard": "挑战"}
 
@@ -87,7 +87,7 @@ _QUIZ_PROMPT_AUTO = """你是出题专家。围绕知识点「{topic}」为{grad
 - explanation 字段只写给学生看的讲解，不要写你的思考过程、不要自我质疑、不要修改题目。如果想改题目，就在 stem 里直接写最终版本。
 - 所有公式、推导步骤、计算结果必须用 LaTeX 数学语法：行内公式用 $...$，独立公式用 $$...$$。例如 $F=ma$、$\\rho=\\frac{{m}}{{V}}$、$\\sum_{{i=1}}^{{n}}i$。禁止用纯文本写公式（如 F=ma、x^2+y^2=25），必须用 LaTeX。数学环境内不要直接写中文（包括中文下标），必须写中文时用 \\text{{}} 包裹：正确写法 $c_{{\\text{{待测}}}}$，错误写法 $c_{{待测}}$。
 - 数字与中英文之间保留一个空格：如「物体质量 5 kg」「$F=10 N$」「$g=10 N/kg$」「$\\rho=1.0\\times10^3 kg/m^3$」。中文与英文/数字之间也要有空格，如「代入 $F=ma$」「$v=10 m/s$」。
-- 严格输出可被 json.loads 解析的纯 JSON。"""
+- 严格输出可被 json.loads 解析的纯 JSON。""" + RUBRIC_REQUIREMENT
 
 
 class GenerateQuizTool(Tool):

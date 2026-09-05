@@ -150,6 +150,122 @@ class TestQuestionVerifiedFlag(unittest.TestCase):
         self.assertIsNone(question_verified({}))
 
 
+class TestVerificationLabel(unittest.TestCase):
+    """W3/A17：验证标签四分派生（审计/投影输入；question_verified 仍只认两级）。"""
+
+    def test_four_way_labels(self):
+        from app.core.quiz_verify import verification_label
+        self.assertEqual(verification_label(
+            {"mode": "critic", "critic": "ok"}), "content_checked")
+        self.assertEqual(verification_label(
+            {"mode": "critic", "critic": "error"}), "ambiguous")
+        self.assertEqual(verification_label(
+            {"mode": "basic", "critic": "skipped"}), "structural_valid")
+        self.assertEqual(verification_label(
+            {"mode": "off", "critic": "skipped"}), "unchecked")
+        self.assertEqual(verification_label(None), "unchecked")
+        self.assertEqual(verification_label({}), "unchecked")
+        self.assertEqual(verification_label(
+            {"mode": "critic", "critic": "skipped"}), "unchecked")
+
+    def test_label_refines_not_overrides_gate(self):
+        from app.core.quiz_verify import question_verified
+        for v in ({"mode": "basic"}, {"mode": "off"}, {"mode": "critic",
+                                                      "critic": "error"}):
+            self.assertIsNone(question_verified(v))
+        self.assertIs(question_verified({"mode": "critic", "critic": "ok"}), True)
+
+
+def _rubric_criteria():
+    return [
+        {"id": "c1", "description": "正确写出归一化分母 P(A)", "weight": 1.0,
+         "critical": True},
+        {"id": "c2", "description": "代入数值并完成除法计算", "weight": 1.0},
+    ]
+
+
+class TestRubricFreeze(unittest.TestCase):
+    """W3/D04：量规随题冻结——生成时校验、以最终稳定题号挂载、失败降级为缺省。"""
+
+    def test_freeze_valid_rubric(self):
+        from app.core.quiz_verify import freeze_rubric
+        q = _q(1)
+        q["rubric_criteria"] = _rubric_criteria()
+        q["equivalent_solutions"] = ["0.40"]
+        rubric = freeze_rubric(q, "q_abc12345_1")
+        self.assertIsNotNone(rubric)
+        self.assertEqual(rubric["rubric_id"], "q_abc12345_1")
+        self.assertEqual(rubric["version"], 1)
+        self.assertEqual(len(rubric["criteria"]), 2)
+        self.assertTrue(rubric["criteria"][0]["critical"])
+        self.assertFalse(rubric["criteria"][1]["critical"])
+        self.assertEqual(rubric["equivalent_solutions"], ["0.40"])
+        self.assertIn("frozen_at", rubric)
+
+    def test_invalid_rubric_degrades_to_none(self):
+        from app.core.quiz_verify import freeze_rubric
+        for bad in (None, [], "junk", [{"description": "太短"}],
+                    [{"id": "c", "description": ""}]):
+            q = _q(1)
+            q["rubric_criteria"] = bad
+            self.assertIsNone(freeze_rubric(q, "q_x_1"), bad)
+
+    def test_weight_and_duplicates_normalized(self):
+        from app.core.quiz_verify import freeze_rubric
+        q = _q(1)
+        q["rubric_criteria"] = [
+            {"id": "c1", "description": "第一步条件判断正确", "weight": -2},
+            {"id": "c1", "description": "重复 id 应被丢弃", "weight": 1},
+            {"description": "无 id 自动补号", "weight": "junk"},
+        ]
+        rubric = freeze_rubric(q, "q_x_1")
+        self.assertEqual([c["id"] for c in rubric["criteria"]], ["c1", "c2"])
+        self.assertTrue(all(c["weight"] == 1.0 for c in rubric["criteria"]))
+
+    def test_pipeline_freezes_rubric_onto_stable_id(self):
+        from app.core.quiz_verify import generate_verified_questions
+        q = _q(1)
+        q["rubric_criteria"] = _rubric_criteria()
+        llm = QueueLLM([_gen_json([q]), _critic_json([(1, "correct")])])
+        questions, meta = asyncio.run(generate_verified_questions(
+            llm, make_prompt=lambda: "p", parse=lambda raw: json.loads(raw)["questions"],
+            topic="浮力", grade="初中", temperature=0.4, max_tokens=1000))
+        self.assertEqual(len(questions), 1)
+        rubric = questions[0]["rubric"]
+        self.assertEqual(rubric["rubric_id"], questions[0]["id"])
+        self.assertEqual(len(rubric["criteria"]), 2)
+
+    def test_pipeline_without_rubric_stays_usable(self):
+        from app.core.quiz_verify import generate_verified_questions
+        llm = QueueLLM([_gen_json([_q(1)]), _critic_json([(1, "correct")])])
+        questions, _ = asyncio.run(generate_verified_questions(
+            llm, make_prompt=lambda: "p", parse=lambda raw: json.loads(raw)["questions"],
+            topic="浮力", grade="初中", temperature=0.4, max_tokens=1000))
+        self.assertNotIn("rubric", questions[0])
+
+    def test_generation_prompts_carry_rubric_contract(self):
+        from app.prompts.registry import get
+        for pid in ("assessment_generate", "assessment_generate_auto"):
+            text = get(pid).text
+            self.assertIn("rubric_criteria", text)
+        from app.tools.quiz import _QUIZ_PROMPT
+        from app.tools.fit_quiz import _FIT_PROMPT
+        for text in (_QUIZ_PROMPT, _FIT_PROMPT):
+            self.assertIn("rubric_criteria", text)
+
+    def test_question_roundtrips_rubric(self):
+        from app.agents.assessment.question import Question
+        q = _q(1)
+        q["rubric"] = {"rubric_id": "q_x_1", "version": 1,
+                       "criteria": _rubric_criteria(), "equivalent_solutions": []}
+        lifted = Question.from_quiz_dict(q, concept="条件概率")
+        self.assertEqual(lifted.rubric["rubric_id"], "q_x_1")
+        d = lifted.to_dict()
+        self.assertEqual(d["rubric"]["version"], 1)
+        # 旧题无 rubric 键 → 空 dict，不报错
+        self.assertEqual(Question.from_quiz_dict(_q(2)).rubric, {})
+
+
 class TestGenerateVerified(unittest.TestCase):
     def test_full_pipeline_drops_ill_formed_and_assigns_stable_ids(self):
         from app.core.quiz_verify import generate_verified_questions

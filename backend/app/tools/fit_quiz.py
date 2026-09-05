@@ -17,7 +17,7 @@ import re
 from typing import Any
 
 from ..core.llm_async import AsyncLLMClient
-from ..core.quiz_verify import generate_verified_questions
+from ..core.quiz_verify import RUBRIC_REQUIREMENT, generate_verified_questions
 from ..core.tool_base import Tool
 from ..core.tool_protocol import ErrorCode, err, ok, partial_result
 
@@ -73,7 +73,7 @@ _FIT_PROMPT = """你是一位资深命题专家，擅长"拟合出题"——从�
 要求：
 - options 仅在 type 为 multiple_choice 时提供；填空题用 fill_blank，简答用 short_answer，这两类不需要 options。
 - explanation 分步讲解，禁止元思考泄露、禁止自我质疑，只写给学生看的讲解。
-- 严格输出可被 json.loads 解析的纯 JSON。"""
+- 严格输出可被 json.loads 解析的纯 JSON。""" + RUBRIC_REQUIREMENT
 
 _DIFFICULTY_ZH = {"easy": "基础", "medium": "中等", "hard": "挑战"}
 
@@ -127,7 +127,7 @@ _FIT_PROMPT_AUTO = """你是一位资深命题专家，擅长"拟合出题"—�
 要求：
 - options 仅在 type 为 multiple_choice 时提供；填空题用 fill_blank，简答用 short_answer，这两类不需要 options。
 - explanation 分步讲解，禁止元思考泄露、禁止自我质疑，只写给学生看的讲解。
-- 严格输出可被 json.loads 解析的纯 JSON。"""
+- 严格输出可被 json.loads 解析的纯 JSON。""" + RUBRIC_REQUIREMENT
 
 
 class FitQuizTool(Tool):
