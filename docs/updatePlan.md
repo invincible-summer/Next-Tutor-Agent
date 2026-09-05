@@ -938,3 +938,61 @@ W0–W6 粗估合计 31–54 人天；是否并行取决于实际团队、模块
 下一步：W2（记录与生命周期）——A03 CAT 独立 assessment_id/状态机/stop_reason 持久化、A04 partial 分轨
   写回、A05 评分置信与题目验证状态完整门控、A14 稳定 ID 与 supersede 语义。
 ```
+
+### 15.3 W2 记录与生命周期
+
+```text
+工作包：W2
+状态：已验证（2026-09-05 实施会话）
+对应发现：A03、A04、A05、A14
+验收条款：§12.2 W2 行「刷新/双标签/断线/重启/重评一致；旧资产数量与来源状态对账通过」
+当前基线：4d1bba5 → 本轮提交序列 e950b7e / 02326d3 / a8f8b64（+ docs 提交）
+实际变更：
+  - A03（e950b7e）：AssessmentSession 增加独立 assessment_id（asmt_ 前缀，旧 session_id 从未填充、
+    API 回显的其实是学生 id）；answer 触发的停止随本次作答同一次落盘（status+stop_reason），
+    刷新/重启/报告与响应一致；next 在当前题未答时幂等重发该题（不叠加新题）、终态会话不再生成；
+    abandon 落盘 status=abandoned（保留文件供报告/审计，不再删除）；get_active_session 过滤终态；
+    新增 GET /assessment/active 恢复端点（当前题公开内容+进度 / 终态 stop_reason+summary / none 三态）；
+    start/next/active 题目载荷剥离 answer/explanation（判分全在服务端）；并发防护为 per-student
+    asyncio 生命周期锁（threading.RLock 对同线程协程可重入、挡不住事件循环交错——实施中发现并修正）
+    + 写段 file_lock；同作答重放返回已记录判定零写入。前端 /assessment 挂载即经 /active 恢复
+    进行中/已终止测评（此前仅探测 disabled 后重置 idle）。
+  - A04/A05（02326d3）：partial 不再更新 legacy BKT——M2 写回携带三级 verdict，事件处理器对
+    partial 跳过二元负向步骤（§8.6.3 同时禁止完整负向与未校准线性混合），概念统计/错因/弱项照计
+    （M3 REMEDIATION 根因信号不丢失）；证据门输入增加 question_verified（仅 critic 独立重解通过为
+    True；basic/off/缺失/fail-open 一律 None → 评分置信 0.70 上限，缺失不默认高置信、仍高于 0.60
+    拒绝线）；gate 的 max_confidence 连同 verdict/attempt_id 随写回传入 M2 事件（此前仅存审计）；
+    M2 facade 按 attempt_id 查重事件日志，同一作答重放只影响 M2 一次；CAT generator 的验证审计
+    随 Question.verification 落盘、判分时回读。
+  - A14（a8f8b64）：learning_records.record_verdict 改为追加式 attempt 链——重评 supersede
+    （superseded_by 保留审计），顶层 verdict/score 保持「当前有效投影」（错题本/最近习题等读方
+    零改动）；同作答双写路径（写回+record_quiz_attempt）折叠为一条；pre-W2 记录首写合成 legacy
+    快照 attempt（provenance=unknown，不补造置信，§8.5 迁移纪律）；题目 id 改为每套唯一前缀
+    q_<uid>_<i>（跨套不再共用裸序号）；服务端生成的 attempt_id 贯穿 M2 事件/账本/会话写回，
+    CAT 账本记录另带 assessment_id。
+验证证据：
+  - 新增 tests/test_assessment_lifecycle.py（12 项，StorageSandboxTestCase）+ test_quiz_ownership.py
+    新增 TestAttemptFlow（2 项）+ test_learning_records.py 新增 TestAttemptLedger（5 项）+
+    test_skill_runtime.py 扩展（gate 两级验证/partial 透传/M2 写路径 partial 不动 BKT 与同 attempt
+    幂等，4 项）+ test_quiz_quality.py（question_verified 归一 4 项；稳定 id 断言更新）。
+  - 命令与结果：PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s tests → 1731 项通过
+    （4 skipped 为既有跳过，较 W1 净增 28 项）；pnpm exec tsc --noEmit / eslint src/ /
+    next build --webpack → 全部通过；git diff --check → 干净。
+  - 验收对照：刷新/断线恢复（GET /assessment/active 恢复当前题+进度）✓；双标签（asyncio 锁串行化
+    + 同答重放，并发测试断言恰好一条 result、M2 单条事件）✓；重启（answer 即持久化停止，状态全在
+    盘上）✓；重评一致（attempts supersede 链+顶层投影唯一+同 attempt 单次影响 M2）✓；旧资产对账
+    （升级写入后记录数量不变、来源状态保留、未触碰行零变化）✓。
+迁移/回滚：assessment/quiz 请求 schema 全兼容（assessment_id/attempt_id 为响应与落盘增量字段；
+  旧会话文件缺 assessment_id 兼容读取为空串）；无新增存储根（无需登记 sandbox/orphan_cleanup/
+  account_data）；无 feature flag——一致性修复无条件生效；三个代码提交可独立回滚（A03 生命周期/
+  A04+A05 分轨门控/A14 账本），docs 提交最后。
+  W2 明确未做（边界）：§9.3 全新 REST 面（POST /assessment/sessions 等）——按 §9.4 只做旧端点
+  薄适配+真实 ID；/learning/attempts+Episode 契约与完整 AssessmentRecord 量规对象
+  （criterion_results/hypotheses/evidence_refs）属 W3（D04/D06）；M2 v2 维度投影与 BKT 按有效事件
+  重放（supersede 后的追溯撤销）属 W3——当前 supersede 保留审计并保证当前投影一致，legacy BKT
+  不做追溯重放；A17 验证标签四分（structural_valid/content_checked/ambiguous/unchecked）属 W3（D05），
+  W2 先落两级（critic-ok=True / 其余=None）。
+下一步：W3（结构化教学闭环）——D02/D04/D06/D08/D10/D11、量规冻结、F01/F02/F05 最小形式、
+  LLM shadow 对照；依赖 W2 的 attempt/AssessmentRecord 数据基础（已就位）。W0 外部资源仍待提供：
+  试点教材单元与 5–8 名试点用户（§5.5/§13.2），不阻塞 W3 开工。
+```
