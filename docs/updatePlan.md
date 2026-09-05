@@ -864,3 +864,77 @@ W0–W6 粗估合计 31–54 人天；是否并行取决于实际团队、模块
 ```
 
 优先启动 W0 和 W1；R1 成立后再决定扩展速度。若复核发现某个现有功能已经很好，记录它满足了哪个标准，然后让它保持原样。
+
+## 15. 执行台账（随实施更新）
+
+本节由实施会话按 §14.3 格式登记，与正文的设计性表述区分：本节中的「已验证」均有可复现命令或 file:line 证据。
+
+### 15.1 W0 现状与金标基线
+
+```text
+工作包：W0
+状态：已验证（代码复核部分）/ 待外部资源（金标与试点招募部分）
+对应发现：A01–A18 台账整体
+验收条款：§12.2 W0 行、§12.4 复核纪律
+当前基线：commit 4ebe499（= bf2f334 + docs/updatePlan.md + frontend/package.json 版本号 + 1 个数据文件；后端零差异），工作树干净
+实际变更：无代码变更；本台账登记复核结论
+验证证据：2026-09-05 实施会话对 HEAD 逐项复核（含 file:line 定位）：
+  - A01 确认未修：api/v1/quiz.py 三个路由均未校验 session_id 归属；_write_back_answer(:29) 与 core/quiz_attempts.py:record_quiz_attempt(:185) 按裸 session_id 读写。
+  - A02 确认未修：GradeRequest.correct_answer / RecordRequest.correct_answer 必填且直接参与判分与 LLM 批改；assessment.py AnswerRequest.raw_grade 非空绕过 LLM 批改（manager.evaluate_and_record → parse_grade）；StartRequest.mastery 直达 derive_concept_status。
+  - A03 确认未修（W2 范围）：无独立 assessment_id，students/{sid}.assessment.json 单槽；next_question 不要求当前题已答；answer 不持久化 stop_reason。
+  - A04 确认未修（W2 范围）：assessment/state.py AssessmentResult.correct 将 0.5 判 False；manager._record 仅二元写回 M2。
+  - A06 确认未修：mastered/confirmed_gap 原始字符串经 SummaryCard 通用行直达用户；页面文案「M4 CAT 自适应测评…定位概念掌握水平」过强。
+  - A07 确认未修：learning_orchestration/manager.py:144 无 verdict→quality=3 走 SM-2 通过路径；quality_from_verdict("unknown")==3 兜底延长间隔。
+  - A08/A09/A10/A11/A12/A13/A15/A16/A17/A18 抽查与台账一致（详见各条目；未逐条重放，按 S 级静态确认维持）。
+  - 修复复用件确认存在：chat.py:35-45 _load_owned_session（404 不可见语义）；manager.upsert_review_card（仅建卡不推进 SM-2）；session.quiz_history 服务端题目快照（含 answer/explanation）；core/atomic.py file_lock。
+迁移/回滚：无
+下一步（待外部资源，不阻塞 W1）：按 §13.2 建设 200–300 案例金标；选定试点教材单元与 5–8 名试点用户；为 A09–A18 分配实施 owner。
+```
+
+### 15.2 W1 评分入口可信化
+
+```text
+工作包：W1
+状态：已验证（2026-09-05 实施会话）
+对应发现：A01、A02（+ 阻断 A07、收紧 A06，按 §12.2 W1 行）
+验收条款：§12.2 W1 行「越权零写入；旧客户端无法唯一匹配时可恢复；同提交记分一次。安全修复独立发布且不随实验回滚」
+当前基线：4ebe499 → 本轮提交序列（见下）
+实际变更：
+  - backend/app/api/v1/quiz.py：归属校验（_load_owned_session，404 不可见，chat 同款语义）；
+    _resolve_question_snapshot 服务端权威题目（精确题干优先，60 字前缀需无歧义，携带题套 verification）；
+    correct_answer 降级为兼容字段（不一致仅审计日志，不记内容）；解析失败 → /quiz/record 返回
+    unverified_practice/question_unresolved（422 级可恢复语义，HTTP 200+code），/quiz/grade 保留流式反馈
+    但 done 标 unverified 且零写入；同提交幂等（quiz_history 已有同作答 result → 重放判定，不二次评分）；
+    _write_back_answer 增加 owner 纵深防御 + file_lock 临界区；fit_quiz 题套作答以 is_variant=True
+    进入证据门（VARIANT_TASK）。
+  - backend/app/core/session.py：新增公共 session_path()（外部 load-modify-save 复用同款锁键）。
+  - backend/app/api/v1/assessment.py：AnswerRequest.raw_grade 一律忽略（保留 schema 兼容）；
+    StartRequest.mastery 一律忽略，起点掌握度由 _server_mastery 按身份绑定档案 best-effort 读取。
+  - backend/app/agents/assessment/manager.py：evaluate_and_record/_record 透传 is_variant → assessment_evidence。
+  - backend/app/agents/learning_orchestration/{manager,spaced_repetition}.py：A07——exposure（无判定讲解轮）
+    与 unknown 只建卡安排首检，不进 SM-2 通过路径（quality_from_verdict 对 unknown 返回 None）；
+    submit_review 事件加 source="self_report"。
+  - frontend/src/app/(workspace)/assessment/strings.ts + components/pages/assessment/SummaryCard.tsx：A06——
+    页面文案改「自适应诊断」（去 M4 徽章与「定位掌握水平」过强声明）；stop_reason/status 映射为诊断性
+    中性表述（mastered →「本轮诊断表现稳定（非长期掌握结论）」等），原始枚举不再直达学生；sum.verdict
+    「掌握结论」→「本轮表现」。后端契约值保持稳定，仅展示层映射。
+验证证据：
+  - 新增 tests/test_quiz_ownership.py（13 项，StorageSandboxTestCase）：跨身份 /quiz/record 与
+    /quiz/grade(record=true) → 404 且沙箱全存储根字节级零变化；越权请求 LLM 零调用；legacy 未盖章会话
+    归游客；客户端伪答案按服务端快照判 wrong 并落账本；stem 无法解析 → unverified_practice 零写入；
+    无 session_id → 未验证练习；同一作答重复提交 M2 仅记一次、/quiz/grade 重放不触发第二次 LLM；
+    record=false 零写入；批改 prompt 使用服务端答案。
+  - tests/test_assessment_identity.py +2：raw_grade 被忽略（fake manager 断言收到 None）、mastery 服务端解析。
+  - tests/test_orchestration.py：test_quality_from_verdict 更新（unknown→None）+3 项新增
+    （exposure 不增长间隔、unknown 不增长间隔、自评 source 标记）；tests/test_quiz_quality.py 的
+    record=false 用例改为本人会话 fixture（归属校验后幽灵 session_id 正确 404）。
+  - 命令与结果：PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s tests → 1703 项通过（4 skipped
+    为既有跳过）；pnpm exec tsc --noEmit / eslint src/ / next build --webpack → 全部通过；
+    git diff --check → 干净。
+迁移/回滚：请求 schema 完全兼容（correct_answer/raw_grade/mastery 字段保留，值不再可信）；无新增存储根
+  （无需登记 sandbox/orphan_cleanup/account_data）；无 feature flag——安全修复无条件生效、可独立回滚
+  （quiz/assessment/orchestration 改动分批提交）。W1 未做的事项：A03/A04/A05/A14 的完整
+  Attempt/AssessmentRecord/独立 assessment_id 属 W2；A06 的后端停止规则重设计属 W3（D10）。
+下一步：W2（记录与生命周期）——A03 CAT 独立 assessment_id/状态机/stop_reason 持久化、A04 partial 分轨
+  写回、A05 评分置信与题目验证状态完整门控、A14 稳定 ID 与 supersede 语义。
+```
