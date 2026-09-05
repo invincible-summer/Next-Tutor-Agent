@@ -70,6 +70,11 @@ class TeachingStrategy:
     recent_mistakes: list[str] = field(default_factory=list)
     rationale: str = ""
     plan_hints: list[str] = field(default_factory=list)
+    # --- W3/D08 additions (LLM teaching-decision adapter) ---
+    # assistance: 下一任务的帮助级别（F02 阶梯 full_demo|key_hints|independent；
+    # "" = 规则路径未表态）。decision_id: 产生本次调整的教学决策 id（审计）。
+    assistance: str = ""
+    decision_id: str = ""
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -90,6 +95,8 @@ class TeachingStrategy:
             "recent_mistakes": list(self.recent_mistakes),
             "rationale": self.rationale,
             "plan_hints": list(self.plan_hints),
+            "assistance": self.assistance,
+            "decision_id": self.decision_id,
         }
 
 

@@ -505,6 +505,38 @@ _ASSESSMENT_ANALYZE = """你是严格的阅卷教师，按已冻结的量规逐�
 - 不会/拒答/空答/含混无法判断时：相应条目 not_observed，uncertainties 写明缺什么，不得编造判定。
 - 反馈与 continuation 只依据本次作答；仅答对一个选项不代表推理过程已被观察。"""
 
+# W3/D08：教学决策（单次轻量调用；触发门由 decision_adapter 控制）。
+_TEACHING_DECISION = """你是教学决策器。基于学生的当前状态，给出「仅一个」主要教学行动。
+目标概念候选集（target 只能从中选）：{candidates}
+当前掌握度估计：{mastery}；存在的误解：{misconceptions}；近期错误：{recent_mistakes}
+近期测评结果：{recent_outcome}
+学生显式约束：输出格式={constraint_fmt}；允许出题检测={allow_quiz}
+规则策略给出的模式：{rules_mode}；建议难度：{rules_difficulty}
+
+只输出一个 JSON 对象，不要任何其它文字：
+{{
+  "action": "explain|practice|quiz|review|clarify|summarize 之一（只选一个主要行动）",
+  "target": "目标概念（必须来自候选集）",
+  "assistance": "full_demo|key_hints|independent（下一任务的帮助级别）",
+  "rationale": "≤60 字理由：为什么此刻这一步最有价值",
+  "expected_observation": "≤60 字：执行后应观察到什么",
+  "stop_condition": "≤60 字：何时停止这条路线"
+}}
+
+纪律：学生的显式约束（不出题/要简短）优先于任何优化判断；证据不足时不要
+宣称掌握；只给一个主要行动，不要并列多个方向。"""
+
+# W3/D11：课堂小结润色（输入仅确定性骨架——已接受证据，不含对话原文）。
+_SESSION_SUMMARY = """你是学习小结撰写者。根据下面的学习小结骨架（仅含已接受的作答判定），写出两行学生可读的收束语。
+概念：{concepts}
+已判定作答（demonstrated 为已能完成项，open_items 为待解决项）：
+- demonstrated: {demonstrated}
+- open_items: {open_items}
+覆盖说明：{coverage_note}；待答题目数：{pending}
+
+只输出一个 JSON 对象：{{"summary_line": "≤80 字：已能做什么（只引用已判定证据，没有测评不得说掌握）", "resume_line": "≤60 字：下次回来先做什么（具体、可执行）"}}
+禁止编造未出现在骨架里的作答或能力。"""
+
 # W3/D04: M4 出题/批改 prompt 自模块常量迁入注册表（文本含追加的量规契约；
 # 批改 prompt 文本与迁移前一致）。版本纪律：文本任何改动 bump。
 _register(PromptDef(id="assessment_generate", version="1.0.0",
@@ -515,6 +547,10 @@ _register(PromptDef(id="assessment_grade", version="1.0.0",
                     text=_ASSESSMENT_GRADE))
 _register(PromptDef(id="assessment_analyze", version="1.0.0",
                     text=_ASSESSMENT_ANALYZE))
+_register(PromptDef(id="teaching_decision", version="1.0.0",
+                    text=_TEACHING_DECISION))
+_register(PromptDef(id="session_summary", version="1.0.0",
+                    text=_SESSION_SUMMARY))
 _register(PromptDef(id="planner_system", version="1.1.0", text=_PLANNER_SYSTEM))
 _register(PromptDef(id="compact_system", version="1.0.0", text=_COMPACT_SYSTEM))
 _register(PromptDef(id="workspace_memory_system", version="1.0.0", text=_WS_MEMORY_SYSTEM))

@@ -361,7 +361,7 @@ def _memory_consolidate_turn(student_id, session_id, workspace_id,
         trace.log("memory_update_error", message=str(e))
 
 
-def _adapt_for_turn(understanding, snapshot, session, trace):
+async def _adapt_for_turn(understanding, snapshot, session, trace, llm=None):
     """V3/M3: produce a TeachingStrategy for the turn target and render it as a
     soft recap string. Returns (strategy, recap_text). recap_text is '' when
     the Student Model is off or nothing actionable was found, so the executor's
@@ -373,6 +373,10 @@ def _adapt_for_turn(understanding, snapshot, session, trace):
     REMEDIATION/PRACTICE/REVIEW/CHALLENGE). When off, fall back to the V3
     adaptation path exactly. Both paths render the same [学生智能·…] markers so
     the existing trace/tests keep working.
+
+    W3/D08: TEACHING_DECISION_MODE adds one bounded LLM teaching decision on
+    top of the rules strategy (trigger-gated; shadow records, active applies
+    a validated constrained adjustment). rules (default) changes nothing.
     """
     try:
         from .student_model import get_student_model, is_enabled as sm_enabled
@@ -387,9 +391,9 @@ def _adapt_for_turn(understanding, snapshot, session, trace):
 
         from .teaching_engine import is_enabled as te_enabled
         if te_enabled():
-            strat = _adapt_via_engine(sm, concept, subject, intent,
-                                      session.grade, understanding, trace,
-                                      sid=_sid)
+            strat = await _adapt_via_engine(sm, concept, subject, intent,
+                                            session.grade, understanding,
+                                            trace, sid=_sid, llm=llm)
         else:
             strat = sm.adapt(concept, subject, intent=intent, grade=session.grade)
 
@@ -552,8 +556,8 @@ def _enrich_plan_with_strategy_check(plan: TaskPlan, strategy: Any,
     return enriched
 
 
-def _adapt_via_engine(sm, concept, subject, intent, grade, understanding, trace,
-                      sid: str):
+async def _adapt_via_engine(sm, concept, subject, intent, grade, understanding, trace,
+                            sid: str, llm=None):
     """M3 path: assemble a TeachingContext from live student state + the
     cross-turn teaching_log, then let the TeachingEngine pick a mode.
 
@@ -634,7 +638,55 @@ def _adapt_via_engine(sm, concept, subject, intent, grade, understanding, trace,
             _downgrade_strategy_difficulty(strat, trace)
     except Exception:
         pass
+    # W3/D08: one bounded LLM teaching decision (trigger-gated). rules (the
+    # default) never calls; shadow records the comparison; active applies a
+    # validated constrained adjustment. Any failure keeps the rules strategy.
+    await _apply_teaching_decision(ctx, strat, understanding, prev_outcome,
+                                   trace, llm)
     return strat
+
+
+async def _apply_teaching_decision(ctx, strat, understanding, prev_outcome,
+                                   trace, llm) -> None:
+    """W3/D08 adapter hook — never raises, never replaces the rules strategy."""
+    try:
+        from ..core.config import settings
+        mode = settings.teaching_decision_mode
+        if mode == "rules" or llm is None:
+            return
+        from .teaching_engine.decision_adapter import (
+            apply_decision, decide_teaching, should_decide)
+        constraints = {
+            "response_format": getattr(understanding, "response_format", ""),
+            "allow_followup_assessment": getattr(
+                understanding, "allow_followup_assessment", True),
+        }
+        recent_mistakes = len(getattr(ctx, "mistakes", None) or [])
+        misconceptions = len(getattr(ctx, "misconceptions", None) or [])
+        if not should_decide(recent_outcome=(prev_outcome.value
+                                             if hasattr(prev_outcome, "value")
+                                             else str(prev_outcome or "")),
+                             constraints=constraints,
+                             misconceptions=misconceptions,
+                             recent_mistakes=recent_mistakes):
+            return
+        decision = await decide_teaching(ctx, strat, llm=llm,
+                                         recent_outcome=(prev_outcome.value
+                                                         if hasattr(prev_outcome, "value")
+                                                         else str(prev_outcome or "")),
+                                         constraints=constraints)
+        if decision is None:
+            trace.log("teaching_decision", mode=mode, outcome="invalid_or_failed")
+            return
+        if mode == "shadow":
+            trace.log("teaching_decision", mode=mode, outcome="recorded_only",
+                      **decision.to_dict())
+            return
+        apply_decision(strat, decision)
+        trace.log("teaching_decision", mode=mode, outcome="applied",
+                  **decision.to_dict())
+    except Exception as e:
+        trace.log("teaching_decision_error", message=str(e))
 
 
 def _downgrade_strategy_difficulty(strat, trace) -> None:
@@ -1371,7 +1423,8 @@ async def run(
               goal=goal)
 
     # --- 3b. V3 student-aware adaptation (soft strategy) ---
-    strategy, adaptation_recap = _adapt_for_turn(understanding, snapshot, session, trace)
+    strategy, adaptation_recap = await _adapt_for_turn(
+        understanding, snapshot, session, trace, llm)
 
     # M10/M3 bridge: if the teaching strategy explicitly asks for a closing
     # check, make its assessment Skill part of the executable plan. This keeps
@@ -1471,6 +1524,16 @@ async def run(
         session, understanding, snapshot, plan, goal, strategy, trace)
     if learning_card_note:
         preamble += "\n" + learning_card_note
+    # W3/D11: 单次学习结束/暂离后回来 → 注入一行上次小结+恢复锚点。
+    # 30 分钟内的连续提问不打断（同一次学习）。
+    try:
+        from .teaching_engine.session_summary import resume_preamble_line
+        summary_note = resume_preamble_line(session)
+        if summary_note:
+            preamble += "\n" + summary_note
+            trace.log("session_summary_resumed")
+    except Exception:
+        pass
 
     history, compacted = await _maybe_compact(session, preamble, llm, trace)
     trace.log("context", l3_tokens=history_tokens(history),
@@ -1644,6 +1707,34 @@ async def run(
                          mode=mode.value, outcome=outcome.value)
     except Exception as e:
         trace.log("teaching_engine_log_error", message=str(e))
+
+    # --- 6c-bis. W3/D11: 课堂小结与恢复锚点（确定性骨架，每轮重建零 LLM）---
+    # 润色仅在本轮有作答判定且 STRUCTURED_ASSESSMENT_MODE=active 时发生；
+    # 无测评的会话如实写「已讲解，待验证」。
+    try:
+        from .teaching_engine.session_summary import (build_session_summary,
+                                                      polish_summary)
+        turn_had_assessment = any(
+            isinstance(tc.get("result"), dict) and "verdict" in (tc.get("result") or {})
+            for tc in final_tool_calls)
+        summary = build_session_summary(session)
+        if summary is not None:
+            from ..core.config import settings as _settings
+            if (turn_had_assessment
+                    and _settings.structured_assessment_mode == "active"
+                    and llm is not None):
+                polished = await polish_summary(summary, llm)
+                if polished is not None:
+                    summary["summary_line"], summary["resume_line"] = polished
+                    summary["polished"] = True
+            session.learning_summary = summary
+            # save_session 已在 6 步发生过；带上同款 load-modify-save 竞态守卫
+            # 再落一次，把小结写进会话文件。
+            from ..core.quiz_attempts import merge_quiz_results_from_disk
+            merge_quiz_results_from_disk(session)
+            save_session(session)
+    except Exception as e:
+        trace.log("session_summary_error", message=str(e))
 
 
     # --- 6d. M6: consolidate this turn's signals into long-term memory ---

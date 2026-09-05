@@ -99,6 +99,11 @@ class Settings:
     # 开放题以结构化分析为权威判定（分数仍由服务端按量规权重计算）。
     structured_assessment_mode: str = _resolve_mode(
         "STRUCTURED_ASSESSMENT_MODE", {"off", "shadow", "active"}, "off")
+    # W3/D08 教学决策适配：rules = 纯规则策略（默认，零新增调用）；
+    # shadow = 旁路调用并记录对照、不应用；active = 校验通过的教学决策以
+    # 受限方式调整策略（单一主要行动/枚举白名单/显式约束优先）。
+    teaching_decision_mode: str = _resolve_mode(
+        "TEACHING_DECISION_MODE", {"rules", "shadow", "active"}, "rules")
     # 工具步允许保留模型思考（LOW，不下发关闭指令）：预算充足时让推理发生，
     # real_summary 才有真实材料；预算被压缩时 executor 的 budget_forces_direct
     # 仍会强制关思考， starving 时走 incomplete_answer_recovery 兜底。

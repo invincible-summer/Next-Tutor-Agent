@@ -76,7 +76,11 @@ class TestSupervisorFusion(StorageSandboxTestCase):
         sm._persist()
         session = TutorSession(grade="高中")
         u = TaskUnderstanding(intent=TaskType.EXPLAIN, concept="浮力", subject="物理")
-        strat, recap = _adapt_for_turn(u, derive_snapshot_lite(), session, Trace())
+        # W3/D08: _adapt_for_turn is async now (bounded LLM teaching decision
+        # rides after the rules path); rules mode changes nothing here.
+        import asyncio as _aio
+        strat, recap = _aio.run(_adapt_for_turn(u, derive_snapshot_lite(),
+                                                session, Trace()))
         self.assertIsNotNone(strat)
         # buoyancy's lone weak prereq is now newton_second -> review_first
         self.assertTrue(any("牛顿" in n.name for n in strat.review_first), [n.name for n in strat.review_first])

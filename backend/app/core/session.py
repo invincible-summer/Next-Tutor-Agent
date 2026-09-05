@@ -114,6 +114,9 @@ class TutorSession:
     compaction: dict | None = None  # {summary, compacted_upto, created_at, summary_tokens}
     supervisor_state: dict | None = None  # V2: cross-turn Supervisor memory (TaskState)
     context_card: dict | None = None  # session-only projection; not a second mastery store
+    # W3/D11: 课堂小结与恢复锚点（确定性骨架 + active 模式润色）；会话内
+    # 投影，重建自 quiz_history/context_card，不是第二份掌握度存储。
+    learning_summary: dict | None = None
     messages: list[dict[str, Any]] = field(default_factory=list)
     quiz_history: list[dict[str, Any]] = field(default_factory=list)
     trace_ids: list[str] = field(default_factory=list)
@@ -149,6 +152,7 @@ class TutorSession:
            "compaction": self.compaction,
             "supervisor_state": self.supervisor_state,
             "context_card": self.context_card,
+            "learning_summary": self.learning_summary,
             "messages": self.messages,
             "quiz_history": self.quiz_history,
             "trace_ids": self.trace_ids,
@@ -170,6 +174,7 @@ class TutorSession:
            compaction=d.get("compaction"),
             supervisor_state=d.get("supervisor_state"),
             context_card=d.get("context_card"),
+            learning_summary=d.get("learning_summary"),
             messages=d.get("messages", []),
             quiz_history=d.get("quiz_history", []),
             trace_ids=d.get("trace_ids", []),
