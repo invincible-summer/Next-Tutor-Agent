@@ -24,6 +24,7 @@ from app.core.atomic import file_lock
 from app.core.llm_async import get_llm
 from app.core.quiz_attempts import record_quiz_attempt
 from app.core.quiz_recent import list_recent_questions, record_recent_verdict
+from app.core.quiz_verify import question_verified
 from app.identity.deps import resolve_student_id
 from app.agents.student_model import is_enabled as student_model_enabled
 from app.agents.student_model.store import DEFAULT_STUDENT_ID
@@ -282,7 +283,8 @@ async def grade_answer(req: GradeRequest,
                                       subject=req.subject, grade=req.grade,
                                       skill_id=""),
                     raw_grade=full, student_id=student_id,
-                    is_variant=_is_variant_set(qh))
+                    is_variant=_is_variant_set(qh),
+                    question_verified=question_verified(qh.get("verification")))
             except Exception:
                 result = None
         # fall back to the legacy inline parse if the engine is off / failed,
@@ -307,6 +309,8 @@ async def grade_answer(req: GradeRequest,
                     and student_model_enabled() and req.knowledge_point):
                 try:
                     from app.agents.student_model import record_quiz_result
+                    # W2/A04: partial must not collapse to a binary wrong here
+                    # either (engine-off degraded path).
                     record_quiz_result(
                         concept=req.knowledge_point,
                         correct=(verdict == "correct"),
@@ -315,6 +319,7 @@ async def grade_answer(req: GradeRequest,
                         subject=req.subject,
                         note=(body[:60] if verdict != "correct" else ""),
                         student_id=student_id,
+                        verdict=verdict,
                     )
                 except Exception:
                     pass
@@ -420,7 +425,8 @@ async def record_answer(req: RecordRequest,
     try:
         result = await get_assessment_manager().evaluate_and_record(
             question, req.student_answer, ctx, student_id=student_id,
-            is_variant=_is_variant_set(qh))
+            is_variant=_is_variant_set(qh),
+            question_verified=question_verified(qh.get("verification")))
         _finalize(result.verdict)
         return {"status": "ok", "result": result.to_dict()}
     except Exception as e:

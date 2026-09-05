@@ -30,6 +30,7 @@ import os
 from typing import Any
 
 from ...core.llm_async import AsyncLLMClient
+from ...core.quiz_verify import question_verified as content_verified
 from .evaluator import (derive_concept_status, evaluate_mc, grade_open_prompt,
                         parse_grade)
 from .question import Question, QuestionType
@@ -93,12 +94,18 @@ class AssessmentManager:
                                   *, llm: AsyncLLMClient | None = None,
                                   raw_grade: str | None = None,
                                   student_id: str = "",
-                                  is_variant: bool = False) -> AssessmentResult:
+                                  is_variant: bool = False,
+                                  question_verified: bool | None = None,
+                                  attempt_id: str = "") -> AssessmentResult:
         """The single closed-loop point: grade, classify, write back.
 
         ``is_variant`` marks same-family variant tasks (fit_quiz): their
         evidence enters the gate at VARIANT_TASK level instead of masquerading
-        as an independent observation (updatePlan.md A05 minimal wiring)."""
+        as an independent observation (updatePlan.md A05 minimal wiring).
+        ``question_verified`` (W2/A05) tells the gate whether the question's
+        content was independently re-solved — missing caps the confidence at
+        0.70 instead of defaulting to trusted. ``attempt_id`` makes the M2
+        write idempotent for the same submission."""
         try:
             grading_confidence = 0.0
             grading_source = "assessment_unknown"
@@ -152,7 +159,8 @@ class AssessmentManager:
         self._record(
             result, student_id=student_id, student_answer=student_answer,
             grading_confidence=grading_confidence, grading_source=grading_source,
-            is_variant=is_variant,
+            is_variant=is_variant, question_verified=question_verified,
+            attempt_id=attempt_id,
         )
         return result
 
@@ -175,12 +183,17 @@ class AssessmentManager:
     def _record(self, result: AssessmentResult, *, student_id: str = "",
                 student_answer: str = "", grading_confidence: float = 0.0,
                 grading_source: str = "assessment",
-                is_variant: bool = False) -> None:
+                is_variant: bool = False,
+                question_verified: bool | None = None,
+                attempt_id: str = "") -> None:
         """Write the result to the Student Model via its public facade.
 
-        Lazy import keeps the module-scope import graph clean. Maps the
-        three-level score to the binary observation the existing event path
-        expects. Never raises.
+        Lazy import keeps the module-scope import graph clean. Never raises.
+
+        W2/A04/A05: the write carries the three-level verdict (partial is NOT
+        a binary wrong at the M2 event processor), the gate-capped
+        max_confidence, and the attempt id (same submission -> single M2
+        influence). The binary ``correct`` view stays for legacy consumers.
         """
         if not is_enabled():
             return
@@ -193,6 +206,7 @@ class AssessmentManager:
                 question_id=result.question_id, source=grading_source,
                 grading_confidence=grading_confidence,
                 is_variant=is_variant,
+                question_verified=question_verified,
             )
             gate = evaluate_learning_evidence(evidence)
             result.evidence_level = evidence.level.name
@@ -208,6 +222,9 @@ class AssessmentManager:
                 subject="",
                 note=(result.diagnosis_note if not result.correct else ""),
                 student_id=student_id,
+                verdict=result.verdict,
+                confidence=gate.max_confidence,
+                attempt_id=attempt_id,
             )
         except Exception:
             pass
@@ -342,7 +359,8 @@ class AssessmentManager:
                 return None  # current question already graded (different answer)
             result = await self.evaluate_and_record(
                 q, answer, session.ctx, llm=llm, raw_grade=raw_grade,
-                student_id=student_id)
+                student_id=student_id,
+                question_verified=content_verified(q.verification))
             result.student_answer = answer
             session.results.append(result)
             try:

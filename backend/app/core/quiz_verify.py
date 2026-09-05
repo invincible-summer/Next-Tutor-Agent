@@ -165,6 +165,21 @@ async def verify_questions(llm: AsyncLLMClient, questions: list[dict[str, Any]],
     return kept, dropped, True
 
 
+def question_verified(verification: dict | None) -> bool | None:
+    """Content-level verification status for the evidence gate (W2/A05).
+
+    True only when the critic independently re-solved the question and the
+    critic itself succeeded. None for basic structural checks, critic-off,
+    missing metadata and fail-open critic errors alike — missing must never
+    default to trusted ("缺失不默认高置信"). The finer four-way label split
+    (structural_valid/content_checked/ambiguous/unchecked) stays W3/A17."""
+    if (isinstance(verification, dict)
+            and verification.get("mode") == "critic"
+            and verification.get("critic") == "ok"):
+        return True
+    return None
+
+
 async def generate_verified_questions(
         llm: AsyncLLMClient, *,
         make_prompt: Callable[[], str],

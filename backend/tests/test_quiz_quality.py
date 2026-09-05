@@ -120,6 +120,36 @@ class TestCritic(unittest.TestCase):
         self.assertEqual(len(kept), 1)
 
 
+class TestQuestionVerifiedFlag(unittest.TestCase):
+    """W2/A05：内容级验证状态归一——只有 critic 独立重解通过才为 True。
+
+    basic 结构校验、off、缺失、critic 故障放行一律 None（缺失不默认高
+    置信）；answer_verified=True 但 critic=skipped（basic 模式）不得冒充
+    内容已验证（A17 的四分标签属 W3，这里先钉两级）。"""
+
+    def test_critic_ok_is_verified(self):
+        from app.core.quiz_verify import question_verified
+        self.assertIs(question_verified(
+            {"mode": "critic", "critic": "ok", "answer_verified": True}), True)
+
+    def test_basic_mode_is_not_content_verified(self):
+        from app.core.quiz_verify import question_verified
+        self.assertIsNone(question_verified(
+            {"mode": "basic", "critic": "skipped", "answer_verified": True}))
+        self.assertIsNone(question_verified(
+            {"mode": "off", "critic": "skipped", "answer_verified": False}))
+
+    def test_critic_error_fail_open_is_not_verified(self):
+        from app.core.quiz_verify import question_verified
+        self.assertIsNone(question_verified(
+            {"mode": "critic", "critic": "error", "answer_verified": False}))
+
+    def test_missing_metadata_is_none(self):
+        from app.core.quiz_verify import question_verified
+        self.assertIsNone(question_verified(None))
+        self.assertIsNone(question_verified({}))
+
+
 class TestGenerateVerified(unittest.TestCase):
     def test_full_pipeline_drops_ill_formed_and_renumbers(self):
         from app.core.quiz_verify import generate_verified_questions

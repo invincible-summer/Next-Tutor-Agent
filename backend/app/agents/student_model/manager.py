@@ -158,12 +158,35 @@ class StudentModel:
 
     def record_quiz_result(self, *, concept: str, correct: bool,
                            skill_id: str = "", knowledge_point: str = "",
-                           subject: str = "", note: str = "") -> None:
-        """Convenience: record a single quiz-graded event (quiz endpoint)."""
+                           subject: str = "", note: str = "",
+                           verdict: str = "", confidence: float | None = None,
+                           attempt_id: str = "") -> None:
+        """Convenience: record a single quiz-graded event (quiz endpoint).
+
+        W2: ``verdict`` distinguishes partial from binary wrong for the BKT
+        step (A04); ``confidence`` is the evidence gate's capped max_confidence
+        (A05); ``attempt_id`` makes re-processing the SAME submission a no-op
+        — the same evidence must not influence M2 twice (A05)."""
+        if attempt_id and self._attempt_recorded(attempt_id):
+            return
         col = EventCollector()
         col.quiz_graded(concept, correct, skill_id=skill_id,
-                        knowledge_point=knowledge_point, subject=subject, note=note)
+                        knowledge_point=knowledge_point, subject=subject,
+                        note=note, verdict=verdict, confidence=confidence,
+                        attempt_id=attempt_id)
         self.record_events(col.drain())
+
+    def _attempt_recorded(self, attempt_id: str) -> bool:
+        """Whether a quiz_graded event with this attempt id already exists."""
+        try:
+            from .store import read_events
+            for ev in read_events(self.student_id):
+                if (ev.type == EventType.QUIZ_GRADED
+                        and str(ev.payload.get("attempt_id") or "") == attempt_id):
+                    return True
+        except Exception:
+            return False
+        return False
 
     def update_learning_style(self, *, preference: str = "",
                               explanation_depth: str = "") -> bool:
@@ -335,18 +358,26 @@ def get_student_model(student_id: str = DEFAULT_STUDENT_ID) -> StudentModel:
 def record_quiz_result(*, concept: str, correct: bool, session_id: str = "",
                        skill_id: str = "", knowledge_point: str = "",
                        subject: str = "", note: str = "",
-                       student_id: str = "") -> None:
+                       student_id: str = "",
+                       verdict: str = "", confidence: float | None = None,
+                       attempt_id: str = "") -> None:
     """Process-level convenience used by the quiz grading endpoint.
 
     M0：student_id 为身份命名空间（/quiz/grade 经 resolve_student_id 透传），
     缺省回退 DEFAULT_STUDENT_ID（游客）。Returns without raising on any
     failure so grading never breaks.
+
+    W2/A04/A05：verdict（partial 不做二元负向 BKT 更新）、confidence（证据
+    门 cap 后的 max_confidence 审计）与 attempt_id（同一作答幂等，不重复
+    影响 M2）为可选增量参数，旧调用方不受影响。
     """
     try:
         if not is_enabled():
             return
         sm = get_student_model(student_id or DEFAULT_STUDENT_ID)
         sm.record_quiz_result(concept=concept, correct=correct, skill_id=skill_id,
-                              knowledge_point=knowledge_point, subject=subject, note=note)
+                              knowledge_point=knowledge_point, subject=subject,
+                              note=note, verdict=verdict, confidence=confidence,
+                              attempt_id=attempt_id)
     except Exception:
         pass

@@ -200,19 +200,29 @@ async def generate_question(goal: AssessmentGoal, ctx: AssessmentContext,
         # Shared quality gate: structural check + independent critic re-solve.
         # A failed/dropped question returns None so the supervisor simply
         # skips the closing check instead of quizzing with a broken key.
+        verification: dict[str, Any] = {
+            "mode": settings.quiz_verify_mode, "critic": "skipped",
+            "answer_verified": False}
         if settings.quiz_verify_mode != "off" and not is_well_formed(raw_q):
             return None
         if settings.quiz_verify_mode == "critic":
             kept, _bad, critic_ok = await verify_questions(
                 llm, [raw_q], topic=concept, grade=grade,
                 difficulty=_difficulty_label(difficulty))
+            verification["critic"] = "ok" if critic_ok else "error"
             if critic_ok and not kept:
                 return None
+        verification["answer_verified"] = (
+            settings.quiz_verify_mode == "critic"
+            and verification["critic"] == "ok")
         q = Question.from_quiz_dict(raw_q, concept=concept, difficulty=difficulty)
         if not q.stem or not q.answer:
             return None
         q.assesses = list(goal.assesses)
         q.forbidden = list(goal.forbidden)
+        # W2/A05: the verification audit rides WITH the question (into the
+        # session file) so the evidence gate can weigh it at grading time.
+        q.verification = verification
         return q
     except Exception:
         return None

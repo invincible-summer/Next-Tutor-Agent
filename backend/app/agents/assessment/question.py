@@ -54,6 +54,9 @@ class Question:
     forbidden: list[str] = field(default_factory=list)
     distractor_targets: dict[str, str] = field(default_factory=dict)
     bloom_level: str = ""                      # remember..create ("" = untagged)
+    # W2/A05: generation-time verification audit (quiz_verify meta shape) so
+    # the evidence gate can distinguish content-checked from merely structural.
+    verification: dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -70,6 +73,7 @@ class Question:
             "forbidden": list(self.forbidden),
             "distractor_targets": dict(self.distractor_targets),
             "bloom_level": self.bloom_level,
+            "verification": dict(self.verification),
         }
 
     @property
@@ -111,4 +115,5 @@ class Question:
             answer=str(d.get("answer", "") or ""),
             explanation=str(d.get("explanation", "") or ""),
             bloom_level=normalize_level(d.get("bloom_level")),
+            verification=dict(d.get("verification", {}) or {}),
         )

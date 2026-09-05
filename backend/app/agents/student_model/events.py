@@ -43,12 +43,24 @@ class EventCollector:
         return ev
 
     def quiz_graded(self, concept: str, correct: bool, *, skill_id: str = "",
-                    knowledge_point: str = "", subject: str = "", note: str = "") -> None:
-        self.add(EventType.QUIZ_GRADED, {
+                    knowledge_point: str = "", subject: str = "", note: str = "",
+                    verdict: str = "", confidence: float | None = None,
+                    attempt_id: str = "") -> None:
+        payload = {
             "concept": concept, "correct": bool(correct),
             "skill_id": skill_id, "knowledge_point": knowledge_point,
             "subject": subject, "note": note,
-        })
+        }
+        # W2 additive audit keys: three-level verdict (partial is not a binary
+        # wrong for the BKT step), gate-capped grading confidence, and the
+        # attempt id used for idempotent re-submission handling.
+        if verdict:
+            payload["verdict"] = verdict
+        if confidence is not None:
+            payload["confidence"] = round(max(0.0, min(1.0, confidence)), 3)
+        if attempt_id:
+            payload["attempt_id"] = attempt_id
+        self.add(EventType.QUIZ_GRADED, payload)
 
     def concept_taught(self, concept: str, *, skill_id: str = "",
                        subject: str = "", brief: str = "") -> None:
@@ -122,7 +134,13 @@ class EventProcessor:
         skill_id, concept, subject = self._resolve_skill(event)
         correct = bool(p.get("correct", False))
         note = str(p.get("note") or "")
-        if skill_id:
+        # W2/A04: partial is NOT a binary wrong. updatePlan.md §8.6.3 forbids
+        # both a full negative BKT update and an uncalibrated linear blend, so
+        # a partial verdict leaves legacy BKT untouched while the observation
+        # still counts in the running tally / misconception stats (the M3
+        # REMEDIATION root signal, DESIGN §13).
+        partial = str(p.get("verdict") or "") == "partial"
+        if skill_id and not partial:
             self.mastery.record_observation(skill_id, correct, note=note or "")
         rec = self._touch_memory(skill_id or concept, concept, subject)
         rec.attempts += 1
@@ -142,7 +160,8 @@ class EventProcessor:
                     rec.mistake_types = cap_list(rec.mistake_types + [mtype.value], 6)
             except Exception:
                 pass
-            # consistent wrong -> weak point
+            # consistent wrong/partial -> weak point (partial is the REMEDIATION
+            # root signal and must not be lost)
             self._push_weak(concept or skill_id)
         else:
             # consistently right -> strong point

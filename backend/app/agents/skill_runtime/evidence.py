@@ -29,6 +29,9 @@ class LearningEvidence:
     student_action: bool
     response_id: str = ""
     question_id: str = ""
+    # W2/A05: whether the question's CONTENT was independently re-solved by
+    # the critic. None (unknown/basic/off/fail-open) must never read as trusted.
+    question_verified: bool | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -40,6 +43,7 @@ class LearningEvidence:
             "student_action": self.student_action,
             "response_id": self.response_id,
             "question_id": self.question_id,
+            "question_verified": self.question_verified,
         }
 
 
@@ -81,17 +85,26 @@ def assessment_evidence(*, learning_skill_id: str, verdict: str,
                         student_answer: str, question_id: str = "",
                         source: str = "assessment",
                         grading_confidence: float = 0.8,
-                        is_variant: bool = False) -> LearningEvidence:
+                        is_variant: bool = False,
+                        question_verified: bool | None = None) -> LearningEvidence:
     """Build evidence from a graded learner response.
 
     Correctness is deliberately not used as confidence: a confidently graded
     wrong answer is still valuable negative BKT evidence. Unknown/ungraded
     responses receive zero confidence and are rejected by the gate.
+
+    W2/A05: a question whose content was NOT independently re-solved (basic
+    structural check only / critic off / metadata missing / fail-open) caps
+    the grading confidence at 0.70 — missing verification never defaults to
+    trusted, while a deterministic letter grade on an unverified MC (1.0)
+    stays above the gate's 0.60 rejection line instead of being discarded.
     """
     normalized = (verdict or "").strip().lower()
     confidence = grading_confidence if normalized in {
         "correct", "partial", "wrong", "对", "部分对", "错",
     } else 0.0
+    if question_verified is not True:
+        confidence = min(confidence, 0.70)
     return LearningEvidence(
         learning_skill_id=learning_skill_id,
         level=(EvidenceLevel.VARIANT_TASK if is_variant
@@ -100,4 +113,5 @@ def assessment_evidence(*, learning_skill_id: str, verdict: str,
         confidence=confidence,
         student_action=bool((student_answer or "").strip()),
         question_id=question_id,
+        question_verified=question_verified,
     )

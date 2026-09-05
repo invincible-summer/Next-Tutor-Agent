@@ -164,6 +164,33 @@ class TestLearningEvidenceGate(unittest.TestCase):
         self.assertTrue(result.allow_mastery_update)
         self.assertEqual(result.reason_code, "performance_evidence_valid")
 
+    def test_unverified_question_caps_grading_confidence(self):
+        # W2/A05：题目内容未过 critic 独立重解（basic/off/缺失/fail-open）时，
+        # 评分置信压到 0.70 上限——缺失不默认高置信，但仍高于 0.60 拒绝线，
+        # 不把确定性 MC 判分整个丢弃。
+        from app.agents.skill_runtime import assessment_evidence
+        ev = assessment_evidence(
+            learning_skill_id="physics.mechanics.buoyancy",
+            verdict="correct", student_answer="A",
+            grading_confidence=1.0, question_verified=None)
+        self.assertEqual(ev.confidence, 0.70)
+        self.assertIsNone(ev.question_verified)
+        result = evaluate_learning_evidence(ev)
+        self.assertTrue(result.allow_mastery_update)
+        self.assertEqual(result.max_confidence, 0.70)
+
+    def test_verified_question_keeps_grading_confidence(self):
+        from app.agents.skill_runtime import assessment_evidence
+        ev = assessment_evidence(
+            learning_skill_id="physics.mechanics.buoyancy",
+            verdict="correct", student_answer="A",
+            grading_confidence=1.0, question_verified=True)
+        self.assertEqual(ev.confidence, 1.0)
+        result = evaluate_learning_evidence(ev)
+        self.assertTrue(result.allow_mastery_update)
+        # SAME_FORM 层级 cap 依旧生效：题目已验证不等于独立证据。
+        self.assertEqual(result.max_confidence, 0.75)
+
 
 
 class TestSkillRuntimeIntegration(unittest.TestCase):
@@ -796,6 +823,80 @@ class TestAssessmentEvidenceAdapter(unittest.TestCase):
         self.assertTrue(result.evidence_gate["allow_mastery_update"])
         self.assertEqual(result.evidence_gate["reason_code"],
                          "performance_evidence_valid")
+
+    def test_partial_verdict_reaches_m2_without_binary_collapse(self):
+        # W2/A04：partial 不再被 .correct(=False) 塞成二元 wrong——verdict 与
+        # gate cap 后的 max_confidence 一并传入 M2（事件处理器据此跳过负向
+        # BKT 更新），账本/事件侧保留 0.5 语义。
+        from unittest.mock import patch
+        from app.agents.assessment.manager import AssessmentManager
+        from app.agents.assessment.state import AssessmentResult
+
+        result = AssessmentResult(
+            question_id="q_partial", concept="浮力",
+            skill_id="physics.mechanics.buoyancy", verdict="partial", score=0.5,
+        )
+        with patch("app.agents.student_model.record_quiz_result") as record:
+            AssessmentManager()._record(
+                result, student_id="student_gate", student_answer="写了一半",
+                grading_confidence=0.75, grading_source="assessment_llm_grade",
+            )
+        record.assert_called_once()
+        kwargs = record.call_args.kwargs
+        self.assertEqual(kwargs["verdict"], "partial")
+        self.assertFalse(kwargs["correct"])
+        self.assertEqual(kwargs["confidence"],
+                         result.evidence_gate["max_confidence"])
+        # 未传 question_verified → 置信被压到 0.70（A05 缺失不默认高置信）。
+        self.assertEqual(kwargs["confidence"], 0.70)
+
+
+class TestStudentModelWritePath(StorageSandboxTestCase):
+    """W2/A04/A05：M2 事件级语义——partial 不动 BKT、同 attempt 幂等。"""
+
+    def test_partial_does_not_move_bkt_but_counts_in_stats(self):
+        from app.agents.student_model import get_student_model
+        sm = get_student_model("st_m2_partial").load()
+        sm.record_quiz_result(concept="条件概率", correct=True,
+                              skill_id="sk_m2_partial")
+        p_after_correct = sm.mastery.records["sk_m2_partial"].p_known
+        # partial：correct=False 但 verdict=partial → BKT 不动（§8.6.3 禁
+        # 完整负向更新与未校准线性混合）。
+        sm.record_quiz_result(concept="条件概率", correct=False,
+                              skill_id="sk_m2_partial", verdict="partial",
+                              note="思路对但漏了归一化")
+        self.assertEqual(sm.mastery.records["sk_m2_partial"].p_known,
+                         p_after_correct)
+        # 概念统计仍然计入 attempt（partial 是 M3 REMEDIATION 根因信号，
+        # 不丢失）。
+        rec = sm.memory.get("sk_m2_partial")
+        self.assertIsNotNone(rec)
+        self.assertEqual(rec.attempts, 2)
+        self.assertEqual(rec.correct, 1)
+        # wrong：负向更新照旧。
+        sm.record_quiz_result(concept="条件概率", correct=False,
+                              skill_id="sk_m2_partial", verdict="wrong")
+        self.assertLess(sm.mastery.records["sk_m2_partial"].p_known,
+                        p_after_correct)
+
+    def test_same_attempt_id_influences_m2_once(self):
+        # W2/A05「相同证据不能重复影响 M2」：同一 attempt_id 的重放（重试/
+        # 双写路径）只记一次，BKT 只动一次。
+        from app.agents.student_model import get_student_model
+        from app.agents.student_model.store import read_events
+        sm = get_student_model("st_m2_att").load()
+        sm.record_quiz_result(concept="条件概率", correct=True,
+                              skill_id="sk_m2_att", confidence=0.9,
+                              attempt_id="att_dup_1")
+        p1 = sm.mastery.records["sk_m2_att"].p_known
+        sm.record_quiz_result(concept="条件概率", correct=True,
+                              skill_id="sk_m2_att", attempt_id="att_dup_1")
+        self.assertEqual(sm.mastery.records["sk_m2_att"].p_known, p1)
+        graded = [e for e in read_events("st_m2_att")
+                  if e.type.name == "QUIZ_GRADED"]
+        self.assertEqual(len(graded), 1)
+        self.assertEqual(graded[0].payload.get("attempt_id"), "att_dup_1")
+        self.assertEqual(graded[0].payload.get("confidence"), 0.9)
 
 
 class TestGatedCompatibility(unittest.TestCase):
