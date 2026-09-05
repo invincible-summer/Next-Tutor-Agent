@@ -2,10 +2,14 @@
 structured learning task (intent / subject / concept / goal).
 
 Three paths, tried in order (Hybrid Understanding):
+  0. Pending-context match (D02) -- an explicit option pick ("B"/"选C") or a
+     bare «继续» resolves against the session's pending exercise BEFORE the
+     greeting short-circuit can swallow it.
   1. Rule short-circuit -- greetings/acks -> CHITCHAT (no LLM call, saves
      tokens + latency, preserves V1's "don't loop on '你好'" behavior).
   2. LLM structured output -- for substantive questions, a low-budget
-     non-streaming call returns a JSON task object.
+     non-streaming call returns a JSON task object; the bounded session
+     context (pending question / active concepts) rides along (D02).
   3. Rule-based fallback -- if the LLM fails/returns junk, coarse-classify by
      keyword triggers into a best-guess task type.
 
@@ -117,6 +121,147 @@ def _is_greeting(msg: str) -> bool:
         if not has_subject and not starts_verb and not any(kw in msg for kw in _EXPLAIN_KW):
             return True
     return False
+
+
+# --- D02: bounded session context (W3) ----------------------------------------
+# A10 的根因：规则短路与 LLM 理解都只看当前消息，session 里「待答检测题、正在
+# 教学的概念」完全不可见，"B"/「继续」这类短确认因此丢失指代。这里构造一个
+# 只读、有界的上下文投影（供规则匹配与 LLM prompt 共用），不引入第二份状态。
+
+# 学生想推进当前学习时最常用的短语（存在可续上下文时不落寒暄快道）。
+_CONTINUE_PHRASES = {"继续", "继续吧", "接着来", "继续学", "继续练", "继续练习",
+                     "下一题", "下一道", "next", "go on", "continue"}
+# 选项点选的口语前缀（"选B"/"答案是b"/"我选 C"）。
+_OPTION_PREFIXES = ("答案是", "我选", "我选的是", "选", "答案", "choose", "answer is")
+
+
+def _session_context(session: TutorSession | None) -> dict[str, Any]:
+    """Bounded read-only projection of pending learning context.
+
+    Returns the latest quiz set's first unanswered question (type / stem
+    prefix / option keys+values / knowledge point) plus the learning card's
+    active concepts and recent verdicts. Everything is capped so the block
+    stays cheap to embed; any malformed session shape degrades to empty.
+    """
+    ctx: dict[str, Any] = {
+        "pending_q_type": "", "pending_stem": "", "pending_knowledge_point": "",
+        "option_keys": [], "option_values": [],
+        "active_concepts": [], "latest_verdicts": [],
+    }
+    if session is None:
+        return ctx
+    try:
+        history = getattr(session, "quiz_history", None) or []
+        for qset in reversed(history):
+            if not isinstance(qset, dict):
+                continue
+            questions = qset.get("questions")
+            if not isinstance(questions, list):
+                continue
+            unanswered = [q for q in questions
+                          if isinstance(q, dict) and not q.get("result")]
+            if not unanswered:
+                continue
+            q = unanswered[0]
+            ctx["pending_q_type"] = str(q.get("type", ""))[:20]
+            ctx["pending_stem"] = str(q.get("stem", ""))[:80]
+            ctx["pending_knowledge_point"] = str(q.get("knowledge_point", ""))[:30]
+            opts = q.get("options")
+            if isinstance(opts, dict):
+                for k, v in list(opts.items())[:8]:
+                    ctx["option_keys"].append(str(k).strip())
+                    ctx["option_values"].append(str(v).strip()[:40])
+            break
+        card = getattr(session, "context_card", None)
+        if isinstance(card, dict):
+            ctx["active_concepts"] = [str(c)[:30] for c in
+                                      (card.get("active_concepts") or [])][:3]
+            ctx["latest_verdicts"] = [str(v)[:10] for v in
+                                      (card.get("latest_verdicts") or [])][:3]
+    except Exception:
+        pass
+    return ctx
+
+
+def _match_pending_option(msg: str, ctx: dict[str, Any]) -> TaskUnderstanding | None:
+    """Deterministic structured handling of an explicit option pick (D02).
+
+    "B" / "选C。" / "答案是b" / an exact option value all resolve to the pending
+    question's knowledge point with goal=answer_pending. Grading itself stays
+    on the quiz-card API -- chat never grades on the student's behalf.
+    """
+    keys = [k for k in ctx.get("option_keys", []) if k]
+    if not keys:
+        return None  # 选项点选只对带选项的待答题目成立
+    text = msg.strip().strip("。．.!！?？，, ")
+    for prefix in _OPTION_PREFIXES:
+        if text.lower().startswith(prefix):
+            text = text[len(prefix):].strip()
+            break
+    text = text.strip("。．.!！?？，, ：: ")
+    if not text or len(text) > 12:
+        return None
+    upper = text.upper()
+    if upper not in [k.upper() for k in keys]:
+        if text not in [v for v in ctx.get("option_values", []) if v]:
+            return None
+    return TaskUnderstanding(
+        intent=TaskType.PRACTICE,
+        concept=str(ctx.get("pending_knowledge_point", "")),
+        goal="answer_pending",
+        requires_tools=False,
+        confidence=0.9,
+        source="rule_option",
+        allow_followup_assessment=False,  # 本轮在答待答题，不再追新题
+    )
+
+
+def _match_pending_continue(msg: str, ctx: dict[str, Any]) -> TaskUnderstanding | None:
+    """«继续/下一题» with continuable context -> keep the reference instead of
+    dropping to chitchat. Pending question wins (continue = engage the
+    exercise); otherwise continue teaching the active concept."""
+    if msg.strip().lower() not in _CONTINUE_PHRASES:
+        return None
+    if ctx.get("pending_stem"):
+        return TaskUnderstanding(
+            intent=TaskType.PRACTICE,
+            concept=str(ctx.get("pending_knowledge_point", "")),
+            goal="answer_pending",
+            requires_tools=False,
+            confidence=0.85,
+            source="rule_continue",
+            allow_followup_assessment=False,
+        )
+    concepts = ctx.get("active_concepts") or []
+    if concepts:
+        return TaskUnderstanding(
+            intent=TaskType.EXPLAIN,
+            concept=concepts[0],
+            goal="understand",
+            requires_tools=False,
+            confidence=0.7,
+            source="rule_continue",
+        )
+    return None
+
+
+def _context_block(ctx: dict[str, Any]) -> str:
+    """Render the bounded context for the LLM understanding prompt (D02)."""
+    parts: list[str] = []
+    if ctx.get("pending_stem"):
+        opts = " ".join(ctx.get("option_keys", [])[:8])
+        parts.append(f"存在待答题目（{ctx.get('pending_q_type', '')}）："
+                     f"{ctx['pending_stem']}"
+                     + (f"（选项：{opts}）" if opts else "")
+                     + (f"（知识点：{ctx['pending_knowledge_point']}）"
+                        if ctx.get("pending_knowledge_point") else ""))
+    if ctx.get("active_concepts"):
+        parts.append("正在教学的概念：" + "、".join(ctx["active_concepts"]))
+    if ctx.get("latest_verdicts"):
+        parts.append("最近判定：" + "、".join(ctx["latest_verdicts"]))
+    if not parts:
+        return ""
+    return "\n\n【会话上下文】" + "；".join(parts)
 
 
 def _rule_classify(msg: str) -> TaskType:
@@ -234,13 +379,22 @@ def _clean_search_queries(raw: Any) -> list[str]:
     return out
 
 
-async def llm_understand(msg: str, llm: AsyncLLMClient) -> TaskUnderstanding | None:
+async def llm_understand(msg: str, llm: AsyncLLMClient,
+                         ctx: dict[str, Any] | None = None) -> TaskUnderstanding | None:
     """LLM structured-output path. Returns None on any failure so the caller
-    can fall back to rules (never raises into the turn)."""
+    can fall back to rules (never raises into the turn).
+
+    `ctx` is the bounded session context (D02): appended to the user message
+    so short references ("这一步呢"/"继续") keep their referent."""
+    user_content = msg
+    if ctx is not None:
+        block = _context_block(ctx)
+        if block:
+            user_content = msg + block
     try:
         content, usage = await llm.complete(
             [{"role": "system", "content": _UNDERSTAND_SYSTEM},
-             {"role": "user", "content": msg}],
+             {"role": "user", "content": user_content}],
             temperature=0.1,
             max_tokens=400,
             disable_thinking=True,  # JSON extraction: reasoning would starve the budget
@@ -288,23 +442,36 @@ async def understand(msg: str, session: TutorSession, llm: AsyncLLMClient | None
                      *, use_llm: bool | None = None) -> TaskUnderstanding:
     """Top-level task understanding.
 
-    Order: rule short-circuit -> (optional) LLM -> rule fallback.
-    A CHITCHAT rule result is final (no LLM). For substantive questions we try
-    the LLM; if it fails we keep the rule result with source='fallback'.
+    Order: pending-context match (D02) -> rule short-circuit -> (optional) LLM
+    -> rule fallback. A CHITCHAT rule result is final unless continuable
+    session context re-anchors it (no LLM). For substantive questions we try
+    the LLM with the bounded context block; if it fails we keep the rule
+    result with source='fallback'.
 
     `use_llm` overrides the env-driven default (None = read env var)."""
     import os
     if use_llm is None:
         use_llm = os.getenv("SUPERVISOR_LLM_UNDERSTAND", "1") not in ("0", "false", "False")
 
+    ctx = _session_context(session)
+
+    # D02: an explicit option pick or a bare «继续» resolves against the
+    # pending exercise BEFORE the greeting short-circuit can swallow it.
+    option_pick = _match_pending_option(msg, ctx)
+    if option_pick is not None:
+        return option_pick
+
     ruled = rule_understand(msg)
     if ruled.intent == TaskType.CHITCHAT:
+        continued = _match_pending_continue(msg, ctx)
+        if continued is not None:
+            return continued
         return ruled  # greeting/ack: never spend an LLM call
 
     if not use_llm or llm is None:
         return ruled
 
-    llm_result = await llm_understand(msg, llm)
+    llm_result = await llm_understand(msg, llm, ctx)
     if llm_result is not None:
         # Deterministic lexical constraints override an LLM style guess. The
         # student should not lose “一句话/不要出题” because the classifier

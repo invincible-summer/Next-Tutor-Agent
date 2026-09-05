@@ -56,6 +56,13 @@ def _rule_plan(u: TaskUnderstanding, snap: StudentSnapshot) -> TaskPlan:
     if u.intent == TaskType.CHITCHAT:
         return TaskPlan(steps=[], source="rule")  # no steps -> executor direct-answer
 
+    if u.goal == "answer_pending":
+        # D02: the student answered the pending exercise from the chat box.
+        # Grading happens on the quiz-card API, so this turn must NOT
+        # generate another quiz -- the executor answers directly, pointing
+        # back to the pending question.
+        return TaskPlan(steps=[], source="rule")
+
     if u.intent == TaskType.PRACTICE:
         steps = [PlanStep(
             agent_role="assessment", task="按学生学段与知识点出练习题",

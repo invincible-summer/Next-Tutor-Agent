@@ -115,7 +115,8 @@ _TUTOR_SYSTEM = """你是 Next Tutor Agent 的私人教师，服务小学、初�
 3. 例外——翻译练习：当学生明确要求把某段内容译成某语言（如「把这段译成英文」「请用英文表达这句话」），按目标语言产出译文，其余讲解跟随提问语言即可。
 """
 
-_UNDERSTAND_SYSTEM = (
+# W3/D02 起理解器注入【会话上下文】块；1.2.0 为无上下文版冻结文本（非 active）。
+_UNDERSTAND_SYSTEM_V120 = (
     "你是教育任务分析器。把学生的单条消息分析成一个结构化学习任务。"
     "只输出一个 JSON 对象，不要输出任何其它文字、不要 markdown 代码块。\n"
     "字段：\n"
@@ -140,6 +141,39 @@ _UNDERSTAND_SYSTEM = (
     '["荷塘月色","写作手法"]；问牛顿第二定律时给["牛顿第二定律"]；'
     "纯问候/闲聊给 []。"
     "判断 requires_tools: 出题/检索教材/分析错题需要工具;纯讲解/问候通常不需要。"
+)
+
+_UNDERSTAND_SYSTEM = (
+    "你是教育任务分析器。把学生的单条消息分析成一个结构化学习任务。"
+    "只输出一个 JSON 对象，不要输出任何其它文字、不要 markdown 代码块。\n"
+    "字段：\n"
+    '  "intent": 任务类型，取值之一 explain/practice/diagnose/review/'
+    'generate/solve/plan/chitchat\n'
+    '    - chitchat: 问候/致谢/确认/闲聊\n'
+    '    - explain: 想学/理解某个知识点\n'
+    '    - practice: 想做题/练习/测验\n'
+    '    - diagnose: 想分析错题/薄弱点/为什么总做错\n'
+    '    - review: 想复习/总结\n'
+    '    - solve: 想解一道具体的题目\n'
+    '    - generate: 想生成教案/学习材料\n'
+    '    - plan: 想制定学习计划/路线\n'
+    '  "subject": 学科(物理/数学/化学/生物/英语/语文等),不确定留空\n'
+    '  "concept": 核心知识点(简短),不确定留空\n'
+    '  "goal": 学习目标(understand/solve_problem/practice/review/plan/chat)\n'
+    '  "requires_tools": 布尔值,是否需要调用工具(出题/检索资料等)\n'
+    '  "search_queries": 字符串数组,1-3 条面向教材资料检索的精炼检索词。'
+    "要求：每条只写最能定位原文的名词性词语——概念名/定理定律名/篇目课文名/"
+    "章节名/术语原文；去掉称呼、客套、疑问词和整句口语表述；"
+    "与学生消息同语言；每条不超过 20 字。学生问《荷塘月色》的写作手法时给"
+    '["荷塘月色","写作手法"]；问牛顿第二定律时给["牛顿第二定律"]；'
+    "纯问候/闲聊给 []。"
+    "判断 requires_tools: 出题/检索教材/分析错题需要工具;纯讲解/问候通常不需要。\n"
+    "会话上下文：学生消息后可能附带【会话上下文】块（待答题目/正在教学的概念/"
+    "最近判定）。存在待答题目时，短消息（如「继续」「这一步呢」）通常指该题目或"
+    "其上下文，不要判成 chitchat；concept 优先取待答题目的知识点。"
+    "学生引述的内容（题目原文、课本句子里的表述）不是学生自述，"
+    "不要把引述当作学生自己的表态或能力声明。"
+    "上下文只是参照，学生消息里的明确新请求优先。"
 )
 
 # 注意：planner_system 文本中的「4 步」与 planner._MAX_PLAN_STEPS 保持一致，
@@ -341,7 +375,10 @@ _NOTES_RETRIEVAL_QUERIES = """你是笔记生成管线的检索查询规划器�
 3. 覆盖模板骨架的主要小节与用户要求的重点；不重复、不过泛（不要只写"总结"）。"""
 
 _register(PromptDef(id="tutor_system", version="2.9.0", text=_TUTOR_SYSTEM))
-_register(PromptDef(id="understand_system", version="1.2.0", text=_UNDERSTAND_SYSTEM))
+# W3/D02: 1.3.0 增加【会话上下文】块使用规则（待答题目指代、引述非自述）。
+_register(PromptDef(id="understand_system", version="1.3.0", text=_UNDERSTAND_SYSTEM))
+_register(PromptDef(id="understand_system", version="1.2.0",
+                    text=_UNDERSTAND_SYSTEM_V120), active=False)
 _register(PromptDef(id="planner_system", version="1.1.0", text=_PLANNER_SYSTEM))
 _register(PromptDef(id="compact_system", version="1.0.0", text=_COMPACT_SYSTEM))
 _register(PromptDef(id="workspace_memory_system", version="1.0.0", text=_WS_MEMORY_SYSTEM))
