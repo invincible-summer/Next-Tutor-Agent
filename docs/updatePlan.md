@@ -996,3 +996,94 @@ W0–W6 粗估合计 31–54 人天；是否并行取决于实际团队、模块
   LLM shadow 对照；依赖 W2 的 attempt/AssessmentRecord 数据基础（已就位）。W0 外部资源仍待提供：
   试点教材单元与 5–8 名试点用户（§5.5/§13.2），不阻塞 W3 开工。
 ```
+
+### 15.4 W3 结构化教学闭环
+
+```text
+工作包：W3
+状态：已验证（代码与契约回归）/ 待外部资源（金标验收与试点用户）
+对应发现：D02/D04/D06/D08/D10/D11（§7.2）、A10（D02 范围）、A17（四分标签派生）、
+  F01/F02/F05 最小形式、§8.6.2 v2 投影、§8.5 BKT 有效事件重放（§15.3 点名的 W3 边界项）
+验收条款：§12.2 W3 行「冻结金标通过；没有证据不宣称会；仅一个主要下一步；
+  关闭新模型仍能帮助但不污染状态」
+当前基线：3605511 → 本轮提交序列 43d8e2f / 515a859 / 37406a6 / 16951cd / 7a94d8b /
+  6f5f0b4 / 3bd6ef6（+ docs 提交）
+实际变更：
+  - D02/A10（43d8e2f）：task_understanding 注入有界会话上下文（待答题型/题干前缀/
+    选项键值/正在教概念/最近判定）；显式选项点选（"B"/"选C"/选项原文）确定性解析为
+    goal=answer_pending（判分仍在题卡 API；planner 对 answer_pending 返回空计划，本轮
+    不再出新题）；「继续/下一题」存在可续上下文时不落寒暄快道；LLM 路径携带
+    【会话上下文】块（understand_system@1.3.0，1.2.0 冻结保留非 active）。
+  - D04+A17（515a859）：出题 prompt 三路径共用 RUBRIC_REQUIREMENT 契约，随题输出
+    rubric_criteria/equivalent_solutions；freeze_rubric 在稳定题号上以 version=1 冻结
+    随题落盘（quiz_history/账本 record_question/Question.rubric）；M4 出题与批改 prompt
+    迁入注册表（assessment_generate@1.0.0/_auto、assessment_grade@1.0.0）；
+    verification_label() 四分派生（content_checked/ambiguous/structural_valid/
+    unchecked），question_verified() 两级语义不变；CAT 单题路径补稳定题号 q_<uid>_1。
+  - D06（37406a6）：structured_evaluator 单次调用（assessment_analyze@1.0.0）——
+    criterion_id 限冻结量规候选集、五态枚举白名单、≤2 错因假设（七类）、六维观测、
+    feedback{strength,next_step}、continuation 建议；分数由服务端按冻结权重本地计算
+    （not_applicable 出分母、关键条目 not_observed→整题不确定→保守 partial）；
+    坏 JSON 修复一次→再坏弃权回退三级批改；MC 保持确定性判分。三态旗标
+    STRUCTURED_ASSESSMENT_MODE=off|shadow|active（白名单归一，默认 off）：off 逐例
+    不变；shadow 旁路计算存 structured_shadow（不改变判定/不写能力）；active 为权威
+    判定，结构化明细随 AssessmentResult.structured/账本 attempt（criterion_results/
+    hypotheses）/M2 事件 payload 增键落盘（v2 投影输入）。
+  - D10（16951cd）：continuation_policy 硬上限优先（should_stop 纯规则未动、先判）；
+    active 下 finish→sufficient_evidence（分数≥0.75 且无关键条目未达标）/
+    insufficient_evidence（未定结束不判失败），与作答同一次落盘；probe→下一题 goal 注入
+    定向子能力（生成后消费）；shadow 存 session.continuation_shadow 不生效；前端补两个
+    stop_reason 中性映射。
+  - M2 v2（7a94d8b）：capability_projection 读时派生概念×六维投影（零新存储根）——
+    ≥2 不同题族（rubric_id）met→demonstrated_in_scope、正反冲突→needs_recheck、
+    有证据未达标→developing、无观测→not_observed（默认）；账本 supersede 的 attempt
+    从投影与重放排除；assisted 不计独立。rebuild_mastery 在 /quiz 两端点重答 supersede
+    后按有效事件全量重放 legacy BKT（同参数同序含 MASTERY_RESET，partial 分轨保持），
+    重放差异记审计日志。GET /student/evidence-profile（只读，含支持作答引用与未测
+    维度）；/student/mastery 增 source/estimate_kind 兼容键；账本 flag_attempt_disputed
+    （保守标记不抹除）。
+  - D08/D11（6f5f0b4）：TEACHING_DECISION_MODE=rules|shadow|active（默认 rules）；
+    decision_adapter 触发门（评估完成/学生新约束/连续困惑，其余零调用）+ validate_decision
+    （action/assistance 枚举、target 候选集、显式约束禁 quiz、单一主要行动）+ 受限应用
+    （mode/assistance/plan_hints/decision_id；不换 review_first）；TeachingStrategy 增
+    assistance/decision_id。session_summary 确定性骨架每轮重建（只引用已接受判定；无测评
+    →「已讲解，待验证」），active+本轮有作答判定时以骨架为唯一输入润色两行；离开≥30 分钟
+    回来 preamble 注入一行上次小结+恢复点。prompts：teaching_decision@1.0.0、
+    session_summary@1.0.0。
+  - F01/F02/F05（3bd6ef6）：GET /quiz/hint（归属校验；量规派生关键步骤提示，不含答案；
+    hint_requested 服务端标记→判分自动携带 assistance=hint，评分置信压 0.70）；
+    POST /quiz/dispute（attempt 异议标记）；/quiz/grade done 携带 structured 块。前端：
+    QuizCard 判定块下 F01 明细（首个卡点/此前做对/错因徽章/下一步追问+「就此练习」）+
+    提交前「看提示」；ConceptDrawer 证据区（v2 维度/支持作答/未测维度/异议入口）；
+    api/types/i18n（zh+en）同步。
+验证证据：
+  - 新增 tests/test_task_understanding_context.py（17）、test_structured_assessment.py（19）、
+    test_continuation_policy.py（10）、test_capability_projection.py（9）、
+    test_teaching_decision.py（16）、test_session_summary.py（11）；扩展
+    test_quiz_quality.py（+13 量规/标签）、test_quiz_ownership.py（+6 hint/dispute）、
+    test_prompt_registry.py（钉 1.3.0+四 prompt）、test_supervisor_integration.py（async 化）。
+  - 命令与结果：PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s tests →
+    1824 项通过（4 skipped 为既有跳过，较 W2 净增 93 项）；pnpm exec tsc --noEmit /
+    eslint src/ / next build --webpack → 全部通过；git diff --check → 干净。
+  - 验收对照：没有证据不宣称会（v2 not_observed 默认/demonstrated 需两题族独立证据/
+    mastery estimate_kind 标注/D11「已讲解，待验证」）✓；仅一个主要下一步
+    （TeachingDecision 单 action 校验 + QuizCard 单 next_step + D10 单 continuation 动作）✓；
+    关闭新模型仍能帮助但不污染状态（默认 off/rules 与旧行为一致、shadow 不写能力不改
+    判定、分析弃权回退三级批改、MC 恒确定性）✓；冻结金标通过——代码侧 shadow 对照
+    数据链路（structured_shadow/continuation_shadow 落盘可对账）就位，金标本体（§13.2
+    200–300 案例）待外部资源，未伪装已验。
+迁移/回滚：请求 schema 全兼容（structured/assessment_id/attempt_id 为响应与落盘增量字段）；
+  两旗标默认 off/rules → 默认路径与 W2 行为一致（D02 修复与量规附加字段除外）；无新增
+  存储根（evidence-profile 读时派生、learning_summary 在会话文件内、结构化明细在既有
+  events/账本/会话结构中），无需登记 sandbox/orphan_cleanup/account_data；七个代码提交
+  可独立回滚（m1 上下文/m4 量规/m4 分析器/m4 continuation/m2 投影/m3 决策/api+ui），
+  docs 提交最后。
+  W3 明确未做（边界）：§9.2/§9.3 新 REST 面（/learning/attempts、episodes、assessment-jobs/
+  events、review job、task launch）属 W4；A08 作答事件供 M7/M9（supervisor 四处 verdict
+  窥探）属 W4；D05 critic 盲评重解 prompt 重设计（本轮仅四分标签派生）；W5 界面收敛、
+  W6 教师改进、W7 创意试点照旧；demonstrated_in_scope 的题族数门槛（2）为待校准产品
+  判定策略（§7.4），金标到位后复核。
+下一步：W4（任务和复习接通）——A07/A08/A12/A13、task launch、作答事件供 M9、复习不再
+  从曝光增长；依赖 W2/W3 的 attempt/评估数据基础（已就位）。外部资源仍待提供：试点教材
+  单元与 5–8 名试点用户（§5.5/§13.2）、200–300 案例金标（不阻塞 W4 开工）。
+```
