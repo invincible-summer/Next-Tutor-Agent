@@ -5,6 +5,7 @@ import Link from "next/link";
 import { AlertTriangle, MessagesSquare, Play, Plus, Target, X } from "lucide-react";
 import { useUIStore } from "@/lib/store";
 import { makePageT } from "@/lib/i18n-page";
+import { cn } from "@/lib/cn";
 import {
   addOrchSubtask,
   addOrchTask,
@@ -46,7 +47,7 @@ import { GoalCard, GoalForm } from "@/components/pages/orchestration/GoalCard";
 import { TodayCard } from "@/components/pages/orchestration/TodayCard";
 import { WeeklyPlanCard } from "@/components/pages/orchestration/WeeklyPlanCard";
 import { HabitCard } from "@/components/pages/orchestration/HabitCard";
-import { taskChatHref } from "@/components/pages/orchestration/task-link";
+import { useTaskLaunch } from "@/components/pages/orchestration/task-link";
 import { STRINGS } from "./strings";
 
 type LoadState = "loading" | "ok" | "error";
@@ -81,6 +82,8 @@ export default function OrchestrationPage() {
   const [formFailed, setFormFailed] = useState(false);
   const [completingId, setCompletingId] = useState<string | null>(null);
   const [kickoff, setKickoff] = useState<Kickoff | null>(null);
+  // W4/A12：kickoff CTA 走服务端 launch（绑定会话归因），失败回退纯文本深链。
+  const { launch: kickoffLaunch, launchingId: kickoffLaunching } = useTaskLaunch(tr);
   // 多目标：新增与编辑分别记录打开状态 / 正在编辑的目标
   const [goalAddOpen, setGoalAddOpen] = useState(false);
   const [editingGoal, setEditingGoal] = useState<Partial<OrchGoal> | null>(null);
@@ -408,15 +411,23 @@ export default function OrchestrationPage() {
                         : tr("kickoff.desc.empty")}
                     </p>
                   </div>
-                  {kickoff.firstTask && (
-                    <Link
-                      href={taskChatHref(kickoff.firstTask, tr)}
-                      className="inline-flex h-8.5 items-center gap-2 rounded-[8px] bg-accent px-3.5 text-sm font-medium text-white shadow-sm transition-colors hover:bg-accent-strong"
-                    >
-                      <Play size={14} />
-                      {tr("kickoff.cta")}
-                    </Link>
-                  )}
+                  {kickoff.firstTask && (() => {
+                    const firstTask = kickoff.firstTask;
+                    const launching = kickoffLaunching === firstTask.id;
+                    return (
+                      <button
+                        onClick={() => void kickoffLaunch(firstTask)}
+                        disabled={launching}
+                        className={cn(
+                          "inline-flex h-8.5 cursor-pointer items-center gap-2 rounded-[8px] bg-accent px-3.5 text-sm font-medium text-white shadow-sm transition-colors hover:bg-accent-strong",
+                          launching && "cursor-wait opacity-70",
+                        )}
+                      >
+                        <Play size={14} />
+                        {launching ? tr("today.launching") : tr("kickoff.cta")}
+                      </button>
+                    );
+                  })()}
                   <button onClick={() => setKickoff(null)} aria-label={tr("kickoff.dismiss")}
                     className="cursor-pointer rounded-[6px] p-1 text-muted transition-colors hover:bg-surface-hover hover:text-fg">
                     <X size={14} />

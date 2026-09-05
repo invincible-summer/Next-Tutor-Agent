@@ -391,6 +391,14 @@ export const completeOrchTask = (taskId: string) =>
     {},
   );
 
+/** W4/A12：服务端任务启动绑定——校验归属、预创建携带 task_binding 的会话，
+ * 返回 launch_url；未完成任务的重复 launch 幂等复用同一会话。 */
+export const launchOrchTask = (taskId: string) =>
+  post<import("./types-modules").OrchLaunchResp>(
+    `/orchestration/task/${encodeURIComponent(taskId)}/launch`,
+    {},
+  );
+
 // --- M0 账户资料（/user/profile，需登录；guest 模式前端不调用） ---
 export const getUserProfile = () =>
   get<{ status: string; profile: import("./types-modules").UserProfileData }>("/user/profile");

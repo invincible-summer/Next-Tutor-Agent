@@ -746,6 +746,25 @@ export interface OrchDailyTask {
   custom: boolean;
   /** 教练批注「为什么今天学这个」，可为空。 */
   reason: string;
+  /** W4/A12 launch 绑定：任务关联的 episode 与预创建会话。 */
+  episode_id?: string;
+  session_id?: string;
+  /** "" | quiz_evidence（绑定作答完成） | self_report（手动勾选）。 */
+  completion_source?: string;
+  /** quiz_evidence 完成时的作答 attempt 引用。 */
+  evidence_attempt_id?: string;
+}
+
+/** POST /orchestration/task/{id}/launch 的响应（W4/A12 任务启动绑定）。 */
+export interface OrchLaunchResp {
+  ok: boolean;
+  task_id: string;
+  episode_id: string;
+  session_id: string;
+  /** 服务端预创建会话的跳转地址（/chat/<sid>）；前端追加 ?q=&send=1。 */
+  launch_url: string;
+  /** true = 复用未完成任务的既有 episode/会话（幂等 relaunch）。 */
+  resumed: boolean;
 }
 
 /** POST /orchestration/goal 的响应（新增一个目标后自动重规划 + kickoff）。 */

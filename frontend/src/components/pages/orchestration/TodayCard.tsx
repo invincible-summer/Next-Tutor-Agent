@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import {
   BookOpen, Check, CheckCircle2, ListChecks, ListTodo, Network, Pencil, PencilLine, Plus,
   RotateCcw, Trash2, Undo2,
@@ -14,7 +13,7 @@ import { Pager, paged } from "@/components/ui/Pager";
 import { cn } from "@/lib/cn";
 import type { OrchTaskCreatePayload, OrchTaskPatchPayload } from "@/lib/api-modules";
 import type { OrchDailyTask } from "@/lib/types-modules";
-import { taskChatHref, taskDisplayName, taskGoLabel } from "./task-link";
+import { taskDisplayName, taskGoLabel, useTaskLaunch } from "./task-link";
 
 type Tr = (key: string, fallback?: string) => string;
 
@@ -168,8 +167,10 @@ function TaskRow({
   task,
   tr,
   completing,
+  launching,
   carryover,
   onComplete,
+  onLaunch,
   onEdit,
   onDelete,
   onReset,
@@ -177,8 +178,10 @@ function TaskRow({
   task: OrchDailyTask;
   tr: Tr;
   completing: boolean;
+  launching: boolean;
   carryover: boolean;
   onComplete: (id: string) => void;
+  onLaunch: (task: OrchDailyTask) => void;
   onEdit: (task: OrchDailyTask) => void;
   onDelete: (task: OrchDailyTask) => void;
   onReset: (id: string) => void;
@@ -214,6 +217,9 @@ function TaskRow({
           )}
           {task.custom && <Badge tone="outline">{tr("today.custom")}</Badge>}
           {carryover && <Badge tone="danger">{tr("today.carryover")}</Badge>}
+          {done && task.completion_source === "self_report" && (
+            <Badge tone="outline">{tr("today.selfreport")}</Badge>
+          )}
           <span className="tnum">{task.estimate_minutes} {tr("today.min")}</span>
         </p>
         {task.reason && (
@@ -232,12 +238,16 @@ function TaskRow({
       </div>
       <span className="flex shrink-0 items-center gap-1">
         {!done && (
-          <Link
-            href={taskChatHref(task, tr)}
-            className="text-[0.7rem] text-accent-strong hover:underline"
+          <button
+            onClick={() => onLaunch(task)}
+            disabled={launching}
+            className={cn(
+              "text-[0.7rem] text-accent-strong hover:underline",
+              launching && "cursor-wait opacity-60",
+            )}
           >
-            {taskGoLabel(task, tr)}
-          </Link>
+            {launching ? tr("today.launching") : taskGoLabel(task, tr)}
+          </button>
         )}
         {resettable ? (
           <button onClick={() => onReset(task.id)} title={tr("today.reset")} aria-label={tr("today.reset")}
@@ -285,6 +295,8 @@ export function TodayCard({
   const [deleting, setDeleting] = useState<OrchDailyTask | null>(null);
   const [tab, setTab] = useState<"plan" | "review">("plan");
   const [page, setPage] = useState(0);
+  // W4/A12：行动按钮走服务端 launch（绑定会话归因），失败回退纯文本深链。
+  const { launch, launchingId } = useTaskLaunch(tr);
 
   // 间隔复习子栏：SRS 到期的 review 任务；其余归学习计划。
   const reviewTasks = tasks.filter((t) => t.kind === "review");
@@ -370,8 +382,10 @@ export function TodayCard({
                 task={t}
                 tr={tr}
                 completing={completingId === t.id}
+                launching={launchingId === t.id}
                 carryover={t.status === "overdue"}
                 onComplete={onComplete}
+                onLaunch={(task) => void launch(task)}
                 onEdit={(task) => { setFormFailed(false); setModal({ mode: "edit", task }); }}
                 onDelete={setDeleting}
                 onReset={(id) => void onUpdate(id, { status: "pending" })}
