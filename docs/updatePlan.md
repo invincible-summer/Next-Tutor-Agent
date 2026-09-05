@@ -1087,3 +1087,81 @@ W0–W6 粗估合计 31–54 人天；是否并行取决于实际团队、模块
   从曝光增长；依赖 W2/W3 的 attempt/评估数据基础（已就位）。外部资源仍待提供：试点教材
   单元与 5–8 名试点用户（§5.5/§13.2）、200–300 案例金标（不阻塞 W4 开工）。
 ```
+
+### 15.5 W4 任务和复习接通
+
+```text
+工作包：W4
+状态：已验证（代码与契约回归，2026-09-05 实施会话）
+对应发现：A07（残余：主判分路径证据/正向事件/last_quality 诚实默认）、A08（M9 切片：
+  作答事件供 M9 + supervisor M9 窥探退役）、A12（task launch/episode 绑定/只更新绑定
+  任务/手动完成≠掌握）、A13（gap unknown 分立/估期区间/summary 身份）、容量可行性
+验收条款：§12.2 W4 行「只更新绑定任务；unknown 不延长复习；读请求零 LLM；手动完成≠掌握」
+当前基线：2391ab7 → 本轮提交序列 a276ab0 / b71f699 / 1693533 / 0fbc906 / ebef2fa
+  （+ docs 提交）；开工前按 §12.4 纪律以 3 路勘察复核了全部落点（A08 缺口确认仍在、
+  A12 全仓无 launch/episode 机制、A13 summary 漏传 student_id 在 HEAD 未修、容量校验缺失）
+实际变更：
+  - A08 证据直供（a276ab0）：判分全部发生在聊天轮外，M9 唯一 verdict 入口是 supervisor
+    当轮工具窥探（死路径）——主判分路径对 M9 零输出。现 core/quiz_attempts.record_quiz_attempt
+    fan-out（覆盖 /quiz 两端点）与 CAT record_cat_answer 都喂 M9 record_quiz_evidence：
+    attempt_id 幂等（重放不二次增长，同 M2 去重纪律）、unknown 只建卡不进 SM-2（A07）、
+    落 quiz_evidence 编排事件（self_report 之外的正向可对账事件）。record_turn 改纯曝光
+    （SRS 质量不再经聊天轮）；_auto_progress_tasks 只做 pending→in_progress；supervisor
+    的 M9 窥探退役（避免与提交事件流双计）。M2 事件补携带 session_id（facade 此前静默
+    丢弃；legacy 处理器忽略）。create_card last_quality 默认 3→None（从未召回的卡不再
+    伪装 pass-3，旧文件历史值保留）。
+  - A12 launch 绑定（b71f699+1693533）：新 core/learning_episodes.py
+    （students/<id>.learning_episodes.json，§8.5 许可的可重建投影；最小生命周期
+    active→completed/abandoned + revision；账号清除与孤儿扫描按 students/ 前缀通用清扫
+    已覆盖，测试钉死，storage_sandbox 登记）。POST /orchestration/task/{id}/launch
+    （随本路由族单数命名；§9.2 复数拼写为设计目标名，§8.4 允许与现有类型合并命名）：
+    校验归属→预创建携带 task_binding{task_id,episode_id,concept_id} 的会话→
+    {episode_id,session_id,launch_url}；未完成任务 relaunch 幂等复用。DailyTask 增补
+    episode_id/session_id/completion_source/evidence_attempt_id；TutorSession.task_binding。
+    绑定作答只完成绑定任务（任意判定=已做，达标另判 §8.2 TaskOutcome 分离）、
+    SRS 复习键用任务 concept_id（消除三键碎片化在该路径）、episode 随完成推进；
+    手动 complete 标 self_report（零 M2 写入）。前端 TodayCard/kickoff CTA 先 launch
+    再跳绑定会话（沿用 kind 感知首发消息），失败回退纯文本深链（§9.4）；
+    完成行显示「手动完成」徽标。
+  - A13 三修（0fbc906）：gap 无观测→unknown（不宣称缺口；legacy missing 原样往返；
+    计划仍覆盖未测概念）；estimate_schedule 输出时间容量区间 est_weeks_min/max
+    （周容量=daily_minutes×可用天，每概念 20 分钟折算第二节奏；单点与 fit 语义不变）；
+    summary 的 needs_replan 传本人 student_id（复核确认 HEAD 未修）+ 双学生回归。
+  - 容量可行性（ebef2fa）：schedule_engine.capacity_report 纯函数（按日汇总
+    estimate_minutes vs daily_minutes 标记超载）；/plan 附 capacity、POST/PATCH /task
+    附当日 capacity_warning、PATCH /schedule 返回重算报告——全 advisory 不阻断（§11.1）；
+    今日卡超载警示条（day 取自任务行，渲染期不取时钟）。
+验证证据：
+  - 新增 tests/test_quiz_evidence_feed.py（10）、tests/test_task_launch.py（15）；
+    扩展 test_orchestration.py（A08 语义迁移改写 + TestGoalAnalyzer +3 + TestSummaryIdentity
+    双学生回归）、test_quiz_ownership.py（TestM9EvidenceEndpoint 2 项 /quiz 端点集成）。
+  - 命令与结果：PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s tests →
+    1856 项通过（4 skipped 为既有跳过，较 W3 净增 32 项：新增 42，语义迁移改写
+    合并旧用例 10）；pnpm exec tsc --noEmit /
+    eslint src/ / next build --webpack → 全部通过；git diff --check → 干净。
+  - 验收对照：只更新绑定任务（绑定作答仅完成绑定任务、同概念兄弟任务零变化、
+    无绑定不自动完成——测试钉死）✓；unknown 不延长复习（W1 测试保持绿 + 证据路径
+    同过 quality_from_verdict 门 + attempt 幂等防重复增长）✓；读请求零 LLM
+    （launch/capacity/gap/estimate 全纯函数与状态读写，本轮零 prompt 注册）✓；
+    手动完成≠掌握（completion_source=self_report + 零 M2 档案断言）✓。§13.3 相关行：
+    同概念两任务只更新所属、两学生 needs_replan 各读各的、单纯听讲/手动完成不增长
+    有效召回——均有对应测试。
+迁移/回滚：请求 schema 全兼容（launch/capacity/completion_source 等为响应与落盘增量
+  字段；旧会话无 task_binding 兼容读取 None）；行为变更一处——无绑定作答不再按概念名
+  自动完成今日任务（A12 验收「只更新绑定任务」的直接推论，钉旧语义的测试已按新语义
+  改写；计划页手动勾选与 launch 行动两条完成路径在提交序列内始终可用）；新存储根
+  students/<id>.learning_episodes.json 属 students/ 前缀通用清扫范围（账号清除/孤儿扫描
+  无需新增类别，回归测试钉死；storage_sandbox 已登记）；五个代码提交可独立回滚
+  （A08 证据流/launch 绑定/前端 CTA/A13/容量），docs 提交最后。
+  W4 明确未做（边界）：§9.2 完整 REST 面（/learning/attempts 统一提交入口、
+  assessment-jobs SSE、review job、GET /learning/home）与 LearnerSnapshot 读时聚合
+  ——不在 W4 行六项交付内，本轮只交付其 episode 绑定与作答证据切片（经既有端点），
+  完整新面留 W5/R2；A08 的 M7/M6/M8 消费（n_questions/tokens 真实化、trace_analyzer
+  NO_ASSESSMENT 误判、M6 strat_outcome、M8 verdict 窥探）属 W6；D12 复习 LLM 排序
+  不做（本轮只接确定性证据与容量）；habit/streak 仍按聊天轮计（作答证据不计入连续
+  天数，如需并入待复核）；episode 恢复锚点复用 W3 会话内 learning_summary，未做
+  跨端点 GET /learning/episodes 读面。
+下一步：W5 界面收敛（四主入口/学习首页/进步归位/深链保留，§12.2 W5 行；依赖 W3/W4
+  已就位）。外部资源仍待提供：试点教材单元与 5–8 名试点用户（§5.5/§13.2）、
+  200–300 案例金标（不阻塞 W5 开工）。
+```
