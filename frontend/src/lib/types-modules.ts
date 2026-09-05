@@ -797,7 +797,8 @@ export interface OrchReviewItem {
   interval: number;
   repetitions: number;
   next_review: number;
-  last_quality: number;
+  /** null = 尚无真实召回观测（W4/A07：新卡不再伪装成 pass-3） */
+  last_quality: number | null;
   created_at: number;
 }
 

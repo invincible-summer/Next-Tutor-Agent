@@ -607,7 +607,7 @@ class TestManager(unittest.TestCase):
     def test_record_turn_creates_srs_card(self):
         svc = get_orchestration_service()
         svc.add_goal("s1", title="test")
-        svc.record_turn(student_id="s1", concept="导数", verdict="correct")
+        svc.record_turn(student_id="s1", concept="导数")
         summary = svc.summary("s1")
         self.assertIn("导数", summary["review_queue"])
 
@@ -616,23 +616,58 @@ class TestManager(unittest.TestCase):
         不进 SM-2 通过路径——听两轮课不等于两次成功召回。"""
         svc = get_orchestration_service()
         svc.add_goal("s1", title="test")
-        svc.record_turn(student_id="s1", concept="积分", verdict="")
-        svc.record_turn(student_id="s1", concept="积分", verdict="")
+        svc.record_turn(student_id="s1", concept="积分")
+        svc.record_turn(student_id="s1", concept="积分")
         summary = svc.summary("s1")
         card = summary["review_queue"]["积分"]
         self.assertEqual(card["repetitions"], 0)
         self.assertEqual(card["interval"], 0)
+        self.assertIsNone(card["last_quality"])
 
-    def test_record_turn_unknown_verdict_does_not_grow_srs(self):
-        """A07：unknown 判定同样不延长复习间隔。"""
+    def test_new_card_has_no_fake_last_quality(self):
+        """W4/A07：新建卡的 last_quality=None——从未召回的卡不得在投影里
+        伪装成 pass-3；旧文件的历史值保持原样。"""
         svc = get_orchestration_service()
         svc.add_goal("s1", title="test")
-        svc.record_turn(student_id="s1", concept="概率", verdict="correct")
-        svc.record_turn(student_id="s1", concept="概率", verdict="unknown")
+        svc.record_turn(student_id="s1", concept="极限")
+        summary = svc.summary("s1")
+        self.assertIsNone(summary["review_queue"]["极限"]["last_quality"])
+
+    def test_quiz_evidence_grows_srs_and_emits_event(self):
+        """W4/A08：提交的作答判定（来自判分端点、轮外）驱动 SM-2 并落
+        quiz_evidence 事件（self_report 之外的正向可对账事件）。"""
+        svc = get_orchestration_service()
+        svc.add_goal("s1", title="test")
+        ok = svc.record_quiz_evidence(student_id="s1", concept="概率",
+                                      verdict="correct", attempt_id="att_w4a")
+        self.assertTrue(ok)
         summary = svc.summary("s1")
         card = summary["review_queue"]["概率"]
-        self.assertEqual(card["repetitions"], 1)  # 仅第一次有效判定计入
+        self.assertEqual(card["repetitions"], 1)
         self.assertEqual(card["interval"], 1)
+        self.assertEqual(card["last_quality"], 5)
+        events = store.read_events("s1")
+        qe = [e for e in events if e.type == "quiz_evidence"]
+        self.assertEqual(len(qe), 1)
+        self.assertEqual(qe[0].payload.get("attempt_id"), "att_w4a")
+        self.assertEqual(qe[0].payload.get("verdict"), "correct")
+
+    def test_quiz_evidence_unknown_verdict_does_not_grow_srs(self):
+        """A07：unknown 判定同样不延长复习间隔（证据路径与曝光同门）。"""
+        svc = get_orchestration_service()
+        svc.add_goal("s1", title="test")
+        svc.record_quiz_evidence(student_id="s1", concept="概率",
+                                 verdict="correct", attempt_id="att_w4b")
+        self.assertFalse(svc.record_quiz_evidence(
+            student_id="s1", concept="概率", verdict="unknown",
+            attempt_id="att_w4c"))
+        summary = svc.summary("s1")
+        card = summary["review_queue"]["概率"]
+        self.assertEqual(card["repetitions"], 1)  # 仅有效判定计入
+        self.assertEqual(card["interval"], 1)
+        events = store.read_events("s1")
+        # unknown 不产生正向事件
+        self.assertEqual(len([e for e in events if e.type == "quiz_evidence"]), 1)
 
     def test_submit_review_marks_self_report_source(self):
         """A07：自评反馈事件带 source=self_report，与作答证据分开统计。"""
@@ -645,15 +680,44 @@ class TestManager(unittest.TestCase):
         self.assertTrue(srs)
         self.assertEqual(srs[-1].payload.get("source"), "self_report")
 
-    def test_record_turn_updates_srs_on_fail(self):
+    def test_quiz_evidence_updates_srs_on_fail(self):
         svc = get_orchestration_service()
         svc.add_goal("s1", title="test")
-        svc.record_turn(student_id="s1", concept="导数", verdict="correct")
-        # second turn with a fail
-        svc.record_turn(student_id="s1", concept="导数", verdict="wrong")
+        svc.record_quiz_evidence(student_id="s1", concept="导数",
+                                  verdict="correct", attempt_id="att_w4d")
+        # second committed answer with a fail
+        svc.record_quiz_evidence(student_id="s1", concept="导数",
+                                 verdict="wrong", attempt_id="att_w4e")
         summary = svc.summary("s1")
         card = summary["review_queue"]["导数"]
         self.assertEqual(card["repetitions"], 0)  # fail resets
+        self.assertEqual(card["last_quality"], 1)
+
+    def test_quiz_evidence_idempotent_per_attempt(self):
+        """同一 attempt 重放（重试/双标签）只记一次：SM-2 不二次增长、
+        事件只落一条（与 M2 的 attempt 去重同款纪律）。"""
+        svc = get_orchestration_service()
+        svc.add_goal("s1", title="test")
+        self.assertTrue(svc.record_quiz_evidence(
+            student_id="s1", concept="导数", verdict="correct",
+            attempt_id="att_w4f"))
+        self.assertFalse(svc.record_quiz_evidence(
+            student_id="s1", concept="导数", verdict="correct",
+            attempt_id="att_w4f"))
+        summary = svc.summary("s1")
+        card = summary["review_queue"]["导数"]
+        self.assertEqual(card["repetitions"], 1)
+        events = [e for e in store.read_events("s1")
+                  if e.type == "quiz_evidence"]
+        self.assertEqual(len(events), 1)
+
+    def test_quiz_evidence_no_concept_noop(self):
+        svc = get_orchestration_service()
+        svc.add_goal("s1", title="test")
+        self.assertFalse(svc.record_quiz_evidence(
+            student_id="s1", concept="", verdict="correct",
+            attempt_id="att_w4g"))
+        self.assertEqual(svc.summary("s1")["review_queue"], {})
 
     def test_complete_task_via_manager(self):
         svc = get_orchestration_service()
@@ -728,8 +792,31 @@ class TestSupervisorHooks(unittest.TestCase):
         session = MagicMock()
         session.session_id = "test"
         _orchestration_record_turn("s1", understanding, "test msg", session,
-                                    "test answer", [], trace)
+                                    "test answer", trace)
         # should not raise
+
+    def test_orchestration_hook_ignores_tool_verdicts(self):
+        """W4/A08：M9 钩子不再窥探当轮工具判定——判分都在 /quiz/* 轮外
+        发生，窥探是死路径；钩子只登记曝光（repetitions/interval 恒 0），
+        recall 质量只来自 record_quiz_evidence。"""
+        from app.agents.supervisor import _orchestration_record_turn
+        trace = MagicMock()
+        understanding = MagicMock()
+        understanding.concept = "导数"
+        understanding.subject = "数学"
+        understanding.intent = MagicMock()
+        understanding.intent.value = "explain"
+        session = MagicMock()
+        session.session_id = "sess_w4"
+        _orchestration_record_turn("s1", understanding, "msg", session,
+                                    "answer", trace)
+        svc = get_orchestration_service()
+        card = svc.summary("s1")["review_queue"].get("导数")
+        if card is not None:  # exposure card may exist, but never grown
+            self.assertEqual(card["repetitions"], 0)
+            self.assertEqual(card["interval"], 0)
+        self.assertEqual([e for e in store.read_events("s1")
+                          if e.type == "quiz_evidence"], [])
 
 
 # ---------------------------------------------------------------------------
@@ -753,7 +840,7 @@ class TestSingleTruthSourceBoundary(unittest.TestCase):
         with patch("app.agents.student_model.manager.StudentModel") as MockSM:
             svc = get_orchestration_service()
             svc.add_goal("s1", title="test")
-            svc.record_turn(student_id="s1", concept="导数", verdict="correct")
+            svc.record_turn(student_id="s1", concept="导数")
             # verify no M2 mutator was called during record_turn
             # (the mock intercepts the class; if M9 tried to write M2 it
             # would call through the mock)
@@ -770,7 +857,7 @@ class TestSingleTruthSourceBoundary(unittest.TestCase):
         """
         svc = get_orchestration_service()
         svc.add_goal("s1", title="test")
-        svc.record_turn(student_id="s1", concept="导数", verdict="correct")
+        svc.record_turn(student_id="s1", concept="导数")
         files = [f.name for f in self.tmp.iterdir()]
         orch_files = [f for f in files if f.startswith("s1.orchestration")]
         other_files = [f for f in files if not f.startswith("s1.orchestration")]
@@ -783,8 +870,7 @@ class TestSingleTruthSourceBoundary(unittest.TestCase):
         but still writes ONLY .orchestration.* files itself."""
         svc = get_orchestration_service()
         svc.add_goal("s1", title="test", subjects=["数学"])
-        emitted = svc.record_turn(student_id="s1", concept="导数",
-                                  verdict="correct")
+        emitted = svc.record_turn(student_id="s1", concept="导数")
         self.assertIsInstance(emitted, list)
         files = [f.name for f in self.tmp.iterdir()]
         non_orch = [f for f in files if not f.startswith("s1.orchestration")]
@@ -1127,8 +1213,7 @@ class TestManagerEventEmission(unittest.TestCase):
         """record_turn returns a list (possibly empty) of emitted events."""
         svc = get_orchestration_service()
         svc.add_goal("s1", title="test", subjects=["数学"])
-        emitted = svc.record_turn(student_id="s1", concept="导数",
-                                  verdict="correct")
+        emitted = svc.record_turn(student_id="s1", concept="导数")
         self.assertIsInstance(emitted, list)
 
     def test_habit_patterns_read_returns_list(self):
@@ -1802,17 +1887,26 @@ class TestRecordTurnAutoProgress(unittest.TestCase):
         svc.record_turn(student_id="s1", concept="导数")
         self.assertEqual(self._today_task().status, DailyTaskStatus.IN_PROGRESS)
 
-    def test_quiz_verdict_completes_task_regardless_of_verdict(self):
+    def test_unbound_quiz_evidence_does_not_complete_task(self):
+        """W4/A12：无绑定的作答证据不再自动完成任务——同概念多任务串联
+        完成正是 A12 的缺陷；完成只能来自任务自身的绑定证据或显式勾选
+        （self_report）。"""
         svc = self._seed_task()
-        svc.record_turn(student_id="s1", concept="导数", verdict="wrong")
+        svc.record_quiz_evidence(student_id="s1", concept="导数",
+                                 verdict="correct", attempt_id="att_w4t1")
         task = self._today_task()
-        self.assertEqual(task.status, DailyTaskStatus.COMPLETED)
-        self.assertGreater(task.completed_at, 0)
+        self.assertNotEqual(task.status, DailyTaskStatus.COMPLETED)
+        self.assertEqual(task.completed_at, 0.0)
 
-    def test_quiz_verdict_completes_in_progress_task(self):
-        svc = self._seed_task(status=DailyTaskStatus.IN_PROGRESS)
-        svc.record_turn(student_id="s1", concept="导数", verdict="correct")
-        self.assertEqual(self._today_task().status, DailyTaskStatus.COMPLETED)
+    def test_evidence_still_grows_srs_while_task_uncompleted(self):
+        """做完任务≠会了（§8.2 TaskOutcome 分离）：证据照常喂复习调度，
+        任务生命周期不动。"""
+        svc = self._seed_task()
+        svc.record_quiz_evidence(student_id="s1", concept="导数",
+                                 verdict="correct", attempt_id="att_w4t2")
+        card = svc.summary("s1")["review_queue"]["导数"]
+        self.assertEqual(card["repetitions"], 1)
+        self.assertEqual(self._today_task().status, DailyTaskStatus.PENDING)
 
     def test_match_by_concept_id(self):
         svc = self._seed_task(concept_name="别的名字")
@@ -1824,10 +1918,14 @@ class TestRecordTurnAutoProgress(unittest.TestCase):
         svc.record_turn(student_id="s1", concept="积分")
         self.assertEqual(self._today_task().status, DailyTaskStatus.PENDING)
 
-    def test_batch_completed_event_when_all_done(self):
+    def test_manual_complete_still_emits_batch_event(self):
+        """全天的任务都完成时（显式勾选路径）仍发 task_batch_completed；
+        曝光/证据轮不产生批量完成事件。"""
         svc = self._seed_task()
-        emitted = svc.record_turn(student_id="s1", concept="导数",
-                                  verdict="correct")
+        emitted = svc.record_turn(student_id="s1", concept="导数")
+        self.assertEqual(emitted, [])
+        ok, emitted = svc.complete_task("s1", self._today_task().id)
+        self.assertTrue(ok)
         types = [e.event_type for e in emitted]
         self.assertIn("task_batch_completed", types)
 
@@ -1851,7 +1949,8 @@ class TestUpdateGoal(unittest.TestCase):
     def test_update_goal_preserves_srs_and_history(self):
         svc = get_orchestration_service()
         goal = svc.add_goal("s1", title="考研数学", subjects=["数学"])
-        svc.record_turn(student_id="s1", concept="导数", verdict="correct")
+        svc.record_quiz_evidence(student_id="s1", concept="导数",
+                                 verdict="correct", attempt_id="att_w4u")
         state = store.load_state("s1")
         state.daily_tasks = [DailyTask(id="2026-07-26_c1_study",
                                        day="2026-07-26", concept_id="c1",

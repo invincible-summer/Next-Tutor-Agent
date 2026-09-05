@@ -157,6 +157,7 @@ class StudentModel:
             pass
 
     def record_quiz_result(self, *, concept: str, correct: bool,
+                           session_id: str = "",
                            skill_id: str = "", knowledge_point: str = "",
                            subject: str = "", note: str = "",
                            verdict: str = "", confidence: float | None = None,
@@ -170,11 +171,15 @@ class StudentModel:
         — the same evidence must not influence M2 twice (A05).
         W3/D06: ``structured`` rides the event payload as additive keys
         (criterion_results / observed_capabilities / assistance / rubric_id)
-        for the v2 capability projection; the legacy BKT handler ignores it."""
+        for the v2 capability projection; the legacy BKT handler ignores it.
+        W4/A08: ``session_id`` rides the payload as an additive key for
+        replay consumers (M9/M7 projections attribute evidence to its
+        source conversation); the legacy processor ignores it."""
         if attempt_id and self._attempt_recorded(attempt_id):
             return
         col = EventCollector()
-        col.quiz_graded(concept, correct, skill_id=skill_id,
+        col.quiz_graded(concept, correct, session_id=session_id,
+                        skill_id=skill_id,
                         knowledge_point=knowledge_point, subject=subject,
                         note=note, verdict=verdict, confidence=confidence,
                         attempt_id=attempt_id, structured=structured)
@@ -375,13 +380,16 @@ def record_quiz_result(*, concept: str, correct: bool, session_id: str = "",
     W2/A04/A05：verdict（partial 不做二元负向 BKT 更新）、confidence（证据
     门 cap 后的 max_confidence 审计）与 attempt_id（同一作答幂等，不重复
     影响 M2）为可选增量参数，旧调用方不受影响。W3/D06：structured 为事件
-    payload 的增量键（v2 投影输入），legacy 处理器忽略。
+    payload 的增量键（v2 投影输入），legacy 处理器忽略。W4/A08：session_id
+    随事件落盘（重放消费方归因来源会话），此前在此处被静默丢弃。
     """
     try:
         if not is_enabled():
             return
         sm = get_student_model(student_id or DEFAULT_STUDENT_ID)
-        sm.record_quiz_result(concept=concept, correct=correct, skill_id=skill_id,
+        sm.record_quiz_result(concept=concept, correct=correct,
+                              session_id=session_id,
+                              skill_id=skill_id,
                               knowledge_point=knowledge_point, subject=subject,
                               note=note, verdict=verdict, confidence=confidence,
                               attempt_id=attempt_id, structured=structured)

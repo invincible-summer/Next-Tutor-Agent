@@ -615,7 +615,9 @@ class ReviewItem:
     interval: int = 0
     repetitions: int = 0
     next_review: float = 0.0
-    last_quality: int = 3
+    # W4/A07: None until a real recall observation exists (legacy files keep
+    # their historical value; only new cards default to "no observation").
+    last_quality: int | None = None
     created_at: float = field(default_factory=time.time)
 
     def to_dict(self) -> dict[str, Any]:
@@ -627,13 +629,14 @@ class ReviewItem:
     @classmethod
     def from_dict(cls, d: dict[str, Any] | None) -> "ReviewItem":
         d = d or {}
+        lq = d.get("last_quality", None)
         return cls(concept_id=str(d.get("concept_id", "")),
             concept_name=str(d.get("concept_name", "")),
             easiness=float(d.get("easiness", 2.5)),
             interval=int(d.get("interval", 0)),
             repetitions=int(d.get("repetitions", 0)),
             next_review=float(d.get("next_review", 0.0)),
-            last_quality=int(d.get("last_quality", 3)),
+            last_quality=(int(lq) if lq is not None else None),
             created_at=float(d.get("created_at", time.time())))
 
 

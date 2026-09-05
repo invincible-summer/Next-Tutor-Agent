@@ -42,8 +42,10 @@ class EventCollector:
         self.events.append(ev)
         return ev
 
-    def quiz_graded(self, concept: str, correct: bool, *, skill_id: str = "",
-                    knowledge_point: str = "", subject: str = "", note: str = "",
+    def quiz_graded(self, concept: str, correct: bool, *,
+                    session_id: str = "",
+                    skill_id: str = "", knowledge_point: str = "",
+                    subject: str = "", note: str = "",
                     verdict: str = "", confidence: float | None = None,
                     attempt_id: str = "",
                     structured: dict[str, Any] | None = None) -> None:
@@ -52,6 +54,10 @@ class EventCollector:
             "skill_id": skill_id, "knowledge_point": knowledge_point,
             "subject": subject, "note": note,
         }
+        # W4/A08 additive key: the source conversation, so replay consumers
+        # (M9/M7 projections) can attribute evidence; legacy handlers ignore.
+        if session_id:
+            payload["session_id"] = session_id
         # W2 additive audit keys: three-level verdict (partial is not a binary
         # wrong for the BKT step), gate-capped grading confidence, and the
         # attempt id used for idempotent re-submission handling.

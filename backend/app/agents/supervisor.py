@@ -959,8 +959,7 @@ def _orchestration_directive_for_turn(understanding, session, trace) -> str:
 
 
 def _orchestration_record_turn(student_id, understanding, user_message,
-                                session, final_answer, final_tool_calls,
-                                trace) -> None:
+                                session, final_answer, trace) -> None:
     """M9: capture this turn's orchestration signals + forward events to M6.
 
     Modification 1: M9 emits OrchestrationLearningEvents (milestone reached,
@@ -968,6 +967,12 @@ def _orchestration_record_turn(student_id, understanding, user_message,
     consume_turn event bus. M6 -- not M9 -- decides whether to persist them as
     episodic / semantic memory. M9 itself never writes M2/M3/M5/M6 storage.
     Never raises; mirrors 6b-6f.
+
+    W4/A08: verdicts are no longer peeked from same-turn tool results. Quiz
+    grading happens on the /quiz/* endpoints outside chat turns, so the peek
+    was a dead path — and if a tool ever did return a verdict it would
+    double-count against the committed-attempt feed (M9 record_quiz_evidence,
+    attempt-idempotent). Recall quality reaches M9 only via that feed.
     """
     try:
         from .learning_orchestration import (get_orchestration_service,
@@ -978,20 +983,12 @@ def _orchestration_record_turn(student_id, understanding, user_message,
         concept = understanding.concept or ""
         subject = understanding.subject or ""
         intent = understanding.intent.value if understanding.intent else "explain"
-        # derive a verdict from quiz tool results (same peek as 6c/6e)
-        verdict = ""
-        if final_tool_calls:
-            for tc in final_tool_calls:
-                res = tc.get("result")
-                if isinstance(res, dict) and "verdict" in res:
-                    verdict = str(res.get("verdict", ""))
-                    break
         emitted = lo.record_turn(
             student_id=student_id, session_id=session.session_id,
             concept=concept, subject=subject, user_message=user_message,
-            answer=final_answer, intent=intent, verdict=verdict)
+            answer=final_answer, intent=intent)
         trace.log("orchestration_record", concept=concept, intent=intent,
-                  had_verdict=bool(verdict), emitted=len(emitted))
+                  emitted=len(emitted))
         # forward M9 events into M6's event bus (M6 owns the write decision)
         if emitted:
             _forward_orchestration_events_to_memory(
@@ -1782,15 +1779,17 @@ async def run(
                         session, safe_final_answer, final_tool_calls, trace)
     except Exception as e:
         trace.log("ux_record_hook_error", message=str(e))
-    # --- 6g. M9: capture orchestration signals (SRS + habit + progress) ---
-    # PURE-FUNCTION, zero LLM: updates the SRS review queue for the concept
-    # touched this turn, refreshes habit stats from M6 (read-only), and
-    # checks goal-progress checkpoints from M2 mastery (read-only). Never
-    # writes any M2/M3/M5/M6/M7/M8 state. Mirrors 6b-6f.
+    # --- 6g. M9: capture orchestration signals (exposure + habit + progress) ---
+    # PURE-FUNCTION, zero LLM: registers SRS exposure for the concept touched
+    # this turn, refreshes habit stats from M6 (read-only), and checks
+    # goal-progress checkpoints from M2 mastery (read-only). Recall QUALITY no
+    # longer flows through here (W4/A08) — committed quiz verdicts reach M9
+    # via record_quiz_evidence on the grading endpoints. Never writes any
+    # M2/M3/M5/M6/M7/M8 state. Mirrors 6b-6f.
     try:
         _orchestration_record_turn(
             sid, understanding, safe_user_message, session,
-            safe_final_answer, final_tool_calls, trace)
+            safe_final_answer, trace)
     except Exception as e:
         trace.log("orchestration_record_hook_error", message=str(e))
     # --- 7. final done event ---

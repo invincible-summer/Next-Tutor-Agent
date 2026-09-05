@@ -90,11 +90,16 @@ def update_review(card: ReviewItem, quality: int, *, now: float | None = None) -
 
 def create_card(concept_id: str, concept_name: str = "",
                 *, now: float | None = None) -> ReviewItem:
-    """Create a fresh SM-2 card for a concept (first review due tomorrow)."""
+    """Create a fresh SM-2 card for a concept (first review due tomorrow).
+
+    last_quality is None until a real recall observation exists (W4/A07): a
+    never-recalled card must not project as a pass-3. Old persisted files
+    keep their historical value; only new cards default to no observation.
+    """
     now = now if now is not None else time.time()
     return ReviewItem(concept_id=concept_id, concept_name=concept_name,
                       easiness=_DEFAULT_EF, interval=0, repetitions=0,
-                      next_review=now + _DAY_SECONDS, last_quality=3,
+                      next_review=now + _DAY_SECONDS, last_quality=None,
                       created_at=now)
 
 

@@ -447,5 +447,45 @@ class TestHintAndDispute(QuizOwnershipTestBase):
         self.assertEqual(r2.json()["status"], "not_found")
 
 
+class TestM9EvidenceEndpoint(QuizOwnershipTestBase):
+    """W4/A08：/quiz 判分端点把已受理判定直供 M9——SRS 复习质量更新 +
+    quiz_evidence 事件（attempt_id 幂等，重复提交不二次增长）。"""
+
+    def _m9_state(self):
+        from app.agents.learning_orchestration import store as orch_store
+        return orch_store.load_state(self.alice.id)
+
+    def test_record_endpoint_feeds_m9_srs_and_event(self):
+        from app.agents.learning_orchestration import store as orch_store
+        self._make_session("sess_m9", self.alice.id)
+        r = self.client.post(
+            "/api/v1/quiz/record",
+            json=self._record_payload("sess_m9", student_answer="B"),
+            headers=self.headers_a)
+        att = r.json()["attempt_id"]
+        state = self._m9_state()
+        card = state.review_queue.get("条件概率")
+        self.assertIsNotNone(card)
+        self.assertEqual(card.repetitions, 1)
+        events = [e for e in orch_store.read_events(self.alice.id)
+                  if e.type == "quiz_evidence"]
+        self.assertEqual(len(events), 1)
+        self.assertEqual(events[0].payload.get("attempt_id"), att)
+
+    def test_duplicate_submission_does_not_double_grow(self):
+        from app.agents.learning_orchestration import store as orch_store
+        self._make_session("sess_m9d", self.alice.id)
+        payload = self._record_payload("sess_m9d", student_answer="B")
+        self.client.post("/api/v1/quiz/record", json=payload,
+                         headers=self.headers_a)
+        r2 = self.client.post("/api/v1/quiz/record", json=payload,
+                              headers=self.headers_a)
+        self.assertTrue(r2.json().get("duplicate"))
+        card = self._m9_state().review_queue["条件概率"]
+        self.assertEqual(card.repetitions, 1)
+        self.assertEqual(len([e for e in orch_store.read_events(self.alice.id)
+                              if e.type == "quiz_evidence"]), 1)
+
+
 if __name__ == "__main__":
     unittest.main()

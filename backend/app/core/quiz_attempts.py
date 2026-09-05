@@ -265,3 +265,20 @@ def record_quiz_attempt(session_id: str, *, stem: str, verdict: str,
             note=str(concept)[:40])
     except Exception:
         pass
+    # 4. M9: committed recall evidence for SRS + task attribution (W4/A08).
+    # Card grading happens on /quiz/* endpoints, outside any chat turn — the
+    # supervisor's same-turn peek never saw these verdicts, so until now the
+    # main grading path fed M9 nothing (no SRS quality update, no task
+    # progress). record_quiz_evidence is attempt-idempotent; fail-open.
+    try:
+        if student_id and verdict and concept:
+            from ..agents.learning_orchestration import (
+                get_orchestration_service,
+                is_enabled as orch_enabled)
+            if orch_enabled():
+                get_orchestration_service().record_quiz_evidence(
+                    student_id=student_id, concept=concept, verdict=verdict,
+                    attempt_id=attempt_id, session_id=session_id,
+                    subject=subject)
+    except Exception:
+        pass

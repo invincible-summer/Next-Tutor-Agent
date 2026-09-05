@@ -95,6 +95,7 @@ class AssessmentManager:
                                   *, llm: AsyncLLMClient | None = None,
                                   raw_grade: str | None = None,
                                   student_id: str = "",
+                                  session_id: str = "",
                                   is_variant: bool = False,
                                   question_verified: bool | None = None,
                                   attempt_id: str = "",
@@ -185,6 +186,7 @@ class AssessmentManager:
             grading_confidence=grading_confidence, grading_source=grading_source,
             is_variant=is_variant, question_verified=question_verified,
             attempt_id=attempt_id, assistance=assistance,
+            session_id=session_id,
         )
         return result
 
@@ -209,7 +211,8 @@ class AssessmentManager:
                 grading_source: str = "assessment",
                 is_variant: bool = False,
                 question_verified: bool | None = None,
-                attempt_id: str = "", assistance: str = "") -> None:
+                attempt_id: str = "", assistance: str = "",
+                session_id: str = "") -> None:
         """Write the result to the Student Model via its public facade.
 
         Lazy import keeps the module-scope import graph clean. Never raises.
@@ -223,6 +226,10 @@ class AssessmentManager:
         confidence at 0.70 — helped performance must not masquerade as
         independent mastery — and rides the event payload for the v2
         projection's independence tally.
+
+        W4/A08: ``session_id`` rides the event as an additive key so replay
+        consumers (M9/M7 projections) can attribute evidence to its source
+        conversation; the legacy processor ignores it.
         """
         if not is_enabled():
             return
@@ -266,6 +273,7 @@ class AssessmentManager:
                 subject="",
                 note=(result.diagnosis_note if not result.correct else ""),
                 student_id=student_id,
+                session_id=session_id,
                 verdict=result.verdict,
                 confidence=gate.max_confidence,
                 attempt_id=attempt_id,
@@ -410,6 +418,7 @@ class AssessmentManager:
             result = await self.evaluate_and_record(
                 q, answer, session.ctx, llm=llm, raw_grade=raw_grade,
                 student_id=student_id,
+                session_id=f"assessment:{student_id}",
                 question_verified=content_verified(q.verification),
                 attempt_id=attempt_id)
             result.student_answer = answer
@@ -427,6 +436,23 @@ class AssessmentManager:
                                criterion_results=(result.structured or {}).get(
                                    "criterion_results"),
                                hypotheses=(result.structured or {}).get("hypotheses"))
+            except Exception:
+                pass
+            # W4/A08: a CAT answer is committed recall evidence too — feed M9
+            # (SRS quality + task attribution) exactly like /quiz does, keyed
+            # by the same attempt_id (idempotent). Fail-open.
+            try:
+                from ..learning_orchestration import (
+                    get_orchestration_service,
+                    is_enabled as orch_enabled)
+                if orch_enabled() and result.verdict != "unknown":
+                    get_orchestration_service().record_quiz_evidence(
+                        student_id=student_id,
+                        concept=result.concept or q.concept
+                        or session.ctx.concept,
+                        verdict=result.verdict, attempt_id=attempt_id,
+                        session_id=f"assessment:{student_id}",
+                        subject=session.ctx.subject)
             except Exception:
                 pass
             # W3/D10: hard caps (should_stop, unchanged pure rules) always win;
@@ -541,8 +567,9 @@ async def evaluate_and_record(question: Question, student_answer: str,
                               ctx: AssessmentContext, *,
                               llm: AsyncLLMClient | None = None,
                               raw_grade: str | None = None,
-                              student_id: str = "") -> AssessmentResult:
+                              student_id: str = "",
+                              session_id: str = "") -> AssessmentResult:
     """Top-level convenience: grade one answer and close the mastery loop."""
     return await get_assessment_manager().evaluate_and_record(
         question, student_answer, ctx, llm=llm, raw_grade=raw_grade,
-        student_id=student_id)
+        student_id=student_id, session_id=session_id)

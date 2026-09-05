@@ -6,8 +6,11 @@ the rest of the app uses. It exposes:
 
     lo = get_orchestration_service()
     lo.build_directive(...)      # READ: JIT analysis -> "[编排智能·...]"
-    lo.record_turn(...)          # WRITE: capture SRS + habit + milestone updates
-                                 #        (+ auto-advance today's tasks, 6g)
+    lo.record_turn(...)          # WRITE: exposure + habit + milestone updates
+                                 #        (+ start today's matching task, 6g)
+    lo.record_quiz_evidence(...)  # WRITE: committed quiz verdict -> SRS quality
+                                 #        + task attribution (W4/A08, attempt-
+                                 #        idempotent; the /quiz & CAT feed)
     lo.add_goal(...)             # WRITE: append a long-term goal (multi-goal)
     lo.update_goal(...)          # WRITE: patch one goal (SRS/tasks preserved)
     lo.delete_goal(...)          # WRITE: remove one goal + its gap analysis
@@ -119,17 +122,22 @@ class LearningOrchestrationService:
     def record_turn(self, *, student_id: str, session_id: str = "",
                     concept: str = "", subject: str = "",
                     user_message: str = "", answer: str = "",
-                    intent: str = "", verdict: str = "",
+                    intent: str = "",
                     now: float | None = None) -> list[OrchestrationLearningEvent]:
-        """Capture one completed turn's orchestration signals.
+        """Capture one completed chat turn's orchestration signals (exposure).
 
-        Updates the SRS review queue (if a concept was taught/assessed) and
-        habit stats (read-only over the unified activity day-union), and emits
-        OrchestrationLearningEvents for any streak-threshold or goal-progress
-        checkpoint crossing detected. Those events are RETURNED so the
-        supervisor can forward them into M6's event bus (M6 decides whether
-        to persist them). M9 itself never writes M2/M3/M5/M6 storage. Never
-        raises; returns [] on failure.
+        W4/A08: this hook only registers CONTACT — it creates the SRS card on
+        first touch and refreshes habit/streak/goal-progress. Recall QUALITY
+        no longer flows through here: quiz verdicts are committed on the
+        grading endpoints (/quiz/*, /assessment) outside chat turns, so the
+        supervisor's same-turn tool peek was a dead path, and any verdict it
+        did see would double-count against record_quiz_evidence (the
+        attempt-idempotent committed feed). Habit stats are read-only over
+        the unified activity day-union. OrchestrationLearningEvents for
+        streak/goal checkpoints are RETURNED so the supervisor can forward
+        them into M6's event bus (M6 decides whether to persist them). M9
+        itself never writes M2/M3/M5/M6 storage. Never raises; returns [] on
+        failure.
         """
         emitted: list[OrchestrationLearningEvent] = []
         try:
@@ -137,25 +145,15 @@ class LearningOrchestrationService:
             state = self._load(student_id)
             changed = False
 
-            # SRS: if a concept was touched, create/update its review card.
-            # A07（updatePlan.md）：exposure（只听讲、无作答判定）与 unknown
-            # 判定都只是「接触」——登记/建卡、安排首次检查，但不喂给 SM-2
-            # 通过路径，否则听两轮课也会被当成两次成功召回，复习间隔被
-            # 无证据拉长。只有有效 recall 判定才更新复习质量。
+            # SRS: a concept-taught turn is exposure only (A07) — register the
+            # card / schedule the first check, never feed SM-2's pass path.
+            # Interval growth requires a committed recall verdict via
+            # record_quiz_evidence.
             if concept:
                 cid = concept.strip()
-                card = state.review_queue.get(cid)
-                quality = srs.quality_from_verdict(verdict) if verdict else None
-                if quality is None:
-                    if card is None:
-                        card = srs.create_card(cid, concept_name=cid, now=now)
-                        state.review_queue[cid] = card
-                        changed = True
-                else:
-                    if card is None:
-                        card = srs.create_card(cid, concept_name=cid, now=now)
-                    card = srs.update_review(card, quality, now=now)
-                    state.review_queue[cid] = card
+                if cid not in state.review_queue:
+                    state.review_queue[cid] = srs.create_card(
+                        cid, concept_name=cid, now=now)
                     changed = True
 
             # habit refresh (read-only over the unified activity day-union,
@@ -193,13 +191,14 @@ class LearningOrchestrationService:
             if overdue:
                 changed = True
 
-            # 6g auto-progress: learning behaviour advances today's tasks.
-            # A concept-taught turn moves the matching today task to
-            # in_progress; a quiz-verdict turn completes it (either verdict --
-            # mastery itself is M2/SRS's job, not the task lifecycle's).
+            # 6g auto-progress: a concept-taught turn may only START today's
+            # matching task (pending -> in_progress). W4/A12: completion is no
+            # longer inferred from any same-concept verdict — it requires the
+            # task's own bound evidence (record_quiz_evidence via a launched
+            # task) or the explicit complete endpoint (self_report).
             if concept:
                 auto_ev, auto_changed = self._auto_progress_tasks(
-                    state, concept=cid, verdict=verdict, now=now)
+                    state, concept=cid, now=now)
                 emitted.extend(auto_ev)
                 changed = changed or auto_changed
 
@@ -208,11 +207,74 @@ class LearningOrchestrationService:
                 self._save(student_id, state,
                            event=OrchestrationEvent(
                                type="turn_recorded",
-                               payload={"concept": concept, "verdict": verdict,
+                               payload={"concept": concept,
                                         "emitted": len(emitted)}))
         except Exception:
             pass
         return event_emitter.valid_events(emitted)
+
+    def record_quiz_evidence(self, *, student_id: str, concept: str,
+                             verdict: str, attempt_id: str = "",
+                             session_id: str = "", subject: str = "",
+                             now: float | None = None) -> bool:
+        """Record one committed quiz verdict as M9 evidence (W4/A08).
+
+        Quiz grading happens on /quiz/record, /quiz/grade and /assessment
+        endpoints — outside any chat turn — so until now the main grading
+        path fed M9 nothing: no SRS quality update, no task progress. This
+        is the committed-event entry the audit asked for: SRS and task
+        attribution consume THIS, not next-turn guessing.
+
+        Idempotent per ``attempt_id`` (replayed submissions must not grow the
+        review interval twice, mirroring M2's attempt dedupe). ``unknown``/
+        unrecognized verdicts carry no valid recall evidence (A07): contact
+        only — create the card if missing, never touch SM-2, no event.
+        Emits an ``orchestration_event`` of type ``quiz_evidence`` (the
+        positive counterpart to ``srs_review``'s self_report marker) so
+        downstream stats can separate real recall evidence from self-report.
+        Never raises; returns True when new evidence was recorded.
+        """
+        try:
+            v = (verdict or "").strip().lower()
+            cid = (concept or "").strip()
+            if not student_id or not cid or not v:
+                return False
+            if attempt_id and self._evidence_recorded(student_id, attempt_id):
+                return False
+            now = now if now is not None else time.time()
+            state = self._load(student_id)
+            quality = srs.quality_from_verdict(v)
+            if quality is None:
+                if cid not in state.review_queue:
+                    state.review_queue[cid] = srs.create_card(
+                        cid, concept_name=cid, now=now)
+                    self._save(student_id, state)
+                return False
+            card = state.review_queue.get(cid)
+            if card is None:
+                card = srs.create_card(cid, concept_name=cid, now=now)
+            card = srs.update_review(card, quality, now=now)
+            state.review_queue[cid] = card
+            self._save(student_id, state, event=OrchestrationEvent(
+                type="quiz_evidence",
+                payload={"attempt_id": attempt_id, "concept": cid,
+                         "verdict": v, "session_id": session_id,
+                         "subject": subject, "source": "quiz_evidence"}))
+            return True
+        except Exception:
+            return False
+
+    def _evidence_recorded(self, student_id: str, attempt_id: str) -> bool:
+        """Whether a quiz_evidence event with this attempt id already exists
+        (bounded replay window, same pattern as M2's _attempt_recorded)."""
+        try:
+            for ev in store.read_events(student_id):
+                if (ev.type == "quiz_evidence"
+                        and str(ev.payload.get("attempt_id") or "") == attempt_id):
+                    return True
+        except Exception:
+            pass
+        return False
 
     # --- WRITE SIDE: goal + plan management ------------------------------
 
@@ -480,14 +542,16 @@ class LearningOrchestrationService:
             return False
 
     def _auto_progress_tasks(self, state: OrchestrationState, *,
-                             concept: str, verdict: str,
+                             concept: str,
                              now: float) -> tuple[list[OrchestrationLearningEvent], bool]:
-        """Advance today's tasks matching the turn's concept (6g enhancement).
+        """Advance today's tasks matching the turn's concept to in_progress.
 
-        concept-taught turn -> pending task becomes in_progress; quiz-verdict
-        turn -> pending/in_progress task becomes completed (regardless of the
-        verdict). Emits the existing task_batch_completed event when that
-        finishes all of today's tasks. Deterministic, no LLM. Never raises.
+        W4/A12: a concept-matched turn may only START a task. Completion is
+        attributed to the task's own bound evidence (record_quiz_evidence
+        via a launched task binding) or the explicit complete endpoint
+        (self_report) — the old any-same-concept-verdict-completes behaviour
+        let two tasks on one concept complete together and left remedial
+        practice unattributable. Deterministic, no LLM. Never raises.
         """
         emitted: list[OrchestrationLearningEvent] = []
         try:
@@ -495,25 +559,15 @@ class LearningOrchestrationService:
             if not cid:
                 return emitted, False
             day = task_executor._day_str(now)
-            todays = [t for t in state.daily_tasks if t.day == day]
             changed = False
-            for t in todays:
+            for t in state.daily_tasks:
+                if t.day != day:
+                    continue
                 if t.concept_id != cid and t.concept_name != cid:
                     continue
-                if verdict:
-                    if t.status.value in ("pending", "in_progress"):
-                        t.status = DailyTaskStatus.COMPLETED
-                        t.completed_at = now
-                        changed = True
-                else:
-                    if t.status.value == "pending":
-                        t.status = DailyTaskStatus.IN_PROGRESS
-                        changed = True
-            if changed and verdict and todays and all(
-                    t.status.value == "completed" for t in todays):
-                subj = state.primary_subject
-                emitted.append(event_emitter.task_batch_completed_event(
-                    day, len(todays), subject=subj))
+                if t.status.value == "pending":
+                    t.status = DailyTaskStatus.IN_PROGRESS
+                    changed = True
             return emitted, changed
         except Exception:
             return [], False
