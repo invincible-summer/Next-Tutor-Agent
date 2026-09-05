@@ -216,6 +216,7 @@ class LearningOrchestrationService:
     def record_quiz_evidence(self, *, student_id: str, concept: str,
                              verdict: str, attempt_id: str = "",
                              session_id: str = "", subject: str = "",
+                             task_binding: dict | None = None,
                              now: float | None = None) -> bool:
         """Record one committed quiz verdict as M9 evidence (W4/A08).
 
@@ -224,6 +225,15 @@ class LearningOrchestrationService:
         path fed M9 nothing: no SRS quality update, no task progress. This
         is the committed-event entry the audit asked for: SRS and task
         attribution consume THIS, not next-turn guessing.
+
+        ``task_binding`` (W4/A12) is the launched session's binding
+        {task_id, concept_id, ...}: when present, the SRS review key uses
+        the task's canonical concept id (instead of the chat concept string
+        — the source of the review-queue key fragmentation) and the verdict
+        completes EXACTLY that bound task (any verdict — attempting the
+        task's practice IS doing it; attainment stays M2's call per §8.2's
+        completion/attainment split). Unbound evidence never completes
+        tasks.
 
         Idempotent per ``attempt_id`` (replayed submissions must not grow the
         review interval twice, mirroring M2's attempt dedupe). ``unknown``/
@@ -243,26 +253,133 @@ class LearningOrchestrationService:
                 return False
             now = now if now is not None else time.time()
             state = self._load(student_id)
+            binding = task_binding if isinstance(task_binding, dict) else {}
+            bound_task_id = str(binding.get("task_id") or "")
+            # bound evidence keys the review card by the task's canonical
+            # concept id; organic (unbound) evidence keeps the concept string
+            review_key = (str(binding.get("concept_id") or "").strip()
+                          or cid)
             quality = srs.quality_from_verdict(v)
             if quality is None:
-                if cid not in state.review_queue:
-                    state.review_queue[cid] = srs.create_card(
-                        cid, concept_name=cid, now=now)
+                if review_key not in state.review_queue:
+                    state.review_queue[review_key] = srs.create_card(
+                        review_key, concept_name=cid, now=now)
                     self._save(student_id, state)
                 return False
-            card = state.review_queue.get(cid)
+            card = state.review_queue.get(review_key)
             if card is None:
-                card = srs.create_card(cid, concept_name=cid, now=now)
+                card = srs.create_card(review_key, concept_name=cid, now=now)
             card = srs.update_review(card, quality, now=now)
-            state.review_queue[cid] = card
+            state.review_queue[review_key] = card
+            emitted: list[OrchestrationLearningEvent] = []
+            episode_done = ""
+            if bound_task_id:
+                emitted, episode_done = self._complete_bound_task(
+                    state, bound_task_id, attempt_id=attempt_id, now=now)
             self._save(student_id, state, event=OrchestrationEvent(
                 type="quiz_evidence",
                 payload={"attempt_id": attempt_id, "concept": cid,
                          "verdict": v, "session_id": session_id,
-                         "subject": subject, "source": "quiz_evidence"}))
+                         "subject": subject, "source": "quiz_evidence",
+                         "task_id": bound_task_id,
+                         "emitted": len(emitted)}))
+            if episode_done:
+                try:
+                    from ...core import learning_episodes
+                    learning_episodes.set_episode_status(
+                        student_id, episode_done,
+                        learning_episodes.EPISODE_COMPLETED)
+                except Exception:
+                    pass
             return True
         except Exception:
             return False
+
+    def _complete_bound_task(self, state: OrchestrationState, task_id: str,
+                             *, attempt_id: str,
+                             now: float) -> tuple[list[OrchestrationLearningEvent], str]:
+        """Complete EXACTLY the bound task off its own committed evidence
+        (A12: only the bound task updates). Any verdict counts as "done" —
+        mastery is M2's separate call (做完任务≠会了). Returns the emitted
+        learning events (batch-completion) and the task's episode_id when
+        the episode should advance to completed. Never raises.
+        """
+        emitted: list[OrchestrationLearningEvent] = []
+        try:
+            task = next((t for t in state.daily_tasks if t.id == task_id), None)
+            if task is None or task.status.value == "completed":
+                return emitted, ""
+            task.status = DailyTaskStatus.COMPLETED
+            task.completed_at = now
+            task.completion_source = "quiz_evidence"
+            task.evidence_attempt_id = attempt_id
+            todays = [t for t in state.daily_tasks if t.day == task.day]
+            if todays and all(t.status.value == "completed" for t in todays):
+                emitted.append(event_emitter.task_batch_completed_event(
+                    task.day, len(todays), subject=state.primary_subject))
+            return emitted, task.episode_id
+        except Exception:
+            return [], ""
+
+    def launch_task(self, student_id: str, task_id: str) -> dict | None:
+        """Bind a daily task to a (possibly pre-existing) chat session (A12).
+
+        Task entries used to deep-link into chat with text only
+        (/chat?q=概念&send=1): the plan's context was lost and completion was
+        matched by concept name across ALL of today's tasks. Launch validates
+        ownership server-side and binds task -> episode -> session: a chat
+        session is pre-created carrying ``task_binding``, so graded answers
+        in it attribute to exactly this task (只更新绑定任务).
+
+        Relaunching an uncompleted task is idempotent — the same episode and
+        session come back. Zero LLM (pure state read/write). Returns the
+        launch payload, or None when the task does not exist / is already
+        completed. Never raises.
+        """
+        try:
+            from ...core import learning_episodes
+            from ...core.session import TutorSession, new_session_id, save_session
+            state = self._load(student_id)
+            task = next((t for t in state.daily_tasks if t.id == task_id), None)
+            if task is None or task.status.value == "completed":
+                return None
+            ep = learning_episodes.find_active_for_task(student_id, task_id)
+            if ep is not None and ep.session_id:
+                # relaunch: resume the same segment (idempotent)
+                if not task.session_id or not task.episode_id:
+                    task.session_id = ep.session_id
+                    task.episode_id = ep.episode_id
+                    self._save(student_id, state)
+                return {"ok": True, "task_id": task_id,
+                        "episode_id": ep.episode_id,
+                        "session_id": ep.session_id,
+                        "launch_url": f"/chat/{ep.session_id}",
+                        "resumed": True}
+            sid = new_session_id(task.concept_name or task.title or "task")
+            s = TutorSession(session_id=sid, student_id=student_id)
+            s.title = (task.title or task.concept_name or task_id)[:20]
+            s.task_binding = {"task_id": task_id,
+                              "goal_id": "",
+                              "episode_id": "",   # stamped below
+                              "concept_id": task.concept_id,
+                              "launched_at": time.time()}
+            ep = learning_episodes.create_episode(
+                student_id, task_id=task_id, session_id=sid,
+                concept_id=task.concept_id,
+                title=task.title or task.concept_name)
+            s.task_binding["episode_id"] = ep.episode_id
+            save_session(s)
+            task.episode_id = ep.episode_id
+            task.session_id = sid
+            self._save(student_id, state, event=OrchestrationEvent(
+                type="task_launched",
+                payload={"task_id": task_id, "episode_id": ep.episode_id,
+                         "session_id": sid}))
+            return {"ok": True, "task_id": task_id,
+                    "episode_id": ep.episode_id, "session_id": sid,
+                    "launch_url": f"/chat/{sid}", "resumed": False}
+        except Exception:
+            return None
 
     def _evidence_recorded(self, student_id: str, attempt_id: str) -> bool:
         """Whether a quiz_evidence event with this attempt id already exists
@@ -574,7 +691,12 @@ class LearningOrchestrationService:
 
 
     def complete_task(self, student_id: str, task_id: str)             -> tuple[bool, list[OrchestrationLearningEvent]]:
-        """Mark a daily task as completed.
+        """Mark a daily task as completed (explicit user action).
+
+        W4/A12: manual completion is stamped completion_source=self_report —
+        it never writes M2/mastery (task lifecycle is M9's, attainment is
+        M2's; 做完任务≠会了), and downstream stats can separate it from
+        quiz_evidence completions. Bound episodes advance to completed.
 
         Returns (found, emitted_events). When the completion finishes ALL of
         today's tasks, emits a task_batch_completed event for the supervisor
@@ -594,6 +716,16 @@ class LearningOrchestrationService:
                 # referenced subtask is still the same work.
                 done_task = next((t for t in state.daily_tasks
                                   if t.id == task_id), None)
+                if done_task is not None:
+                    done_task.completion_source = "self_report"
+                    if done_task.episode_id:
+                        try:
+                            from ...core import learning_episodes
+                            learning_episodes.set_episode_status(
+                                student_id, done_task.episode_id,
+                                learning_episodes.EPISODE_COMPLETED)
+                        except Exception:
+                            pass
                 if done_task is not None and done_task.subtask_id:
                     for w in state.weekly_plan:
                         for wt in w.tasks:

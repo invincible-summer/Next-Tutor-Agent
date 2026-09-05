@@ -418,6 +418,23 @@ class SchedulePatchBody(BaseModel):
     daily_minutes: int | None = None
 
 
+@router.post("/task/{task_id}/launch")
+def orchestration_launch_task(task_id: str,
+                              student_id: str = Depends(resolve_student_id)) -> dict:
+    """Bind a daily task to a chat session (W4/A12).
+
+    Server-side replacement for the text-only ``/chat?q=概念&send=1`` deep
+    link: validates the task belongs to the caller, pre-creates a session
+    carrying task_binding, and returns {episode_id, session_id, launch_url}.
+    Idempotent — relaunching an uncompleted task resumes the same episode
+    and session. Zero LLM. 404 when the task does not exist (or is already
+    completed — nothing left to launch)."""
+    out = get_orchestration_service().launch_task(student_id, task_id)
+    if out is None:
+        raise HTTPException(status_code=404, detail="task not found or completed")
+    return out
+
+
 @router.patch("/schedule")
 def orchestration_patch_schedule(body: SchedulePatchBody,
                                  student_id: str = Depends(resolve_student_id)) -> dict:

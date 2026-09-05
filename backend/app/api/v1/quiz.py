@@ -360,7 +360,9 @@ async def grade_answer(req: GradeRequest,
                 concept=req.knowledge_point,
                 subject=req.subject, student_id=student_id,
                 correct=(verdict == "correct"), note=(body or "")[:60],
-                attempt_id=attempt_id)
+                attempt_id=attempt_id,
+                task_binding=(getattr(session, "task_binding", None)
+                              if session is not None else None))
             _maybe_rebuild_mastery(student_id,
                                    had_prior_verdict=had_prior_verdict,
                                    attempt_id=attempt_id)
@@ -470,7 +472,8 @@ async def record_answer(req: RecordRequest,
             req.session_id, stem=req.stem, verdict=verdict,
             student_answer=req.student_answer, concept=concept,
             subject=req.subject, student_id=student_id,
-            correct=(verdict == "correct"), attempt_id=attempt_id)
+            correct=(verdict == "correct"), attempt_id=attempt_id,
+            task_binding=getattr(session, "task_binding", None))
         _maybe_rebuild_mastery(student_id, had_prior_verdict=had_prior_verdict,
                                attempt_id=attempt_id)
 

@@ -484,6 +484,11 @@ class DailyTask:
     phase: str = ""           # one of TASK_PHASES ("" = unlabelled)
     custom: bool = False      # True = user-created; pipelines never touch it
     reason: str = ""          # "why today" note (LLM coach / template)
+    # W4/A12: launch binding + completion attribution.
+    episode_id: str = ""      # active LearningEpisode bound via launch
+    session_id: str = ""      # the pre-created chat session of that episode
+    completion_source: str = ""   # "" | quiz_evidence | self_report
+    evidence_attempt_id: str = ""  # the committed attempt that completed it
     created_at: float = field(default_factory=time.time)
     completed_at: float = 0.0
 
@@ -495,6 +500,9 @@ class DailyTask:
             "week_task_id": self.week_task_id, "subtask_id": self.subtask_id,
             "title": self.title, "phase": self.phase, "custom": self.custom,
             "reason": self.reason,
+            "episode_id": self.episode_id, "session_id": self.session_id,
+            "completion_source": self.completion_source,
+            "evidence_attempt_id": self.evidence_attempt_id,
             "created_at": self.created_at, "completed_at": self.completed_at}
 
     @classmethod
@@ -513,6 +521,10 @@ class DailyTask:
             title=str(d.get("title", "")), phase=str(d.get("phase", "")),
             custom=bool(d.get("custom", False)),
             reason=str(d.get("reason", "")),
+            episode_id=str(d.get("episode_id", "")),
+            session_id=str(d.get("session_id", "")),
+            completion_source=str(d.get("completion_source", "")),
+            evidence_attempt_id=str(d.get("evidence_attempt_id", "")),
             created_at=float(d.get("created_at", time.time())),
             completed_at=float(d.get("completed_at", 0.0)))
 

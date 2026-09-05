@@ -39,7 +39,7 @@ def patch_all_storage_roots(root: Path) -> list:
     from app.agents.student_model import store as sm_store
     from app.agents.teaching_engine import guidance_store, teaching_log
     from app.agents.ux_intelligence import store as ux_store
-    from app.core import context, learning_records, library, notes
+    from app.core import context, learning_episodes, learning_records, library, notes
     from app.core import quiz_recent, session, textbook, trash, usage_docs, workspace
     from app.core import vector_store
     from app.core.config import settings
@@ -63,6 +63,7 @@ def patch_all_storage_roots(root: Path) -> list:
                      root / "students" / "prompt_memory_policy.json"),
         patch.object(memory_store, "_STUDENTS_DIR", root / "students"),
         patch.object(learning_records, "_STUDENTS_DIR", root / "students"),
+        patch.object(learning_episodes, "_STUDENTS_DIR", root / "students"),
         patch.object(quiz_recent, "_STUDENTS_DIR", root / "students"),
         patch.object(sm_store, "_STUDENTS_DIR", root / "students"),
         patch.object(teaching_log, "_STUDENTS_DIR", root / "students"),

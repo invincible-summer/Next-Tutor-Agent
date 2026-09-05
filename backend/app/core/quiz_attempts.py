@@ -186,14 +186,17 @@ def record_quiz_attempt(session_id: str, *, stem: str, verdict: str,
                         student_answer: str, concept: str = "",
                         subject: str = "", student_id: str = "",
                         correct: bool | None = None, note: str = "",
-                        attempt_id: str = "") -> None:
+                        attempt_id: str = "",
+                        task_binding: dict | None = None) -> None:
     """Persist one graded answer to transcript + M6 episodic + M3 teaching_log.
 
     ``unknown`` verdicts (grading could not run, e.g. malformed request) are
     skipped entirely — they carry no signal and must not pollute the
     transcript or long-term memory. ``attempt_id`` (W2/A14) keys the ledger
     attempt; the write-back path passes the same id so the two writes fold
-    into one append-only attempt record."""
+    into one append-only attempt record. ``task_binding`` (W4/A12) is the
+    launched session's binding — graded answers in a launched session then
+    attribute to exactly that task."""
     if verdict == "unknown":
         return
     try:
@@ -279,6 +282,6 @@ def record_quiz_attempt(session_id: str, *, stem: str, verdict: str,
                 get_orchestration_service().record_quiz_evidence(
                     student_id=student_id, concept=concept, verdict=verdict,
                     attempt_id=attempt_id, session_id=session_id,
-                    subject=subject)
+                    subject=subject, task_binding=task_binding)
     except Exception:
         pass

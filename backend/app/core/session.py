@@ -117,6 +117,10 @@ class TutorSession:
     # W3/D11: 课堂小结与恢复锚点（确定性骨架 + active 模式润色）；会话内
     # 投影，重建自 quiz_history/context_card，不是第二份掌握度存储。
     learning_summary: dict | None = None
+    # W4/A12: 任务启动绑定（launch 端点写入）：{task_id, goal_id, episode_id,
+    # concept_id, launched_at}。判分端点据此把已受理作答归因到「该任务」，
+    # 而不是按概念名匹配今日全部任务。
+    task_binding: dict | None = None
     messages: list[dict[str, Any]] = field(default_factory=list)
     quiz_history: list[dict[str, Any]] = field(default_factory=list)
     trace_ids: list[str] = field(default_factory=list)
@@ -153,6 +157,7 @@ class TutorSession:
             "supervisor_state": self.supervisor_state,
             "context_card": self.context_card,
             "learning_summary": self.learning_summary,
+            "task_binding": self.task_binding,
             "messages": self.messages,
             "quiz_history": self.quiz_history,
             "trace_ids": self.trace_ids,
@@ -175,6 +180,7 @@ class TutorSession:
             supervisor_state=d.get("supervisor_state"),
             context_card=d.get("context_card"),
             learning_summary=d.get("learning_summary"),
+            task_binding=d.get("task_binding"),
             messages=d.get("messages", []),
             quiz_history=d.get("quiz_history", []),
             trace_ids=d.get("trace_ids", []),
