@@ -161,9 +161,14 @@ class AssessmentResult:
     # M10 evidence audit; additive API fields, never a second mastery store.
     evidence_level: str = ""
     evidence_gate: dict[str, Any] = field(default_factory=dict)
+    # W3/D06: structured analysis (rubric criterion results, first error,
+    # hypotheses, next_step) when it produced the verdict (active mode), and
+    # the shadow copy computed alongside the legacy grade (shadow mode).
+    structured: dict[str, Any] = field(default_factory=dict)
+    structured_shadow: dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
-        return {
+        d = {
             "question_id": self.question_id,
             "concept": self.concept,
             "skill_id": self.skill_id,
@@ -178,6 +183,11 @@ class AssessmentResult:
             "evidence_level": self.evidence_level,
             "evidence_gate": dict(self.evidence_gate),
         }
+        if self.structured:
+            d["structured"] = dict(self.structured)
+        if self.structured_shadow:
+            d["structured_shadow"] = dict(self.structured_shadow)
+        return d
 
     @property
     def correct(self) -> bool:
@@ -207,4 +217,6 @@ class AssessmentResult:
             student_answer=str(d.get("student_answer", "") or "")[:200],
             evidence_level=str(d.get("evidence_level", "") or ""),
             evidence_gate=dict(d.get("evidence_gate", {}) or {}),
+            structured=dict(d.get("structured", {}) or {}),
+            structured_shadow=dict(d.get("structured_shadow", {}) or {}),
         )

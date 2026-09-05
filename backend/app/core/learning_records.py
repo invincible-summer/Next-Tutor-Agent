@@ -142,7 +142,9 @@ def record_verdict(student_id: str, session_id: str, *, stem: str,
                    concept: str = "", subject: str = "",
                    source_kind: str = "chat",
                    attempt_id: str = "", assessment_id: str = "",
-                   evidence_status: str = "accepted") -> str:
+                   evidence_status: str = "accepted",
+                   criterion_results: list | None = None,
+                   hypotheses: list | None = None) -> str:
     """Append one graded attempt to the matching record and refresh its
     current projection.
 
@@ -205,7 +207,7 @@ def record_verdict(student_id: str, session_id: str, *, stem: str,
             return str(latest.get("attempt_id") or attempt_id)
         if latest is not None:
             latest["superseded_by"] = attempt_id
-        attempts.append({
+        attempt = {
             "attempt_id": attempt_id,
             "verdict": str(verdict or ""),
             "student_answer": str(student_answer or "")[:1000],
@@ -214,7 +216,20 @@ def record_verdict(student_id: str, session_id: str, *, stem: str,
                                 if evidence_status in {"accepted", "abstained"}
                                 else "accepted"),
             "created_at": time.time(),
-        })
+        }
+        # W3/D06：结构化评估明细（量规条目判定/错因假设）随 attempt 追加，
+        # §8.2 AssessmentRecord 契约的最小落点；无结构化路径的旧调用不受影响。
+        if isinstance(criterion_results, list) and criterion_results:
+            attempt["criterion_results"] = [
+                {k: (str(v)[:40] if k == "evidence_quote" else str(v)[:60])
+                 for k, v in c.items() if isinstance(c, dict)}
+                for c in criterion_results[:6] if isinstance(c, dict)]
+        if isinstance(hypotheses, list) and hypotheses:
+            attempt["hypotheses"] = [
+                {"kind": str(h.get("kind") or "other")[:24],
+                 "statement": str(h.get("statement") or "")[:80]}
+                for h in hypotheses[:2] if isinstance(h, dict)]
+        attempts.append(attempt)
         if assessment_id:
             item["assessment_id"] = str(assessment_id)
         item["verdict"] = str(verdict or "")

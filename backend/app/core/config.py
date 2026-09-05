@@ -21,6 +21,16 @@ def _resolve_skill_runtime_mode() -> str:
     return mode if mode in {"off", "shadow", "gated"} else "shadow"
 
 
+def _resolve_mode(name: str, allowed: set[str], default: str) -> str:
+    """Whitelist-normalize a multi-valued mode env (§13.6 纪律：非法值回默认，
+    不原样透传）。"""
+    raw = os.getenv(name)
+    if raw is None:
+        return default
+    raw = raw.strip().lower()
+    return raw if raw in allowed else default
+
+
 def _env_bool(name: str, default: bool = False) -> bool:
     raw = os.getenv(name)
     if raw is None:
@@ -84,6 +94,11 @@ class Settings:
     # 陷阱设计），第二轮按蓝图写题；single = 旧行为（单轮直出）。
     # 蓝图轮失败时自动回退 single（fail-open，同 quiz_verify 哲学）。
     quiz_design_mode: str = os.getenv("QUIZ_DESIGN_MODE", "two_pass").strip().lower()
+    # W3/D06 结构化评估（量规条目判定）：off = 旧行为（三级文本批改）；
+    # shadow = 旁路计算并落盘对照、不写能力不改变判定；active = 有冻结量规的
+    # 开放题以结构化分析为权威判定（分数仍由服务端按量规权重计算）。
+    structured_assessment_mode: str = _resolve_mode(
+        "STRUCTURED_ASSESSMENT_MODE", {"off", "shadow", "active"}, "off")
     # 工具步允许保留模型思考（LOW，不下发关闭指令）：预算充足时让推理发生，
     # real_summary 才有真实材料；预算被压缩时 executor 的 budget_forces_direct
     # 仍会强制关思考， starving 时走 incomplete_answer_recovery 兜底。

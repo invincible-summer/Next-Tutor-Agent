@@ -160,20 +160,24 @@ class StudentModel:
                            skill_id: str = "", knowledge_point: str = "",
                            subject: str = "", note: str = "",
                            verdict: str = "", confidence: float | None = None,
-                           attempt_id: str = "") -> None:
+                           attempt_id: str = "",
+                           structured: dict | None = None) -> None:
         """Convenience: record a single quiz-graded event (quiz endpoint).
 
         W2: ``verdict`` distinguishes partial from binary wrong for the BKT
         step (A04); ``confidence`` is the evidence gate's capped max_confidence
         (A05); ``attempt_id`` makes re-processing the SAME submission a no-op
-        — the same evidence must not influence M2 twice (A05)."""
+        — the same evidence must not influence M2 twice (A05).
+        W3/D06: ``structured`` rides the event payload as additive keys
+        (criterion_results / observed_capabilities / assistance / rubric_id)
+        for the v2 capability projection; the legacy BKT handler ignores it."""
         if attempt_id and self._attempt_recorded(attempt_id):
             return
         col = EventCollector()
         col.quiz_graded(concept, correct, skill_id=skill_id,
                         knowledge_point=knowledge_point, subject=subject,
                         note=note, verdict=verdict, confidence=confidence,
-                        attempt_id=attempt_id)
+                        attempt_id=attempt_id, structured=structured)
         self.record_events(col.drain())
 
     def _attempt_recorded(self, attempt_id: str) -> bool:
@@ -360,7 +364,8 @@ def record_quiz_result(*, concept: str, correct: bool, session_id: str = "",
                        subject: str = "", note: str = "",
                        student_id: str = "",
                        verdict: str = "", confidence: float | None = None,
-                       attempt_id: str = "") -> None:
+                       attempt_id: str = "",
+                       structured: dict | None = None) -> None:
     """Process-level convenience used by the quiz grading endpoint.
 
     M0：student_id 为身份命名空间（/quiz/grade 经 resolve_student_id 透传），
@@ -369,7 +374,8 @@ def record_quiz_result(*, concept: str, correct: bool, session_id: str = "",
 
     W2/A04/A05：verdict（partial 不做二元负向 BKT 更新）、confidence（证据
     门 cap 后的 max_confidence 审计）与 attempt_id（同一作答幂等，不重复
-    影响 M2）为可选增量参数，旧调用方不受影响。
+    影响 M2）为可选增量参数，旧调用方不受影响。W3/D06：structured 为事件
+    payload 的增量键（v2 投影输入），legacy 处理器忽略。
     """
     try:
         if not is_enabled():
@@ -378,6 +384,6 @@ def record_quiz_result(*, concept: str, correct: bool, session_id: str = "",
         sm.record_quiz_result(concept=concept, correct=correct, skill_id=skill_id,
                               knowledge_point=knowledge_point, subject=subject,
                               note=note, verdict=verdict, confidence=confidence,
-                              attempt_id=attempt_id)
+                              attempt_id=attempt_id, structured=structured)
     except Exception:
         pass

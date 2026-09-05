@@ -45,7 +45,8 @@ class EventCollector:
     def quiz_graded(self, concept: str, correct: bool, *, skill_id: str = "",
                     knowledge_point: str = "", subject: str = "", note: str = "",
                     verdict: str = "", confidence: float | None = None,
-                    attempt_id: str = "") -> None:
+                    attempt_id: str = "",
+                    structured: dict[str, Any] | None = None) -> None:
         payload = {
             "concept": concept, "correct": bool(correct),
             "skill_id": skill_id, "knowledge_point": knowledge_point,
@@ -60,6 +61,15 @@ class EventCollector:
             payload["confidence"] = round(max(0.0, min(1.0, confidence)), 3)
         if attempt_id:
             payload["attempt_id"] = attempt_id
+        # W3/D06 additive keys (v2 capability-projection input, §8.6.2):
+        # criterion results + observed dimensions + assistance. The BKT
+        # handler ignores them; nothing here may change legacy semantics.
+        if isinstance(structured, dict):
+            for key in ("criterion_results", "observed_capabilities",
+                        "assistance", "rubric_id"):
+                value = structured.get(key)
+                if value:
+                    payload[key] = value
         self.add(EventType.QUIZ_GRADED, payload)
 
     def concept_taught(self, concept: str, *, skill_id: str = "",

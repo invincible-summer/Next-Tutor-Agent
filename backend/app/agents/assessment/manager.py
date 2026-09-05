@@ -106,10 +106,20 @@ class AssessmentManager:
         ``question_verified`` (W2/A05) tells the gate whether the question's
         content was independently re-solved — missing caps the confidence at
         0.70 instead of defaulting to trusted. ``attempt_id`` makes the M2
-        write idempotent for the same submission."""
+        write idempotent for the same submission.
+
+        W3/D06 (STRUCTURED_ASSESSMENT_MODE): open answers with a frozen
+        rubric go through the structured analyzer in shadow/active. active =
+        the analysis IS the authoritative grade (score computed locally from
+        the rubric weights); shadow = legacy grade stands, the analysis is
+        stored as an auditable comparison; off = legacy path unchanged. MC
+        stays deterministic in every mode; analyzer failure/abstain falls
+        back to the legacy grade (关闭新模型仍能帮助，不污染状态)."""
         try:
+            from ...core.config import settings
             grading_confidence = 0.0
             grading_source = "assessment_unknown"
+            structured_mode = settings.structured_assessment_mode
             # Branch on the declared type, not on options presence: letter
             # grading is deterministic and does not need the option bodies,
             # and /quiz/record callers may not carry them (a missing-options
@@ -125,9 +135,21 @@ class AssessmentManager:
                 grading_confidence = 0.85
                 grading_source = "assessment_structured_grade"
             elif llm is not None:
-                result = await self._grade_open_llm(question, student_answer, ctx, llm)
-                grading_confidence = 0.75
-                grading_source = "assessment_llm_grade"
+                analysis = None
+                if structured_mode in ("shadow", "active") and question.rubric.get("criteria"):
+                    from .structured_evaluator import analyze_answer
+                    analysis = await analyze_answer(question, student_answer,
+                                                    ctx, llm=llm)
+                if structured_mode == "active" and analysis is not None:
+                    result = analysis.to_result(question, ctx)
+                    grading_confidence = 0.75
+                    grading_source = "assessment_structured_v2"
+                else:
+                    result = await self._grade_open_llm(question, student_answer, ctx, llm)
+                    grading_confidence = 0.75
+                    grading_source = "assessment_llm_grade"
+                    if analysis is not None:
+                        result.structured_shadow = analysis.to_dict()
             else:
                 return AssessmentResult(question_id=question.id, concept=question.concept)
             if not result.skill_id and ctx.skill_id:
@@ -215,6 +237,16 @@ class AssessmentManager:
             if not gate.allow_mastery_update:
                 return
             from ..student_model import record_quiz_result
+            # W3/D06: the structured detail (criterion results / observed
+            # dimensions / rubric id) rides the event as additive keys so the
+            # v2 capability projection can aggregate it; legacy BKT ignores.
+            structured_payload = None
+            if result.structured:
+                structured_payload = {
+                    k: result.structured.get(k)
+                    for k in ("criterion_results", "observed_capabilities",
+                              "rubric_id") if result.structured.get(k) is not None
+                } or None
             record_quiz_result(
                 concept=result.concept or "",
                 correct=result.correct,
@@ -226,6 +258,7 @@ class AssessmentManager:
                 verdict=result.verdict,
                 confidence=gate.max_confidence,
                 attempt_id=attempt_id,
+                structured=structured_payload,
             )
         except Exception:
             pass
