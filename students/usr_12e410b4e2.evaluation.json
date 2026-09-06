@@ -6,7 +6,7 @@
       "avg_gain": 0.0,
       "avg_success_rate": 1.0,
       "sample_size": 16,
-      "last_updated": 1788235212.7450902
+      "last_updated": 1788612620.7119508
     },
     {
       "strategy": "remediation",
@@ -14,7 +14,7 @@
       "avg_gain": 0.0,
       "avg_success_rate": 1.0,
       "sample_size": 59,
-      "last_updated": 1788235212.7451239
+      "last_updated": 1788612620.7119634
     },
     {
       "strategy": "practice",
@@ -22,7 +22,7 @@
       "avg_gain": 0.0,
       "avg_success_rate": 1.0,
       "sample_size": 3,
-      "last_updated": 1788235212.7451277
+      "last_updated": 1788612620.711966
     },
     {
       "strategy": "introduction",
@@ -30,7 +30,7 @@
       "avg_gain": 0.0,
       "avg_success_rate": 1.0,
       "sample_size": 6,
-      "last_updated": 1788235212.745131
+      "last_updated": 1788612620.7119687
     },
     {
       "strategy": "remediation",
@@ -38,7 +38,7 @@
       "avg_gain": 0.0,
       "avg_success_rate": 1.0,
       "sample_size": 67,
-      "last_updated": 1788235212.7451441
+      "last_updated": 1788612620.7119813
     },
     {
       "strategy": "review",
@@ -46,7 +46,7 @@
       "avg_gain": 0.0,
       "avg_success_rate": 1.0,
       "sample_size": 5,
-      "last_updated": 1788235212.745148
+      "last_updated": 1788612620.7119849
     },
     {
       "strategy": "introduction",
@@ -54,7 +54,7 @@
       "avg_gain": 0.0,
       "avg_success_rate": 1.0,
       "sample_size": 1,
-      "last_updated": 1788235212.74515
+      "last_updated": 1788612620.7119868
     },
     {
       "strategy": "remediation",
@@ -62,7 +62,7 @@
       "avg_gain": 0.0,
       "avg_success_rate": 1.0,
       "sample_size": 1,
-      "last_updated": 1788235212.7451518
+      "last_updated": 1788612620.7119887
     },
     {
       "strategy": "introduction",
@@ -70,7 +70,7 @@
       "avg_gain": 0.0,
       "avg_success_rate": 1.0,
       "sample_size": 1,
-      "last_updated": 1788235212.7451532
+      "last_updated": 1788612620.7119908
     },
     {
       "strategy": "remediation",
@@ -78,7 +78,7 @@
       "avg_gain": 0.0,
       "avg_success_rate": 1.0,
       "sample_size": 1,
-      "last_updated": 1788235212.7451553
+      "last_updated": 1788612620.7119925
     },
     {
       "strategy": "remediation",
@@ -86,7 +86,7 @@
       "avg_gain": 0.0,
       "avg_success_rate": 1.0,
       "sample_size": 1,
-      "last_updated": 1788235212.745157
+      "last_updated": 1788612620.7119944
     },
     {
       "strategy": "introduction",
@@ -94,7 +94,7 @@
       "avg_gain": 0.0,
       "avg_success_rate": 1.0,
       "sample_size": 6,
-      "last_updated": 1788235212.7451596
+      "last_updated": 1788612620.7119966
     },
     {
       "strategy": "introduction",
@@ -102,7 +102,7 @@
       "avg_gain": 0.0,
       "avg_success_rate": 1.0,
       "sample_size": 1,
-      "last_updated": 1788235212.7451618
+      "last_updated": 1788612620.7119982
     },
     {
       "strategy": "challenge",
@@ -110,7 +110,7 @@
       "avg_gain": 0.0,
       "avg_success_rate": 1.0,
       "sample_size": 1,
-      "last_updated": 1788235212.7451632
+      "last_updated": 1788612620.712
     },
     {
       "strategy": "practice",
@@ -118,7 +118,7 @@
       "avg_gain": 0.0,
       "avg_success_rate": 1.0,
       "sample_size": 3,
-      "last_updated": 1788235212.7451653
+      "last_updated": 1788612620.7120018
     },
     {
       "strategy": "review",
@@ -126,7 +126,7 @@
       "avg_gain": 0.0,
       "avg_success_rate": 1.0,
       "sample_size": 1,
-      "last_updated": 1788235212.7451668
+      "last_updated": 1788612620.7120032
     }
   ],
   "proposals": [
@@ -429,5 +429,5 @@
     "traces_since_last": 4,
     "last_ts": 1788228659.8233607
   },
-  "updated_at": 1788235212.8979123
+  "updated_at": 1788612621.0854044
 }
