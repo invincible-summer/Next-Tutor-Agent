@@ -1,0 +1,41 @@
+// /docs 使用文档页词条（全员读；管理员可页内编辑）。
+import type { PageStrings } from "@/lib/i18n-page";
+
+export const STRINGS = {
+  zh: {
+    "docs.title": "使用文档",
+    "docs.desc": "系统使用说明 · 由管理员维护，支持 Markdown",
+    "docs.toc": "目录",
+    "docs.edit": "编辑",
+    "docs.preview": "预览",
+    "docs.source": "编辑源码",
+    "docs.save": "保存",
+    "docs.saving": "保存中…",
+    "docs.cancel": "取消",
+    "docs.saved": "已保存",
+    "docs.loadFail": "文档加载失败，请稍后重试。",
+    "docs.saveFail": "保存失败，请确认你是管理员后重试。",
+    "docs.updated": "最后更新",
+    "docs.updatedBy": "由",
+    "docs.empty": "（文档为空）",
+    "docs.ph": "在此输入 Markdown 文档内容…",
+  },
+  en: {
+    "docs.title": "Usage Docs",
+    "docs.desc": "System guide · maintained by admins, Markdown supported",
+    "docs.toc": "Contents",
+    "docs.edit": "Edit",
+    "docs.preview": "Preview",
+    "docs.source": "Edit source",
+    "docs.save": "Save",
+    "docs.saving": "Saving…",
+    "docs.cancel": "Cancel",
+    "docs.saved": "Saved",
+    "docs.loadFail": "Failed to load the document — please retry.",
+    "docs.saveFail": "Failed to save — confirm you are an admin and retry.",
+    "docs.updated": "Last updated",
+    "docs.updatedBy": "by",
+    "docs.empty": "(empty document)",
+    "docs.ph": "Type the Markdown document here…",
+  },
+} satisfies PageStrings;

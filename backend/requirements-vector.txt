@@ -1,0 +1,6 @@
+# Optional persistent vector lane for EMBEDDING_PROVIDER=openai or local.
+# BM25-only production must not install this file.
+-c constraints.txt
+
+chromadb>=0.5
+numpy>=1.26

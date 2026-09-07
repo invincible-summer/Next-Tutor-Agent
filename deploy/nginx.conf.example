@@ -1,0 +1,123 @@
+# Edu_Agent 同源生产 Nginx 站点模板。
+#
+# 只安装为 /etc/nginx/sites-available/edu-agent，并软链接到
+# /etc/nginx/sites-enabled/edu-agent。不要删除或覆盖 default、Paper Agent、
+# myBlog 或任何其他站点。map 位于 http 上下文（sites-enabled 通常就在 http
+# {} 的 include 中），变量名特意使用 edu_agent 前缀，避免和同机其他站点重名。
+#
+# 前端构建：BACKEND_URL=http://127.0.0.1:8123 pnpm build
+# 浏览器：不设置 NEXT_PUBLIC_BACKEND_URL，继续请求同源 /api/*。
+
+map $http_upgrade $edu_agent_connection_upgrade {
+    default upgrade;
+    ''      close;
+}
+
+server {
+    listen 80;
+    listen [::]:80;
+    server_name edu-agent.invincible-summer.xyz;
+
+    # Certbot webroot 续期验证；HTTP 只保留 challenge 和 HTTPS 跳转。
+    location ^~ /.well-known/acme-challenge/ {
+        root /var/www/edu-agent-acme;
+        default_type text/plain;
+        try_files $uri =404;
+    }
+
+    location / {
+        return 301 https://edu-agent.invincible-summer.xyz$request_uri;
+    }
+}
+
+server {
+    listen 443 ssl;
+    listen [::]:443 ssl;
+    server_name edu-agent.invincible-summer.xyz;
+
+    ssl_certificate     /etc/letsencrypt/live/edu-agent.invincible-summer.xyz/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/edu-agent.invincible-summer.xyz/privkey.pem;
+
+    client_max_body_size 300m;
+
+    # SSE：禁用 Nginx 缓冲、缓存和 gzip，并允许教材处理/教学长请求持续输出。
+    location = /api/v1/chat/stream {
+        proxy_pass http://127.0.0.1:8123;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header Connection '';
+        proxy_buffering off;
+        proxy_cache off;
+        gzip off;
+        proxy_read_timeout 600s;
+        proxy_send_timeout 600s;
+        add_header X-Accel-Buffering no;
+    }
+
+    location = /api/v1/chat/completions {
+        proxy_pass http://127.0.0.1:8123;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header Connection '';
+        proxy_buffering off;
+        proxy_cache off;
+        gzip off;
+        proxy_read_timeout 600s;
+        proxy_send_timeout 600s;
+        add_header X-Accel-Buffering no;
+    }
+
+    # P10 语音 WebSocket：需要 Upgrade/Connection 透传（复用上方 map）与长
+    # 超时；一次通话连接持续整段对话，不能复用 SSE 的 Connection '' 规则。
+    location ^~ /api/v1/voice/ {
+        proxy_pass http://127.0.0.1:8123;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection $edu_agent_connection_upgrade;
+        proxy_buffering off;
+        proxy_cache off;
+        gzip off;
+        proxy_read_timeout 600s;
+        proxy_send_timeout 600s;
+    }
+
+    location ^~ /api/ {
+        proxy_pass http://127.0.0.1:8123;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        # 覆盖 quiz/grade 等其他 SSE 和长任务；具体 chat 路径在上方显式列出。
+        proxy_buffering off;
+        proxy_request_buffering off;
+        proxy_cache off;
+        gzip off;
+        proxy_read_timeout 600s;
+        proxy_send_timeout 600s;
+        add_header X-Accel-Buffering no;
+    }
+
+    location / {
+        proxy_pass http://127.0.0.1:3030;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection $edu_agent_connection_upgrade;
+        proxy_read_timeout 600s;
+        proxy_send_timeout 600s;
+    }
+}

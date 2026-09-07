@@ -1,0 +1,32 @@
+# Direct/runtime dependencies for the local Chinese MeloTTS sidecar.
+# MeloTTS is mounted from backend/vendor/MeloTTS at a pinned revision instead
+# of installed as a package, so its setup.py post-install hook is not run.
+# That avoids downloading the optional Japanese unidic dictionary.
+#
+# These are the direct Python package versions audited on 2026-08-30.
+# torch/torchaudio are intentionally installed separately from the CPU-only
+# PyTorch index by install_voice.sh; do not install generic PyPI torch wheels.
+# A released image/venv must still preserve the resolved transitive wheels'
+# LICENSE/COPYING/NOTICE files and a versioned SBOM.
+
+# Sidecar HTTP service
+fastapi==0.141.1
+uvicorn==0.52.4
+pydantic==2.13.5
+
+# MeloTTS inference and model loading
+# torch==2.11.0+cpu and torchaudio==2.11.0+cpu are installed by the script.
+transformers==4.27.4
+numpy==1.26.4
+scipy==1.17.1
+soundfile==0.14.0
+librosa==0.11.0
+huggingface_hub==0.36.2
+tqdm==4.70.0
+
+# Chinese and mixed Chinese/English text processing
+jieba==0.42.1
+pypinyin==0.55.0
+cn2an==0.5.24
+g2p_en==2.1.0
+nltk==3.10.3

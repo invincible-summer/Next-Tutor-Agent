@@ -1,0 +1,27 @@
+[Unit]
+Description=Edu_Agent backend (FastAPI / uvicorn)
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=simple
+User=edu-agent
+Group=edu-agent
+UMask=0077
+WorkingDirectory=/opt/edu-agent
+EnvironmentFile=/opt/edu-agent/.env
+Environment=HOME=/var/lib/edu-agent
+Environment=XDG_CACHE_HOME=/var/lib/edu-agent/cache
+Environment=PYTHONPATH=/opt/edu-agent/backend
+ExecStart=/opt/edu-agent/.venv/bin/python -m uvicorn app.main:app --app-dir /opt/edu-agent/backend --host 127.0.0.1 --port 8123 --workers 1 --proxy-headers
+Restart=always
+RestartSec=3
+TimeoutStopSec=30
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/edu-agent/students /opt/edu-agent/users /opt/edu-agent/notes /opt/edu-agent/chat_history /opt/edu-agent/knowledge /opt/edu-agent/backend/traces /opt/edu-agent/backend/uploads /var/lib/edu-agent
+
+[Install]
+WantedBy=multi-user.target

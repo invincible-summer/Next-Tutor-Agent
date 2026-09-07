@@ -1,0 +1,22 @@
+# MeloTTS-Chinese sidecar（P10 语音，可选生产部署）。
+# 与 edu-backend.service 分离：独立 venv（含 CPU torch），崩溃不拖垮主服务。
+# 安装：cp deploy/edu-voice-sidecar.service /etc/systemd/system/ && \
+#       systemctl daemon-reload && systemctl enable --now edu-voice-sidecar
+[Unit]
+Description=Edu Agent MeloTTS voice sidecar (Chinese TTS, CPU)
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/edu-agent/backend/voice_sidecar
+Environment=HF_HUB_OFFLINE=1
+Environment=TRANSFORMERS_OFFLINE=1
+Environment=HF_HOME=/opt/edu-agent/backend/models/voice/hf
+Environment=OMP_NUM_THREADS=2
+Environment=MKL_NUM_THREADS=2
+ExecStart=/opt/edu-agent/backend/voice_sidecar/.venv/bin/python -m uvicorn app:app --host 127.0.0.1 --port 8130
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

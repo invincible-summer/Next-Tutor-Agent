@@ -1,0 +1,98 @@
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+*.p12
+secrets.json
+auth.json
+docs/administrator.txt
+
+# Runtime data roots: this repository intentionally ships no textbook source,
+# parsed text, chunks, graphs, indexes or per-user runtime state. The public
+# textbook namespace is deployment-local and must never be committed.
+/traces/
+backend/traces/
+/uploads/
+*.log
+/tool-output/
+/chroma_db/
+/chat_history/
+/knowledge/
+/notes/
+/students/
+/users/
+/acceptance-reports/
+/docs/show/
+/deploy/pages-demo-extra/
+/frontend/public/demo/
+/frontend/out/
+.runtime/
+
+# Local planning documents stay out of version control.
+plan.md
+docs/The_Website_deployment_plan.md
+
+# Common local research/download scratch directories.
+/downloads/
+/papers/
+/论文下载/
+*:Zone.Identifier
+*.part
+*.crdownload
+*.download
+*.sqlite
+*.sqlite3
+*.db
+
+# Voice sidecar deployment-local assets (MeloTTS checkout, weights, caches).
+/backend/vendor/
+/backend/models/
+/backend/voice_sidecar/.venv/
+/backend/.cache/
+/backend/.huggingface/
+*.ckpt
+*.gguf
+*.onnx
+*.pt
+*.pth
+*.safetensors
+*.tflite
+*.mlmodel
+*.mlpackage
+*.params
+*.weights
+/backend/vendor/**/*.bin
+/backend/models/**/*.bin
+
+node_modules/
+.next/
+.pnpm-store/
+
+.vscode/
+.idea/
+.DS_Store
+*.swp
+.zcode/
+
+# Playwright E2E artifacts
+frontend/test-results/
+frontend/playwright-report/
+frontend/.playwright/
+
+# Classroom render assets: sources and build scripts are versioned, generated
+# output is produced on demand.
+backend/app/classroom/static/generated/
+frontend/dist/classroom/

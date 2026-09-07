@@ -1,0 +1,4 @@
+# Optional dependencies for vector/public-artifact regression tests.
+# Production BM25 deployments must not install this file.
+-c constraints.txt
+-r requirements-vector.txt

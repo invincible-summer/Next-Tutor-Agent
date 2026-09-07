@@ -1,0 +1,27 @@
+[Unit]
+Description=Edu_Agent frontend (Next.js next start)
+Wants=network-online.target
+After=network-online.target edu-agent-backend.service
+
+[Service]
+Type=simple
+User=edu-agent
+Group=edu-agent
+UMask=0077
+WorkingDirectory=/opt/edu-agent/frontend
+Environment=NODE_ENV=production
+Environment=HOME=/var/lib/edu-agent
+Environment=BACKEND_URL=http://127.0.0.1:8123
+Environment=PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+ExecStart=/usr/bin/env pnpm exec next start -H 127.0.0.1 -p 3030
+Restart=always
+RestartSec=3
+TimeoutStopSec=30
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/edu-agent/frontend/.next /var/lib/edu-agent
+
+[Install]
+WantedBy=multi-user.target

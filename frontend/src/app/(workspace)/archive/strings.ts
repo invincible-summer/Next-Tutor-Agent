@@ -1,0 +1,28 @@
+export const STRINGS = {
+  zh: {
+    title: "归档中心", desc: "查看已归档的对话、资料、教材与工作区；恢复或彻底删除全部可恢复副本。",
+    all: "全部", session: "对话", library_file: "资料", library_folder: "文件夹", textbook: "教材", textbook_volume: "教材卷", workspace: "工作区", knowledge_graph: "知识谱系",
+    empty: "归档中心为空", emptyDesc: "删除的内容会先进入这里，并按保留策略自动清理。", restore: "恢复", purge: "彻底删除",
+    purgeTitle: "彻底删除全部可归属痕迹", purgeDesc: "此操作不可恢复，将删除归档包、原文件、解析文本、附件、图谱、索引与技术副本，并自动遗忘仍可单项归属的最近提示词影响。已合入整体压缩画像的影响无法安全拆分；独立学习档案按既定策略保留。",
+    emptyAll: "清空归档中心", emptyTitle: "彻底删除全部归档", emptyAllDesc: "将永久清除当前归档中心内的所有可恢复内容，无法撤销。",
+    select: "批量管理", selectAll: "全选", purgeSelected: "彻底删除所选", done: "完成", retention: "保留策略", days: "天", manual: "仅手动清理", auto: "自动到期清理", save: "保存",
+    deletedAt: "归档于", expiresAt: "到期于", noExpiry: "不会自动到期", size: "归档大小", location: "归档位置", restoreTitle: "恢复归档",
+    restoreDesc: "可选择重新挂回哪些现有学习区；不选择则仅恢复内容，不自动参与任何工作区对话。", noWorkspace: "不挂接工作区",
+    workspaceFiles: "包含专属资料", workspaceSessions: "包含成员对话", workspaceMemory: "包含工作区共同记忆",
+    memoryForgotten: "该对话的提示词记忆影响已永久遗忘，恢复不会重建。", memoryCompacted: "该对话影响已合入压缩画像，无法单独撤销。",
+    loadFail: "归档信息加载失败", actionFail: "操作失败，请重试", cancel: "取消", confirm: "确认",
+  },
+  en: {
+    title: "Archive Center", desc: "Review archived chats, resources, textbooks and workspaces; restore them or permanently erase recoverable copies.",
+    all: "All", session: "Chats", library_file: "Files", library_folder: "Folders", textbook: "Textbooks", textbook_volume: "Textbook volume", workspace: "Workspaces", knowledge_graph: "Knowledge maps",
+    empty: "Archive is empty", emptyDesc: "Deleted content appears here before retention cleanup.", restore: "Restore", purge: "Permanently delete",
+    purgeTitle: "Permanently erase attributable traces", purgeDesc: "This cannot be undone. Archived payloads, originals, parsed text, attachments, graphs, indexes and technical copies will be erased, and any still-attributable recent prompt influence will be forgotten automatically. Influence already merged into the aggregate profile cannot be safely separated; independent learning records follow their retention contract.",
+    emptyAll: "Empty archive", emptyTitle: "Permanently delete all archives", emptyAllDesc: "All recoverable archived content will be erased permanently.",
+    select: "Manage", selectAll: "Select all", purgeSelected: "Delete selected", done: "Done", retention: "Retention", days: "days", manual: "Manual cleanup only", auto: "Automatic expiry", save: "Save",
+    deletedAt: "Archived", expiresAt: "Expires", noExpiry: "No automatic expiry", size: "Archive size", location: "Archive location", restoreTitle: "Restore archive",
+    restoreDesc: "Optionally attach the restored item to existing learning spaces. Leaving all unchecked restores it without enabling it in a workspace.", noWorkspace: "No workspace attachment",
+    workspaceFiles: "Includes private files", workspaceSessions: "Includes member chats", workspaceMemory: "Includes workspace shared memory",
+    memoryForgotten: "This chat's prompt-memory influence was permanently forgotten and will not return on restore.", memoryWillForget: "Permanent deletion will automatically forget this chat's still-attributable recent prompt influence.", memoryCompacted: "This influence is already in the compacted profile and cannot be removed individually.", memoryLegacyUnknown: "The legacy generation kept only an aggregate count, so attribution to this chat is unknown.",
+    loadFail: "Failed to load archive", actionFail: "Action failed", cancel: "Cancel", confirm: "Confirm",
+  },
+} as const;

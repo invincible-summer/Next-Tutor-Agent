@@ -1,0 +1,357 @@
+@import "tailwindcss";
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* ==========================================================================
+   Next Tutor Agent · 「纸墨书院 × 现代工作台」设计令牌
+   浅色 = 宣纸底 + 墨色 + 黛青主色 + 朱砂点缀
+   深色 = 墨夜底 + 同系高明度色
+   ========================================================================== */
+
+:root {
+  /* 基底 */
+  --bg: 246 245 241;            /* 宣纸 */
+  --surface: 255 254 250;       /* 纸面 */
+  --surface-hover: 240 238 231; /* 纸面悬浮 */
+  --surface-sunken: 238 236 229;/* 凹陷区（代码块/表格头） */
+  --border: 224 221 212;
+  --border-light: 233 230 223;
+  /* 墨色 */
+  --fg: 30 30 36;
+  --fg-secondary: 82 80 74;
+  --fg-tertiary: 140 137 128;   /* 弱提示（= muted 别名，供 text-fg-tertiary 使用） */
+  --muted: 140 137 128;
+  /* 黛青（主色） */
+  --accent: 37 109 102;
+  --accent-strong: 29 86 80;
+  --accent-soft: 221 234 230;
+  /* 朱砂（强调：连续天数/重要提醒） */
+  --accent2: 194 64 42;
+  --accent2-strong: 160 50 32;
+  --accent2-soft: 245 227 221;
+  /* 语义 */
+  --success: 46 125 82;
+  --warning: 176 126 12;
+  --danger: 180 56 46;
+  --info: 74 98 138;
+  /* 掌握度四态（全站统一） */
+  --m-mastered: 46 125 82;
+  --m-learning: 176 126 12;
+  --m-weak: 180 56 46;
+  --m-todo: 145 148 158;
+  /* 阴影：低存在感 */
+  --shadow-sm: 0 1px 2px 0 rgb(30 26 18 / 0.05);
+  --shadow-md: 0 4px 14px -4px rgb(30 26 18 / 0.08), 0 2px 4px -1px rgb(30 26 18 / 0.03);
+  --shadow-lg: 0 10px 30px -8px rgb(30 26 18 / 0.12), 0 4px 8px -2px rgb(30 26 18 / 0.05);
+  --font-sans: "Inter", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-serif: "Songti SC", "Noto Serif CJK SC", "Source Han Serif SC", Georgia, ui-serif, serif;
+  --font-mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+}
+
+.dark {
+  --bg: 16 18 22;
+  --surface: 24 27 33;
+  --surface-hover: 33 36 44;
+  --surface-sunken: 20 22 28;
+  --border: 45 48 58;
+  --border-light: 36 39 48;
+  --fg: 232 230 225;
+  --fg-secondary: 192 190 182;
+  --fg-tertiary: 138 141 150;
+  --muted: 138 141 150;
+  --accent: 86 173 161;
+  --accent-strong: 122 199 187;
+  --accent-soft: 25 51 49;
+  --accent2: 226 108 82;
+  --accent2-strong: 238 138 114;
+  --accent2-soft: 60 32 27;
+  --success: 84 176 120;
+  --warning: 212 164 42;
+  --danger: 224 106 94;
+  --info: 122 148 190;
+  --m-mastered: 84 176 120;
+  --m-learning: 212 164 42;
+  --m-weak: 224 106 94;
+  --m-todo: 120 124 134;
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.25);
+  --shadow-md: 0 4px 14px -4px rgb(0 0 0 / 0.3), 0 2px 4px -1px rgb(0 0 0 / 0.18);
+  --shadow-lg: 0 10px 30px -8px rgb(0 0 0 / 0.35), 0 4px 8px -2px rgb(0 0 0 / 0.22);
+}
+
+@theme inline {
+  --color-bg: rgb(var(--bg));
+  --color-surface: rgb(var(--surface));
+  --color-surface-hover: rgb(var(--surface-hover));
+  --color-surface-sunken: rgb(var(--surface-sunken));
+  --color-border: rgb(var(--border));
+  --color-border-light: rgb(var(--border-light));
+  --color-fg: rgb(var(--fg));
+  --color-fg-secondary: rgb(var(--fg-secondary));
+  --color-fg-tertiary: rgb(var(--fg-tertiary));
+  --color-muted: rgb(var(--muted));
+  --color-accent: rgb(var(--accent));
+  --color-accent-strong: rgb(var(--accent-strong));
+  --color-accent-soft: rgb(var(--accent-soft));
+  --color-accent2: rgb(var(--accent2));
+  --color-accent2-strong: rgb(var(--accent2-strong));
+  --color-accent2-soft: rgb(var(--accent2-soft));
+  --color-success: rgb(var(--success));
+  --color-warning: rgb(var(--warning));
+  --color-danger: rgb(var(--danger));
+  --color-info: rgb(var(--info));
+  --color-m-mastered: rgb(var(--m-mastered));
+  --color-m-learning: rgb(var(--m-learning));
+  --color-m-weak: rgb(var(--m-weak));
+  --color-m-todo: rgb(var(--m-todo));
+  --font-sans: var(--font-sans);
+  --font-serif: var(--font-serif);
+  --font-mono: var(--font-mono);
+  --shadow-sm: var(--shadow-sm);
+  --shadow-md: var(--shadow-md);
+  --shadow-lg: var(--shadow-lg);
+}
+
+html, body {
+  background-color: rgb(var(--bg));
+  color: rgb(var(--fg));
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+* { border-color: rgb(var(--border)); }
+html, body, * {
+  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.15s ease;
+}
+/* Global font scale (S/M/L/XL setting): html font-size drives all rem-based
+   Tailwind text classes uniformly while preserving size hierarchy. */
+html { font-size: calc(16px * var(--fs-scale, 1)); }
+::selection { background: rgb(var(--accent) / 0.22); }
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgb(var(--border)); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: rgb(var(--muted)); }
+input, textarea, select {
+  background-color: rgb(var(--bg));
+  color: rgb(var(--fg));
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+input:focus, textarea:focus, select:focus {
+  outline: none;
+  border-color: rgb(var(--accent));
+  box-shadow: 0 0 0 3px rgb(var(--accent) / 0.14);
+}
+
+/* 数字/统计统一等宽数字 */
+.tnum { font-variant-numeric: tabular-nums; }
+
+/* 长会话渲染护栏：视口外的消息行跳过布局/绘制（KaTeX、表格等重排版只在
+   滚入视口时发生），视觉零变化——contain-intrinsic-size 提供占位高度估算。 */
+.msg-cv { content-visibility: auto; contain-intrinsic-size: auto 160px; }
+
+/* ==========================================================================
+   chat-prose: markdown 排版（讲解正文）
+   ========================================================================== */
+.chat-prose { font-size: 0.875rem; line-height: 1.75; color: rgb(var(--fg)); }
+.chat-prose h1, .chat-prose h2, .chat-prose h3 { font-weight: 600; margin-top: 1em; margin-bottom: 0.5em; color: rgb(var(--fg)); }
+.chat-prose h1 { font-size: 1.25em; }
+.chat-prose h2 { font-size: 1.125em; }
+.chat-prose h3 { font-size: 1em; }
+.chat-prose p { margin: 0.5em 0; }
+.chat-prose ul, .chat-prose ol { padding-left: 1.5em; margin: 0.5em 0; }
+.chat-prose li { margin: 0.25em 0; }
+.chat-prose code { font-family: var(--font-mono); font-size: 0.875em; background: rgb(var(--surface-hover)); padding: 0.125em 0.25em; border-radius: 3px; }
+.chat-prose pre { background: rgb(var(--surface-sunken)); padding: 0.75em; border-radius: 8px; overflow-x: auto; margin: 0.5em 0; }
+.chat-prose pre code { background: none; padding: 0; }
+.chat-prose blockquote { border-left: 3px solid rgb(var(--accent)); padding-left: 1em; margin: 0.5em 0; color: rgb(var(--muted)); }
+.chat-prose a { color: rgb(var(--accent)); text-decoration: none; }
+.chat-prose a:hover { text-decoration: underline; }
+.chat-prose table { border-collapse: collapse; margin: 0.5em 0; width: 100%; }
+.chat-prose th, .chat-prose td { border: 1px solid rgb(var(--border)); padding: 0.375em 0.625em; text-align: left; }
+.chat-prose th { font-weight: 600; background: rgb(var(--surface-hover)); }
+.chat-prose strong { font-weight: 600; }
+.chat-prose hr { border: none; border-top: 1px solid rgb(var(--border)); margin: 1em 0; }
+.chat-prose img { max-width: 100%; border-radius: 8px; }
+.chat-prose .katex { font-size: 1.05em; color: inherit; }
+/* Wide formulas scroll like mainstream chat UIs. Overflow belongs to this
+   outer wrapper only; KaTeX's internal vertical layout remains untouched. */
+.chat-prose .katex-scroll { display: block; width: 100%; max-width: 100%; margin: 0.6em 0; padding: 0.25em 0 0.35em; overflow-x: auto; }
+.chat-prose .katex-scroll > .katex-display { width: max-content; min-width: 100%; margin: 0; }
+.chat-prose .katex-scroll > .katex-display > .katex { text-align: center; }
+.streaming-math-pending { display: inline; white-space: pre-wrap; overflow-wrap: anywhere; }
+.streaming-math-pending-display { display: block; width: 100%; margin: 0.6em 0; padding: 0.25em 0 0.35em; overflow-x: auto; }
+.dark .chat-prose .katex { color: rgb(var(--fg)); }
+.dark .chat-prose .katex .mord, .dark .chat-prose .katex .mbin, .dark .chat-prose .katex .mrel, .dark .chat-prose .katex .mopen, .dark .chat-prose .katex .mclose, .dark .chat-prose .katex .mpunct { color: rgb(var(--fg)); }
+.chat-prose .katex .mfrac .frac-line { border-color: rgb(var(--fg)); }
+.dark .chat-prose .katex .frac-line { border-color: rgb(var(--fg)); }
+
+/* streaming cursor */
+.streaming-cursor { display: inline-block; width: 2px; height: 1em; background: rgb(var(--accent)); animation: blink 1s step-end infinite; vertical-align: text-bottom; margin-left: 2px; }
+@keyframes blink { 50% { opacity: 0; } }
+/* bouncing dots loader */
+.dot-loader { display: inline-flex; gap: 4px; align-items: center; }
+.dot-loader span { width: 8px; height: 8px; border-radius: 50%; background: rgb(var(--muted) / 0.4); animation: bounce 1.4s ease-in-out infinite; }
+.dot-loader span:nth-child(2) { animation-delay: 0.15s; }
+.dot-loader span:nth-child(3) { animation-delay: 0.3s; }
+@keyframes bounce { 0%, 80%, 100% { transform: translateY(0); } 40% { transform: translateY(-6px); } }
+
+/* 骨架屏微光 */
+@keyframes shimmer { 0% { opacity: 0.5; } 50% { opacity: 1; } 100% { opacity: 0.5; } }
+.skeleton { animation: shimmer 1.6s ease-in-out infinite; background: rgb(var(--surface-hover)); border-radius: 6px; }
+
+/* 页面进入动效（克制） */
+@keyframes page-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+.page-in { animation: page-in 0.25s ease-out both; }
+
+/* 弹层/抽屉进入动效（内页克制版） */
+@keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+.motion-fade { animation: fade-in 0.2s ease-out both; }
+@keyframes modal-in { from { opacity: 0; transform: scale(0.96) translateY(6px); } to { opacity: 1; transform: none; } }
+.motion-modal { animation: modal-in 0.22s cubic-bezier(0.22, 1, 0.36, 1) both; }
+@keyframes drawer-in { from { opacity: 0.4; transform: translateX(24px); } to { opacity: 1; transform: none; } }
+.motion-drawer { animation: drawer-in 0.24s cubic-bezier(0.22, 1, 0.36, 1) both; }
+@keyframes pop-in { from { opacity: 0; transform: translateY(-4px) scale(0.98); } to { opacity: 1; transform: none; } }
+.motion-pop { animation: pop-in 0.16s ease-out both; transform-origin: top right; }
+
+/* 落地页装饰光斑的缓慢浮动 */
+@keyframes float-slow { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-14px); } }
+
+/* CTA/品牌区光斑的缓慢漂移（比 float-slow 更有机的路径） */
+@keyframes drift {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  33% { transform: translate(36px, -22px) scale(1.08); }
+  66% { transform: translate(-24px, 18px) scale(0.94); }
+}
+.drift-a { animation: drift 14s ease-in-out infinite; }
+.drift-b { animation: drift 18s ease-in-out infinite reverse; }
+
+/* ——— 落地页动效 ——— */
+/* 标题逐字上浮 */
+@keyframes rise-in { from { opacity: 0; transform: translateY(0.55em) rotate(1.5deg); } to { opacity: 1; transform: none; } }
+.hero-title-char { display: inline-block; animation: rise-in 0.7s cubic-bezier(0.22, 1, 0.36, 1) both; will-change: transform; }
+/* 英文品牌行专用展示衬线（@fontsource/playfair-display，落地页 page.tsx 引入；
+   拉丁字形优雅于宋体栈的英文回退，中文行仍用全局 --font-serif） */
+.hero-en-title { font-family: "Playfair Display", Georgia, "Times New Roman", serif; }
+
+/* 标题渐变流光（黛青 → 朱砂 → 黛青）：宽渐变 + 慢速，避免单字混色浑浊 */
+@keyframes gradient-x { from { background-position: 0% 50%; } to { background-position: 300% 50%; } }
+.hero-gradient-text {
+  background-image: linear-gradient(100deg, rgb(var(--accent)) 30%, rgb(var(--accent2)) 50%, rgb(var(--accent)) 70%);
+  background-size: 300% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: rise-in 0.7s cubic-bezier(0.22, 1, 0.36, 1) both, gradient-x 12s linear infinite;
+}
+
+/* 无限滚动 Marquee（悬停暂停） */
+@keyframes marquee { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+.marquee-track { animation: marquee 36s linear infinite; }
+.marquee:hover .marquee-track { animation-play-state: paused; }
+
+/* Hero 底部滚动提示线 */
+@keyframes scroll-line { 0% { transform: scaleY(0); transform-origin: top; } 45% { transform: scaleY(1); transform-origin: top; } 55% { transform: scaleY(1); transform-origin: bottom; } 100% { transform: scaleY(0); transform-origin: bottom; } }
+
+/* 滚动显现（配合 Reveal 组件）。仅在 JS 可用时隐藏初始态，
+   否则无 JS / 渲染快照下首屏以下内容将永久不可见。 */
+.js .reveal { opacity: 0; transform: translateY(20px); transition: opacity 0.7s ease, transform 0.7s cubic-bezier(0.22, 1, 0.36, 1); }
+.js .reveal-shown { opacity: 1; transform: none; }
+
+/* 竖排装饰字 */
+.vertical-rl { writing-mode: vertical-rl; }
+
+/* 纸纹颗粒质感（低透明度覆盖全页） */
+.grain {
+  opacity: 0.05;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* ==========================================================================
+   语音通话（沉浸式电话模式）：右上角手机模拟 / 按住说话脉冲 / 虚化板书
+   ========================================================================== */
+/* 声波条：老师说话/我说话时上下跳动（transform 动画不触发布局） */
+@keyframes call-wave { 0%, 100% { transform: scaleY(0.3); } 50% { transform: scaleY(1); } }
+.call-wave-bar { animation: call-wave 1.1s ease-in-out infinite; transform-origin: center bottom; }
+/* 按住说话的扩散涟漪 */
+@keyframes call-ping { 0% { transform: scale(1); opacity: 0.55; } 80%, 100% { transform: scale(1.6); opacity: 0; } }
+.call-pulse-ring { animation: call-ping 1.7s cubic-bezier(0, 0, 0.2, 1) infinite; }
+
+/* 板书：深绿黑板 + 纯白粉笔字，背景轻微虚化（毛玻璃），呼应「纸墨书院」 */
+.voice-board {
+  position: relative;
+  border: 1px solid rgb(14 26 22 / 0.55);
+  border-radius: 12px;
+  background:
+    radial-gradient(120% 140% at 20% 0%, rgb(46 74 63 / 0.35), transparent 55%),
+    linear-gradient(165deg, rgb(31 51 43 / 0.92), rgb(22 38 32 / 0.94));
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: var(--shadow-lg), inset 0 1px 0 rgb(255 255 255 / 0.07), inset 0 0 0 1px rgb(255 255 255 / 0.03);
+  color: rgb(255 255 255);
+}
+/* 标题行纯白 + 粉笔虚线分隔 */
+.voice-board > div:first-child { color: rgb(255 255 255 / 0.92); }
+.board-chalk-dash { border-top: 1px dashed rgb(255 255 255 / 0.32); }
+/* 正文：纯白粉笔排版（复用 chat-prose 结构，覆盖配色） */
+.voice-board-body { overflow-y: auto; padding: 0.25rem 0.9rem 0.85rem; }
+.voice-board .chat-prose { color: rgb(255 255 255); }
+.voice-board .chat-prose p { margin: 0.35em 0; }
+.voice-board .chat-prose code { background: rgb(255 255 255 / 0.08); color: rgb(255 255 255); }
+.voice-board .chat-prose strong { color: rgb(255 255 255); }
+.voice-board .katex { color: rgb(255 255 255); }
+.voice-board .katex .mord, .voice-board .katex .mbin, .voice-board .katex .mrel,
+.voice-board .katex .mopen, .voice-board .katex .mclose, .voice-board .katex .mpunct { color: rgb(255 255 255); }
+.voice-board .chat-prose .katex .mfrac .frac-line,
+.voice-board .chat-prose .katex .frac-line { border-color: rgb(255 255 255); }
+.voice-board .chat-prose .katex-scroll { margin: 0.4em 0; padding: 0.15em 0 0.25em; }
+/* 板书浮现：自上而下轻落 */
+@keyframes board-in { from { opacity: 0; transform: translateY(-10px) scale(0.97); } to { opacity: 1; transform: none; } }
+.board-in { animation: board-in 0.28s cubic-bezier(0.22, 1, 0.36, 1) both; transform-origin: top center; }
+/* 表格整版模式：粉笔白表格线，占据整个板面（.chat-prose 表格样式覆盖） */
+.voice-board .chat-prose table { margin: 0.35em 0; font-size: 0.78rem; }
+.voice-board .chat-prose th, .voice-board .chat-prose td {
+  border-color: rgb(255 255 255 / 0.35);
+}
+.voice-board .chat-prose th { background: rgb(255 255 255 / 0.08); color: rgb(255 255 255); }
+.voice-board .chat-prose td { color: rgb(255 255 255 / 0.92); }
+/* 右上角手机模拟（原联系老师入口位置、按钮行正下方）：深色机身 + 白色
+   屏显（计时/声波/装饰导航），纯展示，约 6.72rem × 14.4rem（等比 0.8×，
+   长宽比不变）。定位必须写在 CSS——Tailwind v4 里本文件的无层规则优先级
+   高于 utilities 层，JSX 的 absolute 类盖不过这里的 position。黑板严格
+   居中无预留，窄窗口下手机可能贴住板书右缘（已确认接受）。 */
+.voice-phone {
+  position: absolute;
+  top: 2.75rem;
+  right: 0.75rem;
+  z-index: 10;
+  min-height: 14.4rem;
+  width: 6.72rem;
+  border: 1px solid rgb(14 26 22 / 0.55);
+  border-radius: 14px;
+  background:
+    radial-gradient(120% 140% at 20% 0%, rgb(46 74 63 / 0.35), transparent 55%),
+    linear-gradient(165deg, rgb(31 51 43 / 0.92), rgb(22 38 32 / 0.94));
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: var(--shadow-lg), inset 0 1px 0 rgb(255 255 255 / 0.07);
+  color: rgb(255 255 255);
+}
+/* 三块黑板：等分要在 JSX 上做满两层——外层 voice-board-body 先 flex-1
+   min-h-0 填满固定高度（3/7 页高）的板面，内层三块面板再 flex-1 min-h-0
+   overflow-y-auto 严格三等分。这里刻意不设 min-height：无层 CSS 会盖过
+   utilities 层的 min-h-0，min-height:auto/固定值都会让内容高的板挤占邻板
+   （旧版上下两块不平均的根因）。 */
+.voice-board-divider { border-top: 1px dashed rgb(255 255 255 / 0.24); margin: 0.3rem 0 0.45rem; }
+/* 书写进场：新内容像粉笔落板般浮现 */
+@keyframes panel-write { from { opacity: 0; transform: translateY(4px); filter: blur(2px); } to { opacity: 1; transform: none; filter: blur(0); } }
+.panel-write { animation: panel-write 0.32s ease-out both; }
+/* 板擦擦除：两面板都满时，先擦掉更久没写的那块再写新内容 */
+@keyframes panel-erase { from { opacity: 1; filter: blur(0); } to { opacity: 0; filter: blur(3px); } }
+.panel-erase { animation: panel-erase 0.45s ease-in both; }
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-title-char, .hero-gradient-text { animation: none; }
+  .marquee-track { animation: none; }
+  .drift-a, .drift-b { animation: none; }
+  .motion-fade, .motion-modal, .motion-drawer, .motion-pop { animation: none; }
+  .reveal { opacity: 1; transform: none; transition: none; }
+  .call-wave-bar, .call-pulse-ring, .board-in, .panel-write, .panel-erase { animation: none; }
+  .call-wave-bar { transform: none; }
+}

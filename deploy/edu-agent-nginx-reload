@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+readonly EDU_AGENT_LINEAGE="/etc/letsencrypt/live/edu-agent.invincible-summer.xyz"
+if [[ "${RENEWED_LINEAGE:-}" != "$EDU_AGENT_LINEAGE" ]]; then
+    exit 0
+fi
+
+/usr/sbin/nginx -t
+/usr/bin/systemctl reload nginx.service
