@@ -8,6 +8,11 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 
+# The deployment manual is deliberately untracked (.gitignore) — it is the
+# operator's private runbook. Validate its contract wherever the file exists
+# (local checkout); cloud CI has no copy and skips these two checks.
+MANUAL = ROOT / "docs" / "The_Website_deployment_plan.md"
+
 
 class DeploymentContractTests(unittest.TestCase):
     def test_units_follow_paper_agent_system_account_model(self) -> None:
@@ -77,8 +82,9 @@ class DeploymentContractTests(unittest.TestCase):
         self.assertIn("/usr/bin/systemctl reload nginx.service", hook)
         self.assertIn("${RENEWED_LINEAGE:-}", hook)
 
+    @unittest.skipUnless(MANUAL.exists(), "deployment manual is untracked ops docs")
     def test_manual_uses_paper_agent_account_layout(self) -> None:
-        manual = (ROOT / "docs" / "The_Website_deployment_plan.md").read_text(
+        manual = MANUAL.read_text(
             encoding="utf-8"
         )
         self.assertIn("`edu-agent` / `edu-agent`", manual)
@@ -110,8 +116,9 @@ class DeploymentContractTests(unittest.TestCase):
             manual,
         )
 
+    @unittest.skipUnless(MANUAL.exists(), "deployment manual is untracked ops docs")
     def test_manual_documents_safe_env_only_updates(self) -> None:
-        manual = (ROOT / "docs" / "The_Website_deployment_plan.md").read_text(
+        manual = MANUAL.read_text(
             encoding="utf-8"
         )
         section_start = manual.index("### 13.2 只更新云服务器生产 `.env`")
