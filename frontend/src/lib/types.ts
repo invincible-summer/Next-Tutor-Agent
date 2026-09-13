@@ -156,6 +156,20 @@ export interface ChatSSEEvent {
   [key: string]: unknown;
 }
 
+/** 教材证据引用（服务端 QuizSourceRef 投影；grounded quiz 的可审计 provenance） */
+export interface QuizSourceRef {
+  file_id: string;
+  chunk_id: string;
+  filename?: string;
+  source_scope?: string;
+  page?: number | null;
+  printed_page?: number | null;
+  section_path?: string[];
+  excerpt?: string;
+  context_hash?: string;
+  confidence?: number | null;
+}
+
 export interface QuizQuestion {
   id: number;
   type: "multiple_choice" | "fill_blank" | "short_answer";
@@ -167,6 +181,10 @@ export interface QuizQuestion {
   difficulty: string;
   /** 已作答记录（后端写回；存在时答题卡恢复为已答锁定状态） */
   result?: { verdict: string; student_answer: string };
+  /** Grounded quiz provenance（additive：历史会话无这些字段也能正常加载） */
+  grounding_mode?: "textbook" | "generic" | "reference" | "reference+textbook" | string;
+  grounding_tier?: "found" | "partial" | "not_found" | string;
+  source_refs?: QuizSourceRef[];
 }
 
 export interface RetryState {

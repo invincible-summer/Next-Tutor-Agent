@@ -55,7 +55,8 @@ def _validate_workspace_binding(workspace_id: str | None, student_id: str) -> No
         raise HTTPException(404, "工作学习区不存在")
 
 
-def _build_tools(session: TutorSession):
+def _build_tools(session: TutorSession, *, user_message: str = "",
+                 attachments: list[dict] | None = None):
     """Wire tools for a session (knowledge_search needs the session's store).
 
     If the session belongs to a workspace, merge the workspace's SELECTED
@@ -65,6 +66,12 @@ def _build_tools(session: TutorSession):
     When the embedding track is configured, knowledge_search additionally
     gets the scoped (session/folder/file) stores for hybrid retrieval;
     otherwise the BM25 overlay alone remains the whole retrieval path.
+
+    统一 Quiz Grounding（plan.md §4.2）：本轮 message/attachments 经
+    decide_material_grounding 得出 strict 教材语义，注入共享的
+    KnowledgeSearchQuizGroundingProvider —— generate_quiz / fit_quiz 与
+    普通问答使用同一个已授权检索空间；教材 scope 由服务端闭包决定，
+    LLM 工具 schema 不新增任何身份参数。
     """
     from app.core.llm_async import get_llm
     from app.tools.knowledge_search import KnowledgeSearchTool
@@ -89,6 +96,22 @@ def _build_tools(session: TutorSession):
         for q in ((qh.get("questions") or []) if isinstance(qh, dict) else [])
         if isinstance(q, dict) and str(q.get("stem", "")).strip()
     ]
+
+    def _quiz_tools(search_tool):
+        from app.agents.preresearch import decide_material_grounding
+        from app.core.quiz_grounding import (
+            KnowledgeSearchQuizGroundingProvider)
+        decision = decide_material_grounding(session, user_message, attachments)
+        quiz_grounding = KnowledgeSearchQuizGroundingProvider(
+            search_tool,
+            required=decision.required,
+            reason=decision.trace_reason,
+            file_ids=decision.file_ids,
+        )
+        return (GenerateQuizTool(llm, avoid_stems=avoid_stems,
+                                 grounding_provider=quiz_grounding),
+                FitQuizTool(llm, grounding_provider=quiz_grounding))
+
     if session.workspace_id:
         from app.core.workspace import readable_files, readable_stores, workspace_for_session
         ws = workspace_for_session(session)
@@ -103,22 +126,28 @@ def _build_tools(session: TutorSession):
                 overlay = KnowledgeStore()
                 overlay.chunks = list(session.knowledge.chunks) + ws_chunks
                 overlay.files = list(session.knowledge.files) + readable_files(ws)
+                search_tool = KnowledgeSearchTool(
+                    overlay, scoped_stores=scoped, embed_client=embed,
+                    student_id=getattr(session, "student_id", "") or "")
+                gen_quiz, fit_quiz = _quiz_tools(search_tool)
                 return [
-                    KnowledgeSearchTool(overlay, scoped_stores=scoped, embed_client=embed,
-                                        student_id=getattr(session, "student_id", "") or ""),
+                    search_tool,
                     KnowledgeReadTool(overlay, scoped_stores=scoped),
-                    GenerateQuizTool(llm, avoid_stems=avoid_stems),
-                    FitQuizTool(llm),
+                    gen_quiz,
+                    fit_quiz,
                     RecallHistoryTool(session.session_id,
                                       getattr(session, "student_id", "") or "",
                                       getattr(session, "workspace_id", "") or ""),
                 ]
+    search_tool = KnowledgeSearchTool(
+        session.knowledge, scoped_stores=scoped, embed_client=embed,
+        student_id=getattr(session, "student_id", "") or "")
+    gen_quiz, fit_quiz = _quiz_tools(search_tool)
     return [
-        KnowledgeSearchTool(session.knowledge, scoped_stores=scoped, embed_client=embed,
-                            student_id=getattr(session, "student_id", "") or ""),
+        search_tool,
         KnowledgeReadTool(session.knowledge, scoped_stores=scoped),
-        GenerateQuizTool(llm, avoid_stems=avoid_stems),
-        FitQuizTool(llm),
+        gen_quiz,
+        fit_quiz,
         RecallHistoryTool(session.session_id,
                           getattr(session, "student_id", "") or "",
                           getattr(session, "workspace_id", "") or ""),
@@ -178,7 +207,8 @@ async def chat_stream(req: ChatRequest, student_id: str = Depends(resolve_studen
         from app.core.workspace import add_session_to_workspace
         add_session_to_workspace(req.workspace_id, session.session_id)
 
-    tools = _build_tools(session)
+    tools = _build_tools(session, user_message=req.message,
+                         attachments=req.attachments)
     progress_queue: asyncio.Queue = asyncio.Queue()
 
     def progress_cb(msg: str):

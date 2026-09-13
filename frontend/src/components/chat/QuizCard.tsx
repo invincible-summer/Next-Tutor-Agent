@@ -1,18 +1,30 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-import { Check, ChevronDown, Eye, Lightbulb, Loader2, Send, X } from "lucide-react";
+import { BookOpen, Check, ChevronDown, Eye, Lightbulb, Loader2, Send, X } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { useUIStore } from "@/lib/store";
 import { t } from "@/lib/i18n";
 import { fetchQuizHint, gradeAnswer, recordAnswer, type GradeVerdict, type QuizStructuredFeedback } from "@/lib/api";
 import { Badge } from "@/components/ui/Badge";
 import { MiniMarkdown } from "./markdown";
-import type { QuizQuestion } from "@/lib/types";
+import type { QuizQuestion, QuizSourceRef } from "@/lib/types";
 import { useChatStore } from "@/lib/store";
 
 interface MasteryResult {
   score: number;
   concept_status: string;
+}
+
+/** 教材依据定位行：filename · 章节路径 · 页码（只展示学习者可理解的信息，
+ *  不暴露 owner/student id/host path/graph path）。 */
+function sourceLocation(ref: QuizSourceRef): string {
+  const parts: string[] = [];
+  if (ref.filename) parts.push(ref.filename);
+  const section = (ref.section_path || []).filter(Boolean).join(" · ");
+  if (section) parts.push(section);
+  if (ref.printed_page != null) parts.push(`教材第 ${ref.printed_page} 页`);
+  else if (ref.page != null) parts.push(`PDF 第 ${ref.page} 页`);
+  return parts.join(" · ");
 }
 
 /** 单题练习卡：题号 + 题型徽章 + 题干 + 选项/作答交互 + 提交/揭晓 + 解析折叠。
@@ -79,6 +91,12 @@ export function QuizQuestionCard({
   const isMC = q.type === "multiple_choice" && q.options;
   const correct = selected !== null && selected === q.answer;
   const options = q.options ? Object.entries(q.options) : [];
+  // Grounded quiz provenance（plan.md §7.2）：textbook -> 教材依据 badge；
+  // partial -> 部分教材依据；generic/reference -> 不显示（避免 UI 噪声）。
+  const sourceRefs = (q.source_refs || []).filter((r) => r && r.file_id);
+  const textbookGrounded = q.grounding_mode === "textbook" || q.grounding_mode === "reference+textbook";
+  const partialGrounded = textbookGrounded && q.grounding_tier === "partial";
+  const [sourcesOpen, setSourcesOpen] = useState(false);
 
   /** 互动后在对话流底部追加一条 agent 点评（判定 + 解析），每轮作答只发一次。 */
   function fireFollowupNote(text: string) {
@@ -137,6 +155,11 @@ export function QuizQuestionCard({
       grade: grade || "本科",
       session_id: sessionId,
       difficulty: 3,
+      // Grounded provenance（additive，仅审计/学习记录用；服务端以原始
+      // 生成记录为准，不因客户端声称 source_ref 提高证据等级）。
+      grounding_mode: q.grounding_mode,
+      grounding_tier: q.grounding_tier,
+      source_refs: q.source_refs,
     })
       .then((res) => {
         const r = res?.result;
@@ -197,12 +220,18 @@ export function QuizQuestionCard({
 
   return (
     <div className="rounded-[10px] border border-border bg-surface p-3 shadow-sm">
-      {/* 题号 + 题型 */}
+      {/* 题号 + 题型 + 教材依据 */}
       <div className="flex items-center gap-2">
         <span className="flex h-5 w-5 items-center justify-center rounded-[5px] bg-accent-soft font-mono text-[0.68rem] font-semibold text-accent-strong">
           {index + 1}
         </span>
         <Badge tone="outline">{tr(`quiz.type.${q.type || "multiple_choice"}`, q.type)}</Badge>
+        {textbookGrounded && (
+          <Badge tone="accent" testId="quiz-source-badge">
+            <BookOpen size={11} className="mr-0.5" />
+            {partialGrounded ? tr("quiz.grounding.partial", "部分教材依据") : tr("quiz.grounding.textbook", "教材依据")}
+          </Badge>
+        )}
         {q.difficulty && (
           <span className="ml-auto text-[0.65rem] text-muted/70">
             {tr("quiz.difficulty")} {q.difficulty}
@@ -406,6 +435,32 @@ export function QuizQuestionCard({
           </button>
           {expOpen && (
             <MiniMarkdown className="chat-prose mt-1.5 text-[0.78rem] leading-relaxed text-fg-secondary">{q.explanation}</MiniMarkdown>
+          )}
+          {expOpen && sourceRefs.length > 0 && (
+            <div className="mt-2 space-y-1.5" data-testid="quiz-source-refs">
+              {(sourcesOpen ? sourceRefs : sourceRefs.slice(0, 2)).map((ref, i) => (
+                <div key={`${ref.chunk_id}-${i}`} className="rounded-[6px] border border-border-light bg-bg/60 px-2.5 py-1.5">
+                  <p className="flex items-center gap-1 text-[0.68rem] font-medium text-accent-strong">
+                    <BookOpen size={11} className="shrink-0" />
+                    {sourceLocation(ref)}
+                  </p>
+                  {ref.excerpt && (
+                    <p className="mt-0.5 line-clamp-3 whitespace-pre-wrap text-[0.7rem] leading-relaxed text-muted">{ref.excerpt}</p>
+                  )}
+                </div>
+              ))}
+              {sourceRefs.length > 2 && (
+                <button
+                  onClick={() => setSourcesOpen((v) => !v)}
+                  className="flex items-center gap-1 text-[0.68rem] text-muted transition-colors hover:text-accent"
+                >
+                  <ChevronDown size={11} className={cn("transition-transform", sourcesOpen ? "" : "-rotate-90")} />
+                  {sourcesOpen
+                    ? tr("quiz.grounding.collapse", "收起依据")
+                    : tr("quiz.grounding.more", `还有 ${sourceRefs.length - 2} 条依据`).replace("%n", String(sourceRefs.length - 2))}
+                </button>
+              )}
+            </div>
           )}
         </div>
       )}

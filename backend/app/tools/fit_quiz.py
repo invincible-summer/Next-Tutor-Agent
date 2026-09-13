@@ -152,8 +152,12 @@ class FitQuizTool(Tool):
         "required": ["reference"],
     }
 
-    def __init__(self, llm: AsyncLLMClient) -> None:
+    def __init__(self, llm: AsyncLLMClient,
+                 grounding_provider: Any | None = None) -> None:
         self._llm = llm
+        # plan.md §6：fit_quiz 的事实源是 reference 本身，不强制重复检索；
+        # provider 只用于继承本轮已解析的教材证据（peek 缓存）。
+        self._grounding_provider = grounding_provider
 
     async def run(self, **kwargs: Any):
         reference = str(kwargs.get("reference", "")).strip()
@@ -172,6 +176,24 @@ class FitQuizTool(Tool):
         except (TypeError, ValueError):
             count = 3
 
+        # plan.md §6：reference 来自普通粘贴 -> grounding_mode="reference"；
+        # reference 来自本轮教材预检索/教材题卡（provider 已缓存证据）->
+        # 继承 source refs，"reference+textbook"。严禁为统一而重新检索 topic，
+        # 额外检索会让无关教材证据污染拟合。
+        inherited = None
+        if self._grounding_provider is not None:
+            peek = getattr(self._grounding_provider, "peek_cached", None)
+            if callable(peek):
+                try:
+                    inherited = peek()
+                except Exception:
+                    inherited = None
+        inherited_usable = bool(inherited is not None and inherited.usable)
+        grounding_context = ""
+        if inherited_usable:
+            from ..core.quiz_grounding import render_grounding_context
+            grounding_context = render_grounding_context(inherited)
+
         def make_prompt() -> str:
             if is_auto(grade):
                 base = _FIT_PROMPT_AUTO.format(
@@ -187,7 +209,12 @@ class FitQuizTool(Tool):
             # 布鲁姆层级：变式题在参考题语境中自由选层并带回 bloom_level 标签
             # （流入学习账本/认知档案；工具层不持有学生身份，不做画像注入）。
             from ..core.bloom import guidance_block
-            return base + "\n" + guidance_block()
+            extra = "\n" + guidance_block()
+            if grounding_context:
+                extra += ("\n\n[命题事实边界]\n"
+                          "参考题与下方教材证据共同构成本轮命题事实边界；变式题"
+                          "不得引入两者之外的新教材专属事实。\n" + grounding_context)
+            return base + extra
 
         # Same rationale as generate_quiz: structured JSON extraction needs the
         # answer channel — disable thinking so reasoning models don't starve it.
@@ -197,18 +224,38 @@ class FitQuizTool(Tool):
             self._llm, make_prompt=make_prompt, parse=self._parse,
             topic=reference[:60], grade=grade, difficulty=difficulty,
             temperature=0.5, max_tokens=8000,
-            raw_preview_chars=3000)
+            raw_preview_chars=3000,
+            grounding_context=grounding_context)
+        inherited_refs: list[dict[str, Any]] = []
+        if inherited_usable:
+            inherited_refs = [r.to_dict() for r in inherited.source_refs[:6]]
+        for q in questions:
+            if inherited_usable:
+                q["source_refs"] = list(inherited_refs)
+                q["grounding_mode"] = "reference+textbook"
+                q["grounding_tier"] = inherited.tier
+            else:
+                q["grounding_mode"] = "reference"
+                q["grounding_tier"] = ""
+        grounding_meta = {
+            "mode": "reference+textbook" if inherited_usable else "reference",
+            "tier": inherited.tier if inherited_usable else "",
+            "required": bool(inherited.required) if inherited else False,
+            "reason": inherited.reason if inherited else "none",
+            "source_count": len(inherited_refs)}
         if not questions:
             return partial_result(self.name,
                 {"raw": verification.get("raw", ""), "questions": [],
-                 "verification": verification},
+                 "verification": verification,
+                 "grounding": grounding_meta},
                 "未能生成通过校验的变式题，已返回模型原始输出片段。")
         note = "（已通过答案校验）" if verification.get("answer_verified") else ""
         return ok(self.name,
             {"reference": reference[:200], "grade": grade,
              "difficulty": difficulty, "questions": questions,
              "answer_verified": verification.get("answer_verified", False),
-             "verification": verification},
+             "verification": verification,
+             "grounding": grounding_meta},
             f"拟合生成 {len(questions)} 道变式题{note}。")
 
     @staticmethod

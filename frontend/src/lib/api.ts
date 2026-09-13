@@ -1,4 +1,4 @@
-import type { ChatSSEEvent, SessionDetail, SessionItem, AttachmentMeta, LibraryFolder, LibraryFile, LibraryTree, WorkspaceDetail, WorkspaceItem } from "./types";
+import type { ChatSSEEvent, SessionDetail, SessionItem, AttachmentMeta, LibraryFolder, LibraryFile, LibraryTree, WorkspaceDetail, WorkspaceItem, QuizSourceRef } from "./types";
 import { apiFetch } from "./api-fetch";
 
 // Single source of truth for the API origin. Covers all three deployment
@@ -812,6 +812,10 @@ export async function recordAnswer(body: {
   session_id?: string;
   subject?: string;
   difficulty?: number;
+  /** Grounded provenance（additive，仅审计/学习记录；服务端以原始生成记录为准） */
+  grounding_mode?: string;
+  grounding_tier?: string;
+  source_refs?: QuizSourceRef[];
 }): Promise<{ status: string; result?: { score: number; concept_status: string; verdict: string }; message?: string }> {
   const res = await apiFetch(`${BASE}/quiz/record`, {
     method: "POST",

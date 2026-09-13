@@ -109,10 +109,14 @@ class GenerateQuizTool(Tool):
         "required": ["topic"],
     }
 
-    def __init__(self, llm: AsyncLLMClient, avoid_stems: list[str] | None = None) -> None:
+    def __init__(self, llm: AsyncLLMClient, avoid_stems: list[str] | None = None,
+                 grounding_provider: Any | None = None) -> None:
         self._llm = llm
         # 本会话已出过的题干（截断），注入 prompt 防止逐轮出同质题。
         self._avoid_stems = [s for s in (avoid_stems or []) if s][:8]
+        # 统一 Quiz Grounding 输入层（plan.md §4.3）：服务端闭包绑定的
+        # KnowledgeSearchTool 投影，LLM schema 不新增 scope 参数。
+        self._grounding_provider = grounding_provider
 
     async def run(self, **kwargs: Any):
         topic = str(kwargs.get("topic", "")).strip()
@@ -134,12 +138,51 @@ class GenerateQuizTool(Tool):
 
         focus = str(kwargs.get("focus", "")).strip()[:60]
 
+        # --- 统一 Quiz Grounding（plan.md §4.3）---------------------------
+        # 检索先于蓝图：第一轮蓝图决定角度/Bloom/陷阱，若未见教材，蓝图会
+        # 先发散到教材外，第二轮再要求"基于教材"已经太晚。
+        bundle = None
+        resolve_error = ""
+        if self._grounding_provider is not None:
+            try:
+                bundle = await self._grounding_provider.resolve(
+                    topic=topic, focus=focus)
+            except Exception:
+                bundle = None
+                resolve_error = "grounding_resolve_error"
+        strict = bool(bundle is not None and bundle.required)
+        grounded = bool(bundle is not None and bundle.usable)
+        if strict and not grounded:
+            # 严格教材模式 + NOT_FOUND（或零证据）：不能假装是教材题。
+            meta = bundle.grounding_meta() if bundle is not None else {}
+            if resolve_error:
+                meta["reason"] = resolve_error
+                text = (f"教材证据检索暂时不可用，未生成教材题。"
+                        "请稍后重试，或让我直接出通用练习题。")
+            else:
+                text = (f"当前可选资料中未找到与「{topic}」相关的可靠教材证据，"
+                        "未生成教材题。请确认教材已上传/解析完成，或换用知识点"
+                        "名称重试；也可以让我出通用练习题。")
+            return partial_result(self.name,
+                {"topic": topic, "grade": grade, "difficulty": difficulty,
+                 "questions": [], "grounding": meta,
+                 "verification": {"grounding_gate": "not_found"}},
+                text)
+        grounding_context = ""
+        if grounded:
+            from ..core.quiz_grounding import render_grounding_context
+            grounding_context = render_grounding_context(bundle)
+        elif bundle is not None and not bundle.usable and not strict:
+            # 非强制但检索未命中：允许 generic 出题（plan.md 原则 5）。
+            pass
+
         # 两轮出题（QUIZ_DESIGN_MODE=two_pass）：先跑命题蓝图设计轮（考查角度/
         # 认知层级/陷阱设计），蓝图注入生成 prompt；蓝图轮失败自动回退单轮。
         from ..core.quiz_design import design_blueprint
         blueprint, design_status = await design_blueprint(
             self._llm, topic=topic, grade=grade, difficulty=difficulty,
-            count=count, focus=focus, avoid_stems=self._avoid_stems)
+            count=count, focus=focus, avoid_stems=self._avoid_stems,
+            grounding_context=grounding_context)
 
         def make_prompt() -> str:
             from ..agents.teaching_engine.stage_profile import (
@@ -173,6 +216,16 @@ class GenerateQuizTool(Tool):
             # M4 出题路径带完整认知档案 grounding。
             from ..core.bloom import guidance_block
             extra += "\n" + guidance_block()
+            if grounding_context:
+                # 命题事实边界（plan.md §4.5）：grounding_context 已带
+                # <material_excerpt> 数据定界与 src_N 短 ref id。
+                extra += ("\n\n[命题事实边界]\n"
+                          "本轮要求根据给定教材证据命题。\n"
+                          "每题的题干、正确答案与解析中的教材事实必须能由下方证据"
+                          "直接支持。\n"
+                          "可以重新设计数值/情境以形成练习，但不得引入教材证据之外"
+                          "的新定理、新定义或教材专属事实。\n"
+                          + grounding_context)
             return base + extra
 
         # Structured JSON extraction: non-streaming call with thinking disabled.
@@ -183,20 +236,90 @@ class GenerateQuizTool(Tool):
         questions, verification = await generate_verified_questions(
             self._llm, make_prompt=make_prompt, parse=self._parse,
             topic=topic, grade=grade, difficulty=difficulty,
-            temperature=0.4, max_tokens=5000)
+            temperature=0.4, max_tokens=5000,
+            grounding_context=grounding_context)
         verification["design"] = design_status
+
+        # --- Provenance 验证与附加（plan.md §4.5）---------------------------
+        # 模型只允许输出已提供的 src_N 短 ref id；后端映射回服务端 bundle，
+        # 无效 ref 丢弃，绝不信任模型返回的完整 path/file_id。
+        ref_dicts: dict[str, dict[str, Any]] = {}
+        if grounded:
+            from ..core.quiz_grounding import ref_id as _ref_id
+            for i, ref in enumerate(bundle.source_refs[:6], 1):
+                ref_dicts[_ref_id(i)] = ref.to_dict()
+        grounded_questions: list[dict[str, Any]] = []
+        dropped_no_ref = 0
+        for q in questions:
+            raw_ids = q.pop("source_ref_ids", None)
+            refs: list[dict[str, Any]] = []
+            if isinstance(raw_ids, list):
+                for sid in raw_ids:
+                    key = str(sid).strip()
+                    if key in ref_dicts:
+                        refs.append(ref_dicts[key])
+            if grounded:
+                if refs:
+                    q["source_refs"] = refs
+                    q["grounding_mode"] = "textbook"
+                    q["grounding_tier"] = bundle.tier
+                    grounded_questions.append(q)
+                elif strict:
+                    # 严格教材模式：一个有效 source ref 都没有的题不能标
+                    # grounded（plan.md §4.6 失败语义——source ref 缺失不能
+                    # fail-open 成 grounded）。
+                    dropped_no_ref += 1
+                else:
+                    q["grounding_mode"] = "generic"
+                    q["grounding_tier"] = ""
+                    grounded_questions.append(q)
+            else:
+                q["grounding_mode"] = "generic"
+                q["grounding_tier"] = ""
+                grounded_questions.append(q)
+        questions = grounded_questions
+        if dropped_no_ref:
+            verification["dropped_no_source_ref"] = dropped_no_ref
+        if grounded:
+            # required=true 时 critic 不可用可以 fail-open，但必须留审计标记
+            # （plan.md §4.6：grounding_verification="unavailable"）。
+            verification["grounding_verification"] = (
+                "content_checked" if verification.get("critic") == "ok"
+                else "unavailable")
         if not questions:
+            if dropped_no_ref or not grounding_context:
+                return partial_result(self.name,
+                    {"raw": verification.get("raw", ""), "questions": [],
+                     "verification": verification,
+                     **({"grounding": bundle.grounding_meta()}
+                        if bundle is not None else {})},
+                    "未能生成通过校验的题目，已返回模型原始输出片段。")
             return partial_result(self.name,
                 {"raw": verification.get("raw", ""), "questions": [],
-                 "verification": verification},
+                 "verification": verification,
+                 "grounding": bundle.grounding_meta()},
                 "未能生成通过校验的题目，已返回模型原始输出片段。")
+
+        def _grounding_meta() -> dict[str, Any]:
+            if bundle is not None and grounded:
+                return bundle.grounding_meta()
+            if bundle is not None:
+                return {**bundle.grounding_meta(), "mode": "generic"}
+            return {"mode": "generic", "tier": "", "required": False,
+                    "reason": resolve_error or "none", "query": topic,
+                    "source_count": 0, "omitted_count": 0}
+
         note = "（已通过答案校验）" if verification.get("answer_verified") else ""
+        tier_note = ""
+        if grounded and bundle.tier == "partial":
+            tier_note = "（部分教材依据）"
         return ok(self.name,
             {"topic": topic, "grade": grade, "difficulty": difficulty,
              "questions": questions,
              "answer_verified": verification.get("answer_verified", False),
-             "verification": verification},
-            f"生成 {len(questions)} 道关于「{topic}」的练习题{note}。")
+             "verification": verification,
+             "grounding": _grounding_meta()},
+            f"生成 {len(questions)} 道关于「{topic}」的练习题{note}{tier_note}。")
 
     @staticmethod
     def _parse(raw: str) -> list[dict[str, Any]]:

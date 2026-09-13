@@ -72,6 +72,27 @@ def _unique_ids(records: list[dict[str, Any]]) -> bool:
     return changed
 
 
+def _compact_source_refs(refs: Any) -> list[dict[str, Any]]:
+    """Compact, auditable projection of grounded quiz source refs.
+
+    Keeps the locator fields (file/chunk/filename/pages) and a short excerpt;
+    the full text stays recoverable via chunk_id.  Bad input -> [] (additive
+    key, legacy records simply carry an empty list)."""
+    out: list[dict[str, Any]] = []
+    if isinstance(refs, list):
+        for r in refs[:6]:
+            if isinstance(r, dict) and str(r.get("chunk_id") or "").strip():
+                out.append({
+                    "file_id": str(r.get("file_id") or "")[:80],
+                    "chunk_id": str(r.get("chunk_id") or "")[:120],
+                    "filename": str(r.get("filename") or "")[:120],
+                    "page": r.get("page"),
+                    "printed_page": r.get("printed_page"),
+                    "excerpt": str(r.get("excerpt") or "")[:200],
+                })
+    return out
+
+
 def record_question(student_id: str, session_id: str, question: dict[str, Any], *,
                     topic: str = "", subject: str = "", grade: str = "",
                     source_kind: str = "chat") -> str:
@@ -123,6 +144,16 @@ def record_question(student_id: str, session_id: str, question: dict[str, Any], 
             "verdict": "",
             "score": None,
         }
+        # Grounded provenance 审计引用（plan.md §3.2 原则 3）：账本只记可
+        # 定位的紧凑 ref（chunk 原文按 chunk_id 可回读），旧题无此键安全
+        # 缺省；mastery 证据等级不因客户端声称的 ref 改变。
+        gmode = str(question.get("grounding_mode") or "")[:24]
+        if gmode:
+            record["grounding_mode"] = gmode
+            gtier = str(question.get("grounding_tier") or "")[:16]
+            if gtier:
+                record["grounding_tier"] = gtier
+        record["source_refs"] = _compact_source_refs(question.get("source_refs"))
         # W3/D04: 冻结量规的审计引用（量规本体随题目快照留在会话/测评文件，
         # 账本只记 rubric_id/version；旧题与生成失败无此键安全缺省）。
         rubric = question.get("rubric")

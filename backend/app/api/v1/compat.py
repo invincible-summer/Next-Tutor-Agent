@@ -170,7 +170,7 @@ async def chat_completions(req: ChatCompletionsRequest,
     session = load_session(_compat_session_id()) or TutorSession(
         session_id=_compat_session_id(), grade=settings.compat_grade or "本科")
     session.student_id = COMPAT_STUDENT_ID
-    tools = _build_tools(session)
+    tools = _build_tools(session, user_message=user_text)
     llm = get_llm()
 
     if not req.stream:

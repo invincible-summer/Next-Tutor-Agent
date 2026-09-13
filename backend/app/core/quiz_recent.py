@@ -59,6 +59,23 @@ def _save(student_id: str, data: dict[str, Any]) -> None:
         pass
 
 
+def _compact_refs(refs: Any) -> list[dict[str, Any]]:
+    """Compact grounded source-ref projection (locator fields + short excerpt;
+    full text recoverable via chunk_id).  Bad input -> []."""
+    out: list[dict[str, Any]] = []
+    if isinstance(refs, list):
+        for r in refs[:4]:
+            if isinstance(r, dict) and str(r.get("chunk_id") or "").strip():
+                out.append({
+                    "file_id": str(r.get("file_id") or "")[:80],
+                    "chunk_id": str(r.get("chunk_id") or "")[:120],
+                    "filename": str(r.get("filename") or "")[:120],
+                    "page": r.get("page"),
+                    "printed_page": r.get("printed_page"),
+                })
+    return out
+
+
 def record_recent_quiz(session_id: str, student_id: str, quiz: dict[str, Any]) -> None:
     """出题成功时追加题目快照（每题一条），总量钳位到最近 100 道。"""
     try:
@@ -98,6 +115,11 @@ def record_recent_quiz(session_id: str, student_id: str, quiz: dict[str, Any]) -
                     "knowledge_point": str(q.get("knowledge_point") or "")[:60],
                     "correct_answer": str(q.get("answer") or "")[:200],
                     "explanation": str(q.get("explanation") or "")[:400],
+                    # Grounded provenance（plan.md §3.2 原则 3）：recent quiz
+                    # 不丢 source refs；旧记录无此键安全缺省。
+                    "grounding_mode": str(q.get("grounding_mode") or "")[:24],
+                    "grounding_tier": str(q.get("grounding_tier") or "")[:16],
+                    "source_refs": _compact_refs(q.get("source_refs")),
                     "verdict": "",
                     "student_answer": "",
                     "source_status": "active",
