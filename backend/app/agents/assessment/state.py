@@ -77,6 +77,16 @@ class AssessmentContext:
     target_mastery: float = _MET
     base_difficulty: int = 2
     recent_outcomes: list[str] = field(default_factory=list)
+    # 统一 Quiz Grounding（plan.md §5.1）：additive 字段，plain data only。
+    # grounding_sources 只放序列化后的 QuizSourceRef plain dict，保持本
+    # 包 import-clean —— Assessment 不依赖 KnowledgeStore，证据由 API 层
+    # 经 QuizGroundingProvider 解析后投影进来。to_dict/from_dict 全支持，
+    # 保证 CAT session 持久化和重启恢复不丢证据 scope。
+    grounding_required: bool = False
+    grounding_mode: str = "generic"          # textbook | generic
+    grounding_tier: str = "not_found"        # found | partial | not_found
+    grounding_query: str = ""
+    grounding_sources: list[dict[str, Any]] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -88,6 +98,11 @@ class AssessmentContext:
             "target_mastery": self.target_mastery,
             "base_difficulty": self.base_difficulty,
             "recent_outcomes": list(self.recent_outcomes),
+            "grounding_required": self.grounding_required,
+            "grounding_mode": self.grounding_mode,
+            "grounding_tier": self.grounding_tier,
+            "grounding_query": self.grounding_query,
+            "grounding_sources": [dict(s) for s in self.grounding_sources],
         }
 
     @classmethod
@@ -102,6 +117,12 @@ class AssessmentContext:
             target_mastery=float(d.get("target_mastery", _MET)),
             base_difficulty=int(d.get("base_difficulty", 2)),
             recent_outcomes=list(d.get("recent_outcomes", []) or []),
+            grounding_required=bool(d.get("grounding_required", False)),
+            grounding_mode=str(d.get("grounding_mode", "generic") or "generic"),
+            grounding_tier=str(d.get("grounding_tier", "not_found") or "not_found"),
+            grounding_query=str(d.get("grounding_query", "") or ""),
+            grounding_sources=[dict(s) for s in (d.get("grounding_sources") or [])
+                               if isinstance(s, dict)],
         )
 
 

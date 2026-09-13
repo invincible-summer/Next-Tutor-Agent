@@ -61,6 +61,13 @@ class Question:
     # at generation time — before any student answer exists — and versioned;
     # empty for legacy questions and malformed generation output alike.
     rubric: dict[str, Any] = field(default_factory=dict)
+    # 统一 Quiz Grounding（plan.md §5.4）：grounded 测评题的 provenance。
+    # CAT session 已持久化 Question、learning_records 已调用 q.to_dict()，
+    # 在 Question 这个单一合同中携带 provenance，下游天然继承；旧题缺省
+    # generic/空，无损重建。
+    grounding_mode: str = "generic"   # textbook | generic | reference...
+    grounding_tier: str = ""          # found | partial | not_found
+    source_refs: list[dict[str, Any]] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -79,6 +86,9 @@ class Question:
             "bloom_level": self.bloom_level,
             "verification": dict(self.verification),
             "rubric": dict(self.rubric),
+            "grounding_mode": self.grounding_mode,
+            "grounding_tier": self.grounding_tier,
+            "source_refs": [dict(r) for r in self.source_refs],
         }
 
     @property
@@ -122,4 +132,8 @@ class Question:
             bloom_level=normalize_level(d.get("bloom_level")),
             verification=dict(d.get("verification", {}) or {}),
             rubric=dict(d.get("rubric", {}) or {}),
+            grounding_mode=str(d.get("grounding_mode", "generic") or "generic"),
+            grounding_tier=str(d.get("grounding_tier", "") or ""),
+            source_refs=[dict(r) for r in (d.get("source_refs") or [])
+                         if isinstance(r, dict)],
         )

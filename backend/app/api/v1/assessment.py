@@ -54,6 +54,13 @@ class StartRequest(BaseModel):
     difficulty: int = Field(0, description="起始难度 1-5，0=按掌握度推断")
     mastery: float = Field(0.0, description="（仅兼容保留，一律忽略）当前掌握度由服务端按身份读取")
     student_id: str = Field("", description="学生 id（默认 default）")
+    # 统一 Quiz Grounding（plan.md §5.2）：教材 scope 由服务端按授权解析，
+    # 不开放任意 owner/file namespace。
+    session_id: str = Field("", description="可选：从该已授权会话/工作区获取教材范围")
+    textbook_ids: list[str] = Field(default_factory=list, max_length=8,
+                                    description="可选：直接指定当前学生可访问的教材组")
+    strict_textbook: bool = Field(
+        False, description="true 时，没有可靠教材证据就不生成教材测评题")
 
 
 def _server_mastery(sid: str, concept: str) -> float:
@@ -93,9 +100,29 @@ async def start_test(req: StartRequest, _token_sid: str = Depends(resolve_studen
         assesses=list(req.assesses), forbidden=list(req.forbidden),
         difficulty=max(0, min(5, int(req.difficulty))),
         bloom_focus=req.bloom_focus or "")
+    ctx_kwargs = {}
+    # 统一 Quiz Grounding（plan.md §5.2）：按授权解析教材证据 scope；非本人
+    # session/无权教材 404；strict 无 scope 400（helper 内抛出）。scope 有效
+    # 但 strict+NOT_FOUND -> 不开始假教材 CAT，明确返回 grounding_not_found。
+    if req.session_id or req.textbook_ids or req.strict_textbook:
+        from app.api.v1.assessment_grounding import (build_assessment_grounding,
+                                                     bundle_to_context_fields)
+        bundle = await build_assessment_grounding(
+            student_id=sid, concept=req.concept, session_id=req.session_id,
+            textbook_ids=list(req.textbook_ids or []),
+            strict_textbook=req.strict_textbook)
+        ctx_kwargs = bundle_to_context_fields(bundle)
+        if req.strict_textbook and (bundle is None or not bundle.usable):
+            meta = bundle.grounding_meta() if bundle is not None else {
+                "mode": "textbook", "tier": "not_found", "required": True,
+                "reason": "textbook_scope_required", "query": req.concept,
+                "source_count": 0}
+            return {"status": "grounding_not_found", "grounding": meta,
+                    "question": None}
     ctx = AssessmentContext(concept=req.concept, subject=req.subject,
                             grade=req.grade,
-                            current_mastery=_server_mastery(sid, req.concept))
+                            current_mastery=_server_mastery(sid, req.concept),
+                            **ctx_kwargs)
     am = get_assessment_manager()
     try:
         session, q = await am.start_adaptive_test(goal, ctx, llm=llm, student_id=sid)

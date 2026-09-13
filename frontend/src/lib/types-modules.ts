@@ -540,6 +540,10 @@ export interface AssessmentQuestion {
   explanation?: string;
   knowledge_point?: string;
   difficulty?: string | number;
+  /** Grounded provenance（additive；strict 教材测评题携带） */
+  grounding_mode?: string;
+  grounding_tier?: string;
+  source_refs?: import("./types").QuizSourceRef[];
   [key: string]: unknown;
 }
 
@@ -551,6 +555,15 @@ export interface AssessmentStartResp {
   difficulty?: number;
   question?: AssessmentQuestion;
   message?: string;
+  /** strict 教材测评未找到可靠证据时（status=grounding_not_found）的元数据 */
+  grounding?: {
+    mode?: string;
+    tier?: string;
+    required?: boolean;
+    reason?: string;
+    query?: string;
+    source_count?: number;
+  };
 }
 
 export interface AssessmentAnswerResp {

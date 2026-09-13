@@ -220,6 +220,10 @@ export const assessmentStart = (body: {
   subject?: string;
   /** 布鲁姆层级焦点（""/"auto" = 出题 LLM 结合认知档案综合判断） */
   bloom_focus?: string;
+  /** 教材 grounding（additive）：从已授权会话/指定教材组取证据 scope */
+  session_id?: string;
+  textbook_ids?: string[];
+  strict_textbook?: boolean;
 }) => post<AssessmentStartResp>("/assessment/start", body);
 
 export const assessmentAnswer = (body: { student_answer: string }) =>

@@ -70,6 +70,38 @@ def _constraint_block(goal: AssessmentGoal, *, bloom_context: str = "") -> str:
     return "\n".join(lines)
 
 
+def _ctx_grounding_context(ctx: AssessmentContext) -> tuple[str, dict[str, dict[str, Any]]]:
+    """Render ctx.grounding_sources into the [命题事实边界] block + ref map.
+
+    The generator never retrieves on its own (plan.md §5.3) — it only reads
+    the plain-data evidence the API layer projected into the context.  Empty
+    sources return ("", {}) and the prompt stays byte-identical to legacy.
+    """
+    sources = [s for s in (ctx.grounding_sources or []) if isinstance(s, dict)]
+    if not sources:
+        return "", {}
+    from ...core.quiz_grounding import (QuizGroundingBundle, QuizSourceRef,
+                                        render_grounding_context)
+    refs: list[QuizSourceRef] = []
+    for s in sources[:6]:
+        refs.append(QuizSourceRef(
+            file_id=str(s.get("file_id") or ""),
+            chunk_id=str(s.get("chunk_id") or ""),
+            filename=str(s.get("filename") or ""),
+            page=s.get("page"), printed_page=s.get("printed_page"),
+            section_path=list(s.get("section_path") or []),
+            excerpt=str(s.get("excerpt") or ""),
+            context_hash=str(s.get("context_hash") or ""),
+            confidence=s.get("confidence")))
+    bundle = QuizGroundingBundle(
+        query=ctx.grounding_query, mode=ctx.grounding_mode or "textbook",
+        tier=ctx.grounding_tier or "not_found",
+        required=ctx.grounding_required, reason="",
+        source_refs=refs)
+    mapping = {f"src_{i}": dict(s) for i, s in enumerate(sources[:6], 1)}
+    return render_grounding_context(bundle), mapping
+
+
 def _pick_q_type(goal: AssessmentGoal) -> str:
     """Auto-select question type: MC for fast checks/diagnosis, short_answer
     for deeper practice. An explicit goal.q_type always wins."""
@@ -132,16 +164,27 @@ async def generate_question(goal: AssessmentGoal, ctx: AssessmentContext,
             bloom_context = bloom_ctx(student_id, concept)
         except Exception:
             bloom_context = ""
+    # 统一 Quiz Grounding（plan.md §5.3）：ctx grounding -> render ->
+    # blueprint -> generation -> critic。检索发生在 API 层 helper，本函数
+    # 只读 ctx.grounding_sources。
+    grounding_context, ref_map = _ctx_grounding_context(ctx)
+    strict_textbook = bool(ctx.grounding_required and ref_map)
     # 两轮出题（QUIZ_DESIGN_MODE=two_pass）：先跑蓝图设计轮（单题的设计要点：
     # 深层考点、陷阱、如何体现约束），失败自动回退单轮。focus 用约束子能力。
     from ...core.quiz_design import design_blueprint
     blueprint, _design_status = await design_blueprint(
         llm, topic=concept, grade=grade,
         difficulty=_difficulty_label(difficulty), count=1,
-        focus="、".join(goal.assesses) if goal.assesses else "")
+        focus="、".join(goal.assesses) if goal.assesses else "",
+        grounding_context=grounding_context)
     prompt = _build_gen_prompt(grade=grade, concept=concept, difficulty=difficulty,
                                goal=goal, q_type=q_type,
                                bloom_context=bloom_context, blueprint=blueprint)
+    if grounding_context:
+        prompt += ("\n\n[命题事实边界]\n"
+                   "本题的题干、正确答案与解析中的教材事实必须能由下方证据直接支持；"
+                   "可以重新设计数值/情境，但不得引入证据之外的新教材专属事实。\n"
+                   + grounding_context)
     try:
         # Non-streaming call with thinking disabled (same hardening as the
         # quiz tools, DESIGN §21.1): a reasoning model can otherwise burn the
@@ -163,13 +206,27 @@ async def generate_question(goal: AssessmentGoal, ctx: AssessmentContext,
         if settings.quiz_verify_mode == "critic":
             kept, _bad, critic_ok = await verify_questions(
                 llm, [raw_q], topic=concept, grade=grade,
-                difficulty=_difficulty_label(difficulty))
+                difficulty=_difficulty_label(difficulty),
+                grounding_context=grounding_context)
             verification["critic"] = "ok" if critic_ok else "error"
             if critic_ok and not kept:
                 return None
         verification["answer_verified"] = (
             settings.quiz_verify_mode == "critic"
             and verification["critic"] == "ok")
+        # Provenance 映射（plan.md §5.3/§5.4）：只认 ctx.grounding_sources
+        # 对应的 src_N 短 id，模型返回的其它 ref 一律丢弃。
+        raw_ids = raw_q.pop("source_ref_ids", None)
+        refs: list[dict[str, Any]] = []
+        if isinstance(raw_ids, list):
+            for sid in raw_ids:
+                key = str(sid).strip()
+                if key in ref_map:
+                    refs.append(dict(ref_map[key]))
+        if strict_textbook and not refs:
+            # strict 教材测评：没有有效 source ref 的题不能标 grounded，
+            # 也不能 fail-open 成教材题（plan.md §4.6 失败语义）。
+            return None
         # W3/D04（承接 W2/A14）：CAT 单题路径此前沿用 LLM 的裸 "id": 1，
         # 跨会话/跨题套不唯一；稳定 id 后在其上冻结量规。
         raw_q["id"] = f"q_{uuid.uuid4().hex[:8]}_1"
@@ -184,6 +241,14 @@ async def generate_question(goal: AssessmentGoal, ctx: AssessmentContext,
         q.verification = verification
         if rubric is not None:
             q.rubric = rubric
+        # Grounded provenance（plan.md §5.4）：单一 Question 合同携带。
+        if refs:
+            q.grounding_mode = "textbook"
+            q.grounding_tier = ctx.grounding_tier or "found"
+            q.source_refs = refs
+            q.verification["grounding_verification"] = (
+                "content_checked" if verification.get("critic") == "ok"
+                else "unavailable")
         return q
     except Exception:
         return None
