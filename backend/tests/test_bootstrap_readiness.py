@@ -81,6 +81,12 @@ class TestReadyEndpointContract(StorageSandboxTestCase):
         from app.main import app
         return TestClient(app)
 
+    def _client_no_lifespan(self):
+        """不触发 lifespan 的 client（保留测试手工布置的 report 状态）。"""
+        from fastapi.testclient import TestClient
+        from app.main import app
+        return TestClient(app)  # 不用 with：lifespan 不启动
+
     def test_ready_endpoint_exists(self):
         with self._client() as client:
             resp = client.get("/api/v1/ready")
@@ -94,6 +100,84 @@ class TestReadyEndpointContract(StorageSandboxTestCase):
             resp = client.get("/api/v1/health")
             self.assertEqual(resp.status_code, 200)
             self.assertEqual(resp.json().get("status"), "ok")
+
+    def test_ready_degraded_noncritical_returns_200(self):
+        """非关键步骤失败 -> degraded 但仍 200（可降级功能不全站 503）。"""
+        from app.core.bootstrap import (BootstrapCheck, STATUS_FAILED,
+                                         reset_bootstrap_report)
+        report = reset_bootstrap_report()
+        report.checks["trash_cleanup"] = BootstrapCheck(
+            name="trash_cleanup", critical=False, status=STATUS_FAILED,
+            detail="boom")
+        report.checks["textbook_recovery"] = BootstrapCheck(
+            name="textbook_recovery", critical=False, status="ok")
+        client = self._client_no_lifespan()
+        resp = client.get("/api/v1/ready")
+        self.assertEqual(resp.status_code, 200)
+        body = resp.json()
+        self.assertEqual(body["status"], "degraded")
+        self.assertEqual(body["checks"]["trash_cleanup"]["status"], "failed")
+        self.assertEqual(body["checks"]["trash_cleanup"]["critical"], False)
+
+    def test_ready_critical_failure_returns_503(self):
+        from app.core.bootstrap import (BootstrapCheck, STATUS_FAILED,
+                                         reset_bootstrap_report)
+        report = reset_bootstrap_report()
+        report.checks["textbook_recovery"] = BootstrapCheck(
+            name="textbook_recovery", critical=False, status="ok")
+        report.checks["router_import"] = BootstrapCheck(
+            name="router_import", critical=True, status=STATUS_FAILED,
+            detail="ImportError: boom")
+        client = self._client_no_lifespan()
+        resp = client.get("/api/v1/ready")
+        self.assertEqual(resp.status_code, 503)
+        self.assertEqual(resp.json()["status"], "not_ready")
+
+    def test_ready_all_ok_returns_ready(self):
+        from app.core.bootstrap import (BootstrapCheck,
+                                        reset_bootstrap_report)
+        report = reset_bootstrap_report()
+        report.checks["textbook_recovery"] = BootstrapCheck(
+            name="textbook_recovery", critical=False, status="ok")
+        report.checks["student_model_warm"] = BootstrapCheck(
+            name="student_model_warm", critical=False, status="ok")
+        client = self._client_no_lifespan()
+        resp = client.get("/api/v1/ready")
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.json()["status"], "ready")
+
+    def test_student_model_warm_failure_does_not_block_service(self):
+        """SM 预热失败只 degraded，不阻止服务（plan.md §17 分级）。"""
+        import asyncio
+        from app.core.bootstrap import BootstrapReport, run_bootstrap_step
+
+        async def _warm_boom():
+            raise RuntimeError("sm warm boom")
+
+        report = BootstrapReport()
+        asyncio.run(run_bootstrap_step(report, "student_model_warm",
+                                       _warm_boom))
+        self.assertEqual(report.checks["student_model_warm"].status, "failed")
+        self.assertFalse(report.checks["student_model_warm"].critical)
+        self.assertTrue(report.ready, "非关键失败仍算 ready（200 degraded）")
+        self.assertTrue(report.degraded)
+
+    def test_textbook_recovery_failure_visible_in_readiness(self):
+        """textbook recovery 失败必须在 /ready 可见（不再静默）。"""
+        import asyncio
+        from app.core.bootstrap import BootstrapReport, run_bootstrap_step
+
+        async def _recovery_boom():
+            raise RuntimeError("textbook recovery boom")
+
+        report = BootstrapReport()
+        asyncio.run(run_bootstrap_step(report, "textbook_recovery",
+                                       _recovery_boom))
+        check = report.checks["textbook_recovery"]
+        self.assertEqual(check.status, "failed")
+        self.assertIn("textbook recovery boom", check.detail)
+        # 非关键：服务仍 ready（degraded）
+        self.assertTrue(report.ready)
 
 
 if __name__ == "__main__":

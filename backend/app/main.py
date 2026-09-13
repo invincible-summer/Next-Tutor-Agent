@@ -2,12 +2,15 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 import threading
 import os
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+
+log = logging.getLogger(__name__)
 
 # Dev-friendly default when CORS_ORIGINS is not set (local Next.js dev server).
 _DEFAULT_CORS_ORIGINS = [
@@ -19,18 +22,22 @@ _DEFAULT_CORS_ORIGINS = [
 
 @asynccontextmanager
 async def _lifespan(app: FastAPI):
+    # P1-C（plan.md §15-§19）：结构化 bootstrap——每个启动维护步骤都有
+    # 命名 check 与状态，失败 log.exception（不再静默吞掉），critical 失败
+    # fail-fast；可降级功能失败不阻止服务（/ready 里可见但不 503）。
+    from app.core.bootstrap import run_bootstrap_step
+    from app.core.bootstrap import reset_bootstrap_report
+    report = reset_bootstrap_report()
+
     # 一次性清理旧式知识图谱 archive/*.json。该格式只有孤立图谱快照，
     # 无法恢复教材源文件；统一回收站上线后不再继续保留。
-    try:
+    async def _legacy_graph_cleanup() -> None:
         from app.agents.knowledge.store import cleanup_legacy_graph_archives
         cleanup_legacy_graph_archives()
-    except Exception:
-        pass
-    # 启动收割（P5a-A4）：教材图谱构建是进程内 asyncio 任务，随进程死亡。
-    # P1-B（plan.md §11.3）：非 OCR 图谱阶段中断的 building 记录不再直接判
-    # graph_failed——reconcile 置 build_job.state=queued 后由 resume 把持久化
-    # 的 intent 重入现有 per-owner 队列，无需用户点击「重建图谱」。
-    try:
+
+    # 教材记录迁移 + 重启对账 + OCR 续跑 + 中断图谱构建重入队
+    # （P1-B plan.md §11.3 顺序）。
+    async def _textbook_recovery() -> None:
         from app.core.textbook import (migrate_legacy_single_to_groups,
                                        reconcile_stale_builds)
         from app.core.textbook_ocr import resume_pending_textbook_ocr
@@ -43,56 +50,70 @@ async def _lifespan(app: FastAPI):
         if resumed:
             print(f"[startup] resumed {resumed} interrupted textbook build(s)",
                   flush=True)
-    except Exception:
-        pass
+
     # 管理员引导（P6-B1）：配置了 ADMIN_EMAIL/ADMIN_PASSWORD 时确保管理员存在。
-    try:
+    def _admin_bootstrap() -> None:
         from app.identity.store import ensure_admin_account
         ensure_admin_account()
-    except Exception:
-        pass
-    # 预热默认学生模型（性能）：M5 会把全部公共教材图谱（~16K 节点）合并进
-    # SkillGraph。冷构建虽已降到秒级，但让它发生在启动后台线程而不是首个
-    # 用户请求里（async 请求路径上的冷构建会冻结事件循环）。
+
+    # 预热默认学生模型（性能）：M5 合并公共教材图谱进 SkillGraph，放到
+    # 后台线程避免冻结事件循环；预热失败只是首请求变慢，不阻止服务。
     def _warm_default_student_model() -> None:
-        try:
-            from app.agents.student_model import get_student_model, is_enabled
-            if is_enabled():
-                get_student_model()
-        except Exception:
-            pass
-    threading.Thread(target=_warm_default_student_model, daemon=True,
-                     name="edu-agent-sm-warm").start()
+        from app.agents.student_model import get_student_model, is_enabled
+        if is_enabled():
+            get_student_model()
+
+    def _trash_cleanup_once() -> None:
+        from app.core.trash import cleanup_expired
+        cleanup_expired()
+
+    await run_bootstrap_step(report, "legacy_graph_cleanup",
+                             _legacy_graph_cleanup)
+    await run_bootstrap_step(report, "textbook_recovery", _textbook_recovery)
+    await run_bootstrap_step(report, "admin_bootstrap", _admin_bootstrap,
+                             to_thread=True)
+
+    async def _warm_async() -> None:
+        await asyncio.to_thread(_warm_default_student_model)
+
+    await run_bootstrap_step(report, "student_model_warm", _warm_async)
+    await run_bootstrap_step(report, "trash_cleanup", _trash_cleanup_once,
+                             to_thread=True)
+
     # 回收站过期清扫不依赖浏览器打开：启动时先扫一次，之后进程内定时扫。
     cleanup_task = None
     try:
-        from app.core.trash import cleanup_expired, get_global_policy
-        cleanup_expired()
+        from app.core.trash import get_global_policy
 
         async def _trash_cleanup_loop():
             while True:
                 await asyncio.sleep(get_global_policy()["cleanup_interval_seconds"])
                 try:
+                    from app.core.trash import cleanup_expired
                     await asyncio.to_thread(cleanup_expired)
                 except Exception:
-                    pass
+                    log.warning("trash cleanup loop iteration failed",
+                                exc_info=True)
 
         cleanup_task = asyncio.create_task(_trash_cleanup_loop())
     except Exception:
+        log.warning("trash cleanup loop not started", exc_info=True)
         cleanup_task = None
     try:
         yield
     finally:
+        # shutdown 类失败只 warning（plan.md §19），不再无痕。
         try:
             from app.core.textbook_ocr import cancel_all_textbook_ocr
             cancel_all_textbook_ocr()
         except Exception:
-            pass
+            log.warning("shutdown: cancel_all_textbook_ocr failed", exc_info=True)
         try:
             from app.core.textbook import cancel_all_refresh_tasks
             cancel_all_refresh_tasks()
         except Exception:
-            pass
+            log.warning("shutdown: cancel_all_refresh_tasks failed",
+                        exc_info=True)
         if cleanup_task is not None:
             cleanup_task.cancel()
             try:
