@@ -14,7 +14,10 @@ from dotenv import load_dotenv
 log = logging.getLogger(__name__)
 
 _PROJECT_ROOT = Path(__file__).resolve().parents[3]
-load_dotenv(_PROJECT_ROOT / ".env")
+# Test runs force the keyless CI environment (tests/__init__.py sets the
+# flag and scrubs the variables); never load real credentials there.
+if os.environ.get("EDU_TEST_KEYLESS") != "1":
+    load_dotenv(_PROJECT_ROOT / ".env")
 
 _DEFAULT_SECRET = "edu-agent-dev-secret-change-me-in-production-please"
 

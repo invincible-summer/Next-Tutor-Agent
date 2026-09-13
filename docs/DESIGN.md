@@ -1906,3 +1906,23 @@ frontend-checks（pnpm frozen install + tsc + lint + build）、
 repository-invariants。Playwright E2E（frontend/e2e/）真实起
 backend（隔离副本）+ frontend + fake LLM，覆盖身份隔离、教材到 BM25、严格
 教材问答、grounded quiz、NOT_FOUND、笔记私有、学习计划与语音协议冒烟。
+
+### P11.8 零凭证测试环境（本地=CI 奇偶）
+
+CI runner 没有根目录 `.env`，测试套件必须在**零凭证**下自洽；本地默认
+与 CI 完全同环境，防止"本地被真实凭证掩护、CI 才暴露"的假绿：
+
+- `backend/tests/__init__.py` 在导入任何 app 模块前，清除根 `.env`
+  定义的全部变量与 shell 里的 LLM/凭证变量（`OPENAI_API_KEY`、
+  `LLM_API_KEY`、`LLM_BASE_URL` 等），并设置 `EDU_TEST_KEYLESS=1`；
+- `app/core/config.py` 与 `app/identity/config.py` 在该标志下跳过
+  `load_dotenv`——真实凭证在测试进程里根本不存在，也就不可能打真实
+  API（费用安全）；
+- 教训（回归钉死）：voice busy-rejection 测试曾因 `_run_turn` 里真实的
+  `get_llm()` 在 CI 构造 `AsyncOpenAI` 即抛 "Missing credentials"、turn
+  秒死、`busy` 事件永不到来而无限阻塞；所有走 turn/端点的测试必须
+  patch `get_llm`/`_build_tools`（见 test_voice / test_compat_api /
+  test_assessment_identity 的 setUp 模式）；
+- backend-core 安装使用 `-c backend/constraints.txt` 锁定解析集（与
+  本地一致，防 openai 等主版本漂移），timeout 45min 匹配 2 核 runner
+  上 ~1900 测试的实际耗时。

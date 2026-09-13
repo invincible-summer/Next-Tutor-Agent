@@ -13,7 +13,10 @@ from dotenv import load_dotenv
 # Load .env from project root (parent of backend/) if present.
 _PROJECT_ROOT = Path(__file__).resolve().parents[3]
 _BACKEND_ROOT = _PROJECT_ROOT / "backend"
-load_dotenv(_PROJECT_ROOT / ".env")
+# Test runs force the keyless CI environment (tests/__init__.py sets the
+# flag and scrubs the variables); never load real credentials there.
+if os.environ.get("EDU_TEST_KEYLESS") != "1":
+    load_dotenv(_PROJECT_ROOT / ".env")
 
 
 def _resolve_skill_runtime_mode() -> str:

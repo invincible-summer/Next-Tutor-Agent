@@ -28,7 +28,9 @@ jobs:
       - name: Install BM25-only runtime
         run: |
           python -m pip install --upgrade pip
-          pip install -r backend/requirements.txt
+          # constraints.txt pins the tested resolver set; without it CI drifts
+          # from the local environment (e.g. openai major bumps).
+          pip install -r backend/requirements.txt -c backend/constraints.txt
       - name: Unit tests (BM25-only, vector lane skipped)
         run: |
           cd backend

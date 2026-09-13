@@ -71,6 +71,9 @@ class TestAssessmentIdentity(unittest.TestCase):
             patch.object(assessment_api, "assessment_enabled", lambda: True),
             patch.object(assessment_api, "get_assessment_manager",
                          lambda: self.manager),
+            # CI parity: keyless checkouts must not construct a real LLM
+            # client in the endpoint body before the fake manager runs.
+            patch.object(assessment_api, "get_llm", lambda: object()),
         ]
         for p in self._patches:
             p.start()

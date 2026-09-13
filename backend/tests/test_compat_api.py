@@ -93,6 +93,7 @@ class TestCompatFacade(unittest.TestCase):
     def test_full_agent_non_stream(self):
         with patch("app.agents.supervisor.run", _fake_run), \
              patch("app.api.v1.chat._build_tools", lambda session, **kw: []), \
+             patch("app.core.llm_async.get_llm", lambda: object()), \
              patch("app.core.session.load_session", lambda sid: None):
             r = self.client.post("/api/v1/chat/completions", headers=_AUTH, json={
                 "messages": [{"role": "user", "content": "讲一下浮力"}],
@@ -106,6 +107,7 @@ class TestCompatFacade(unittest.TestCase):
     def test_full_agent_stream_reasoning_and_done(self):
         with patch("app.agents.supervisor.run", _fake_run), \
              patch("app.api.v1.chat._build_tools", lambda session, **kw: []), \
+             patch("app.core.llm_async.get_llm", lambda: object()), \
              patch("app.core.session.load_session", lambda sid: None):
             with self.client.stream(
                     "POST", "/api/v1/chat/completions", headers=_AUTH, json={
