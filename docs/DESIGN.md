@@ -50,7 +50,7 @@ SSE 为前端直连后端的流式通道（`POST /chat/stream`、`POST /quiz/gra
 | 开关 | 默认 | 关闭后行为 |
 |------|------|-----------|
 | `AUTH_MODE` | `0` | `0`=游客宽容（未登录共享 `student_default`，登录后 JWT 始终绑定独立命名空间）；`1`=登录必选 |
-| `SUPERVISOR_MODE` | `v2` | `legacy` 走 V1 `chat_turn` 单函数路径；v2 运行时异常也自动回退 legacy，SSE 永不中断 |
+| `SUPERVISOR_MODE` | `v2` | `legacy` 走 V1 `chat_turn` 单函数路径；v2 运行时异常默认显式返回错误；仅当 `SUPERVISOR_LEGACY_FALLBACK=1` 时回退 legacy |
 | `STUDENT_MODEL_MODE` | `1` | `0` 关闭 M2：无画像/掌握度/策略注入/事件采集 |
 | `TEACHING_ENGINE_MODE` | `1` | `0` 退回 M2 内置轻量 adapt 路径 |
 | `ASSESSMENT_ENGINE_MODE` | `1` | `0` 关闭 M4：评分退回二元、无 CAT |
