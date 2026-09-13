@@ -26,14 +26,23 @@ async def _lifespan(app: FastAPI):
         cleanup_legacy_graph_archives()
     except Exception:
         pass
-    # 启动收割（P5a-A4）：教材图谱构建是进程内 asyncio 任务，随进程死亡——
-    # 残留的 building 记录必是孤儿，置 graph_failed 提示用户可重建。
+    # 启动收割（P5a-A4）：教材图谱构建是进程内 asyncio 任务，随进程死亡。
+    # P1-B（plan.md §11.3）：非 OCR 图谱阶段中断的 building 记录不再直接判
+    # graph_failed——reconcile 置 build_job.state=queued 后由 resume 把持久化
+    # 的 intent 重入现有 per-owner 队列，无需用户点击「重建图谱」。
     try:
-        from app.core.textbook import migrate_legacy_single_to_groups, reap_stale_builds
+        from app.core.textbook import (migrate_legacy_single_to_groups,
+                                       reconcile_stale_builds)
         from app.core.textbook_ocr import resume_pending_textbook_ocr
         migrate_legacy_single_to_groups()
-        reap_stale_builds()
+        reconcile_stale_builds()
         resume_pending_textbook_ocr()
+        from app.agents.knowledge.textbook_builder import (
+            resume_interrupted_textbook_builds)
+        resumed = await resume_interrupted_textbook_builds()
+        if resumed:
+            print(f"[startup] resumed {resumed} interrupted textbook build(s)",
+                  flush=True)
     except Exception:
         pass
     # 管理员引导（P6-B1）：配置了 ADMIN_EMAIL/ADMIN_PASSWORD 时确保管理员存在。
