@@ -225,7 +225,6 @@ async def upload_shared(ws_id: str, files: list[UploadFile] = File(...),
     results = []
     uploaded: list[tuple[str, str, str]] = []  # (file_id, filename, text)
     for f in files:
-        raw = await f.read()
         fname = f.filename or "upload"
         lower = fname.lower()
         ext = next((e for e in SUPPORTED_ASYNC_EXTS if lower.endswith(e)), "")
@@ -235,7 +234,10 @@ async def upload_shared(ws_id: str, files: list[UploadFile] = File(...),
             continue
         limit = MAX_IMAGE_BYTES if ext in (".png", ".jpg", ".jpeg", ".webp",
                                            ".bmp", ".tiff", ".tif") else MAX_UPLOAD_BYTES
-        if len(raw) > limit:
+        from app.core.uploads import UploadTooLarge, read_upload_limited
+        try:
+            raw = await read_upload_limited(f, limit)
+        except UploadTooLarge:
             results.append({"filename": fname,
                             "error": f"文件过大（>{limit // (1024 * 1024)}MB）"})
             continue

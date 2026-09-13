@@ -315,7 +315,6 @@ async def upload_files(session_id: str | None = None, grade: str = "",
     results: list[UploadResult] = []
     uploaded: list[tuple[str, str, str]] = []  # (file_id, filename, text)
     for f in files:
-        raw = await f.read()
         fname = f.filename or "upload"
         lower = fname.lower()
         ext = next((e for e in SUPPORTED_ASYNC_EXTS if lower.endswith(e)), "")
@@ -325,7 +324,12 @@ async def upload_files(session_id: str | None = None, grade: str = "",
             continue
         limit = MAX_IMAGE_BYTES if ext in (".png", ".jpg", ".jpeg", ".webp",
                                            ".bmp", ".tiff", ".tif") else MAX_UPLOAD_BYTES
-        if len(raw) > limit:
+        # P2-B（plan.md §33）：分块限流读取——超限文件在读到 limit+chunk 后
+        # 即被拒，不再先完整读入内存；per-file 200-with-errors 合同不变。
+        from app.core.uploads import UploadTooLarge, read_upload_limited
+        try:
+            raw = await read_upload_limited(f, limit)
+        except UploadTooLarge:
             results.append(UploadResult(filename=fname,
                                         error=f"文件过大（>{limit//(1024*1024)}MB）"))
             continue
@@ -524,11 +528,13 @@ async def _post_upload_ingest(scope: str, store, uploaded: list[tuple[str, str, 
 async def ocr_upload(file: UploadFile = File(...),
                      _student_id: str = Depends(resolve_student_id)):
     """Understand a problem image via vision model (glm-4.6v)."""
-    raw = await file.read()
     fname = file.filename or "image.png"
     if not is_image_file(fname):
         raise HTTPException(status_code=400, detail="only image formats supported (PNG/JPG/JPEG/WebP/BMP)")
-    if len(raw) > MAX_IMAGE_BYTES:
+    from app.core.uploads import UploadTooLarge, read_upload_limited
+    try:
+        raw = await read_upload_limited(file, MAX_IMAGE_BYTES)
+    except UploadTooLarge:
         raise HTTPException(status_code=400, detail=f"image too large (>{MAX_IMAGE_BYTES // (1024 * 1024)}MB)")
     text = await understand_image(raw, fname)
     if not text.strip():
