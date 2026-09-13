@@ -7,7 +7,8 @@ golden 断言的是**外部合同**，不是 thinking 文本：
 - 有教材的会话两模式都触发确定性 material grounding 检索。
 
 fallback 断言：
-- SUPERVISOR_LEGACY_FALLBACK=1（默认）：V2 异常回落 V1，回答不中断；
+- SUPERVISOR_LEGACY_FALLBACK 未设置（默认关闭）：V2 异常如实 yield error；
+- =1：V2 异常可显式回落 V1，作为紧急兼容开关；
 - =0：V2 异常如实 yield error，不再静默掩盖回归；
 - trace 带结构化字段（exception_type/category/stage/fallback_enabled），
   且不落入 raw 用户消息。
@@ -118,9 +119,9 @@ class TestV1V2ExternalContract(StorageSandboxTestCase):
 
 
 class TestLegacyFallbackSwitch(StorageSandboxTestCase):
-    """P2-A（plan.md §29）：fallback 显式开关 + 结构化 trace。"""
+    """P2-A（plan.md §29）：fallback 默认关闭 + 显式紧急开关 + trace。"""
 
-    def _run_with_broken_v2(self, fallback: str):
+    def _run_with_broken_v2(self, fallback: str | None):
         from app.agents import chat_agent as ca
         session = _make_session("sess_fback")
         llm = _FixedAnswerLLM()
@@ -130,18 +131,26 @@ class TestLegacyFallbackSwitch(StorageSandboxTestCase):
             raise RuntimeError("planner boom")
             yield  # pragma: no cover
 
-        env = {"SUPERVISOR_MODE": "v2",
-               "SUPERVISOR_LEGACY_FALLBACK": fallback}
-        with unittest.mock.patch.dict(os.environ, env), \
+        with unittest.mock.patch.dict(os.environ, {"SUPERVISOR_MODE": "v2"}), \
              unittest.mock.patch("app.agents.supervisor.run", _broken_supervisor):
+            if fallback is None:
+                os.environ.pop("SUPERVISOR_LEGACY_FALLBACK", None)
+            else:
+                os.environ["SUPERVISOR_LEGACY_FALLBACK"] = fallback
             events = asyncio.run(_collect(ca.run_turn(
                 "讲个知识点", session, tools, llm=llm)))
         return events
 
+    def test_fallback_default_is_disabled(self):
+        events = self._run_with_broken_v2(None)
+        kinds = [ev.get("type") for ev in events]
+        self.assertIn("error", kinds, "未设置开关时 V2 错误必须显式暴露")
+        self.assertNotIn("done", kinds, "默认不得静默切 legacy 掩盖 V2 回归")
+
     def test_fallback_enabled_returns_legacy_answer(self):
         events = self._run_with_broken_v2("1")
         kinds = {ev.get("type") for ev in events}
-        self.assertIn("done", kinds, "fallback 开启时 V1 接管，回答不中断")
+        self.assertIn("done", kinds, "显式开启 fallback 时 V1 接管，回答不中断")
 
     def test_fallback_disabled_yields_error_not_silent(self):
         events = self._run_with_broken_v2("0")

@@ -44,7 +44,9 @@ export default defineConfig({
         "cd ${E2E_BACKEND_HOME:-/tmp/edu-agent-e2e}/backend && " +
         "${E2E_PYTHON:-python3} -m uvicorn app.main:app " +
         `--host 127.0.0.1 --port ${BACKEND_PORT} --workers 1`,
-      port: BACKEND_PORT,
+      // A listening socket is not enough: wait for bootstrap/recovery to finish
+      // and only start browser flows when the real readiness contract is 200.
+      url: `http://127.0.0.1:${BACKEND_PORT}/api/v1/ready`,
       reuseExistingServer: false,
       timeout: 90_000,
       stdout: "ignore",
