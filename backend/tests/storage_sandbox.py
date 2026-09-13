@@ -37,6 +37,7 @@ def patch_all_storage_roots(root: Path) -> list:
     from app.agents.memory import store as memory_store
     from app.agents.student_model import manager as sm_manager
     from app.agents.student_model import store as sm_store
+    from app.agents.student_model.evaluation import store as eval_journal_store
     from app.agents.teaching_engine import guidance_store, teaching_log
     from app.agents.ux_intelligence import store as ux_store
     from app.core import context, learning_episodes, learning_records, library, notes
@@ -69,6 +70,7 @@ def patch_all_storage_roots(root: Path) -> list:
         patch.object(teaching_log, "_STUDENTS_DIR", root / "students"),
         patch.object(guidance_store, "_STUDENTS_DIR", root / "students"),
         patch.object(eval_store, "_STUDENTS_DIR", root / "students"),
+        patch.object(eval_journal_store, "STUDENTS_DIR", root / "students"),
         patch.object(ux_store, "_STUDENTS_DIR", root / "students"),
         patch.object(orch_store, "_STUDENTS_DIR", root / "students"),
         patch.object(assess_store, "_STUDENTS_DIR", root / "students"),
@@ -88,9 +90,13 @@ def patch_all_storage_roots(root: Path) -> list:
 def reset_shared_caches() -> None:
     """tearDown 用：清掉可能指向已删除临时目录的进程级缓存。"""
     from app.agents.student_model import manager as sm_manager
+    from app.agents.student_model.evaluation import store as eval_journal_store
     from app.core import vector_store
+    from app.core import learner_runtime
     sm_manager._CACHE.clear()
     vector_store._reset()
+    eval_journal_store.reset_journal_cache()
+    learner_runtime.reset_learner_runtime()
 
 
 class StorageSandboxTestCase(unittest.TestCase):

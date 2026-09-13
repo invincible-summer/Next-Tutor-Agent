@@ -17,6 +17,7 @@ from typing import Any
 from fastapi import APIRouter, Depends, HTTPException, Query
 
 from app.agents import knowledge as _kn
+from app.agents.knowledge.scope_primitives import chapter_closure as _chapter_closure
 from app.identity.deps import resolve_student_id
 
 router = APIRouter(prefix="/knowledge", tags=["knowledge"])
@@ -52,35 +53,6 @@ def _mastery_overlay(student_id: str) -> dict[str, dict[str, Any]] | None:
         return out
     except Exception:
         return None
-
-
-def _chapter_closure(edges: list[dict[str, Any]], chapter_ids: set[str],
-                     section_ids: set[str]) -> dict[str, set[str]]:
-    """章 → 成员闭包（PART_OF 传递：概念→节→章 与 概念→章 两种形状）。
-
-    返回 {chapter_id: {member_id, ...}}，member 含节与概念；旧图谱（无节）
-    退化为直接子成员，行为不变。
-    """
-    part_children: dict[str, set[str]] = {}
-    for edge in edges or []:
-        if str(edge.get("type") or "").upper() != "PART_OF":
-            continue
-        source_id = str(edge.get("source") or edge.get("from") or "")
-        target_id = str(edge.get("target") or edge.get("to") or "")
-        if source_id and target_id:
-            part_children.setdefault(target_id, set()).add(source_id)
-    section_chapter: dict[str, str] = {}
-    for cid in chapter_ids:
-        for member in part_children.get(cid, set()):
-            if member in section_ids:
-                section_chapter[member] = cid
-    out: dict[str, set[str]] = {cid: set() for cid in chapter_ids}
-    for cid in chapter_ids:
-        for member in part_children.get(cid, set()):
-            out[cid].add(member)
-            if member in section_ids:
-                out[cid] |= part_children.get(member, set())
-    return out
 
 
 @router.get("/graph")

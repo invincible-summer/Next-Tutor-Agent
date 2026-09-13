@@ -107,6 +107,23 @@ class Settings:
     # 受限方式调整策略（单一主要行动/枚举白名单/显式约束优先）。
     teaching_decision_mode: str = _resolve_mode(
         "TEACHING_DECISION_MODE", {"rules", "shadow", "active"}, "rules")
+    # 统一语义学习评价（plan §10.3 工程预算，非教育测量阈值）。
+    learner_evaluation_mode: str = _resolve_mode(
+        "LEARNER_EVALUATION_MODE", {"active", "off"}, "active")
+    learner_evaluation_concurrency: int = int(
+        os.getenv("LEARNER_EVALUATION_CONCURRENCY", "2"))
+    learner_eval_wall_deadline: int = int(
+        os.getenv("LEARNER_EVAL_WALL_DEADLINE", "45"))
+    learner_eval_transport_max: int = int(
+        os.getenv("LEARNER_EVAL_TRANSPORT_MAX", "4"))
+    learner_eval_job_budget: int = int(
+        os.getenv("LEARNER_EVAL_JOB_BUDGET", "120"))
+    learner_eval_lease_seconds: int = int(
+        os.getenv("LEARNER_EVAL_LEASE_SECONDS", "150"))
+    learner_eval_synthesis_merge_wait: int = int(
+        os.getenv("LEARNER_EVAL_SYNTHESIS_MERGE_WAIT", "15"))
+    learner_eval_clt_sample_ratio: float = float(
+        os.getenv("LEARNER_EVAL_CLT_SAMPLE_RATIO", "0.2"))
     # 工具步允许保留模型思考（LOW，不下发关闭指令）：预算充足时让推理发生，
     # real_summary 才有真实材料；预算被压缩时 executor 的 budget_forces_direct
     # 仍会强制关思考， starving 时走 incomplete_answer_recovery 兜底。
