@@ -15,7 +15,9 @@ jobs:
   backend-core:
     name: backend-core
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    # Full suite (~1900 tests) needs ~25 min on 2-core CI runners; 20 min
+    # hit the job timeout and GitHub canceled the run mid-suite.
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
