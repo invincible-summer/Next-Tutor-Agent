@@ -861,7 +861,50 @@ def _legacy_fallback_enabled() -> bool:
         not in ("0", "false", "off")
 
 
+def _after_turn_dialogue_receipt(session: TutorSession,
+                                  student_id: str) -> None:
+    """G3 统一 turn hook（plan §13.1/§7.2）：回合结束后对已可靠落盘的学生
+    消息受理 dialogue 来源。用磁盘会话核对（保存与受理之间的故障窗口不
+    受理未保存内容）；任何失败不影响对话流。"""
+    try:
+        from ..core.session import load_session
+        sid = student_id or getattr(session, "student_id", "")             or "student_default"
+        fresh = load_session(getattr(session, "session_id", ""))
+        if fresh is None:
+            return
+        from ..agents.student_model.evaluation.dialogue import (
+            after_turn_hook)
+        after_turn_hook(sid, fresh)
+    except Exception:
+        pass
+
+
 async def run_turn(
+    user_message: str,
+    session: TutorSession,
+    tools: list[Tool],
+    llm: AsyncLLMClient | None = None,
+    progress_cb: Callable[[str], Any] | None = None,
+    lang: str = "zh",
+    output_language: str | None = None,
+    attachments: list[dict] | None = None,
+    student_id: str = "",
+) -> AsyncGenerator[dict[str, Any], None]:
+    """Entry point chosen by chat.py. Dispatches to V1 chat_turn or V2
+    supervisor.run based on SUPERVISOR_MODE (default v2).
+
+    G3：无论 supervisor/legacy/回退/错误路径，本生成器收尾时统一执行
+    dialogue 来源受理 hook（§13.1 单一受理点）。"""
+    try:
+        async for ev in _run_turn_dispatch(
+                user_message, session, tools, llm, progress_cb, lang,
+                output_language, attachments, student_id=student_id):
+            yield ev
+    finally:
+        _after_turn_dialogue_receipt(session, student_id)
+
+
+async def _run_turn_dispatch(
     user_message: str,
     session: TutorSession,
     tools: list[Tool],

@@ -53,10 +53,34 @@ def select_allowlist(scope: S.EvaluationScope,
     return chosen[:MAX_ALLOWLIST]
 
 
+def _sources_by_concept_key(state: JournalState) -> dict[str, set[str]]:
+    """概念 key → 归属它的来源集合：经物化判断（judgment.source_id）与
+    任务概念归属（不猜名称）。"""
+    mapping: dict[str, set[str]] = {}
+    for judgment in state.judgments.values():
+        if judgment.source_id:
+            mapping.setdefault(judgment.concept_ref.key,
+                               set()).add(judgment.source_id)
+    for src in state.sources.values():
+        ref = src.receipt.task_ref
+        if ref is None:
+            continue
+        task = state.tasks.get(ref.question_id, {}).get(
+            ref.question_revision)
+        if task is None:
+            continue
+        for concept in task.concept_refs:
+            mapping.setdefault(concept.key,
+                               set()).add(src.receipt.source_id)
+    return mapping
+
+
 def prior_same_concept(state: JournalState, workspace_id: str,
                        concept_keys: set[str]) -> dict[str, Any]:
     """§8.2 历史挑选：当前判断、最近有效表现、最近反例；只取本来源之前
-    的历史（observed_at 序），不取 superseded/revoked。"""
+    的历史（observed_at 序），不取 superseded/revoked。来源按概念归属
+    过滤（经判断/任务），不同概念的历史不互相污染。"""
+    by_concept = _sources_by_concept_key(state)
     out: dict[str, Any] = {}
     for key in concept_keys:
         judgment_id = state.concept_current.get((workspace_id, key), "")
@@ -67,22 +91,21 @@ def prior_same_concept(state: JournalState, workspace_id: str,
                                             for c in judgment.claims]
             entry["current_state"] = judgment.state.value
             entry["updated_at"] = judgment.created_at
+        attributed = by_concept.get(key, set())
         sources: list[dict[str, Any]] = []
         for src in state.sources.values():
             if src.availability != "available":
                 continue
             if src.receipt.workspace_id_at_observation != workspace_id:
                 continue
+            if src.receipt.source_id not in attributed:
+                continue
             interp = src.interpretations.get(src.current_interpretation_id)
             if not interp or interp.get("revoked") or interp.get("abstained"):
                 continue
             raw = interp.get("raw_interpretation") or {}
             claims = raw.get("observation_claims") or []
-            hit = [c for c in claims
-                   if isinstance(c, dict) and c.get("concept_ref")]
-            # concept_ref 在历史解释中是旧 pack 短引用——按 concept_ids 索引
-            # 过滤太粗糙时退化为全量带上（数量受 MAX_PRIOR_SOURCES 限制）。
-            if hit:
+            if isinstance(claims, list) and claims:
                 sources.append({
                     "source_id": src.receipt.source_id,
                     "observed_at": src.receipt.observed_at,
@@ -94,7 +117,7 @@ def prior_same_concept(state: JournalState, workspace_id: str,
                         {"statement": c.get("statement"),
                          "stance": c.get("stance"),
                          "limits": c.get("limits")}
-                        for c in hit[:4]],
+                        for c in claims[:4]],
                 })
         sources.sort(key=lambda s: s["observed_at"], reverse=True)
         recent = sources[:MAX_PRIOR_SOURCES]
@@ -196,3 +219,53 @@ def assemble_assessment_pack(
 def pack_user_message(pack: S.EvaluationContextPack) -> str:
     """user message = pack 各分层序列化 JSON（§8.1：禁止学生正文进 system）。"""
     return json.dumps(pack.model_dump(), ensure_ascii=False)
+
+
+def assemble_dialogue_pack(
+        *, source: S.SourceReceipt, scope: S.EvaluationScope,
+        state: JournalState, scenarios: list[str],
+        candidates: list[S.ConceptRef],
+        session_context: dict[str, Any] | None = None,
+        learner_preferences: dict[str, Any] | None = None,
+        workspace_name: str = "",
+) -> S.EvaluationContextPack:
+    """C5 对话解释的 ContextPack（P4，§8.1 分层）。"""
+    entries = _short_refs(candidates)
+    keys = {e.concept.key for e in entries}
+    prior = prior_same_concept(state, source.workspace_id_at_observation, keys)
+    current: dict[str, Any] = {
+        "ref": "s1",
+        "source_id": source.source_id,
+        "source_revision": source.source_revision,
+        "canonical_text": source.canonical_text,
+        "observed_at": source.observed_at,
+        "message_ref": source.message_ref,
+        "order_hint": "本块是唯一新增学习证据",
+    }
+    input_hash = "ih_" + hashlib.sha256(json.dumps({
+        "source": source.source_id, "revision": source.source_revision,
+        "text": source.canonical_text,
+        "prior": sorted(prior.keys()),
+        "allowlist": [e.concept.key for e in entries],
+    }, ensure_ascii=False, sort_keys=True).encode()).hexdigest()[:32]
+    binding = ("learning_evidence_contract@1.0.0+"
+               "dialogue_learner_evaluation@1.0.0")
+    return S.EvaluationContextPack(
+        pack_id=_pack_id(source.source_id), job_id="", source_id=source.source_id,
+        prompt_binding=binding, scenarios=scenarios, output_language="zh",
+        allowlist=entries,
+        current_student_evidence=current,
+        task={"dialogue_mode": True,
+              "scenarios": scenarios},
+        assistance_before_response=[a.model_dump()
+                                    for a in source.assistance_events],
+        prior_same_concept=prior,
+        session_context=session_context or {},
+        workspace_context={"workspace_id": source.workspace_id_at_observation,
+                           "workspace_name": workspace_name,
+                           "scope_revision": source.scope_revision},
+        learner_preferences=learner_preferences or {},
+        manifest=S.PackManifest(
+            included_refs=["s1"] + [e.short_ref for e in entries],
+            omitted_refs=[], truncations=[], input_hash=input_hash,
+            prompt_ref=binding, evidence_watermark=state.watermark))

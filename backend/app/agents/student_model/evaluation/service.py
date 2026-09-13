@@ -52,10 +52,11 @@ def materialize_judgment(update: S.ConceptUpdate, *,
                          workspace_id: str, scope_revision: str,
                          source_id: str, watermark: str,
                          observations: dict[str, str],
+                         claims_by_local: dict[str, S.ObservationClaim],
                          active_claims: list[S.ClaimView],
                          prompt_ref: str) -> S.ConceptJudgment:
     """patch → 物化判断：retain 保持原样，revise 改写，close 移出 active，
-    add 由本次观察生成新 claim（§4.3）。observations: local_id → obs_id。"""
+    add 由本次观察直接生成完整 claim（§4.3）。observations: local_id→obs_id。"""
     retained = {c.claim_id: c for c in active_claims}
     claims: list[S.ClaimView] = []
     for cid in update.retain_claim_ids:
@@ -74,13 +75,26 @@ def materialize_judgment(update: S.ConceptUpdate, *,
             "updated_at_observation": source_id,
         }))
     for add_id in update.add_claim_local_ids:
+        obs = claims_by_local.get(add_id)
+        if obs is None:
+            continue
         obs_id = observations.get(add_id, "")
+        status = (S.ClaimStatus.SUPPORTED
+                  if obs.stance == S.ClaimStance.SUPPORTS
+                  else S.ClaimStatus.CHALLENGED
+                  if obs.stance == S.ClaimStance.CHALLENGES
+                  else S.ClaimStatus.TENTATIVE)
         claims.append(S.ClaimView(
             claim_id=new_claim_id(), concept_ref=concept,
-            statement="", status=S.ClaimStatus.TENTATIVE,
+            statement=obs.statement, status=status,
+            support_refs=[obs_id]
+            if obs.stance == S.ClaimStance.SUPPORTS else [],
+            challenge_refs=[obs_id]
+            if obs.stance == S.ClaimStance.CHALLENGES else [],
+            assistance_scope=obs.warrant,
+            limits=obs.limits,
             created_by_observation=obs_id,
             updated_at_observation=obs_id))
-    # add claims 的 statement/status 由解释中的观察回填（statement 必填）
     return S.ConceptJudgment(
         judgment_id=new_judgment_id(),
         base_judgment_id=update.base_judgment_id,
@@ -166,7 +180,7 @@ class LearnerEvaluationService:
         if interpretation is not None and interpretation.applicable:
             observations = {c.local_id: new_observation_id()
                             for c in interpretation.observation_claims}
-            claim_by_obs: dict[str, S.ObservationClaim] = {
+            claim_by_local: dict[str, S.ObservationClaim] = {
                 c.local_id: c for c in interpretation.observation_claims}
             for update in interpretation.concept_updates:
                 if any(i.severity != V.HARD and i.concept_ref ==
@@ -184,9 +198,9 @@ class LearnerEvaluationService:
                     workspace_id=source.workspace_id_at_observation,
                     scope_revision=source.scope_revision,
                     source_id=source.source_id, watermark=watermark,
-                    observations=observations, active_claims=base_claims,
+                    observations=observations, claims_by_local=claim_by_local,
+                    active_claims=base_claims,
                     prompt_ref=pack.prompt_binding)
-                _fill_added_claim_views(judgment, claim_by_obs, observations)
                 judgments.append(judgment)
         abstained = interpretation is None or not interpretation.applicable
         journal.append(
@@ -211,32 +225,3 @@ class LearnerEvaluationService:
         return CommitOutcome(interpretation_id=interpretation_id,
                              judgment_ids=[j.judgment_id for j in judgments],
                              dropped_updates=dropped, abstained=abstained)
-
-
-def _fill_added_claim_views(judgment: S.ConceptJudgment,
-                            claims_by_local: dict[str, S.ObservationClaim],
-                            observations: dict[str, str]) -> None:
-    """add 生成的占位 ClaimView 回填 statement/stance→status 与证据。"""
-    for i, view in enumerate(judgment.claims):
-        if view.statement or not view.created_by_observation:
-            continue
-        obs_id = view.created_by_observation
-        for local_id, mapped in observations.items():
-            if mapped == obs_id and local_id in claims_by_local:
-                claim = claims_by_local[local_id]
-                status = (S.ClaimStatus.SUPPORTED
-                          if claim.stance == S.ClaimStance.SUPPORTS
-                          else S.ClaimStatus.CHALLENGED
-                          if claim.stance == S.ClaimStance.CHALLENGES
-                          else S.ClaimStatus.TENTATIVE)
-                judgment.claims[i] = view.model_copy(update={
-                    "statement": claim.statement,
-                    "status": status,
-                    "assistance_scope": claim.warrant,
-                    "limits": claim.limits,
-                    "support_refs": [mapped]
-                    if claim.stance == S.ClaimStance.SUPPORTS else [],
-                    "challenge_refs": [mapped]
-                    if claim.stance == S.ClaimStance.CHALLENGES else [],
-                })
-                break

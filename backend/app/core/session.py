@@ -201,6 +201,18 @@ class TutorSession:
         return s
 
 
+def ensure_message_ids(messages: list[dict[str, Any]]) -> bool:
+    """G3（plan §13.1）：为每条消息补稳定 message_id（一次性生成、随会话
+    持久化；压缩改变下标也不受影响）。返回是否发生了补写。"""
+    changed = False
+    import uuid as _uuid
+    for m in messages or []:
+        if isinstance(m, dict) and not m.get("message_id"):
+            m["message_id"] = "m_" + _uuid.uuid4().hex[:12]
+            changed = True
+    return changed
+
+
 def save_session(session: TutorSession) -> str:
     _SESSIONS_DIR.mkdir(parents=True, exist_ok=True)
     session.updated_at = time.time()
@@ -208,6 +220,7 @@ def save_session(session: TutorSession) -> str:
         session.session_id = new_session_id(session.title or "untitled")
     if not session.title:
         session.title = derive_title(session.messages, session.title)
+    ensure_message_ids(session.messages)
     path = _resolve(session.session_id)
     is_new = not path.exists()
     with file_lock(path):

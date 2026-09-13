@@ -260,6 +260,9 @@ def _apply_op(state: JournalState, op: Any) -> None:
         state.syntheses[op.synthesis.synthesis_id] = op.synthesis
     elif isinstance(op, S.OpScopeChanged):
         state.workspace_scopes[op.workspace_id] = op.scope_revision
+        for key in op.affected_concept_keys:
+            state.concept_current.pop(
+                (op.workspace_id, key), None)
     elif isinstance(op, S.OpSourceArchived):
         src = state.sources.get(op.source_id)
         if src is not None:
