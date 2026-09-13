@@ -9,7 +9,7 @@
     "lint": "eslint",
     "test:e2e": "playwright test",
     "test:e2e:headed": "playwright test --headed",
-    "test:e2e:ci": "playwright test --reporter=line"
+    "test:e2e:ci": "playwright test --reporter=line,html"
   },
   "dependencies": {
     "@fontsource/playfair-display": "^5.3.0",
