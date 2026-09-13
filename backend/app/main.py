@@ -147,6 +147,19 @@ async def _process_time_header(request: Request, call_next):
 
 
 def create_app() -> FastAPI:
+    # P2-C（plan.md §36）：file-backed 业务状态 + 进程内锁只支持单 worker。
+    # WEB_CONCURRENCY>1（uvicorn/gunicorn 常用扩展变量）会在多进程下产生
+    # 并发写同一 JSON 的竞态——显式 fail-fast，而不是默默数据损坏。
+    import os as _os
+    try:
+        _wc = int(_os.getenv("WEB_CONCURRENCY", "1") or "1")
+    except ValueError:
+        _wc = 1
+    if _wc > 1:
+        raise RuntimeError(
+            "WEB_CONCURRENCY>1 is unsupported: file-backed persistence uses "
+            "process-local locks — run exactly one uvicorn worker "
+            "(deploy/edu-backend.service pins --workers 1).")
     # Fail fast on the insecure default JWT secret when login is enforced.
     from app.identity.config import ensure_secret_safety
     ensure_secret_safety()

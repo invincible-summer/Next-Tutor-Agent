@@ -162,6 +162,19 @@ class TestReadyEndpointContract(StorageSandboxTestCase):
         self.assertTrue(report.ready, "非关键失败仍算 ready（200 degraded）")
         self.assertTrue(report.degraded)
 
+    def test_web_concurrency_over_one_fails_fast(self):
+        """P2-C（plan.md §36）：WEB_CONCURRENCY>1 与 file-backed 锁不兼容，
+        create_app 必须 fail-fast。"""
+        import os
+        from unittest.mock import patch
+        from app.main import create_app
+        with patch.dict(os.environ, {"WEB_CONCURRENCY": "3"}):
+            with self.assertRaises(RuntimeError):
+                create_app()
+        # 默认/1 正常创建
+        with patch.dict(os.environ, {"WEB_CONCURRENCY": "1"}):
+            create_app()
+
     def test_textbook_recovery_failure_visible_in_readiness(self):
         """textbook recovery 失败必须在 /ready 可见（不再静默）。"""
         import asyncio
