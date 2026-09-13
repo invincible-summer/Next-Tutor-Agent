@@ -102,10 +102,15 @@ class _StubProvider:
 
     def __init__(self, bundle):
         self._bundle = bundle
+        self._cached = None
         self.calls: list[dict] = []
+
+    def peek_cached(self):
+        return self._cached
 
     async def resolve(self, *, topic: str, focus: str = "", top_k: int = 6):
         self.calls.append({"topic": topic, "focus": focus, "top_k": top_k})
+        self._cached = self._bundle
         return self._bundle
 
 
@@ -246,6 +251,52 @@ class TestGenerateQuizGroundingContract(StorageSandboxTestCase):
         grounding = result.data.get("grounding") or {}
         self.assertEqual(grounding.get("mode"), "generic")
         self.assertEqual(grounding.get("tier"), "not_found")
+
+
+class TestFitQuizNoForcedRetrieval(StorageSandboxTestCase):
+    """plan §6/§43：fit_quiz 的参考题路径不被强制重复检索。
+
+    reference 是普通用户粘贴时：grounding_mode=reference，provider 的
+    resolve 不被调用（无检索）；reference 来自本轮教材预检索时（provider
+    已缓存）只继承证据，也不发新检索。
+    """
+
+    def test_pasted_reference_does_not_retrieve(self):
+        from app.tools.fit_quiz import FitQuizTool
+
+        class _CountingProvider(_StubProvider):
+            pass
+
+        provider = _CountingProvider(_bundle("found", True))
+        tool = FitQuizTool(FakeQuizLLM(), grounding_provider=provider)
+        result = asyncio.run(tool.run(reference="一道普通参考题：求 x^2=4 的解",
+                                      grade="本科", difficulty="easy", count=1))
+        self.assertFalse(result.is_error, result.text)
+        self.assertEqual(provider.calls, [], "普通粘贴 reference 不得触发检索")
+        for q in result.data.get("questions", []):
+            self.assertEqual(q.get("grounding_mode"), "reference")
+            self.assertEqual(q.get("source_refs") or [], [],
+                             "无教材证据时不得携带 source refs")
+
+    def test_cached_evidence_inherited_without_new_retrieval(self):
+        from app.tools.fit_quiz import FitQuizTool
+        provider = _StubProvider(_bundle("found", True))
+        asyncio.run(provider.resolve(topic="ZX-17 定理"))  # 预检索缓存
+        calls_before = len(provider.calls)
+        tool = FitQuizTool(FakeQuizLLM(), grounding_provider=provider)
+        result = asyncio.run(tool.run(
+            reference="根据教材：ZX-17 定理的右端常数是多少？",
+            grade="本科", difficulty="easy", count=1))
+        self.assertFalse(result.is_error, result.text)
+        self.assertEqual(len(provider.calls), calls_before,
+                         "fit_quiz 只继承缓存，不发新检索")
+        for q in result.data.get("questions", []):
+            self.assertEqual(q.get("grounding_mode"), "reference+textbook")
+            self.assertTrue(q.get("source_refs"),
+                            "继承路径必须携带教材 provenance")
+        self.assertEqual(
+            (result.data.get("grounding") or {}).get("mode"),
+            "reference+textbook")
 
 
 class TestGroundedCriticContract(StorageSandboxTestCase):
