@@ -118,11 +118,14 @@ class TestJobsBasics(StorageSandboxTestCase):
 
     def test_succeeded_not_reclaimed_and_crash_running_reclaims(self):
         job = _mk_job(self.scheduler)
-        claimed = self.scheduler.claim_next(SID)
+        self.scheduler.claim_next(SID)
         journal = st.get_journal(SID)
+        interp = dict(applicable=True, observation_claims=[],
+                      concept_updates=[], feedback="ok")
         journal.append([S.OpResultCommitted(
             job_id=job.job_id, source_id="src_1", source_revision=1,
-            scope_revision="scope_1", abstained=False)])
+            scope_revision="scope_1", interpretation_id="itp_1",
+            interpretation=interp, abstained=False)])
         rt = journal.state().jobs[job.job_id]
         self.assertEqual(rt.job.state, S.JobState.SUCCEEDED)
         # completed 不再调用模型（§18.2）：claim_next 不返回 succeeded
@@ -143,9 +146,12 @@ class TestJobsBasics(StorageSandboxTestCase):
         job = _mk_job(self.scheduler)
         self.scheduler.claim_next(SID)
         journal = st.get_journal(SID)
+        interp = dict(applicable=True, observation_claims=[],
+                      concept_updates=[], feedback="ok")
         journal.append([S.OpResultCommitted(
             job_id=job.job_id, source_id="src_1", source_revision=1,
-            scope_revision="scope_1", abstained=False)])
+            scope_revision="scope_1", interpretation_id="itp_2",
+            interpretation=interp, abstained=False)])
         # 模拟进程重启（cache 丢失）
         st.reset_journal_cache()
         fresh = st.get_journal(SID).state().jobs[job.job_id]

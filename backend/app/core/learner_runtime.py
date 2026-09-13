@@ -63,6 +63,7 @@ class _GraphAdapter:
 
 _LOCK = threading.RLock()
 _SCHEDULER: JobScheduler | None = None
+_RUNNER: Any | None = None
 
 
 def build_default_scope_resolver() -> ScopeResolver:
@@ -79,14 +80,34 @@ def get_scheduler() -> JobScheduler:
         return _SCHEDULER
 
 
+def get_evaluation_runner():
+    """EvaluationLLMRunner 进程级单例（客户端在应用 shutdown 关闭）。"""
+    global _RUNNER
+    with _LOCK:
+        if _RUNNER is None:
+            from app.agents.student_model.evaluation.llm import (
+                EvaluationLLMRunner)
+            _RUNNER = EvaluationLLMRunner(
+                concurrency=settings.learner_evaluation_concurrency)
+        return _RUNNER
+
+
+def set_evaluation_runner(runner: Any | None) -> None:
+    """测试注入 fake runner（沙箱重置时同样清空）。"""
+    global _RUNNER
+    with _LOCK:
+        _RUNNER = runner
+
+
 def evaluation_enabled() -> bool:
     return settings.learner_evaluation_mode == "active"
 
 
 def reset_learner_runtime() -> None:
-    """沙箱/登出场景：清进程级缓存（journal/scope/scheduler 重建）。"""
-    global _SCHEDULER
+    """沙箱/登出场景：清进程级缓存（journal/scope/scheduler/runner 重建）。"""
+    global _SCHEDULER, _RUNNER
     with _LOCK:
         _SCHEDULER = None
+        _RUNNER = None
     reset_journal_cache()
     set_scope_resolver(None)

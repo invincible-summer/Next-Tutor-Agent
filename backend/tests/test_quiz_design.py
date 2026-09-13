@@ -46,16 +46,43 @@ def _gen_json(questions) -> str:
 
 
 def _critic_json(pairs) -> str:
-    verdicts = [{"id": i, "verdict": v, "reason": "r"} for i, v in pairs]
-    return json.dumps({"verdicts": verdicts}, ensure_ascii=False)
+    """P2 审核回放：correct→passed、其余（含 too_shallow）→rejected。"""
+    status_map = {"correct": "passed"}
+    items = [{"question_ref": str(i),
+              "answer_check": "valid" if v == "correct" else "invalid",
+              "grounding_check": "not_required",
+              "actual_required_processes": ["understand"],
+              "knowledge_types": ["conceptual"], "alignment": "aligned",
+              "opportunity_checks": [], "rubric_issues": [],
+              "brief_basis": "", "grounding_refs": [],
+              "recommended_revision": "",
+              "proposed_status": status_map.get(v, "rejected")}
+             for i, v in pairs]
+    return json.dumps({"items": items}, ensure_ascii=False)
 
 
 def _blueprint_json(n: int = 1) -> str:
+    """P1 v2 TaskBlueprint 输出（ECDL+RBT：主张/过程/知识类型/证据机会）。"""
     return json.dumps({
-        "angles_considered": ["概念辨析", "迁移应用"],
-        "blueprint": [{"id": i, "angle": "概念辨析", "bloom": "analyze",
-                       "q_type": "short_answer", "trap": "常见误区",
-                       "idea": f"换情境考查第{i}题"} for i in range(1, n + 1)],
+        "items": [{
+            "local_question_id": f"q{i}",
+            "target_concept_refs": ["浮力"],
+            "target_claims": [f"能在新情境中说明第{i}题的适用条件"],
+            "intended_processes": ["analyze"],
+            "knowledge_types": ["conceptual"],
+            "q_type": "short_answer",
+            "difficulty_design": "概念辨析为主，一次转化",
+            "task_family": "buoyancy-identify",
+            "novelty": {"kind": "changed_context", "baseline_refs": [],
+                        "reason": "换情境"},
+            "assistance_plan": "key_hints",
+            "evidence_opportunities": [{
+                "id": "o1", "required_product": "写出受力判断依据",
+                "permitted_claim": "能说明浮力方向判断", "limits": "仅覆盖本题情境"}],
+            "rubric_draft": [],
+            "grounding_refs": [],
+            "construction_brief": f"换情境考查第{i}题",
+        } for i in range(1, n + 1)],
     }, ensure_ascii=False)
 
 
@@ -70,7 +97,8 @@ class TestDesignBlueprint(unittest.TestCase):
         self.assertIn("命题蓝图", block)
         self.assertIn("第 1 题", block)
         self.assertIn("第 2 题", block)
-        self.assertIn("概念辨析", block)
+        self.assertIn("目标主张=", block)
+        self.assertIn("认知过程=analyze", block)
         self.assertEqual(len(llm.calls), 1)
 
     def test_single_mode_skips_llm(self):
@@ -106,11 +134,15 @@ class TestDesignBlueprint(unittest.TestCase):
             asyncio.run(design_blueprint(
                 llm, topic="浮力", grade="高中", difficulty="medium", count=1,
                 focus="方向判断", avoid_stems=["旧题干X"]))
-        prompt = llm.calls[0][0]["content"]
-        self.assertIn("难度锚点", prompt)       # 显式学段注入锚点
-        self.assertIn("方向判断", prompt)       # focus 进蓝图
-        self.assertIn("旧题干X", prompt)        # 避让题干进蓝图
-        self.assertIn("好题标准", prompt)
+        system, user = llm.calls[0][0]["content"], llm.calls[0][1]["content"]
+        # P0+P1 在 system；业务信息（锚点/focus/避让题）在 user JSON（§9.1）
+        self.assertIn("任务设计者", system)
+        self.assertIn("target_claim", system)
+        self.assertIn("grade_difficulty_anchor", user)   # 显式学段注入锚点
+        self.assertIn("easy=", user)                     # 锚点定义值随行
+        self.assertIn("方向判断", user)           # focus 进蓝图
+        self.assertIn("旧题干X", user)            # 避让题干进蓝图
+        self.assertIn("浮力", user)
 
     def test_auto_grade_uses_auto_anchor(self):
         from app.core.quiz_design import design_blueprint
@@ -118,8 +150,8 @@ class TestDesignBlueprint(unittest.TestCase):
         with mock.patch.object(settings, "quiz_design_mode", "two_pass"):
             asyncio.run(design_blueprint(
                 llm, topic="浮力", grade="", difficulty="medium", count=1))
-        prompt = llm.calls[0][0]["content"]
-        self.assertIn("按知识点本身标定", prompt)
+        user = llm.calls[0][1]["content"]
+        self.assertIn("按知识点本身自适应", user)
 
 
 class TestTwoPassWiring(unittest.TestCase):
@@ -169,26 +201,30 @@ class TestTwoPassWiring(unittest.TestCase):
 
 
 class TestCriticDepthGate(unittest.TestCase):
-    def test_too_shallow_drops_question(self):
+    """P2 逐题审核（A06）：拒收答案错误/降档题；难度目标随审核输入。"""
+
+    def test_below_target_rejected_drops_question(self):
         from app.core.quiz_verify import verify_questions
         llm = QueueLLM([_critic_json([(1, "correct"), (2, "too_shallow")])])
         kept, dropped, ok = asyncio.run(verify_questions(
             llm, [_q(1), _q(2)], topic="浮力", grade="高中", difficulty="hard"))
         self.assertTrue(ok)
         self.assertEqual([q["id"] for q in kept], [1])
-        self.assertEqual(dropped[0]["_verdict"], "too_shallow")
+        self.assertEqual(dropped[0]["_verdict"], "rejected")
 
     def test_critic_prompt_carries_target_difficulty(self):
         from app.core.quiz_verify import verify_questions
         llm = QueueLLM([_critic_json([(1, "correct")])])
         asyncio.run(verify_questions(llm, [_q(1)], topic="t", grade="g",
                                      difficulty="hard"))
-        self.assertIn("目标难度：挑战（hard）", llm.calls[0][0]["content"])
+        user = llm.calls[0][1]["content"]
+        self.assertIn("目标难度：挑战（hard）", user)
         llm2 = QueueLLM([_critic_json([(1, "correct")])])
         asyncio.run(verify_questions(llm2, [_q(1)], topic="t", grade="g"))
-        self.assertNotIn("目标难度：", llm2.calls[0][0]["content"])
+        user2 = llm2.calls[0][1]["content"]
+        self.assertNotIn("目标难度：", user2)
 
-    def test_meta_counts_shallow_drops(self):
+    def test_meta_counts_rejected_drops(self):
         from app.core.quiz_verify import generate_verified_questions
         llm = QueueLLM([_gen_json([_q(1), _q(2)]),
                         _critic_json([(1, "correct"), (2, "too_shallow")])])
@@ -198,9 +234,10 @@ class TestCriticDepthGate(unittest.TestCase):
             topic="浮力", grade="高中", difficulty="hard",
             temperature=0.4, max_tokens=1000))
         self.assertEqual(len(questions), 1)
-        self.assertEqual(meta["dropped_shallow"], 1)
+        self.assertEqual(meta["dropped_rejected"], 1)
         self.assertEqual(meta["dropped_by_critic"], 1)
-        self.assertEqual(meta["critic_flags"][0]["verdict"], "too_shallow")
+        self.assertEqual(meta["critic_flags"][0]["verdict"], "rejected")
+
 
 
 if __name__ == "__main__":

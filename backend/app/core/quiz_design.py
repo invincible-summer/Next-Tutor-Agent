@@ -1,26 +1,14 @@
-"""Two-pass quiz generation, round 1: the question blueprint.
+"""Two-pass quiz generation, round 1: the task blueprint (P1 v2, plan §9.3).
 
-Why this exists: single-pass generation (design + write + explain in one shot)
-reliably drifts toward the safest questions — definition recall and one-step
-formula application — because the model spends no explicit effort on *what
-makes a good question* before committing to stems. Splitting design into its
-own LLM call (the blueprint) forces the model to first enumerate the angles a
-concept can be tested from (essence / mechanism / transfer / synthesis /
-traps / counterexamples), assign each question a target Bloom level and a
-trap design, and only then (round 2, in the quiz tools) write the actual
-questions against that blueprint.
+蓝图轮从「列举考查角度」升级为 ECDL 任务设计：每题产出 target_claims、
+intended_processes（RBT）、knowledge_types、evidence_opportunities、
+rubric_draft、task_family/novelty 与 construction_brief。第二轮生成器按
+蓝图写正式题目（复用既有 quiz/fit_quiz/M4 工具，不新增出题入口）。
 
-Contract:
-  - Shared by tools/quiz.py (multi-question) and agents/assessment/
-    generator.py (single constraint-driven question, count=1).
-  - Fail-open, same philosophy as core/quiz_verify: any error or unparseable
-    blueprint returns ("", "fallback") and generation proceeds single-pass.
-  - Mode is controlled by ``QUIZ_DESIGN_MODE``: ``two_pass`` (default) runs
-    the blueprint round, ``single`` restores the legacy one-shot behavior.
-  - The blueprint prompt text lives in prompts/registry.py
-    (``quiz_blueprint`` + anchor variants) so trace prompt-version
-    provenance covers it; this module is glue: render, call, validate, render
-    the injection block. Never raises.
+组装纪律（§9.1）：system = P0 共享合同 + P1 角色文本；业务信息（topic、
+学段锚点、历史题、教材证据）全部序列化进 user message 的 JSON；不再把
+学生/教材文本 .format 进系统规则位置。fail-open 语义不变：蓝图失败回
+single 直出。
 """
 from __future__ import annotations
 
@@ -34,24 +22,16 @@ from ..prompts.registry import get as _prompt
 
 _DIFFICULTY_ZH = {"easy": "基础", "medium": "中等", "hard": "挑战"}
 
-# Injection header prepended to the rendered blueprint when it is spliced
-# into the round-2 generation prompt.
 _INJECT_HEAD = (
     "[命题蓝图 · 第一轮设计结果，必须逐题落实]\n"
-    "逐题按蓝图的角度/认知层级/陷阱/构想写成正式题目，不得退化为定义复述或"
-    "一步套公式题；蓝图与其它要求冲突时，以蓝图的考查角度与认知层级为准。"
+    "逐题按蓝图的目标主张/认知过程/证据机会/构想写成正式题目，不得退化为"
+    "定义复述或一步套公式题；蓝图与其它要求冲突时，以蓝图的目标主张与"
+    "认知过程要求为准。"
 )
 
 
 def grounding_block(grounding_context: str) -> str:
-    """Normalize a grounding context into the delimited [教材命题依据] block.
-
-    Accepts either a pre-rendered block (already carries ``<material_excerpt>``
-    delimiters, produced by quiz_grounding.render_grounding_context) or raw
-    evidence text, which gets wrapped in the same delimiters.  Empty input
-    returns "" — blueprint prompts stay byte-identical to the legacy behavior
-    when no textbook evidence is in play (plan.md §4.4 additive rule).
-    """
+    """Normalize a grounding context into the delimited [教材命题依据] block."""
     text = str(grounding_context or "").strip()
     if not text:
         return ""
@@ -64,49 +44,72 @@ def grounding_block(grounding_context: str) -> str:
             f'<material_excerpt source_ref="src_1">{text}</material_excerpt>')
 
 
-def _build_prompt(*, topic: str, grade: str, difficulty: str, count: int,
-                  focus: str, avoid_stems: list[str],
-                  grounding_context: str = "") -> str:
+def build_blueprint_messages(*, topic: str, grade: str, difficulty: str,
+                             count: int, focus: str = "",
+                             avoid_stems: list[str] | None = None,
+                             grounding_context: str = "",
+                             allowed_concepts: list[str] | None = None,
+                             ) -> tuple[list[dict[str, str]], str]:
+    """P0+P1 system message + JSON user message（学段锚点/历史题/证据入数据）。
+
+    返回 (messages, prompt_binding)；prompt_binding 记录 prompt id@version
+    供 trace/审计（§10.5）。
+    """
     from ..agents.teaching_engine.stage_profile import (
         difficulty_anchor, is_auto)
+    p0 = _prompt("learning_evidence_contract").text
+    p1 = _prompt("quiz_blueprint").text
+    system = p0 + "\n\n---\n\n" + p1
     if is_auto(grade):
-        anchor_block = _prompt("quiz_blueprint_anchor_auto").text
-        grade_label = "（未指定学段，按知识点本身自适应）"
+        anchor = "（未指定学段，按知识点本身自适应）"
     else:
-        anchor_block = _prompt("quiz_blueprint_anchor").text.format(
-            anchor=difficulty_anchor(grade))
-        grade_label = f"「{grade}」"
-    focus_block = ""
-    if focus:
-        focus_block = (f"\n本轮讲解的侧重点是「{focus}」：蓝图必须围绕它设计，"
-                       "不要泛化成知识点的常识考法。")
-    prompt = _prompt("quiz_blueprint").text.format(
-        topic=topic, grade=grade_label,
-        difficulty_zh=_DIFFICULTY_ZH.get(difficulty, difficulty or "中等"),
-        count=count, focus_block=focus_block, anchor_block=anchor_block)
+        anchor = difficulty_anchor(grade)
+    payload: dict[str, Any] = {
+        "design_task": {
+            "topic": topic,
+            "grade": grade or "",
+            "grade_difficulty_anchor": anchor,
+            "target_difficulty": _DIFFICULTY_ZH.get(difficulty,
+                                                    difficulty or "中等"),
+            "count": count,
+            "focus": focus or "",
+            "allowed_concepts": allowed_concepts or [topic],
+            "prior_task_refs": [s for s in (avoid_stems or []) if s][:8],
+        },
+        "output_language": "zh",
+        "output_contract": {
+            "format": "json",
+            "root": "TaskBlueprint",
+            "note": "只输出一个 JSON 对象 {\"items\": [...]}，不要 markdown 代码块。",
+        },
+    }
     block = grounding_block(grounding_context)
     if block:
-        prompt += "\n" + block
-    if avoid_stems:
-        prompt += ("\n以下题目本会话已经出过，设计角度不得与它们重复：\n"
-                   + "\n".join(f"  · {s}" for s in avoid_stems[:8]))
-    return prompt
+        payload["textbook_reference"] = {"grounding_block": block}
+    user = json.dumps(payload, ensure_ascii=False)
+    binding = (f"learning_evidence_contract@1.0.0+quiz_blueprint@"
+               f"{_prompt('quiz_blueprint').version}")
+    return [{"role": "system", "content": system},
+            {"role": "user", "content": user}], binding
 
 
-def _parse_blueprint(raw: str) -> list[dict[str, Any]]:
-    """Extract and validate the blueprint item list; [] on any problem."""
+def parse_blueprint(raw: str) -> list[dict[str, Any]]:
+    """Extract blueprint items（宽松解析：根对象或 {items:[…]}）。"""
     m = re.search(r"\{.*\}", raw, re.DOTALL)
     candidate = m.group(0) if m else raw
     try:
         data = json.loads(candidate)
     except json.JSONDecodeError:
         return []
-    items = data.get("blueprint") if isinstance(data, dict) else None
+    items = data.get("items") if isinstance(data, dict) else None
+    if items is None and isinstance(data, dict):
+        items = data.get("blueprint")
     if not isinstance(items, list):
         return []
     out: list[dict[str, Any]] = []
     for item in items:
-        if isinstance(item, dict) and (item.get("idea") or item.get("angle")):
+        if isinstance(item, dict) and (item.get("construction_brief")
+                                       or item.get("target_claims")):
             out.append(item)
     return out
 
@@ -115,14 +118,25 @@ def _render(items: list[dict[str, Any]]) -> str:
     """Render validated blueprint items as the round-2 injection block."""
     lines = [_INJECT_HEAD]
     for i, item in enumerate(items, 1):
-        parts = [f"角度={item.get('angle', '')}"]
-        if item.get("bloom"):
-            parts.append(f"认知层级={item['bloom']}")
+        claims = item.get("target_claims") or []
+        parts = [f"目标主张={'；'.join(str(c) for c in claims[:2])}"]
+        if item.get("intended_processes"):
+            parts.append("认知过程=" + "/".join(
+                str(p) for p in item["intended_processes"][:3]))
+        if item.get("knowledge_types"):
+            parts.append("知识类型=" + "/".join(
+                str(k) for k in item["knowledge_types"][:3]))
         if item.get("q_type"):
             parts.append(f"题型={item['q_type']}")
-        if item.get("trap"):
-            parts.append(f"陷阱={item['trap']}")
-        parts.append(f"构想={item.get('idea', '')}")
+        if item.get("difficulty_design"):
+            parts.append(f"难度设计={item['difficulty_design']}")
+        if item.get("evidence_opportunities"):
+            opp = item["evidence_opportunities"][0]
+            req = (opp.get("required_product") if isinstance(opp, dict)
+                   else str(opp))
+            if req:
+                parts.append(f"证据机会={req}")
+        parts.append(f"构想={item.get('construction_brief', '')}")
         lines.append(f"第 {i} 题：" + "｜".join(parts))
     return "\n".join(lines)
 
@@ -132,29 +146,22 @@ async def design_blueprint(llm: AsyncLLMClient, *, topic: str, grade: str,
                            avoid_stems: list[str] | None = None,
                            grounding_context: str = ""
                            ) -> tuple[str, str]:
-    """Run the blueprint design round.
+    """Run the blueprint design round（P1 v2）。
 
-    Returns ``(injection_block, status)`` where status is:
-      - ``"two_pass"``: blueprint designed and validated; injection_block is
-        ready to splice into the generation prompt;
-      - ``"single"``:   QUIZ_DESIGN_MODE=single, blueprint round skipped;
-      - ``"fallback"``: blueprint round attempted but failed/unparseable;
-        generation should proceed single-pass.
-    ``grounding_context`` (optional, plan.md §4.4): textbook evidence the
-    blueprint must stay within; empty keeps the legacy prompt unchanged.
-    Never raises.
+    Returns ``(injection_block, status)``；status ∈ two_pass|single|fallback，
+    fail-open 语义与旧版一致。
     """
     if settings.quiz_design_mode != "two_pass":
         return "", "single"
     try:
-        prompt = _build_prompt(
+        messages, _binding = build_blueprint_messages(
             topic=topic, grade=grade, difficulty=difficulty, count=count,
-            focus=focus, avoid_stems=[s for s in (avoid_stems or []) if s],
+            focus=focus, avoid_stems=avoid_stems,
             grounding_context=grounding_context)
         full, _usage = await llm.complete(
-            messages=[{"role": "user", "content": prompt}],
-            temperature=0.3, max_tokens=1500, disable_thinking=True)
-        items = _parse_blueprint(full)
+            messages=messages,
+            temperature=0.3, max_tokens=1800, disable_thinking=True)
+        items = parse_blueprint(full)
         if not items:
             return "", "fallback"
         return _render(items), "two_pass"

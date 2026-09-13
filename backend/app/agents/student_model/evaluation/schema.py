@@ -489,7 +489,9 @@ class TaskSnapshot(StrictModel):
     rubric: list[FrozenCriterion] = Field(min_length=1, max_length=12)
     rubric_hash: str = Field(default="", max_length=96)
     verification: TaskVerification = Field(default_factory=TaskVerification)
-    concept_refs: list[ConceptRef] = Field(min_length=1, max_length=3)
+    # 无工作区/未绑定概念的题目允许空：评价时 against scope 解析；空 →
+    # evaluation=unavailable(workspace_required)，任务本身仍可判分反馈。
+    concept_refs: list[ConceptRef] = Field(default_factory=list, max_length=3)
     task_family: str = Field(default="", max_length=192)
     novelty: str = Field(default="", max_length=600)
     evidence_opportunities: list[EvidenceOpportunity] = Field(

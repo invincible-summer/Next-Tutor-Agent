@@ -28,6 +28,9 @@ class AsyncLLMClient:
         temperature: float | None = None,
         timeout: float = 180.0,
         concurrency: int = 1,
+        sdk_max_retries: int | None = None,
+        retry_max: int | None = None,
+        retry_base_delay: float | None = None,
     ):
         self.model = model or settings.llm_model
         self.max_tokens = max_tokens if max_tokens is not None else settings.llm_max_tokens
@@ -39,12 +42,16 @@ class AsyncLLMClient:
             api_key=api_key or settings.llm_api_key,
             base_url=effective_url,
             timeout=timeout,
-            max_retries=3,
+            max_retries=3 if sdk_max_retries is None else int(sdk_max_retries),
             http_client=httpx.AsyncClient(trust_env=trust_env, timeout=timeout),
         )
-        # R15: transient error retry config
-        self._retry_max = 4
-        self._retry_base_delay = 2.0
+        # R15: transient error retry config.
+        # sdk_max_retries / retry_max / retry_base_delay 是可选覆盖（评价
+        # runner 专用：SDK 重试关闭、transport 重试由 runner 统一管理，
+        # §10.2.4）；不传时保持全部既有调用方默认行为。
+        self._retry_max = 4 if retry_max is None else int(retry_max)
+        self._retry_base_delay = 2.0 if retry_base_delay is None \
+            else float(retry_base_delay)
         # R16: concurrency limiter — prevents 429 by capping concurrent calls.
         # 默认 1 保持全部既有调用方行为不变；教材构建传入更高值并在调用点
         # 由 textbook_pipeline.llm_gate() 统一动态限流。
@@ -195,7 +202,8 @@ class AsyncLLMClient:
         temperature: float | None = None,
         max_tokens: int | None = None,
         disable_thinking: bool = False,
-    ) -> tuple[str, dict[str, Any] | None]:
+        return_finish_reason: bool = False,
+    ) -> tuple[str, dict[str, Any] | None] | tuple[str, dict[str, Any] | None, str | None]:
         """Non-streaming completion (for compaction/summarization, not the chat
         loop). Returns (content, usage). Shares the same retry/semaphore policy.
 
@@ -205,6 +213,9 @@ class AsyncLLMClient:
         whole max_tokens budget gets eaten by reasoning_content and content
         comes back empty. If the provider rejects the field (400), the call
         transparently retries once without it (provider-portable).
+
+        return_finish_reason=True（评价 runner 用，§10.2.6）追加第三个返回值
+        finish_reason；其余调用方默认二元组不变。
         """
         kwargs: dict[str, Any] = dict(
             model=self.model,
@@ -221,14 +232,19 @@ class AsyncLLMClient:
                 async with self._semaphore:
                     resp = await self.client.chat.completions.create(**kwargs)
                 content = (resp.choices[0].message.content or "") if resp.choices else ""
+                finish_reason = (resp.choices[0].finish_reason or "") if resp.choices else ""
                 usage = None
                 if resp.usage:
                     usage = {"prompt_tokens": resp.usage.prompt_tokens,
                              "completion_tokens": resp.usage.completion_tokens,
                              "total_tokens": resp.usage.total_tokens}
+                if return_finish_reason:
+                    return content, usage, finish_reason
                 return content, usage
             except (RateLimitError, APITimeoutError, APIConnectionError) as e:
                 if attempt >= self._retry_max:
+                    if return_finish_reason:
+                        return "", None, type(e).__name__
                     return "", None
                 await asyncio.sleep(self._retry_base_delay * (2 ** (attempt - 1)))
             except APIStatusError as e:
@@ -239,6 +255,8 @@ class AsyncLLMClient:
                 if e.status_code == 429 and attempt < self._retry_max:
                     await asyncio.sleep(self._retry_base_delay * (2 ** (attempt - 1)))
                     continue
+                if return_finish_reason:
+                    return "", None, f"status_{e.status_code}"
                 return "", None
 
 def get_llm() -> AsyncLLMClient:

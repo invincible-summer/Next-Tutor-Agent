@@ -567,3 +567,6 @@ _register(PromptDef(id="notes_retrieval_queries", version="1.0.0", text=_NOTES_R
 _register(PromptDef(id="quiz_blueprint", version="1.0.0", text=_QUIZ_BLUEPRINT))
 _register(PromptDef(id="quiz_blueprint_anchor", version="1.0.0", text=_QUIZ_BLUEPRINT_ANCHOR))
 _register(PromptDef(id="quiz_blueprint_anchor_auto", version="1.0.0", text=_QUIZ_BLUEPRINT_ANCHOR_AUTO))
+
+# 统一学习评价 P0–P10（plan §9）——独立模块注册，此处 import 保持单一注册点
+from . import learner_evaluation as _learner_evaluation  # noqa: E402,F401

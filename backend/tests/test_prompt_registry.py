@@ -57,8 +57,9 @@ class TestPromptRegistry(unittest.TestCase):
         # understand_system 增补 search_queries 字段（预检索查询精炼）→ 1.2.0；
         # W3/D02 增【会话上下文】块使用规则 → 1.3.0（1.2.0 保留非 active）。
         self.assertEqual(av["understand_system"], "1.3.0")
-        # 出题两轮化：蓝图 prompt 已注册（第一轮设计，第二轮生成见 tools/quiz.py）
-        self.assertEqual(av["quiz_blueprint"], "1.0.0")
+        # 出题两轮化：蓝图 prompt 已注册（第一轮设计，第二轮生成见 tools/quiz.py）；
+        # 统一学习评价 P1 升级 ECDL+RBT 蓝图 → 2.0.0（plan §9.1/§9.3）。
+        self.assertEqual(av["quiz_blueprint"], "2.0.0")
         self.assertIn("quiz_blueprint_anchor", av)
         self.assertIn("quiz_blueprint_anchor_auto", av)
         # W3/D04：M4 出题/批改 prompt 迁入注册表（含量规契约）。
@@ -66,6 +67,19 @@ class TestPromptRegistry(unittest.TestCase):
         self.assertEqual(av["assessment_generate_auto"], "1.0.0")
         self.assertEqual(av["assessment_grade"], "1.0.0")
         self.assertEqual(av["assessment_analyze"], "1.0.0")
+        # 统一学习评价 P0–P10（plan §9）：全部注册且为 active。
+        for pid, version in (
+                ("learning_evidence_contract", "1.0.0"),
+                ("question_evidence_audit", "1.0.0"),
+                ("assessment_learner_evaluation", "1.0.0"),
+                ("dialogue_learner_evaluation", "1.0.0"),
+                ("learner_evaluation_review", "1.0.0"),
+                ("teaching_decision", "2.0.0"),
+                ("teaching_evidence_directive", "1.0.0"),
+                ("teaching_clt_review", "1.0.0"),
+                ("learning_scope_synthesis", "1.0.0"),
+                ("learning_evidence_format_repair", "1.0.0")):
+            self.assertEqual(av[pid], version)
 
     def test_get_unknown_raises(self):
         with self.assertRaises(KeyError):

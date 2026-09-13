@@ -1,575 +1,525 @@
-"""AssessmentManager: the single entry point for measurement intelligence.
+"""M4 统一作答服务：evaluate_submission 唯一业务入口（plan §11.4/§11.5）。
 
-Like student_model.manager.StudentModel (for "what the student knows") and
-teaching_engine.manager.TeachingManager (for "how to teach"), this is the
-facade for "did the student learn it". Surface:
+聊天题卡、习题中心、自适应诊断共用本入口；服务端自行解析 TaskSnapshot、
+session/workspace、assistance 与 task_binding。旧 raw_grade 流式旁路、
+stem/correct_answer 旧契约在本版退出（A02/A03/A05）。
 
-    am = get_assessment_manager()
-    q   = await am.create_check(goal, ctx, llm=...)        # Phase 2 generator
-    res = await am.evaluate_and_record(question, answer, ctx, llm=...)  # close loop
-    sess, q = await am.start_adaptive_test(goal, ctx, llm=...)  # Phase 3 CAT
-
-evaluate_and_record is the SINGLE closed-loop point: it grades (MC
-deterministically, open via LLM), derives concept_status, classifies the
-misconception (reusing teaching_engine), and writes the result back to the
-Student Model via the EXISTING record_quiz_result facade. There is no second
-event bus and no second mastery updater -- assessment folds into M2's loop.
-
-Consolidation contract (load-bearing): this module imports the
-record_quiz_result facade lazily inside the method (not at module scope), the
-same way teaching_engine's misconception import works. The Student Model is
-written to only through its public facade; assessment owns no student state.
-
-Graceful: any failure degrades to a no-op result; never breaks a turn.
-Toggled by ASSESSMENT_ENGINE_MODE (default on).
+受理协议（§10.4）：先可靠保存 SourceReceipt（+job 同一事务，fsync 成功
+才确认），再返回 202/attempt id；MC 正误确定性判定并在受理事务先行落盘，
+语义解释由 job 提交。CAT 实例身份（assessment_id）与题目/作答/报告全部
+在 journal 持久化（A10），不覆盖旧报告。
 """
 from __future__ import annotations
 
-import asyncio
-import os
 import uuid
+from dataclasses import dataclass, field
 from typing import Any
 
-from ...core.llm_async import AsyncLLMClient
-from ...core.quiz_verify import question_verified as content_verified
-from .evaluator import (derive_concept_status, evaluate_mc, grade_open_prompt,
-                        parse_grade)
-from .question import Question, QuestionType
-from .state import (AssessmentContext, AssessmentGoal, AssessmentResult,
-                    ScoreLevel)
-from .adaptive_test import (AssessmentSession, new_assessment_id,
-                             next_difficulty, should_stop,
-                             summary as cat_summary)
-from . import session_store
-
-# W2/A03: per-path asyncio guard for the CAT lifecycle. ``file_lock`` is a
-# threading.RLock — reentrant on the SAME thread, so two coroutines of the
-# event loop could still interleave at an await inside the "critical section".
-# This lock is what actually serializes concurrent tabs; the RLock keeps the
-# individual load/save segments safe for cross-thread callers.
-_ASYNC_LOCKS: dict[str, tuple[asyncio.AbstractEventLoop, asyncio.Lock]] = {}
+from app.agents.student_model.evaluation import schema as S
+from app.agents.student_model.evaluation import context as pack_builder
+from app.agents.student_model.evaluation.grading import (compute_task_result,
+                                                         grade_mc_task)
+from app.agents.student_model.evaluation.jobs import ClaimedJob
+from app.agents.student_model.evaluation.llm import (EvaluationLLMRunner,
+                                                     build_system_message)
+from app.agents.student_model.evaluation.service import (
+    CommitRejected, LearnerEvaluationService)
+from app.agents.student_model.evaluation.store import (
+    JournalState, answer_fingerprint, get_journal, new_source_id)
+from app.core.config import settings
 
 
-def _lifecycle_lock(student_id: str) -> asyncio.Lock:
-    """Per-student lifecycle lock, rebuilt when the running loop changes
-    (each asyncio.run() gets a fresh loop; a stale bound lock would raise)."""
-    try:
-        loop = asyncio.get_running_loop()
-    except RuntimeError:
-        loop = None
-    key = str(session_store.session_path(student_id))
-    entry = _ASYNC_LOCKS.get(key)
-    if entry is None or entry[0] is not loop:
-        entry = (loop, asyncio.Lock())
-        _ASYNC_LOCKS[key] = entry
-    return entry[1]
+class SubmissionError(RuntimeError):
+    code = "submission_error"
+
+
+class QuestionNotFound(SubmissionError):
+    code = "question_not_found"
+
+
+class QuestionRevisionMismatch(SubmissionError):
+    code = "question_revision_mismatch"
+
+
+class AnswerTooLarge(SubmissionError):
+    code = "answer_too_large"
+
+
+class QuestionAlreadyAnswered(SubmissionError):
+    """同一 question instance 只接受一个正式提交；不同答案需新 instance
+    （POST /assessment/questions/{qid}/practice，§11.5）。"""
+    code = "question_already_answered"
+
+
+@dataclass
+class SubmissionReceipt:
+    attempt_id: str
+    source_id: str
+    job_id: str
+    question_id: str
+    question_revision: int
+    task_result: S.TaskResult | None = None
+    evaluation_status: str = "pending"
+    evaluation_reason: str = ""
+    interpretation_id: str = ""
+    duplicate: bool = False
+    links: dict[str, str] = field(default_factory=dict)
 
 
 def is_enabled() -> bool:
-    """Whether the assessment engine is active (default on)."""
-    return os.getenv("ASSESSMENT_ENGINE_MODE", "1") not in ("0", "false", "False", "off")
+    """评价/测评链开关：off 时聊天与 MC 正误仍可工作（§10.3）。"""
+    return settings.learner_evaluation_mode == "active"
 
 
-class AssessmentManager:
-    """Stateless facade over the assessment pipeline.
+def new_attempt_id() -> str:
+    return "att_" + uuid.uuid4().hex[:16]
 
-    Holds no per-student state; the Student Model owns all student state and
-    assessment writes to it only through record_quiz_result. A single shared
-    instance is cached per process.
+
+def new_assessment_id() -> str:
+    return "asmt_" + uuid.uuid4().hex[:16]
+
+
+# ---------------------------------------------------------------------------
+# TaskSnapshot 注册与解析
+# ---------------------------------------------------------------------------
+
+def load_task_snapshot(student_id: str, qref: S.QuestionRef
+                       ) -> S.TaskSnapshot:
+    state = get_journal(student_id).state()
+    revs = state.tasks.get(qref.question_id)
+    if not revs:
+        raise QuestionNotFound(f"题目 {qref.question_id} 未注册")
+    task = revs.get(qref.question_revision)
+    if task is None:
+        raise QuestionRevisionMismatch(
+            f"题目 {qref.question_id} 无 revision "
+            f"{qref.question_revision}（旧标签页请刷新）")
+    return task
+
+
+def register_task_snapshot(student_id: str, task: S.TaskSnapshot) -> None:
+    """question_registered：出题/迁移时的任务注册（幂等）。"""
+    journal = get_journal(student_id)
+    existing = journal.state().tasks.get(task.question_id, {}).get(
+        task.question_revision)
+    if existing is None:
+        journal.register_question(task)
+
+
+def task_snapshot_from_legacy(question: Any, *,
+                              workspace_id: str = "",
+                              concept_refs: list[S.ConceptRef] | None = None,
+                              ) -> S.TaskSnapshot:
+    """旧出题器 Question → TaskSnapshot（量规冻结语义保持：作答前生成）。"""
+    from .question import Question
+    assert isinstance(question, Question)
+    q_type = (S.QuestionType.MULTIPLE_CHOICE if question.is_multiple_choice
+              else S.QuestionType(question.q_type
+                                  if question.q_type in ("fill_blank",
+                                                         "short_answer")
+                                  else "short_answer"))
+    rubric: list[S.FrozenCriterion] = []
+    legacy_rubric = question.rubric if isinstance(question.rubric, dict) \
+        else {}
+    for c in (legacy_rubric.get("criteria") or []):
+        rubric.append(S.FrozenCriterion(
+            id=str(c.get("id") or f"c{len(rubric) + 1}"),
+            description=str(c.get("description") or "")[:600] or "判分点",
+            weight=float(c.get("weight") or 1.0),
+            critical=bool(c.get("critical"))))
+    if not rubric:
+        # 无生成期量规：单 criterion「最终答案正确」；开放题解释由 P3
+        # 语义层给出，不伪造冻结量规语义（frozen_at 空 = 未冻结）。
+        rubric = [S.FrozenCriterion(id="c1", description="最终答案正确",
+                                    weight=1.0, critical=True)]
+    verification = question.verification if isinstance(
+        question.verification, dict) else {}
+    status = "passed" if verification.get("answer_verified") else "unreviewed"
+    question_id = str(question.id or "") or ("q_" + uuid.uuid4().hex[:10])
+    return S.TaskSnapshot(
+        question_id=question_id, question_revision=1, q_type=q_type,
+        stem=question.stem, options=dict(question.options or {}),
+        answer=question.answer or "", explanation=question.explanation or "",
+        equivalent_solutions=[str(e) for e in
+                              (legacy_rubric.get("equivalent_solutions")
+                               or [])][:8],
+        rubric=rubric,
+        verification=S.TaskVerification(status=status),
+        concept_refs=concept_refs or [],
+        task_family="",
+        grounding_refs=[str(r.get("id") or r) for r in
+                        (question.source_refs or [])
+                        if isinstance(r, (str, dict))][:16],
+        source_badge=", ".join(question.knowledge_points[:3]),
+        frozen_at="", workspace_id=workspace_id)
+
+
+def task_snapshot_from_quiz_dict(qd: dict, *,
+                                 workspace_id: str = "",
+                                 concept_refs: list[S.ConceptRef] | None = None,
+                                 variant_reference: str = "",
+                                 ) -> S.TaskSnapshot:
+    """quiz_history 题目 dict → TaskSnapshot（聊天题卡注册路径，§11.4）。"""
+    q_type_raw = str(qd.get("type") or "multiple_choice")
+    q_type = S.QuestionType(
+        q_type_raw if q_type_raw in ("multiple_choice", "fill_blank",
+                                     "short_answer") else "multiple_choice")
+    rubric: list[S.FrozenCriterion] = []
+    legacy = qd.get("rubric") if isinstance(qd.get("rubric"), dict) else {}
+    for c in (legacy.get("criteria") or []):
+        try:
+            rubric.append(S.FrozenCriterion(
+                id=str(c.get("id") or f"c{len(rubric) + 1}"),
+                description=str(c.get("description") or "")[:600] or "判分点",
+                weight=float(c.get("weight") or 1.0),
+                critical=bool(c.get("critical"))))
+        except Exception:
+            continue
+        if len(rubric) >= 12:
+            break
+    if not rubric:
+        rubric = [S.FrozenCriterion(id="c1", description="最终答案正确",
+                                    weight=1.0, critical=True)]
+    verification = qd.get("verification") if isinstance(
+        qd.get("verification"), dict) else {}
+    verified = bool(verification.get("answer_verified"))
+    refs = qd.get("source_refs")
+    grounding = [str(r.get("id") or r.get("file_id") or "") for r in refs
+                 if isinstance(r, dict)][:16] if isinstance(refs, list) else []
+    question_id = str(qd.get("id") or ("q_" + uuid.uuid4().hex[:10]))
+    return S.TaskSnapshot(
+        question_id=question_id, question_revision=1, q_type=q_type,
+        stem=str(qd.get("stem") or "")[:4000],
+        options={str(k): str(v) for k, v in
+                 (qd.get("options") or {}).items()},
+        answer=str(qd.get("answer") or ""),
+        explanation=str(qd.get("explanation") or ""),
+        equivalent_solutions=[str(e) for e in
+                              (legacy.get("equivalent_solutions") or [])][:8],
+        rubric=rubric,
+        verification=S.TaskVerification(
+            status="passed" if verified else "unreviewed"),
+        concept_refs=concept_refs or [],
+        task_family=variant_reference or str(qd.get("topic") or ""),
+        grounding_refs=grounding,
+        source_badge=str(qd.get("knowledge_point") or "")[:192],
+        frozen_at="", workspace_id=workspace_id)
+
+
+# ---------------------------------------------------------------------------
+# 唯一受理入口
+# ---------------------------------------------------------------------------
+
+async def evaluate_submission(
+        *,
+        student_id: str,
+        question_ref: S.QuestionRef,
+        student_answer: str,
+        source_surface: str = "assessment_center",
+        idempotency_key: str = "",
+        expected_scope_revision: str | None = None,
+        assessment_id: str | None = None,
+        reply_message_ref: str | None = None,
+        source_session_ref: str = "",
+        workspace_id: str = "",
+        scope_revision: str = "",
+        run_inline: bool = False,
+        runner: EvaluationLLMRunner | None = None,
+) -> SubmissionReceipt:
+    """受理一份作答（§11.4 契约）。
+
+    - 完整答案指纹判重（A05）：同题同答案重放同 attempt；同题不同答案
+      409（需新 instance）。
+    - MC：TaskResult 确定性判定并随受理事务落盘（§6.4）。
+    - run_inline：测试/同步路径直接跑完语义 job（生产走队列）。
     """
+    task = load_task_snapshot(student_id, question_ref)
+    raw = S.canonicalize_text(student_answer)
+    if len(raw.encode("utf-8")) > S.MAX_ANSWER_BYTES:
+        raise AnswerTooLarge("作答超过 32KiB 上限，请缩小范围后提交")
+    fingerprint = answer_fingerprint(raw)
+    journal = get_journal(student_id)
+    state = journal.state()
 
-    async def create_check(self, goal: AssessmentGoal, ctx: AssessmentContext,
-                           *, llm: AsyncLLMClient) -> Question | None:
-        """Generate a single targeted check question (Phase 2)."""
-        if not is_enabled():
-            return None
+    prior_source = _find_prior_attempt(state, question_ref, fingerprint)
+    if prior_source is not None:
+        src = state.sources[prior_source]
+        interp_id = src.current_interpretation_id
+        task_result = _committed_task_result(state, prior_source)
+        return SubmissionReceipt(
+            attempt_id=src.receipt.attempt_id,
+            source_id=prior_source,
+            job_id=_job_for_source(state, prior_source),
+            question_id=question_ref.question_id,
+            question_revision=question_ref.question_revision,
+            task_result=task_result,
+            evaluation_status=("ready" if interp_id else "pending"),
+            interpretation_id=interp_id, duplicate=True)
+
+    if _find_prior_attempt(state, question_ref, None) is not None:
+        raise QuestionAlreadyAnswered(
+            f"题目 {question_ref.question_id}@"
+            f"{question_ref.question_revision} 已有正式提交；"
+            "再练一次请新建练习实例（practice）")
+
+    # 帮助事件（hint/reveal 答前记录，§7.3）
+    assistance = list(state.assistance_by_question.get(
+        (question_ref.question_id, question_ref.question_revision), []))
+    assistance_floor = _assistance_floor(assistance)
+
+    attempt_id = new_attempt_id()
+    source_id = new_source_id()
+    receipt = S.SourceReceipt(
+        source_id=source_id, source_revision=1,
+        kind=S.SourceKind.ASSESSMENT,
+        observed_at=S.utc_now_iso(),
+        workspace_id_at_observation=workspace_id,
+        canonical_text=raw,
+        assistance_events=assistance,
+        task_ref=question_ref, attempt_id=attempt_id,
+        assessment_id=assessment_id or "",
+        source_session_ref=source_session_ref,
+        reply_message_ref=reply_message_ref or "",
+        scope_revision=scope_revision or expected_scope_revision or "",
+        assistance_floor=assistance_floor)
+    mc = task.q_type == S.QuestionType.MULTIPLE_CHOICE
+    task_result = grade_mc_task(task, raw) if mc else None
+
+    from app.core import learner_runtime
+    scheduler = learner_runtime.get_scheduler()
+    job = S.EvaluationJob(
+        job_id="job_" + uuid.uuid4().hex[:16],
+        kind=S.JobKind.ASSESSMENT_EVALUATION,
+        source_id=source_id, source_revision=1,
+        workspace_id=workspace_id, scope_revision=receipt.scope_revision,
+        priority=S.JobPriority.AWAITING_FEEDBACK.value,
+        created_at=S.utc_now_iso(), updated_at=S.utc_now_iso())
+    ops: list[Any] = [S.OpSourceRegistered(source=receipt),
+                      S.OpJobRequested(job=job)]
+    if task_result is not None:
+        ops.append(S.OpResultCommitted(
+            job_id=job.job_id, source_id=source_id, source_revision=1,
+            scope_revision=receipt.scope_revision or "no_scope",
+            task_result=task_result))
+    journal.append(ops)     # 受理 + job（+MC 判分）同一事务，fsync 后确认
+
+    receipt_out = SubmissionReceipt(
+        attempt_id=attempt_id, source_id=source_id, job_id=job.job_id,
+        question_id=question_ref.question_id,
+        question_revision=question_ref.question_revision,
+        task_result=task_result,
+        evaluation_status=("unavailable" if not workspace_id else "pending"),
+        evaluation_reason="" if workspace_id else "workspace_required")
+    if run_inline:
+        claimed = scheduler.claim_next(student_id, workspace_id=workspace_id)
+        if claimed is not None and claimed.job.job_id == job.job_id:
+            await run_assessment_job(student_id, claimed,
+                                     runner=runner or _default_runner())
+            src = journal.state().sources.get(source_id)
+            if src is not None:
+                receipt_out.interpretation_id = src.current_interpretation_id
+                # 开放题判分随语义提交产生；回填已落盘的 TaskResult
+                committed = _committed_task_result(journal.state(), source_id)
+                if committed is not None:
+                    receipt_out.task_result = committed
+                # 无 workspace：task-only 反馈可提交，但评价状态保持
+                # unavailable(workspace_required)（§11.4）
+                if src.current_interpretation_id and workspace_id:
+                    receipt_out.evaluation_status = "ready"
+    return receipt_out
+
+
+def _default_runner() -> EvaluationLLMRunner:
+    from app.core import learner_runtime
+    return learner_runtime.get_evaluation_runner()
+
+
+def _find_prior_attempt(state: JournalState, qref: S.QuestionRef,
+                        fingerprint: str | None) -> str | None:
+    for sid, src in state.sources.items():
+        ref = src.receipt.task_ref
+        if ref is None:
+            continue
+        if ref.question_id != qref.question_id:
+            continue
+        if ref.question_revision != qref.question_revision:
+            continue
+        if fingerprint is None:
+            return sid                       # 任一已有提交（冲突探测）
+        if answer_fingerprint(src.receipt.canonical_text) == fingerprint:
+            return sid                       # 完整答案重放
+    return None
+
+
+def _committed_task_result(state: JournalState, source_id: str
+                           ) -> S.TaskResult | None:
+    src = state.sources.get(source_id)
+    if src is None:
+        return None
+    for iid in sorted(src.interpretations, reverse=True):
+        tr = src.interpretations[iid].get("task_result")
+        if isinstance(tr, dict) and tr:
+            return S.TaskResult.model_validate(tr)
+    return None
+
+
+def _job_for_source(state: JournalState, source_id: str) -> str:
+    for jid, rt in state.jobs.items():
+        if rt.job.source_id == source_id:
+            return jid
+    return ""
+
+
+def _assistance_floor(events: list[S.AssistanceEvent]
+                      ) -> S.AssistanceLevel:
+    kinds = {e.kind for e in events}
+    if S.AssistanceEventKind.ANSWER_REVEALED in kinds or \
+            S.AssistanceEventKind.WORKED_EXAMPLE in kinds:
+        return S.AssistanceLevel.FULL_DEMO
+    if S.AssistanceEventKind.HINT_REQUESTED in kinds:
+        return S.AssistanceLevel.KEY_HINTS
+    return S.AssistanceLevel.INDEPENDENT
+
+
+# ---------------------------------------------------------------------------
+# C4 语义 job：pack → P3 → validator → commit
+# ---------------------------------------------------------------------------
+
+def _scenarios_for(task: S.TaskSnapshot, source: S.SourceReceipt,
+                   state: JournalState) -> list[str]:
+    """§9.5 情景组合：题型→帮助→变化→特殊机会（顺序固定）。"""
+    from app.prompts.learner_evaluation import P3_SCENARIOS
+    out: list[str] = []
+    mc = task.q_type == S.QuestionType.MULTIPLE_CHOICE
+    out.append(P3_SCENARIOS["choice_only" if mc else "open_process"])
+    if source.assistance_floor in (S.AssistanceLevel.FULL_DEMO,
+                                   S.AssistanceLevel.KEY_HINTS):
+        out.append(P3_SCENARIOS["assisted_or_revealed"])
+    if task.origin_question_ref is not None:
+        out.append(P3_SCENARIOS["repeated_practice"])
+    if task.novelty and "same_form" not in task.novelty:
+        out.append(P3_SCENARIOS["transfer_candidate"])
+    if source.provenance == S.SourceProvenance.MIGRATION:
+        out.append(P3_SCENARIOS["historical_backfill"])
+    return out
+
+
+async def run_assessment_job(student_id: str, claimed: ClaimedJob, *,
+                             runner: EvaluationLLMRunner,
+                             scheduler=None) -> str:
+    """执行一个 assessment_evaluation job；返回终态。"""
+    from app.core import learner_runtime
+    scheduler = scheduler or learner_runtime.get_scheduler()
+    service = LearnerEvaluationService(scheduler)
+    journal = get_journal(student_id)
+    state = journal.state()
+    job = claimed.job
+    src = state.sources.get(job.source_id)
+    if src is None or src.receipt.source_revision != job.source_revision:
+        scheduler.cancel(student_id, job.job_id, reason="source_gone")
+        return "cancelled"
+    receipt = src.receipt
+    task: S.TaskSnapshot | None = None
+    if receipt.task_ref is not None:
+        revs = state.tasks.get(receipt.task_ref.question_id, {})
+        task = revs.get(receipt.task_ref.question_revision)
+
+    scope = None
+    if receipt.workspace_id_at_observation:
         try:
-            from .generator import generate_question
-            return await generate_question(goal, ctx, llm=llm)
+            from app.agents.student_model.evaluation.scope import (
+                get_scope_resolver)
+            scope = get_scope_resolver().resolve(
+                student_id, receipt.workspace_id_at_observation)
         except Exception:
-            return None
+            scope = None
 
-    async def evaluate_and_record(self, question: Question,
-                                  student_answer: str,
-                                  ctx: AssessmentContext,
-                                  *, llm: AsyncLLMClient | None = None,
-                                  raw_grade: str | None = None,
-                                  student_id: str = "",
-                                  session_id: str = "",
-                                  is_variant: bool = False,
-                                  question_verified: bool | None = None,
-                                  attempt_id: str = "",
-                                  assistance: str = "") -> AssessmentResult:
-        """The single closed-loop point: grade, classify, write back.
+    mc_result = _committed_task_result(state, job.source_id)
+    scenarios = _scenarios_for(task, receipt, state) if task else []
+    binding = ("learning_evidence_contract@1.0.0+"
+               "assessment_learner_evaluation@1.0.0")
+    pack = pack_builder.assemble_assessment_pack(
+        source=receipt, task=task, scope=scope, state=state,
+        task_result=mc_result, scenarios=scenarios,
+        prompt_binding=binding,
+        hint_concepts=[p.strip() for p in task.source_badge.split(",")]
+        if task else [])
+    pack.job_id = job.job_id
+    service.record_job_input(
+        student_id, job.job_id, input_hash=pack.manifest.input_hash,
+        prompt_binding=binding, generation=state.generation)
 
-        ``is_variant`` marks same-family variant tasks (fit_quiz): their
-        evidence enters the gate at VARIANT_TASK level instead of masquerading
-        as an independent observation (updatePlan.md A05 minimal wiring).
-        ``question_verified`` (W2/A05) tells the gate whether the question's
-        content was independently re-solved — missing caps the confidence at
-        0.70 instead of defaulting to trusted. ``attempt_id`` makes the M2
-        write idempotent for the same submission.
+    system = build_system_message(
+        "assessment_learner_evaluation", scenarios=scenarios,
+        output_model=S.AssessmentInterpretationOutput)
+    out = await runner.run_structured(
+        system=system, user=pack_builder.pack_user_message(pack),
+        output_model=S.AssessmentInterpretationOutput,
+        max_output_tokens=4000)
+    if out.parsed is None:
+        scheduler.fail(student_id, job.job_id,
+                       error_code=out.error_code or "llm_failed",
+                       retryable=out.retryable_error,
+                       transport_attempts=out.transport_attempts)
+        return "failed"
+    parsed: S.AssessmentInterpretationOutput = out.parsed
 
-        W3/D06 (STRUCTURED_ASSESSMENT_MODE): open answers with a frozen
-        rubric go through the structured analyzer in shadow/active. active =
-        the analysis IS the authoritative grade (score computed locally from
-        the rubric weights); shadow = legacy grade stands, the analysis is
-        stored as an auditable comparison; off = legacy path unchanged. MC
-        stays deterministic in every mode; analyzer failure/abstain falls
-        back to the legacy grade (关闭新模型仍能帮助，不污染状态)."""
-        try:
-            from ...core.config import settings
-            grading_confidence = 0.0
-            grading_source = "assessment_unknown"
-            structured_mode = settings.structured_assessment_mode
-            # Branch on the declared type, not on options presence: letter
-            # grading is deterministic and does not need the option bodies,
-            # and /quiz/record callers may not carry them (a missing-options
-            # MC question must not silently degrade to verdict="unknown").
-            if question.q_type == QuestionType.MULTIPLE_CHOICE:
-                result = evaluate_mc(question, student_answer)
-                grading_confidence = 1.0
-                grading_source = "assessment_multiple_choice"
-            elif raw_grade is not None:
-                result = parse_grade(raw_grade, question=question,
-                                     concept=ctx.concept, subject=ctx.subject,
-                                     ctx=ctx)
-                grading_confidence = 0.85
-                grading_source = "assessment_structured_grade"
-            elif llm is not None:
-                analysis = None
-                if structured_mode in ("shadow", "active") and question.rubric.get("criteria"):
-                    from .structured_evaluator import analyze_answer
-                    analysis = await analyze_answer(question, student_answer,
-                                                    ctx, llm=llm)
-                if structured_mode == "active" and analysis is not None:
-                    result = analysis.to_result(question, ctx)
-                    grading_confidence = 0.75
-                    grading_source = "assessment_structured_v2"
-                else:
-                    result = await self._grade_open_llm(question, student_answer, ctx, llm)
-                    grading_confidence = 0.75
-                    grading_source = "assessment_llm_grade"
-                    if analysis is not None:
-                        result.structured_shadow = analysis.to_dict()
-            else:
-                return AssessmentResult(question_id=question.id, concept=question.concept)
-            if not result.skill_id and ctx.skill_id:
-                result.skill_id = ctx.skill_id
-            # M5.8: anchor the concept to a knowledge-graph node id, so the
-            # result names the exact node the Student Model will credit. The
-            # SkillGraph is the BKT keyspace and already mirrors the M5
-            # ontology (strict bar: exact/alias/substring only, so an
-            # off-syllabus concept is not mis-attributed).
-            if not result.skill_id:
-                try:
-                    from ..student_model import (get_student_model,
-                                                 is_enabled as _sm_on)
-                    from ..student_model.store import DEFAULT_STUDENT_ID
-                    if _sm_on():
-                        sg = get_student_model(
-                            student_id or DEFAULT_STUDENT_ID).load().graph
-                        node = sg.match_concept(
-                            result.concept or question.concept or ctx.concept,
-                            threshold=0.6)
-                        if node is not None:
-                            result.skill_id = node.id
-                except Exception:
-                    pass
-            if not result.concept:
-                result.concept = ctx.concept or question.concept
-        except Exception:
-            return AssessmentResult(question_id=question.id,
-                                     concept=question.concept or ctx.concept)
-        self._record(
-            result, student_id=student_id, student_answer=student_answer,
-            grading_confidence=grading_confidence, grading_source=grading_source,
-            is_variant=is_variant, question_verified=question_verified,
-            attempt_id=attempt_id, assistance=assistance,
-            session_id=session_id,
-        )
-        return result
+    task_result = mc_result
+    if task is not None and task.q_type != S.QuestionType.MULTIPLE_CHOICE:
+        task_result = compute_task_result(task, parsed.criterion_results,
+                                          receipt.canonical_text)
 
-    async def _grade_open_llm(self, question: Question, student_answer: str,
-                              ctx: AssessmentContext,
-                              llm: AsyncLLMClient) -> AssessmentResult:
-        """Grade an open answer by calling the LLM (non-streaming)."""
-        prompt = grade_open_prompt(
-            stem=question.stem, q_type=question.q_type,
-            correct_answer=question.answer, explanation=question.explanation,
-            student_answer=student_answer, grade=ctx.grade,
-        )
-        content, _ = await llm.complete(
-            [{"role": "user", "content": prompt}], temperature=0.1, max_tokens=400,
-            disable_thinking=True,
-        )
-        return parse_grade(content, question=question, concept=ctx.concept,
-                           subject=ctx.subject, ctx=ctx)
-
-    def _record(self, result: AssessmentResult, *, student_id: str = "",
-                student_answer: str = "", grading_confidence: float = 0.0,
-                grading_source: str = "assessment",
-                is_variant: bool = False,
-                question_verified: bool | None = None,
-                attempt_id: str = "", assistance: str = "",
-                session_id: str = "") -> None:
-        """Write the result to the Student Model via its public facade.
-
-        Lazy import keeps the module-scope import graph clean. Never raises.
-
-        W2/A04/A05: the write carries the three-level verdict (partial is NOT
-        a binary wrong at the M2 event processor), the gate-capped
-        max_confidence, and the attempt id (same submission -> single M2
-        influence). The binary ``correct`` view stays for legacy consumers.
-
-        W3/F02: ``assistance`` (server-recorded hint request) caps the grading
-        confidence at 0.70 — helped performance must not masquerade as
-        independent mastery — and rides the event payload for the v2
-        projection's independence tally.
-
-        W4/A08: ``session_id`` rides the event as an additive key so replay
-        consumers (M9/M7 projections) can attribute evidence to its source
-        conversation; the legacy processor ignores it.
-        """
-        if not is_enabled():
-            return
-        try:
-            from ..skill_runtime import (assessment_evidence,
-                                         evaluate_learning_evidence)
-            if assistance:
-                grading_confidence = min(grading_confidence, 0.70)
-            evidence = assessment_evidence(
-                learning_skill_id=result.skill_id or result.concept or "",
-                verdict=result.verdict, student_answer=student_answer,
-                question_id=result.question_id, source=grading_source,
-                grading_confidence=grading_confidence,
-                is_variant=is_variant,
-                question_verified=question_verified,
-            )
-            gate = evaluate_learning_evidence(evidence)
-            result.evidence_level = evidence.level.name
-            result.evidence_gate = gate.to_dict()
-            if not gate.allow_mastery_update:
-                return
-            from ..student_model import record_quiz_result
-            # W3/D06: the structured detail (criterion results / observed
-            # dimensions / rubric id) rides the event as additive keys so the
-            # v2 capability projection can aggregate it; legacy BKT ignores.
-            structured_payload = None
-            if result.structured or assistance:
-                structured_payload = {}
-                for k in ("criterion_results", "observed_capabilities",
-                          "rubric_id"):
-                    if result.structured.get(k) is not None:
-                        structured_payload[k] = result.structured.get(k)
-                if assistance:
-                    structured_payload["assistance"] = assistance
-                structured_payload = structured_payload or None
-            record_quiz_result(
-                concept=result.concept or "",
-                correct=result.correct,
-                skill_id=result.skill_id,
-                knowledge_point=result.concept or "",
-                subject="",
-                note=(result.diagnosis_note if not result.correct else ""),
-                student_id=student_id,
-                session_id=session_id,
-                verdict=result.verdict,
-                confidence=gate.max_confidence,
-                attempt_id=attempt_id,
-                structured=structured_payload,
-            )
-        except Exception:
-            pass
-
-    # --- Phase 3: Computerized Adaptive Test -----------------------------
-
-    def get_session(self, student_id: str) -> AssessmentSession | None:
-        """Load the student's CAT session in ANY status (active or terminal).
-
-        W2/A03: finished/abandoned sessions stay on disk for report/audit;
-        this is the read side. Mutation entry points must use
-        get_active_session so a terminal session can never be appended to."""
-        data = session_store.load_session(student_id)
-        if not data:
-            return None
-        return _session_from_dict(data)
-
-    def get_active_session(self, student_id: str) -> AssessmentSession | None:
-        """Load the student's ACTIVE CAT session, or None (no session, or a
-        finished/abandoned one — those are read via get_session/cat_report)."""
-        session = self.get_session(student_id)
-        if session is None or session.status != "active":
-            return None
-        return session
-
-    async def start_adaptive_test(self, goal: AssessmentGoal, ctx: AssessmentContext,
-                                  *, llm: AsyncLLMClient,
-                                  student_id: str = "") -> tuple[AssessmentSession, Question | None]:
-        """Begin a CAT: seed difficulty, generate the first question, persist.
-
-        Returns (session, first_question). first_question is None if generation
-        failed. The seed difficulty comes from ctx.base_difficulty (filled by
-        the caller from teaching_engine.seed_from_mastery)."""
-        async with _lifecycle_lock(student_id):
-            diff = max(1, min(5, int(goal.difficulty or ctx.base_difficulty or 2)))
-            session = AssessmentSession(
-                assessment_id=new_assessment_id(),
-                student_id=student_id, goal=goal, ctx=ctx,
-                current_difficulty=diff, status="active")
-            ctx.base_difficulty = diff
-            q = await self._gen_for_session(session, llm)
-            if q is not None:
-                session.questions.append(q)
-                try:
-                    from ...core.learning_records import record_question
-                    record_question(student_id, f"assessment:{student_id}", q.to_dict(),
-                                    topic=goal.concept, subject=ctx.subject,
-                                    grade=ctx.grade, source_kind="assessment")
-                except Exception:
-                    pass
-            session_store.save_session(student_id, session.to_dict())
-            return session, q
-
-    async def next_question(self, student_id: str, *,
-                            llm: AsyncLLMClient) -> tuple[AssessmentSession | None, Question | None, str]:
-        """Advance a CAT after the current answer was graded. Returns
-        (session, next_question_or_None, stop_reason). stop_reason is "" when a
-        next question was produced; otherwise the session is finalized and the
-        caller should render summary().
-
-        W2/A03 guards, all inside the per-student lifecycle lock so two tabs
-        serialize:
-        - terminal session -> its persisted stop state, never a new question;
-        - current question unanswered -> re-issue THAT question (idempotent
-          retry), never stack a second one on top of an ungraded question."""
-        async with _lifecycle_lock(student_id):
-            session = self.get_session(student_id)
-            if session is None:
-                return None, None, "no_active_session"
-            if session.status != "active":
-                return session, None, session.stop_reason
-            if len(session.results) < len(session.questions):
-                return session, session.questions[-1], ""
-            # Belt-and-suspenders for legacy sessions whose stop was never
-            # persisted (pre-W2 answer path skipped persistence): finalize here.
-            reason = should_stop(session)
-            if reason:
-                session.status = ("mastered" if reason == "mastered" else "stopped")
-                session.stop_reason = reason
-                session_store.save_session(student_id, session.to_dict())
-                return session, None, reason
-            session.current_difficulty = next_difficulty(session)
-            q = await self._gen_for_session(session, llm)
-            # W3/D10: a probe decision (active mode) targeted this generation;
-            # consume the directive whether or not generation succeeded so a
-            # retry regenerates from the default goal.
-            session.probe_assesses = []
-            if q is not None:
-                session.questions.append(q)
-                try:
-                    from ...core.learning_records import record_question
-                    record_question(student_id, f"assessment:{student_id}", q.to_dict(),
-                                    topic=session.goal.concept,
-                                    subject=session.ctx.subject,
-                                    grade=session.ctx.grade, source_kind="assessment")
-                except Exception:
-                    pass
-            # q is None on generation failure: session state is unchanged, the
-            # caller gets a retryable error -- recovery stays possible.
-            session_store.save_session(student_id, session.to_dict())
-            return session, q, ""
-
-    async def record_cat_answer(self, student_id: str, *,
-                                answer: str, raw_grade: str | None = None,
-                                llm: AsyncLLMClient | None = None) -> AssessmentResult | None:
-        """Grade the current (last) question of an active CAT and append the
-        result. Uses evaluate_and_record so the mastery loop stays single.
-
-        W2/A03: the whole load->grade->save cycle runs under the per-student
-        lifecycle lock (two tabs serialize instead of double-appending), and a
-        stop condition triggered by this answer is persisted in the SAME save —
-        the terminal state survives refresh/restart instead of living only in
-        a response. Re-submitting the same answer replays the recorded verdict;
-        a terminal session replays its last result with zero writes."""
-        async with _lifecycle_lock(student_id):
-            session = self.get_session(student_id)
-            if session is None or not session.questions:
-                return None
-            q = session.questions[-1]
-            if session.status != "active":
-                # Terminal: idempotent replay of the same submission so a
-                # refreshed tab still sees its graded answer; a different
-                # answer has no active question to grade. Zero writes either way.
-                prior = session.results[-1] if session.results else None
-                if (prior is not None
-                        and prior.student_answer[:200] == (answer or "")[:200]):
-                    return prior
-                return None
-            if len(session.results) >= len(session.questions):
-                prior = session.results[-1] if session.results else None
-                # persisted answers are capped at 200 chars (same cap as the
-                # chat writeback), so compare under the same truncation.
-                if (prior is not None
-                        and prior.student_answer[:200] == (answer or "")[:200]):
-                    return prior  # same submission replay, not a second grading
-                return None  # current question already graded (different answer)
-            attempt_id = "att_" + uuid.uuid4().hex[:16]
-            result = await self.evaluate_and_record(
-                q, answer, session.ctx, llm=llm, raw_grade=raw_grade,
-                student_id=student_id,
-                session_id=f"assessment:{student_id}",
-                question_verified=content_verified(q.verification),
-                attempt_id=attempt_id)
-            result.student_answer = answer
-            session.results.append(result)
-            try:
-                from ...core.learning_records import record_verdict
-                record_verdict(student_id, f"assessment:{student_id}", stem=q.stem,
-                               verdict=result.verdict, student_answer=answer,
-                               score=result.score,
-                               concept=result.concept or q.concept or session.ctx.concept,
-                               subject=session.ctx.subject,
-                               source_kind="assessment",
-                               attempt_id=attempt_id,
-                               assessment_id=session.assessment_id,
-                               criterion_results=(result.structured or {}).get(
-                                   "criterion_results"),
-                               hypotheses=(result.structured or {}).get("hypotheses"))
-            except Exception:
-                pass
-            # W4/A08: a CAT answer is committed recall evidence too — feed M9
-            # (SRS quality + task attribution) exactly like /quiz does, keyed
-            # by the same attempt_id (idempotent). Fail-open.
-            try:
-                from ..learning_orchestration import (
-                    get_orchestration_service,
-                    is_enabled as orch_enabled)
-                if orch_enabled() and result.verdict != "unknown":
-                    get_orchestration_service().record_quiz_evidence(
-                        student_id=student_id,
-                        concept=result.concept or q.concept
-                        or session.ctx.concept,
-                        verdict=result.verdict, attempt_id=attempt_id,
-                        session_id=f"assessment:{student_id}",
-                        subject=session.ctx.subject)
-            except Exception:
-                pass
-            # W3/D10: hard caps (should_stop, unchanged pure rules) always win;
-            # only when they allow continuing may the structured analysis's
-            # suggestion apply (active) or be recorded for comparison (shadow).
-            reason = should_stop(session)
-            try:
-                from ...core.config import settings
-                mode = settings.structured_assessment_mode
-            except Exception:
-                mode = "off"
-            decision = None
-            if mode in ("shadow", "active") and result.structured:
-                from .continuation_policy import decide_continuation
-                decision = decide_continuation(
-                    session, result.structured, hard_stop=reason)
-            if mode == "shadow" and decision is not None:
-                session.continuation_shadow = decision.to_dict()
-            elif (mode == "active" and decision is not None and not reason):
-                if decision.stop_reason:
-                    reason = decision.stop_reason
-                elif decision.probe_assesses:
-                    session.probe_assesses = list(decision.probe_assesses)
-            if reason:
-                session.status = ("mastered" if reason == "mastered" else "stopped")
-                session.stop_reason = reason
-            session_store.save_session(student_id, session.to_dict())
-            return result
-
-    def cat_report(self, student_id: str) -> dict[str, Any] | None:
-        """Compact summary of the active/finished CAT for rendering."""
-        session = self.get_session(student_id)
-        if session is None:
-            return None
-        return cat_summary(session)
-
-    def abandon_session(self, student_id: str) -> None:
-        """End a CAT without a verdict (user navigated away).
-
-        W2/A03: mark abandoned in place instead of deleting the file, so the
-        report/audit can still read how far the student got. A later start
-        replaces the slot as before."""
-        from ...core.atomic import file_lock
-        with file_lock(session_store.session_path(student_id)):
-            data = session_store.load_session(student_id)
-            if not data or data.get("status") == "abandoned":
-                return
-            data["status"] = "abandoned"
-            session_store.save_session(student_id, data)
-
-    async def _gen_for_session(self, session: AssessmentSession,
-                               llm: AsyncLLMClient) -> Question | None:
-        """Generate one question at the session's current difficulty.
-
-        W3/D10: pending probe_assesses (an active-mode probe decision) are
-        injected as THIS question's targeted sub-abilities; the caller clears
-        the directive after the attempt."""
-        from .generator import generate_question
-        assesses = list(session.goal.assesses)
-        for probe in (session.probe_assesses or []):
-            if probe and probe not in assesses:
-                assesses.append(probe)
-        goal = AssessmentGoal(
-            concept=session.goal.concept or session.ctx.concept,
-            purpose="adaptive", difficulty=session.current_difficulty,
-            count=session.goal.count, q_type=session.goal.q_type,
-            assesses=assesses,
-            forbidden=list(session.goal.forbidden),
-            bloom_focus=session.goal.bloom_focus)
-        session.ctx.base_difficulty = session.current_difficulty
-        return await generate_question(goal, session.ctx, llm=llm,
-                                       student_id=session.student_id)
-
-
-def _session_from_dict(data: dict[str, Any]) -> AssessmentSession:
-    """Rebuild an AssessmentSession from its persisted dict. Defensive."""
+    base_claims = _active_claims_for(state, scope, pack)
     try:
-        g = data.get("goal")
-        return AssessmentSession(
-            session_id=str(data.get("session_id", "") or ""),
-            assessment_id=str(data.get("assessment_id", "") or ""),
-            student_id=str(data.get("student_id", "") or ""),
-            goal=AssessmentGoal(**g) if isinstance(g, dict) else AssessmentGoal(),
-            ctx=AssessmentContext.from_dict(data.get("ctx") or {}),
-            questions=[Question.from_quiz_dict(q) for q in (data.get("questions") or [])
-                       if isinstance(q, dict)],
-            results=[AssessmentResult.from_dict(r) for r in (data.get("results") or [])
-                     if isinstance(r, dict)],
-            current_difficulty=int(data.get("current_difficulty", 2)),
-            status=str(data.get("status", "active") or "active"),
-            stop_reason=str(data.get("stop_reason", "") or ""),
-            probe_assesses=[str(p) for p in (data.get("probe_assesses") or [])
-                            if str(p).strip()],
-            continuation_shadow=dict(data.get("continuation_shadow", {}) or {}),
-            created_at=float(data.get("created_at", 0.0)),
-            updated_at=float(data.get("updated_at", 0.0)))
-    except Exception:
-        return AssessmentSession()
+        service.commit_result(
+            student_id, job_id=job.job_id, lease_token=claimed.lease_token,
+            expected_generation=journal.state().generation,
+            source=receipt, pack=pack, task=task,
+            interpretation=parsed.learner,
+            task_result=task_result, continuation=parsed.continuation,
+            expected_scope_revision=job.scope_revision or None,
+            expected_base_judgments=base_claims)
+    except CommitRejected as exc:
+        # 硬校验失败：job failed，不产生新能力结论（§7.1 C6）
+        scheduler.fail(student_id, job.job_id,
+                       error_code="validation_rejected",
+                       retryable=False,
+                       transport_attempts=out.transport_attempts)
+        return "failed"
+    return "succeeded"
 
 
-_INSTANCE: AssessmentManager | None = None
+def _active_claims_for(state: JournalState, scope, pack
+                       ) -> dict[str, list[S.ClaimView]]:
+    """当前有效主张（§8.2 prior_same_concept 的物化来源）。"""
+    if scope is None:
+        return {}
+    out: dict[str, list[S.ClaimView]] = {}
+    for entry in pack.allowlist:
+        jid = state.concept_current.get(
+            (scope.workspace_id, entry.concept.key), "")
+        judgment = state.judgments.get(jid) if jid else None
+        if judgment is not None:
+            out[entry.concept.key] = list(judgment.claims)
+    return out
 
 
-def get_assessment_manager() -> AssessmentManager:
-    global _INSTANCE
-    if _INSTANCE is None:
-        _INSTANCE = AssessmentManager()
-    return _INSTANCE
+# ---------------------------------------------------------------------------
+# 帮助事件（§7.3：服务端记录，不采信客户端自报时间）
+# ---------------------------------------------------------------------------
+
+def record_assistance(student_id: str, qref: S.QuestionRef, *,
+                      kind: S.AssistanceEventKind, detail: str = "",
+                      client_entry: str = "") -> None:
+    journal = get_journal(student_id)
+    journal.append([S.OpAssistanceRecorded(
+        question_ref=qref,
+        assistance=S.AssistanceEvent(kind=kind, at=S.utc_now_iso(),
+                                     detail=detail[:600],
+                                     client_entry=client_entry[:64]))])
 
 
-async def evaluate_and_record(question: Question, student_answer: str,
-                              ctx: AssessmentContext, *,
-                              llm: AsyncLLMClient | None = None,
-                              raw_grade: str | None = None,
-                              student_id: str = "",
-                              session_id: str = "") -> AssessmentResult:
-    """Top-level convenience: grade one answer and close the mastery loop."""
-    return await get_assessment_manager().evaluate_and_record(
-        question, student_answer, ctx, llm=llm, raw_grade=raw_grade,
-        student_id=student_id, session_id=session_id)
+def assistance_events(student_id: str, qref: S.QuestionRef
+                      ) -> list[S.AssistanceEvent]:
+    return list(get_journal(student_id).state().assistance_by_question.get(
+        (qref.question_id, qref.question_revision), []))

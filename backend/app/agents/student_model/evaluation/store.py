@@ -150,6 +150,10 @@ class JournalState:
     workspace_scopes: dict[str, str] = field(default_factory=dict)
     # workspace_id -> 最新 scope_revision（scope_changed）
     assessments: dict[str, dict[str, Any]] = field(default_factory=dict)
+    # (question_id, question_revision) -> 答前帮助事件（assistance_recorded）
+    assistance_by_question: dict[tuple[str, int],
+                                 list[S.AssistanceEvent]] = field(
+        default_factory=dict)
 
     @property
     def watermark(self) -> str:
@@ -268,6 +272,12 @@ def _apply_op(state: JournalState, op: Any) -> None:
         state.outbox_unacked.pop((op.event_id, op.consumer), None)
     elif isinstance(op, S.OpAssessmentSessionChanged):
         state.assessments[op.assessment_id] = op.detail or {}
+    elif isinstance(op, S.OpAssistanceRecorded):
+        if op.question_ref is not None:
+            key = (op.question_ref.question_id,
+                   op.question_ref.question_revision)
+            state.assistance_by_question.setdefault(key, []).append(
+                op.assistance)
     # question_registered/assistance_recorded 在 receipt 字段内聚合；
 # OpSourceRegistered 的 assistance 已在 receipt 内。
 
@@ -282,11 +292,18 @@ def _track_outbox(state: JournalState, item: dict[str, Any]) -> None:
 def _apply_result_committed(state: JournalState,
                             op: S.OpResultCommitted) -> None:
     rt = state.jobs.get(op.job_id)
-    if rt is not None:
+    # 仅判分（interpretation=None 且 abstained=False，MC 受理时先行落盘）
+    # 不终结 job——语义 job 仍待提交（§6.4）。
+    completes = op.interpretation is not None or op.abstained
+    if rt is not None and completes:
         rt.job.state = (S.JobState.ABSTAINED if op.abstained
                         else S.JobState.SUCCEEDED)
         rt.job.error_code = ""
     src = state.sources.get(op.source_id)
+    if src is not None and op.task_result is not None:
+        # 判分记录（MC 受理时先行落盘 / 开放题语义提交时附带）
+        src.interpretations.setdefault("", {})["task_result"] = \
+            op.task_result.model_dump()
     if src is not None:
         if op.interpretation is not None and op.interpretation_id:
             src.interpretations[op.interpretation_id] = {

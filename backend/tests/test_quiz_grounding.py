@@ -21,11 +21,30 @@ from tests.storage_sandbox import StorageSandboxTestCase
 # --- Fake LLM：按 prompt 特征区分蓝图/出题/审题三种子调用 ------------------
 
 _BLUEPRINT_JSON = json.dumps({
-    "blueprint": [
-        {"angle": "概念本质", "bloom": "understand", "q_type": "multiple_choice",
-         "trap": "混淆定理成立条件", "idea": "考查 ZX-17 定理右端常数的记忆与理解"},
-        {"angle": "应用与迁移", "bloom": "apply", "q_type": "fill_blank",
-         "trap": "把右端常数误当系数", "idea": "在新情境中应用 ZX-17 定理"},
+    "items": [
+        {"local_question_id": "q1", "target_concept_refs": ["ZX-17 定理"],
+         "target_claims": ["能说出 ZX-17 定理右端常数并解释其唯一性"],
+         "intended_processes": ["understand"],
+         "knowledge_types": ["factual"], "q_type": "multiple_choice",
+         "difficulty_design": "记忆与理解", "task_family": "zx17-constant",
+         "assistance_plan": "key_hints",
+         "evidence_opportunities": [{"id": "o1",
+                                     "required_product": "写出右端常数",
+                                     "permitted_claim": "能记住常数",
+                                     "limits": "仅本题"}],
+         "rubric_draft": [], "grounding_refs": ["src_1"],
+         "construction_brief": "考查 ZX-17 定理右端常数的记忆与理解"},
+        {"local_question_id": "q2", "target_concept_refs": ["ZX-17 定理"],
+         "target_claims": ["能在新情境中应用 ZX-17 定理"],
+         "intended_processes": ["apply"], "knowledge_types": ["factual"],
+         "q_type": "fill_blank", "difficulty_design": "应用与迁移",
+         "task_family": "zx17-apply", "assistance_plan": "key_hints",
+         "evidence_opportunities": [{"id": "o1",
+                                     "required_product": "填出常数",
+                                     "permitted_claim": "能应用定理",
+                                     "limits": "仅本题"}],
+         "rubric_draft": [], "grounding_refs": ["src_1", "src_2"],
+         "construction_brief": "在新情境中应用 ZX-17 定理"},
     ]
 }, ensure_ascii=False)
 
@@ -57,31 +76,42 @@ _QUESTIONS_JSON = json.dumps({
     ]
 }, ensure_ascii=False)
 
-_CRITIC_OK_JSON = json.dumps({
-    "verdicts": [
-        {"id": 1, "verdict": "correct", "reason": "与拟定答案一致"},
-        {"id": 2, "verdict": "correct", "reason": "与拟定答案一致"},
-    ]
-}, ensure_ascii=False)
+_CRITIC_OK_JSON = json.dumps({"items": [
+    {"question_ref": "1", "answer_check": "valid",
+     "grounding_check": "supported",
+     "actual_required_processes": ["remember"],
+     "knowledge_types": ["factual"], "alignment": "aligned",
+     "opportunity_checks": [], "rubric_issues": [], "brief_basis": "",
+     "grounding_refs": [], "recommended_revision": "",
+     "proposed_status": "passed"},
+    {"question_ref": "2", "answer_check": "valid",
+     "grounding_check": "supported",
+     "actual_required_processes": ["remember"],
+     "knowledge_types": ["factual"], "alignment": "aligned",
+     "opportunity_checks": [], "rubric_issues": [], "brief_basis": "",
+     "grounding_refs": [], "recommended_revision": "",
+     "proposed_status": "passed"},
+]}, ensure_ascii=False)
 
 
 class FakeQuizLLM:
-    """按 prompt 开头特征返回蓝图 / 题目 / 审题 JSON；记录全部 prompt。"""
+    """按消息特征区分蓝图/出题/审题三种子调用；记录全部消息文本。"""
 
     def __init__(self):
         self.prompts: list[str] = []
 
     async def complete(self, messages, temperature=None, max_tokens=None,
                        disable_thinking=False):
-        prompt = str(messages[0]["content"])
-        self.prompts.append(prompt)
-        if "命题设计专家" in prompt:
+        text = "\n".join(str(m.get("content") or "") for m in messages)
+        self.prompts.append(text)
+        if "任务设计者" in text:            # P1 蓝图（system 角色）
             body = _BLUEPRINT_JSON
-        elif "审题员" in prompt:
+        elif "出题审核员" in text:          # P2 审题（system 角色）
             body = _CRITIC_OK_JSON
         else:
             body = _QUESTIONS_JSON
-        return body, {"prompt_tokens": 5, "completion_tokens": 5, "total_tokens": 10}
+        return body, {"prompt_tokens": 5, "completion_tokens": 5,
+                      "total_tokens": 10}
 
 
 def _make_ref(**over: Any) -> Any:
@@ -210,11 +240,11 @@ class TestGenerateQuizGroundingContract(StorageSandboxTestCase):
                                 grounding_provider=_StubProvider(_bundle("found", True)))
         asyncio.run(tool.run(topic="ZX-17 定理", grade="本科",
                              difficulty="easy", count=2))
-        blueprint_prompts = [p for p in llm.prompts if "命题设计专家" in p]
+        blueprint_prompts = [p for p in llm.prompts if "任务设计者" in p]
         self.assertTrue(blueprint_prompts, "必须执行蓝图轮")
         self.assertIn("ZX-17", blueprint_prompts[0])
         self.assertIn("命题依据", blueprint_prompts[0],
-                      "蓝图 prompt 必须包含教材命题依据块")
+                      "蓝图输入必须包含教材命题依据块")
 
     def test_generation_prompt_contains_grounding_block(self):
         llm = FakeQuizLLM()
@@ -302,7 +332,7 @@ class TestFitQuizNoForcedRetrieval(StorageSandboxTestCase):
 class TestGroundedCriticContract(StorageSandboxTestCase):
     """plan §4.6: verify_questions 的 grounding_context + unsupported verdict。"""
 
-    def test_critic_prompt_gains_unsupported_verdict(self):
+    def test_critic_input_carries_grounding(self):
         from app.core.quiz_verify import verify_questions
         llm = FakeQuizLLM()
         questions = [{
@@ -314,8 +344,9 @@ class TestGroundedCriticContract(StorageSandboxTestCase):
             llm, questions, topic="ZX-17", grade="本科", difficulty="easy",
             grounding_context="ZX-17 定理的右端常数为 314159。"))
         self.assertTrue(llm.prompts)
-        critic_prompt = llm.prompts[-1]
-        self.assertIn("unsupported", critic_prompt)
+        critic_input = llm.prompts[-1]
+        self.assertIn("出题审核员", critic_input)     # P2 角色在位
+        self.assertIn("教材证据", critic_input)       # 证据随审核输入
 
     def test_unsupported_verdict_drops_question(self):
         from app.core.quiz_verify import verify_questions
@@ -323,12 +354,20 @@ class TestGroundedCriticContract(StorageSandboxTestCase):
         class _UnsupportedLLM(FakeQuizLLM):
             async def complete(self, messages, temperature=None,
                                max_tokens=None, disable_thinking=False):
-                prompt = str(messages[0]["content"])
-                self.prompts.append(prompt)
-                if "审题员" in prompt:
-                    return json.dumps({"verdicts": [
-                        {"id": 1, "verdict": "unsupported",
-                         "reason": "证据未支持该结论"}]}, ensure_ascii=False), {}
+                text = "\n".join(str(m.get("content") or "")
+                                 for m in messages)
+                self.prompts.append(text)
+                if "出题审核员" in text:
+                    return json.dumps({"items": [{
+                        "question_ref": "1", "answer_check": "indeterminate",
+                        "grounding_check": "unsupported",
+                        "actual_required_processes": [],
+                        "knowledge_types": [], "alignment": "indeterminate",
+                        "opportunity_checks": [], "rubric_issues": [],
+                        "brief_basis": "", "grounding_refs": [],
+                        "recommended_revision": "补教材依据",
+                        "proposed_status": "rejected"}]},
+                        ensure_ascii=False), {}
                 return _CRITIC_OK_JSON, {}
 
         llm = _UnsupportedLLM()
@@ -343,25 +382,31 @@ class TestGroundedCriticContract(StorageSandboxTestCase):
         self.assertTrue(critic_ok)
         self.assertEqual(kept, [])
         self.assertEqual(len(dropped), 1)
-        self.assertEqual(dropped[0]["_verdict"], "unsupported")
+
 
 
 class TestQuizDesignGroundingContext(StorageSandboxTestCase):
     """plan §4.4: design_blueprint 的 additive grounding_context。"""
 
     def test_design_blueprint_accepts_grounding_context(self):
-        from app.core.quiz_design import _build_prompt
-        prompt = _build_prompt(topic="ZX-17", grade="本科", difficulty="easy",
-                               count=2, focus="", avoid_stems=[],
-                               grounding_context="ZX-17 定理的右端常数为 314159。")
-        self.assertIn("命题依据", prompt)
-        self.assertIn("314159", prompt)
-        self.assertIn("material_excerpt", prompt)
-        # 空 grounding_context 时与旧行为等价（无新增块）。
-        legacy = _build_prompt(topic="ZX-17", grade="本科", difficulty="easy",
-                               count=2, focus="", avoid_stems=[],
-                               grounding_context="")
-        self.assertNotIn("命题依据", legacy)
+        from app.core.quiz_design import build_blueprint_messages
+        messages, binding = build_blueprint_messages(
+            topic="ZX-17", grade="本科", difficulty="easy",
+            count=2, focus="", avoid_stems=[],
+            grounding_context="ZX-17 定理的右端常数为 314159。")
+        user = messages[1]["content"]
+        system = messages[0]["content"]
+        self.assertIn("命题依据", user)
+        self.assertIn("314159", user)
+        self.assertIn("material_excerpt", user)
+        self.assertIn("任务设计者", system)
+        self.assertIn("quiz_blueprint", binding)
+        # 空 grounding_context 时无新增块。
+        messages2, _ = build_blueprint_messages(
+            topic="ZX-17", grade="本科", difficulty="easy",
+            count=2, focus="", avoid_stems=[], grounding_context="")
+        self.assertNotIn("命题依据", messages2[1]["content"])
+
 
 
 if __name__ == "__main__":

@@ -37,6 +37,38 @@ from ..core.multimodal_context import with_context_images
 from .router import route, route_full_plan
 from .state import TaskPlan
 
+
+def _register_quiz_tasks(session: TutorSession, quiz_data: dict) -> None:
+    """G2：quiz_history 题目注册为 journal TaskSnapshot（幂等，fail-open
+    不破坏对话回合）。concept_refs 严格匹配会话工作区 scope（§7.2）。"""
+    try:
+        student_id = getattr(session, "student_id", "") or "student_default"
+        workspace_id = getattr(session, "workspace_id", "") or ""
+        from ..agents.assessment.manager import (register_task_snapshot,
+                                                  task_snapshot_from_quiz_dict)
+        from ..agents.student_model.evaluation.schema import ConceptRef
+        concept_refs: list[ConceptRef] = []
+        if workspace_id:
+            try:
+                from ..agents.student_model.evaluation.scope import (
+                    get_scope_resolver)
+                scope = get_scope_resolver().resolve(student_id, workspace_id)
+                names = {str(q.get("knowledge_point") or "")
+                         for q in (quiz_data.get("questions") or [])}
+                concept_refs = [c for c in scope.allowed_concepts
+                                if c.display_name in names][:3]
+            except Exception:
+                concept_refs = []
+        for q in (quiz_data.get("questions") or []):
+            if not isinstance(q, dict):
+                continue
+            task = task_snapshot_from_quiz_dict(
+                q, workspace_id=workspace_id, concept_refs=concept_refs,
+                variant_reference=str(quiz_data.get("reference") or ""))
+            register_task_snapshot(student_id, task)
+    except Exception:
+        pass
+
 MAX_STEPS = settings.agent_max_steps  # V1 hard cap (default 6)
 _TOOL_MSG_MAX_CHARS = 2000
 
@@ -999,6 +1031,9 @@ async def execute(
             record_recent_quiz(session.session_id,
                                getattr(session, "student_id", "") or "",
                                result.data)
+            # G2 统一评价链：题目即刻注册 TaskSnapshot（journal），题卡提交
+            # 携带 question_id/revision（§11.4；不再以题干前缀定位题目）。
+            _register_quiz_tasks(session, result.data)
 
         _step_text = (pseudo_guard.emitted if pseudo_guard and pseudo_guard.detected
                       else answer_buf)
