@@ -825,12 +825,12 @@ def _lite_tool_calls(calls: list[dict[str, Any]]) -> list[dict[str, Any]]:
 
 # ---------------------------------------------------------------------------
 # V2 dispatch: SUPERVISOR_MODE=v2 (default) -> Supervisor orchestrator; =legacy
-# -> this V1 chat_turn. V2 failures fall back to legacy automatically.
-# the Supervisor orchestrator. Any supervisor import/runtime failure degrades
-# back to legacy so the SSE stream never breaks.
+# -> this V1 chat_turn. V2 failures are surfaced by default; operators may
+# explicitly set SUPERVISOR_LEGACY_FALLBACK=1 as an emergency compatibility
+# switch to fall back to V1 without breaking the SSE stream.
 # P2-A（plan.md §29）：fallback 有显式开关（SUPERVISOR_LEGACY_FALLBACK，
-# 默认 1）与结构化观测（异常分类/stage/会话/任务类型），关闭开关时 V2
-# 失败如实上抛错误事件，不再静默切回 V1 掩盖回归。
+# 默认 0）与结构化观测（异常分类/stage/会话/任务类型）。默认暴露 V2
+# 回归；只有显式开启开关时才回落 V1。
 # ---------------------------------------------------------------------------
 
 def _classify_supervisor_error(exc: BaseException) -> str:
@@ -857,7 +857,7 @@ def _classify_supervisor_error(exc: BaseException) -> str:
 
 def _legacy_fallback_enabled() -> bool:
     import os
-    return os.getenv("SUPERVISOR_LEGACY_FALLBACK", "1").strip().lower() \
+    return os.getenv("SUPERVISOR_LEGACY_FALLBACK", "0").strip().lower() \
         not in ("0", "false", "off")
 
 
@@ -876,9 +876,9 @@ async def run_turn(
     supervisor.run based on SUPERVISOR_MODE (default v2).
 
     V2 failure semantics（plan.md §29）：
-    - SUPERVISOR_LEGACY_FALLBACK=1（默认）：结构化 trace 后回落 V1（观测
-      可见，行为与历史一致）；
-    - =0：yield error 事件并结束本轮——V2 回归不再被 legacy 成功掩盖。"""
+    - SUPERVISOR_LEGACY_FALLBACK 未设置或 =0：yield error 事件并结束本轮，
+      V2 回归不会被 legacy 成功掩盖；
+    - =1：结构化 trace 后显式回落 V1，仅作为紧急兼容开关。"""
     import os
     mode = os.getenv("SUPERVISOR_MODE", "v2").lower()
     if mode in ("v2", "supervisor"):
