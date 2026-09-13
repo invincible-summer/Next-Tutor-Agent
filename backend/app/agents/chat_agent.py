@@ -828,7 +828,39 @@ def _lite_tool_calls(calls: list[dict[str, Any]]) -> list[dict[str, Any]]:
 # -> this V1 chat_turn. V2 failures fall back to legacy automatically.
 # the Supervisor orchestrator. Any supervisor import/runtime failure degrades
 # back to legacy so the SSE stream never breaks.
+# P2-A（plan.md §29）：fallback 有显式开关（SUPERVISOR_LEGACY_FALLBACK，
+# 默认 1）与结构化观测（异常分类/stage/会话/任务类型），关闭开关时 V2
+# 失败如实上抛错误事件，不再静默切回 V1 掩盖回归。
 # ---------------------------------------------------------------------------
+
+def _classify_supervisor_error(exc: BaseException) -> str:
+    """Coarse V2 failure category from the traceback path（plan.md §29）。
+
+    只看代码路径（traceback 文本），不落入用户消息/教材正文/JWT——
+    分类输入是异常类型与模块名，不是对话内容。
+    """
+    import traceback
+    tb = traceback.format_exception(type(exc), exc, exc.__traceback__)
+    path = "\n".join(tb).lower()
+    if any(k in path for k in ("agents/planner", "make_plan", "taskplan")):
+        return "planner_error"
+    if any(k in path for k in ("agents/context", "compact", "preresearch",
+                               "material_signals")):
+        return "context_error"
+    if any(k in path for k in ("agents/executor", "tool_base", "tools/")):
+        return "executor_internal_error"
+    if any(k in path for k in ("core/atomic", "core/session", "core/store",
+                               "session_store", "_save", "persist")):
+        return "persistence_error"
+    return "unknown"
+
+
+def _legacy_fallback_enabled() -> bool:
+    import os
+    return os.getenv("SUPERVISOR_LEGACY_FALLBACK", "1").strip().lower() \
+        not in ("0", "false", "off")
+
+
 async def run_turn(
     user_message: str,
     session: TutorSession,
@@ -841,7 +873,12 @@ async def run_turn(
     student_id: str = "",
 ) -> AsyncGenerator[dict[str, Any], None]:
     """Entry point chosen by chat.py. Dispatches to V1 chat_turn or V2
-    supervisor.run based on SUPERVISOR_MODE (default v2). V2 failures fall back to legacy."""
+    supervisor.run based on SUPERVISOR_MODE (default v2).
+
+    V2 failure semantics（plan.md §29）：
+    - SUPERVISOR_LEGACY_FALLBACK=1（默认）：结构化 trace 后回落 V1（观测
+      可见，行为与历史一致）；
+    - =0：yield error 事件并结束本轮——V2 回归不再被 legacy 成功掩盖。"""
     import os
     mode = os.getenv("SUPERVISOR_MODE", "v2").lower()
     if mode in ("v2", "supervisor"):
@@ -852,12 +889,27 @@ async def run_turn(
                                             student_id=student_id):
                 yield ev
             return
-        except Exception as e:  # never break the stream; fall back to V1
-            # log to a fresh trace so the failure is observable
+        except Exception as e:  # never break the stream; observe, then decide
+            fallback_enabled = _legacy_fallback_enabled()
             try:
-                Trace().log("supervisor_fallback_to_legacy", message=str(e))
+                # 结构化观测：异常类型/分类/会话/任务类型/开关状态。
+                # 只记异常与代码路径，不记 raw 用户消息/教材正文/JWT。
+                Trace().log(
+                    "supervisor_fallback_to_legacy",
+                    exception_type=type(e).__name__,
+                    category=_classify_supervisor_error(e),
+                    stage="v2_run",
+                    session_id=getattr(session, "session_id", ""),
+                    task_kind=mode,
+                    fallback_enabled=fallback_enabled,
+                    message=str(e)[:200],
+                )
             except Exception:
                 pass
+            if not fallback_enabled:
+                yield {"type": "error",
+                       "message": "对话编排服务暂时不可用，请稍后重试。"}
+                return
     async for ev in chat_turn(user_message, session, tools, llm,
                               progress_cb=progress_cb, lang=lang,
                               output_language=output_language, attachments=attachments):
