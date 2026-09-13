@@ -1,0 +1,95 @@
+name: CI
+
+# plan.md §21-§23: real merge gates. Job names are fixed and unique —
+# GitHub required checks match on check name, so renames break protection.
+# Public textbooks / graph / vector artifacts / demo showcase stay plain-Git
+# versioned (repository-invariants enforces the design); no LFS anywhere.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  backend-core:
+    name: backend-core
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: backend/constraints.txt
+      - name: Install BM25-only runtime
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r backend/requirements.txt
+      - name: Unit tests (BM25-only, vector lane skipped)
+        run: |
+          cd backend
+          python -m unittest discover -s tests -v
+
+  backend-vector-regression:
+    name: backend-vector-regression
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: backend/constraints.txt
+      - name: Install runtime + optional vector lane
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r backend/requirements.txt
+          pip install -r backend/requirements-test.txt
+      - name: Vector / public-artifact regression suite
+        run: |
+          cd backend
+          python -m unittest tests.test_local_rag tests.test_rag_hybrid \
+            tests.test_requirements_contract tests.test_admin_public -v
+
+  frontend-checks:
+    name: frontend-checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Enable corepack (pnpm)
+        run: corepack enable
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Typecheck
+        run: pnpm exec tsc --noEmit
+      - name: Lint
+        run: pnpm lint
+      - name: Production build
+        run: pnpm build
+
+  repository-invariants:
+    name: repository-invariants
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # full checkout: the invariants script inspects git ls-files
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Public-asset plain-Git & single-worker invariants
+        run: python scripts/check_repository_invariants.py

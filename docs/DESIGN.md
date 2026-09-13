@@ -1819,3 +1819,90 @@ canned `run_turn`，验证：
 - **结构化作答分析（W3/D06，`STRUCTURED_ASSESSMENT_MODE=off|shadow|active`，默认 off）**：`agents/assessment/structured_evaluator.py` 单次调用（prompt `assessment_analyze@1.0.0`）输出量规条目判定（met/partial/not_met/not_observed/not_applicable，criterion_id 只认冻结量规候选集）、首个实质错误+此前做对部分、≤2 错因假设（七类枚举）、uncertainties、六维能力观测、feedback{strength,next_step}、continuation 建议——D06+局部 D07+D08 建议合并为一次调用。**分数由服务端按冻结权重本地计算**（not_applicable 出分母、关键条目 not_observed→整题不确定→保守 partial），不采信模型自报。坏 JSON 修复一次→再坏弃权回退三级批改（不造默认分）；MC 始终确定性判分；shadow 旁路结果存 `structured_shadow` 可对账；active 结果即权威判定，随 `AssessmentResult.structured`、账本 attempt（criterion_results/hypotheses）、M2 事件 payload 增键落盘。学生作答中的指令不进入任何工具/指令位（schema 固定 + 白名单校验）。
 - **CAT continuation（W3/D10，`agents/assessment/continuation_policy.py`）**：硬上限优先——`should_stop` 纯规则不动、先判；仅当硬规则放行时 active 模式才让分析的 continue/probe/finish 建议生效：finish→`sufficient_evidence`（分数≥0.75 且无关键条目未达标）或 `insufficient_evidence`（信息不足以未定结束，不判失败），与作答同一次落盘；probe→下一题 goal 注入未覆盖关键条目+错因假设（生成后消费清空）；shadow 存 `session.continuation_shadow` 不生效。前端对两个新 stop_reason 提供中性文案映射。
 - **提示与异议（W3/F02/F05 最小形式）**：`GET /quiz/hint`（A01 同款归属校验）从冻结量规派生关键步骤提示（不含答案/判定，先答后揭晓不破），服务端在题快照落 `hint_requested` 标记——判分自动携带 `assistance=hint`（M2 事件记载；评分置信压至 0.70，帮助后表现不伪装独立掌握；客户端自报帮助状态一律不采信）。`POST /quiz/dispute` 把账本 attempt 标记 `evidence_status=disputed`（保守：不抹除证据、不改投影；修正走重答 supersede+BKT 重放）。
+
+---
+
+## P11 运行可靠性与证据闭环整改（2026-09，plan.md）
+
+本轮整改不推翻既有架构，围绕五个既有缺口收口（详见仓库根 plan.md）。
+
+### P11.1 统一 Quiz Grounding（教材证据进入出题器）
+
+检索唯一事实源仍是 `KnowledgeSearchTool`（BM25/hybrid + `evidence_gate` 的
+found/partial/not_found 原语义）；`core/quiz_grounding.py` 只做数据投影：
+
+- `QuizGroundingBundle`/`QuizSourceRef`：grounded 题的可审计 provenance
+  （file/chunk/章节/页码/摘录/context_hash）；provenance 只认服务端 src_N
+  短 ref id，模型伪造的完整 file_id 没有注入机会；
+- `GenerateQuizTool`：grounding resolve **先于** 蓝图轮（蓝图未见教材会先
+  发散到教材外）；strict 教材模式 NOT_FOUND 不出假教材题；strict 题无有效
+  source ref 直接丢弃（不能 fail-open 成 grounded）；
+- critic 增加 `unsupported` verdict（答案/解析依赖证据未支持的教材事实），
+  仅在提供 grounding_context 时启用；critic 不可用时
+  `grounding_verification=unavailable` 审计标记；
+- `FitQuizTool` 的事实源是 reference 本身，不强制检索；仅继承本轮已解析
+  的教材证据（reference+textbook）；
+- Assessment/CAT：`AssessmentContext`/`Question` additive grounding 字段
+  （持久化 round-trip 不丢证据 scope）；`/assessment/start` 接受
+  session_id/textbook_ids/strict_textbook，授权解析在
+  `api/v1/assessment_grounding.py`（外来 session/教材 404、strict 无 scope
+  400、strict NOT_FOUND 返回 grounding_not_found 不开始假教材 CAT）；
+- 前端 QuizQuestionCard 教材依据 badge（data-testid=quiz-source-badge）
+  与解析区依据列表；`/quiz/record` 上报 additive provenance（仅审计用，
+  mastery 证据等级不因客户端声称的 ref 改变）。
+
+### P11.2 非 OCR 教材构建的重启恢复
+
+textbook record 内嵌 `build_job`（state/phase/attempt/intent；不另建
+jobs.json）。普通进程重启不是失败：
+
+- `reconcile_stale_builds()`：OCR 可恢复 -> 现有 ocr_waiting 路径；
+  有 intent 的中断 job -> state=queued 待 lifespan 重入现有 per-owner
+  队列（幂等重执行整个 intent，auto_retry 下终态记录跳过）；legacy building
+  记录合成默认 intent；source 缺失/自动恢复超上限（3）才真正 failed
+  （结构化 last_error：source_missing/retry_exhausted/...）；
+- `enqueue_textbook_build` 入队前持久化 intent（首次上传/重试/rebuild/
+  full OCR 统一）；worker 取得执行权时 running+attempt+=1；队列项结束终态
+  收口；`resume_interrupted_textbook_builds()` 供 lifespan 调用；
+- `reap_stale_builds()` 保留为兼容 wrapper。
+
+### P11.3 Bootstrap 可观测性与 Readiness
+
+`core/bootstrap.py`：每个启动维护步骤有命名 check（pending/ok/degraded/
+failed），失败 log.exception（不再静默），critical fail-fast，可降级功能
+失败不阻止服务。`/api/v1/health` 保持 liveness 恒 200；`/api/v1/ready`
+按 bootstrap 结果返回 ready/degraded（200）或 not_ready（503）。
+
+### P11.4 上传限流读取
+
+`core/uploads.read_upload_limited`：分块读取，累计超限即刻 UploadTooLarge
+——超限攻击文件最多读 limit+chunk_size。chat/library/workspace/textbook/
+notes 五个上传端点统一接入；图片 20MB / 文档 256MB 语义不变。
+
+### P11.5 持久化并发不变量（single-worker）
+
+- 文件承载的业务状态 + 进程内 RLock（`core/atomic.py`）；
+- 生产 backend 必须单 uvicorn worker（`deploy/edu-backend.service` 钉死
+  --workers 1，`scripts/check_repository_invariants.py` 在 CI 校验）；
+- 横向多副本在共享存储/锁重新设计前不受支持。
+
+### P11.6 版本化公共知识资产（ADR）
+
+public textbooks / public graph / public vector artifacts / demo showcase
+是产品内容与展示 fixture，**使用普通 Git object 直接版本化**：
+
+- 不使用 Git LFS；不迁 GitHub Release/S3/对象存储；不做 clone 后二次下载；
+- 不针对这些资产做 history rewrite；不设 repository-size fail gate；
+- 保护手段只有两类：`.gitignore` 白名单保持显式（绝不放开整个
+  notes/students/users），以及 `scripts/check_repository_invariants.py`
+  在 CI 校验（白名单行存在、无 LFS 接管、无真实用户运行态数据误跟踪）。
+
+### P11.7 CI 与 E2E
+
+`.github/workflows/ci.yml` 四个 job（名字固定供 required checks）：
+backend-core（BM25-only 全量单测，vector 测试 feature-skip）、
+backend-vector-regression（+requirements-test，vector/公共资产回归）、
+frontend-checks（pnpm frozen install + tsc + lint + build）、
+repository-invariants。Playwright E2E（frontend/e2e/）真实起
+backend（隔离副本）+ frontend + fake LLM，覆盖身份隔离、教材到 BM25、严格
+教材问答、grounded quiz、NOT_FOUND、笔记私有、学习计划与语音协议冒烟。

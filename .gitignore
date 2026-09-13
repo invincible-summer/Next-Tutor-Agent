@@ -156,3 +156,7 @@ chat_history/workspaces/*
 !chat_history/chat_20260829_144021_老师我一道错题想不通质量_m_的子弹以.json
 
 docs/The_Website_deployment_plan.md
+# Playwright E2E artifacts
+frontend/test-results/
+frontend/playwright-report/
+frontend/.playwright/

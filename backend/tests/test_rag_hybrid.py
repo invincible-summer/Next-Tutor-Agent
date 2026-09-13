@@ -25,6 +25,19 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
+try:
+    import importlib.util as _ilu
+    _HAS_VECTOR_DEPS = _ilu.find_spec("chromadb") is not None
+except Exception:
+    _HAS_VECTOR_DEPS = False
+
+
+def load_tests(loader, tests, pattern):
+    if not _HAS_VECTOR_DEPS:  # BM25-only（plan.md §22.1）：vector job 专属
+        raise unittest.SkipTest(
+            "vector optional deps not installed (BM25-only environment)")
+    return tests
+
 from app.core.config import settings
 from app.core import vector_store
 from app.core.knowledge_store import KnowledgeStore
