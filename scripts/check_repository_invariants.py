@@ -14,10 +14,16 @@ The checks below protect that design against accidental regressions:
   4. the public asset namespaces are actually tracked;
   5. deploy/edu-backend.service pins --workers 1 (single-worker invariant,
      plan.md §36: file-backed state + process-local locks must not scale to
-     multiple uvicorn workers).
+     multiple uvicorn workers);
+  6. G6 migration end-state (plan §16.5/§16.6/§19.1): retired legacy
+     student-evaluation input files are untracked; the demo account's
+     learning-evidence journal IS tracked; tracked demo files and active
+     source carry no old numeric-ability identifiers.
+
+Checks 6 reads file CONTENT only for the deliberately-versioned demo
+showcase and for active source trees — never for private runtime data.
 
 Exits 0 when all invariants hold; prints each failure and exits 1 otherwise.
-Never inspects file contents — paths and git metadata only.
 """
 from __future__ import annotations
 
@@ -68,6 +74,39 @@ TRACKED_PUBLIC_PATTERNS = [
 TRACKED_IF_PRESENT_PATTERNS = [
     "knowledge/public_vector_artifacts/*",
 ]
+
+# 旧学生评价输入文件（plan §16.3/§16.6）：迁移后不允许再被跟踪。
+RETIRED_STUDENT_SUFFIXES = (
+    ".learning_records.json", ".quiz_recent.json", ".events.jsonl",
+    ".assessment.json",
+)
+
+# G6 迁移后 demo 账号必须跟踪的新事实源（§16.5 新文件白名单）。
+REQUIRED_DEMO_FILES = [
+    f"students/{DEMO_ACCOUNT}.learning_evidence.jsonl",
+]
+
+# 受控 demo 内容里不允许再出现的旧数值能力标识（§19.1 受控 demo 扫描）。
+DEMO_BANNED_SUBSTRINGS = (
+    "p_known", "mastered_ratio", "before_mastery", "after_mastery",
+    "learning_gain", "avg_gain", '"weak_points"', '"strong_points"',
+    '"mastery"',
+)
+# prompt_memory 的旧水平字段名（文件级：goal_states 的 current_level 是
+# 新 GoalAnalysisLevel 枚举，语义不同，不在禁列）。
+PROMPT_MEMORY_BANNED_SUBSTRINGS = ('"current_level"',)
+
+# active source 里的旧算法标识（§19.1；大小写不敏感，含 LearningGain 变体）。
+ACTIVE_SOURCE_BANNED = (
+    "p_known", "masterytracker", "conceptstate", "record_quiz_result",
+    "rebuild_mastery", "derive_concept_status", "mastery_map",
+    "current_mastery", "target_mastery", "planned_mastery", "mastered_ratio",
+    "before_mastery", "after_mastery", "avg_learning_gain", "learning_gain",
+    "learninggain", "seed_from_mastery", "knowledgenodemastery",
+    "masteryresp", "masterycolor", "allow_mastery_update",
+)
+ACTIVE_SOURCE_DIRS = ("backend/app", "frontend/src")
+ACTIVE_SOURCE_SUFFIXES = (".py", ".ts", ".tsx", ".js", ".jsx")
 
 FAILURES: list[str] = []
 
@@ -184,6 +223,73 @@ def check_single_worker_invariant() -> None:
         ok("deploy/edu-backend.service pins --workers 1")
 
 
+def check_migration_end_state(files: list[str]) -> None:
+    """G6 迁移终态（plan §16.5/§16.6）：旧评价输入文件不再被跟踪，
+    demo 账号的新 journal 必须被跟踪。"""
+    for path in files:
+        if path.startswith("students/"):
+            for suffix in RETIRED_STUDENT_SUFFIXES:
+                if path.endswith(suffix):
+                    fail(f"retired legacy evaluation file still tracked: {path}")
+    for required in REQUIRED_DEMO_FILES:
+        if required not in files:
+            fail(f"demo migration output not tracked anymore: {required}")
+    ok("no retired legacy evaluation files tracked; demo journal tracked")
+
+
+def _demo_content_files(files: list[str]) -> list[str]:
+    return [p for p in files
+            if p.startswith(f"students/{DEMO_ACCOUNT}")
+            or p.startswith(f"notes/{DEMO_ACCOUNT}/")
+            or re.match(r"^chat_history/(chat_|workspaces/ws_)", p)]
+
+
+def check_demo_content_clean(files: list[str]) -> None:
+    """§19.1 受控 demo 扫描：版本化 demo 文件里不得残留旧数值能力字段。
+    只读刻意版本化的 demo 展示文件，绝不读私有运行时数据。"""
+    checked = 0
+    for rel in _demo_content_files(files):
+        path = REPO / rel
+        if not path.is_file():
+            continue
+        text = path.read_text(encoding="utf-8", errors="replace")
+        checked += 1
+        for needle in DEMO_BANNED_SUBSTRINGS:
+            if needle in text:
+                fail(f"demo file carries retired ability field "
+                     f"{needle!r}: {rel}")
+        if rel.endswith(".prompt_memory.json"):
+            for needle in PROMPT_MEMORY_BANNED_SUBSTRINGS:
+                if needle in text:
+                    fail(f"prompt_memory keeps retired level field "
+                         f"{needle!r}: {rel}")
+    ok(f"controlled demo content clean over {checked} tracked file(s)")
+
+
+def check_active_source_identifiers() -> None:
+    """§19.1 静态扫描常驻化：active source 中旧算法标识必须归零
+    （大小写不敏感，覆盖 LearningGain 一类驼峰变体）。"""
+    hits = 0
+    for root in ACTIVE_SOURCE_DIRS:
+        base = REPO / root
+        if not base.exists():
+            continue
+        for path in base.rglob("*"):
+            if (not path.is_file()
+                    or path.suffix not in ACTIVE_SOURCE_SUFFIXES
+                    or "__pycache__" in path.parts):
+                continue
+            text = path.read_text(encoding="utf-8", errors="replace").lower()
+            for needle in ACTIVE_SOURCE_BANNED:
+                if needle in text:
+                    hits += 1
+                    fail(f"active source carries retired identifier "
+                         f"{needle!r}: {path.relative_to(REPO)}")
+                    break
+    if not hits:
+        ok("no retired ability identifiers in active source")
+
+
 def main() -> int:
     files = git_ls_files()
     check_gitignore_whitelist()
@@ -191,6 +297,9 @@ def main() -> int:
     check_no_real_user_data(files)
     check_public_assets_tracked(files)
     check_single_worker_invariant()
+    check_migration_end_state(files)
+    check_demo_content_clean(files)
+    check_active_source_identifiers()
     if FAILURES:
         print(f"\n{len(FAILURES)} repository invariant failure(s)")
         return 1

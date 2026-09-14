@@ -27,7 +27,7 @@ Design contract (must hold to protect M1-M6):
     EVALUATION_INTELLIGENCE_MODE (default on); when off, both supervisor hooks
     are no-ops and M1-M6 behavior is byte-identical. Seven layers are
     orthogonal; turning off any layer lets the upper layers degrade cleanly.
-  - DETERMINISTIC-FIRST: trace capture, failure diagnosis, learning gain, and
+  - DETERMINISTIC-FIRST: trace capture, failure diagnosis, and
     strategy aggregation are pure functions (zero LLM). Only the advisor uses
     an LLM, and only periodically (frequency-gated by ADVISOR_FREQUENCY_GATE),
     never on the critical per-turn path.
@@ -38,7 +38,7 @@ Design contract (must hold to protect M1-M6):
 from __future__ import annotations
 
 from .manager import EvaluationService, get_evaluation_service, is_enabled
-from .schema import (FailureType, LearningGain, MetricSnapshot,
+from .schema import (FailureType, MetricSnapshot,
                      ImprovementProposal, StrategyEffectiveness, TurnTrace)
 
 __all__ = [
@@ -46,7 +46,6 @@ __all__ = [
     "get_evaluation_service",
     "is_enabled",
     "FailureType",
-    "LearningGain",
     "MetricSnapshot",
     "ImprovementProposal",
     "StrategyEffectiveness",

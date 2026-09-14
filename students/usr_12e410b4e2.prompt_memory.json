@@ -3,10 +3,10 @@
   "student_id": "usr_12e410b4e2",
   "window_size": 15,
   "core_profile": {
-    "learning_summary": "近期保持学习参与，适合持续获得清晰反馈。",
-    "current_level": "",
+    "learning_summary": "",
     "tone_preference": "",
-    "explanation_preference": "偏好通过简短例子辅助理解。"
+    "explanation_preference": "偏好通过简短例子辅助理解。",
+    "current_level_retired": ""
   },
   "recent_sessions": [
     {

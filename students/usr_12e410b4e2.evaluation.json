@@ -3,7 +3,6 @@
     {
       "strategy": "introduction",
       "subject": "数学",
-      "avg_gain": 0.0,
       "avg_success_rate": 1.0,
       "sample_size": 16,
       "last_updated": 1788746149.4636986
@@ -11,7 +10,6 @@
     {
       "strategy": "remediation",
       "subject": "数学",
-      "avg_gain": 0.0,
       "avg_success_rate": 1.0,
       "sample_size": 59,
       "last_updated": 1788746149.4637105
@@ -19,7 +17,6 @@
     {
       "strategy": "practice",
       "subject": "数学",
-      "avg_gain": 0.0,
       "avg_success_rate": 1.0,
       "sample_size": 3,
       "last_updated": 1788746149.463713
@@ -27,7 +24,6 @@
     {
       "strategy": "introduction",
       "subject": "物理",
-      "avg_gain": 0.0,
       "avg_success_rate": 1.0,
       "sample_size": 6,
       "last_updated": 1788746149.4637153
@@ -35,7 +31,6 @@
     {
       "strategy": "remediation",
       "subject": "物理",
-      "avg_gain": 0.0,
       "avg_success_rate": 1.0,
       "sample_size": 67,
       "last_updated": 1788746149.4637263
@@ -43,7 +38,6 @@
     {
       "strategy": "review",
       "subject": "物理",
-      "avg_gain": 0.0,
       "avg_success_rate": 1.0,
       "sample_size": 5,
       "last_updated": 1788746149.4637291
@@ -51,7 +45,6 @@
     {
       "strategy": "introduction",
       "subject": "数学/物理",
-      "avg_gain": 0.0,
       "avg_success_rate": 1.0,
       "sample_size": 1,
       "last_updated": 1788746149.4637306
@@ -59,7 +52,6 @@
     {
       "strategy": "remediation",
       "subject": "数学/物理",
-      "avg_gain": 0.0,
       "avg_success_rate": 1.0,
       "sample_size": 1,
       "last_updated": 1788746149.4637327
@@ -67,7 +59,6 @@
     {
       "strategy": "introduction",
       "subject": "数学和物理",
-      "avg_gain": 0.0,
       "avg_success_rate": 1.0,
       "sample_size": 1,
       "last_updated": 1788746149.4637346
@@ -75,7 +66,6 @@
     {
       "strategy": "remediation",
       "subject": "数学、物理",
-      "avg_gain": 0.0,
       "avg_success_rate": 1.0,
       "sample_size": 1,
       "last_updated": 1788746149.4637358
@@ -83,7 +73,6 @@
     {
       "strategy": "remediation",
       "subject": "物理/数学",
-      "avg_gain": 0.0,
       "avg_success_rate": 1.0,
       "sample_size": 1,
       "last_updated": 1788746149.4637372
@@ -91,7 +80,6 @@
     {
       "strategy": "introduction",
       "subject": "",
-      "avg_gain": 0.0,
       "avg_success_rate": 1.0,
       "sample_size": 6,
       "last_updated": 1788746149.4637396
@@ -99,7 +87,6 @@
     {
       "strategy": "introduction",
       "subject": "语文",
-      "avg_gain": 0.0,
       "avg_success_rate": 1.0,
       "sample_size": 1,
       "last_updated": 1788746149.4637408
@@ -107,7 +94,6 @@
     {
       "strategy": "challenge",
       "subject": "物理",
-      "avg_gain": 0.0,
       "avg_success_rate": 1.0,
       "sample_size": 1,
       "last_updated": 1788746149.4637425
@@ -115,7 +101,6 @@
     {
       "strategy": "practice",
       "subject": "",
-      "avg_gain": 0.0,
       "avg_success_rate": 1.0,
       "sample_size": 3,
       "last_updated": 1788746149.463744
@@ -123,7 +108,6 @@
     {
       "strategy": "review",
       "subject": "数学",
-      "avg_gain": 0.0,
       "avg_success_rate": 1.0,
       "sample_size": 1,
       "last_updated": 1788746149.4637454

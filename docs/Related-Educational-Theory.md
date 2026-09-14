@@ -94,9 +94,9 @@ ECDL 最重要的思想可以压缩成一句工程规则：
 
 | ECDL 模型 | 理论职责 | Next Tutor Agent 对应模块 | 当前已有基础 |
 |---|---|---|---|
-| Student / Proficiency Model | 表示关于学生知识与能力状态的假设 | M2 `student_model/`、BKT、capability projection、Bloom profile | 已实现 |
+| Student / Proficiency Model | 表示关于学生知识与能力状态的假设 | M2 `student_model/evaluation`（统一学习证据账本 + 语义判断投影；无数值掌握度） | 已实现 |
 | Task Model | 描述为了获得证据或促进学习，应提供什么任务 | M3 `next_check`、M4 question generator、`quiz_design.py`、练习/测评 | 已实现大量基础 |
-| Evidence Model | 定义观察什么、如何解释、什么不能推断 | frozen rubric、`structured_evaluator.py`、quiz critic、M10 evidence gate | 已实现强基础 |
+| Evidence Model | 定义观察什么、如何解释、什么不能推断 | frozen rubric、语义评价（P3/P4）、quiz critic、来源受理纪律 | 已实现强基础 |
 | Pedagogical Model | 根据学生状态与证据选择下一教学动作 | M3 rules engine + `decision_adapter.py` + Tutor prompt | 已实现动作框架，理论契约待加强 |
 
 M1 Supervisor 是这些模型在单轮对话中的执行编排层；M9 是跨日/跨周的任务装配与调度层；M5 是任务与讲解的**内容事实来源**。它们都参与 ECDL 闭环，但并不需要被改造成新的学生模型或证据模型。
@@ -105,32 +105,34 @@ M1 Supervisor 是这些模型在单轮对话中的执行编排层；M9 是跨日
 
 #### 当前实现
 
-M2 已有两类互补状态：
+> **已删除说明**：旧“三种学生状态”并列（BKT `p_known`、capability projection、
+> Bloom profile 各自保留真相源）的目标合同已随本版废止——数值掌握度链路整体移除，
+> 学生状态收敛为**一个**统一学习证据账本（`students/<id>.learning_evidence.jsonl`）。
 
-- `mastery.py` 使用 BKT 维护每个 skill 的 `p_known`；
-- `capability_projection.py` 根据事件与学习账本派生 concept × dimension 的证据状态；
-- `bloom_profile.py` 按 concept × Bloom process 聚合作答表现。
+M2 的 Proficiency Model 现在只有证据一种形态：
 
-同时，capability projection 已采用非常关键的保守原则：无观测即 `not_observed`，存在正负冲突则 `needs_recheck`，需要多个不同 rubric family 才进入 `demonstrated_in_scope`。M10 evidence gate 也已经阻止 exposure、自报和简单复述直接更新 mastery。
+- 每份学习观察是一份带受理档案（SourceReceipt）的来源：真实时间、当时归属、
+  帮助条件、答案指纹；
+- 语义解释（LearnerInterpretation）与概念判断（ConceptJudgment）从具体证据派生，
+  同一来源版本只有一个当前有效解释；
+- 概念状态是证据式的（supported_in_scope / emerging / fragile / conflicting /
+  not_observed），无观测即 `not_observed`，正负冲突即 `conflicting`，不存在
+  “估计值覆盖证据”的通道。
 
 #### ECDL 目标契约
 
-这些状态不应该被合并成一个“学生能力总分”：
+- 任何 LLM 都不得通过一句“学生看起来已经掌握”覆盖或绕过证据判断；
+- 评价输出必须能定位到学生原始表现、帮助条件与任务机会。
 
-- `p_known` 是一个模型化的掌握度估计；
-- `capability_projection` 是从具体证据派生的能力陈述；
-- `bloom_profile` 是按认知任务标签组织的历史表现统计。
+特别要求（证据边界不变）：
 
-它们在 ECDL 中共同属于 Proficiency Model，但语义不同。未来任何 LLM 都不得通过一句“学生看起来已经掌握”覆盖这些确定性或统计状态。
-
-特别要求：
-
-- 讲解完成本身不构成 mastery evidence；
-- 学生说“懂了”只构成 self-report；
+- 讲解完成本身不构成学习证据；
+- 学生说“懂了”只构成 self-report（不进入能力判断）；
 - 学生能复述定义，不自动支持 apply/analyze 能力；
 - 一道即时题做对，不自动支持长期 retention；
 - 同模板改数字，不自动支持 transfer；
-- 接受 `full_demo` 后模仿成功，不应与独立成功具有相同证据解释。
+- 接受 `full_demo` 后模仿成功，不应与独立成功具有相同证据解释（assistance
+  floor 在受理时落账）。
 
 ### 2.4 Task Model：任务必须服务于一个明确的学习主张
 
@@ -222,7 +224,7 @@ M4 Evidence Interpretation
 M10 Evidence Gate
   - 该证据是否有资格更新学生模型
         ↓
-M2 更新 BKT / capability / Bloom profile
+M2 统一评价：判分与语义判断写入学习证据账本
         ↓
 M3 选择下一教学行动
 ```
@@ -281,10 +283,10 @@ CLT 对初始技能习得最稳定的发现之一是 worked-example effect：对
 
 | 维度 | 评价问题 | 可使用的当前信号 | 典型风险 |
 |---|---|---|---|
-| `guidance_fit` | 当前帮助量与已有知识是否匹配 | BKT、capability、recent outcomes、assistance | 新手无支持；熟练者反复 full demo |
+| `guidance_fit` | 当前帮助量与已有知识是否匹配 | 概念证据状态、recent outcomes、assistance | 新手无支持；熟练者反复 full demo |
 | `element_interactivity_control` | 一次要求同时处理的相互依赖新元素是否过多 | concept prerequisites、stage、任务步骤 | 定义/公式/多个新概念同时引入 |
 | `split_attention_risk` | 学生是否必须来回搜寻并自行拼接信息 | 文本、公式、图片、步骤引用 | 图和解释分离；变量定义散落 |
-| `redundancy_risk` | 是否重复提供学生已掌握或已可直接获得的信息 | mastery、已讲历史、当前材料 | 高水平学生仍被逐句解释基础内容 |
+| `redundancy_risk` | 是否重复提供学生已掌握或已可直接获得的信息 | 概念证据状态、已讲历史、当前材料 | 高水平学生仍被逐句解释基础内容 |
 | `transience_segmentation` | 短暂信息是否需要分段、停顿或可回看结构 | Voice、长推导、连续步骤 | 语音一次念完长公式链；步骤无法定位 |
 | `fading_readiness` | 是否具备减少支持或转独立任务的证据 | 独立作答、hint dependence、recent errors | 长期依赖提示；过早撤架 |
 
@@ -331,7 +333,7 @@ CLT 不应把这套结构简单替换成“越短越好”。正确耦合方式�
 
 - **新手 + 高交互复杂度**：分段，一次完成一个子目标；优先完整 worked example，再给 completion/变式；
 - **已有基础 + 中等复杂度**：减少已知步骤解释，把资源放在关键推理点；
-- **高掌握度**：避免冗余定义和完整示范，增加独立推理；
+- **高证据支持**：避免冗余定义和完整示范，增加独立推理；
 - **语音讲解**：对长公式、长推导和多条件过程分段，并在段落之间形成可回看的文字/结构摘要；
 - **图像/公式**：避免让关键标签与解释分散到相距很远的位置；
 - **学生主动要求详细**：可以详细，但仍应组织为可加工的块，而不是把大量相关知识一次倾倒。
@@ -415,22 +417,29 @@ RBT 不是总评价框架，而是 Task Model 的一个关键语义维度。
 
 - 不建立“答对 N 道 remember 才能升 understand”的硬阶梯；
 - 允许跳层、混层、回访；
-- level 是共享语义，不是 mastery gate；
+- level 是共享语义，不是能力门槛；
 - 未知/自动可以留空，由上下文决定。
 
 未来理论文档和 reviewer 都必须从此模块读取同一组 canonical ids。
 
-### 4.5 与 `core/bloom_profile.py` 的耦合
+### 4.5 认知过程标签与能力结论的边界
 
-当前 Bloom profile 是从 learning ledger 做确定性聚合，这是正确方向，但它只能解释为：
+> **已删除说明**：旧 `core/bloom_profile.py`（按 concept × Bloom process 聚合历史
+> 正确率的档案）已随统一学习评价移除——正确率聚合不能承载能力结论。Bloom 认知
+> 过程词汇仍由 `core/bloom.py` 作为共享语义保留，用于任务设计与量规的
+> `actual_required_processes` 标注。
 
-> “学生在被标记为某认知过程的题目上的历史表现”。
+对任务上的认知过程标签，仍然只能解释为：
+
+> “学生在被标记为某认知过程的题目上的作答证据”。
 
 不能自动解释为：
 
 > “学生达到了 Bloom 第 N 层”。
 
-因为题目标记本身可能错、题型难度不同、assistance 不同、样本量不同。未来当 quiz critic 能确认 `intended_bloom ≈ actual_demand` 后，Bloom profile 的证据质量才会进一步提高。
+因为题目标签本身可能错、题型难度不同、assistance 不同、样本量不同。只有当 quiz
+critic 能确认 `intended_bloom ≈ actual_demand`，且该作答以语义判断（含证据 span 与
+帮助条件）落入学习证据账本后，相应主张的证据质量才进一步提高。
 
 ### 4.6 与 `core/quiz_design.py` 的耦合
 
@@ -546,7 +555,7 @@ reviewer_version
 - `transience_segmentation`；
 - `fading_readiness`。
 
-Active 模式下它最多改变**表达结构、分段、示例/提示程度**，不得改变教材事实、评分结果、BKT 或 capability status。
+Active 模式下它最多改变**表达结构、分段、示例/提示程度**，不得改变教材事实、评分结果或学习评价结论。
 
 ### 5.5 RBT task review contract
 
@@ -576,9 +585,9 @@ Bloom reviewer 不输出 difficulty；difficulty/CAT 保持独立。
 
 **价值**：充当 ECDL Proficiency Model。
 
-**保留现状**：BKT、capability projection、Bloom profile 各自保留语义和单一真相来源。
+**保留现状**：统一学习证据账本是学生状态的单一真相来源；判分、语义判断与概念证据状态都从同一份证据派生，不再有数值掌握度并行链路。
 
-**理论边界**：LLM reviewer 无权直接修改 `p_known`；只有通过 M10 evidence gate 的有效学习行为才能进入写回路径。
+**理论边界**：LLM reviewer 无权直接修改学习证据或概念判断；只有经统一受理（真实作答、帮助条件落账、冻结量规）的学习行为才能进入评价写回路径。
 
 ### M3 Teaching Engine
 
@@ -592,7 +601,7 @@ Bloom reviewer 不输出 difficulty；difficulty/CAT 保持独立。
 - `expected_observation / stop_condition`：ECDL 教学假设闭环；
 - `recent outcomes / mistakes / misconceptions`：决策证据。
 
-**不得做**：不能为了“符合 CLT”机械限制字数，也不能根据 grade 直接推断 mastery。
+**不得做**：不能为了“符合 CLT”机械限制字数，也不能根据 grade 直接推断能力状态。
 
 ### Tutor / Prompt Registry
 
@@ -647,13 +656,13 @@ CLT 主要控制：步骤分块、示例程度、信息整合、冗余、支持�
 
 M7 可以聚合：CLT risk、ECDL alignment、assistance transitions、后续学习结果，提出人审建议。但它不能仅因为 theory reviewer “评分更高”就宣称学习效果改善。
 
-真正的策略价值要看后续行为指标，例如：next-check success、independent success、hint dependence、delayed retention、transfer、time-to-mastery。
+真正的策略价值要看后续行为指标，例如：next-check success、independent success、hint dependence、delayed retention、transfer、达成独立所需时间。
 
 ### M8 UX Intelligence
 
 **价值**：调整语言、形式与交互，而不改变教学内容。
 
-CLT 的分段和信息整合可以为 UX 提供约束，但 M8 不应自行决定 student mastery 或 assessment verdict。
+CLT 的分段和信息整合可以为 UX 提供约束，但 M8 不应自行决定学习评价结论或测评判定。
 
 ### M9 Learning Orchestration
 
@@ -661,11 +670,11 @@ CLT 的分段和信息整合可以为 UX 提供约束，但 M8 不应自行决�
 
 第一阶段不需要再加入另一套课程理论。M9 只需消费：M2 的证据状态、M3 的教学需求、M4 的未观测能力与 Bloom weaknesses，安排后续学习任务和复习。任务进入当天时仍走同一 ECDL/CLT/RBT 规则。
 
-### M10 Skill Runtime / Evidence Gate
+### M10 Skill Runtime / 证据纪律
 
 **价值**：这是 ECDL 最重要的“推断边界”之一。
 
-当前 `EXPOSURE / SELF_REPORT / RESTATEMENT / SAME_FORM_TASK / VARIANT_TASK / TRANSFER` 证据等级和 mastery-write gate 应保留。理论层只补充“任务是否真的提供该 evidence opportunity”的来源信息，不绕过现有 gate。
+证据边界由统一评价域执行：接触/自报/复述不构成学习证据，作答按 assistance 条件区分独立与受助，迁移主张需要真实变式任务。理论层只补充“任务是否真的提供该 evidence opportunity”的来源信息，不绕过评价纪律。
 
 ---
 
@@ -677,10 +686,10 @@ CLT 的分段和信息整合可以为 UX 提供约束，但 M8 不应自行决�
 
 M2 显示：
 
-- 对目标 concept 的 BKT 较低；
+- 对目标 concept 的证据状态为 `fragile`（有负向观察）；
 - recent mistakes 显示串并联关系识别错误；
-- Bloom profile 在 Apply 上证据不足；
-- capability projection 的 reasoning 仍 `not_observed`。
+- Apply 认知过程上的作答证据不足；
+- reasoning 维度的判断仍 `not_observed`。
 
 系统此时**不能**直接宣称“学生不会推理”，因为 reasoning 没有被有效观察过。
 
@@ -716,9 +725,9 @@ Rubric 在学生作答前冻结，例如：
 
 如果题目只要求最终数值，则 c1/c2 可能无法直接观察；评价器必须承认 `not_observed`，而不能从“算对了”反推关系理解一定正确。
 
-### 7.5 Evidence Gate 与更新
+### 7.5 证据受理与更新
 
-通过 critic 验证、学生独立作答且 rubric 证据有效后，M10 才允许本次表现进入 M2。若学生是在 full_demo 后照抄，证据可以保留用于教学决策，但独立能力投影不能与无帮助作答等价。
+通过 critic 验证、学生独立作答且 rubric 证据有效后，本次表现经统一受理进入 M2 学习证据账本。若学生是在 full_demo 后照抄，证据可以保留用于教学决策，但 assistance floor 使其不能与无帮助作答等价计入独立支持。
 
 随后 M3 根据新证据决定是否撤除支持。这就形成了完整 ECDL 闭环。
 
@@ -737,11 +746,11 @@ Rubric 在学生作答前冻结，例如：
 7. **换数字 = transfer**：同结构同策略题不能自动算迁移；
 8. **正确 = self_check**：未观察检查/修订过程不得推断自我检查；
 9. **RAG 命中 = 学生掌握**：内容证据不能当 learner evidence；
-10. **理论 reviewer 覆盖确定性规则**：LLM 不得推翻 frozen rubric、本地算分、候选集、grounding、evidence gate；
+10. **理论 reviewer 覆盖确定性规则**：LLM 不得推翻 frozen rubric、本地算分、候选集、grounding、评价纪律；
 11. **每轮串多个 reviewer**：会增加延迟、成本和互相冲突，应尽量复用现有 LLM call；
 12. **把理论全文塞入 prompt**：运行时只传与当前 action 相关的可执行条款；
 13. **机械 guidance ladder**：不能规定“做对两题必升 independent”；证据与任务复杂度必须共同决定；
-14. **用学段代替学生状态**：小学/本科是表达和任务上下文，不是 mastery proxy。
+14. **用学段代替学生状态**：小学/本科是表达和任务上下文，不是能力代理。
 
 ---
 
@@ -753,7 +762,7 @@ Rubric 在学生作答前冻结，例如：
 
 先定义 theory review schema、claim/evidence/task 标识和 trace 字段。所有判断都可回放、可定位模型/Prompt 版本。
 
-验收：关闭 theory layer 时，当前系统行为 byte-level / semantic-level 不受影响；不得建立第二套 mastery storage。
+验收：关闭 theory layer 时，当前系统行为 byte-level / semantic-level 不受影响；不得建立第二套评价存储。
 
 ### Phase B — Gold Set
 
@@ -767,7 +776,7 @@ Rubric 在学生作答前冻结，例如：
 
 ### Phase C — Shadow
 
-理论 reviewer 只记录，不改变学生看到的内容、不修改分数、不修改 mastery。
+理论 reviewer 只记录，不改变学生看到的内容、不修改分数、不修改学习评价。
 
 主要观察：
 
@@ -797,7 +806,7 @@ Rubric 在学生作答前冻结，例如：
 - repeated-error rate；
 - delayed recall；
 - transfer task success；
-- time-to-mastery；
+- 达成独立所需时间；
 - re-learning rate。
 
 只有这些学习结果改善，才说明理论进入产品之后真正创造了价值。
@@ -812,8 +821,8 @@ Rubric 在学生作答前冻结，例如：
 
 - 每个会改变 M2 状态的评估必须能追溯到 task/question id 与 evidence；
 - 无 evidence opportunity 的能力维度 100% 输出 `not_observed`，不得凭印象补全；
-- exposure/self-report/restatement 不得绕过 M10 gate；
-- assisted 与 independent evidence 在 capability projection 中保持可区分；
+- exposure/self-report/restatement 不得成为学习证据；
+- assisted 与 independent 作答在证据账本中保持可区分；
 - rubric 必须在学生答案出现前形成；
 - LLM 失败不得生成虚构证据。
 
@@ -835,7 +844,7 @@ Rubric 在学生作答前冻结，例如：
 - 对 `intended != actual` 的明显错配 recall ≥ 0.90；
 - 不把 difficulty 当成 Bloom 标签输入的确定映射；
 - critic 必须基于最低可行解法判断认知过程，而不是只看题干动词；
-- Bloom profile 只消费经过正常评分的学习账本，不建立第二份行为日志。
+- 认知过程标签只消费经正常评分的学习证据，不建立第二份行为日志。
 
 ### 10.4 Active gate
 
@@ -855,7 +864,7 @@ Rubric 在学生作答前冻结，例如：
 以下现有设计本身已经与选定理论高度一致，应当保留：
 
 - `core/bloom.py` 的 canonical vocabulary 与“非机械阶梯”原则；
-- `bloom_profile.py` 由 learning ledger 确定性聚合，而不是再调用 LLM；
+- 统一学习证据账本由确定性受理与判分写入，而不是再调用 LLM 生成学生状态；
 - M3 `policy.py` 的纯规则 fallback；
 - `decision_adapter.py` 的 trigger gate、候选集/枚举校验、无效则回退规则路径；
 - `TeachingDecision.expected_observation` 与 `stop_condition`；
@@ -863,10 +872,9 @@ Rubric 在学生作答前冻结，例如：
 - textbook grounding 与 source refs；
 - quiz deterministic structure check + independent critic re-solve；
 - generation-time frozen rubric；
-- structured evaluator 的 `not_observed`、本地算分、白名单和 abstention；
-- M10 evidence gate 对 exposure/self-report/restatement 的限制；
-- capability projection 的“无证据不宣称会”、多 rubric family 与 assisted/independent 区分；
-- BKT 作为 M2 掌握度更新机制；
+- 语义评价的 `not_observed`、本地算分、白名单和弃权语义；
+- 受理纪律对 exposure/self-report/restatement 的限制；
+- 概念证据的“无证据不宣称会”与 assisted/independent 区分；
 - shadow/active 模式与“智能层可关、失败可降级”的全项目约定。
 
 理论引入的目的不是重写这些架构，而是给它们一个一致的教育推断语义，并补齐目前仍由 prompt 直觉承担的有效性检查。

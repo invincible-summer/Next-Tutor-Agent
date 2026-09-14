@@ -135,43 +135,9 @@ class TurnTrace:
 
 
 # ---------------------------------------------------------------------------
-# LearningGain: per-concept teaching effectiveness
+# 旧 M2 BKT P(know) 增量数据类（before/after/gain）已随旧能力链删除
+# （plan §16.5/§19.1：不能以历史档案为名保留旧算法可调用接口）。
 # ---------------------------------------------------------------------------
-
-@dataclass
-class LearningGain:
-    """The mastery delta produced by teaching a concept.
-
-    before/after are P(know) from M2 BKT. gain = after - before (clamped to
-    [-1, 1]). n_questions is how many were assessed (gain is only meaningful
-    when assessment actually happened).
-    """
-    concept: str = ""
-    subject: str = ""
-    before: float = 0.0
-    after: float = 0.0
-    gain: float = 0.0
-    n_questions: int = 0
-    ts: float = field(default_factory=time.time)
-    trace_id: str = ""
-
-    def to_dict(self) -> dict[str, Any]:
-        return {
-            "concept": self.concept, "subject": self.subject,
-            "before": round(self.before, 4), "after": round(self.after, 4),
-            "gain": round(self.gain, 4), "n_questions": self.n_questions,
-            "ts": self.ts, "trace_id": self.trace_id,
-        }
-
-    @classmethod
-    def from_dict(cls, d: dict[str, Any]) -> "LearningGain":
-        d = d or {}
-        return cls(
-            concept=str(d.get("concept", "")), subject=str(d.get("subject", "")),
-            before=float(d.get("before", 0.0)), after=float(d.get("after", 0.0)),
-            gain=float(d.get("gain", 0.0)), n_questions=int(d.get("n_questions", 0)),
-            ts=float(d.get("ts", 0.0)), trace_id=str(d.get("trace_id", "")),
-        )
 
 
 # ---------------------------------------------------------------------------

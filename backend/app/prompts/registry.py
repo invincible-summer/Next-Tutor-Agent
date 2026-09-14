@@ -384,10 +384,12 @@ _ASSESSMENT_GRADE = """你是批改老师，按学段「{grade}」批改学生�
 批改要点中的公式、数值计算和符号必须用 LaTeX 数学语法（行内 $...$，独立公式 $$...$$），例如 $P(A|B)=\\frac{{0.95\\times0.005}}{{0.95\\times0.005+0.01\\times0.995}}\\approx0.32$；禁止用纯文本写公式（如 P(A|B)=0.95×0.005/...）。数学环境内的中文（含中文下标）用 \\text{{}} 包裹。"""
 
 _PROMPT_MEMORY_COMPACT = """你负责压缩学生的提示词记忆。输入已经过隐私过滤，只允许保留：
-1. 学习情况的总体概括；2. 学生当前总体水平；3. 语气偏好；4. 讲解方式偏好。
-禁止写入具体课程、知识点、题目、作答、对话摘要、姓名或文件内容。
+1. 学习情况的总体概括（在学什么、以什么节奏和方式在学）；2. 语气偏好；3. 讲解方式偏好。
+禁止写入具体课程知识点、题目、作答、对话摘要、姓名或文件内容。
+禁止对学生水平、能力或掌握度做任何推断或概括（该用途已删除，plan §16.3/§19.2）；
+学习概括只描述可见事实，不评价强弱。
 请去重、消除冲突并严格输出 JSON：
-{{"learning_summary":"","current_level":"","tone_preference":"","explanation_preference":""}}
+{{"learning_summary":"","tone_preference":"","explanation_preference":""}}
 每个字段不超过 180 字；没有可靠信息就留空。
 <profile>
 {profile}
@@ -559,7 +561,7 @@ _register(PromptDef(id="textbook_toc_extract", version="2.2.0", text=_TEXTBOOK_T
 _register(PromptDef(id="textbook_skeleton", version="2.0.0", text=_TEXTBOOK_SKELETON))
 _register(PromptDef(id="textbook_chapter_concepts", version="2.3.0", text=_TEXTBOOK_CHAPTER_CONCEPTS))
 _register(PromptDef(id="textbook_graph_design", version="1.1.0", text=_TEXTBOOK_GRAPH_DESIGN))
-_register(PromptDef(id="prompt_memory_compact", version="1.0.0", text=_PROMPT_MEMORY_COMPACT))
+_register(PromptDef(id="prompt_memory_compact", version="1.1.0", text=_PROMPT_MEMORY_COMPACT))
 _register(PromptDef(id="redline_tail", version="1.0.0", text=_REDLINE_TAIL))
 _register(PromptDef(id="notes_assistant_system", version="1.3.0", text=_NOTES_ASSISTANT_SYSTEM))
 _register(PromptDef(id="notes_generator_system", version="1.1.0", text=_NOTES_GENERATOR_SYSTEM))

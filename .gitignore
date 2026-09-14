@@ -114,6 +114,10 @@ out/
 # users' private sessions -- they stay exact-file negations.
 # Transcript sidecars (*.transcript.jsonl) and backend traces stay ignored
 # for every other account -- no chain-of-thought goes into VCS.
+# G6 migration (plan §16): legacy evaluation inputs (learning_records /
+# quiz_recent / events) were migrated into the learning-evidence journal and
+# deleted; students/usr_12e410b4e2.learning_evidence.jsonl is the tracked
+# source of truth now (enforced by scripts/check_repository_invariants.py).
 # On fresh clones run:  python deploy/seed_demo_account.py
 !/notes/usr_12e410b4e2/
 !students/usr_12e410b4e2*

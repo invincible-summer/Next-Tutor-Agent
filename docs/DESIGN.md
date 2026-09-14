@@ -17,7 +17,7 @@
 |----|------|-----------|--------|
 | M0 | 身份基础设施 | 用户是谁、数据属于谁、如何安全访问（注册/登录/注销 + 数据隔离） | `app/identity/` + `api/v1/auth.py` `api/v1/user.py` |
 | M1 | 任务智能（Supervisor） | 这一轮对话怎么完成：理解 → 规划 → 工具执行 → 状态更新 | `app/agents/supervisor.py` 等编排模块 |
-| M2 | 学生模型 | 这个学生会什么：画像 + BKT 掌握度 + 概念状态 | `app/agents/student_model/` |
+| M2 | 学生模型 | 这个学生会什么：画像 + 统一学习证据账本（证据式评价） | `app/agents/student_model/` |
 | M3 | 教学引擎 | 这个学生现在该怎么教：六模式状态机 + 跨轮教学记忆 | `app/agents/teaching_engine/` |
 | M4 | 测评智能 | 学生真的学会了吗：三级评分 + 约束出题 + CAT 自适应测试 | `app/agents/assessment/` |
 | M5 | 知识智能 | 系统知道哪些知识：教材知识图谱（公用+自有）+ 概念检索 | `app/agents/knowledge/` |
@@ -51,7 +51,7 @@ SSE 为前端直连后端的流式通道（`POST /chat/stream`、`POST /quiz/gra
 |------|------|-----------|
 | `AUTH_MODE` | `0` | `0`=游客宽容（未登录共享 `student_default`，登录后 JWT 始终绑定独立命名空间）；`1`=登录必选 |
 | `SUPERVISOR_MODE` | `v2` | `legacy` 走 V1 `chat_turn` 单函数路径；v2 运行时异常默认显式返回错误；仅当 `SUPERVISOR_LEGACY_FALLBACK=1` 时回退 legacy |
-| `STUDENT_MODEL_MODE` | `1` | `0` 关闭 M2：无画像/掌握度/策略注入/事件采集 |
+| `STUDENT_MODEL_MODE` | `1` | `0` 关闭 M2：无画像/学习评价/策略注入（评价层按 §10.3 显式 disabled，不静默假装已评价） |
 | `TEACHING_ENGINE_MODE` | `1` | `0` 退回 M2 内置轻量 adapt 路径 |
 | `ASSESSMENT_ENGINE_MODE` | `1` | `0` 关闭 M4：评分退回二元、无 CAT |
 | `KNOWLEDGE_INTELLIGENCE_MODE` | `1` | `0` 关闭 M5：SkillGraph 用自有种子，无知识指令 |
@@ -86,7 +86,7 @@ SSE 为前端直连后端的流式通道（`POST /chat/stream`、`POST /quiz/gra
 
 ### 2.2 数据隔离边界
 
-- 学习数据：`students/<student_id>.*` 全部按 id 物理分文件（画像/掌握度/教学日志/记忆/测评/编排/UX/评估）。
+- 学习数据：`students/<student_id>.*` 全部按 id 物理分文件（画像/学习证据账本/教学日志/记忆/编排/UX/评估）。
 - 会话历史：`GET /chat/sessions` 只返回当前身份的会话（无 student_id 戳的遗留会话归游客）。新账号从空白历史开始。
 - 工作区：创建打 `student_id` 戳、列表过滤、按 id 端点对外人 404（不泄露存在性），移入会话也校验归属。「共享」指同一 owner 的多个对话间共享，而非跨用户。
 - 资料库：每用户一份（`chat_history/library/<student_id>.json` + `data/<student_id>/`），互不可见。
@@ -169,17 +169,17 @@ M10 Registry 将 Agent Skill 投影为能力 → 工具子集，收窄 LLM 每�
 
 | 钩子 | 层 | 函数 | 作用 |
 |------|----|------|------|
-| 3b | M2 | `_adapt_for_turn` | 学生画像+掌握度 → `[学生智能·…]` 教学策略软指令 |
+| 3b | M2 | `_adapt_for_turn` | 学生画像+统一评价投影 → `[学生智能·…]` 教学策略软指令 |
 | 3c | M3 | `_plan_learning_path` | intent=plan 时注入学习路径建议 |
 | 3d | M5 | `_knowledge_directive_for_turn` | `[知识智能·…]` 概念定位/前置/易错点/教材引用 |
 | 3e | M6 | `_memory_directive_for_turn` | `[提示词记忆·精简画像]`：总体学习情况/水平/语气/讲解偏好 |
 | 3f | M7 | `_evaluation_directive_for_turn` | `[评估智能·…]` 历史失败模式提醒 |
 | 3g | M8 | `_ux_directive_for_turn` | `[交互智能·…]` 表达适配指令 |
 | 3h | M9 | `_orchestration_directive_for_turn` | `[编排智能·…]` 长期计划+今日任务 |
-| 6b | M2 | `_collect_turn_events` | 采集学习事件回写学生模型（BKT 更新等） |
+| 6b | M2 | `_collect_turn_events` | 学习观察来源（对话/题卡）经统一受理写入学习证据账本 |
 | 6c | M3 | teaching_log 记录 | 持久化 (mode, outcome) 支撑跨轮推进 |
 | 6d | M6 | `_memory_consolidate_turn` | 最近会话 prompt contribution + 策略/习惯聚合；不再追加详细 episodic/semantic |
-| 6e | M7 | `_evaluation_record_turn` | TurnTrace 捕获 + learning gain + 规则诊断 + advisor 门 |
+| 6e | M7 | `_evaluation_record_turn` | TurnTrace 捕获 + 规则诊断 + advisor 门 |
 | 6f | M8 | `_ux_record_turn` | 反馈分类 + 长度折叠 + 表达质量评估回画像 |
 | 6g | M9 | `_orchestration_record_turn` | SRS 曝光登记 + 习惯/进度检查点 + 事件转发 M6（W4/A08：不再窥探当轮工具 verdict——判分都在 /quiz/* 轮外发生，recall 质量只经 `record_quiz_evidence` 提交事件流入口） |
 
@@ -319,26 +319,26 @@ per-student 构建锁 + 全局 Semaphore(2) 防 429；任何异常落 `status=gr
 ### 7.2 出题交互闭环
 
 - 前端渲染可交互卡片：MC 可点选（选中即高亮，揭晓后正确绿/错误红）、填空/简答可作答；先答后揭晓；出题后正文不复述题干。
-- **MC**：本地判对错，揭晓即 `POST /quiz/record` 回传 → BKT 更新（修复了 MC 不回传的闭环缺口）。
+- **MC**：本地判对错，揭晓即 `POST /quiz/record` 回传 → 统一受理（MC 确定性判定随受理事务落 journal；修复了 MC 不回传的闭环缺口）。
 - **填空/简答**：`POST /quiz/grade`（SSE）LLM 批改，判等价 + 给思路，输出三级判定 + ≤120 字讲解。
-- **评分入口信任边界（W1，updatePlan.md A01/A02）**：quiz 两端点的判分依据收归服务端。① 归属校验：任何非空 `session_id` 在 LLM/评分/持久化之前过 `_load_owned_session`（与 chat 路由同款 404「不可见」语义；legacy 未盖章会话归游客），`_write_back_answer` 内部再作 owner 纵深防御，整个 load-modify-write 临界区持 `file_lock`。② 服务端权威题目：请求里的 `correct_answer` 仅为旧客户端兼容字段——权威答案/选项/解析/知识点从本人会话 quiz_history 快照解析（先精确题干、后 60 字前缀且要求无歧义）；解析失败降级为「未验证练习」：`/quiz/record` 返回 `{status: "unverified_practice", code: "question_unresolved"}`、`/quiz/grade` 仍给反馈但 done 事件标 `unverified: true`，两者均零掌握度/账本/写回写入。③ 同提交幂等：quiz_history 中该题已有同作答 `result` 视为重复提交，直接重放已记录判定，不再二次评分/写 M2（重试不产生额外模型费用）。④ 变式证据分级：来自 fit_quiz 题套（`reference` 无 `topic`）的作答经 `evaluate_and_record(is_variant=True)` 以 VARIANT_TASK 层级进入证据门，不再伪装独立观测。
-- **作答三落点**（`core/quiz_attempts.py`，fail-open）：两个 quiz 端点在判定后统一写 ① session quiz_history 的 `result{verdict, student_answer}`（下轮经「近期作答」注入）；② transcript【作答记录】（当前会话/显式 recall 可检索）；③独立 `students/<id>.learning_records.json` 学习结果账本（题目/作答/评分/知识点/时间，删来源对话仍保留）。旧 M6 episodic 只做兼容审计，不再新增详细对话事件。`unknown` 判定（未真正评分）一律不落盘。MC 判分分支按声明题型（`q_type`）而非 options 是否存在路由——/quiz/record 早期不带 options 曾导致 `is_multiple_choice` 为假、判定静默退化为 unknown（选项现已纳入 RecordRequest 防御性回传）。对话轮保存前经 `merge_quiz_results_from_disk` 合并盘上作答结果，防止流式回合整文件覆写答题卡写回。**W2/A14 attempt 链**：每次受理判分由服务端生成 `attempt_id`（`att_` 前缀），贯穿 M2 事件、账本 attempt 与会话写回（quiz_history `result.attempt_id`）；账本 `record_verdict` 改为**追加式** attempt 记录（重评 supersede 保留审计，顶层 verdict/score 仍是「当前有效投影」供错题本/最近习题零改动读取），同作答双写路径（写回 + record_quiz_attempt）折叠为一条；出题侧题目 id 改为每套唯一前缀 `q_<uid>_<i>`，跨套不再共用裸序号。generate_quiz / fit_quiz 成功均入 quiz_history（此前 fit_quiz 卡片作答无处写回），并写 transcript【出题记录】**W4/A08**：该 fan-out 追加第 4 步——已受理判定喂 M9 `record_quiz_evidence`（SRS 复习质量更新 + 任务归因，attempt_id 幂等；携带会话 task_binding 时只完成绑定任务）。
+- **评分入口信任边界（W1，updatePlan.md A01/A02）**：quiz 两端点的判分依据收归服务端。① 归属校验：任何非空 `session_id` 在 LLM/评分/持久化之前过 `_load_owned_session`（与 chat 路由同款 404「不可见」语义；legacy 未盖章会话归游客），`_write_back_answer` 内部再作 owner 纵深防御，整个 load-modify-write 临界区持 `file_lock`。② 服务端权威题目：请求里的 `correct_answer` 仅为旧客户端兼容字段——权威答案/选项/解析/知识点从本人会话 quiz_history 快照解析（先精确题干、后 60 字前缀且要求无歧义）；解析失败降级为「未验证练习」：`/quiz/record` 返回 `{status: "unverified_practice", code: "question_unresolved"}`、`/quiz/grade` 仍给反馈但 done 事件标 `unverified: true`，两者均零评价写入。③ 同提交幂等：quiz_history 中该题已有同作答 `result` 视为重复提交，直接重放已记录判定，不再二次评分（重试不产生额外模型费用）。④ 变式证据分级：来自 fit_quiz 题套的作答携带 `origin_question_ref` 同族关系进入统一评价，不再伪装独立观测。
+- **作答落点**（`core/quiz_attempts.py`，fail-open）：quiz 端点在判定后统一写 ① session quiz_history 的 `result{verdict, student_answer}`（下轮经「近期作答」注入）；② transcript【作答记录】（当前会话/显式 recall 可检索）；③统一学习证据 journal（TaskSnapshot + SourceReceipt + 判分/语义解释，删来源对话仍保留）。`unknown` 判定（未真正评分）一律不落盘。MC 判分分支按声明题型（`q_type`）而非 options 是否存在路由——/quiz/record 早期不带 options 曾导致 `is_multiple_choice` 为假、判定静默退化为 unknown（选项现已纳入 RecordRequest 防御性回传）。对话轮保存前经 `merge_quiz_results_from_disk` 合并盘上作答结果，防止流式回合整文件覆写答题卡写回。**attempt 链**：每次受理由服务端生成 `attempt_id`（`att_` 前缀），贯穿 journal 来源、M9 归因与会话写回（quiz_history `result.attempt_id`）；答案指纹幂等使同一作答的重放/双写只有一次效果；出题侧题目 id 每套唯一前缀 `q_<uid>_<i>`，跨套不共用裸序号。generate_quiz / fit_quiz 成功均入 quiz_history（此前 fit_quiz 卡片作答无处写回），并写 transcript【出题记录】。已受理判定喂 M9 `record_quiz_evidence`（SRS 复习质量更新 + 任务归因，attempt_id 幂等；携带会话 task_binding 时只完成绑定任务）。
 - **最近答题卡摘要**（`latest_quiz_digest`）：工具投影的题目摘要只存在于出题当轮，历史消息剥离 tool 载荷后模型就看不到自己出的题（「仔细讲解一下上一题」曾失败）。每轮 status recap 注入最新一套题的摘要——题干/答案/解析给足全文量级（300/60/260 字）+ 学生作答与判定，Agent 可逐题完整讲解点评；supervisor 与 legacy 路径一致；批改讲解遵循 LaTeX 排版规则（grade prompt 内置公式约束）。
-- **跨会话最近习题库**（`core/quiz_recent.py`，fail-open）：generate_quiz / fit_quiz 成功时把题目快照（题干/题型/难度/来源会话/时间）追加到 `students/<id>.quiz_recent.json`（每学生上限 100 道，FIFO 淘汰最旧），答题卡判分经 `_write_back_answer` 按 (session_id, 题干前缀) 回填 verdict。`GET /quiz/recent` 供测评中心「最近习题」卡分页展示，点击回到出题会话。
+- **跨会话最近习题**（journal 投影）：`GET /quiz/recent` 从学习证据 journal 生成最近习题分页（旧 `students/<id>.quiz_recent.json` 独立真相已随迁移退役），点击回到出题会话。
 - **错题本**（`core/error_notebook.py`，P3）：按需实时聚合该生各会话 quiz_history 中 verdict ∈ {wrong, partial} 的题目（题干/学生答/正解/解析/来源会话，60 字题干前缀去重，新→旧，上限 200），`GET /student/error-notebook` 供测评中心「错题本」卡分页展示；「重练」走既有 `?q=&send=1` 深链让教练用 fit_quiz 出变式（复用答题卡/批改闭环，不在测评页复制作答 UI）。
-- **答题卡交互呈现**：工具/答题卡按输出顺序渲染在正式回答**之后**（讲解在前、做题在后）；学生揭晓/提交作答后，前端自动在对话流底部追加一条 agent 点评消息——MC 点评经 `/quiz/grade`（`record=false`，只读不写掌握度，避免与 `/quiz/record` 双重记录）由 LLM 生成个性化讲解，主观题点评即 LLM 批改讲解；卡片自身只保留判定与折叠静态解析，不再与 agent 反馈重复。作答后卡片永久锁定（无重做入口），判定结果同步进消息 toolCalls 载荷，刷新/重开后恢复已答状态、禁止重复作答。
+- **答题卡交互呈现**：工具/答题卡按输出顺序渲染在正式回答**之后**（讲解在前、做题在后）；学生揭晓/提交作答后，前端自动在对话流底部追加一条 agent 点评消息——MC 点评经 `/quiz/grade`（`record=false`，只读不写评价，避免与 `/quiz/record` 双重记录）由 LLM 生成个性化讲解，主观题点评即 LLM 批改讲解；卡片自身只保留判定与折叠静态解析，不再与 agent 反馈重复。作答后卡片永久锁定（无重做入口），判定结果同步进消息 toolCalls 载荷，刷新/重开后恢复已答状态、禁止重复作答。
 - 解析详细化：分步推导（知识点 → 公式数据 → 结论+易错点）。
 - **生成可靠性**：generate_quiz / fit_quiz 内部由 `stream()` 改为 `complete(disable_thinking=True)`——推理模型此前把整个 max_tokens 预算耗在思考链上，answer 通道为空 → 解析 0 题 → partial 无卡片（模型只能在「深度思考」里文字拟题）。主观题评分 `_grade_open_llm` 同理加固。tutor_system@2.5.2 保留「思考中不拟完整题目，直接调工具」引导，并新增数学环境中文须 `\text{}` 包裹的 LaTeX 规则（前端渲染层另有 CJK 自动转 `\text{}` 兜底，中文下标正常显示）。
 - **一题不二出与题型多样**：tutor_system@2.5.2 规定已有出题计划时讲解正文不得再写自测题/文字题目（此前「教学过程」的自测问题与收尾检测卡会同时出现，学生看到两道不同的题）；出题 prompt 要求题型多样——count≥2 至少一道 fill_blank/short_answer，单题按知识点特点选型（计算/推导/步骤/代码类优先填空简答），学生要求「别的类型」时必须换题型。
 - **相关性与去重**：`generate_quiz` 构造时注入本会话最近 3 套已出题干（`avoid_stems`，prompt 声明禁止重复/仅换数字）；策略收尾检测的 auto_invoke 参数携带轮次 `focus`（用户原句侧重，如「滴定步骤」），收尾题检测本轮所讲而非宽泛概念——修复了逐轮重出同一道典型题的问题。
-- **出题质量门**（`core/quiz_verify.py`，generator-critic 模式，`QUIZ_VERIFY_MODE=critic|basic|off`）：三条生成路径（两工具 + M4 约束出题/CAT）统一过两层校验——确定性结构校验（MC 答案字母须在选项内、选项非空去重、题干/解析非空，不合格直接丢弃）+ 一次独立重解 critic 调用（`complete(disable_thinking=True)`，逐题独立求解后核对拟定答案，判 incorrect 的题丢弃）；全部被判死时自动重生成一次，仍为空走既有 partial 路径。critic 自身故障 fail-open 放行并记入 `verification` 审计元数据（attempts/dropped/critic 状态），随工具结果进 SSE、quiz_history 与 Trace；M10 manifest 声明 `questions_answer_verified` 后置条件（工具内强制，runtime 侧 advisory）。错题不再能以 confidence=1.0 经 MC 判分腐蚀 BKT，错误答案也不再能锚定带偏主观题批改。
+- **出题质量门**（`core/quiz_verify.py`，generator-critic 模式，`QUIZ_VERIFY_MODE=critic|basic|off`）：三条生成路径（两工具 + M4 约束出题/CAT）统一过两层校验——确定性结构校验（MC 答案字母须在选项内、选项非空去重、题干/解析非空，不合格直接丢弃）+ 一次独立重解 critic 调用（`complete(disable_thinking=True)`，逐题独立求解后核对拟定答案，判 incorrect 的题丢弃）；全部被判死时自动重生成一次，仍为空走既有 partial 路径。critic 自身故障 fail-open 放行并记入 `verification` 审计元数据（attempts/dropped/critic 状态），随工具结果进 SSE、quiz_history 与 Trace；M10 manifest 声明 `questions_answer_verified` 后置条件（工具内强制，runtime 侧 advisory）。错题在投递前被丢弃，错误答案不再进入学习证据，也不再锚定带偏主观题批改。
 - **出题两轮化**（`core/quiz_design.py`，`QUIZ_DESIGN_MODE=two_pass|single`，默认 two_pass）：单轮直出（设计+写题+解析一步完成）是题目偏基础、偏记忆层的结构性根源。two_pass 模式下生成前先跑一轮「命题蓝图」设计调用（`complete(disable_thinking=True)`，prompt 注册为 `quiz_blueprint`）：第一步盘清该知识点的可考查角度（概念本质/机理推导/应用迁移/综合联系/陷阱反例），第二步为每道题定角度、目标布鲁姆层级（hard 必须落 analyze/evaluate/create，禁止纯记忆题充当）、题型、陷阱与区分度设计；蓝图渲染为 `[命题蓝图]` 块注入第二轮生成 prompt（generate_quiz 与 M4 约束单题共用），生成必须逐题落实。蓝图轮失败/解析失败自动回退单轮（fail-open），工具结果 `verification.design` 记录 two_pass/single/fallback。fit_quiz 不接蓝图轮——其 prompt 已内置「拆题→五层变式策略」的单轮两段式设计。
 - **critic 深度拦截**：critic 在独立重解之外增加 `too_shallow` 判定——题目本身没错、但相对目标难度明显降档（纯记忆复述/定义默写/一步套公式冒充 medium/hard）时丢弃；easy 或未给目标难度不做此判定，拿不准一律判 correct（与 incorrect 同款「宁可放过」哲学）。丢弃计数进 `verification.dropped_shallow`。
 - **量规与结构化反馈（W3）**：题卡/测评题携带冻结量规（`rubric`，D04）；开放题 active 模式判分后 done 事件与 `/quiz/record` 结果携带 `structured` 块（首个实质错误/此前做对部分/≤2 错因假设/下一步追问），QuizCard 判定块下渲染 F01 明细并提供「就此练习」按钮（下一步追问追加进对话流，学生在对话回应时 D02 上下文保持指代）；提交前可点「看提示」（F02，量规派生关键步骤，服务端记录 assistance）。概念抽屉（F05）显示证据区：v2 维度状态/支持作答/未测维度，异议入口跳测评中心重练。
 
 ### 7.3 三级评分（M4，详见 §14）
 
-`[对]/[部分对]/[错]`：MC 确定性字母比对（零 LLM）；主观题 LLM 三级。所有题型进掌握度闭环。
+`[对]/[部分对]/[错]`：MC 确定性字母比对（零 LLM）；主观题 LLM 三级。所有题型进统一学习证据账本。
 
 ---
 
@@ -429,16 +429,14 @@ per-student 构建锁 + 全局 Semaphore(2) 防 429；任何异常落 `status=gr
 
 ## 11. M2 学生模型（Student Model）
 
-回答「这个学生会什么」。包：`agents/student_model/`（profile / mastery / skill_graph / memory / adaptation）。
+回答「这个学生会什么」。包：`agents/student_model/`（profile / style_inference / evaluation）。旧 BKT 掌握度、概念状态记忆、事件黑盒与能力投影已随统一评价整体移除（历史迁移见 `scripts/migrate_learning_evidence.py`，plan §16）。
 
-- **StudentProfile**：事件驱动的长期画像（学科/学习风格/目标/薄弱点/强项），非表单填写。存 `students/<id>.json`。**学习风格写入路径（P0 激活）**：`student_model/style_inference.py` 是 `learning_style` 的唯一生产写入方——把 M8 已采集的反馈窗口（recent_feedback，近 12 条规则分类）折叠成风格翻转：「太长」≥2→basic、「太短」≥2→deep、矛盾不动、「太难」≥2→step_by_step；此前该字段宣称自动推断却无任何写入方，读取端（M3 depth/preference 覆盖 + M8 渲染）常年空转。
-- **掌握度（BKT）**：经典 4 参数贝叶斯知识追踪（先验/转学率/滑失率/猜测率），连续答对单调收敛、答错下降，概率钳位 [0.01, 0.99] 永不冻结。纯 Python 确定性。
-- **SkillGraph**：前置依赖 DAG。M5 开启时降级为 M5 PREREQUISITE 边的 per-student 读投影（单一真相源，§15）；关闭时用自有种子。
-- **概念状态记忆**：每概念 UNDERSTOOD/PARTIAL/MISCONCEPTION + 证据 + 误解（区别于聊天历史，专答「到底理解了没」）。
-- **轻量 adaptation**：M3 开启时降级为薄委托（`StudentModel.adapt()`），老调用方零改动。
-- **事件闭环**：`quiz_graded`（批改）→ BKT；`concept_taught`（讲解轮）；`goal_set`。事件驱动，不每轮调 LLM。**W2 分轨语义**：`quiz_graded` 载荷可带 `verdict/confidence/attempt_id`——`verdict="partial"` **不做**二元负向 BKT 更新（updatePlan §8.6.3：完整负向与未校准线性混合都禁止；partial 仍计入概念统计/错因/弱项，作为 M3 REMEDIATION 根因信号不丢失），`confidence` 是证据门 cap 后的 max_confidence 审计值，`attempt_id` 使同一作答的重放/双写**只影响 M2 一次**（facade 侧查重事件日志后跳过）。
-- **持久化**：`students/<id>.json`（画像+掌握度+概念状态）。
-- **v2 能力投影与 BKT 重放（W3，`capability_projection.py`）**：`project_capabilities` 从 events 日志+学习账本**读时派生**概念×六维投影（零新存储根）——确定性接受规则：≥2 不同题族（rubric_id）met→`demonstrated_in_scope`、正反证据冲突→`needs_recheck`、有证据未达标→`developing`、无观测→`not_observed`（默认，没有证据不宣称会）；账本 supersede 的 attempt 被排除，assisted 作答不计独立。`GET /student/evidence-profile` 只读输出（含支持作答引用与未测维度清单）。`rebuild_mastery` 在重答 supersede 后按有效事件序列**全量重放** legacy BKT（同参数同序，含 MASTERY_RESET；partial 分轨保持）——贝叶斯更新不能靠减法撤销；重放前后差异记审计日志。`/student/mastery` 每技能增 `source=m2_bkt`、`estimate_kind=uncalibrated_bayesian` 兼容键（p_known 是未校准估计，能力结论以证据投影为准）。
+- **StudentProfile**：身份/学段/学科活动/可变偏好与自述目标的长期画像（无任何能力数值字段；weak/strong 与评价性 concept memory 已删除）。存 `students/<id>.json`。**学习风格写入路径（P0 激活）**：`student_model/style_inference.py` 是 `learning_style` 的唯一生产写入方——把 M8 已采集的反馈窗口（recent_feedback，近 12 条规则分类）折叠成风格翻转：「太长」≥2→basic、「太短」≥2→deep、矛盾不动、「太难」≥2→step_by_step。
+- **统一学习证据 journal（唯一事实源，plan §6）**：`students/<id>.learning_evidence.jsonl` 每学生一个追加式事务日志——每行一个完整事务（`generation+seq` watermark、canonical checksum），操作是封闭判别联合（`question_registered / source_registered / assistance_recorded / job_* / result_committed / review_* / interpretation_revoked / scope_* / synthesis_committed`）。两类且仅两类学习观察来源：`dialogue`（自然对话/题卡）与 `assessment`（测评中心/CAT）；每份来源一份 `SourceReceipt`（真实 `observed_at`、当时 workspace 归属、帮助事件、`provenance=live|migration|demo_fixture`、答案指纹幂等）。
+- **任务材料与冻结量规**：`TaskSnapshot`（题干/选项/答案/等价解/量规）在出题时注册，`question_revision + rubric_hash` 不变即冻结；量规指纹由服务端从冻结内容计算，改量规必须换 revision。
+- **判分与语义评价分离**：MC 字母比对零 LLM 确定性判定，随受理事务落盘；开放题语义评价是异步 `EvaluationJob`（queued/running/retry_wait/succeeded/abstained/failed/cancelled，§10.3 优先级），P3 情景组合 + P4 六维观测输出经相同 validator 写回 `result_committed`——本题分数（TaskResult）与概念主张（ConceptJudgment，observed/not_observed 证据式）分开，unknown/indeterminate 不变成负分或假部分正确。同一来源版本只有一个当前有效解释；重复投递只有一次效果。
+- **scope 与读侧投影**：评价只在学习区（workspace 绑定教材/选卷/概念 revision）内进行；`learner_views`/index 是可删除重建的投影（`projections.py`），消费者（M3/M5/M9/前端）全部读统一评价，不再各存一套掌握度。
+- **持久化纪律**：短临界区按 journal key `file_lock`，锁内禁止 await；中部损坏 `journal_corrupt` 阻止受影响写入，不当空档案；永久删除走 generation 重写。
 
 ---
 
@@ -446,7 +444,7 @@ per-student 构建锁 + 全局 Semaphore(2) 防 429；任何异常落 `status=gr
 
 回答「这个学生现在该怎么教」。包：`agents/teaching_engine/`。Import-clean 不变量：运行时零 `student_model` import，数据经只读 TeachingContext 注入。
 
-- **教学模式状态机**：六模式 INTRODUCTION / EXPLANATION / REMEDIATION / PRACTICE / REVIEW / CHALLENGE，纯规则确定性。已有误解强制 REMEDIATION（纠错根因优先）；掌握度分段（0.3/0.6/0.8 阈值）选基础模式；显式意图可钉死（review/practice）。
+- **教学模式状态机**：六模式 INTRODUCTION / EXPLANATION / REMEDIATION / PRACTICE / REVIEW / CHALLENGE，纯规则确定性。已有误解强制 REMEDIATION（纠错根因优先）；按统一评价投影的概念证据状态（observed/not_observed/冲突需复核）选基础模式；显式意图可钉死（review/practice）。
 - **跨轮教学记忆（承重件）**：`students/<id>.teaching.json` 持久化每概念 (mode, outcome) 历史，支撑 INTRODUCTION→EXPLANATION→PRACTICE→CHALLENGE 跨轮推进。
 - **per-mode 教学配方**：每模式挂 focus/avoid（INTRODUCTION「先讲直觉、禁公式堆积」；REMEDIATION「先定位错在哪一步、重建直觉模型、不只给答案」；CHALLENGE「综合题+迁移题」）。**INTRODUCTION 按学段三档分**（P1 细化，原为高中/本科一档 vs 小初一档）：本科=动机切入+严格定义/定理/证明思路+知识脉络与应用；高中=直觉例子切入+完整定义/公式/推导+轮廓与适用条件；小学=生活场景/实物/图画+小步即练+段末互动提问、禁长段抽象；初中保持通用配方。depth 在高中/本科 INTRODUCTION 不落 basic（避免「减少抽象推导」误伤高学段严谨讲解）。**学段细则单一事实源**：`teaching_engine/stage_profile.py`（四学段×七维度：语言/抽象/例题/结构/鼓励/难度锚点/典型错因），由 grade_preamble 整块注入讲解上下文（tutor_system@2.6.0 只留注入约定），并以难度锚点/例题风格/典型错因行注入出题、拟合、M4 出题与批改 prompt——替代原「{grade} 干标签靠模型自由发挥」。**讲解深度下限**（tutor_system@2.8.0）：「教学过程」由六步提纲式骨架扩为全链路要求（知识定位→直观动机→精确定义→分步推导→例题精讲→易错辨析→联系延伸→小结），并新增「深度下限」条款——默认讲解必须成篇讲透、禁止只给概要/提纲收尾，「输出纪律」明确"思考要短"只约束内部思考不约束最终回答；stage_profile 四档 abstraction/structure 同步操作化（本科档：定义条件逐条解读、证明给关键引理与核心步骤、反例构造、概念脉络联系）。
 - **错误诊断（misconception）**：四分类（概念/步骤/计算/推理），批改反馈 note 规则诊断后存入学生记忆，下轮策略针对根因。
@@ -460,19 +458,15 @@ per-student 构建锁 + 全局 Semaphore(2) 防 429；任何异常落 `status=gr
 
 ## 13. M4 智能测评（Assessment）
 
-回答「学生真的学会了吗」。包：`agents/assessment/`。架构决策：复用 M3 difficulty + misconception.diagnose（单向 import，零循环依赖），经 `AssessmentContext`（plain 数据）只读接收学生状态，写回只走 `record_quiz_result` facade。
+回答「学生真的学会了吗」。包：`agents/assessment/`（manager / adaptive_test）+ `student_model/evaluation`（受理、判分、语义作业）。所有作答经同一受理入口 `evaluate_submission`（§11.4 契约）：完整答案指纹判重（同题同答案重放同 attempt、同题不同答案 409）、MC 确定性判定随受理事务落盘、开放题语义作业进同一 job 体系；帮助事件在判分前入账，assistance_floor 决定该次表现能否计独立。
 
-- **三级评分（承重件）**：`/quiz/grade` 输出 `[对]/[部分对]/[错]`。「部分对」（思路对、缺步骤）是 M3 REMEDIATION 的根因信号、CAT 难度步进的输入。向后兼容：SSE 追加 `{score, concept_status}`。
-- **MC 闭环**：`POST /quiz/record` 让选择题结果也回传 BKT——所有题型进掌握度闭环。
-- **单闭环点**：`AssessmentManager.evaluate_and_record` 收敛所有评价路径（grade → derive concept_status → 复用 diagnose 分类 → 写 student_model），并回填 `skill_id`（SkillGraph 严格匹配锚定真实节点）。`is_variant=True` 标记同族变式题（fit_quiz），证据门按 VARIANT_TASK 层级计。**W2/A05**：证据门输入增加 `question_verified`——仅 critic 独立重解通过为 True；basic/off/缺失/fail-open 一律 None，评分置信压到 0.70 上限（缺失不默认高置信，仍高于 0.60 拒绝线）；gate 的 `max_confidence` 连同 `verdict`（A04 partial 分轨）与 `attempt_id`（A14 幂等）随写回传入 M2 事件。CAT 出题的 verification 审计随 `Question.verification` 落盘，判分时回读。
-- **约束驱动出题**：constraint → prompt → 单题（注入「检测什么子能力/禁用什么方法/难度」），供诊断路径与 CAT 使用。
-- **CAT 自适应测试**：不固定题数，按作答动态调难度。4 条停止规则（mastered/confirmed_gap/max/oscillating）+ 难度步进（镜像 M3 阈值）。`AssessmentSession` 跨轮持久化（`students/<id>.assessment.json`）。LLM 仅用于出题，停止/难度决策全纯函数。停止结论是**诊断性**的（产品文案称「自适应诊断」；`mastered` 表示本轮连续答对且难度较高，不是长期掌握声明——前端 SummaryCard 将 stop_reason/status 映射为中性表述，原始枚举不再直达学生）。**W2/A03 生命周期**：每次 CAT 携带独立 `assessment_id`（旧 `session_id` 从未填充、API 回显的是学生 id）；answer 触发的停止**随本次作答同一次落盘**（status+stop_reason），刷新/重启/报告与响应一致；next 在当前题未答时**幂等重发该题**（不叠加新题）、终态会话不再生成新题；abandon 落盘 `status=abandoned`（保留文件供报告/审计，不再删除）；`get_active_session` 过滤终态。并发防护双层：per-student `asyncio` 生命周期锁（`threading.RLock` 对同线程协程可重入、挡不住事件循环上的交错）+ 写段 `file_lock`；同作答重放返回已记录判定、零写入。题目载荷（start/next/active）剥离 answer/explanation——判分全在服务端。
-- **API**：`POST /assessment/{start,answer,next,abandon}` + `GET /assessment/report` + **W2 新增 `GET /assessment/active`**（恢复端点：进行中返回当前题公开内容+已答进度，终态返回 stop_reason+summary，无会话 `{"status":"none"}`；前端挂载即恢复，不再只探测 disabled）。W1 起 `AnswerRequest.raw_grade` 与 `StartRequest.mastery` 仅兼容保留、值一律忽略：批改全文不再可由调用方注入（一律服务端自评），起点掌握度改由服务端按身份绑定档案 best-effort 读取（`_server_mastery`，读不到为 0.0）——客户端无法再用自己的批改或 mastery 值左右 concept_status。
-
-- **量规冻结（W3/D04）**：出题 prompt（三条生成路径共用契约 `quiz_verify.RUBRIC_REQUIREMENT`）随题输出 `rubric_criteria[{id,description,weight,critical}]` + `equivalent_solutions`；`freeze_rubric` 在题目通过校验、获得稳定题号后以 `rubric_id=题号、version=1` 冻结随题落盘（出题时学生未作答，天然满足「看学生作答前冻结」）。形状非法→rubric 缺省（题仍可用，结构化分析回退三级批改）。M4 出题/批改 prompt 已迁入注册表（`assessment_generate@1.0.0`/`assessment_generate_auto@1.0.0`/`assessment_grade@1.0.0`，文本含量规契约）。A17 四分标签（`verification_label`：content_checked/ambiguous/structural_valid/unchecked）从现有 verification 审计派生供投影/审计使用；`question_verified()` 两级语义不变。
-- **结构化作答分析（W3/D06，`STRUCTURED_ASSESSMENT_MODE=off|shadow|active`，默认 off）**：`agents/assessment/structured_evaluator.py` 单次调用（prompt `assessment_analyze@1.0.0`）输出量规条目判定（met/partial/not_met/not_observed/not_applicable，criterion_id 只认冻结量规候选集）、首个实质错误+此前做对部分、≤2 错因假设（七类枚举）、uncertainties、六维能力观测、feedback{strength,next_step}、continuation 建议——D06+局部 D07+D08 建议合并为一次调用。**分数由服务端按冻结权重本地计算**（not_applicable 出分母、关键条目 not_observed→整题不确定→保守 partial），不采信模型自报。坏 JSON 修复一次→再坏弃权回退三级批改（不造默认分）；MC 始终确定性判分；shadow 旁路结果存 `structured_shadow` 可对账；active 结果即权威判定，随 `AssessmentResult.structured`、账本 attempt（criterion_results/hypotheses）、M2 事件 payload 增键落盘。学生作答中的指令不进入任何工具/指令位（schema 固定 + 白名单校验）。
-- **CAT continuation（W3/D10，`agents/assessment/continuation_policy.py`）**：硬上限优先——`should_stop` 纯规则不动、先判；仅当硬规则放行时 active 模式才让分析的 continue/probe/finish 建议生效：finish→`sufficient_evidence`（分数≥0.75 且无关键条目未达标）或 `insufficient_evidence`（信息不足以未定结束，不判失败），与作答同一次落盘；probe→下一题 goal 注入未覆盖关键条目+错因假设（生成后消费清空）；shadow 存 `session.continuation_shadow` 不生效。前端对两个新 stop_reason 提供中性文案映射。
-- **提示与异议（W3/F02/F05 最小形式）**：`GET /quiz/hint`（A01 同款归属校验）从冻结量规派生关键步骤提示（不含答案/判定，先答后揭晓不破），服务端在题快照落 `hint_requested` 标记——判分自动携带 `assistance=hint`（M2 事件记载；评分置信压至 0.70，帮助后表现不伪装独立掌握；客户端自报帮助状态一律不采信）。`POST /quiz/dispute` 把账本 attempt 标记 `evidence_status=disputed`（保守：不抹除证据、不改投影；修正走重答 supersede+BKT 重放）。
+- **三级评分反馈**：`/quiz/grade` 输出 `[对]/[部分对]/[错]` 批改讲解；判定与题目局部分数（TaskResult）随来源落 journal，「部分对」是 M3 REMEDIATION 的根因信号、CAT 难度步进的输入。
+- **量规冻结**：出题（三条生成路径共用 `quiz_verify.RUBRIC_REQUIREMENT` 契约）随题输出 `rubric_criteria[{id,description,weight,critical}]` + `equivalent_solutions`；题目通过校验、获得稳定题号后以 `rubric_hash` 冻结随题落盘（出题时学生未作答，天然满足「看学生作答前冻结」）。改量规必须新 `question_revision`，指纹由服务端复核。
+- **提示与异议**：`GET /quiz/hint`（归属校验同 chat 路由）从冻结量规派生关键步骤提示（不含答案/判定，先答后揭晓不破），服务端在题快照落 `hint_requested`——判分自动携带 assistance 事件（帮助后表现不伪装独立）；`POST /quiz/dispute` 创建复核请求（ReviewRequest），复核走 `review_resolved` 生命周期，可撤销错误解释而不抹除原始证据；客户端自报帮助状态一律不采信。
+- **跨会话最近习题**：`GET /quiz/recent` 是 journal 投影（替换旧 `.quiz_recent.json` 独立真相）；错题本同样从 journal 生成，可一键出变式重练（`origin_question_ref` 记录同族关系）。
+- **CAT 自适应测试**：不固定题数，按作答动态调难度（1–5 内部档）。停止结论是 `stop_code` 枚举（`sufficient_for_current_claim|needs_clarification|max_questions|max_time|user_stopped|generation_failed`），是**诊断性**的（前端 SummaryCard 映射为中性表述，原始枚举不直达学生）。实例（题目引用/难度轨迹/停止状态）持久化于 journal `assessments`，不再有单槽 `assessment.json`；`next` 在当前题未答时幂等重发该题；`answer` 触发的停止随作答同一次落盘。并发防护：per-student 生命周期锁 + journal `file_lock`。题目载荷（start/next/active）剥离 answer/explanation——判分全在服务端。
+- **API**：`POST /assessment/{start,answer,next,abandon}` + `GET /assessment/{report,active}`；`active` 三态（进行中当前题公开内容 / 终态 stop_reason+summary / 无会话 none），前端挂载即恢复。`AnswerRequest.raw_grade` 与 `StartRequest.mastery` 已删除——客户端无法注入批改或起点状态。
+- **评价状态映射（§10.3/§11.5）**：作答回执 `evaluation.status ∈ ready|pending|unavailable|disabled`——语义解释就绪 ready；作业在途（queued/running/retry_wait）pending；硬故障 unavailable（不冒充 pending）；`next` 的 409 `evaluation_pending` 只表示判断仍在途；报告区分 pending 与题目局部结果（MC 确定性结果先行可见）。
 
 ---
 
@@ -495,8 +489,8 @@ per-student 构建锁 + 全局 Semaphore(2) 防 429；任何异常落 `status=gr
 
 - **ConceptRetriever**：BM25 over concept search_text（复用 `core/retriever`）+ KG 遍历扩展 + 分数融合。确定性、零 LLM。
 - **ContentResolver**：概念 → 教学内容，级联永不阻塞：seed content → 上传材料 BM25 回退（复用 `knowledge_search` 同一库，把讲解锚定到学生实际教材）。
-- **KnowledgeContextBuilder**：组装 `[知识智能·…]` 软指令块（概念定位/前置补缺/易错点/教学示例/教材引用/相关概念）。本体外概念返回空（M5 隐形不噪音）。前置补缺只报「有 BKT 记录且 p_known<0.6」的节点——无记录 ≠ 未掌握。
-- `/knowledge/graph` mastery overlay = BKT 记录 ∪ 记忆状态的并集。
+- **KnowledgeContextBuilder**：组装 `[知识智能·…]` 软指令块（概念定位/前置补缺/易错点/教学示例/教材引用/相关概念）。本体外概念返回空（M5 隐形不噪音）。前置补缺读统一评价投影——仅提示评价状态为 fragile/conflicting/emerging 概念的前置；未观察 ≠ 未掌握。
+- `/knowledge/graph` 概念着色 = 统一评价投影（observed/not_observed/冲突）∪ 教学日志的并集。
 
 ### 14.4 Dependency Reasoner（M5 唯一用 LLM 的组件）
 
@@ -517,7 +511,7 @@ per-student 构建锁 + 全局 Semaphore(2) 防 429；任何异常落 `status=gr
 
 - **KnowledgeGraph 增量索引**：`edges` 列表仍是序列化真相源；`add_edge` 去重走 `_edge_keys` 集合（O(1)，不得回退线性扫描），`_reaches`/`prerequisites_of`/`descendants_of`/`neighborhood` 走 `_adj_out/_adj_in` 邻接索引（O(可达)，不得回退逐步全量扫边）。语义等价由 `tests/test_knowledge_graph_index.py` 用朴素参考实现钉死。
 - **合并互斥**：`graph_for` 每学生一把构建锁 + 锁内双检；基础图懒初始化同样加锁。冷合并（解析+索引）实测 ~0.75s；进程启动 lifespan 用 daemon 线程预热默认学生模型，避免首请求承担。
-- **执行位置纪律**：async 端点内的同步重活必须 `asyncio.to_thread`（M9 `today_tasks/_compose_today_safe` 全链路已迁移）；M9 读侧 helper（`_mastery_view_safe` 等）必须传真实 `student_id`，否则登录用户读到 guest 命名空间并额外冷构建一份。
+- **执行位置纪律**：async 端点内的同步重活必须 `asyncio.to_thread`（M9 `today_tasks/_compose_today_safe` 全链路已迁移）；M9 读侧 helper 必须传真实 `student_id`，否则登录用户读到 guest 命名空间并额外冷构建一份。
 - **`GET /orchestration/today` 确定性优先**：读路径缺当日任务时用确定性生成器即时返回；LLM 组合（`compose_llm=True`）只发生在显式写动作（POST /goal、/regenerate 后的 kickoff）。
 - **SkillGraph 热路径缓存**：`prerequisites_of` 祖先 memo + `descendants_of` 反向邻接惰性缓存（prereq 构造后不可变）；M5 合并插入新节点后必须 `invalidate_traversal_cache()`。
 
@@ -534,7 +528,7 @@ per-student 构建锁 + 全局 Semaphore(2) 防 429；任何异常落 `status=gr
 - **删除选择**：归档对话时可选“永久遗忘提示词影响”（默认不选）；窗口内 contribution 可立即永久移除，恢复对话也不重建。若归档时不选，归档中心永久删除或到期清扫仍会自动移除可单项归属的最近贡献；`compacted_session_ids` 仅保存会话身份归属，已压缩进整体画像的内容无法安全反向拆分，UI 明示不可单独撤销；旧版仅有压缩总数的数据标为 `legacy_unknown`，不伪造精确归属。
 - **旧数据兼容**：`.episodes.jsonl/.episodes_archive.jsonl/.semantic.json` 继续只读展示和审计，但生产回合不再追加详细 episodic、不再运行 semantic consolidation，也不直接注入 prompt。
 - **程序/习惯聚合**：策略成功率保存在 `students/<id>.procedural.json`，M9 习惯聚合保存在 `students/<id>.habit_patterns.json`；两者均为有界结构化状态，不保存对话正文或具体教学内容。首次读取允许从旧 `.semantic.json` 兼容投影，后续活动写入不再改写旧语义文件。
-- **独立学习档案**：`students/<id>.learning_records.json` 保存题目、作答、评分、知识点和时间；与 prompt memory 分离，来源对话删除只更新来源状态。
+- **独立学习档案**：`students/<id>.learning_evidence.jsonl` 统一学习证据账本保存题目、作答、判分、语义解释与时间；与 prompt memory 分离，来源对话删除后证据保留（按删除语义归档）。
 - **工作区共同记忆**：`Workspace.public_memory` 与用户级 prompt memory 隔离，仅同工作区会话读取；新会话边界整体压缩一次；单聊删除不回退；工作区 bundle 归档/恢复/永久删除。
 
 ## 16. M7 评估改进智能（Evaluation & Improvement）
@@ -542,16 +536,16 @@ per-student 构建锁 + 全局 Semaphore(2) 防 429；任何异常落 `status=gr
 回答「这个教师 Agent 自己是否越来越好」。包：`agents/evaluation/`。**不是自动自我修改的 Optimizer，而是 Improvement Advisor**：observe → diagnose → propose → approve → deploy，M7 只做前三步，approve/deploy 是人工确认（API）。
 
 - **纯观察者（PURE-OBSERVER）**：只读 M2/M3/M6 投影，绝不反向写回；只拥有自己的评估产物。
-- **与 M6 边界**：M6 procedural 记「策略 X 对该生 success_rate=Y」（per-student）；M7 strategy_analyzer 记「跨所有轮次哪种模式 avg learning_gain 最高」（系统级聚合）。不复制原始数据，只产出聚合层。
+- **与 M6 边界**：M6 procedural 记「策略 X 对该生 success_rate=Y」（per-student）；M7 strategy_analyzer 记「跨所有轮次哪种模式成功率最高」（系统级聚合，衡量的是教学系统质量而非学生能力）。不复制原始数据，只产出聚合层。
 - **四层管线**：
-  1. 观察层：TurnTrace 捕获（concept/mode/outcome/tools/gain）。
+  1. 观察层：TurnTrace 捕获（concept/mode/outcome/tools/tokens/steps/duration，无任何学生能力数值）。
   2. 诊断层：**Trace Analyzer**（承重件，零 LLM）——优先级瀑布诊断失败**发生地**，七类 FailureType：TEACHING_DEPTH_MISMATCH / PREREQUISITE_MISSING / RETRIEVAL_MISS / ASSESSMENT_TOO_HARD / STRATEGY_MISMATCH / NO_ASSESSMENT / NONE。
-  3. 建议层：strategy_analyzer 跨轮聚合 (mode,subject) avg_gain + avg_success_rate 排序表；**advisor**（唯一 LLM 件，每 15 条 trace 频率门控，每次至多 1 条）产出**开放式教学指导提案** ImprovementProposal（title / applicability（适用范围文本，空=通用）/ guidance（指导原则文本）/ cautions / confidence——无值域、无参数赋值；解析失败静默丢弃），**不自动应用**。旧式 target 型提案（prompt/policy/strategy 白名单）仅存于历史数据，向后兼容读写。
+  3. 建议层：strategy_analyzer 跨轮聚合 (mode,subject) 成功率排序表；**advisor**（唯一 LLM 件，每 15 条 trace 频率门控，每次至多 1 条）产出**开放式教学指导提案** ImprovementProposal（title / applicability（适用范围文本，空=通用）/ guidance（指导原则文本）/ cautions / confidence——无值域、无参数赋值；解析失败静默丢弃），**不自动应用**。旧式 target 型提案（prompt/policy/strategy 白名单）仅存于历史数据，向后兼容读写。
   4. 部署层：人工批准（approved）→ **应用（applied）即部署**——提案的指导文本由 API 层写入 `teaching_engine/guidance_store`（M3 拥有的输入态文件 `students/<id>.teaching_guidance.json`；这是 M7 影响教学的**唯一路径**，也是唯一被允许的跨模块写点——M7 分析器代码从不 import M3）。后续每轮 `TeachingManager.adapt(student_id=…)` 读取生效条目并经 `compose` 折入 focus/avoid（确定性适用范围过滤：当前学科/概念出现在 applicability 文本中，或 applicability 为空=通用；每轮至多取最新 2 条、每行 110 字封顶），rationale 注明「已应用教学指导（提案 #id）」。指导只走 supervisor 已渲染字段（focus[:3]/avoid[:3]），对话链路零改动。
   5. （原 A/B 实验层已删除——experiment.py 为零调用死代码，见遗留物台账 C8。）
 - **吊销即回滚**：`DELETE /evaluation/guidance/{id}` 将条目置 active=false（保留审计），compose 立即停止消费，教学行为恢复原状；重新应用同一提案幂等（applied_at 锚定首次应用时间，影响统计不重置）。
 - **影响回显**：applied 提案带 `impact_turns` = applied_ts 之后的 eval_traces 条数（「已影响最近 N 轮」）；历史数据无 applied_ts 时为 null（显示「影响未知」）。
-- **Learning Gain**：before（3b 前捕获 mastery_p）→ after（6b 事件后 mastery_view）增量，纯函数；纯讲解轮无 quiz 则不可测。
+- **教学效果观测**：以每轮 outcome（correct/wrong/engaged/…）与工具/成本（tokens/steps/duration）为主的教学系统质量事实；旧 before/after 掌握度增量已随统一评价删除（学生能力观测只在 M2 学习证据域）。
 - **持久化**：`students/<id>.eval_traces.jsonl`（黑盒）+ `students/<id>.evaluation.json`（聚合+proposals）+ `students/<id>.teaching_guidance.json`（M3 指导输入态）。
 - **API**：`GET /evaluation/{report,traces,proposals,guidance,context-budget}` + `PATCH /evaluation/proposals/{id}`（`{status: approved|rejected|applied}` 人工确认门；applied=部署）+ `DELETE /evaluation/guidance/{id}`（吊销回滚）。
 
@@ -561,7 +555,7 @@ per-student 构建锁 + 全局 Semaphore(2) 防 429；任何异常落 `status=gr
 
 回答「怎么表达最适合这个学生」。包：`agents/ux_intelligence/`。横向输出适配层：不改变教什么（M3 职责），只改变怎么表达。**M8 不用代码改写回答**，只产「如何表达」的软指令，LLM 在边界内自主表达。
 
-- **单真相源红线**：M2 拥有学术讲解偏好（LearningStyle）；M8 的 UXProfile **只拥有 M2 没有的 UX 维度**——tone（语气）/ visual_preference（图示）/ pacing（节奏）/ patience（耐心）/ preferred_length（参与推断）。学术偏好只读投影，绝不重复拥有，绝不写 mastery/skill_graph/teaching_strategy。
+- **单真相源红线**：M2 拥有学术讲解偏好（LearningStyle）；M8 的 UXProfile **只拥有 M2 没有的 UX 维度**——tone（语气）/ visual_preference（图示）/ pacing（节奏）/ patience（耐心）/ preferred_length（参与推断）。学术偏好只读投影，绝不重复拥有，绝不写学习证据/教学策略。
 - **四层输出适配管线**（每轮关键路径零 LLM）：
   1. 信号层：FeedbackAnalyzer 规则分类反馈（too_hard/too_long/too_short/too_fast/too_slow/praise）。
   2. 推断层：EngagementTracker（长度窗口 + abandon 启发式）+ learner_profile（读 M2 只读）+ motivation_engine（读 M6 连续天数只读）。
@@ -590,7 +584,7 @@ per-student 构建锁 + 全局 Semaphore(2) 防 429；任何异常落 `status=gr
 - **完成回写**：完成带子任务引用的今日任务 → 对应 SubTask 置 done。**标题守卫**：位置 id 会被重规划复用于新内容，只有标题仍匹配才记功（防旧任务给新内容刷完成）。**W4/A12 完成语义**：曝光轮（6g）只把概念匹配的今日任务 pending→in_progress；完成只有两条路——①任务自身绑定证据（launch 会话内已受理作答，`completion_source=quiz_evidence` + `evidence_attempt_id`，任意判定=已做该任务，达标另判），②显式勾选（`completion_source=self_report`，零 M2 写入）。无绑定会话的作答**不再**按概念名自动完成今日任务（旧「任意同概念判定完成全部匹配任务」正是 A12 缺陷：同概念多任务串联完成、补练无法归属）。
 - **任务启动绑定（W4/A12）**：`POST /orchestration/task/{id}/launch`（随本路由族单数命名；纲领 §9.2 的复数拼写为设计目标名）服务端校验归属后预创建携带 `task_binding{task_id, episode_id, concept_id}` 的聊天会话并返回 `{episode_id, session_id, launch_url}`；未完成任务的 relaunch 幂等复用同 episode/会话。episode 存 `students/<id>.learning_episodes.json`（`core/learning_episodes.py`，§8.5 许可的可重建投影，最小生命周期 active→completed/abandoned + revision）。前端 TodayCard/kickoff CTA 先 launch 再跳 `launch_url?q=首选消息&send=1`（沿用 kind 感知首发文案），launch 失败回退纯文本深链（§9.4 普通深链仍支持）。判分端点（/quiz 两处）把会话的 task_binding 传给 `record_quiz_evidence`：SRS 复习键用任务的规范 concept_id（消除聊天概念串/图谱节点 id/note: 三键碎片化在该路径的影响），作答只完成绑定任务；任务完成时 episode 置 completed。
 - **作答证据直供（W4/A08·M9 切片）**：判分全部发生在聊天轮外（/quiz/record、/quiz/grade、/assessment/answer），旧架构里 M9 唯一的 verdict 入口是 supervisor 当轮工具窥探——死路径，主判分路径对 M9 零输出（SRS 不更新、任务不完成）。现 `core/quiz_attempts.record_quiz_attempt` fan-out 与 CAT `record_cat_answer` 都喂 `record_quiz_evidence`（attempt_id 幂等，重放不二次增长；unknown 只建卡不进 SM-2；落 `quiz_evidence` 编排事件——`srs_review` 自评标记之外的正向可对账事件）。M2 事件补携带 session_id（facade 此前静默丢弃；legacy 处理器忽略该增量键）。M7/M6/M8 的同款窥探消费属 W6。
-- **SM-2 间隔复习（承重件）**：经典 SM-2；`quality_from_verdict()` 是 M4→M9 组合点（correct→5 / partial→3 / wrong→1；**unknown 及无法识别的判定返回 None**——W1/A07：无有效召回证据就没有 SM-2 观察；exposure（无判定讲解轮）与 unknown 只建卡安排首次检查，不进通过路径，复习间隔不再被「只听讲」拉长——W4 起 recall 质量只经 `record_quiz_evidence` 进入，`record_turn` 纯曝光）；`submit_review` 自评反馈可调日程但事件带 `source: "self_report"` 与作答证据分开标记；新建卡 `last_quality=None`（从未召回的卡不再伪装成 pass-3，旧文件历史值保留）；SRS 与 M2 BKT 正交。前端并入今日任务「间隔复习」子栏。
+- **SM-2 间隔复习（承重件）**：经典 SM-2；`quality_from_verdict()` 是 M4→M9 组合点（correct→5 / partial→3 / wrong→1；**unknown 及无法识别的判定返回 None**——W1/A07：无有效召回证据就没有 SM-2 观察；exposure（无判定讲解轮）与 unknown 只建卡安排首次检查，不进通过路径，复习间隔不再被「只听讲」拉长——W4 起 recall 质量只经 `record_quiz_evidence` 进入，`record_turn` 纯曝光）；`submit_review` 自评反馈可调日程但事件带 `source: "self_report"` 与作答证据分开标记；新建卡 `last_quality=None`（从未召回的卡不再伪装成 pass-3，旧文件历史值保留）；SRS 与统一学习评价正交。前端并入今日任务「间隔复习」子栏。
 - **容量可行性（W4）**：`schedule_engine.capacity_report` 纯函数按日汇总 estimate_minutes vs daily_minutes 标记超载日（此前任何路径都无分钟级校验：add_task 只限数量、weekly 解析只夹单任务分钟、改预算不复查存量）。`/plan` 附 capacity、`POST /task` 与 `PATCH /task` 附当日 `capacity_warning`、`PATCH /schedule` 返回重算报告——全部 advisory 不阻断（§11.1 学生可自主超排）。今日卡超载时显示警示条。
 - **进度预测（原成长模拟）**：确定性前向投影 + `headline()` 人话结论（零 LLM 模板：节奏 → 到期完成率 → 风险行动）。**前端已下线该卡片**：抽象投影数字对学生不可行动（真实用户反馈），`GET /orchestration/simulation` 端点保留可用；前端同样移除了手动「重新规划」按钮（确定性重算后页面无可见变化，等同死按钮）——needs_replan banner 改为「让教练帮我调整」对话深链，目标编辑保存仍是自动重规划的入口。
 - **防死循环双守卫**（不变）：无目标永不提示；`last_plan_attempt` 区分「从未规划」与「规划了但无可安排内容」——empty_plan 是合法终态。
@@ -628,9 +622,9 @@ M10 是横向能力控制层，包路径 `agents/skill_runtime/`。它不替代 
 
 `runtime.py::SkillRuntime` 将 ToolResult 映射回 Skill，并对可确定性检查的后置条件执行验证，例如资料结果必须包含命中数与 `<material_excerpt>`、出题结果必须包含 questions、历史回忆必须有 `<history_excerpt>`。验证结果写入 `skill_postconditions` Trace。gated 模式下，只有非 error 且后置条件通过才发出 `skill_plan_advance`，Executor 重算下一 PlanStep 的可见工具；没有工具绑定的 advisory teaching step 不再阻塞后续 assessment step，而是记录 `skill_plan_advisory` 后跳到下一个工具步骤。失败留在当前步骤，由既有恢复提示和 `MAX_STEPS` 控制。
 
-### 19.5 学习证据门契约
+### 19.5 学习证据纪律（统一评价域）
 
-`evidence.py` 定义 E0-E5 六级证据：接触、主观自报、复述、同型题、变式题、迁移。`evaluate_learning_evidence` 的规则是：无学生行动、仅“懂了”或单纯复述不得产生高置信度掌握度写入；同型题及以上且评分置信度达门槛才允许写回。M4 `AssessmentManager._record` 已接入该门：MC 使用确定性评分置信度，结构化/LLM 主观题使用较低置信度；unknown/空作答被阻断，明确判错仍作为有效的负向 BKT 证据写入 M2。`AssessmentResult` 以增量字段 `evidence_level` / `evidence_gate` 返回本次门控等级、是否允许写回与理由码，不建立第二套掌握度存储。
+旧 E0–E5 六级证据门（`evidence.py`）已随统一学习评价删除。现行证据纪律在 M2 评价域内统一执行（§11/§13）：学习观察只有 dialogue/assessment 两类来源、必须携带真实 `observed_at` 与当时 workspace 归属；题目在学生作答前冻结量规；帮助事件在判分前入账，assistance 后的表现不伪装独立；unknown/空作答不产生判定（不落任何评价写入）；明确判错是有效的负向观察，以语义判断（ConceptJudgment）而非数值掌握度落账。M10 自身的门是 `gate_plan`（计划级工具门）与后置条件校验，不再有第二套学习证据分级。
 
 ### 19.6 兼容边界
 
@@ -668,7 +662,7 @@ frontend/src/
 ### 20.2 「纸墨书院」设计体系
 
 - 三层令牌：基础色板 → 语义令牌（CSS 变量，`globals.css` + `@theme inline`）→ 组件类。宣纸底 / 黛青 / 朱砂主色，浅深双主题（`data-theme` 切换，偏好持久化 localStorage）。
-- 掌握度四态色（未学/初学/掌握/熟练）贯穿图谱、总览、测评。
+- 证据四态色（未观察/初现/有支持/需复核）贯穿图谱、总览、测评，颜色语义与统一评价投影一致。
 - `font-serif` 标题气质；字号 S/M/L/XL 四档（`--fs-scale` 驱动根字号，默认 M）；`page-in` 页面入场动效。
 - 页面三态规范：加载骨架 / 空态（引导行动）/ 数据态；卡片化 + 徽标 + 克制留白。
 
@@ -677,7 +671,7 @@ frontend/src/
 | 路由 | 页面 | 体现模块 |
 |------|------|---------|
 | `/chat/[[...sessionId]]` | 对话工作台 | M1 + 工具卡片 + 文件/图片上传 + 引用资料 + 语音通话（沉浸式电话模式） + 当前资料右侧栏 |
-| `/dashboard` | 学习总览 | M2（掌握度/近况）+ M9 今日任务联动卡（最近学习/需要关注均分页）|
+| `/dashboard` | 学习总览 | M2（学习近况/证据投影）+ M9 今日任务联动卡（最近学习/需要关注均分页）|
 | `/knowledge` | 知识图谱 | M5（分层浏览/自定义图谱/个性化路径）|
 | `/plan` | 学习计划 | M3（教学日志/学习路径/动态难度，全列表分页）|
 | `/orchestration` | 学习编排 | M9（多目标卡+差距分析/周 tabs+周任务子任务✨拆解/今日任务双子栏+间隔复习/全列表分页+数字跳页/needs_replan 教练深链/习惯）|
@@ -765,19 +759,17 @@ frontend/src/
 | `chat_history/workspaces/ws_<ts>_<slug>.json`（+ `uploads/` 共享资料上传目录） | 工作区（含 public_memory/selected_*），每区一文件 | 账号 |
 | `chat_history/trash/items/<sid>/<trash_id>/` | 统一归档包（manifest + payload） | 账号 / 公用 |
 | `users/accounts.json` | 账户（bcrypt hash） | 全局 |
-| `students/<sid>.json` | M2 画像 + BKT + 概念状态 | 账号 |
+| `students/<sid>.json` | M2 画像（身份/学段/偏好；无能力数值） | 账号 |
+| `students/<sid>.learning_evidence.jsonl` | M2 统一学习证据 journal（唯一事实源；tasks/sources/jobs/判断/scope） | 账号 |
 | `students/<sid>.teaching.json` | M3 教学日志 | 账号 |
 | `students/<sid>.teaching_guidance.json` | M3 已应用教学指导（M7 提案部署写入，active 标记可吊销） | 账号 |
-| `students/<sid>.assessment.json` | M4 CAT 会话 | 账号 |
 | `students/<sid>.prompt_memory.json` / `.prompt_memory_pref.json` | M6 精简提示词画像 + 最近会话窗口偏好 | 账号 |
 | `students/<sid>.procedural.json` / `.habit_patterns.json` | M6 有界策略成功率 / 学习习惯聚合 | 账号 |
 | `students/<sid>.episodes.jsonl` / `.episodes_archive.jsonl` / `.semantic.json` | M6 旧情景/语义兼容审计（生产只读；写侧已删，仅聚合回退与审计 Tab 在读） | 账号 |
-| `students/<sid>.learning_records.json` | 独立学习结果账本（题目/作答/评分/知识点/来源状态） | 账号 |
-| `students/<sid>.learning_episodes.json` | W4 任务启动绑定投影（task→episode→session；可重建，非权威账本） | 账号 |
-| `students/<sid>.eval_traces.jsonl` / `.evaluation.json` | M7 评估黑盒/聚合 | 账号 |
+| `students/<sid>.learning_episodes.json` | 任务启动绑定投影（task→episode→session；可重建，非权威账本） | 账号 |
+| `students/<sid>.eval_traces.jsonl` / `.evaluation.json` | M7 评估黑盒/聚合（教学系统质量事实，无学生能力数值） | 账号 |
 | `students/<sid>.ux_profile.json` / `.ux_events.jsonl` | M8 UX 画像/事件 | 账号 |
 | `students/<sid>.orchestration.json` / `.orchestration_events.jsonl` | M9 编排状态/事件 | 账号 |
-| `students/<sid>.quiz_recent.json` | 跨会话最近习题快照（上限 100 道，FIFO） | 账号 |
 | `knowledge/graph.json` | M5 图谱增量（reasoner 边；P6-A2 已清空，考纲 seed 删除） | 全局 |
 | `knowledge/custom/<sid>/<topic>.json` | 活动教材图谱（topic_key=`tb-<id>`；sid=`public` 为公用教材图谱） | 账号 / 公用 |
 | `knowledge/custom/<sid>/<topic>.chunks.json` | 概念→chunks 预索引（P6-C2，随图谱删除联动） | 账号 / 公用 |
@@ -803,9 +795,10 @@ frontend/src/
 - **语音通话（P10，默认 off）**：`GET /voice/status`（provider 可用性）、`POST /voice/ticket`（header JWT 换单次 60s 握手凭证）、`WS /voice/ws?ticket=`（push-to-talk 通话协议，见文末 P10 章节）
 - **认证/账户**：`GET /auth/status`、`POST /auth/register`、`POST /auth/login`、`POST /auth/logout`、`GET /auth/me`、`GET/PUT /user/profile`、`DELETE /user/account`
 - **对话**：`POST /chat/stream`（SSE，`grade` 默认 `""`=自动）、`POST /chat/upload`（`grade` 默认 `""`）、`POST /chat/ocr`、`GET /chat/sessions`、`GET/PATCH/DELETE /chat/sessions/{id}`（PATCH 支持 `{title?, grade?}` 会话内切换学段）、`GET /chat/sessions/{sid}/files/{fid}/download`、`POST /chat/sessions/{sid}/attach_library`（`grade` 默认 `""`）
-- **测评交互**：`POST /quiz/grade`（SSE）、`POST /quiz/record`、`GET /quiz/recent`（跨会话最近习题，上限 100 道）、`POST /assessment/{start,answer,next,abandon}`、`GET /assessment/report`
+- **测评交互**：`POST /quiz/grade`（SSE）、`POST /quiz/record`、`GET /quiz/hint`、`POST /quiz/dispute`、`GET /quiz/recent`（journal 投影，跨会话最近习题）、`POST /assessment/{start,answer,next,abandon}`、`GET /assessment/{report,active}`
 - **OpenAI 兼容门面**：`GET /models`、`POST /chat/completions`（COMPAT_API_KEY 鉴权，未配置=503；供第三方平台接入，见 §21.6）
-- **学生投影**：`GET /student/{profile,mastery,teaching-log,learning-path,error-notebook,learning-records,bloom-profile}`（后两者为 L1 档案层只读端点：学习账本分页 / 布鲁姆认知档案）
+- **学生投影**：`GET /student/{profile,teaching-log,learning-path,error-notebook}`（旧 mastery/evidence-profile/bloom-profile/learning-records 端点已删除）
+- **学习评价（M2 统一评价域）**：`GET /learner-evaluation/workspaces`、`GET /learner-evaluation/workspaces/{wid}`、`GET /learner-evaluation/workspaces/{wid}/concepts[/{concept_key}]`、`GET /learner-evaluation/workspaces/{wid}/sessions[/{ref}]`、`GET /learner-evaluation/workspaces/{wid}/evidence`、`GET /learner-evaluation/evidence/{source_id}`、`GET /learner-evaluation/jobs/{job_id}[/events]`、`POST /learner-evaluation/evidence/{source_id}/reviews`（异议复核）、`POST /learner-evaluation/jobs/{job_id}/retry`
 - **知识**：`GET /knowledge/{graph,catalog,custom}`、`GET /knowledge/concepts/{id}`、`DELETE /knowledge/custom/{topic_key}`（P6-A4：手动 build/regenerate/rollback 端点已移除，图谱只来自教材）
 - **管理（P6-B，require_admin）**：`GET /admin/users`、`POST /admin/users/{id}/clear-chat`、`DELETE /admin/users/{id}`、`GET /admin/orphan-data`、`POST /admin/orphan-data/purge`
 - **记忆**：`GET /memory/{episodes,semantic,procedural}`
@@ -822,7 +815,7 @@ frontend/src/
 
 ## 24. 测试概览
 
-后端 `backend/tests/` 使用 unittest（`python -m unittest discover -s tests`，数量以当前 discovery 为准），覆盖：BKT 数学（单调/钳位/往返）、图谱遍历与环检测、模式状态机、INTRODUCTION 学段三档配方（本科证明结构/高中严谨/小学互动小步）、三级评分与 CAT 停止规则、MC 无 options 判分与 unknown 不落盘、作答写回防覆写 merge、检索器融合（含学段分桶偏好与 _bm25 槽位预算回归）、旧记忆冲突/巩固代码兼容测试（生产调度已停用）+ bounded prompt memory 生命周期/压缩归属/永久遗忘回归、learning_style 推断写入（M8 反馈→M2 翻转+幂等）、精简提示词画像注入、错题本跨会话聚合（verdict 过滤/隔离/去重）、记忆卫生（episodic 归档截断/superseded 审计截断）、难度弱化信号（too_hard 降一档触底不降）、recall_history 跨会话检索（来源标注）、学段画像完整性（四学段七维度）与 prompt 锚点注入、本科种子包校验与图谱可达、软指令仲裁（优先级头/deep×concise 收敛）、redline_tail executor 压尾、出题质量门（结构校验/critic 丢题/重生成重试/三路径端到端/fail-open）、作答三落点（quiz_history 写回 + transcript 出题/作答记录 + 独立 learning_records 账本 + recall_history 可检索 + 「近期作答」含学生答案 + 薄弱点按 verdict 过滤）、跨会话最近习题库（100 上限/verdict 回填/fail-open）、压缩摘要注入出题作答 digest（含头截后拼接不丢）、real_summary reflection 通道（含跨步推理累积进 done）、工具步思考策略开关、M7 诊断瀑布与 A/B、M8 滞后效应与单真相源边界（patch 断言不写 M2）、M9 SM-2/多目标管理（增删改+旧单目标迁移）/事件发射/任务唯一性契约（gap-fill 不覆盖+跨天结转）/LLM 周规划校验门与窗口/review 复用概念/LLM 每日编排校验门与回退/6g 自动推进/任务 CRUD 上限/needs_replan 防循环双守卫/regenerate reason 三态/人工不可覆盖合并（origin=user 周+source=user 任务按周 bucket 并回）/周任务与子任务 CRUD/子任务推荐门/子任务→今日物化引用与完成回写标题守卫/进度预测 headline 与 schedule 调整、Supervisor 全钩子不抛、M10 Registry/决策/前置条件/后置条件/证据门/策略收尾检测对齐/advisory 步骤跳过/必执行 Skill 补调用/推理耗尽续写、动态上下文预算/完整回合压缩/公开 reasoning summary、各层开关契约、workspace/library 隔离与三分支语义、M0 鉴权与限流（含 CAT 端点伪造 student_id 无效回归）、OpenAI 兼容门面（鉴权 401/503/探测快道/帧序/usage/错误帧）、**P1 学段去僵化**（is_auto/normalize_grade、自动 preamble 轻约束 vs 显式细则、旧会话兼容、generate_quiz/fit_quiz 省略 grade 自动出题、M3 学段地板自动 easy 起步、PATCH 切换学段持久化+非法 400+隔离 404）、**P2 教材库**（注册表 CRUD+同 file_id 幂等、spec_to_graph 形参化上限/level、fitz TOC 精确分页/locate/整书回退、构建状态机 building→ready/LLM 故障 graph_failed/开关关闭直接 ready/快速路径单次调用、rebuild 归档+原子替换、DELETE 级联、library 直删孤儿清理、API 隔离 404）、**P3 联动**（preamble [当前教材] 块内容/无教材零变化/教材×自动学段共存、TaskFrame.has_textbook 信号、supervisor/legacy 双路径反查一致性）、**扫描 PDF OCR**（is_scanned_pdf 判定/ocr_pdf_pages 逐页顺序拼接+max_pages 截断+on_progress+单页失败不中断、ocr_page_image 视觉/tesseract 双通道+psm=3、教材库后台 OCR 写回 .txt→图谱 ready/全失败 failed/mode=off 不触发、对话资料库同步 tesseract 回退+ocr_fallback=False 跳过+正常 PDF 不 OCR）、**P5a OCR 修复**（逐页择优：达标页保留文本层/稀疏页才 OCR/混合书双层合并、OCR 合并空页占位页码对齐、locate_chapters 第二次出现规避目录陷阱、reap_stale_builds 启动收割 building→graph_failed、OCR 写回原子化+library 元数据同步、VLM 思考关闭默认下发+400 去参重试、Tier1 书签目录切 OCR 文本+章粒度层级偏好、rebuild 真实派发回归、OCR 覆盖按稠密页推导 rebuild 免重 OCR）、**P6 批次**（考纲 seed 删除后图谱只来自教材、上传必选学段+选择优先、手动构建端点移除、管理员引导/列表/注销与 require_admin、公用教材库上传合并写权限与图谱合并视图、工作区/会话来源只保留教材+公用可解析、教材优先 preamble 与工作区选中教材全链路回归、概念→chunks 预索引与检索加速、跨会话召回仅同工作区+M6 注入门控+off/all 模式、图谱结构与 mastery 变色账号隔离）、**W1 评分入口可信化**（test_quiz_ownership.py：跨身份 /quiz/record 与 /quiz/grade(record=true) 越权 404 且全存储根字节级零变化、legacy 未盖章会话归游客、客户端伪答案按服务端快照判 wrong、stem 无法解析降级 unverified_practice 零写入、同一作答重复提交仅记分一次且不触发第二次 LLM、record=false 零写入、/quiz/grade prompt 使用服务端答案；test_assessment_identity.py：raw_grade 被忽略、StartRequest.mastery 由服务端档案解析；test_orchestration.py：unknown→None、exposure/unknown 不增长 SM-2 间隔、自评事件 source=self_report）、**W2 记录与生命周期**（test_assessment_lifecycle.py：assessment_id 每次 start 唯一且落盘、answer 触发停止随作答同写落盘、终态同答幂等重放/异答拒绝且文件字节零变化、next 未答幂等重发当前题不叠加、终态 next 不再生成、abandon 落盘 abandoned 且 report 可读、旧格式会话文件兼容加载映射、asyncio.gather 并发同答恰好一条 result 且 M2 单条 quiz_graded、GET /assessment/active 三态（恢复当前题公开内容/终态 stop_reason/无会话 none）、answer 响应读持久化停止状态、start/next 题面剥离 answer/explanation、abandon 端点落盘；test_skill_runtime.py：question_verified 两级（None→0.70 上限/True 保持且层级 cap 仍生效）、partial 判定以 verdict+max_confidence 传入 M2、M2 事件级 partial 不动 BKT 但概念统计计入、同 attempt_id 只影响 M2 一次；test_quiz_quality.py：question_verified 归一（critic ok=True/basic/off/error/缺失=None）、稳定题目 id（q_<uid>_<i> 套内一致跨套唯一）；test_learning_records.py：attempts 追加+supersede 链+顶层投影=最新、同作答双写折叠单条、pre-W2 记录首写合成 legacy 快照（provenance unknown 不造置信）、CAT 账本带 assessment_id、升级对账（记录数量不变/来源状态保留/未触碰行零变化）；test_quiz_ownership.py：attempt_id 贯穿响应+quiz_history result+账本 attempt+M2 事件、同作答重放同 id、重练 supersede 保留历史）。**W3 结构化教学闭环**（test_task_understanding_context.py：待答投影/已答集不投影/最新未答套优先/畸形历史降级、选项点选四变体+非选项短文本保持寒暄、继续×待答题/正在教概念/无上下文三分支、问候不变、LLM 上下文块注入与 understand_system@1.3.0 注册、answer_pending 空计划不出题；test_quiz_quality.py：量规冻结（有效/无效降级/权重与重复 id 归一/管线挂稳定题号/无量规可用/三处 prompt 契约/Question 往返）；test_structured_assessment.py：分数计算（加权/not_applicable 出分母/关键 not_observed 不确定/无可评条目）、校验（越界 criterion_id 剔除/假设截断+类别回退/维度与 continuation 白名单/verdict 本地映射）、分析调用（单次/修复一次/二次弃权/异常弃权）、模式（off 逐例不变/shadow 判定不变存对照/active 权威+事件携带结构化键/弃权回退/MC 零 LLM/不确定保守 partial）、账本 attempt 携带 criterion_results+hypotheses 且旧调用无键；test_continuation_policy.py：硬规则优先/finish 双映射/probe 定向+消费/shadow 只落盘/off 无键/mastered 硬规则压过 LLM continue；test_capability_projection.py：维度阶梯（developing→demonstrated 需两题族/冲突 needs_recheck/not_observed 默认）、supersede 排除、BKT 重放精确性（==去掉被撤观测的全新构建）+partial 分轨保持、异议标记（事件流 id 拒绝/账本 id 落 disputed 不抹除）、evidence-profile 端点（形状/身份隔离/empty）与 mastery estimate_kind；test_teaching_decision.py：触发门四信号/静默、白名单与候选集与约束禁 quiz、decide 有效/坏枚举/坏 target/约束禁 quiz、apply 受限（不动 review_first）、supervisor 钩子 rules 零调用/shadow 只记录/active 应用/无触发零调用；test_session_summary.py：只引用已接受判定、无测评「已讲解，待验证」、空会话 None、恢复注入空闲阈值、润色成败两路、TutorSession 往返；test_quiz_ownership.py 增 hint/dispute 六项（量规提示不泄答案+标记落盘/越权 404/无量规可恢复/已答不记/assistance 入事件+置信 0.70/异议双态）；test_prompt_registry.py 钉 understand_system@1.3.0 与四个 assessment prompt）。**W4 任务和复习接通**（test_quiz_evidence_feed.py：/quiz fan-out 与 CAT 路径喂 M9（SRS 增长+quiz_evidence 事件带 attempt_id/session_id）、attempt 幂等双调一次增长一条事件、unknown 零 M9 写入、ORCHESTRATION_MODE=0 安全、M2 事件携带/省略 session_id；test_orchestration.py：曝光不增长+新卡 last_quality=None、证据增长与失败复位、幂等/无概念 no-op、钩子窥探退役（轮内零 quiz_evidence）、无绑定证据不完成任务（completed_at=0）且 SRS 照常、手动完成仍发批量事件、gap unknown 分类+legacy missing 往返+估期时间容量区间（单点不变）、TestSummaryIdentity 双学生 needs_replan 各读各的；test_task_launch.py：launch 建 episode/会话/绑定三向盖章+task_launched 事件、relaunch 幂等单一 episode、未知/他人/已完成任务 404、绑定作答只完成绑定任务（同概念兄弟任务 pending、episode completed、复习键=任务 concept_id 而非聊天串）、wrong 也算完成但 SRS 复位、未绑定会话不完成、手动 self_report 零 M2 档案、手动完成推进 episode、容量报告纯函数（超载标记/按日聚合）+/plan 附载+add_task 超预算 warning（任务仍创建）+schedule 改预算重算、账号清除删 episodes 文件+孤儿扫描收集合成文件）。前端 `tsc --noEmit` 零错误 + eslint + `next build` 通过。
+后端 `backend/tests/` 使用 unittest（`python -m unittest discover -s tests`，当前 1686 例、skip=4），核心覆盖面：统一学习评价域（journal 事务/校验和/损坏隔离/幂等重放、SourceReceipt 受理与答案指纹判重、MC 确定性判分、语义 job 生命周期与 §10.3 状态映射、scope 解析与公用教材全选上限、复核/撤销、删除与 generation 重写、learer-evaluation API 投影与鉴权隔离）、CAT 生命周期（start/answer/next/abandon/report/active、next 未答幂等重发、评价失败不阻塞出题、刷新恢复）、quiz 信任边界（越权 404 与存储零变化、unverified_practice 零写入、attempt 链与 M9 归因幂等）、量规冻结与 hint/dispute、出题质量门与两轮化、检索融合与证据门、学段去僵化、教材库/OCR/知识谱系（P2–P7 各批次回归）、M6 记忆生命周期、M7 诊断/提案/部署与无增益字段（BANNED_KEYS）、M8 滞后与单真相源、M9 SM-2/计划/任务/复习闭环、M-Notes 笔记仓库与智能体、M0 鉴权/限流/账号清除级联、P10 语音票据与 WS 协议、OpenAI 兼容门面、prompt 注册表版本钉扎。每关验收记录见 `docs/plan-gates/`。前端 `tsc --noEmit` 零错误 + eslint + `next build`（默认与 --webpack 双轨）通过，Playwright e2e 10/10。
 
 ---
 
@@ -869,7 +862,7 @@ M5 的知识节点/边与资料中心元数据解耦。资料中心是教材分�
 ### 记忆与学习档案
 
 - M6 原情景/语义文件是兼容审计数据，生产只读且不再检索注入 prompt。精简 prompt memory 为 `students/<id>.prompt_memory.json`，最近窗口默认 15、用户可选 5–30，最近贡献带 `session_id` 可撤销；滑出窗口后进入不可按单会话反向拆分的限长 core profile。活动策略/习惯分别使用有界 `.procedural.json` / `.habit_patterns.json`。
-- `students/<id>.learning_records.json` 是独立学习结果账本，保存题目、作答、评分、知识点、时间，不因来源对话永久删除而删除；来源被删时返回 `source_status=deleted`、对外 `session_id` 为空、显示“来源对话已删除，无法查看”；永久删除时底层来源 ID 也会被不可逆清空。
+- `students/<id>.learning_evidence.jsonl` 是统一学习证据账本，保存题目材料、作答、判分与语义解释，不因来源对话永久删除而删除；来源被删时该来源按删除语义归档（对外不再定位到底层来源 ID）。
 - 工作区共同记忆保存在 workspace bundle 内，与用户级 prompt memory 隔离；新工作区对话边界最多整体压缩一次；删除单聊不回退，永久删除工作区才清除。
 
 ### 账号注销边界
@@ -878,7 +871,7 @@ M5 的知识节点/边与资料中心元数据解耦。资料中心是教材分�
 
 ## M5 教材逐卷容量、四级 taxonomy 与 OCR 动态策略（2026-08-14）
 
-- 教材统一 group 模型，taxonomy 为“学段 → 学科 → 教材组 → 单本教材 → 章节 → 概念”；单本教材只作过滤层，不生成书名节点。旧 single 启动时幂等迁移，保留 ID/topic_key/file/workspace/mastery。
+- 教材统一 group 模型，taxonomy 为“学段 → 学科 → 教材组 → 单本教材 → 章节 → 概念”；单本教材只作过滤层，不生成书名节点。旧 single 启动时幂等迁移，保留 ID/topic_key/file/workspace 归属。
 - `graph_policy` 以 `null` 表示不限，包含组默认与 `volume_overrides`。每卷独立裁剪，组没有共享预算；完整规范化抽取缓存位于 `knowledge/custom/<owner>/<topic>.volume_specs/<file>.json`，限制变化只快速重合并。
 - 概念 ID 由规范化名称稳定 hash 生成；跨卷同名概念合并并保留多个 `PART_OF`，metadata 聚合 file/chapter 来源；page range 使用 `chapter_key`。
 - 图谱接口支持 group/volume 范围与 `overview/chapter/search/full`；taxonomy group 返回 volumes coverage。构建状态增加 `partial`，staging 质量门和 last-known-good 防止临时失败降级覆盖。
@@ -1362,7 +1355,7 @@ MN）。
 
 | 层 | 职责 | 组成 |
 |----|------|------|
-| **L1 统一学习者档案层** | 单一真相源：所有关于「这个学生」的事实只记一遍 | 活动聚合（activity_aggregator）、学习账本（learning_records）、布鲁姆认知档案（bloom_profile）、目标链（orchestration goal + 前置闭包）、M2 画像/掌握度、M8 交互画像、教学日志（teaching_log） |
+| **L1 统一学习者档案层** | 单一真相源：所有关于「这个学生」的事实只记一遍 | 活动聚合（activity_aggregator）、学习证据账本（learning_evidence journal）、目标链（orchestration goal + 前置闭包）、M2 画像、M8 交互画像、教学日志（teaching_log） |
 | **L2 统一智能决策层** | 所有 LLM 决策读同一档案快照，输出开放文本 | M3 compose、M4 出题/判分、M7 advisor、M9 周规划/日编排、对话内出题工具（quiz/fit_quiz）；布鲁姆六层级为共享认知词汇 |
 | **L3 统一呈现层** | 页面按数据归属重组，无重复语义 | /dashboard（总览）、/knowledge（图谱+教学计划，/plan 已并入）、/assessment、/memory（记忆总览+学习账本）、/profile（画像镜像 M9 + 字段级来源）、/insights（M7+教学指导）、/docs（使用文档） |
 
@@ -1374,17 +1367,17 @@ MN）。
 
 | 记忆层 | 语义（记什么） | 存储 | 注入边界（谁读它） | 压缩与维护 |
 |--------|--------------|------|------------------|-----------|
-| **提示词记忆**（M6 prompt_memory） | 跨对话画像：learning_summary / current_level / tone_preference / explanation_preference 四字段 + 按会话记的贡献流水 | `students/<id>.prompt_memory.json`（+ `.prompt_memory_pref.json` 窗口偏好，5–30 会话，默认 15） | 每轮对话注入 supervisor prompt（M6 build_directive；有界，不随历史膨胀） | LLM 压缩：`maybe_compact_core` 把窗口外贡献折叠进四字段，**压缩代数**（compaction_generation）+时间戳公开可查（/memory 页）；并发写以代数校验防覆盖 |
+| **提示词记忆**（M6 prompt_memory） | 跨对话画像：learning_summary / tone_preference / explanation_preference 三字段 + 按会话记的贡献流水（current_level 水平归纳已删除，字段仅存恒空兼容位 current_level_retired） | `students/<id>.prompt_memory.json`（+ `.prompt_memory_pref.json` 窗口偏好，5–30 会话，默认 15） | 每轮对话注入 supervisor prompt（M6 build_directive；有界，不随历史膨胀） | LLM 压缩：`maybe_compact_core` 把窗口外贡献折叠进存活字段，**压缩代数**（compaction_generation）+时间戳公开可查（/memory 页）；并发写以代数校验防覆盖 |
 | **工作区记忆** | 每工作区的公共记忆摘要（7 字段展开 + 更新时间） | `chat_history/workspaces/<ws>.json` 内 | 工作区对话注入；/memory 页只读展示 | 工作区级维护（随工作区更新/删除） |
-| **学习账本**（L1 learning_records） | 独立于对话的学习结果全量：题目/作答/评分/知识点/来源/**bloom_level 标签** | `students/<id>.learning_records.json` | **不注入对话提示词**（明示边界）；消费方=布鲁姆档案聚合、总览最近作答、/memory 学习档案区、错题本兜底 | append-only + 分页只读端点（`GET /student/learning-records`）；永不被压缩改写 |
+| **学习账本**（M2 统一学习证据 journal） | 独立于对话的学习结果全量：任务材料/作答/判分/语义解释/帮助条件/来源归属 | `students/<id>.learning_evidence.jsonl` | **不注入对话提示词**（明示边界）；消费方=概念证据投影、总览最近作答、/memory 学习档案区、错题本、最近习题 | append-only 事务 + 只读投影端点（/learner-evaluation/*）；永不被压缩改写 |
 | **程序性记忆**（M6 procedural + habit_patterns） | 策略成功率滑窗（per-student）；学习习惯聚合（来自 4 种编排事件：habit_milestone / task_batch_completed / milestone_completed / goal_progress） | `students/<id>.procedural.json` / `.habit_patterns.json` | procedural→M6 检索/统计；habit_patterns→M9 日编排上下文（`daily_composer.habit_context`，C9 转正）+ /memory 审计 | 有界聚合（evidence_count/confidence 递增），从不失效删除 |
 | **旧情景/语义**（审计遗留） | 迁移前的 episodes / semantic 事实 | `.episodes.jsonl`（+archive）/ `.semantic.json` | 仅两处只读回退：活动聚合空时兜底（标来源 legacy）、/memory 历史审计 Tab；**写侧已删除**（C1/C2/C3） | 磁盘文件**永不删除**（用户数据）；压缩归档机制保留（overflow→archive） |
 
 ### C. L1 档案层数据源契约
 
-- **活动聚合**（`core/activity_aggregator.py`，零 LLM、never raises）：五源按**本地日**并集——learning_records（仅已评分作答）∪ teaching_log ∪ orchestration_events ∪ ux_events ∪ eval_traces → `active_days / current_streak / longest_streak / 每日分类计数（作答/讲解/复习）`。五源全空时回退旧 episodes 并标注来源（`source: legacy_episodes`）。消费方：TopBar 连续天数、/profile 激励卡、M8 motivation/greeting、`GET /ux/activity?days=`。streak 消费点共 4 处（TopBar / StatCards / MotivationCard / HabitCard）。
-- **布鲁姆认知档案**（`core/bloom_profile.py`）：从学习账本确定性聚合 per-concept × per-level attempts/correct（correct=1、partial=0.5）；弱项=尝试≥2 且正确率<0.6（取前 20）。单一真相源，所有「该生在什么认知层级不稳」的判断都读这里。只读端点 `GET /student/bloom-profile`。
-- **目标链**：goal 绑定 `target_concept_ids`（图谱概念 id）时，`prerequisite_closure` 沿 PREREQUISITE 边 BFS 下探（剔 p≥0.75 已掌握、上限 120）∪ 目标自身未掌握 → required_skills（进度分母）；差距按最长路径深度分层（`layer=1` 现在就能学）；`estimate_schedule`（5 概念/周 vs 截止周数 → tight/ok/loose，纯函数零 LLM）。无绑定→学科兜底（学科为空则全图谱）。深链 `/knowledge?concept=<节点id>` 一次性定位（切范围+下钻+高亮+开抽屉）。
+- **活动聚合**（`core/activity_aggregator.py`，零 LLM、never raises）：五源按**本地日**并集——学习证据 journal（仅已判分作答）∪ teaching_log ∪ orchestration_events ∪ ux_events ∪ eval_traces → `active_days / current_streak / longest_streak / 每日分类计数（作答/讲解/复习）`。五源全空时回退旧 episodes 并标注来源（`source: legacy_episodes`）。消费方：TopBar 连续天数、/profile 激励卡、M8 motivation/greeting、`GET /ux/activity?days=`。streak 消费点共 4 处（TopBar / StatCards / MotivationCard / HabitCard）。
+- **概念证据状态**（评价投影）：per-concept 证据状态 supported_in_scope/emerging/fragile/conflicting/not_observed（目标链差距分母据此计算）；旧布鲁姆正确率聚合档案（bloom_profile）已删除，认知层级词汇（`core/bloom.py`）仍作为 L2 共享词汇用于任务设计。
+- **目标链**：goal 绑定 `target_concept_ids`（图谱概念 id）时，`prerequisite_closure` 沿 PREREQUISITE 边 BFS 下探（剔评价状态 supported_in_scope 的已支持概念、上限 120）∪ 目标自身未支持 → required_skills（进度分母）；差距按最长路径深度分层（`layer=1` 现在就能学）；`estimate_schedule`（5 概念/周 vs 截止周数 → tight/ok/loose，纯函数零 LLM）。无绑定→学科兜底（学科为空则全图谱）。深链 `/knowledge?concept=<节点id>` 一次性定位（切范围+下钻+高亮+开抽屉）。
 
 ### D. 布鲁姆六层级 = 共享认知词汇（不是核对清单）
 
@@ -1410,8 +1403,8 @@ Anderson 修订版六层级（记忆/理解/应用/分析/评价/创造）只作
 | 页面 | 数据归属 | 备注 |
 |------|---------|------|
 | /dashboard | M2 总览 + L1 活动 + 最近作答 | EvalSummaryCard 已换最近作答卡；GreetingBar 徽章已删 |
-| /knowledge | M5 图谱 + M2 掌握度 + M3 路径条 + **M3 教学计划区**（原 /plan 页迁入：模式状态机/难度表盘/完整路径两栏/教学日志） | `/plan` 保留 redirect（外链深链不断）；导航已减一项 |
-| /assessment | M4 CAT + L1 账本/布鲁姆 | 概念选择共用谱系选择器；「薄弱概念加入周计划」一键 |
+| /knowledge | M5 图谱 + M2 证据投影着色 + M3 路径条 + **M3 教学计划区**（原 /plan 页迁入：模式状态机/难度表盘/完整路径两栏/教学日志） | `/plan` 保留 redirect（外链深链不断）；导航已减一项 |
+| /assessment | M4 CAT + 证据投影/最近习题 | 概念选择共用谱系选择器；「薄弱概念加入周计划」一键 |
 | /memory | M6 四类记忆总览 + L1 学习档案区 + 历史审计 Tab | 程序性保留；情景/语义合并只读审计 |
 | /profile | M2 学术 + M8 交互 + 激励 + **M9 目标镜像**（M2 goals 写侧保留属对话冻结区，读侧由 M9 取代——C12） | 每卡「数据从哪来」一行 + 字段级来源标注（M8 反馈推断等） |
 | /insights | M7 评估 + 提案人工门 + 生效指导 | 文案已修：每 15 轮生成 1 条（C11） |
@@ -1439,7 +1432,7 @@ Anderson 修订版六层级（记忆/理解/应用/分析/评价/创造）只作
 | C15 | chat_agent `_legacy_prompt_memory_block` | 📌 **不动**（对话模块冻结区红线；DESIGN 记录在案） | — |
 | C16 | error_notebook 的 quiz_history 兜底链 | 📌 保留（活数据兼容路径，有真实旧数据消费） | — |
 
-冻结区红线（全程遵守）：教材库/RAG/知识检索/笔记/对话链路（前端 chat 页面组件；backend chat_agent.py / supervisor.py / executor.py / core/session.py / api/v1/chat.py / api/v1/quiz.py）零改动——唯一例外是出题工具 tools/quiz.py、tools/fit_quiz.py 的层级指令（出题功能本体）与 supervisor 既有的 `adapt(ctx, student_id=…)` 调用点（原本就传 student_id，M7 指导消费在其内部完成）。M4 CAT 机制（四停止规则/难度轴/M10 证据门/三级判分→BKT）不动。
+冻结区红线（全程遵守）：教材库/RAG/知识检索/笔记/对话链路（前端 chat 页面组件；backend chat_agent.py / supervisor.py / executor.py / core/session.py / api/v1/chat.py / api/v1/quiz.py）零改动——唯一例外是出题工具 tools/quiz.py、tools/fit_quiz.py 的层级指令（出题功能本体）与 supervisor 既有的 `adapt(ctx, student_id=…)` 调用点（原本就传 student_id，M7 指导消费在其内部完成）。M4 CAT 机制（停止规则/难度轴/证据纪律/三级判分→统一学习证据）不动。
 
 **测试基线**：全量 1402 项通过（改造前 ~1371）；每批均过 tsc/eslint/next build --webpack/git diff --check。
 
@@ -1822,9 +1815,14 @@ canned `run_turn`，验证：
 
 ---
 
-## P11 运行可靠性与证据闭环整改（2026-09，plan.md）
+## P11 运行可靠性与证据闭环整改（2026-09 历史整改记录）
 
-本轮整改不推翻既有架构，围绕五个既有缺口收口（详见仓库根 plan.md）。
+> **历史说明**：本节是 2026-09「W1–W4 整改」当期的工作记录，其中描述的判分置信度、
+> BKT 回写、learning_records 账本、E0–E5 证据门等机制**已被本版统一学习评价体系
+> 取代**（见 §11/§13 与 `scripts/migrate_learning_evidence.py`）。保留本节仅为变更
+> 史与当时决策依据的可追溯性，不构成当前架构承诺；当前有效合同以 §1–§24 为准。
+
+本轮整改不推翻既有架构，围绕五个既有缺口收口（当期整改计划已归档于仓库历史）。
 
 ### P11.1 统一 Quiz Grounding（教材证据进入出题器）
 
@@ -1849,7 +1847,7 @@ found/partial/not_found 原语义）；`core/quiz_grounding.py` 只做数据投�
   400、strict NOT_FOUND 返回 grounding_not_found 不开始假教材 CAT）；
 - 前端 QuizQuestionCard 教材依据 badge（data-testid=quiz-source-badge）
   与解析区依据列表；`/quiz/record` 上报 additive provenance（仅审计用，
-  mastery 证据等级不因客户端声称的 ref 改变）。
+  学习证据不因客户端声称的 ref 改变）。
 
 ### P11.2 非 OCR 教材构建的重启恢复
 

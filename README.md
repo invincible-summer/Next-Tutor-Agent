@@ -15,9 +15,9 @@
 出的题停留在记忆复述层,对学生没有长期了解。Edu_Agent 走的是另一条路:
 
 - **长期记忆**:它记得你学过什么、错在哪里、喜欢怎样的讲解方式,跨会话、跨周持续累积,且记忆有边界、可审计、可遗忘。
-- **专有化适配**:贝叶斯知识追踪(BKT)持续估计每个知识点的掌握度,教学引擎据此在六种教学模式间切换;同一个概念,对小学生讲故事、对本科生讲证明。
+- **专有化适配**:每一次真实作答都作为学习证据进入统一评价账本,评价只基于可定位的原始表现与当时的帮助条件;教学引擎据此在六种教学模式间切换。同一个概念,对小学生讲故事、对本科生讲证明。
 - **自我迭代**:每一次教学互动都被记录、诊断、聚合;系统会提出教学改进建议,经人工确认后真正改变后续教学行为,并可随时吊销回滚。
-- **一体化**:十余个智能模块不是松散拼装——学生模型驱动教学引擎,测评结果回写掌握度,编排层消费记忆与画像,知识图谱贯穿检索、出题与路径规划。模块虽多,共用同一个学生、同一份证据。
+- **一体化**:十余个智能模块不是松散拼装——学生模型驱动教学引擎,所有测评结果写入同一份学习证据账本,编排层消费记忆与画像,知识图谱贯穿检索、出题与路径规划。模块虽多,共用同一个学生、同一份证据。
 
 产品形态是**学生学习空间(Learning Workspace)**:以流式对话为核心,辅以学习总览、
 知识图谱、学习计划、学习编排、测评中心、记忆中心、资料中心、笔记仓库、系统洞察、
@@ -39,7 +39,7 @@
 **练习与测评**
 - 高质量出题:两轮制「命题蓝图 → 生成」替代一步直出;generator-critic 独立重解审题,错题、错答案、过浅的题在投递前丢弃重生成;拟合出题从参考题拆解考点做情境迁移/结构反转等五种变式,而非换数字。
 - 交互批改:选择题本地判分、填空简答 LLM 三级评分(对/部分对/错)+ 思路讲解;所有作答统一写入学习账本,错题本跨会话聚合,可一键出变式重练。
-- CAT 自适应测试:不固定题数,按作答动态调难度,四条停止规则;学习证据门(E0–E5)保证只有真实作答证据才能改写掌握度。
+- CAT 自适应测试:不固定题数,按作答动态调难度,四条停止规则;每道题在出题时冻结量规,判分与语义评价分离,只有真实作答证据才进入学习账本。
 
 **记忆与编排**
 - 记忆生命周期:有界 prompt 画像(最近 5–30 个会话窗口可选)、策略成功率聚合、独立学习结果账本;删除对话可选择永久遗忘,回收站 7 天可恢复,账号注销彻底清除。
@@ -50,7 +50,7 @@
 **账户与运维**
 - 账户体系:注册/登录/自助注销(JWT + bcrypt),每用户数据物理隔离,游客模式零配置可用;管理员管理公用教材库与账号。
 - 工作区(类 ChatGPT Projects):跨对话共享教材、资料与公共记忆,按账号隔离。
-- 可观测:每轮对话全链路 Trace(决策链/prompt 版本/token 用量)落盘可查;后端 1400+ 项 unittest 回归。
+- 可观测:每轮对话全链路 Trace(决策链/prompt 版本/token 用量)落盘可查;后端 1600+ 项 unittest 回归;仓库不变量脚本守护公共资产/隐私边界与旧算法零残留。
 
 ## 系统架构(M0–M10)
 
@@ -64,7 +64,7 @@
 |----|------|--------|
 | M0 | 身份基础设施 | 用户是谁、数据属于谁(JWT + 全量数据隔离) |
 | M1 | 任务智能 Supervisor | 这一轮对话怎么完成:理解 → 规划 → 工具执行 |
-| M2 | 学生模型 | 这个学生会什么:画像 + BKT 掌握度 |
+| M2 | 学生模型 | 这个学生会什么:画像 + 统一学习评价账本(证据式) |
 | M3 | 教学引擎 | 现在该怎么教:六模式状态机 + 跨轮记忆 |
 | M4 | 测评智能 | 真的学会了吗:三级评分 + CAT 自适应 |
 | M5 | 知识智能 | 系统知道什么:教材驱动的知识图谱 |
@@ -142,6 +142,7 @@ Edu_Agent/
 │   └── identity/           # M0 身份(JWT + bcrypt)
 ├── frontend/src/           # app(模块页)/ components / lib(api·store·i18n)
 ├── docs/                   # DESIGN.md 架构主文档等
+├── scripts/                # 仓库不变量检查 + 旧学习数据迁移 CLI(§16)
 └── deploy/                 # nginx/systemd 模板与部署脚本
 ```
 
@@ -179,17 +180,19 @@ quizzes, no lasting model of the student. Edu_Agent takes a different path:
 - **Long-term memory** — it remembers what you studied, where you failed, and how
   you prefer explanations, across sessions and weeks; memory is bounded,
   auditable, and forgettable.
-- **Student-specific adaptation** — Bayesian Knowledge Tracking estimates mastery
-  per concept; a six-mode teaching engine switches between introduction,
-  explanation, remediation, practice, review, and challenge. The same concept is
-  told as a story to a primary student and as a proof to an undergraduate.
+- **Student-specific adaptation** — every real attempt lands in a unified
+  learning-evidence ledger; evaluation reasons only from locatable raw
+  performance and the assistance conditions at the time. A six-mode teaching
+  engine switches between introduction, explanation, remediation, practice,
+  review, and challenge. The same concept is told as a story to a primary
+  student and as a proof to an undergraduate.
 - **Self-iteration** — every teaching turn is traced, diagnosed, and aggregated;
   the system proposes teaching improvements that take effect only after human
   approval, and can be revoked at any time.
 - **Integration** — a dozen intelligence modules share one student and one body of
-  evidence: the student model drives the teaching engine, grading writes back to
-  mastery, orchestration consumes memory and profile, and the knowledge graph
-  threads through retrieval, quizzing, and path planning.
+  evidence: the student model drives the teaching engine, all assessment results
+  land in one learning ledger, orchestration consumes memory and profile, and the
+  knowledge graph threads through retrieval, quizzing, and path planning.
 
 The product is a **Learning Workspace**: streaming chat at the core, plus pages
 for dashboard, knowledge graph, learning plan, orchestration, assessment,
@@ -214,8 +217,9 @@ and profile.
   numbers. Interactive grading: local MC scoring, LLM three-level grading with
   reasoning; every attempt lands in an independent learning ledger; cross-session
   error notebook with one-click variant re-drills.
-- **CAT adaptive testing** and an E0–E5 evidence gate: only real work changes
-  mastery.
+- **CAT adaptive testing**: per-question rubrics frozen at design time,
+  deterministic scoring separated from semantic evaluation — only real,
+  attributable attempts enter the learning ledger.
 - **Memory lifecycle**: bounded prompt profile (5–30 session window), strategy
   success aggregation, independent learning records; deleting a chat can
   permanently forget its contribution; a 7-day trash allows restore; account
@@ -232,11 +236,11 @@ and profile.
 
 ## Architecture (M0–M10)
 
-M0 identity · M1 supervisor · M2 student model (BKT) · M3 teaching engine ·
-M4 assessment · M5 textbook-driven knowledge graph · M6 memory · M7 evaluation &
-improvement (human-gated) · M8 UX adaptation · M9 orchestration · M10 skill
-runtime & evidence gate. Each layer degrades independently via its own switch.
-Full contracts: [docs/DESIGN.md](docs/DESIGN.md).
+M0 identity · M1 supervisor · M2 student model (evidence ledger) · M3 teaching
+engine · M4 assessment · M5 textbook-driven knowledge graph · M6 memory ·
+M7 evaluation & improvement (human-gated) · M8 UX adaptation · M9 orchestration ·
+M10 skill runtime & evidence discipline. Each layer degrades independently via
+its own switch. Full contracts: [docs/DESIGN.md](docs/DESIGN.md).
 
 ## Tech stack
 
