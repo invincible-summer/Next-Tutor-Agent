@@ -21,6 +21,7 @@ import { Badge } from "@/components/ui/Badge";
 import { Card, CardHeader } from "@/components/ui/Card";
 import { Tabs } from "@/components/ui/Tabs";
 import { EmptyState, ErrorNote, PageSkeleton } from "@/components/ui/EmptyState";
+import { Pager } from "@/components/ui/Pager";
 import { EpisodeTimeline } from "@/components/pages/memory/EpisodeTimeline";
 import { SemanticFacts } from "@/components/pages/memory/SemanticFacts";
 import { StrategyBars } from "@/components/pages/memory/StrategyBars";
@@ -274,21 +275,35 @@ function WorkspaceMemorySection({
   );
 }
 
-/** ①学习档案区：工作区选择 + 叙述/覆盖/下一步 + 三个内容 Tabs。 */
+/** ①学习档案区：工作区选择 + 叙述/覆盖/下一步 + 三个内容 Tabs。
+ *  R09（update_plan §4）：四个区域（总览/时间线/会话/概念）独立加载与
+ *  失败重试——一个子请求 422/失败不能把其他成功区域一起抹成空态；
+ *  概念走服务端筛选 + 分页（统一 limit ≤100 上限），不拉全量。 */
 function LearningArchiveRegion({ tr, lang }: { tr: (k: string, f?: string) => string; lang: Lang }) {
   const router = useRouter();
   const [wss, setWss] = useState<WorkspaceEvaluationListItem[] | null>(null);
   const [wsId, setWsId] = useState("");
   const [summary, setSummary] = useState<WorkspaceEvaluationSummary | null>(null);
+  const [summaryErr, setSummaryErr] = useState(false);
   const [evidence, setEvidence] = useState<EvalSourceTimelineItem[] | null>(null);
+  const [evidenceErr, setEvidenceErr] = useState(false);
+  const [evidenceDone, setEvidenceDone] = useState(false);
+  const [evidenceMore, setEvidenceMore] = useState(false);
   const [sessions, setSessions] = useState<EvalSessionItem[] | null>(null);
-  const [allConcepts, setAllConcepts] = useState<ConceptEvaluationView[] | null>(null);
+  const [sessionsErr, setSessionsErr] = useState(false);
+  const [sessionsDone, setSessionsDone] = useState(false);
+  const [sessionsMore, setSessionsMore] = useState(false);
+  const [conceptPage, setConceptPage] = useState(0);
+  const [conceptTotal, setConceptTotal] = useState(0);
+  const [concepts, setConcepts] = useState<ConceptEvaluationView[] | null>(null);
+  const [conceptsErr, setConceptsErr] = useState(false);
   const [tab, setTab] = useState("changes");
   const [stateFilter, setStateFilter] = useState("");
   const [openConcept, setOpenConcept] = useState<string>("");
   const [openSession, setOpenSession] = useState<string>("");
   const [sessionItems, setSessionItems] = useState<EvalSessionEvidenceItem[] | null>(null);
-  const [error, setError] = useState(false);
+
+  const CONCEPTS_PER_PAGE = 20;
 
   useEffect(() => {
     let alive = true;
@@ -302,7 +317,6 @@ function LearningArchiveRegion({ tr, lang }: { tr: (k: string, f?: string) => st
       .catch(() => {
         if (!alive) return;
         setWss([]);
-        setError(true);
       });
     return () => {
       alive = false;
@@ -315,37 +329,120 @@ function LearningArchiveRegion({ tr, lang }: { tr: (k: string, f?: string) => st
   if (wsId !== prevWsId) {
     setPrevWsId(wsId);
     setSummary(null);
+    setSummaryErr(false);
     setEvidence(null);
+    setEvidenceErr(false);
+    setEvidenceDone(false);
+    setEvidenceMore(false);
     setSessions(null);
-    setAllConcepts(null);
+    setSessionsErr(false);
+    setSessionsDone(false);
+    setSessionsMore(false);
+    setConcepts(null);
+    setConceptsErr(false);
+    setConceptPage(0);
+    setConceptTotal(0);
     setOpenConcept("");
     setOpenSession("");
     setSessionItems(null);
     setStateFilter("");
   }
 
+  // 概念筛选变化 → 回到第一页（渲染期 derive-state，同上）。
+  const [prevStateFilter, setPrevStateFilter] = useState(stateFilter);
+  if (stateFilter !== prevStateFilter) {
+    setPrevStateFilter(stateFilter);
+    if (conceptPage !== 0) setConceptPage(0);
+  }
+
+  // ①总览独立加载：失败只影响本卡片（可重试），不掩盖其他区域。
   useEffect(() => {
     if (!wsId) return;
     let alive = true;
-    Promise.all([
-      getEvalWorkspace(wsId),
-      getEvalEvidence(wsId, { limit: 30 }),
-      getEvalSessions(wsId, 0, 50),
-      getEvalConcepts(wsId, { limit: 200 }),
-    ])
-      .then(([s, ev, se, co]) => {
-        if (!alive) return;
-        setSummary(s);
-        setEvidence(ev.items || []);
-        setSessions(se.items || []);
-        setAllConcepts(co.items || []);
-        setError(false);
-      })
-      .catch(() => alive && setError(true));
+    setSummaryErr(false);
+    getEvalWorkspace(wsId)
+      .then((s) => alive && setSummary(s))
+      .catch(() => alive && setSummaryErr(true));
     return () => {
       alive = false;
     };
   }, [wsId]);
+
+  const loadEvidencePage = useCallback(
+    (offset: number) => {
+      if (!wsId) return;
+      setEvidenceMore(true);
+      setEvidenceErr(false);
+      getEvalEvidence(wsId, { limit: 30, offset })
+        .then((ev) => {
+          const items = ev.items || [];
+          setEvidence((prev) => (offset === 0 ? items : [...(prev || []), ...items]));
+          setEvidenceDone(offset + items.length >= (ev.total || 0));
+        })
+        .catch(() => {
+          setEvidenceErr(true);
+          setEvidence((prev) => prev ?? []);
+        })
+        .finally(() => setEvidenceMore(false));
+    },
+    [wsId],
+  );
+
+  useEffect(() => {
+    if (!wsId) return;
+    setEvidence(null);
+    setEvidenceDone(false);
+    loadEvidencePage(0);
+  }, [wsId, loadEvidencePage]);
+
+  const loadSessionsPage = useCallback(
+    (offset: number) => {
+      if (!wsId) return;
+      setSessionsMore(true);
+      setSessionsErr(false);
+      getEvalSessions(wsId, offset, 50)
+        .then((se) => {
+          const items = se.items || [];
+          setSessions((prev) => (offset === 0 ? items : [...(prev || []), ...items]));
+          setSessionsDone(offset + items.length >= (se.total || 0));
+        })
+        .catch(() => {
+          setSessionsErr(true);
+          setSessions((prev) => prev ?? []);
+        })
+        .finally(() => setSessionsMore(false));
+    },
+    [wsId],
+  );
+
+  useEffect(() => {
+    if (!wsId) return;
+    setSessions(null);
+    setSessionsDone(false);
+    loadSessionsPage(0);
+  }, [wsId, loadSessionsPage]);
+
+  // ③概念：服务端筛选 + 分页（limit ≤100 统一上限），不拉全量（R09）。
+  useEffect(() => {
+    if (!wsId) return;
+    let alive = true;
+    setConceptsErr(false);
+    setConcepts(null);
+    getEvalConcepts(wsId, {
+      state: stateFilter || undefined,
+      offset: conceptPage * CONCEPTS_PER_PAGE,
+      limit: CONCEPTS_PER_PAGE,
+    })
+      .then((co) => {
+        if (!alive) return;
+        setConcepts(co.items || []);
+        setConceptTotal(co.total || 0);
+      })
+      .catch(() => alive && setConceptsErr(true));
+    return () => {
+      alive = false;
+    };
+  }, [wsId, stateFilter, conceptPage]);
 
   if (wss === null) {
     return <p className="py-2 text-xs text-muted">{tr("ws.loading")}</p>;
@@ -364,18 +461,6 @@ function LearningArchiveRegion({ tr, lang }: { tr: (k: string, f?: string) => st
   const byState = coverage?.by_state || {};
   const STATE_ORDER = ["emerging", "supported_in_scope", "fragile", "conflicting"];
   const probe = summary?.synthesis?.priority_probe || null;
-
-  const filteredConcepts = stateFilter
-    ? (allConcepts || []).filter((c) => (c.state || "") === stateFilter)
-    : allConcepts || [];
-  const sortedConcepts = [...filteredConcepts].sort((a, b) => {
-    const rank = (v: ConceptEvaluationView) =>
-      !v.state || v.state === "not_observed" ? 1 : 0;
-    return (
-      rank(a) - rank(b) ||
-      (a.concept_ref.display_name || "").localeCompare(b.concept_ref.display_name || "")
-    );
-  });
 
   const startProbe = (p: EvalNextProbe) => {
     router.push(`/chat?q=${encodeURIComponent(p.instruction)}&send=1`);
@@ -406,15 +491,12 @@ function LearningArchiveRegion({ tr, lang }: { tr: (k: string, f?: string) => st
           )}
         </div>
 
-        {error ? (
-          <ErrorNote
-            message={tr("arc.error")}
-            retry={() => {
-              const keep = wsId;
-              setWsId("");
-              setTimeout(() => setWsId(keep), 0);
-            }}
-          />
+        {summaryErr ? (
+          <ErrorNote message={tr("arc.error")} retry={() => {
+            const keep = wsId;
+            setWsId("");
+            setTimeout(() => setWsId(keep), 0);
+          }} />
         ) : summary === null ? (
           <p className="py-2 text-xs text-muted">…</p>
         ) : (
@@ -489,99 +571,131 @@ function LearningArchiveRegion({ tr, lang }: { tr: (k: string, f?: string) => st
         (evidence === null ? (
           <p className="py-2 text-xs text-muted">…</p>
         ) : (
-          <EvidenceTimeline items={evidence} lang={lang} />
+          <div className="flex flex-col gap-2">
+            <EvidenceTimeline items={evidence} lang={lang} />
+            {evidenceErr && (
+              <ErrorNote
+                message={tr("arc.error")}
+                retry={() => loadEvidencePage(evidence.length)}
+              />
+            )}
+            {!evidenceDone && !evidenceMore && !evidenceErr && evidence.length > 0 && (
+              <button
+                type="button"
+                onClick={() => loadEvidencePage(evidence.length)}
+                className="mx-auto cursor-pointer rounded-[7px] border border-border px-3 py-1 text-xs text-fg-secondary hover:border-accent"
+              >
+                {tr("arc.loadMore")}
+              </button>
+            )}
+            {evidenceMore && <p className="py-1 text-center text-xs text-muted">…</p>}
+          </div>
         ))}
 
       {tab === "sessions" && (
         <Card>
           {sessions === null ? (
             <p className="py-2 text-xs text-muted">…</p>
+          ) : sessionsErr && sessions.length === 0 ? (
+            <ErrorNote message={tr("arc.error")} retry={() => loadSessionsPage(0)} />
           ) : sessions.length === 0 ? (
             <EmptyState
               title={tr("arc.session.noEvidence")}
               desc={tr("arc.workspaces.empty.desc")}
             />
           ) : (
-            <ul className="divide-y divide-border-light">
-              {sessions.map((s) => {
-                const isOpen = openSession === s.source_session_ref;
-                const chatAlive = s.availability === "available";
-                const independent = s.kinds.length > 0 && s.kinds.every((k) => k === "assessment");
-                return (
-                  <li key={s.source_session_ref}>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setOpenSession(isOpen ? "" : s.source_session_ref);
-                        if (!isOpen) {
-                          setSessionItems(null);
-                          getEvalSessionEvidence(wsId, s.source_session_ref)
-                            .then((r) => setSessionItems(r.items || []))
-                            .catch(() => setSessionItems([]));
-                        }
-                      }}
-                      className="flex w-full cursor-pointer items-center gap-2 py-2 text-left"
-                    >
-                      {isOpen ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
-                      <span className="min-w-0 flex-1 truncate text-xs font-medium text-fg">
-                        {independent ? tr("arc.session.independent") : s.source_session_ref}
-                      </span>
-                      <Badge tone={s.has_evidence ? "accent" : "outline"}>
-                        {s.has_evidence ? tr("arc.session.evidence") : tr("arc.session.noEvidence")}
-                      </Badge>
-                      {s.availability !== "available" && (
-                        <Badge tone="muted">
-                          {s.availability === "deleted"
-                            ? tr("arc.session.deleted")
-                            : et(lang, `eval.avail.${s.availability}`)}
+            <>
+              <ul className="divide-y divide-border-light">
+                {sessions.map((s) => {
+                  const isOpen = openSession === s.source_session_ref;
+                  const chatAlive = s.availability === "available";
+                  const independent = s.kinds.length > 0 && s.kinds.every((k) => k === "assessment");
+                  return (
+                    <li key={s.source_session_ref}>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setOpenSession(isOpen ? "" : s.source_session_ref);
+                          if (!isOpen) {
+                            setSessionItems(null);
+                            getEvalSessionEvidence(wsId, s.source_session_ref)
+                              .then((r) => setSessionItems(r.items || []))
+                              .catch(() => setSessionItems([]));
+                          }
+                        }}
+                        className="flex w-full cursor-pointer items-center gap-2 py-2 text-left"
+                      >
+                        {isOpen ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
+                        <span className="min-w-0 flex-1 truncate text-xs font-medium text-fg">
+                          {independent ? tr("arc.session.independent") : s.source_session_ref}
+                        </span>
+                        <Badge tone={s.has_evidence ? "accent" : "outline"}>
+                          {s.has_evidence ? tr("arc.session.evidence") : tr("arc.session.noEvidence")}
                         </Badge>
-                      )}
-                      <span className="tnum shrink-0 text-[0.66rem] text-muted">
-                        {fmtIso(s.last_observed_at)}
-                      </span>
-                    </button>
-                    {isOpen && (
-                      <div className="space-y-1.5 pb-2.5 pl-5">
-                        {sessionItems === null ? (
-                          <p className="text-[0.72rem] text-muted">…</p>
-                        ) : sessionItems.length === 0 ? (
-                          <p className="text-[0.72rem] text-muted">{tr("arc.session.noEvidence")}</p>
-                        ) : (
-                          sessionItems.map((it) => (
-                            <div
-                              key={it.source_id}
-                              className="rounded-[8px] border border-border-light bg-surface px-2.5 py-2"
-                            >
-                              <div className="mb-1 flex items-center gap-1.5">
-                                <Badge tone={it.kind === "dialogue" ? "info" : "accent"}>
-                                  {et(lang, `eval.source.${it.kind || "dialogue"}`)}
-                                </Badge>
-                                <span className="tnum text-[0.66rem] text-muted">
-                                  {fmtIso(it.observed_at)}
-                                </span>
+                        {s.availability !== "available" && (
+                          <Badge tone="muted">
+                            {s.availability === "deleted"
+                              ? tr("arc.session.deleted")
+                              : et(lang, `eval.avail.${s.availability}`)}
+                          </Badge>
+                        )}
+                        <span className="tnum shrink-0 text-[0.66rem] text-muted">
+                          {fmtIso(s.last_observed_at)}
+                        </span>
+                      </button>
+                      {isOpen && (
+                        <div className="space-y-1.5 pb-2.5 pl-5">
+                          {sessionItems === null ? (
+                            <p className="text-[0.72rem] text-muted">…</p>
+                          ) : sessionItems.length === 0 ? (
+                            <p className="text-[0.72rem] text-muted">{tr("arc.session.noEvidence")}</p>
+                          ) : (
+                            sessionItems.map((it) => (
+                              <div
+                                key={it.source_id}
+                                className="rounded-[8px] border border-border-light bg-surface px-2.5 py-2"
+                              >
+                                <div className="mb-1 flex items-center gap-1.5">
+                                  <Badge tone={it.kind === "dialogue" ? "info" : "accent"}>
+                                    {et(lang, `eval.source.${it.kind || "dialogue"}`)}
+                                  </Badge>
+                                  <span className="tnum text-[0.66rem] text-muted">
+                                    {fmtIso(it.observed_at)}
+                                  </span>
+                                </div>
+                                <p className="line-clamp-2 text-[0.72rem] leading-relaxed text-fg-secondary">
+                                  {it.canonical_text}
+                                </p>
                               </div>
-                              <p className="line-clamp-2 text-[0.72rem] leading-relaxed text-fg-secondary">
-                                {it.canonical_text}
-                              </p>
-                            </div>
-                          ))
-                        )}
-                        {/* §11.2：删除对话后不得把已删除 ID 编进聊天深链 */}
-                        {chatAlive && !independent && (
-                          <Link
-                            href={`/chat/${encodeURIComponent(s.source_session_ref)}`}
-                            className="inline-flex items-center gap-1 text-xs text-accent hover:underline"
-                          >
-                            <MessagesSquare size={12} />
-                            {tr("arc.session.back")}
-                          </Link>
-                        )}
-                      </div>
-                    )}
-                  </li>
-                );
-              })}
-            </ul>
+                            ))
+                          )}
+                          {/* §11.2：删除对话后不得把已删除 ID 编进聊天深链 */}
+                          {chatAlive && !independent && (
+                            <Link
+                              href={`/chat/${encodeURIComponent(s.source_session_ref)}`}
+                              className="inline-flex items-center gap-1 text-xs text-accent hover:underline"
+                            >
+                              <MessagesSquare size={12} />
+                              {tr("arc.session.back")}
+                            </Link>
+                          )}
+                        </div>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+              {!sessionsDone && !sessionsMore && (
+                <button
+                  type="button"
+                  onClick={() => loadSessionsPage(sessions.length)}
+                  className="mt-2 cursor-pointer rounded-[7px] border border-border px-3 py-1 text-xs text-fg-secondary hover:border-accent"
+                >
+                  {tr("arc.loadMore")}
+                </button>
+              )}
+              {sessionsMore && <p className="py-1 text-center text-xs text-muted">…</p>}
+            </>
           )}
         </Card>
       )}
@@ -616,48 +730,67 @@ function LearningArchiveRegion({ tr, lang }: { tr: (k: string, f?: string) => st
               </button>
             ))}
           </div>
-          {allConcepts === null ? (
+          {conceptsErr ? (
+            <ErrorNote
+              message={tr("arc.error")}
+              retry={() => {
+                const p = conceptPage;
+                setConceptPage(-1);
+                setTimeout(() => setConceptPage(p), 0);
+              }}
+            />
+          ) : concepts === null ? (
             <p className="py-2 text-xs text-muted">…</p>
+          ) : concepts.length === 0 ? (
+            <EmptyState title={tr("arc.filter.empty")} desc={tr("arc.concepts.note")} />
           ) : (
-            <ul className="divide-y divide-border-light">
-              {sortedConcepts.map((c) => {
-                const key = c.concept_ref.key || c.concept_ref.concept_id;
-                const isOpen = openConcept === key;
-                return (
-                  <li key={key} className="py-1">
-                    <button
-                      type="button"
-                      onClick={() => setOpenConcept(isOpen ? "" : key)}
-                      aria-expanded={isOpen}
-                      className="flex w-full cursor-pointer items-center gap-2 py-1 text-left"
-                    >
-                      {isOpen ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
-                      <span className="min-w-0 flex-1 truncate text-xs text-fg">
-                        {c.concept_ref.display_name || c.concept_ref.concept_id}
-                      </span>
-                      <Badge tone={evalStateTone(c.state || "not_observed")}>
-                        {et(lang, `eval.state.${c.state || "not_observed"}`)}
-                      </Badge>
-                    </button>
-                    {isOpen && (
-                      <div className="pb-2 pl-5">
-                        <SemanticEvaluationPanel
-                          view={c}
-                          lang={lang}
-                          workspaceId={wsId}
-                          onStartProbe={startProbe}
-                          onExplain={() =>
-                            router.push(
-                              `/knowledge?concept=${encodeURIComponent(c.concept_ref.concept_id)}`,
-                            )
-                          }
-                        />
-                      </div>
-                    )}
-                  </li>
-                );
-              })}
-            </ul>
+            <>
+              <ul className="divide-y divide-border-light">
+                {concepts.map((c) => {
+                  const key = c.concept_ref.key || c.concept_ref.concept_id;
+                  const isOpen = openConcept === key;
+                  return (
+                    <li key={key} className="py-1">
+                      <button
+                        type="button"
+                        onClick={() => setOpenConcept(isOpen ? "" : key)}
+                        aria-expanded={isOpen}
+                        className="flex w-full cursor-pointer items-center gap-2 py-1 text-left"
+                      >
+                        {isOpen ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
+                        <span className="min-w-0 flex-1 truncate text-xs text-fg">
+                          {c.concept_ref.display_name || c.concept_ref.concept_id}
+                        </span>
+                        <Badge tone={evalStateTone(c.state || "not_observed")}>
+                          {et(lang, `eval.state.${c.state || "not_observed"}`)}
+                        </Badge>
+                      </button>
+                      {isOpen && (
+                        <div className="pb-2 pl-5">
+                          <SemanticEvaluationPanel
+                            view={c}
+                            lang={lang}
+                            workspaceId={wsId}
+                            onStartProbe={startProbe}
+                            onExplain={() =>
+                              router.push(
+                                `/knowledge?concept=${encodeURIComponent(c.concept_ref.concept_id)}&workspace=${encodeURIComponent(wsId)}`,
+                              )
+                            }
+                          />
+                        </div>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+              <Pager
+                page={conceptPage}
+                total={conceptTotal}
+                per={CONCEPTS_PER_PAGE}
+                onPage={setConceptPage}
+              />
+            </>
           )}
         </Card>
       )}

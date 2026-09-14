@@ -88,7 +88,11 @@ class TestQuestionIdentity(IdentityTestBase):
 
     def test_cross_workspace_cat_does_not_misfile(self):
         """A10：CAT 实例绑定 ws A；提交携带 assessment_id 时即使调用方
-        处于另一上下文，也只归档到实例绑定的 workspace。"""
+        处于另一上下文，也只归档到实例绑定的 workspace。R05 起归属经
+        ScopeResolver 从服务端事实解析——实例绑定的工作区必须真实存在。"""
+        from app.core.workspace import Workspace, save_workspace
+        save_workspace(Workspace(workspace_id="ws_a", name="A 区",
+                                 student_id=SID, selected_file_ids=[]))
         task = _task("q_cat_1", q_type=S.QuestionType.MULTIPLE_CHOICE)
         task.options = {"A": "1", "B": "2"}
         am.register_task_snapshot(SID, task)

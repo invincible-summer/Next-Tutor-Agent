@@ -71,44 +71,6 @@ class DailyTaskStatus(str, Enum):
            return cls(str(v))
        except (ValueError, TypeError):
            return cls.PENDING
-
-class GoalAnalysisLevel(str, Enum):
-    """Coarse current-vs-target proficiency bucket, used by GoalAnalyzer.
-
-    Maps a student's measured mastery of a subject's skill graph into one of
-    five coarse levels so the gap analysis can be computed deterministically
-    (zero LLM) before planning. The mapping is read-only over M2 mastery.
-    """
-    NOVICE = "novice"        # <20% of subject skills mastered
-    BEGINNER = "beginner"    # 20-40%
-    INTERMEDIATE = "intermediate"  # 40-65%
-    ADVANCED = "advanced"    # 65-85%
-    PROFICIENT = "proficient"  # >85%
-
-    @classmethod
-    def from_value(cls, v: Any) -> "GoalAnalysisLevel":
-        if isinstance(v, GoalAnalysisLevel):
-            return v
-        try:
-            return cls(str(v))
-        except (ValueError, TypeError):
-            return cls.NOVICE
-
-    @classmethod
-    def from_supported_ratio(cls, ratio: float) -> "GoalAnalysisLevel":
-        """G4：按 0..1 supported_in_scope 概念占比映射粗粒度档位。"""
-        r = max(0.0, min(1.0, float(ratio)))
-        if r < 0.20:
-            return cls.NOVICE
-        if r < 0.40:
-            return cls.BEGINNER
-        if r < 0.65:
-            return cls.INTERMEDIATE
-        if r < 0.85:
-            return cls.ADVANCED
-        return cls.PROFICIENT
-
-
 class MilestoneStatus(str, Enum):
     NOT_STARTED = "not_started"
     IN_PROGRESS = "in_progress"
@@ -247,8 +209,8 @@ class GoalState:
     goal_type: GoalType = GoalType.ABILITY
     subject: str = ""
     deadline: float = 0.0
-    current_level: GoalAnalysisLevel = GoalAnalysisLevel.NOVICE
-    target_level: GoalAnalysisLevel = GoalAnalysisLevel.PROFICIENT
+    # R18：支持占比只是本目标范围内的**覆盖计数比值**（supported/total），
+    # 不映射能力等级、不跨目标/跨用户聚合。
     supported_ratio: float = 0.0
     total_skills: int = 0
     supported_skills: int = 0
@@ -271,8 +233,6 @@ class GoalState:
         return {"goal_id": self.goal_id, "goal_title": self.goal_title,
             "goal_type": self.goal_type.value, "subject": self.subject,
             "deadline": self.deadline,
-            "current_level": self.current_level.value,
-            "target_level": self.target_level.value,
             "supported_ratio": round(self.supported_ratio, 3),
             "total_skills": self.total_skills,
             "supported_skills": self.supported_skills,
@@ -293,8 +253,6 @@ class GoalState:
             goal_type=GoalType.from_value(d.get("goal_type")),
             subject=str(d.get("subject", "")),
             deadline=float(d.get("deadline", 0.0)),
-            current_level=GoalAnalysisLevel.from_value(d.get("current_level")),
-            target_level=GoalAnalysisLevel.from_value(d.get("target_level", "proficient")),
             supported_ratio=float(d.get("supported_ratio", 0.0)),
             total_skills=int(d.get("total_skills", 0)),
             supported_skills=int(d.get("supported_skills", 0)),

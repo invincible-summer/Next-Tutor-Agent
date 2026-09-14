@@ -147,21 +147,93 @@ class LearnerEvaluationService:
             continuation: S.ContinuationAction | None = None,
             expected_scope_revision: str | None = None,
             expected_base_judgments: dict[str, list[S.ClaimView]] | None = None,
+            expected_base_judgment_ids: dict[str, str] | None = None,
             outbox: list[dict[str, Any]] | None = None,
     ) -> CommitOutcome:
-        """提交语义结果（§6.4 result_committed：可含 TaskResult+解释+判断+
-        待投递项同一事务）。硬校验失败抛 CommitRejected，不产生新结论。"""
+        """提交语义结果（§6.4：校验 + 单事务落盘）。"""
+        ops, outcome = self.build_commit_operations(
+            student_id, job_id=job_id, lease_token=lease_token,
+            expected_generation=expected_generation, source=source,
+            pack=pack, task=task, interpretation=interpretation,
+            task_result=task_result, continuation=continuation,
+            expected_scope_revision=expected_scope_revision,
+            expected_base_judgments=expected_base_judgments,
+            expected_base_judgment_ids=expected_base_judgment_ids,
+            outbox=outbox)
+        get_journal(student_id).append(ops,
+                                       expected_generation=expected_generation)
+        return outcome
+
+    def build_commit_operations(
+            self, student_id: str, *,
+            job_id: str, lease_token: str, expected_generation: str,
+            source: S.SourceReceipt, pack: S.EvaluationContextPack,
+            task: S.TaskSnapshot | None,
+            interpretation: S.LearnerInterpretation | None,
+            task_result: S.TaskResult | None = None,
+            continuation: S.ContinuationAction | None = None,
+            expected_scope_revision: str | None = None,
+            expected_base_judgments: dict[str, list[S.ClaimView]] | None = None,
+            expected_base_judgment_ids: dict[str, str] | None = None,
+            outbox: list[dict[str, Any]] | None = None,
+    ) -> tuple[list[Any], CommitOutcome]:
+        """构造 result_committed 操作（含全部 R05 CAS 校验）但不落盘。
+
+        R06：复核 revise 需要把替代解释、TaskResult、判断、复核决定与
+        job 终态放进**同一个事务**，由调用方组合后一次 append。硬校验
+        失败抛 CommitRejected，不产生新能力结论。"""
         journal = get_journal(student_id)
         # lease：旧 worker/超时回包不能提交（§6.5）
         if not self.scheduler.lease_valid(student_id, job_id, lease_token):
             raise CommitRejected([V.ValidationIssue(
                 "stale_lease", "lease 无效或已过期，结果不予提交", V.HARD)])
-        # scope：评价 pack 构建后教材撤选/graph revision 改变（§18.3.8）
-        if expected_scope_revision is not None \
-                and source.scope_revision \
-                and source.scope_revision != expected_scope_revision:
+        state = journal.state()
+        # source 可用性与当前版本（R05：以 journal 当前事实为准，不信任
+        # 调用方内存中的 receipt 副本）
+        src_state = state.sources.get(source.source_id)
+        if src_state is None:
             raise CommitRejected([V.ValidationIssue(
-                "scope_changed", "scope revision 已变化，丢弃旧结果", V.HARD)])
+                "source_gone", "来源已不存在，结果不予提交", V.HARD)])
+        if src_state.availability != "available":
+            raise CommitRejected([V.ValidationIssue(
+                "source_unavailable", "来源已归档/删除，结果不予提交",
+                V.HARD)])
+        if src_state.receipt.source_revision != source.source_revision:
+            raise CommitRejected([V.ValidationIssue(
+                "stale_source", "来源已改版，旧结果不予提交", V.HARD)])
+        # scope：评价 pack 构建后教材撤选/graph revision 改变（§18.3.8）。
+        # 重解析当前事实再比较（R05），不只是比较旧输入自身。
+        workspace_id = source.workspace_id_at_observation
+        if workspace_id:
+            from .scope import ScopeNotFound, get_scope_resolver
+            try:
+                current_scope_revision = get_scope_resolver().resolve(
+                    student_id, workspace_id).scope_revision
+            except ScopeNotFound:
+                raise CommitRejected([V.ValidationIssue(
+                    "workspace_gone", "工作区已删除/失效，结果不予提交",
+                    V.HARD)])
+            frozen_scope = expected_scope_revision or source.scope_revision
+            if frozen_scope and current_scope_revision != frozen_scope:
+                raise CommitRejected([V.ValidationIssue(
+                    "scope_changed",
+                    f"scope revision 已变化（{frozen_scope} → "
+                    f"{current_scope_revision}），丢弃旧结果", V.HARD)])
+        elif expected_scope_revision is not None and expected_scope_revision:
+            raise CommitRejected([V.ValidationIssue(
+                "workspace_gone", "来源已无工作区绑定，结果不予提交",
+                V.HARD)])
+        # 基线判断 CAS（R05）：pack 构建时冻结的 judgment_id 必须仍是当前值
+        if expected_base_judgment_ids:
+            for key, expected_jid in expected_base_judgment_ids.items():
+                current_jid = state.concept_current.get(
+                    (workspace_id, key), "")
+                if current_jid != expected_jid:
+                    raise CommitRejected([V.ValidationIssue(
+                        "base_judgment_changed",
+                        f"概念 {key} 的基线判断已被并发提交更新"
+                        f"（{expected_jid} → {current_jid}），请重新评价",
+                        V.HARD)])
         issues: list[V.ValidationIssue] = []
         if interpretation is not None:
             issues = V.validate_interpretation(
@@ -171,15 +243,54 @@ class LearnerEvaluationService:
         hard = [i for i in issues if i.severity == V.HARD]
         if hard:
             raise CommitRejected(hard)
+        # R15：机会/发布门违规阻断其 observation、statement 与 feedback——
+        # 违规主张不得以"当前解释"形态公开（§17.2.2）。
+        if interpretation is not None and len(issues) > 0:
+            violating_locals = {
+                detail.split(":")[0] for i in issues
+                if i.severity in (V.OPPORTUNITY, V.GATE)
+                for detail in [i.detail] if ":" in i.detail}
+            kept_claims = [c for c in interpretation.observation_claims
+                           if c.local_id not in violating_locals]
+            if len(kept_claims) != len(interpretation.observation_claims) \
+                    or interpretation.feedback \
+                    or interpretation.assistance_interpretation:
+                interpretation = interpretation.model_copy(update={
+                    "observation_claims": kept_claims,
+                    "feedback": "",
+                    "assistance_interpretation": "",
+                    "concept_updates": [
+                        u for u in interpretation.concept_updates
+                        if not any(
+                            i.concept_ref == u.concept_ref
+                            for i in issues
+                            if i.severity in (V.OPPORTUNITY, V.GATE))]})
 
         interpretation_id = new_interpretation_id()
         judgments: list[S.ConceptJudgment] = []
         dropped: list[str] = []
         state = journal.state()
         watermark = state.watermark
-        if interpretation is not None and interpretation.applicable:
-            observations = {c.local_id: new_observation_id()
-                            for c in interpretation.observation_claims}
+        # R05：无工作区绑定不发布任何 learner 判断（task-only 反馈语义，
+        # §11.4 workspace_required）——解释可保存供反馈读取，但标记 abstain。
+        publish_learner = interpretation is not None and bool(workspace_id)
+        # R10：claim local_id → obs/概念/来源 稳定映射（含未被概念 patch
+        # 覆盖的观察，保证时间线/依赖闭包可精确寻址）
+        observation_map: list[dict[str, str]] = []
+        if interpretation is not None:
+            local_obs = {c.local_id: new_observation_id()
+                         for c in interpretation.observation_claims}
+            for c in interpretation.observation_claims:
+                concept = _resolve_concept(c.concept_ref, pack)
+                observation_map.append({
+                    "local_id": c.local_id,
+                    "obs_id": local_obs.get(c.local_id, ""),
+                    "concept_key": concept.key if concept is not None else "",
+                    "source_id": source.source_id})
+        else:
+            local_obs = {}
+        if publish_learner and interpretation.applicable:
+            observations = local_obs
             claim_by_local: dict[str, S.ObservationClaim] = {
                 c.local_id: c for c in interpretation.observation_claims}
             for update in interpretation.concept_updates:
@@ -195,33 +306,34 @@ class LearnerEvaluationService:
                     concept.key, [])
                 judgment = materialize_judgment(
                     update, concept=concept,
-                    workspace_id=source.workspace_id_at_observation,
+                    workspace_id=workspace_id,
                     scope_revision=source.scope_revision,
                     source_id=source.source_id, watermark=watermark,
                     observations=observations, claims_by_local=claim_by_local,
                     active_claims=base_claims,
                     prompt_ref=pack.prompt_binding)
                 judgments.append(judgment)
-        abstained = interpretation is None or not interpretation.applicable
-        journal.append(
-            [S.OpResultCommitted(
-                job_id=job_id, source_id=source.source_id,
-                source_revision=source.source_revision,
-                scope_revision=source.scope_revision or "no_scope",
-                task_result=task_result,
-                interpretation_id=interpretation_id,
-                interpretation=interpretation,
-                judgments=judgments, continuation=continuation,
-                abstained=abstained,
-                outbox=list(outbox or []) + (
-                    [{"event_id": f"resync_{judgment.judgment_id}",
-                      "consumer": "synthesis", "kind": "concept_dirty",
-                      "concept_key": judgment.concept_ref.key}
-                     for judgment in judgments]
-                    + [{"event_id": f"resync_{source.source_id}",
-                        "consumer": "synthesis", "kind": "concept_dirty",
-                        "concept_key": d} for d in dropped]))],
-            expected_generation=expected_generation)
-        return CommitOutcome(interpretation_id=interpretation_id,
-                             judgment_ids=[j.judgment_id for j in judgments],
-                             dropped_updates=dropped, abstained=abstained)
+        abstained = (interpretation is None or not interpretation.applicable
+                     or not publish_learner)
+        ops = [S.OpResultCommitted(
+            job_id=job_id, source_id=source.source_id,
+            source_revision=source.source_revision,
+            scope_revision=source.scope_revision or "no_scope",
+            task_result=task_result,
+            interpretation_id=interpretation_id,
+            interpretation=interpretation,
+            judgments=judgments, continuation=continuation,
+            abstained=abstained,
+            observation_map=observation_map,
+            outbox=list(outbox or []) + (
+                [{"event_id": f"resync_{judgment.judgment_id}",
+                  "consumer": "synthesis", "kind": "concept_dirty",
+                  "concept_key": judgment.concept_ref.key}
+                 for judgment in judgments]
+                + [{"event_id": f"resync_{source.source_id}",
+                    "consumer": "synthesis", "kind": "concept_dirty",
+                    "concept_key": d} for d in dropped]))]
+        return ops, CommitOutcome(
+            interpretation_id=interpretation_id,
+            judgment_ids=[j.judgment_id for j in judgments],
+            dropped_updates=dropped, abstained=abstained)

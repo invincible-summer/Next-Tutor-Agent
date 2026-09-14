@@ -1,51 +1,154 @@
 """Knowledge Intelligence projection API (M5 observability).
 
 Read-only views over the knowledge ontology (curated seed + reasoner-learned
-edges) with the student's M2 mastery overlaid, powering the frontend
-knowledge-graph panel and the concept detail page. Mirrors the /assessment
-endpoints' graceful-degradation contract.
+edges) with the student's learner-evaluation overlay, powering the frontend
+knowledge-graph panel and the concept detail page.
 
-All endpoints are READ-ONLY: the graph is only traversed, mastery is only
-projected via StudentModel.mastery_view(); nothing persists. Every handler
+All endpoints are READ-ONLY: the graph is only traversed, evaluation is only
+projected via the unified scope resolver; nothing persists. Every handler
 degrades to a clear status (ok | disabled | not_found | error) and never
 raises into a request.
+
+R04（update_plan §4）：结构身份固定 `(owner, textbook_id, node_id)`；评价
+身份使用含 revision 的 ConceptRef.key；带 workspace 的 graph/详情必须经
+ScopeResolver 求交并严格 404（未选教材、越权或不存在的工作区都不能静默
+变成空 overlay）；浏览模式明确无个人 overlay；chapter/section 只显示
+覆盖计数，不显示个人评价状态。
 """
 from __future__ import annotations
 
+import hashlib
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 
 from app.agents import knowledge as _kn
+from app.agents.knowledge import store as kg_store
 from app.agents.knowledge.scope_primitives import chapter_closure as _chapter_closure
+from app.agents.knowledge.scope_primitives import (
+    volume_scoped_subgraph as _volume_scoped_subgraph)
 from app.identity.deps import resolve_student_id
 
 router = APIRouter(prefix="/knowledge", tags=["knowledge"])
 
 
-def _evaluation_overlay(student_id: str, workspace_id: str = ""):
-    """G4（plan §11.6）：统一评价覆盖层。无 workspace 时无个人 overlay；
-    有 workspace 时经 scope 求交后左连接概念视图。GET 零 LLM。"""
-    if not workspace_id:
-        return {}
+def graph_view_key(owner: str, textbook_id: str, node_id: str) -> str:
+    """结构身份（R04）：同 node_id 的两本教材在合并视图中不得互相覆写。"""
+    raw = "\u0001".join([owner or "", textbook_id or "", node_id or ""])
+    return "gv_" + hashlib.sha256(raw.encode("utf-8")).hexdigest()[:24]
+
+
+def _workspace_scope_or_404(student_id: str, workspace_id: str):
+    """带 workspace 的读取必须严格解析（R04）：工作区不存在/越权 → 404，
+    不退化为空 overlay 把越权内容当浏览内容展示。"""
+    from app.agents.student_model.evaluation.scope import (
+        ScopeNotFound, get_scope_resolver)
     try:
-        from app.agents.student_model.evaluation import projections
-        from app.agents.student_model.evaluation.scope import (
-            ScopeNotFound, get_scope_resolver)
-        scope = get_scope_resolver().resolve(student_id, workspace_id)
-    except Exception:
-        return {}
-    out: dict[str, dict] = {}
+        return get_scope_resolver().resolve(student_id, workspace_id)
+    except ScopeNotFound:
+        raise HTTPException(404, "工作区不存在")
+
+
+def _scope_views(student_id: str, scope) -> dict[tuple[str, str], Any]:
+    """scope 概念视图按 (textbook_id, concept_id) 建索引——评价身份使用
+    完整 ConceptRef（含 revision）经 concept_views 命中后回填。"""
+    from app.agents.student_model.evaluation import projections
+    out: dict[tuple[str, str], Any] = {}
     for view in projections.concept_views(student_id, scope):
-        out[view.concept_ref.concept_id] = {
-            "state": view.state.value if view.state else None,
-            "statement": view.statement[:160],
-            "judgment_id": view.judgment_id,
-            "concept_key": view.concept_ref.key,
-            "evaluation_status": view.evaluation_status.value,
-            "updated_at": view.updated_at,
-        }
+        out[(view.concept_ref.textbook_id, view.concept_ref.concept_id)] = view
     return out
+
+
+def _evaluation_payload(view: Any) -> dict[str, Any]:
+    return {
+        "state": view.state.value if view.state else None,
+        "statement": view.statement[:160],
+        "judgment_id": view.judgment_id,
+        "concept_key": view.concept_ref.key,
+        "evaluation_status": view.evaluation_status.value,
+        "updated_at": view.updated_at,
+    }
+
+
+def _restrict_concepts_to_scope(
+        nodes: list[dict[str, Any]], edges: list[dict[str, Any]],
+        allowed_node_ids: set[str]) -> tuple[list[dict], list[dict]]:
+    """R04：结构强制限制在选卷 scope——概念按节点身份求交；容器（章/节）
+    仅在包含至少一个范围内概念时保留（向上闭包）。"""
+    by_id = {str(n.get("id") or ""): n for n in nodes}
+    keep = {nid for nid, n in by_id.items()
+            if str(n.get("kind") or "") == "concept" and nid in allowed_node_ids}
+    containers: set[str] = set()
+    frontier = set(keep)
+    part_edges = [(str(e.get("source") or e.get("from") or ""),
+                   str(e.get("target") or e.get("to") or ""))
+                  for e in edges
+                  if str(e.get("type") or "").upper() == "PART_OF"]
+    while frontier:
+        nxt: set[str] = set()
+        for src, tgt in part_edges:
+            if src in frontier and tgt not in containers and tgt not in keep:
+                containers.add(tgt)
+                nxt.add(tgt)
+        frontier = nxt
+    allowed = keep | containers
+    out_nodes = [n for n in nodes if str(n.get("id") or "") in allowed]
+    out_edges = [e for e in edges
+                 if str(e.get("source") or e.get("from") or "") in allowed
+                 and str(e.get("target") or e.get("to") or "") in allowed]
+    return out_nodes, out_edges
+
+
+def _container_coverage(nodes: list[dict[str, Any]], edges: list[dict[str, Any]],
+                         views_by_tb: dict[tuple[str, str], Any],
+                         textbook_id: str) -> dict[str, dict[str, int]]:
+    """chapter/section 只显示覆盖计数（R04）：有证据 x / 范围内概念 y，
+    不做平均能力颜色。"""
+    by_id = {str(n.get("id") or ""): n for n in nodes}
+    chapter_ids = {nid for nid, n in by_id.items()
+                   if n.get("kind") == "chapter"}
+    section_ids = {nid for nid, n in by_id.items()
+                   if n.get("kind") == "section"}
+    members = _chapter_closure(edges, chapter_ids, section_ids) \
+        if chapter_ids else {}
+    # 节 → 章归属；概念经闭包归到最近容器（章或节）
+    part_children: dict[str, set[str]] = {}
+    for e in edges:
+        if str(e.get("type") or "").upper() != "PART_OF":
+            continue
+        src = str(e.get("source") or e.get("from") or "")
+        tgt = str(e.get("target") or e.get("to") or "")
+        if src and tgt:
+            part_children.setdefault(tgt, set()).add(src)
+
+    def _descendants(cid: str) -> set[str]:
+        out: set[str] = set()
+        stack = [cid]
+        while stack:
+            cur = stack.pop()
+            for child in part_children.get(cur, ()):
+                if child not in out:
+                    out.add(child)
+                    stack.append(child)
+        return out
+
+    coverage: dict[str, dict[str, int]] = {}
+    for nid, n in by_id.items():
+        if str(n.get("kind") or "") not in ("chapter", "section"):
+            continue
+        total = 0
+        evidenced = 0
+        for member in _descendants(nid):
+            m = by_id.get(member)
+            if m is None or str(m.get("kind") or "") != "concept":
+                continue
+            total += 1
+            view = views_by_tb.get((textbook_id, member))
+            if view is not None and view.state is not None \
+                    and view.state.value != "not_observed":
+                evidenced += 1
+        coverage[nid] = {"evidenced": evidenced, "total": total}
+    return coverage
 
 
 @router.get("/graph")
@@ -66,30 +169,107 @@ def knowledge_graph(
     if not _kn.is_enabled():
         return {"status": "disabled"}
     try:
-        overlay = _evaluation_overlay(student_id, workspace_id) or {}
+        # R04：带 workspace 的读取严格 scope 化；浏览模式（无 workspace）
+        # 明确没有个人 overlay，不把越权内容伪装成"未观察"。
+        scope = None
+        views_by_tb: dict[tuple[str, str], Any] = {}
+        if workspace_id:
+            scope = _workspace_scope_or_404(student_id, workspace_id)
+            views_by_tb = _scope_views(student_id, scope)
+            if textbook_id and not any(
+                    v.textbook_id == textbook_id
+                    for v in scope.selected_volumes):
+                raise HTTPException(404, "教材不在当前学习区的已选范围")
         from app.agents.knowledge.custom_graph import CUSTOM_LEVEL, OTHER_LEVEL
         if file_id and not textbook_id:
             raise HTTPException(400, "file_id 必须与 textbook_id 同时提供")
         raw_nodes: list[dict[str, Any]] = []
         raw_edges: list[dict[str, Any]] = []
         coverage: list[dict[str, Any]] = []
+        node_evaluation: dict[str, dict[str, Any]] = {}   # node_id → 评价
+        node_coverage: dict[str, dict[str, int]] = {}     # 容器 → 覆盖计数
         if textbook_id:
-            from app.core.textbook import find_textbook_scoped
-            from app.agents.knowledge import store as kg_store
-            found = find_textbook_scoped(student_id, textbook_id)
-            if found is None:
-                raise HTTPException(404, "教材不存在")
-            record, owner = found
-            allowed_files = set(record.get("file_ids") or [])
-            if file_id and file_id not in allowed_files:
-                raise HTTPException(404, "教材文件不存在")
-            payload = kg_store.load_custom_graph(owner, record["topic_key"])
-            if payload is None:
-                return {"status": "not_found", "nodes": [], "edges": [],
-                        "coverage": list(record.get("volumes") or [])}
+            if scope is not None:
+                vol = next(v for v in scope.selected_volumes
+                           if v.textbook_id == textbook_id)
+                payload = kg_store.load_custom_graph(
+                    vol.graph_owner_namespace, vol.topic_key)
+                if payload is None:
+                    return {"status": "not_found", "nodes": [], "edges": [],
+                            "coverage": []}
+                if file_id and file_id not in set(vol.file_ids):
+                    raise HTTPException(404, "该卷不在学习区已选范围")
+                owner = vol.graph_owner_namespace
+            else:
+                from app.core.textbook import find_textbook_scoped
+                found = find_textbook_scoped(student_id, textbook_id)
+                if found is None:
+                    raise HTTPException(404, "教材不存在")
+                record, owner = found
+                allowed_files = set(record.get("file_ids") or [])
+                if file_id and file_id not in allowed_files:
+                    raise HTTPException(404, "教材文件不存在")
+                payload = kg_store.load_custom_graph(owner, record["topic_key"])
+                if payload is None:
+                    return {"status": "not_found", "nodes": [], "edges": [],
+                            "coverage": list(record.get("volumes") or [])}
             raw_nodes = [dict(n) for n in (payload.get("nodes") or [])]
             raw_edges = [dict(e) for e in (payload.get("edges") or [])]
-            coverage = list(payload.get("coverage") or record.get("volumes") or [])
+            coverage = list(payload.get("coverage") or [])
+            if scope is None and record is not None:
+                coverage = coverage or list(record.get("volumes") or [])
+            if scope is not None:
+                # 结构强制求交（R04）：概念必须在 scope 白名单；容器按闭包保留
+                allowed_ids = {c.concept_id for c in scope.allowed_concepts
+                               if c.textbook_id == textbook_id}
+                raw_nodes, raw_edges = _restrict_concepts_to_scope(
+                    raw_nodes, raw_edges, allowed_ids)
+                node_coverage = _container_coverage(
+                    raw_nodes, raw_edges, views_by_tb, textbook_id)
+                for c_node in raw_nodes:
+                    view = views_by_tb.get(
+                        (textbook_id, str(c_node.get("id") or "")))
+                    if view is not None:
+                        node_evaluation[str(c_node.get("id") or "")] = \
+                            _evaluation_payload(view)
+        elif scope is not None:
+            # 工作区合并视图（R04）：只合并已选卷；结构身份 (owner,tb,node)
+            # 去重，后读图谱不得覆写先读内容。
+            seen_nodes: dict[str, None] = {}
+            seen_edges: set[tuple[str, str, str]] = set()
+            for vol in scope.selected_volumes:
+                payload = kg_store.load_custom_graph(
+                    vol.graph_owner_namespace, vol.topic_key)
+                if payload is None:
+                    continue
+                vol_nodes, vol_edges = _volume_scoped_subgraph(
+                    payload.get("nodes") or [], payload.get("edges") or [],
+                    set(vol.file_ids))
+                allowed_ids = {c.concept_id for c in scope.allowed_concepts
+                               if c.textbook_id == vol.textbook_id}
+                vol_nodes, vol_edges = _restrict_concepts_to_scope(
+                    vol_nodes, vol_edges, allowed_ids)
+                node_coverage.update(_container_coverage(
+                    vol_nodes, vol_edges, views_by_tb, vol.textbook_id))
+                for nd in vol_nodes:
+                    nid = str(nd.get("id") or "")
+                    key = graph_view_key(vol.graph_owner_namespace,
+                                         vol.textbook_id, nid)
+                    if key in seen_nodes:
+                        continue
+                    seen_nodes[key] = None
+                    raw_nodes.append(nd)
+                    view = views_by_tb.get((vol.textbook_id, nid))
+                    if view is not None:
+                        node_evaluation[nid] = _evaluation_payload(view)
+                for ed in vol_edges:
+                    ek = (str(ed.get("source") or ed.get("from") or ""),
+                          str(ed.get("target") or ed.get("to") or ""),
+                          str(ed.get("type") or ""))
+                    if ek in seen_edges:
+                        continue
+                    seen_edges.add(ek)
+                    raw_edges.append(ed)
         else:
             g = _kn.get_knowledge_service().graph_for(student_id)
             raw_nodes = [n.to_dict() for n in g.nodes.values()]
@@ -182,8 +362,13 @@ def knowledge_graph(
             d = dict(source_node)
             if d.get("level") == CUSTOM_LEVEL:
                 d["level"] = OTHER_LEVEL  # P6：遗留「自定义」图谱归入「其他」组
-            m = overlay.get(str(d.get("id") or ""))
-            d["evaluation"] = m or None
+            nid = str(d.get("id") or "")
+            # R04：评价只落在概念节点（完整键命中）；容器只带覆盖计数；
+            # 浏览模式（scope=None）没有任何个人评价。
+            d["evaluation"] = node_evaluation.get(nid) if scope is not None \
+                else None
+            if scope is not None and str(d.get("kind") or "") != "concept":
+                d["evaluation_coverage"] = node_coverage.get(nid)
             nodes.append(d)
         nodes.sort(key=lambda d: d["id"])
         edges = [{"from": e.get("source") or e.get("from"),
@@ -207,17 +392,43 @@ def knowledge_concept(
     student_id: str = Depends(resolve_student_id),
 ) -> dict:
     """One concept's detail page: node fields + resolved teaching content,
-    typed neighbor edges, this student's mastery, recent teaching-log turns
-    (M3) and matching episodic memories (M6). Accepts a node id or a free-text
-    name (fuzzy-matched like the retriever does)."""
+    typed neighbor edges, this student's evaluation, recent teaching-log turns
+    (M3) and matching episodic memories (M6).
+
+    R04：带 workspace 时必须严格 scope 化——概念按完整身份 (textbook_id,
+    concept_id) 命中当前选卷范围，未选/越权一律 404，不做裸名称模糊匹配；
+    浏览模式（无 workspace）只做名称检索且不携带个人评价。"""
     if not _kn.is_enabled():
         return {"status": "disabled"}
     try:
         from app.agents.knowledge.schema import EdgeType
+        scope = None
+        views_by_tb: dict[tuple[str, str], Any] = {}
+        if workspace_id:
+            scope = _workspace_scope_or_404(student_id, workspace_id)
+            views_by_tb = _scope_views(student_id, scope)
         g = _kn.get_knowledge_service().graph_for(student_id)
-        node = g.get(concept_id) or g.match_concept(concept_id)
-        if node is None:
-            return {"status": "not_found", "concept": None}
+        if scope is not None:
+            targets = [c for c in scope.allowed_concepts
+                       if c.concept_id == concept_id]
+            if not targets:
+                raise HTTPException(404, "概念不在当前学习区范围（可能已变化）")
+            target = targets[0]
+            vol = next(v for v in scope.selected_volumes
+                       if v.textbook_id == target.textbook_id)
+            payload = kg_store.load_custom_graph(
+                vol.graph_owner_namespace, vol.topic_key) or {}
+            payload_nodes = {str(n.get("id") or ""): n
+                             for n in (payload.get("nodes") or [])}
+            raw = payload_nodes.get(concept_id)
+            if raw is None:
+                raise HTTPException(404, "概念节点不存在")
+            from app.agents.knowledge.schema import KnowledgeNode
+            node = KnowledgeNode.from_dict(raw)
+        else:
+            node = g.get(concept_id) or g.match_concept(concept_id)
+            if node is None:
+                return {"status": "not_found", "concept": None}
 
         def _refs(ids: list[str]) -> list[dict[str, str]]:
             return [{"id": i, "name": g.nodes[i].name if i in g.nodes else i}
@@ -253,8 +464,10 @@ def knowledge_concept(
         }
         content, _snippets = _kn.ContentResolver(g.contents).resolve(
             node.id, query_hint=node.name)
-        evaluation = (_evaluation_overlay(student_id, workspace_id)
-                       or {}).get(node.id)
+        evaluation = (_evaluation_payload(views_by_tb[
+            (target.textbook_id, concept_id)])
+            if scope is not None
+            and (target.textbook_id, concept_id) in views_by_tb else None)
         # teaching log (M3) is keyed by whatever concept string the turn used
         # (often the display name, sometimes the skill id) -- try both.
         teaching: list[dict[str, Any]] = []
@@ -281,6 +494,8 @@ def knowledge_concept(
         return {"status": "ok", "concept": concept, "edges": edges,
                 "evaluation": evaluation, "teaching_log": teaching,
                 "memories": memories}
+    except HTTPException:
+        raise
     except Exception as e:
         return {"status": "error", "message": str(e)}
 

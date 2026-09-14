@@ -28,10 +28,15 @@ async def run_dialogue_job(student_id: str, claimed: ClaimedJob, *,
     service = LearnerEvaluationService(scheduler)
     journal = get_journal(student_id)
     state = journal.state()
+    # R05：认领后立即冻结 generation，提交 CAS 用快照值
+    generation_at_claim = state.generation
     job = claimed.job
     src = state.sources.get(job.source_id)
     if src is None or src.receipt.source_revision != job.source_revision:
         scheduler.cancel(student_id, job.job_id, reason="source_gone")
+        return "cancelled"
+    if src.availability != "available":
+        scheduler.cancel(student_id, job.job_id, reason="source_unavailable")
         return "cancelled"
     receipt = src.receipt
     if receipt.workspace_id_at_observation:
@@ -46,66 +51,74 @@ async def run_dialogue_job(student_id: str, claimed: ClaimedJob, *,
         scheduler.cancel(student_id, job.job_id, reason="no_workspace")
         return "cancelled"
 
-    from .dialogue import concept_candidates
-    candidates = concept_candidates(student_id,
-                                    receipt.workspace_id_at_observation,
-                                    receipt.canonical_text)
-    # §7.2：概念候选完全无法取得 → concept_unresolved（记录原因，仍提交
-    # applicable=false 解释；不能零候选静默跳过）
-    scenarios = _dialogue_scenarios(state, receipt)
-    binding = ("learning_evidence_contract@1.0.0+"
-               "dialogue_learner_evaluation@1.0.0")
-    if not candidates:
-        pack = S.EvaluationContextPack.model_construct()
-        abstain = S.LearnerInterpretation(
-            applicable=False, abstain_reason="concept_unresolved",
-            feedback="")
-        service.commit_result(
-            student_id, job_id=job.job_id, lease_token=claimed.lease_token,
-            expected_generation=journal.state().generation,
-            source=receipt, pack=_empty_pack(receipt, binding),
-            task=None, interpretation=abstain,
-            expected_scope_revision=job.scope_revision or None)
-        return "abstained"
-    pack = pack_builder.assemble_dialogue_pack(
-        source=receipt, scope=scope, state=state, scenarios=scenarios,
-        candidates=candidates)
-    pack.job_id = job.job_id
-    service.record_job_input(
-        student_id, job.job_id, input_hash=pack.manifest.input_hash,
-        prompt_binding=binding, generation=state.generation)
-    system = build_system_message(
-        "dialogue_learner_evaluation", scenarios=scenarios,
-        output_model=S.LearnerInterpretation)
-    out = await runner.run_structured(
-        system=system, user=pack_builder.pack_user_message(pack),
-        output_model=S.LearnerInterpretation, max_output_tokens=4000)
-    if out.parsed is None:
-        scheduler.fail(student_id, job.job_id,
-                       error_code=out.error_code or "llm_failed",
-                       retryable=out.retryable_error,
-                       transport_attempts=out.transport_attempts)
-        return "failed"
-    parsed: S.LearnerInterpretation = out.parsed
-    base_claims: dict[str, list[S.ClaimView]] = {}
-    for entry in pack.allowlist:
-        jid = state.concept_current.get(
-            (scope.workspace_id, entry.concept.key), "")
-        judgment = state.judgments.get(jid) if jid else None
-        if judgment is not None:
-            base_claims[entry.concept.key] = list(judgment.claims)
-    try:
-        service.commit_result(
-            student_id, job_id=job.job_id, lease_token=claimed.lease_token,
-            expected_generation=journal.state().generation,
-            source=receipt, pack=pack, task=None, interpretation=parsed,
-            expected_scope_revision=job.scope_revision or None,
-            expected_base_judgments=base_claims)
-    except CommitRejected:
-        scheduler.fail(student_id, job.job_id, error_code="validation_rejected",
-                       retryable=False, transport_attempts=out.transport_attempts)
-        return "failed"
-    return "succeeded"
+    async with learner_runtime.workspace_lock(
+            student_id, receipt.workspace_id_at_observation):
+        from .dialogue import concept_candidates
+        candidates = concept_candidates(student_id,
+                                        receipt.workspace_id_at_observation,
+                                        receipt.canonical_text)
+        # §7.2：概念候选完全无法取得 → concept_unresolved（记录原因，仍提交
+        # applicable=false 解释；不能零候选静默跳过）
+        scenarios = _dialogue_scenarios(state, receipt)
+        binding = ("learning_evidence_contract@1.0.0+"
+                   "dialogue_learner_evaluation@1.0.0")
+        if not candidates:
+            abstain = S.LearnerInterpretation(
+                applicable=False, abstain_reason="concept_unresolved",
+                feedback="")
+            service.commit_result(
+                student_id, job_id=job.job_id,
+                lease_token=claimed.lease_token,
+                expected_generation=generation_at_claim,
+                source=receipt, pack=_empty_pack(receipt, binding),
+                task=None, interpretation=abstain,
+                expected_scope_revision=job.scope_revision or None)
+            return "abstained"
+        pack = pack_builder.assemble_dialogue_pack(
+            source=receipt, scope=scope, state=state, scenarios=scenarios,
+            candidates=candidates)
+        pack.job_id = job.job_id
+        service.record_job_input(
+            student_id, job.job_id, input_hash=pack.manifest.input_hash,
+            prompt_binding=binding, generation=state.generation)
+        system = build_system_message(
+            "dialogue_learner_evaluation", scenarios=scenarios,
+            output_model=S.LearnerInterpretation)
+        out = await runner.run_structured(
+            system=system, user=pack_builder.pack_user_message(pack),
+            output_model=S.LearnerInterpretation, max_output_tokens=4000)
+        if out.parsed is None:
+            scheduler.fail(student_id, job.job_id,
+                           error_code=out.error_code or "llm_failed",
+                           retryable=out.retryable_error,
+                           transport_attempts=out.transport_attempts)
+            return "failed"
+        parsed: S.LearnerInterpretation = out.parsed
+        base_claims: dict[str, list[S.ClaimView]] = {}
+        base_judgment_ids: dict[str, str] = {}
+        for entry in pack.allowlist:
+            jid = state.concept_current.get(
+                (scope.workspace_id, entry.concept.key), "")
+            base_judgment_ids[entry.concept.key] = jid
+            judgment = state.judgments.get(jid) if jid else None
+            if judgment is not None:
+                base_claims[entry.concept.key] = list(judgment.claims)
+        try:
+            service.commit_result(
+                student_id, job_id=job.job_id,
+                lease_token=claimed.lease_token,
+                expected_generation=generation_at_claim,
+                source=receipt, pack=pack, task=None, interpretation=parsed,
+                expected_scope_revision=job.scope_revision or None,
+                expected_base_judgments=base_claims,
+                expected_base_judgment_ids=base_judgment_ids)
+        except CommitRejected:
+            scheduler.fail(student_id, job.job_id,
+                           error_code="validation_rejected",
+                           retryable=False,
+                           transport_attempts=out.transport_attempts)
+            return "failed"
+        return "succeeded"
 
 
 def _dialogue_scenarios(state: JournalState, receipt: S.SourceReceipt
@@ -137,36 +150,82 @@ def _empty_pack(receipt: S.SourceReceipt, binding: str
 # C9 复核（P5）
 # ---------------------------------------------------------------------------
 
+def _rebuild_pack_for_review(student_id: str, state: JournalState,
+                             receipt: S.SourceReceipt,
+                             task: S.TaskSnapshot | None,
+                             ) -> S.EvaluationContextPack | None:
+    """按原解释链路确定性重建 pack（allowlist 顺序可重放），供替代解释
+    的 validator 使用。scope 已失效时返回 None（调用方按不可修订处理）。"""
+    workspace_id = receipt.workspace_id_at_observation
+    if not workspace_id:
+        return None
+    try:
+        from .scope import get_scope_resolver
+        scope = get_scope_resolver().resolve(student_id, workspace_id)
+    except Exception:
+        return None
+    binding = ("learning_evidence_contract@1.0.0+"
+               "learner_evaluation_review@1.0.0")
+    if task is not None:
+        return pack_builder.assemble_assessment_pack(
+            source=receipt, task=task, scope=scope, state=state,
+            task_result=None, scenarios=[], prompt_binding=binding,
+            hint_concepts=[p.strip() for p in task.source_badge.split(",")])
+    from .dialogue import concept_candidates
+    candidates = concept_candidates(student_id, workspace_id,
+                                    receipt.canonical_text)
+    if not candidates:
+        return None
+    return pack_builder.assemble_dialogue_pack(
+        source=receipt, scope=scope, state=state, scenarios=[],
+        candidates=candidates, prompt_binding=binding)
+
+
 async def run_review_job(student_id: str, claimed: ClaimedJob, *,
                          runner: EvaluationLLMRunner,
                          scheduler=None) -> str:
+    """R06：按本 job 绑定的 review_id 执行复核并完整结案。
+
+    - uphold：原解释保持有效，复核 resolved。
+    - revise：替代解释经 validator 后与 TaskResult、判断、复核决定、
+      job 终态**同一事务**提交。
+    - invalidate：解释撤销 + 递归失效 + 决定同一事务。
+    - insufficient_evidence：复核保持待确定（active），job abstained。
+    - 解释/来源已消失：dismiss 复核并取消 job，允许新的合法异议。
+    """
     from app.core import learner_runtime
     scheduler = scheduler or learner_runtime.get_scheduler()
     journal = get_journal(student_id)
     state = journal.state()
+    generation_at_claim = state.generation
     job = claimed.job
-    review_id = ""
-    for rid, review in state.reviews.items():
-        if review.source_id == job.source_id:
-            review_id = rid
-            break
+    review_id = state.review_by_job.get(job.job_id, "")
+    review = state.reviews.get(review_id)
     src = state.sources.get(job.source_id)
-    if not review_id or src is None:
+    if review is None or src is None or review.source_id != job.source_id:
         scheduler.cancel(student_id, job.job_id, reason="review_gone")
         return "cancelled"
-    review = state.reviews[review_id]
+    if review.status != "active":
+        return "succeeded"        # 幂等：HTTP 重试/重复投递
+    if review.interpretation_id not in src.interpretations:
+        # 被争议解释已删除/撤销（复核期间删除）→ 关闭复核，允许新异议
+        journal.append([S.OpReviewDismissed(
+            review_id=review_id, reason="interpretation_gone",
+            job_id=job.job_id)], expected_generation=generation_at_claim)
+        return "cancelled"
+    receipt = src.receipt
+    if src.availability != "available":
+        journal.append([S.OpReviewDismissed(
+            review_id=review_id, reason="source_unavailable",
+            job_id=job.job_id)], expected_generation=generation_at_claim)
+        return "cancelled"
+
     old_meta = src.interpretations.get(review.interpretation_id, {})
-    old_interp = None
     raw_old = old_meta.get("raw_interpretation")
-    if isinstance(raw_old, dict):
-        try:
-            old_interp = S.LearnerInterpretation.model_validate(raw_old)
-        except Exception:
-            old_interp = None
     task = None
-    if src.receipt.task_ref is not None:
-        task = state.tasks.get(src.receipt.task_ref.question_id, {}).get(
-            src.receipt.task_ref.question_revision)
+    if receipt.task_ref is not None:
+        task = state.tasks.get(receipt.task_ref.question_id, {}).get(
+            receipt.task_ref.question_revision)
 
     binding = ("learning_evidence_contract@1.0.0+"
                "learner_evaluation_review@1.0.0")
@@ -174,16 +233,29 @@ async def run_review_job(student_id: str, claimed: ClaimedJob, *,
     service.record_job_input(
         student_id, job.job_id, input_hash="rh_" + review.review_id,
         prompt_binding=binding, generation=state.generation)
+    # 同概念有效历史（受污染解释的原始主张）：复核上下文需要
+    history: list[Any] = []
+    if receipt.workspace_id_at_observation:
+        for (ws, key), jid in state.concept_current.items():
+            if ws != receipt.workspace_id_at_observation or not jid:
+                continue
+            judgment = state.judgments.get(jid)
+            if judgment is not None:
+                history.append({
+                    "concept_key": key,
+                    "state": judgment.state.value,
+                    "claims": [c.model_dump() for c in judgment.claims[:8]],
+                })
     user = S.canonical_json({
-        "原始作答": {"canonical_text": src.receipt.canonical_text,
-                     "observed_at": src.receipt.observed_at,
+        "原始作答": {"canonical_text": receipt.canonical_text,
+                     "observed_at": receipt.observed_at,
                      "assistance": [a.model_dump()
-                                    for a in src.receipt.assistance_events]},
+                                    for a in receipt.assistance_events]},
         "题目": (task.model_dump() if task is not None else None),
         "被争议解释": raw_old,
         "异议": {"reason": review.reason,
                  "issue_kind": review.issue_kind},
-        "同概念有效历史": [],
+        "同概念有效历史": history[:16],
     })
     system = build_system_message(
         "learner_evaluation_review", output_model=S.ReviewDecisionOutput)
@@ -193,42 +265,101 @@ async def run_review_job(student_id: str, claimed: ClaimedJob, *,
     if out.parsed is None:
         scheduler.fail(student_id, job.job_id,
                        error_code=out.error_code or "llm_failed",
-                       retryable=out.retryable_error)
+                       retryable=out.retryable_error,
+                       transport_attempts=out.transport_attempts)
         return "failed"
     decision: S.ReviewDecisionOutput = out.parsed
 
     ops: list[Any] = []
-    replacement_id = ""
     outbox: list[dict[str, Any]] = []
+    replacement_id = ""
     if decision.decision == S.ReviewDecisionKind.REVISE \
             and decision.replacement_interpretation is not None:
-        replacement_id = new_interpretation_id()
-    if decision.decision == S.ReviewDecisionKind.INVALIDATE:
-        # 依赖失效传播（§12.4）：撤销解释并级联受影响判断/综合
+        pack = _rebuild_pack_for_review(student_id, state, receipt, task)
+        base_claims: dict[str, list[S.ClaimView]] = {}
+        base_judgment_ids: dict[str, str] = {}
+        if pack is not None:
+            for entry in pack.allowlist:
+                jid = state.concept_current.get(
+                    (receipt.workspace_id_at_observation,
+                     entry.concept.key), "")
+                base_judgment_ids[entry.concept.key] = jid
+                judgment = state.judgments.get(jid) if jid else None
+                if judgment is not None:
+                    base_claims[entry.concept.key] = list(judgment.claims)
+        # 任务改分：开放题按替代 criterion results 重算；MC 正误保持服务端
+        # 确定判定（§9.5），复核不越权改写。
+        replacement_tr = None
+        if task is not None and decision.replacement_criterion_results and \
+                task.q_type != S.QuestionType.MULTIPLE_CHOICE:
+            from .grading import compute_task_result
+            replacement_tr = compute_task_result(
+                task, decision.replacement_criterion_results,
+                receipt.canonical_text)
+        if pack is None:
+            # scope 已失效：无法安全物化替代解释 → 维持原解释，按 uphold
+            # 处理并在决定里记录限制
+            decision = decision.model_copy(update={
+                "decision": S.ReviewDecisionKind.UPHOLD,
+                "reason": decision.reason + "（scope 已变化，无法物化替代解释）"})
+        else:
+            try:
+                commit_ops, commit_outcome = service.build_commit_operations(
+                    student_id, job_id=job.job_id,
+                    lease_token=claimed.lease_token,
+                    expected_generation=generation_at_claim,
+                    source=receipt, pack=pack, task=task,
+                    interpretation=decision.replacement_interpretation,
+                    task_result=replacement_tr,
+                    expected_scope_revision=job.scope_revision or None,
+                    expected_base_judgments=base_claims,
+                    expected_base_judgment_ids=base_judgment_ids)
+                ops.extend(commit_ops)
+                replacement_id = commit_outcome.interpretation_id
+                outbox.extend([{"event_id": f"resync_{jid}",
+                                "consumer": "synthesis",
+                                "kind": "concept_dirty",
+                                "concept_key": key}
+                               for key, jid in zip(base_judgment_ids,
+                                                   commit_outcome.judgment_ids)])
+            except CommitRejected as exc:
+                import logging
+                logging.getLogger(__name__).warning(
+                    "review %s replacement rejected: %s", review_id, exc)
+                scheduler.fail(student_id, job.job_id,
+                               error_code="replacement_rejected",
+                               retryable=False,
+                               transport_attempts=out.transport_attempts)
+                return "failed"
+    elif decision.decision == S.ReviewDecisionKind.INVALIDATE:
+        # 撤销 + 递归失效（R08）与复核决定同一事务
         from . import lifecycle
-        affected = lifecycle.invalidate_interpretation(
-            student_id, review.interpretation_id,
-            reason="review_invalidated:" + review.review_id,
-            extra_ops=ops)
-        outbox = [{"event_id": f"resync_{jid}",
-                   "consumer": "synthesis", "kind": "concept_dirty",
-                   "concept_key": key}
-                  for key, jid in affected.items()]
-        # G4 §6.6：复核撤销也投递 M9——受影响复习卡需重放日期状态
+        revoke_ops, affected = lifecycle.build_invalidation_ops(
+            student_id, state, review.interpretation_id,
+            reason="review_invalidated:" + review.review_id)
+        ops.extend(revoke_ops)
+        outbox.extend([{"event_id": f"resync_{jid}",
+                        "consumer": "synthesis", "kind": "concept_dirty",
+                        "concept_key": key} for key, jid in affected.items()])
+        # G4 §6.6：复核撤销投递 M9（复习卡重放）
         outbox.append({"event_id": f"m9_review_{review.review_id}",
                        "consumer": "m9", "kind": "review_resolved",
                        "concept_keys": sorted(affected.keys())})
+
     ops.append(S.OpReviewResolved(
         review_id=review_id, decision=decision,
         replacement_interpretation_id=replacement_id,
+        job_id=job.job_id,
         outbox=outbox))
-    journal.append(ops)
+    journal.append(ops, expected_generation=generation_at_claim)
+    # invalidate 影响的区需要重综合排队（§12.5）
+    if decision.decision == S.ReviewDecisionKind.INVALIDATE and \
+            receipt.workspace_id_at_observation:
+        from . import lifecycle as _lc
+        _lc.request_resynthesis(
+            student_id, receipt.workspace_id_at_observation,
+            reason="review_invalidated")
     return "succeeded"
-
-
-# ---------------------------------------------------------------------------
-# C7 综合（P9）
-# ---------------------------------------------------------------------------
 
 async def run_synthesis_job(student_id: str, claimed: ClaimedJob, *,
                             runner: EvaluationLLMRunner,

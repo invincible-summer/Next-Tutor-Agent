@@ -28,24 +28,19 @@ router = APIRouter(prefix="/student", tags=["student"])
 
 
 def _evaluation_view(student_id: str, workspace_id: str = "") -> dict[str, Any]:
-    """G4：统一评价只读投影 {concept_id: {"state": ...}}（全工作区当前
-    判断聚合；多区同概念保留最不利状态）。失败返回 {}。"""
+    """G4/R18：统一评价只读投影 {concept_id: {"state": ...}}。
+
+    必须显式携带 workspace，经 readers 统一入口读当前区有效投影；无
+    workspace → {}（非个性化：learning-path 只按图谱结构推荐，不继承
+    任何区的概念状态）。"""
+    if not workspace_id:
+        return {}
     try:
-        from app.agents.student_model.evaluation.store import get_journal
-        state = get_journal(student_id).state()
-        out: dict[str, Any] = {}
-        for (_ws, _key), jid in state.concept_current.items():
-            if workspace_id and _ws != workspace_id:
-                continue
-            j = state.judgments.get(jid)
-            if j is None:
-                continue
-            st = j.state.value if hasattr(j.state, "value") else str(j.state)
-            cid = j.concept_ref.concept_id
-            prev = out.get(cid, {}).get("state", "")
-            if prev != "supported_in_scope":
-                out[cid] = {"state": st}
-        return out
+        from app.agents.student_model.evaluation.readers import (
+            scoped_concept_states)
+        view = scoped_concept_states(student_id, workspace_id,
+                                     include_out_of_scope=True)
+        return view or {}
     except Exception:
         return {}
 

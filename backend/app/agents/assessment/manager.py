@@ -51,6 +51,26 @@ class QuestionAlreadyAnswered(SubmissionError):
     code = "question_already_answered"
 
 
+class WorkspaceNotOwned(SubmissionError):
+    """R05：请求携带的 workspace_id 不存在/非本人——服务端事实解析，
+    请求字段只做期望断言。"""
+    code = "workspace_not_owned"
+
+
+class SessionNotOwned(SubmissionError):
+    code = "session_not_owned"
+
+
+class AssessmentBindingError(SubmissionError):
+    """R05：CAT 实例不存在/非本人，或题目不属于该实例。"""
+    code = "assessment_binding_error"
+
+
+class ScopeRevisionConflict(SubmissionError):
+    """R05：expected_scope_revision 与服务端当前解析不一致（期望断言）。"""
+    code = "scope_revision_conflict"
+
+
 @dataclass
 class SubmissionReceipt:
     attempt_id: str
@@ -210,6 +230,68 @@ def task_snapshot_from_quiz_dict(qd: dict, *,
 # 唯一受理入口
 # ---------------------------------------------------------------------------
 
+def resolve_submission_binding(
+        student_id: str, *, question_ref: S.QuestionRef,
+        task: S.TaskSnapshot, assessment_id: str = "",
+        source_session_ref: str = "", workspace_id: str = "",
+        expected_scope_revision: str = "") -> tuple[str, str]:
+    """R05：归属从服务端事实解析，请求字段只做期望断言。
+
+    解析顺序（§11.4）：CAT 实例 > 会话 > 显式 workspace_id > 题目注册时的
+    workspace。返回 (workspace_id, scope_revision)；workspace 为空表示
+    task-only 反馈（评价 unavailable(workspace_required)）。任何归属冲突
+    抛 SubmissionError 子类（API 层 404/409，零模型调用）。
+    """
+    journal = get_journal(student_id)
+    state = journal.state()
+    if assessment_id:
+        from . import adaptive_test as cat
+        inst = cat.load_instance(state, assessment_id)
+        if inst is None:
+            raise AssessmentBindingError(f"测评实例 {assessment_id} 不存在")
+        if question_ref.question_id not in {
+                q.question_id for q in inst.question_refs}:
+            raise AssessmentBindingError(
+                f"题目 {question_ref.question_id} 不属于测评 {assessment_id}")
+        if inst.workspace_id:
+            workspace_id = inst.workspace_id      # 服务端事实优先
+    if not workspace_id and source_session_ref:
+        from app.core.session import load_session
+        session = load_session(source_session_ref)
+        if session is not None:
+            owner = session.student_id or "student_default"
+            if owner != student_id:
+                raise SessionNotOwned("会话不存在")
+            workspace_id = session.workspace_id or ""
+    if not workspace_id:
+        if not task.workspace_id:
+            return "", ""
+        workspace_id = task.workspace_id
+        explicit = False
+    else:
+        explicit = True
+    # 显式/继承的 workspace 必须是本人的（404 语义）；题目注册绑定失效时
+    # 降级为无工作区，作答仍可受理为 task-only（§11.4）。
+    scope_revision = ""
+    from app.agents.student_model.evaluation.scope import ScopeNotFound
+    try:
+        from app.agents.student_model.evaluation.scope import (
+            get_scope_resolver)
+        scope = get_scope_resolver().resolve(student_id, workspace_id)
+        scope_revision = scope.scope_revision
+    except ScopeNotFound:
+        if explicit:
+            raise WorkspaceNotOwned(f"工作区 {workspace_id} 不存在")
+        return "", ""       # 旧题目绑定的工作区已不存在 → task-only
+    except Exception:
+        return "", ""
+    if expected_scope_revision and expected_scope_revision != scope_revision:
+        raise ScopeRevisionConflict(
+            f"期望 scope revision {expected_scope_revision} 与当前 "
+            f"{scope_revision} 不一致，请刷新后重试")
+    return workspace_id, scope_revision
+
+
 async def evaluate_submission(
         *,
         student_id: str,
@@ -237,6 +319,14 @@ async def evaluate_submission(
     raw = S.canonicalize_text(student_answer)
     if len(raw.encode("utf-8")) > S.MAX_ANSWER_BYTES:
         raise AnswerTooLarge("作答超过 32KiB 上限，请缩小范围后提交")
+    # R05：归属/范围从服务端事实解析（CAT/会话/显式 workspace 逐级；
+    # expected_scope_revision 仅作期望断言，不一致即刻 409）
+    workspace_id, scope_revision = resolve_submission_binding(
+        student_id, question_ref=question_ref, task=task,
+        assessment_id=assessment_id or "",
+        source_session_ref=source_session_ref,
+        workspace_id=workspace_id,
+        expected_scope_revision=expected_scope_revision or "")
     fingerprint = answer_fingerprint(raw)
     journal = get_journal(student_id)
     state = journal.state()
@@ -476,10 +566,16 @@ async def run_assessment_job(student_id: str, claimed: ClaimedJob, *,
     service = LearnerEvaluationService(scheduler)
     journal = get_journal(student_id)
     state = journal.state()
+    # R05：generation 在认领后立即冻结——提交时 CAS 用快照值，防止"回包时
+    # 重新读取当前 generation"使并发防护失效。
+    generation_at_claim = state.generation
     job = claimed.job
     src = state.sources.get(job.source_id)
     if src is None or src.receipt.source_revision != job.source_revision:
         scheduler.cancel(student_id, job.job_id, reason="source_gone")
+        return "cancelled"
+    if src.availability != "available":
+        scheduler.cancel(student_id, job.job_id, reason="source_unavailable")
         return "cancelled"
     receipt = src.receipt
     task: S.TaskSnapshot | None = None
@@ -497,102 +593,112 @@ async def run_assessment_job(student_id: str, claimed: ClaimedJob, *,
         except Exception:
             scope = None
 
-    mc_result = _committed_task_result(state, job.source_id)
-    scenarios = _scenarios_for(task, receipt, state) if task else []
-    binding = ("learning_evidence_contract@1.0.0+"
-               "assessment_learner_evaluation@1.0.0")
-    pack = pack_builder.assemble_assessment_pack(
-        source=receipt, task=task, scope=scope, state=state,
-        task_result=mc_result, scenarios=scenarios,
-        prompt_binding=binding,
-        hint_concepts=[p.strip() for p in task.source_badge.split(",")]
-        if task else [])
-    pack.job_id = job.job_id
-    service.record_job_input(
-        student_id, job.job_id, input_hash=pack.manifest.input_hash,
-        prompt_binding=binding, generation=state.generation)
+    async with learner_runtime.workspace_lock(student_id, receipt.workspace_id_at_observation):
+        mc_result = _committed_task_result(state, job.source_id)
+        scenarios = _scenarios_for(task, receipt, state) if task else []
+        binding = ("learning_evidence_contract@1.0.0+"
+                   "assessment_learner_evaluation@1.0.0")
+        pack = pack_builder.assemble_assessment_pack(
+            source=receipt, task=task, scope=scope, state=state,
+            task_result=mc_result, scenarios=scenarios,
+            prompt_binding=binding,
+            hint_concepts=[p.strip() for p in task.source_badge.split(",")]
+            if task else [])
+        pack.job_id = job.job_id
+        service.record_job_input(
+            student_id, job.job_id, input_hash=pack.manifest.input_hash,
+            prompt_binding=binding, generation=state.generation)
 
-    system = build_system_message(
-        "assessment_learner_evaluation", scenarios=scenarios,
-        output_model=S.AssessmentInterpretationOutput)
-    try:
-        out = await runner.run_structured(
-            system=system, user=pack_builder.pack_user_message(pack),
-            output_model=S.AssessmentInterpretationOutput,
-            max_output_tokens=4000)
-        if out.parsed is None:
+        system = build_system_message(
+            "assessment_learner_evaluation", scenarios=scenarios,
+            output_model=S.AssessmentInterpretationOutput)
+        try:
+            out = await runner.run_structured(
+                system=system, user=pack_builder.pack_user_message(pack),
+                output_model=S.AssessmentInterpretationOutput,
+                max_output_tokens=4000)
+            if out.parsed is None:
+                scheduler.fail(student_id, job.job_id,
+                               error_code=out.error_code or "llm_failed",
+                               retryable=out.retryable_error,
+                               transport_attempts=out.transport_attempts)
+                return "failed"
+            parsed: S.AssessmentInterpretationOutput = out.parsed
+            parsed.learner = normalize_evidence_spans(
+                parsed.learner, receipt.canonical_text)
+
+            task_result = mc_result
+            if task is not None and task.q_type != S.QuestionType.MULTIPLE_CHOICE:
+                task_result = compute_task_result(task, parsed.criterion_results,
+                                                  receipt.canonical_text)
+
+            base_claims = _active_claims_for(state, scope, pack)
+            # R05：pack 构建时冻结基线判断 ID（concept_key → judgment_id），
+            # 提交时 CAS——并发提交更新过基线即丢弃本次结果。
+            base_judgment_ids: dict[str, str] = {}
+            if scope is not None:
+                for entry in pack.allowlist:
+                    base_judgment_ids[entry.concept.key] = \
+                        state.concept_current.get(
+                            (scope.workspace_id, entry.concept.key), "")
+            # G4 §6.6：可观察召回（verdict 非 null）→ journal outbox 给 M9 消费
+            m9_outbox: list[dict] = []
+            if task_result is not None and task_result.verdict is not None:
+                v = task_result.verdict.value if hasattr(task_result.verdict, "value") \
+                    else task_result.verdict
+                m9_outbox.append({
+                    "event_id": f"m9_{receipt.source_id}",
+                    "consumer": "m9", "kind": "task_result",
+                    "source_id": receipt.source_id,
+                    "question_id": task.question_id if task is not None else "",
+                    "concept": (task.source_badge if task is not None else "") or "",
+                    "verdict": str(v), "observed_at": receipt.observed_at})
+        except Exception as exc:  # noqa: BLE001
+            # run_structured 自身不抛（transport 层全分类为 error_code）；这里
+            # 兜的是它之外的未预期异常。放任逃逸会让 job 永远停在 leased-
+            # running（同题守卫又挡住重试），只能等 lease 过期后被重新认领。
+            # 兜成可重试失败，保证终态落盘。（客户端中断走 CancelledError，
+            # 不进本分支，依赖 lease 过期 + claim 排空自愈。）
+            import logging
+            logging.getLogger(__name__).exception(
+                "assessment job %s runner crashed", job.job_id)
             scheduler.fail(student_id, job.job_id,
-                           error_code=out.error_code or "llm_failed",
-                           retryable=out.retryable_error,
+                           error_code="runner_crashed:" + type(exc).__name__,
+                           retryable=True)
+            return "failed"
+        try:
+            service.commit_result(
+                student_id, job_id=job.job_id, lease_token=claimed.lease_token,
+                expected_generation=generation_at_claim,
+                source=receipt, pack=pack, task=task,
+                interpretation=parsed.learner,
+                task_result=task_result, continuation=parsed.continuation,
+                expected_scope_revision=job.scope_revision or None,
+                expected_base_judgments=base_claims,
+                expected_base_judgment_ids=base_judgment_ids,
+                outbox=m9_outbox)
+        except CommitRejected as exc:
+            # 硬校验失败：job failed，不产生新能力结论（§7.1 C6）
+            import logging
+            logging.getLogger(__name__).warning(
+                "assessment job %s commit rejected: %s", job.job_id, exc)
+            scheduler.fail(student_id, job.job_id,
+                           error_code="validation_rejected",
+                           retryable=False,
                            transport_attempts=out.transport_attempts)
             return "failed"
-        parsed: S.AssessmentInterpretationOutput = out.parsed
-        parsed.learner = normalize_evidence_spans(
-            parsed.learner, receipt.canonical_text)
-
-        task_result = mc_result
-        if task is not None and task.q_type != S.QuestionType.MULTIPLE_CHOICE:
-            task_result = compute_task_result(task, parsed.criterion_results,
-                                              receipt.canonical_text)
-
-        base_claims = _active_claims_for(state, scope, pack)
-        # G4 §6.6：可观察召回（verdict 非 null）→ journal outbox 给 M9 消费
-        m9_outbox: list[dict] = []
-        if task_result is not None and task_result.verdict is not None:
-            v = task_result.verdict.value if hasattr(task_result.verdict, "value") \
-                else task_result.verdict
-            m9_outbox.append({
-                "event_id": f"m9_{receipt.source_id}",
-                "consumer": "m9", "kind": "task_result",
-                "source_id": receipt.source_id,
-                "question_id": task.question_id if task is not None else "",
-                "concept": (task.source_badge if task is not None else "") or "",
-                "verdict": str(v), "observed_at": receipt.observed_at})
-    except Exception as exc:  # noqa: BLE001
-        # run_structured 自身不抛（transport 层全分类为 error_code）；这里
-        # 兜的是它之外的未预期异常。放任逃逸会让 job 永远停在 leased-
-        # running（同题守卫又挡住重试），只能等 lease 过期后被重新认领。
-        # 兜成可重试失败，保证终态落盘。（客户端中断走 CancelledError，
-        # 不进本分支，依赖 lease 过期 + claim 排空自愈。）
-        import logging
-        logging.getLogger(__name__).exception(
-            "assessment job %s runner crashed", job.job_id)
-        scheduler.fail(student_id, job.job_id,
-                       error_code="runner_crashed:" + type(exc).__name__,
-                       retryable=True)
-        return "failed"
-    try:
-        service.commit_result(
-            student_id, job_id=job.job_id, lease_token=claimed.lease_token,
-            expected_generation=journal.state().generation,
-            source=receipt, pack=pack, task=task,
-            interpretation=parsed.learner,
-            task_result=task_result, continuation=parsed.continuation,
-            expected_scope_revision=job.scope_revision or None,
-            expected_base_judgments=base_claims,
-            outbox=m9_outbox)
-    except CommitRejected as exc:
-        # 硬校验失败：job failed，不产生新能力结论（§7.1 C6）
-        import logging
-        logging.getLogger(__name__).warning(
-            "assessment job %s commit rejected: %s", job.job_id, exc)
-        scheduler.fail(student_id, job.job_id,
-                       error_code="validation_rejected",
-                       retryable=False,
-                       transport_attempts=out.transport_attempts)
-        return "failed"
-    except Exception as exc:  # noqa: BLE001
-        # commit 内部的意外异常（如构造判断时的 pydantic 校验）同样不能以
-        # 裸 500 逃逸——受理事务已落盘，同题守卫会挡住重试。兜成可重试
-        # 失败，保留 job 终态与错误码供诊断。
-        import logging
-        logging.getLogger(__name__).exception(
-            "assessment job %s commit crashed", job.job_id)
-        scheduler.fail(student_id, job.job_id,
-                       error_code="commit_crashed:" + type(exc).__name__,
-                       retryable=True)
-        return "failed"
-    return "succeeded"
+        except Exception as exc:  # noqa: BLE001
+            # commit 内部的意外异常（如构造判断时的 pydantic 校验）同样不能以
+            # 裸 500 逃逸——受理事务已落盘，同题守卫会挡住重试。兜成可重试
+            # 失败，保留 job 终态与错误码供诊断。
+            import logging
+            logging.getLogger(__name__).exception(
+                "assessment job %s commit crashed", job.job_id)
+            scheduler.fail(student_id, job.job_id,
+                           error_code="commit_crashed:" + type(exc).__name__,
+                           retryable=True)
+            return "failed"
+        return "succeeded"
 
 
 def _active_claims_for(state: JournalState, scope, pack

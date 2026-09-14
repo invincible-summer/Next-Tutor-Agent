@@ -214,13 +214,15 @@ async def evidence_timeline(wid: str,
             continue
         meta = src.interpretations.get(src.current_interpretation_id, {}) \
             if src.current_interpretation_id else {}
-        raw = meta.get("raw_interpretation") or {}
-        concepts = sorted({str(c.get("concept_ref") or "")
-                           for c in (raw.get("observation_claims") or [])
-                           if isinstance(c, dict)}) \
-            if isinstance(raw, dict) else []
+        # R10：概念筛选用稳定 ConceptRef.key（持久化 observation_map），
+        # 不再用 pack 短引用 c1/c2（前端按 key 查询会全部落空）。
+        concepts = sorted({str(e.get("concept_key") or "")
+                           for e in (meta.get("observation_map") or [])
+                           if isinstance(e, dict)}) \
+            if isinstance(meta, dict) else []
         if concept_key and concept_key not in concepts:
             continue
+        raw = meta.get("raw_interpretation") or {}
         items.append(S.SourceTimelineItem(
             source_id=sid, kind=src.receipt.kind,
             observed_at=src.receipt.observed_at,
@@ -332,6 +334,11 @@ class ReviewCreateRequest(BaseModel):
 @router.post("/evidence/{source_id}/reviews")
 async def create_review(source_id: str, req: ReviewCreateRequest,
                         student_id: str = Depends(resolve_student_id)):
+    """R06：复核受理（source/review/job 同一事务）。
+
+    - interpretation_id 必须是该来源的已存有效解释（不再接受裸 ID）。
+    - 同源只允许一个 active 复核；insufficient 决定后允许再次异议。
+    - 执行按 review_id 绑定的 job（worker / inline 认领同一 job）。"""
     journal = get_journal(student_id)
     state = journal.state()
     src = state.sources.get(source_id)
@@ -339,28 +346,39 @@ async def create_review(source_id: str, req: ReviewCreateRequest,
         raise _error(404, "source_not_found", "证据不存在")
     if req.expected_revision != src.receipt.source_revision:
         raise _error(409, "revision_conflict", "证据版本已变化，请刷新")
+    if req.interpretation_id not in src.interpretations:
+        raise _error(404, "interpretation_not_found",
+                     "被争议的解释不存在（可能已被删除或撤销），请刷新")
     active = state.review_active_by_source.get(source_id, "")
     if active:
-        return {"review_id": active, "job_id": "",
-                "duplicate": True}
+        active_review = state.reviews.get(active)
+        # R06：insufficient 保持待确定，但用户可带着新证据再次异议
+        if active_review is None or \
+                active_review.decided_kind != "insufficient_evidence":
+            return {"review_id": active, "job_id": "",
+                    "duplicate": True}
     scheduler: JobScheduler = learner_runtime.get_scheduler()
-    job = scheduler.enqueue(
-        student_id, kind=S.JobKind.REVIEW, source_id=source_id,
-        source_revision=src.receipt.source_revision,
-        workspace_id=src.receipt.workspace_id_at_observation,
-        priority=S.JobPriority.REVIEW.value)
     review = S.ReviewRequestRecord(
         review_id="rev_" + uuid.uuid4().hex[:14], source_id=source_id,
         interpretation_id=req.interpretation_id, reason=req.reason,
         issue_kind=req.issue_kind, requested_at=S.utc_now_iso(),
         requested_revision=src.receipt.source_revision)
-    journal.append([S.OpReviewRequested(review=review, job_id=job.job_id)])
-    # inline 执行复核（无后台 worker 循环前的确定性路径）
-    from app.agents.student_model.evaluation.evaluator import run_review_job
-    claimed = scheduler.claim_next(
-        student_id, workspace_id=src.receipt.workspace_id_at_observation)
-    if claimed is not None and claimed.job.job_id == job.job_id:
-        from .llm import EvaluationLLMRunner
+    job = S.EvaluationJob(
+        job_id="job_" + uuid.uuid4().hex[:16], kind=S.JobKind.REVIEW,
+        source_id=source_id, source_revision=src.receipt.source_revision,
+        workspace_id=src.receipt.workspace_id_at_observation,
+        scope_revision=src.receipt.scope_revision,
+        priority=S.JobPriority.REVIEW.value,
+        created_at=S.utc_now_iso(), updated_at=S.utc_now_iso())
+    # 受理 + job 同一事务（R06）
+    journal.append([S.OpJobRequested(job=job),
+                    S.OpReviewRequested(review=review, job_id=job.job_id)])
+    # inline 执行本 job（worker 上线后由 dispatcher 认领；这里只认领
+    # 指定 job，不排空其他类型作业）
+    claimed = scheduler.claim_job(student_id, job.job_id)
+    if claimed is not None:
+        from app.agents.student_model.evaluation.evaluator import (
+            run_review_job)
         await run_review_job(student_id, claimed,
                              runner=learner_runtime.get_evaluation_runner(),
                              scheduler=scheduler)
@@ -458,28 +476,17 @@ async def backfill(wid: str, req: BackfillRequest,
 async def delete_evidence(source_id: str,
                           if_match: str = Header(default=""),
                           student_id: str = Depends(resolve_student_id)):
-    """删除证据（§11.2/§5.3）：物理清除来源副本、失效重综合；先 tombstone/
-    取消在途，防止回包复活。"""
+    """删除证据（§11.2/§5.3，R07）：先取消在途/dismiss 复核/递归失效，
+    再 operation 级 rewrite 物理清除原文与派生副本——不是只删 source
+    注册行。If-Match 携带当前 source_revision，不一致 409。"""
     state = get_journal(student_id).state()
     src = state.sources.get(source_id)
     if src is None:
         raise _error(404, "source_not_found", "证据不存在")
-    scheduler: JobScheduler = learner_runtime.get_scheduler()
-    for jid, rt in state.jobs.items():
-        if rt.job.source_id == source_id:
-            scheduler.cancel(student_id, jid, reason="evidence_deleted")
-    ws = src.receipt.workspace_id_at_observation
+    if if_match and if_match.strip() != str(src.receipt.source_revision):
+        raise _error(409, "revision_conflict", "证据版本已变化，请刷新")
     session_ref = src.receipt.source_session_ref
-
-    def _keep(tx: S.JournalTransaction) -> bool:
-        for op in tx.operations:
-            if isinstance(op, S.OpSourceRegistered) \
-                    and op.source.source_id == source_id:
-                return False
-        return True
-    get_journal(student_id).rewrite(_keep, reason=f"delete_evidence")
-    if ws:
-        lifecycle.request_resynthesis(student_id, ws,
-                                      reason="evidence_deleted")
+    result = lifecycle.delete_evidence_source(student_id, source_id)
     return {"status": "accepted", "deleted": source_id,
+            "affected_concepts": result.get("affected_concepts", []),
             "source_session_ref": session_ref}

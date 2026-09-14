@@ -47,12 +47,22 @@ def _allowlist_from_pack(pack: S.EvaluationContextPack
 def check_evidence_spans(claims: list[S.ObservationClaim],
                          source: S.SourceReceipt,
                          pack: S.EvaluationContextPack) -> list[ValidationIssue]:
+    """R15：引文必须同时通过 ①ref 归属（只能引用本 pack 的当前学生证据，
+    不能发明 reference）②坐标与字面 ③角色（学生原文而非 assistant/题目）。
+    同一 span 被多个主张复用是合法的（一来源可支持多概念，§4.3）——
+    不再判 duplicate。"""
     issues: list[ValidationIssue] = []
     text = source.canonical_text
     n = len(text)
-    seen_spans: set[tuple[str, int, int]] = set()
+    valid_refs = {str(pack.current_student_evidence.get("ref") or "s1")}
     for claim in claims:
         for span in claim.current_evidence:
+            if span.ref not in valid_refs:
+                issues.append(ValidationIssue(
+                    "unknown_evidence_ref",
+                    f"{claim.local_id}: 引文 ref {span.ref!r} 不属于本 pack"
+                    "的当前学生证据", HARD, claim.concept_ref))
+                continue
             if span.end > n or span.start >= span.end:
                 issues.append(ValidationIssue(
                     "span_out_of_range",
@@ -66,12 +76,21 @@ def check_evidence_spans(claims: list[S.ObservationClaim],
                     f"{claim.local_id}: 引文与原文不一致"
                     f"（quote={span.quote[:40]!r} actual={actual[:40]!r}）",
                     HARD, claim.concept_ref))
-            key = (span.ref, span.start, span.end)
-            if key in seen_spans:
-                issues.append(ValidationIssue(
-                    "duplicate_span", f"{claim.local_id}: 同一 span 被两个"
-                    "主张重复引用", HARD, claim.concept_ref))
-            seen_spans.add(key)
+    return issues
+
+
+def check_required_evidence(
+        claims: list[S.ObservationClaim]) -> list[ValidationIssue]:
+    """R15：支持性观察必须有有效证据（空 current_evidence 的 supports
+    不得发布）。"""
+    issues: list[ValidationIssue] = []
+    for claim in claims:
+        if claim.stance == S.ClaimStance.SUPPORTS and \
+                not claim.current_evidence:
+            issues.append(ValidationIssue(
+                "supports_without_evidence",
+                f"{claim.local_id}: 支持性主张没有任何当前证据引文", HARD,
+                claim.concept_ref))
     return issues
 
 
@@ -193,13 +212,13 @@ def check_opportunity_conditions(
         claims: list[S.ObservationClaim], source: S.SourceReceipt,
         task: S.TaskSnapshot | None,
         pack: S.EvaluationContextPack) -> list[ValidationIssue]:
+    """R15：机会条件只信服务端事实。模型自报的 server_facts（如
+    interval_hours）一律忽略——间隔/帮助强度/任务族从服务端记录推导。"""
     issues: list[ValidationIssue] = []
     is_choice_only = bool(task is not None and
                           task.q_type == S.QuestionType.MULTIPLE_CHOICE)
-    retention_ok = any(
-        ec.kind == S.EvidenceConditionKind.RETENTION
-        and (ec.server_facts or {}).get("interval_hours") is not None
-        for c in claims for ec in c.evidence_conditions)
+    # R15：揭晓/完整示范后不得声称延迟保持（服务端帮助 floor）
+    full_demo = source.assistance_floor == S.AssistanceLevel.FULL_DEMO
     baseline = bool(pack.task.get("baseline_task"))
     transfer_ok = bool(pack.task.get("baseline_task")) or any(
         task is not None and task.novelty
@@ -218,13 +237,23 @@ def check_opportunity_conditions(
                     f"{claim.local_id}: 只有选项行为可观察，不能声称推理"
                     "过程主张", OPPORTUNITY, claim.concept_ref))
         for cond in claim.evidence_conditions:
+            server_facts = cond.server_facts or {}
+            # R15：模型自报 server_facts 不可信——retention 需要服务端
+            # 注明的间隔（当前 pack 无延迟条件注入 → 一律拒绝）。
+            server_interval = (pack.task.get("retention_interval_hours")
+                               if isinstance(pack.task, dict) else None)
             if cond.kind == S.EvidenceConditionKind.RETENTION and \
-                    (cond.server_facts or {}).get("interval_hours") is None \
-                    and not retention_ok:
+                    server_interval is None:
                 issues.append(ValidationIssue(
                     "retention_without_delay",
-                    f"{claim.local_id}: 无服务端间隔条件却声称延迟保持",
-                    OPPORTUNITY, claim.concept_ref))
+                    f"{claim.local_id}: 无服务端间隔条件却声称延迟保持"
+                    f"（模型自报 {server_facts.get('interval_hours')!r}"
+                    " 不被采信）", OPPORTUNITY, claim.concept_ref))
+            if cond.kind == S.EvidenceConditionKind.RETENTION and full_demo:
+                issues.append(ValidationIssue(
+                    "retention_after_reveal",
+                    f"{claim.local_id}: 答案已揭晓/完整示范，不能作为延迟"
+                    "保持证据", OPPORTUNITY, claim.concept_ref))
             if cond.kind == S.EvidenceConditionKind.TRANSFER and \
                     not baseline and not transfer_ok:
                 issues.append(ValidationIssue(
@@ -337,6 +366,7 @@ def validate_interpretation(
     updates = interpretation.concept_updates
     issues += check_concept_allowlist(claims, updates, pack)
     issues += check_evidence_spans(claims, source, pack)
+    issues += check_required_evidence(claims)
     local_ids = {c.local_id for c in claims}
     pack_refs = set(pack.manifest.included_refs)
     issues += check_id_references(updates, active_claims, pack_refs, local_ids)

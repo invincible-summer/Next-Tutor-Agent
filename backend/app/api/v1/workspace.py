@@ -140,6 +140,18 @@ def get_one(ws_id: str, student_id: str = Depends(resolve_student_id)):
     return _ws_detail(ws)
 
 
+def _notify_scope_change(student_id: str, ws_id: str, change: str) -> None:
+    """R07：选卷变化接评价 lifecycle（scope_changed 落盘 + 越界概念失效 +
+    重综合排队）。失败不阻断工作区更新，但必须有日志。"""
+    try:
+        from app.agents.student_model.evaluation import lifecycle
+        lifecycle.on_scope_change(student_id, ws_id, change=change)
+    except Exception:
+        import logging
+        logging.getLogger(__name__).warning(
+            "on_scope_change failed for %s", ws_id, exc_info=True)
+
+
 @router.patch("/{ws_id}")
 def update(ws_id: str, req: WorkspaceUpdate,
            student_id: str = Depends(resolve_student_id)):
@@ -148,6 +160,7 @@ def update(ws_id: str, req: WorkspaceUpdate,
         rename_workspace(ws_id, req.name)  # also renames the exclusive folder
         ws = _load_owned(ws_id, student_id)
     if req.folder_ids is not None or req.file_ids is not None:
+        old_files = list(ws.selected_file_ids)
         folders, files = _validate_selection(
             student_id,
             req.folder_ids if req.folder_ids is not None else ws.selected_folder_ids,
@@ -156,6 +169,8 @@ def update(ws_id: str, req: WorkspaceUpdate,
         ws.selected_folder_ids = folders
         ws.selected_file_ids = files
         save_workspace(ws)
+        if sorted(old_files) != sorted(files):
+            _notify_scope_change(student_id, ws_id, "selection_updated")
     return {"status": "updated", "workspace_id": ws_id, **_ws_detail(ws)}
 
 
@@ -308,6 +323,7 @@ def remove_shared_file(ws_id: str, file_id: str,
     if file_id in ws.selected_file_ids:
         ws.selected_file_ids.remove(file_id)
         save_workspace(ws)
+        _notify_scope_change(student_id, ws_id, "file_unselected")
         return {"status": "unselected", "workspace_id": ws_id, "file_id": file_id}
     if f is not None and f.get("folder_id") in set(ws.selected_folder_ids):
         raise HTTPException(400, "该文件随文件夹整体选入，请在工作区设置中调整")

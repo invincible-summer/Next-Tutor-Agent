@@ -22,8 +22,7 @@ class TestKnowledgeGraphViews(unittest.TestCase):
         self.patches = [patch.object(tb_store, "_LIBRARY_DIR", root / "library"),
                         patch.object(kg_store, "_KG_DIR", root / "knowledge"),
                         patch.object(kg_store, "_CUSTOM_DIR", root / "knowledge" / "custom"),
-                        patch.object(api._kn, "is_enabled", return_value=True),
-                        patch.object(api, "_evaluation_overlay", return_value={})]
+                        patch.object(api._kn, "is_enabled", return_value=True)]
         for item in self.patches: item.start()
         self.group = tb_store.create_group("s", file_ids=["f1", "f2"], title="大学物理", subject="物理", level="本科")
         topic = self.group["topic_key"]
@@ -49,7 +48,7 @@ class TestKnowledgeGraphViews(unittest.TestCase):
 
     def call(self, **kw):
         defaults = dict(textbook_id=self.group["id"], file_id="", level="", subject="",
-                        view="full", chapter_id="", q="", student_id="s")
+                        view="full", chapter_id="", q="", workspace_id="", student_id="s")
         defaults.update(kw)
         return api.knowledge_graph(**defaults)
 
@@ -94,13 +93,13 @@ class TestKnowledgeGraphViews(unittest.TestCase):
         with patch.object(api._kn, "get_knowledge_service", return_value=service):
             global_out = api.knowledge_graph(
                 textbook_id="", file_id="", level="", subject="", view="full",
-                chapter_id="", q="", student_id="s")
+                chapter_id="", q="", workspace_id="", student_id="s")
             math_out = api.knowledge_graph(
                 textbook_id="", file_id="", level="本科", subject="数学", view="full",
-                chapter_id="", q="", student_id="s")
+                chapter_id="", q="", workspace_id="", student_id="s")
             physics_out = api.knowledge_graph(
                 textbook_id="", file_id="", level="本科", subject="物理", view="full",
-                chapter_id="", q="", student_id="s")
+                chapter_id="", q="", workspace_id="", student_id="s")
         self.assertEqual({n["name"] for n in global_out["nodes"]}, {"运动", "矩阵"})
         self.assertEqual({n["name"] for n in math_out["nodes"]}, {"矩阵"})
         self.assertEqual({n["name"] for n in physics_out["nodes"]}, {"运动"})

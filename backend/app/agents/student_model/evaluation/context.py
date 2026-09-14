@@ -33,12 +33,17 @@ def select_allowlist(scope: S.EvaluationScope,
                      task: S.TaskSnapshot | None,
                      hint_concepts: list[str] | None = None,
                      ) -> list[S.ConceptRef]:
-    """概念候选：题目 concept_refs 优先（已在 scope 内），其余取 scope
-    严格同名匹配（§7.2：候选来自当前教学目标/检索节点/严格匹配）。"""
+    """概念候选：题目 concept_refs 优先（必须与当前 scope 求交，R05——
+    旧题目的 ConceptRef 不得越过当前选卷范围），其余取 scope 严格同名匹配
+    （§7.2：候选来自当前教学目标/检索节点/严格匹配）。"""
     chosen: list[S.ConceptRef] = []
     keys: set[str] = set()
+    scope_keys = {c.key for c in scope.allowed_concepts} \
+        if scope is not None else None
     if task is not None:
         for c in task.concept_refs:
+            if scope_keys is not None and c.key not in scope_keys:
+                continue    # R05：越出当前选卷的题目概念不进白名单
             if c.key not in keys:
                 chosen.append(c)
                 keys.add(c.key)

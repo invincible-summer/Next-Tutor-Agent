@@ -108,5 +108,66 @@ class TestConceptViews(ProjectionFixture):
         self.assertEqual(views[0].judgment_id, j2.judgment_id)
 
 
+class TestWrongAnswerItems(ProjectionFixture):
+    """R13（update_plan §4）：有错题时投影不得触发 NameError；source_id
+    必须是稳定 receipt 值；争议未结的来源不进入错题链路。"""
+
+    def _task(self, qid: str, stem: str = "1+1=?") -> S.TaskSnapshot:
+        return S.TaskSnapshot(
+            question_id=qid, question_revision=1,
+            q_type=S.QuestionType.MULTIPLE_CHOICE, stem=stem,
+            options={"A": "1", "B": "2"}, answer="B",
+            rubric=[S.FrozenCriterion(id="c1", description="答案正确",
+                                      weight=1.0, critical=True)],
+            task_family="代数", source_badge="加法")
+
+    def _submit(self, qid: str, verdict: str) -> str:
+        from app.agents.student_model.evaluation.store import new_source_id
+        journal = get_journal(SID)
+        journal.register_question(self._task(qid))
+        src_id = new_source_id()
+        receipt = S.SourceReceipt(
+            source_id=src_id, source_revision=1,
+            kind=S.SourceKind.ASSESSMENT, observed_at=S.utc_now_iso(),
+            workspace_id_at_observation=WS, canonical_text="A",
+            task_ref=S.QuestionRef(question_id=qid, question_revision=1))
+        task_result = S.TaskResult(
+            question_ref=S.QuestionRef(question_id=qid, question_revision=1),
+            grading_status=S.GradingStatus.GRADED,
+            verdict=S.Verdict(verdict))
+        journal.append([
+            S.OpSourceRegistered(source=receipt),
+            S.OpResultCommitted(
+                job_id="job_" + src_id[4:], source_id=src_id,
+                source_revision=1, scope_revision="sr_1",
+                task_result=task_result)])
+        return src_id
+
+    def test_wrong_items_have_stable_source_id(self):
+        wrong_src = self._submit("q_wrong", "wrong")
+        self._submit("q_correct", "correct")
+        items = projections.wrong_answer_items(SID)
+        # 修复前：NameError: name 'sid' is not defined（只有错题才进分支）
+        self.assertEqual(len(items), 1)
+        self.assertEqual(items[0]["source_id"], wrong_src)
+        self.assertEqual(items[0]["verdict"], "wrong")
+        self.assertEqual(items[0]["stem"], "1+1=?")
+
+    def test_partial_counts_and_disputed_excluded(self):
+        partial_src = self._submit("q_partial", "partial")
+        disputed_src = self._submit("q_wrong2", "wrong")
+        journal = get_journal(SID)
+        journal.append([S.OpReviewRequested(
+            review=S.ReviewRequestRecord(
+                review_id="rev_1", source_id=disputed_src,
+                interpretation_id="itp_none", reason="判分有误",
+                requested_at=S.utc_now_iso(), requested_revision=1),
+            job_id="")])
+        items = projections.wrong_answer_items(SID)
+        ids = [i["source_id"] for i in items]
+        self.assertIn(partial_src, ids)
+        self.assertNotIn(disputed_src, ids)
+
+
 if __name__ == "__main__":
     unittest.main()

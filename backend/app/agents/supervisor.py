@@ -197,19 +197,17 @@ class _GatedSearchStore:
             return []
 
 
-def _journal_evaluation_view(student_id: str) -> dict | None:
-    """G4：journal 统一评价投影 {concept_id: {"state": ...}}；失败 None。"""
+def _journal_evaluation_view(student_id: str, workspace_id: str = "") -> dict | None:
+    """G4/R18：journal 统一评价投影 {concept_id: {"state": ...}}。
+
+    R18：只读**当前会话工作区**的有效投影（经 readers 统一入口 + scope
+    求交）；无 workspace → None（M5 降级为非个性化建议，不继承任何区的
+    能力结论）。"""
+    if not workspace_id:
+        return None
     try:
-        from .student_model.evaluation.store import get_journal
-        state = get_journal(student_id).state()
-        out = {}
-        for (_ws, _k), jid in state.concept_current.items():
-            j = state.judgments.get(jid)
-            if j is None:
-                continue
-            out[j.concept_ref.concept_id] = {
-                "state": j.state.value if hasattr(j.state, "value") else str(j.state)}
-        return out or None
+        from .student_model.evaluation.readers import scoped_concept_states
+        return scoped_concept_states(student_id, workspace_id)
     except Exception:
         return None
 
@@ -232,10 +230,12 @@ async def _knowledge_directive_for_turn(understanding, session, trace) -> str:
                            and understanding.intent.value == "chitchat"):
             return ""
         ks = get_knowledge_service()
-        # G4：M5 前置补缺读统一评价投影（fragile/conflicting/emerging 的
-        # 前置才提示补缺；未观察 ≠ 未掌握）。读失败则 None（图-only 降级）。
+        # G4/R18：M5 前置补缺读**当前工作区**统一评价投影（fragile/
+        # conflicting/emerging 的前置才提示补缺；未观察 ≠ 未掌握）。无
+        # workspace → None（图-only 非个性化降级，不跨区继承能力）。
         evaluation_view = _journal_evaluation_view(
-            getattr(session, "student_id", ""))
+            getattr(session, "student_id", ""),
+            getattr(session, "workspace_id", "") or "")
         # duck-typed material store for content grounding. Prefer hybrid
         # retrieval (BM25 + vector RRF) over the scoped session/workspace
         # stores when the embedding track is configured; otherwise reuse the

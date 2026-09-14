@@ -172,8 +172,10 @@ class LearningOrchestrationService:
                     t for t in event_emitter._STREAK_THRESHOLDS
                     if t <= state.habit.current_streak) if state.habit.current_streak >= 3                         else state.last_streak_reported
 
-            # goal-progress checkpoint detect (read-only over M2 mastery)
-            evaluation_view = self._evaluation_view_safe(student_id)
+            # goal-progress checkpoint detect (read-only; R18 只读共享
+            # 目标工作区的投影，无区不聚合)
+            evaluation_view = self._evaluation_view_safe(
+                student_id, self._shared_goal_workspace(state))
             if evaluation_view and state.has_goals:
                 from . import goal_manager as _gm
                 ratio = _gm.overall_progress(state, evaluation_view)
@@ -620,7 +622,8 @@ class LearningOrchestrationService:
                                 required.append(sid)
                     window = required[:num_weeks * learning_planner._MAX_CONCEPTS_PER_WEEK]
                     if window:
-                        evaluation_view = self._evaluation_view_safe(student_id)
+                        evaluation_view = self._evaluation_view_safe(
+                            student_id, self._shared_goal_workspace(state))
                         # concept-bound goals span subjects: look names up
                         # across the whole graph, not just the first subject
                         name_subject = ("" if any(g.target_concept_ids
@@ -717,7 +720,8 @@ class LearningOrchestrationService:
                 # it runs off the event loop.
                 try:
                     evaluation_view = await asyncio.to_thread(
-                        self._evaluation_view_safe, student_id)
+                        self._evaluation_view_safe, student_id,
+                        self._shared_goal_workspace(state))
                     name_subject = ("" if any(g.target_concept_ids
                                               for g in state.goals)
                                     else state.primary_subject)
@@ -1409,7 +1413,8 @@ class LearningOrchestrationService:
             # W4/A13：needs_replan 必须读本人档案——漏传 student_id 会让登录
             # 学生的重规划信号静默回退游客命名空间（审查 A13 复核确认未修）。
             out["needs_replan"] = learning_planner.needs_replan(
-                state, self._evaluation_view_safe(student_id))
+                state, self._evaluation_view_safe(
+                    student_id, self._shared_goal_workspace(state)))
             # W4 容量可行性：确定性按日负载 vs 时间预算（advisory，不阻断）。
             out["capacity"] = schedule_engine.capacity_report(state)
         except Exception:
@@ -1446,29 +1451,39 @@ class LearningOrchestrationService:
             pass
         return {}
 
-    def _evaluation_view_safe(self, student_id: str = "") -> dict[str, Any]:
-        """G4：统一评价只读投影 {concept_key: {"state": ...}}（全工作区
-        当前判断聚合）。`student_id` 必须显式传本人 id——漏传会让登录学生
-        的规划/编排静默回退游客命名空间。任何失败返回 {}。"""
+    def _evaluation_view_safe(self, student_id: str = "",
+                              workspace_id: str = "") -> dict[str, Any]:
+        """R18：统一评价只读投影 {concept_id: {"state": ...}}。
+
+        **必须显式携带 workspace**，经 readers 统一入口读取当前区的有效
+        投影；无 workspace（或解析失败）返回 {}——M9 只给非个性化建议，
+        不跨区合并、不"保留最不利"聚合（A 区表现不得影响 B 区计划）。"""
         try:
             from ..student_model.store import DEFAULT_STUDENT_ID
-            from ..student_model.evaluation.store import get_journal
-            state = get_journal(student_id or DEFAULT_STUDENT_ID).state()
-            out: dict[str, Any] = {}
-            for (_ws, _key), jid in state.concept_current.items():
-                j = state.judgments.get(jid)
-                if j is None:
-                    continue
-                st = j.state.value if hasattr(j.state, "value") else str(j.state)
-                # 以裸概念 id（与 M5 图谱同一点分路径方案）为键；同概念
-                # 多工作区时保留最不利状态，避免任一区已支持就掩盖待解决。
-                cid = j.concept_ref.concept_id
-                prev = out.get(cid, {}).get("state", "")
-                if prev != "supported_in_scope":
-                    out[cid] = {"state": st}
-            return out
+            from ..student_model.evaluation.readers import (
+                scoped_concept_states)
+            sid = student_id or DEFAULT_STUDENT_ID
+            if not workspace_id:
+                return {}
+            view = scoped_concept_states(
+                sid, workspace_id, include_out_of_scope=True)
+            return view or {}
         except Exception:
             return {}
+
+    def _goal_workspace_view(self, student_id: str,
+                             goal) -> dict[str, Any]:
+        """目标绑定工作区的投影；未绑定目标的区 → 非个性化（{}）。"""
+        return self._evaluation_view_safe(
+            student_id, getattr(goal, "workspace_id", "") or "")
+
+    def _shared_goal_workspace(self, state) -> str:
+        """全部**已绑定**目标共享的唯一工作区；混合/未绑定 → 空（非个性
+        化，不偷选工作区）。"""
+        wss = {g.workspace_id for g in state.goals if g.workspace_id}
+        if len(wss) == 1:
+            return next(iter(wss))
+        return ""
 
     def habit_patterns(self, student_id: str, *,
                        subject: str = "") -> list[dict[str, Any]]:
@@ -1541,7 +1556,9 @@ class LearningOrchestrationService:
             return {}
 
     def _concept_chain_skills_safe(self, target_ids: list[str],
-                                   student_id: str = "") -> list[dict[str, Any]]:
+                                   student_id: str = "",
+                                   workspace_id: str = ""
+                                   ) -> list[dict[str, Any]]:
         """Read the goal's prerequisite-closure skills (read-only M2/M5).
 
         Returns [{skill_id, name, subject, difficulty}] over the unmastered
@@ -1554,7 +1571,9 @@ class LearningOrchestrationService:
             graph = self._graph_for_safe(student_id)
             if graph is None:
                 return []
-            evaluation_view = self._evaluation_view_safe(student_id)
+            evaluation_view = self._evaluation_view_safe(
+                student_id, workspace_id or
+                self._shared_goal_workspace(self._load(student_id)))
             mastered = {
                 sid for sid, rec in (evaluation_view or {}).items()
                 if isinstance(rec, dict)
@@ -1595,14 +1614,16 @@ class LearningOrchestrationService:
         """
         try:
             now = now if now is not None else time.time()
-            evaluation_view = self._evaluation_view_safe(student_id)
             prereq_map = self._prereq_map_safe(student_id)
 
             states: list[GoalState] = []
             for goal in state.goals:
                 prev = state.goal_state_for(goal.id)
+                # R18：每个目标读**自己工作区**的投影，不跨区合并
                 gs = self._analyze_one_goal(
-                    state, goal, evaluation_view=evaluation_view,
+                    state, goal,
+                    evaluation_view=self._goal_workspace_view(
+                        student_id, goal),
                     prereq_map=prereq_map, now=now, student_id=student_id)
                 if gs is None:
                     gs = prev or GoalState(
@@ -1624,13 +1645,14 @@ class LearningOrchestrationService:
         previous/default state). Never raises."""
         try:
             binding = [c for c in (goal.target_concept_ids or []) if c]
+            goal_ws = getattr(goal, "workspace_id", "") or ""
             # W4/A13：估期区间输入——学生的日程容量随分析传入。
             sched_days = len(state.schedule.available_days
                              or ["mon"]) or 7
             sched_minutes = int(state.schedule.daily_minutes or 45)
             if binding:
                 skills = self._concept_chain_skills_safe(
-                    binding, student_id=student_id)
+                    binding, student_id=student_id, workspace_id=goal_ws)
                 if skills:
                     return goal_analyzer.compute_gap_analysis(
                         goal, subject_skills=skills,
@@ -1665,8 +1687,10 @@ class LearningOrchestrationService:
         This is the REUSE point: instead of reimplementing learning-path
         inference, we call M3's planner with inputs gathered from M2/M3/M5.
         All reads are guarded so a disabled layer degrades gracefully.
+        R18：评价投影只读**共享目标工作区**；无区/混合区 → 非个性化。
         """
-        evaluation_view = self._evaluation_view_safe(student_id)
+        evaluation_view = self._evaluation_view_safe(
+            student_id, self._shared_goal_workspace(state))
 
         next_learnable: list[dict[str, Any]] = []
         review_candidates: list[dict[str, Any]] = []

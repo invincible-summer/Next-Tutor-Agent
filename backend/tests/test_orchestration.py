@@ -886,8 +886,15 @@ class TestSummaryIdentity(StorageSandboxTestCase):
     学生静默回退游客命名空间（审查确认在 W4 前仍未修）。"""
 
     def _seed_plan(self, sid: str) -> None:
+        from app.core.workspace import Workspace, save_workspace
+        # 工作区文件按 id 命名：两个学生必须用不同 id，否则互相覆盖。
+        ws_id = f"ws_g4_{sid}"
+        save_workspace(Workspace(workspace_id=ws_id, name="G4 区",
+                                 student_id=sid, selected_file_ids=[]))
         state = store.load_state(sid)
-        state.goals = [LearningGoal(id="g1", title="数学", subjects=["数学"])]
+        # R18：目标绑定工作区——评价投影只读目标所在区
+        state.goals = [LearningGoal(id="g1", title="数学", subjects=["数学"],
+                                    workspace_id=ws_id)]
         state.weekly_plan = [WeeklyPlan(
             week_index=0, week_start=time.time() - 86400,
             concepts=[PlanConcept(concept_id="c_plan", name="规划概念")])]
@@ -914,7 +921,7 @@ class TestSummaryIdentity(StorageSandboxTestCase):
             display_name=concept_id)
         judgment = S.ConceptJudgment(
             judgment_id="jdg_" + sid + "_" + concept_id,
-            concept_ref=concept, workspace_id="ws_g4",
+            concept_ref=concept, workspace_id=f"ws_g4_{sid}",
             state=S.ConceptEvalState.SUPPORTED_IN_SCOPE,
             statement="限定条件下已有支持", claims=[],
             evidence_watermark="gen:1", policy_version=S.POLICY_VERSION,
@@ -1024,14 +1031,18 @@ class TestGoalAnalyzer(unittest.TestCase):
         self.assertEqual(est2["est_weeks_min"], 2)
         self.assertEqual(est2["est_weeks_max"], 2)
 
-    def test_level_mapping(self):
-        from app.agents.learning_orchestration.schema import GoalAnalysisLevel
-        self.assertEqual(GoalAnalysisLevel.from_supported_ratio(0.1),
-                         GoalAnalysisLevel.NOVICE)
-        self.assertEqual(GoalAnalysisLevel.from_supported_ratio(0.5),
-                         GoalAnalysisLevel.INTERMEDIATE)
-        self.assertEqual(GoalAnalysisLevel.from_supported_ratio(0.9),
-                         GoalAnalysisLevel.PROFICIENT)
+    def test_level_mapping_removed(self):
+        """R18：支持占比 → 五档能力的映射必须删除（API/UI/prompt/存储都
+        不得再产生能力档位；supported_ratio 只保留覆盖计数语义）。"""
+        import app.agents.learning_orchestration.schema as orch_schema
+        self.assertFalse(hasattr(orch_schema, "GoalAnalysisLevel"))
+        import inspect
+        self.assertNotIn("current_level",
+                         inspect.signature(
+                             orch_schema.GoalState.__init__).parameters)
+        gs = orch_schema.GoalState(goal_id="g", supported_ratio=0.9)
+        self.assertNotIn("current_level", gs.to_dict())
+        self.assertNotIn("target_level", gs.to_dict())
 
     def test_backward_plan_topo_order(self):
         state = OrchestrationState()

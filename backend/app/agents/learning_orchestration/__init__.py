@@ -28,7 +28,7 @@ Design contract (must hold to protect M1-M8):
 """
 from __future__ import annotations
 
-from .schema import (DailyTask, DailyTaskStatus, GapItem, GoalAnalysisLevel,
+from .schema import (DailyTask, DailyTaskStatus, GapItem,
                      GoalState, HabitStats, LearningGoal,
                      Milestone,
                      MilestoneStatus, OrchestrationLearningEvent,
@@ -45,7 +45,6 @@ __all__ = [
     "DailyTask",
     "DailyTaskStatus",
     "GapItem",
-    "GoalAnalysisLevel",
     "GoalState",
     "HabitStats",
     "LearningGoal",

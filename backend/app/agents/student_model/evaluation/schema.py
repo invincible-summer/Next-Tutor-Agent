@@ -754,11 +754,21 @@ class ReviewRequestRecord(StrictModel):
     requested_at: str
     requested_revision: int = Field(ge=1, le=1_000_000)
     status: Literal["active", "resolved", "dismissed"] = "active"
+    # R06：复核历史要能展示真实决定（"复核中"不是终态文案）。insufficient
+    # 保持 active（待确定）但记录决定；空串 = 尚未判定。
+    decided_kind: str = Field(default="", max_length=64)
+    decided_at: str = Field(default="", max_length=40)
+    resolution_note: str = Field(default="", max_length=600)
 
     @field_validator("requested_at")
     @classmethod
     def _utc(cls, v: str) -> str:
         return _check_utc(v)
+
+    @field_validator("decided_at")
+    @classmethod
+    def _utc_opt(cls, v: str) -> str:
+        return _check_utc(v) if v else v
 
 
 # ---------------------------------------------------------------------------
@@ -822,6 +832,8 @@ class ScopeSynthesis(StrictModel):
     scope_revision: str = Field(min_length=1, max_length=128)
     evidence_watermark: str = Field(min_length=1, max_length=96)
     pending_source_count: int = Field(default=0, ge=0)
+    # R08：依赖失效后正文隐藏（引用失效即隐藏正文，不删历史行）。
+    revoked: bool = False
     generated_at: str
 
     @field_validator("generated_at")
@@ -1052,6 +1064,10 @@ class OpResultCommitted(_OpBase):
                                              max_length=8)
     continuation: ContinuationAction | None = None
     abstained: bool = False
+    # R10：local_id → {obs_id, concept_key, source_id} 稳定映射——claim 到
+    # 真实概念/来源的精确寻址不依赖 pack 短引用。
+    observation_map: list[dict[str, str]] = Field(default_factory=list,
+                                                  max_length=32)
     outbox: list[dict[str, Any]] = Field(default_factory=list, max_length=64)
 
 
@@ -1066,7 +1082,16 @@ class OpReviewResolved(_OpBase):
     review_id: str = Field(min_length=1, max_length=64)
     decision: ReviewDecisionOutput
     replacement_interpretation_id: str = Field(default="", max_length=64)
+    job_id: str = Field(default="", max_length=64)
     outbox: list[dict[str, Any]] = Field(default_factory=list, max_length=64)
+
+
+class OpReviewDismissed(_OpBase):
+    """复核不再可执行（解释/来源已删除等）——受理侧关闭并允许新异议。"""
+    op: Literal["review_dismissed"] = "review_dismissed"
+    review_id: str = Field(min_length=1, max_length=64)
+    reason: str = Field(default="", max_length=300)
+    job_id: str = Field(default="", max_length=64)
 
 
 class OpInterpretationRevoked(_OpBase):
@@ -1077,6 +1102,9 @@ class OpInterpretationRevoked(_OpBase):
     reason: str = Field(min_length=1, max_length=600)
     affected_judgment_ids: list[str] = Field(default_factory=list,
                                              max_length=64)
+    # R08：引用了受影响主张/判断的同步综合一并隐藏正文（不删历史）。
+    affected_synthesis_ids: list[str] = Field(default_factory=list,
+                                              max_length=64)
     question_revision_issue: QuestionRef | None = None
 
 
@@ -1127,7 +1155,8 @@ JournalOperation = Annotated[
         OpQuestionRegistered, OpAssistanceRecorded, OpSourceRegistered,
         OpSourceRevised, OpJobRequested, OpJobLeased, OpJobInputPrepared,
         OpJobSubresultStaged, OpJobFailed, OpJobCancelled, OpResultCommitted,
-        OpReviewRequested, OpReviewResolved, OpInterpretationRevoked,
+        OpReviewRequested, OpReviewResolved, OpReviewDismissed,
+        OpInterpretationRevoked,
         OpSynthesisCommitted, OpScopeChanged, OpSourceArchived,
         OpSourceRestored, OpConsumerAck, OpAssessmentSessionChanged,
     ],
@@ -1148,6 +1177,7 @@ JOURNAL_OPERATION_TYPES: dict[str, type[_OpBase]] = {
     "result_committed": OpResultCommitted,
     "review_requested": OpReviewRequested,
     "review_resolved": OpReviewResolved,
+    "review_dismissed": OpReviewDismissed,
     "interpretation_revoked": OpInterpretationRevoked,
     "synthesis_committed": OpSynthesisCommitted,
     "scope_changed": OpScopeChanged,
@@ -1196,7 +1226,9 @@ class ConceptEvaluationView(StrictModel):
     next_probe: NextProbe | None = None
     scope_status: ScopeStatus = ScopeStatus.CURRENT
     evidence_count: int = Field(default=0, ge=0)
+    # R10：来源时间取 observed_at（表现发生时刻），评价完成时间单列。
     last_observed_at: str = Field(default="", max_length=40)
+    evaluated_at: str = Field(default="", max_length=40)
     updated_at: str = Field(default="", max_length=40)
 
 

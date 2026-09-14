@@ -32,7 +32,7 @@ from __future__ import annotations
 import time
 from typing import Any
 
-from .schema import (GapItem, GoalAnalysisLevel, GoalState, GoalType,
+from .schema import (GapItem, GoalState, GoalType,
                      LearningGoal)
 
 # --- keyword tables for rule-based goal parsing (zero LLM) ------------------
@@ -222,11 +222,8 @@ def compute_gap_analysis(goal: LearningGoal, *,
                 difficulty=int(s.get("difficulty", 3)),
                 status=status))
 
+        # R18：只保留覆盖计数比值，不映射能力等级档位
         supported_ratio = (supported / total) if total > 0 else 0.0
-        current_level = GoalAnalysisLevel.from_supported_ratio(supported_ratio)
-        target_level = GoalAnalysisLevel.PROFICIENT
-        if goal.goal_type == GoalType.INTEREST:
-            target_level = GoalAnalysisLevel.INTERMEDIATE
 
         # backward plan: topo-sort the gap skills by prerequisites so the
         # planner receives a dependency-respecting order
@@ -242,11 +239,11 @@ def compute_gap_analysis(goal: LearningGoal, *,
         return GoalState(
             goal_id=goal.id, goal_title=goal.title,
             goal_type=goal.goal_type, subject=subject,
-            deadline=goal.deadline, current_level=current_level,
-            target_level=target_level, supported_ratio=supported_ratio,
+            deadline=goal.deadline, supported_ratio=supported_ratio,
             total_skills=total, supported_skills=supported,
             gaps=gaps, required_skills=required,
-            recommended_strategy=_recommend_strategy(current_level, urgency),
+            recommended_strategy=_recommend_strategy(
+                supported_ratio, urgency, goal.goal_type == GoalType.INTEREST),
             urgency=urgency, analyzed_at=now,
             chain_mode=chain_mode,
             target_concept_ids=list(goal.target_concept_ids or []),
@@ -323,18 +320,14 @@ def _deadline_urgency(deadline: float, now: float) -> float:
     return round(1.0 - days_left / 365.0, 3)
 
 
-def _recommend_strategy(current: GoalAnalysisLevel,
-                        urgency: float) -> str:
-    """A one-line strategy hint derived from the gap analysis (deterministic).
-
-    Combines the student's current level with deadline pressure to suggest
-    whether to front-load foundations, accelerate, or review-first. Pure
-    function; the planner may override it.
-    """
-    if current == GoalAnalysisLevel.NOVICE:
+def _recommend_strategy(coverage: float, urgency: float,
+                        interest_goal: bool = False) -> str:
+    """R18：策略提示由**目标范围内覆盖计数**与截止压力决定，不经过能力
+    等级档位（覆盖低 ≠ "novice"，只是本目标链上已支持概念还少）。"""
+    if coverage < 0.2 and not interest_goal:
         return "foundation_first"
     if urgency > 0.7:
         return "intensive_review"
-    if current in (GoalAnalysisLevel.BEGINNER, GoalAnalysisLevel.INTERMEDIATE):
+    if coverage < 0.65:
         return "mixed_progress"
-    return "advanced_refinement"
+    return "consolidate_and_extend"

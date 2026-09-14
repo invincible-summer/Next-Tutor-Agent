@@ -6,23 +6,28 @@
 """
 from __future__ import annotations
 
-from .manager import (AnswerTooLarge, QuestionAlreadyAnswered,
-                      QuestionNotFound, QuestionRevisionMismatch,
-                      SubmissionError, SubmissionReceipt,
-                      assistance_events, evaluate_submission, is_enabled,
-                      load_task_snapshot, new_assessment_id, new_attempt_id,
-                      record_assistance, register_task_snapshot,
+from .manager import (AnswerTooLarge, AssessmentBindingError,
+                      QuestionAlreadyAnswered, QuestionNotFound,
+                      QuestionRevisionMismatch, ScopeRevisionConflict,
+                      SessionNotOwned, SubmissionError, SubmissionReceipt,
+                      WorkspaceNotOwned, assistance_events,
+                      evaluate_submission, is_enabled, load_task_snapshot,
+                      new_assessment_id, new_attempt_id, record_assistance,
+                      register_task_snapshot, resolve_submission_binding,
                       run_assessment_job, task_snapshot_from_legacy)
 from .question import Question, QuestionType
 from .state import AssessmentContext, AssessmentGoal
 from .generator import generate_question
 
 __all__ = [
-    "AnswerTooLarge", "AssessmentContext", "AssessmentGoal", "Question",
-    "QuestionAlreadyAnswered", "QuestionNotFound", "QuestionRevisionMismatch",
-    "QuestionType", "SubmissionError", "SubmissionReceipt",
-    "assistance_events", "evaluate_submission", "generate_question",
-    "is_enabled", "load_task_snapshot", "new_assessment_id", "new_attempt_id",
-    "record_assistance", "register_task_snapshot", "run_assessment_job",
+    "AnswerTooLarge", "AssessmentBindingError", "AssessmentContext",
+    "AssessmentGoal", "Question", "QuestionAlreadyAnswered",
+    "QuestionNotFound", "QuestionRevisionMismatch", "QuestionType",
+    "ScopeRevisionConflict", "SessionNotOwned", "SubmissionError",
+    "SubmissionReceipt", "WorkspaceNotOwned", "assistance_events",
+    "evaluate_submission", "generate_question", "is_enabled",
+    "load_task_snapshot", "new_assessment_id", "new_attempt_id",
+    "record_assistance", "register_task_snapshot",
+    "resolve_submission_binding", "run_assessment_job",
     "task_snapshot_from_legacy",
 ]

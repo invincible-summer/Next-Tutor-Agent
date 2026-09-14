@@ -100,7 +100,22 @@ class JobScheduler:
             return None
         candidates.sort(key=lambda rt: (rt.job.priority, rt.job.created_at,
                                         rt.job.job_id))
-        rt = candidates[0]
+        return self._lease(student_id, candidates[0], now, lease_seconds)
+
+    def claim_job(self, student_id: str, job_id: str, *,
+                  lease_seconds: int | None = None) -> ClaimedJob | None:
+        """按 ID 认领特定作业（R06：复核按本 job 绑定的 review 执行；
+        inline 测试辅助也只认领指定类型的目标作业）。"""
+        journal = get_journal(student_id)
+        state = journal.state()
+        rt = state.jobs.get(job_id)
+        if rt is None or not _claimable(rt, _now()):
+            return None
+        return self._lease(student_id, rt, _now(), lease_seconds)
+
+    def _lease(self, student_id: str, rt, now: datetime,
+               lease_seconds: int | None) -> ClaimedJob:
+        journal = get_journal(student_id)
         job = rt.job.model_copy(deep=True)
         token = "lease_" + uuid.uuid4().hex[:16]
         expires = _iso(now + timedelta(

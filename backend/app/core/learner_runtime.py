@@ -64,6 +64,21 @@ class _GraphAdapter:
 _LOCK = threading.RLock()
 _SCHEDULER: JobScheduler | None = None
 _RUNNER: Any | None = None
+_WORKSPACE_LOCKS: dict[tuple[str, str], Any] = {}
+
+
+def workspace_lock(student_id: str, workspace_id: str):
+    """R05：每 (user, workspace) 一把 asyncio 锁——同区评价提交串行，
+    不同区/不同用户并行（§6.5）。journal 文件锁只保证单事务原子性，
+    不保证"pack 构建 → 模型 → 提交"整段的基线一致性。"""
+    import asyncio
+    key = (student_id, workspace_id or "-")
+    with _LOCK:
+        lock = _WORKSPACE_LOCKS.get(key)
+        if lock is None:
+            lock = asyncio.Lock()
+            _WORKSPACE_LOCKS[key] = lock
+        return lock
 
 
 def build_default_scope_resolver() -> ScopeResolver:
@@ -109,5 +124,6 @@ def reset_learner_runtime() -> None:
     with _LOCK:
         _SCHEDULER = None
         _RUNNER = None
+        _WORKSPACE_LOCKS.clear()
     reset_journal_cache()
     set_scope_resolver(None)

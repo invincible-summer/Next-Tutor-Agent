@@ -234,9 +234,14 @@ class TestStudentAPI(_ProjectionTestBase):
         self.assertEqual(body, {"status": "disabled"})
 
     def test_learning_path_ok(self):
-        """G4：next = 图谱 frontier；review = 统一评价已观察待解决概念。"""
+        """G4/R18：next = 图谱 frontier；review = **当前工作区**统一评价
+        已观察待解决概念（无 workspace 的请求为非个性化，不含个人状态）。"""
+        from app.core.workspace import Workspace, save_workspace
+        save_workspace(Workspace(workspace_id="ws_lp", name="LP 区",
+                                 student_id=SID, selected_file_ids=[]))
         self._seed_fragile_judgment("physics.fluid.buoyancy", "浮力")
-        body = self.get("/api/v1/student/learning-path")
+        body = self.get("/api/v1/student/learning-path",
+                        params={"workspace_id": "ws_lp"})
         self.assertEqual(body["status"], "ok")
         self.assertIsInstance(body["next_to_learn"], list)
         self.assertIsInstance(body["review"], list)

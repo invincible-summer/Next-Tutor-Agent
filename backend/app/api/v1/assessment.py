@@ -15,9 +15,11 @@ from fastapi import APIRouter, Depends, Header, HTTPException, Query
 from pydantic import BaseModel, Field
 
 from app.agents.assessment import (
-    AnswerTooLarge, QuestionAlreadyAnswered, QuestionNotFound,
-    QuestionRevisionMismatch, evaluate_submission, is_enabled, new_assessment_id,
-    record_assistance, register_task_snapshot, task_snapshot_from_legacy)
+    AnswerTooLarge, AssessmentBindingError, QuestionAlreadyAnswered,
+    QuestionNotFound, QuestionRevisionMismatch, ScopeRevisionConflict,
+    SessionNotOwned, WorkspaceNotOwned, evaluate_submission, is_enabled,
+    new_assessment_id, record_assistance, register_task_snapshot,
+    task_snapshot_from_legacy)
 from app.agents.assessment import adaptive_test as cat
 from app.agents.student_model.evaluation import schema as S
 from app.agents.student_model.evaluation.store import get_journal
@@ -56,33 +58,23 @@ class SubmissionRequest(BaseModel):
     workspace_id: str = Field("", max_length=96)
 
 
-def _resolve_submission_workspace(student_id: str, req: SubmissionRequest,
-                                  task: S.TaskSnapshot) -> tuple[str, str]:
-    """服务端自行解析 workspace/scope（§11.4）：CAT 实例 > 会话回指 >
-    显式 workspace_id > 题目注册时的 workspace。404 优先于一切。"""
-    if req.assessment_id:
-        inst = cat.load_instance(get_journal(student_id).state(),
-                                 req.assessment_id)
-        if inst is not None and inst.workspace_id:
-            return inst.workspace_id, ""
-    if req.reply_message_ref:
-        from app.core.session import load_session
-        session = load_session(req.reply_message_ref)
-        if session is not None and session.workspace_id:
-            owner = session.student_id or "student_default"
-            if owner != student_id:
-                raise api_error(404, "session_not_found", "会话不存在")
-            return session.workspace_id, ""
-    if req.workspace_id:
-        return req.workspace_id, ""
-    return task.workspace_id, ""
+def _translate_submission_error(exc: Exception) -> HTTPException:
+    """R05：受理期归属错误翻译（服务端已从事实解析，这里只做 HTTP 语义）。"""
+    if isinstance(exc, WorkspaceNotOwned) or isinstance(exc, SessionNotOwned):
+        return api_error(404, "workspace_not_found", "工作区不存在")
+    if isinstance(exc, AssessmentBindingError):
+        return api_error(409, "assessment_binding_error", str(exc))
+    if isinstance(exc, ScopeRevisionConflict):
+        return api_error(409, "scope_revision_conflict",
+                         "教材范围已变化，请刷新后重试")
+    return api_error(500, "submission_error", str(exc))
 
 
 @router.post("/submissions")
 async def submit_answer(
-        req: SubmissionRequest,
-        _sid: str = Depends(resolve_student_id),
-        idempotency_key: str = Header(default="", alias="Idempotency-Key")):
+    req: SubmissionRequest,
+    _sid: str = Depends(resolve_student_id),
+    idempotency_key: str = Header(default="", alias="Idempotency-Key")):
     _require_enabled()
     qref = S.QuestionRef(question_id=req.question_id,
                          question_revision=req.question_revision)
@@ -94,26 +86,16 @@ async def submit_answer(
     except QuestionRevisionMismatch:
         raise api_error(409, "question_revision_mismatch",
                         "题目已更新，请刷新后重试")
-    workspace_id, _ = _resolve_submission_workspace(_sid, req, task)
-    scope_revision = req.expected_scope_revision
-    if workspace_id and not scope_revision:
-        try:
-            from app.agents.student_model.evaluation.scope import (
-                get_scope_resolver)
-            scope_revision = get_scope_resolver().resolve(
-                _sid, workspace_id).scope_revision
-        except Exception:
-            scope_revision = ""
     try:
         receipt = await evaluate_submission(
             student_id=_sid, question_ref=qref,
             student_answer=req.student_answer,
             source_surface="assessment_center",
             idempotency_key=idempotency_key,
-            expected_scope_revision=scope_revision or None,
+            expected_scope_revision=req.expected_scope_revision or None,
             assessment_id=req.assessment_id or None,
             reply_message_ref=req.reply_message_ref or None,
-            workspace_id=workspace_id, scope_revision=scope_revision,
+            workspace_id=req.workspace_id,
             run_inline=True)
     except AnswerTooLarge:
         raise api_error(413, "answer_too_large",
@@ -121,6 +103,9 @@ async def submit_answer(
     except QuestionAlreadyAnswered:
         raise api_error(409, "question_already_answered",
                         "这道题已有正式提交；再练一次请开启新练习实例")
+    except (WorkspaceNotOwned, SessionNotOwned, AssessmentBindingError,
+            ScopeRevisionConflict) as exc:
+        raise _translate_submission_error(exc)
     return _receipt_payload(_sid, receipt)
 
 
@@ -572,18 +557,8 @@ async def cat_answer(req: CatAnswerRequest,
     if current is None or current.question_id != req.question_id:
         raise api_error(409, "question_not_current",
                         "题目与当前测评不一致，请刷新")
-    # 与 chat quiz / submissions 相同的 scope 解析：workspace 归属之外还必须
-    # 带 scope_revision，否则 ConceptJudgment 构造时 scope_revision 为空串
-    # 会以裸 ValidationError 逃逸成 500（live 验收实测）。
-    scope_revision = ""
-    if instance.workspace_id:
-        try:
-            from app.agents.student_model.evaluation.scope import (
-                get_scope_resolver)
-            scope_revision = get_scope_resolver().resolve(
-                _sid, instance.workspace_id).scope_revision
-        except Exception:
-            scope_revision = ""
+    # 归属/scope 由 evaluate_submission 从 CAT 实例事实解析（R05）；
+    # 题目身份已校验为当前题。
     try:
         receipt = await evaluate_submission(
             student_id=_sid,
@@ -591,13 +566,13 @@ async def cat_answer(req: CatAnswerRequest,
                                        question_revision=req.question_revision),
             student_answer=req.student_answer, source_surface="cat",
             assessment_id=req.assessment_id,
-            workspace_id=instance.workspace_id,
-            scope_revision=scope_revision,
-            expected_scope_revision=scope_revision or None,
             run_inline=True)
     except AnswerTooLarge:
         raise api_error(413, "answer_too_large",
                         "作答超过 32KiB 上限，请缩小范围后提交")
+    except (WorkspaceNotOwned, SessionNotOwned, AssessmentBindingError,
+            ScopeRevisionConflict) as exc:
+        raise _translate_submission_error(exc)
     except QuestionAlreadyAnswered:
         # 半提交恢复：首答中断（如客户端取消）后重试会走到这里——同题同
         # 答案本就是幂等重放路径，不同答案才冲突；裸 500 会让用户卡死在

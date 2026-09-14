@@ -375,15 +375,15 @@ def _delete_session_active(owner_id: str, session_id: str, data: dict[str, Any])
         ws.session_ids = [x for x in ws.session_ids if x != session_id]
         save_workspace(ws)
     try:
-        from ..agents.student_model.evaluation.lifecycle import archive_session_sources  # G4
-        mark_session_source_deleted(owner_id, session_id)
+        # G4/R07：评价来源随会话归档（availability=archived，投影排除）
+        from ..agents.student_model.evaluation.lifecycle import (
+            archive_session_sources)
+        archive_session_sources(owner_id, session_id)
     except Exception:
-        pass
-    try:
-        pass  # G4: learning_records 已删（journal archive 已处理）
-        mark_source_deleted(owner_id, session_id)
-    except Exception:
-        pass
+        import logging
+        logging.getLogger(__name__).warning(
+            "archive_session_sources failed for %s", session_id,
+            exc_info=True)
 
 
 def _restore_session_payload(owner_id: str, payload: Path,
@@ -422,15 +422,14 @@ def _restore_session_payload(owner_id: str, payload: Path,
     for src in (payload / "traces").glob("trace_*.jsonl") if (payload / "traces").exists() else []:
         _restore_file(src, trace_dir_path() / src.name)
     try:
-        from ..agents.student_model.evaluation.lifecycle import restore_session_sources  # G4
-        mark_session_source_active(owner_id, sid)
+        # G4/R07：评价来源恢复（availability=available，投影重新纳入）
+        from ..agents.student_model.evaluation.lifecycle import (
+            restore_session_sources)
+        restore_session_sources(owner_id, sid)
     except Exception:
-        pass
-    try:
-        pass  # G4: learning_records 已删
-        mark_source_active(owner_id, sid)
-    except Exception:
-        pass
+        import logging
+        logging.getLogger(__name__).warning(
+            "restore_session_sources failed for %s", sid, exc_info=True)
     return sid
 
 

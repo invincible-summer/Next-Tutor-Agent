@@ -14,9 +14,13 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
 from app.agents.assessment import (AnswerTooLarge,
+                                   AssessmentBindingError,
                                    QuestionAlreadyAnswered,
                                    QuestionNotFound,
                                    QuestionRevisionMismatch,
+                                   ScopeRevisionConflict,
+                                   SessionNotOwned,
+                                   WorkspaceNotOwned,
                                    evaluate_submission, is_enabled)
 from app.agents.assessment.manager import (assistance_events,
                                            load_task_snapshot,
@@ -116,29 +120,28 @@ async def _submit(req: QuizSubmitRequest, student_id: str,
                      "题目不存在（旧标签页请刷新）")
     except QuestionRevisionMismatch:
         raise _error(409, "question_revision_mismatch", "题目已更新，请刷新")
-    workspace_id, session = _session_workspace(student_id, req.session_id)
-    scope_revision = ""
-    if workspace_id:
-        try:
-            from app.agents.student_model.evaluation.scope import (
-                get_scope_resolver)
-            scope_revision = get_scope_resolver().resolve(
-                student_id, workspace_id).scope_revision
-        except Exception:
-            scope_revision = ""
+    # 会话归属预检（404 先于一切）；workspace/scope 由 evaluate_submission
+    # 从服务端事实解析（R05：会话 > 显式 workspace > 题目绑定）。
+    _session_workspace(student_id, req.session_id)
     try:
         receipt = await evaluate_submission(
             student_id=student_id, question_ref=qref,
             student_answer=req.student_answer, source_surface=surface,
             source_session_ref=req.session_id,
             reply_message_ref=req.reply_message_ref or None,
-            workspace_id=workspace_id, scope_revision=scope_revision,
             run_inline=True)
     except AnswerTooLarge:
         raise _error(413, "answer_too_large", "作答超过 32KiB 上限")
     except QuestionAlreadyAnswered:
         raise _error(409, "question_already_answered",
                      "这道题已有正式提交；再练一次请开启新练习实例")
+    except (WorkspaceNotOwned, SessionNotOwned):
+        raise _error(404, "workspace_not_found", "工作区不存在")
+    except AssessmentBindingError as exc:
+        raise _error(409, "assessment_binding_error", str(exc))
+    except ScopeRevisionConflict:
+        raise _error(409, "scope_revision_conflict",
+                     "教材范围已变化，请刷新后重试")
     if req.session_id and receipt.task_result is not None:
         _write_back_result(req.session_id, req.question_id,
                            req.student_answer,

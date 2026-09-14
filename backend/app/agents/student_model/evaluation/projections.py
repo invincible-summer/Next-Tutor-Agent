@@ -100,10 +100,66 @@ def load_index(student_id: str) -> dict[str, Any]:
 
 
 # ---------------------------------------------------------------------------
-# 概念视图（§12 + §11.3 coverage）
+# 概念视图（§12 + §11.3 coverage；R07/R08/R10）
 # ---------------------------------------------------------------------------
 
-def _view_from_judgment(judgment: S.ConceptJudgment) -> S.ConceptEvaluationView:
+def _obs_to_source(state) -> dict[str, str]:
+    """obs_id → source_id（R10 稳定映射的读侧聚合）。"""
+    out: dict[str, str] = {}
+    for src in state.sources.values():
+        for meta in src.interpretations.values():
+            if not isinstance(meta, dict):
+                continue
+            for e in (meta.get("observation_map") or []):
+                if isinstance(e, dict) and e.get("obs_id"):
+                    out[str(e["obs_id"])] = src.receipt.source_id
+    return out
+
+
+def _valid_sources_by_concept(state, workspace_id: str
+                              ) -> dict[str, dict[str, str]]:
+    """R08/R10：concept_key → {source_id: observed_at}（当前有效解释携带的
+    真实表现）。用于：①撤销后 reconciling 判定（仍有合法证据待重综合）；
+    ②证据计数按有效 source 去重。"""
+    out: dict[str, dict[str, str]] = {}
+    for src in state.sources.values():
+        if src.availability != "available":
+            continue
+        if src.receipt.workspace_id_at_observation != workspace_id:
+            continue
+        if not src.current_interpretation_id:
+            continue
+        meta = src.interpretations.get(src.current_interpretation_id, {})
+        if not isinstance(meta, dict) or meta.get("revoked") \
+                or meta.get("abstained"):
+            continue
+        for e in (meta.get("observation_map") or []):
+            if isinstance(e, dict) and e.get("concept_key"):
+                out.setdefault(str(e["concept_key"]), {})[
+                    src.receipt.source_id] = src.receipt.observed_at
+    return out
+
+
+def _view_from_judgment(judgment: S.ConceptJudgment, *,
+                        obs_to_source: dict[str, str],
+                        observed_at_by_source: dict[str, str],
+                        valid_sources: dict[str, str]) -> S.ConceptEvaluationView:
+    # R10：证据数量按有效 source identity 去重（一来源多主张不虚增）；
+    # 来源时间取 observed_at，评价完成时间单列 evaluated_at。
+    contributing: set[str] = set()
+    for claim in judgment.claims:
+        refs = list(claim.support_refs) + list(claim.challenge_refs)
+        if claim.created_by_observation:
+            refs.append(claim.created_by_observation)
+        for ref in refs:
+            src_id = obs_to_source.get(ref)
+            if src_id is not None:
+                contributing.add(src_id)
+    # 没有可寻址引用的旧判断：退化为按有效解释来源计（不小于 0）
+    if not contributing and valid_sources:
+        contributing = set(valid_sources)
+    observed_times = [observed_at_by_source[s] for s in contributing
+                      if s in observed_at_by_source]
     return S.ConceptEvaluationView(
         concept_ref=judgment.concept_ref,
         state=judgment.state,
@@ -113,25 +169,46 @@ def _view_from_judgment(judgment: S.ConceptJudgment) -> S.ConceptEvaluationView:
         claims=judgment.claims,
         change=judgment.change,
         next_probe=judgment.next_probe,
-        evidence_count=len(judgment.claims),
-        last_observed_at=judgment.created_at,
+        evidence_count=len(contributing),
+        last_observed_at=max(observed_times) if observed_times else "",
+        evaluated_at=judgment.created_at,
         updated_at=judgment.created_at)
 
 
 def concept_views(student_id: str, scope: S.EvaluationScope
                   ) -> list[S.ConceptEvaluationView]:
-    """scope 左连接生成统一概念投影（§11.2：未观察节点也出现）。"""
+    """scope 左连接生成统一概念投影（§11.2：未观察节点也出现）。
+
+    R08：判断被撤销但仍有当前有效表现证据 → reconciling（state=null，
+    正文隐藏），等待重综合恢复——不是"没学过"。
+    R07：判断的来源已归档/删除 → 不再显示该判断。"""
     journal = get_journal(student_id)
     state = journal.state()
-    observed_ids: set[str] = set()
+    obs_to_source = _obs_to_source(state)
+    observed_at_by_source = {
+        sid: src.receipt.observed_at for sid, src in state.sources.items()}
+    valid_by_concept = _valid_sources_by_concept(
+        state, scope.workspace_id)
     views: list[S.ConceptEvaluationView] = []
     for concept in scope.allowed_concepts:
         jid = state.concept_current.get(
             (scope.workspace_id, concept.key), "")
         judgment = state.judgments.get(jid) if jid else None
         if judgment is not None:
-            observed_ids.add(concept.concept_id)
-            views.append(_view_from_judgment(judgment))
+            src = state.sources.get(judgment.source_id)
+            if src is not None and src.availability != "available":
+                judgment = None      # R07：归档/删除来源的判断退出当前视图
+        if judgment is not None:
+            views.append(_view_from_judgment(
+                judgment, obs_to_source=obs_to_source,
+                observed_at_by_source=observed_at_by_source,
+                valid_sources=valid_by_concept.get(concept.key, {})))
+        elif valid_by_concept.get(concept.key):
+            observed = valid_by_concept[concept.key]
+            views.append(S.ConceptEvaluationView(
+                concept_ref=concept, state=None,
+                evaluation_status=S.EvaluationStatus.RECONCILING,
+                last_observed_at=max(observed.values())))
         else:
             views.append(S.ConceptEvaluationView(
                 concept_ref=concept, state=S.ConceptEvalState.NOT_OBSERVED,
@@ -150,6 +227,11 @@ def wrong_answer_items(student_id: str, limit: int = 200) -> list[dict]:
     for src in state.sources.values():
         if src.availability != "available":
             continue
+        # 当前有效 TaskResult：优先当前解释槽；无解释（MC 只判分）时读
+        # 受理时落盘的 "" 槽。复核改分后 task_result 随新解释更新，此处
+        # 自动跟随（§11.2）。
+        if state.review_active_by_source.get(src.receipt.source_id):
+            continue    # 争议未结：不驱动错题/笔记链路（§9.7）
         meta = src.interpretations.get(src.current_interpretation_id, {})
         tr = meta.get("task_result") or {}
         if tr.get("verdict") not in ("wrong", "partial"):
@@ -161,7 +243,7 @@ def wrong_answer_items(student_id: str, limit: int = 200) -> list[dict]:
                 ref.question_revision)
         items.append({
             # source_id 供前端打开证据详情（原题/作答/揭晓视图，§11.2）。
-            "source_id": sid,
+            "source_id": src.receipt.source_id,
             "topic": task.task_family if task else "",
             "knowledge_point": task.source_badge if task else "",
             "stem": task.stem[:300] if task else "",
@@ -192,6 +274,8 @@ def workspace_summary(student_id: str, scope: S.EvaluationScope, *,
     state = journal.state()
     synthesis = None
     for syn in state.syntheses.values():
+        if syn.revoked:
+            continue      # R08：引用失效的综合隐藏正文
         if syn.scope_type == S.ScopeType.WORKSPACE \
                 and syn.workspace_id == scope.workspace_id:
             if synthesis is None or syn.generated_at > synthesis.generated_at:

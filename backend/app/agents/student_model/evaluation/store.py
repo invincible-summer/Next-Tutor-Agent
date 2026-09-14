@@ -145,6 +145,9 @@ class JournalState:
     syntheses: dict[str, S.ScopeSynthesis] = field(default_factory=dict)
     reviews: dict[str, S.ReviewRequestRecord] = field(default_factory=dict)
     review_active_by_source: dict[str, str] = field(default_factory=dict)
+    review_by_job: dict[str, str] = field(default_factory=dict)
+    # job_id -> review_id（R06：复核按本 job 绑定的 review 执行，不再
+    # "查同 source 第一条"）
     outbox_unacked: dict[tuple[str, str], dict[str, Any]] = field(
         default_factory=dict)  # (event_id, consumer) -> item
     workspace_scopes: dict[str, str] = field(default_factory=dict)
@@ -218,6 +221,7 @@ def _apply_op(state: JournalState, op: Any) -> None:
         state.reviews[op.review.review_id] = op.review
         state.review_active_by_source[op.review.source_id] = op.review.review_id
         if op.job_id:
+            state.review_by_job[op.job_id] = op.review.review_id
             state.jobs.setdefault(op.job_id, JobRuntimeState(
                 job=S.EvaluationJob(
                     job_id=op.job_id, kind=S.JobKind.REVIEW,
@@ -226,25 +230,62 @@ def _apply_op(state: JournalState, op: Any) -> None:
                     priority=S.JobPriority.REVIEW.value)))
     elif isinstance(op, S.OpReviewResolved):
         review = state.reviews.get(op.review_id)
+        decision = op.decision.decision
         if review is not None:
-            review.status = "resolved"
-        if op.decision.decision == S.ReviewDecisionKind.UPHOLD:
-            pass  # 恢复原解释（lifecycle 详述，G3）
-        elif op.decision.decision == S.ReviewDecisionKind.REVISE:
-            src = state.sources.get(
-                state.reviews[op.review_id].source_id
-                if op.review_id in state.reviews else "")
-            if src is not None and op.replacement_interpretation_id:
-                src.current_interpretation_id = op.replacement_interpretation_id
-        elif op.decision.decision == S.ReviewDecisionKind.INVALIDATE:
-            if op.review_id in state.reviews:
-                src = state.sources.get(state.reviews[op.review_id].source_id)
+            review.decided_kind = decision.value
+            review.decided_at = S.utc_now_iso()
+            review.resolution_note = op.decision.reason[:600]
+            # R06：insufficient 保持待确定（active），其余结案并清
+            # active 索引——允许同一来源的新合法异议。
+            if decision != S.ReviewDecisionKind.INSUFFICIENT_EVIDENCE:
+                review.status = "resolved"
+                if state.review_active_by_source.get(
+                        review.source_id) == review.review_id:
+                    state.review_active_by_source.pop(review.source_id, None)
+        # R06：复核 job 随决定进入终态（不再停在 running）
+        if op.job_id:
+            rt = state.jobs.get(op.job_id)
+            if rt is not None and rt.job.state not in (
+                    S.JobState.SUCCEEDED, S.JobState.ABSTAINED,
+                    S.JobState.FAILED, S.JobState.CANCELLED):
+                rt.job.state = (
+                    S.JobState.ABSTAINED
+                    if decision == S.ReviewDecisionKind.INSUFFICIENT_EVIDENCE
+                    else S.JobState.SUCCEEDED)
+                rt.job.error_code = ""
+        if decision == S.ReviewDecisionKind.UPHOLD:
+            pass  # 原解释保持有效（受理时未撤销）
+        elif decision == S.ReviewDecisionKind.REVISE:
+            # 替代解释的物化由同一事务内先行的 result_committed 完成；
+            # 这里只维护指针（存在性由提交顺序保证）。
+            if review is not None and op.replacement_interpretation_id:
+                src = state.sources.get(review.source_id)
+                if src is not None and op.replacement_interpretation_id in \
+                        src.interpretations:
+                    src.current_interpretation_id = \
+                        op.replacement_interpretation_id
+        elif decision == S.ReviewDecisionKind.INVALIDATE:
+            if review is not None:
+                src = state.sources.get(review.source_id)
                 if src is not None:
                     src.current_interpretation_id = ""
                     for iid, meta in src.interpretations.items():
                         meta["revoked"] = True
         for item in op.outbox:
             _track_outbox(state, item)
+    elif isinstance(op, S.OpReviewDismissed):
+        review = state.reviews.get(op.review_id)
+        if review is not None:
+            review.status = "dismissed"
+            if state.review_active_by_source.get(
+                    review.source_id) == review.review_id:
+                state.review_active_by_source.pop(review.source_id, None)
+        if op.job_id:
+            rt = state.jobs.get(op.job_id)
+            if rt is not None and rt.job.state not in (
+                    S.JobState.SUCCEEDED, S.JobState.ABSTAINED,
+                    S.JobState.FAILED, S.JobState.CANCELLED):
+                rt.job.state = S.JobState.CANCELLED
     elif isinstance(op, S.OpInterpretationRevoked):
         for src in state.sources.values():
             if op.interpretation_id in src.interpretations:
@@ -256,6 +297,11 @@ def _apply_op(state: JournalState, op: Any) -> None:
         for key, cur in list(state.concept_current.items()):
             if cur in op.affected_judgment_ids:
                 state.concept_current[key] = ""
+        # R08：引用失效的综合隐藏正文（保留历史行供审计）
+        for sid in op.affected_synthesis_ids:
+            syn = state.syntheses.get(sid)
+            if syn is not None:
+                syn.revoked = True
         for item in op.outbox:
             _track_outbox(state, item)
     elif isinstance(op, S.OpSynthesisCommitted):
@@ -321,6 +367,8 @@ def _apply_result_committed(state: JournalState,
                 "continuation": (op.continuation.model_dump()
                                  if op.continuation else None),
                 "raw_interpretation": op.interpretation.model_dump(),
+                # R10：claim local_id → obs/概念/来源稳定映射
+                "observation_map": list(op.observation_map or []),
             }
             # 同一来源版本只有一个当前有效解释（§6.5）
             src.current_interpretation_id = op.interpretation_id
@@ -496,16 +544,22 @@ class EvidenceJournal:
 
     # -- rewrite (permanent deletion) ----------------------------------
     def rewrite(self, keep: Callable[[S.JournalTransaction], bool],
-                reason: str) -> str:
+                reason: str,
+                transform: Callable[[S.JournalTransaction],
+                                    S.JournalTransaction] | None = None,
+                ) -> str:
         """带 generation 的永久删除重写（§5.3：物理去除敏感内容与引用副本，
         不是只追加 tombstone）。返回新 generation。调用方负责范围/权限判断。
-        """
+        R07：transform 允许保留行脱敏（如独立 assessment detach 会话定位）。"""
         with file_lock(self.path):
             state = self.state()
             kept: list[S.JournalTransaction] = []
             for tx in self._iter_raw_transactions():
-                if keep(tx):
-                    kept.append(tx)
+                if not keep(tx):
+                    continue
+                if transform is not None:
+                    tx = transform(tx)
+                kept.append(tx)
             new_gen = new_generation()
             seq = 0
             lines: list[str] = []
