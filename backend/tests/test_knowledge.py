@@ -239,11 +239,11 @@ class TestKnowledgeService(unittest.TestCase):
         ks = _mini_service()
         ctx = ks.build_context(
             concept="积分",
-            mastery_view={
-                "math.function.definition": {"p_known": 0.9},
-                "math.function.monotonicity": {"p_known": 0.85},
-                "math.calculus.limit": {"p_known": 0.8},
-                "math.calculus.derivative": {"p_known": 0.3},
+            evaluation_view={
+                "math.function.definition": {"state": "supported_in_scope"},
+                "math.function.monotonicity": {"state": "supported_in_scope"},
+                "math.calculus.limit": {"state": "supported_in_scope"},
+                "math.calculus.derivative": {"state": "fragile"},
             })
         self.assertEqual(ctx.node_id, "math.calculus.integral")
         self.assertIn("导数", ctx.prerequisite_chain)
@@ -251,8 +251,8 @@ class TestKnowledgeService(unittest.TestCase):
 
     def test_build_context_all_mastered(self):
         ks = _mini_service()
-        mv = {nid: {"p_known": 0.9} for nid in ks.graph.nodes}
-        ctx = ks.build_context(concept="积分", mastery_view=mv)
+        mv = {nid: {"state": "supported_in_scope"} for nid in ks.graph.nodes}
+        ctx = ks.build_context(concept="积分", evaluation_view=mv)
         self.assertEqual(ctx.missing_prereqs, [])
 
     def test_build_context_unknown_concept(self):
@@ -338,18 +338,18 @@ class TestContextBuilder(unittest.TestCase):
         ks = _mini_service()
         block = ks.build_directive(
             concept="积分",
-            mastery_view={
-                "math.function.definition": {"p_known": 0.9},
-                "math.function.monotonicity": {"p_known": 0.85},
-                "math.calculus.limit": {"p_known": 0.8},
-                "math.calculus.derivative": {"p_known": 0.3},
+            evaluation_view={
+                "math.function.definition": {"state": "supported_in_scope"},
+                "math.function.monotonicity": {"state": "supported_in_scope"},
+                "math.calculus.limit": {"state": "supported_in_scope"},
+                "math.calculus.derivative": {"state": "fragile"},
             })
         self.assertIn("[知识智能·前置补缺]", block)
-        self.assertEqual(ks.build_context(concept="积分", mastery_view={
-            "math.function.definition": {"p_known": 0.9},
-            "math.function.monotonicity": {"p_known": 0.85},
-            "math.calculus.limit": {"p_known": 0.8},
-            "math.calculus.derivative": {"p_known": 0.3},
+        self.assertEqual(ks.build_context(concept="积分", evaluation_view={
+            "math.function.definition": {"state": "supported_in_scope"},
+            "math.function.monotonicity": {"state": "supported_in_scope"},
+            "math.calculus.limit": {"state": "supported_in_scope"},
+            "math.calculus.derivative": {"state": "fragile"},
         }).missing_prereqs, ["导数"])
 
 

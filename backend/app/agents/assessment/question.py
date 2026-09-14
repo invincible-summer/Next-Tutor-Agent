@@ -62,7 +62,7 @@ class Question:
     # empty for legacy questions and malformed generation output alike.
     rubric: dict[str, Any] = field(default_factory=dict)
     # 统一 Quiz Grounding（plan.md §5.4）：grounded 测评题的 provenance。
-    # CAT session 已持久化 Question、learning_records 已调用 q.to_dict()，
+    # CAT session 已持久化 Question（G4：评价侧由统一受理链写 journal），
     # 在 Question 这个单一合同中携带 provenance，下游天然继承；旧题缺省
     # generic/空，无损重建。
     grounding_mode: str = "generic"   # textbook | generic | reference...

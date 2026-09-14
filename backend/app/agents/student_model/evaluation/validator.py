@@ -260,17 +260,17 @@ def check_publication_gates(
         old_challenged = [c for c in old
                           if c.status == S.ClaimStatus.CHALLENGED]
         state = update.proposed_state
-        if state == S.ConceptState.NOT_OBSERVED:
+        if state == S.ConceptEvalState.NOT_OBSERVED:
             if concept_claims or old:
                 issues.append(ValidationIssue(
                     "gate_not_observed", f"{update.concept_ref}: 存在观察却"
                     "提议 not_observed", GATE, update.concept_ref))
-        elif state == S.ConceptState.EMERGING:
+        elif state == S.ConceptEvalState.EMERGING:
             if not concept_claims and not old:
                 issues.append(ValidationIssue(
                     "gate_emerging", f"{update.concept_ref}: 无任何真实观察"
                     "却提议 emerging", GATE, update.concept_ref))
-        elif state == S.ConceptState.SUPPORTED_IN_SCOPE:
+        elif state == S.ConceptEvalState.SUPPORTED_IN_SCOPE:
             has_support = bool(supports or old_supported)
             if not has_support:
                 issues.append(ValidationIssue(
@@ -286,7 +286,7 @@ def check_publication_gates(
                     "gate_supported_counter_evidence",
                     f"{update.concept_ref}: 存在同条件反证未处置却提议"
                     " supported_in_scope", GATE, update.concept_ref))
-        elif state == S.ConceptState.FRAGILE:
+        elif state == S.ConceptEvalState.FRAGILE:
             if not (update.statement.strip() and
                     (update.change is not None
                      and update.change.statement.strip()
@@ -295,7 +295,7 @@ def check_publication_gates(
                 issues.append(ValidationIssue(
                     "gate_fragile", f"{update.concept_ref}: fragile 必须"
                     "引用具体待解决点", GATE, update.concept_ref))
-        elif state == S.ConceptState.CONFLICTING:
+        elif state == S.ConceptEvalState.CONFLICTING:
             if not ((supports and challenges)
                     or (old_supported and old_challenged)
                     or (supports and old_challenged)

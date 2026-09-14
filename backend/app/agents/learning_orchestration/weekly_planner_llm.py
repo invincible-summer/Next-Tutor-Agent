@@ -37,15 +37,18 @@ _MAX_SUBTASKS_LLM = 4
 
 def build_weekly_prompt(goal_title: str, required: list[str],
                         concept_names: dict[str, str],
-                        mastery_view: dict[str, Any],
+                        evaluation_view: dict[str, Any],
                         num_weeks: int, daily_minutes: int) -> list[dict[str, str]]:
     """Build the chat messages for the weekly-planning LLM call."""
+    _zh = {"fragile": "有明确待解决点", "conflicting": "证据尚待核对",
+           "emerging": "已有局部证据", "not_observed": "尚无学习证据",
+           "supported_in_scope": "已有支持（限定条件内）"}
     lines = []
     for cid in required[:40]:
-        rec = mastery_view.get(cid) or {}
-        p = float(rec.get("p_known", 0)) if isinstance(rec, dict) else 0.0
+        rec = evaluation_view.get(cid) or {}
+        st = str(rec.get("state", "")) if isinstance(rec, dict) else ""
         name = concept_names.get(cid, cid)
-        lines.append(f"- {cid}（{name}，当前掌握 {p:.2f}）")
+        lines.append(f"- {cid}（{name}，评价：{_zh.get(st, '尚无学习证据')}）")
     system = (
         "你是一名学习规划师，擅长把长期学习目标拆成逐周可执行的计划。"
         "只输出 JSON，不要输出任何其他内容。")

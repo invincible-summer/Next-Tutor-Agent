@@ -72,8 +72,8 @@ class ContextFixture(StorageSandboxTestCase):
         judgment = S.ConceptJudgment(
             judgment_id="jdg_" + stance, concept_ref=_concept(),
             workspace_id=WS,
-            state=(S.ConceptState.SUPPORTED_IN_SCOPE
-                   if stance == "supports" else S.ConceptState.FRAGILE),
+            state=(S.ConceptEvalState.SUPPORTED_IN_SCOPE
+                   if stance == "supports" else S.ConceptEvalState.FRAGILE),
             statement="旧判断", claims=[],
             evidence_watermark="w", policy_version=S.POLICY_VERSION,
             theory_version=S.THEORY_VERSION, prompt_ref="p",

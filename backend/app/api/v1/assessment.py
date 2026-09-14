@@ -338,7 +338,7 @@ async def assessment_records(offset: int = Query(0, ge=0),
                              verdict: str = Query(""),
                              workspace_id: str = Query(""),
                              _sid: str = Depends(resolve_student_id)):
-    """本人原始作答档案（替换 /student/learning-records，§11.4）。"""
+    """本人原始作答档案（替换旧作答档案路由，§11.4）。"""
     state = get_journal(_sid).state()
     items: list[dict[str, Any]] = []
     for src in state.sources.values():

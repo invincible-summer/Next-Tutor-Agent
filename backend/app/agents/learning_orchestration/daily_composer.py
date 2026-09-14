@@ -18,7 +18,7 @@ Deterministic guardrails (the LLM never controls identity, caps, or order):
     task-uniqueness contract holds.
 
 IMPORT-CLEAN: no student_model import -- the caller passes plain-data
-projections (mastery_view, concept_names).
+projections (evaluation_view, concept_names).
 """
 from __future__ import annotations
 
@@ -31,7 +31,6 @@ from . import spaced_repetition as srs, task_executor
 from .schema import (DailyTask, DailyTaskStatus, OrchestrationState,
                      TASK_PHASES, TaskKind)
 
-_WEAK_THRESHOLD = 0.6
 _POOL_LIMIT = 12
 
 # template reasons for the deterministic fallback path (by task kind)
@@ -43,13 +42,21 @@ _TEMPLATE_REASONS = {
 }
 
 
+# G4：语义状态 → 严重度序（排序用；越小越紧急）。supported 不进弱项池。
+_STATE_SEVERITY = {"fragile": 0, "conflicting": 0, "emerging": 1,
+                   "not_observed": 2}
+_STATE_LABEL_ZH = {"fragile": "有明确待解决点", "conflicting": "证据尚待核对",
+                   "emerging": "已有局部证据", "not_observed": "尚无学习证据",
+                   "supported_in_scope": "已有支持（限定条件内）"}
+
+
 def build_candidate_pool(state: OrchestrationState, *,
-                         mastery_view: dict[str, Any],
+                         evaluation_view: dict[str, Any],
                          concept_names: dict[str, str],
                          now: float | None = None) -> list[dict[str, Any]]:
     """Build the deterministic candidate pool for today's composition.
 
-    Each entry: {concept_id, name, mastery, overdue_days, milestone_id,
+    Each entry: {concept_id, name, state, overdue_days, milestone_id,
     sources}. `sources` is a set-like list of where the candidate came from
     ("srs_due" / "milestone" / "weak" / "carryover") -- the composer prompt
     and the fallback reason templates read it. Never raises.
@@ -62,11 +69,11 @@ def build_candidate_pool(state: OrchestrationState, *,
         def _entry(cid: str, name: str = "", **extra: Any) -> dict[str, Any]:
             e = pool.get(cid)
             if e is None:
-                rec = mastery_view.get(cid) or {}
-                p = float(rec.get("p_known", 0)) if isinstance(rec, dict) else 0.0
+                rec = evaluation_view.get(cid) or {}
+                st = str(rec.get("state", "")) if isinstance(rec, dict) else ""
                 e = {"concept_id": cid,
                      "name": name or concept_names.get(cid, cid),
-                     "mastery": round(p, 3), "overdue_days": 0,
+                     "state": st, "overdue_days": 0,
                      "milestone_id": "", "sources": [],
                      # action-level refs (empty for plain concept entries)
                      "real_concept_id": "", "week_task_id": "",
@@ -91,9 +98,9 @@ def build_candidate_pool(state: OrchestrationState, *,
         cur = weekly_planner_llm.current_week(state, now=now)
         if cur:
             for pc in cur.concepts:
-                rec = mastery_view.get(pc.concept_id) or {}
-                p = float(rec.get("p_known", 0)) if isinstance(rec, dict) else 0.0
-                if p >= pc.planned_mastery:
+                rec = evaluation_view.get(pc.concept_id) or {}
+                st = str(rec.get("state", "")) if isinstance(rec, dict) else ""
+                if st == "supported_in_scope":
                     continue
                 e = _entry(pc.concept_id, pc.name)
                 if "current_week" not in e["sources"]:
@@ -111,12 +118,12 @@ def build_candidate_pool(state: OrchestrationState, *,
                     if "current_week" not in e["sources"]:
                         e["sources"].append("current_week")
 
-        # 3. M2 weak concepts (seen but p < 0.6)
-        for sid, rec in (mastery_view or {}).items():
+        # 3. G4：统一评价已观察待解决概念（fragile/conflicting/emerging）
+        for sid, rec in (evaluation_view or {}).items():
             if not isinstance(rec, dict):
                 continue
-            if int(rec.get("attempts", 0)) > 0 and \
-                    float(rec.get("p_known", 0)) < _WEAK_THRESHOLD:
+            if str(rec.get("state", "")) in ("fragile", "conflicting",
+                                             "emerging"):
                 e = _entry(str(sid))
                 if "weak" not in e["sources"]:
                     e["sources"].append("weak")
@@ -131,11 +138,11 @@ def build_candidate_pool(state: OrchestrationState, *,
 
         out = list(pool.values())
         # most urgent first: carryover/srs, then this week's action items,
-        # then lowest mastery
+        # then worse semantic state
         out.sort(key=lambda e: (
             0 if ("carryover" in e["sources"] or "srs_due" in e["sources"]) else
             1 if "current_week" in e["sources"] else 2,
-            e["mastery"]))
+            _STATE_SEVERITY.get(e.get("state", ""), 3)))
         return out[:_POOL_LIMIT]
     except Exception:
         return []
@@ -179,7 +186,7 @@ def build_compose_prompt(pool: list[dict[str, Any]], slots: int,
     actually struggles with, not generic filler."""
     lines = []
     for e in pool:
-        meta = [f"掌握度 {e['mastery']}"]
+        meta = [f"评价：{_STATE_LABEL_ZH.get(e.get('state', ''), '尚无学习证据')}"]
         if e.get("overdue_days"):
             meta.append(f"逾期 {e['overdue_days']} 天")
         src = "/".join(e.get("sources", []))

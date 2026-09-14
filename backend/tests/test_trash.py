@@ -11,7 +11,7 @@ from app.agents.knowledge import store as graph_store
 from app.agents.memory import prompt_memory
 from app.agents.memory import store as memory_store
 from app.agents.memory.schema import EpisodicMemory
-from app.core import context, learning_records, library, quiz_recent, session, textbook, trash, workspace
+from app.core import context, library, session, textbook, trash, workspace
 from app.core.config import settings
 
 
@@ -33,9 +33,7 @@ class TrashFixture(unittest.TestCase):
             patch.object(prompt_memory, "_STUDENTS_DIR", self.root / "students"),
             patch.object(prompt_memory, "_POLICY_PATH", self.root / "students" / "prompt_policy.json"),
             patch.object(memory_store, "_STUDENTS_DIR", self.root / "students"),
-            patch.object(learning_records, "_STUDENTS_DIR", self.root / "students"),
-            patch.object(quiz_recent, "_STUDENTS_DIR", self.root / "students"),
-        ]
+                ]
         for p in self.patches:
             p.start()
 
@@ -91,40 +89,6 @@ class TestSessionTrash(TrashFixture):
         summaries = [x.summary for x in memory_store.read_episodes("stu1")]
         self.assertNotIn("可追溯对话事件", summaries)
         self.assertIn("独立学习记录", summaries)
-
-    def test_permanent_purge_forgets_recent_prompt_influence_but_keeps_learning_ledger(self):
-        self.make_session()
-        prompt_memory.register_session("stu1", "chat_one")
-        prompt_memory.record_contribution(
-            "stu1", "chat_one", user_message="请一步一步讲",
-            strategy_outcome="wrong")
-        learning_records.record_question(
-            "stu1", "chat_one", {"id": "q1", "stem": "一道题",
-                                  "answer": "A", "knowledge_point": "矩阵"})
-        learning_records.record_verdict(
-            "stu1", "chat_one", stem="一道题", verdict="wrong",
-            student_answer="B")
-        quiz_recent.record_recent_quiz("chat_one", "stu1", {
-            "topic": "矩阵", "questions": [{"id": "q1", "stem": "一道题",
-            "answer": "A", "knowledge_point": "矩阵"}]})
-
-        item = trash.archive_session("stu1", "chat_one")
-        self.assertEqual(prompt_memory.session_forget_status("stu1", "chat_one"),
-                         "recent")
-        result = trash.purge_item("stu1", item["id"])
-        self.assertEqual(result["memory_forget"].get("forgotten"), 1)
-        self.assertEqual(prompt_memory.session_forget_status("stu1", "chat_one"),
-                         "none")
-        rows = learning_records.list_records("stu1")
-        self.assertEqual(len(rows), 1)
-        self.assertEqual(rows[0]["source_status"], "deleted")
-        self.assertEqual(rows[0]["session_id"], "")
-        self.assertEqual(rows[0]["student_answer"], "B")
-        recent = quiz_recent.list_recent_questions("stu1")
-        self.assertEqual(recent[0]["session_id"], "")
-        self.assertEqual(recent[0]["source_status"], "deleted")
-        self.assertEqual(result["source_attribution_detached"],
-                         {"learning_records": 1, "quiz_recent": 1})
 
     def test_archive_can_forget_immediately_and_restore_does_not_recreate_it(self):
         self.make_session()

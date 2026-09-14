@@ -214,11 +214,9 @@ class StudentSnapshot:
     recent_weak_points: list[str] = field(default_factory=list)
     conversation_topic_hint: str | None = None
     # --- V3 Student Model additions (all optional, default empty) ---
+    # G4：weak/strong/数值能力映射字段已删（统一评价语义化）。
     goals: list[str] = field(default_factory=list)
     current_subject: str = ""
-    weak_skills: list[str] = field(default_factory=list)        # skill_ids
-    strong_skills: list[str] = field(default_factory=list)
-    mastery_map: dict[str, float] = field(default_factory=dict)  # skill_id -> p_known
     learning_style: dict[str, str] = field(default_factory=dict)
     recent_mistakes: list[str] = field(default_factory=list)
     unfinished_prereqs: list[str] = field(default_factory=list)
@@ -234,9 +232,6 @@ class StudentSnapshot:
             "conversation_topic_hint": self.conversation_topic_hint,
             "goals": list(self.goals),
             "current_subject": self.current_subject,
-            "weak_skills": list(self.weak_skills),
-            "strong_skills": list(self.strong_skills),
-            "mastery_map": dict(self.mastery_map),
             "learning_style": dict(self.learning_style),
             "recent_mistakes": list(self.recent_mistakes),
             "unfinished_prereqs": list(self.unfinished_prereqs),
@@ -254,9 +249,6 @@ class StudentSnapshot:
             conversation_topic_hint=d.get("conversation_topic_hint"),
             goals=list(d.get("goals", []) or []),
             current_subject=d.get("current_subject", "") or "",
-            weak_skills=list(d.get("weak_skills", []) or []),
-            strong_skills=list(d.get("strong_skills", []) or []),
-            mastery_map={k: float(v) for k, v in (d.get("mastery_map", {}) or {}).items()},
             learning_style=dict(d.get("learning_style", {}) or {}),
             recent_mistakes=list(d.get("recent_mistakes", []) or []),
             unfinished_prereqs=list(d.get("unfinished_prereqs", []) or []),

@@ -3,7 +3,7 @@
 Single truth source for "on which days did this student actually learn",
 derived as a deterministic LOCAL-day union over five always-on ledgers:
 
-  1. learning_records   (every question asked/graded; created_at/updated_at)
+  1. learning-evidence journal (每条来源/判分事务的 observed_at/created_at)
   2. teaching log       (M3 per-concept teaching turns, entry ts)
   3. orchestration events (M9 task/review/habit checkpoints)
   4. ux events          (M8 per-turn interaction signals)
@@ -52,13 +52,17 @@ def _add_ts(days: set[str], ts: Any) -> None:
 
 # --- source collectors (each returns a set of local day strings) ------------
 
-def _days_learning_records(student_id: str) -> set[str]:
+def _days_learning_journal(student_id: str) -> set[str]:
     days: set[str] = set()
     try:
-        from app.core import learning_records as lr
-        for r in lr.list_records(student_id):
-            _add_ts(days, r.get("created_at"))
-            _add_ts(days, r.get("updated_at"))
+        from app.agents.student_model.evaluation.store import get_journal
+        state = get_journal(student_id).state()
+        for src in state.sources.values():
+            _add_ts(days, getattr(src.receipt, "observed_at", 0))
+            meta = src.interpretations.get(src.current_interpretation_id, {})
+            if isinstance(meta, dict):
+                _add_ts(days, meta.get("judged_at") or
+                        meta.get("updated_at"))
     except Exception:
         pass
     return days
@@ -130,7 +134,7 @@ def active_days(student_id: str) -> set[str]:
     if not student_id:
         return set()
     days: set[str] = set()
-    for collect in (_days_learning_records, _days_teaching_log,
+    for collect in (_days_learning_journal, _days_teaching_log,
                     _days_orchestration_events, _days_ux_events,
                     _days_eval_traces):
         days |= collect(student_id)
@@ -211,7 +215,7 @@ def last_learned_concept(student_id: str) -> str:
     except Exception:
         pass
     try:
-        from app.core import learning_records as lr
+        from app.agents.student_model.evaluation.store import get_journal as _gj  # G4
         for r in lr.list_records(student_id):
             kp = str(r.get("knowledge_point") or "").strip()
             if kp:
@@ -227,7 +231,7 @@ def activity_snapshot(student_id: str, *, now: float | None = None) -> dict[str,
     Never raises."""
     try:
         live: set[str] = set()
-        for collect in (_days_learning_records, _days_teaching_log,
+        for collect in (_days_learning_journal, _days_teaching_log,
                         _days_orchestration_events, _days_ux_events,
                         _days_eval_traces):
             live |= collect(student_id)
@@ -267,7 +271,7 @@ def daily_counts(student_id: str, *, days: int = 14,
             by_date[d] = {"answers": 0, "teachings": 0, "reviews": 0}
 
         try:
-            from app.core import learning_records as lr
+            from app.agents.student_model.evaluation.store import get_journal as _gj  # G4
             for r in lr.list_records(student_id):
                 if not r.get("verdict"):
                     continue  # asked-but-ungraded rows are not answers yet

@@ -130,7 +130,7 @@ class TestSchema(unittest.TestCase):
         legacy = {
             "student_id": "s1",
             "goal": {"title": "旧目标", "subjects": ["数学"]},
-            "goal_state": {"goal_title": "旧目标", "mastered_ratio": 0.5},
+            "goal_state": {"goal_title": "旧目标", "supported_ratio": 0.5},
             "long_term_tasks": [{"id": "lt_1", "title": "每天背单词"}],
         }
         s = OrchestrationState.from_dict(legacy)
@@ -139,7 +139,7 @@ class TestSchema(unittest.TestCase):
         self.assertEqual(s.goals[0].title, "旧目标")
         self.assertEqual(len(s.goal_states), 1)
         self.assertEqual(s.goal_states[0].goal_id, "g_1")
-        self.assertEqual(s.goal_states[0].mastered_ratio, 0.5)
+        self.assertEqual(s.goal_states[0].supported_ratio, 0.5)
         # long_term_tasks have no new home: dropped on load
         d = s.to_dict()
         self.assertNotIn("long_term_tasks", d)
@@ -389,16 +389,17 @@ class TestGoalManager(unittest.TestCase):
             goal_manager.add_goal(state, title="溢出")
 
     def test_overall_progress(self):
-        """Progress is computed over weekly-plan concepts (post-milestone)."""
+        """G4：进度 = 计划内概念被统一评价 supported_in_scope 的占比。"""
         state = OrchestrationState()
         state.weekly_plan = [WeeklyPlan(week_index=0, concepts=[
-            PlanConcept(concept_id="c1", planned_mastery=0.75),
-            PlanConcept(concept_id="c2", planned_mastery=0.75)])]
-        mastery = {"c1": {"p_known": 0.9}, "c2": {"p_known": 0.1}}
-        prog = goal_manager.overall_progress(state, mastery)
+            PlanConcept(concept_id="c1"),
+            PlanConcept(concept_id="c2")])]
+        view = {"c1": {"state": "supported_in_scope"},
+                "c2": {"state": "fragile"}}
+        prog = goal_manager.overall_progress(state, view)
         self.assertAlmostEqual(prog, 0.5, places=3)
         self.assertEqual(goal_manager.overall_progress(
-            OrchestrationState(), mastery), 0.0)
+            OrchestrationState(), view), 0.0)
 
 
 # ---------------------------------------------------------------------------
@@ -465,7 +466,7 @@ class TestLearningPlanner(unittest.TestCase):
         review_candidates = []
         weeks = learning_planner.generate_weekly_plan(
             state, next_learnable=next_learnable,
-            review_candidates=review_candidates, mastery_view={},
+            review_candidates=review_candidates, evaluation_view={},
             prereq_map={}, num_weeks=2)
         self.assertGreater(len(weeks), 0)
         self.assertGreater(len(weeks[0].concepts), 0)
@@ -889,24 +890,55 @@ class TestSummaryIdentity(StorageSandboxTestCase):
         state.goals = [LearningGoal(id="g1", title="数学", subjects=["数学"])]
         state.weekly_plan = [WeeklyPlan(
             week_index=0, week_start=time.time() - 86400,
-            concepts=[PlanConcept(concept_id="c_plan", name="规划概念",
-                                  planned_mastery=0.75)])]
+            concepts=[PlanConcept(concept_id="c_plan", name="规划概念")])]
         store.save_state(sid, state)
 
     def test_needs_replan_reads_own_namespace(self):
-        from app.agents.student_model import record_quiz_result
+        # G4：评价统一在 learning-evidence journal。stu_own 的 c_plan 已
+        # supported_in_scope → 计划落后于现实，应触发重规划信号。
         self._seed_plan("stu_own")
         self._seed_plan("stu_other")
-        # stu_own 档案里 c_plan 已掌握（多次正确）→ 计划落后于现实，应触发。
-        for i in range(10):
-            record_quiz_result(concept="c_plan", skill_id="c_plan",
-                               correct=True, student_id="stu_own",
-                               verdict="correct", attempt_id=f"att_idn{i}")
+        self._commit_supported_judgment("stu_own", "c_plan")
         svc = get_orchestration_service()
         self.assertTrue(svc.summary("stu_own")["needs_replan"])
-        # 另一学生无档案 → 不触发；同名概念互不串档（旧缺陷会读游客空档，
-        # 双方都 False，掩盖了 stu_own 的重规划信号）。
+        # 另一学生无 journal → 不触发；同名概念互不串档。
         self.assertFalse(svc.summary("stu_other")["needs_replan"])
+
+    def _commit_supported_judgment(self, sid: str, concept_id: str) -> None:
+        from app.agents.student_model.evaluation import schema as S
+        from app.agents.student_model.evaluation.store import (
+            get_journal, new_source_id)
+        concept = S.ConceptRef(
+            graph_owner_namespace="public", textbook_id="tb_x",
+            file_ids=[], concept_id=concept_id, concept_revision="cr_1",
+            display_name=concept_id)
+        judgment = S.ConceptJudgment(
+            judgment_id="jdg_" + sid + "_" + concept_id,
+            concept_ref=concept, workspace_id="ws_g4",
+            state=S.ConceptEvalState.SUPPORTED_IN_SCOPE,
+            statement="限定条件下已有支持", claims=[],
+            evidence_watermark="gen:1", policy_version=S.POLICY_VERSION,
+            theory_version=S.THEORY_VERSION, prompt_ref="p",
+            created_at=S.utc_now_iso(), source_id="src_" + sid,
+            scope_revision="sr_1")
+        journal = get_journal(sid)
+        src = new_source_id()
+        receipt = S.SourceReceipt(
+            source_id=src, source_revision=1,
+            kind=S.SourceKind.DIALOGUE, observed_at=S.utc_now_iso(),
+            workspace_id_at_observation="", canonical_text="作答正确",
+            scope_revision="sr_1")
+        interp = S.LearnerInterpretation(
+            applicable=True, observation_claims=[], concept_updates=[],
+            feedback="")
+        journal.append([
+            S.OpSourceRegistered(source=receipt),
+            S.OpResultCommitted(
+                job_id="job_" + src[4:], source_id=src, source_revision=1,
+                scope_revision="sr_1",
+                interpretation_id="itp_" + src[4:],
+                interpretation=interp, judgments=[judgment],
+                abstained=False)])
 
 
 if __name__ == "__main__":
@@ -940,12 +972,12 @@ class TestGoalAnalyzer(unittest.TestCase):
                    "difficulty": 3},
                   {"skill_id": "s2", "name": "导数", "subject": "数学",
                    "difficulty": 4}]
-        mastery = {"s1": {"p_known": 0.9, "attempts": 3},
-                   "s2": {"p_known": 0.3, "attempts": 2}}
+        view = {"s1": {"state": "supported_in_scope"},
+                "s2": {"state": "fragile"}}
         gs = goal_analyzer.compute_gap_analysis(
-            state.goals[0], subject_skills=skills, mastery_view=mastery,
+            state.goals[0], subject_skills=skills, evaluation_view=view,
             prereq_map={"s2": ["s1"]})
-        self.assertEqual(gs.mastered_ratio, 0.5)
+        self.assertEqual(gs.supported_ratio, 0.5)
         self.assertEqual(len(gs.gaps), 1)
         self.assertEqual(gs.gaps[0].name, "导数")
         self.assertEqual(gs.gaps[0].status, "weak")
@@ -959,7 +991,7 @@ class TestGoalAnalyzer(unittest.TestCase):
         skills = [{"skill_id": "s1", "name": "极限", "subject": "数学",
                    "difficulty": 3}]
         gs = goal_analyzer.compute_gap_analysis(
-            state.goals[0], subject_skills=skills, mastery_view={})
+            state.goals[0], subject_skills=skills, evaluation_view={})
         self.assertEqual(gs.gaps[0].status, "unknown")
         self.assertIn("s1", gs.required_skills)
 
@@ -994,11 +1026,11 @@ class TestGoalAnalyzer(unittest.TestCase):
 
     def test_level_mapping(self):
         from app.agents.learning_orchestration.schema import GoalAnalysisLevel
-        self.assertEqual(GoalAnalysisLevel.from_mastery_ratio(0.1),
+        self.assertEqual(GoalAnalysisLevel.from_supported_ratio(0.1),
                          GoalAnalysisLevel.NOVICE)
-        self.assertEqual(GoalAnalysisLevel.from_mastery_ratio(0.5),
+        self.assertEqual(GoalAnalysisLevel.from_supported_ratio(0.5),
                          GoalAnalysisLevel.INTERMEDIATE)
-        self.assertEqual(GoalAnalysisLevel.from_mastery_ratio(0.9),
+        self.assertEqual(GoalAnalysisLevel.from_supported_ratio(0.9),
                          GoalAnalysisLevel.PROFICIENT)
 
     def test_backward_plan_topo_order(self):
@@ -1009,7 +1041,7 @@ class TestGoalAnalyzer(unittest.TestCase):
                   {"skill_id": "b", "name": "b", "subject": "数学", "difficulty": 2}]
         prereq = {"a": [], "b": ["a"], "c": ["b"]}
         gs = goal_analyzer.compute_gap_analysis(
-            state.goals[0], subject_skills=skills, mastery_view={},
+            state.goals[0], subject_skills=skills, evaluation_view={},
             prereq_map=prereq)
         # a should come before b before c
         self.assertEqual(gs.required_skills, ["a", "b", "c"])
@@ -1021,12 +1053,12 @@ class TestGoalAnalyzer(unittest.TestCase):
                                   deadline=now + 30 * 86400)]
         skills = [{"skill_id": "s1", "name": "x", "subject": "数学", "difficulty": 3}]
         gs = goal_analyzer.compute_gap_analysis(
-            state.goals[0], subject_skills=skills, mastery_view={}, now=now)
+            state.goals[0], subject_skills=skills, evaluation_view={}, now=now)
         self.assertGreater(gs.urgency, 0.0)
 
     def test_goal_state_roundtrip(self):
         from app.agents.learning_orchestration.schema import GoalState, GapItem
-        gs = GoalState(goal_title="考研", mastered_ratio=0.5,
+        gs = GoalState(goal_title="考研", supported_ratio=0.5,
                        gaps=[GapItem(skill_id="s1", name="极限")])
         d = gs.to_dict()
         gs2 = GoalState.from_dict(d)
@@ -1104,7 +1136,7 @@ class TestGoalGenealogyBinding(unittest.TestCase):
                   {"skill_id": "p.pre", "name": "PRE", "subject": "物理",
                    "difficulty": 2}]
         gs = goal_analyzer.compute_gap_analysis(
-            state.goals[0], subject_skills=skills, mastery_view={},
+            state.goals[0], subject_skills=skills, evaluation_view={},
             prereq_map={"p.t1": ["p.pre"]}, chain_mode="concept_chain")
         self.assertEqual(gs.chain_mode, "concept_chain")
         self.assertEqual(gs.target_concept_ids, ["p.t1"])
@@ -1121,7 +1153,7 @@ class TestGoalGenealogyBinding(unittest.TestCase):
                          "difficulty": 3}]
         with patch.object(svc, "_concept_chain_skills_safe",
                           return_value=chain_skills) as m_chain, \
-             patch.object(svc, "_mastery_view_safe", return_value={}), \
+             patch.object(svc, "_evaluation_view_safe", return_value={}), \
              patch.object(svc, "_prereq_map_safe", return_value={}), \
              patch.object(svc, "_subject_skills_safe",
                           return_value=[{"skill_id": "other",
@@ -1451,7 +1483,7 @@ class TestTodayTasksUniqueness(unittest.TestCase):
         fake_inputs = {
             "next_learnable": [{"name": "积分", "skill_id": "c2",
                                 "difficulty": 4}],
-            "review_candidates": [], "mastery_view": {},
+            "review_candidates": [], "evaluation_view": {},
             "prereq_map": {}}
         with patch.object(LearningOrchestrationService, "_assemble_plan_inputs",
                           return_value=fake_inputs):
@@ -1696,7 +1728,7 @@ class TestRegeneratePlanLLM(unittest.TestCase):
         required = ["a", "b", "c"]
         svc = self._seed_goal_state(required)
         fake_inputs = {"next_learnable": [], "review_candidates": [],
-                       "mastery_view": {}, "prereq_map": {}}
+                       "evaluation_view": {}, "prereq_map": {}}
         with patch("app.core.llm_async.get_llm",
                    return_value=self._mock_llm("")), \
                 patch.object(LearningOrchestrationService,
@@ -1784,19 +1816,18 @@ class TestDailyComposer(unittest.TestCase):
             concept_id="c_srs", concept_name="极限", next_review=now - 100)}
         state.weekly_plan = [WeeklyPlan(
             week_index=0, week_start=now - 3600, focus="基础周",
-            concepts=[PlanConcept(concept_id="c_ms", name="导数",
-                                  planned_mastery=0.75)])]
+            concepts=[PlanConcept(concept_id="c_ms", name="导数")])]
         state.daily_tasks = [DailyTask(
             id=f"2026-07-26_c_old_study", day="2026-07-26", concept_id="c_old",
             concept_name="旧概念", status=DailyTaskStatus.OVERDUE)]
-        mastery = {"c_weak": {"p_known": 0.4, "attempts": 2},
-                   "c_ms": {"p_known": 0.1, "attempts": 0}}
-        return state, mastery, now
+        view = {"c_weak": {"state": "fragile"},
+                "c_ms": {"state": "not_observed"}}
+        return state, view, now
 
     def test_candidate_pool_sources(self):
-        state, mastery, now = self._state_with_signals()
+        state, view, now = self._state_with_signals()
         pool = daily_composer.build_candidate_pool(
-            state, mastery_view=mastery, concept_names={}, now=now)
+            state, evaluation_view=view, concept_names={}, now=now)
         by_id = {e["concept_id"]: e for e in pool}
         self.assertIn("srs_due", by_id["c_srs"]["sources"])
         self.assertIn("current_week", by_id["c_ms"]["sources"])
@@ -2229,7 +2260,7 @@ class TestAPIContracts(unittest.TestCase):
             orchestration_delete_goal)
         svc = get_orchestration_service()
         fake_inputs = {"next_learnable": [], "review_candidates": [],
-                       "mastery_view": {}, "prereq_map": {}}
+                       "evaluation_view": {}, "prereq_map": {}}
         with patch.object(LearningOrchestrationService, "_get_llm",
                           side_effect=RuntimeError("llm down")), \
                 patch.object(LearningOrchestrationService,
@@ -2342,7 +2373,7 @@ class TestRegenerateReasons(unittest.TestCase):
         svc = get_orchestration_service()
         store.save_state("s1", _week_plan_state(week_start=_DAY1 - 3600))
         fake_inputs = {"next_learnable": [], "review_candidates": [],
-                       "mastery_view": {}, "prereq_map": {}}
+                       "evaluation_view": {}, "prereq_map": {}}
         with patch.object(LearningOrchestrationService, "_assemble_plan_inputs",
                           return_value=fake_inputs), \
                 patch.object(LearningOrchestrationService, "_get_llm",
@@ -2362,7 +2393,7 @@ class TestRegenerateReasons(unittest.TestCase):
         fake_inputs = {
             "next_learnable": [{"name": "积分", "skill_id": "c2",
                                 "difficulty": 4}],
-            "review_candidates": [], "mastery_view": {},
+            "review_candidates": [], "evaluation_view": {},
             "prereq_map": {}}
         with patch.object(LearningOrchestrationService, "_assemble_plan_inputs",
                           return_value=fake_inputs), \
@@ -2822,7 +2853,7 @@ class TestComposerPoolExtended(unittest.TestCase):
     def test_subtask_entries_in_pool(self):
         state, now = self._state()
         pool = daily_composer.build_candidate_pool(
-            state, mastery_view={}, concept_names={}, now=now)
+            state, evaluation_view={}, concept_names={}, now=now)
         by_id = {e["concept_id"]: e for e in pool}
         self.assertIn("st_1", by_id)
         e = by_id["st_1"]
@@ -2836,7 +2867,7 @@ class TestComposerPoolExtended(unittest.TestCase):
         from app.agents.learning_orchestration.schema import TaskKind as _TK
         state, now = self._state()
         pool = daily_composer.build_candidate_pool(
-            state, mastery_view={}, concept_names={}, now=now)
+            state, evaluation_view={}, concept_names={}, now=now)
         picks = [{"concept_id": "st_1", "kind": "practice",
                   "phase": "reinforce", "reason": "本周子步骤"},
                  {"concept_id": "c1", "kind": "study",

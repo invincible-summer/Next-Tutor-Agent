@@ -17,9 +17,9 @@ BOUNDARY (must hold):
     significance.
 
 Emitted events:
-  milestone_completed  -- a milestone crossed its target-mastery threshold.
+  milestone_completed  -- a milestone's concepts reached supported_in_scope.
   habit_milestone      -- a study-streak threshold (7/30/100 days) was reached.
-  goal_progress        -- mastered_ratio crossed 25/50/75/90 %.
+  goal_progress        -- supported_ratio crossed 25/50/75/90 %.
   task_batch_completed -- every daily task for the day was completed.
 """
 from __future__ import annotations
@@ -31,7 +31,7 @@ from .schema import (GoalState, OrchestrationLearningEvent,
 
 # streak thresholds that warrant a habit_milestone event (days)
 _STREAK_THRESHOLDS = (3, 7, 14, 30, 60, 100)
-# goal-progress checkpoints (mastered_ratio) that warrant a goal_progress event
+# goal-progress checkpoints (supported_ratio) that warrant a goal_progress event
 _PROGRESS_CHECKPOINTS = (0.25, 0.50, 0.75, 0.90)
 
 # milestone importance by type
@@ -46,7 +46,7 @@ _IMPORTANCE = {
 
 def milestone_completed_event(milestone_title: str, subject: str = "") \
         -> OrchestrationLearningEvent:
-    """Build a milestone_completed event (a milestone reached target mastery)."""
+    """Build a milestone_completed event (milestone concepts supported)."""
     return OrchestrationLearningEvent(
         event_type="milestone_completed",
         summary=f"完成学习里程碑「{milestone_title}」",
@@ -85,7 +85,7 @@ def goal_progress_event(ratio: float, subject: str = "") \
         event_type="goal_progress",
         summary=f"目标进度达到{int(r * 100)}%",
         subject=subject, importance=_IMPORTANCE["goal_progress"],
-        payload={"mastered_ratio": r})
+        payload={"supported_ratio": r})
 
 
 def task_batch_completed_event(day: str, count: int, subject: str = "") \

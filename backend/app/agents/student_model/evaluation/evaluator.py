@@ -214,6 +214,10 @@ async def run_review_job(student_id: str, claimed: ClaimedJob, *,
                    "consumer": "synthesis", "kind": "concept_dirty",
                    "concept_key": key}
                   for key, jid in affected.items()]
+        # G4 §6.6：复核撤销也投递 M9——受影响复习卡需重放日期状态
+        outbox.append({"event_id": f"m9_review_{review.review_id}",
+                       "consumer": "m9", "kind": "review_resolved",
+                       "concept_keys": sorted(affected.keys())})
     ops.append(S.OpReviewResolved(
         review_id=review_id, decision=decision,
         replacement_interpretation_id=replacement_id,

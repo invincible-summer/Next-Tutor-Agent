@@ -23,36 +23,28 @@ from app.identity.deps import resolve_student_id
 router = APIRouter(prefix="/knowledge", tags=["knowledge"])
 
 
-def _mastery_overlay(student_id: str) -> dict[str, dict[str, Any]] | None:
-    """{skill_id: {p_known, state, attempts, correct}} from M2, or None when
-    the student model is disabled (mastery then renders as null)."""
+def _evaluation_overlay(student_id: str, workspace_id: str = ""):
+    """G4（plan §11.6）：统一评价覆盖层。无 workspace 时无个人 overlay；
+    有 workspace 时经 scope 求交后左连接概念视图。GET 零 LLM。"""
+    if not workspace_id:
+        return {}
     try:
-        from app.agents import student_model as _sm
-        if not _sm.is_enabled():
-            return None
-        sm = _sm.get_student_model(student_id)
-        states: dict[str, str] = {}
-        for rec in sm.memory.values():
-            if getattr(rec, "skill_id", ""):
-                states[rec.skill_id] = rec.state.value
-        # union of BKT-tracked skills and memory-state skills: mastery_view()
-        # only covers skills with BKT update events, so memory-only skills
-        # (e.g. seeded by teaching turns) would never get a mastery colour.
-        out: dict[str, dict[str, Any]] = {}
-        for sid, m in sm.mastery_view().items():
-            out[sid] = {
-                "p_known": (m or {}).get("p_known", 0.0),
-                "state": states.get(sid, "unknown"),
-                "attempts": (m or {}).get("attempts", 0),
-                "correct": (m or {}).get("correct", 0),
-            }
-        for sid, state in states.items():
-            if sid not in out:
-                out[sid] = {"p_known": 0.0, "state": state,
-                            "attempts": 0, "correct": 0}
-        return out
+        from app.agents.student_model.evaluation import projections
+        from app.agents.student_model.evaluation.scope import (
+            ScopeNotFound, get_scope_resolver)
+        scope = get_scope_resolver().resolve(student_id, workspace_id)
     except Exception:
-        return None
+        return {}
+    out: dict[str, dict] = {}
+    for view in projections.concept_views(student_id, scope):
+        out[view.concept_ref.concept_id] = {
+            "state": view.state.value if view.state else None,
+            "statement": view.statement[:160],
+            "judgment_id": view.judgment_id,
+            "evaluation_status": view.evaluation_status.value,
+            "updated_at": view.updated_at,
+        }
+    return out
 
 
 @router.get("/graph")
@@ -64,6 +56,7 @@ def knowledge_graph(
     view: str = Query(default="full", pattern="^(full|overview|chapter|search)$"),
     chapter_id: str = Query(default=""),
     q: str = Query(default="", max_length=120),
+    workspace_id: str = Query(default=""),
     student_id: str = Depends(resolve_student_id),
 ) -> dict:
     """The full knowledge graph (seed + learned edges) with per-node mastery
@@ -72,7 +65,7 @@ def knowledge_graph(
     if not _kn.is_enabled():
         return {"status": "disabled"}
     try:
-        overlay = _mastery_overlay(student_id) or {}
+        overlay = _evaluation_overlay(student_id, workspace_id) or {}
         from app.agents.knowledge.custom_graph import CUSTOM_LEVEL, OTHER_LEVEL
         if file_id and not textbook_id:
             raise HTTPException(400, "file_id 必须与 textbook_id 同时提供")
@@ -189,8 +182,7 @@ def knowledge_graph(
             if d.get("level") == CUSTOM_LEVEL:
                 d["level"] = OTHER_LEVEL  # P6：遗留「自定义」图谱归入「其他」组
             m = overlay.get(str(d.get("id") or ""))
-            d["mastery"] = ({"p_known": m["p_known"], "state": m["state"]}
-                            if m else None)
+            d["evaluation"] = m or None
             nodes.append(d)
         nodes.sort(key=lambda d: d["id"])
         edges = [{"from": e.get("source") or e.get("from"),
@@ -259,7 +251,7 @@ def knowledge_concept(
         }
         content, _snippets = _kn.ContentResolver(g.contents).resolve(
             node.id, query_hint=node.name)
-        mastery = (_mastery_overlay(student_id) or {}).get(node.id)
+        evaluation = (_evaluation_overlay(student_id) or {}).get(node.id)
         # teaching log (M3) is keyed by whatever concept string the turn used
         # (often the display name, sometimes the skill id) -- try both.
         teaching: list[dict[str, Any]] = []
@@ -284,7 +276,7 @@ def knowledge_concept(
         concept = node.to_dict()
         concept["content"] = content.to_dict()
         return {"status": "ok", "concept": concept, "edges": edges,
-                "mastery": mastery, "teaching_log": teaching,
+                "evaluation": evaluation, "teaching_log": teaching,
                 "memories": memories}
     except Exception as e:
         return {"status": "error", "message": str(e)}

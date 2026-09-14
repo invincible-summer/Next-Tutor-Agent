@@ -139,7 +139,6 @@ async def decide_teaching(ctx, rules_strategy, *, llm: AsyncLLMClient,
     try:
         prompt = _prompt("teaching_decision").text.format(
             candidates="、".join(candidate_concepts(ctx)) or "（无）",
-            mastery=round(float(getattr(ctx, "mastery", 0.0) or 0.0), 2),
             misconceptions="、".join((getattr(ctx, "misconceptions", None) or [])[:2]) or "无",
             recent_mistakes="、".join((getattr(ctx, "mistakes", None) or [])[:3]) or "无",
             recent_outcome=recent_outcome or "无近期测评",

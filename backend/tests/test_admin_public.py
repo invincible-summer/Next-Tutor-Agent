@@ -272,21 +272,13 @@ class TestGraphIsolation(unittest.TestCase):
             "edges": [], "contents": []})
         self._kn_manager._INSTANCE = None
 
-    def test_graph_structure_and_mastery_isolated(self):
+    def test_graph_structure_and_evaluation_isolated(self):
+        """G4：数值掌握键已删；节点评价统一走 evaluation 覆盖层（无
+        workspace 时不着色，plan §11.6）。可见性隔离语义不变。"""
         from app.core.textbook import PUBLIC_STUDENT_ID
         self._seed_graph(self.user_a.id, "tb-a", "custom.tb-a.c1", "A独有概念")
         self._seed_graph(self.user_b.id, "tb-b", "custom.tb-b.c1", "B独有概念")
         self._seed_graph(PUBLIC_STUDENT_ID, "tb-pub", "custom.tb-pub.c1", "公用概念")
-        # A 的 mastery（公用概念 0.9；B 无记录）
-        (Path(self._tmp.name) / "students").mkdir(exist_ok=True)
-        import json as _json
-        (Path(self._tmp.name) / "students" / f"{self.user_a.id}.json").write_text(
-            _json.dumps({"profile": {}, "mastery": {
-                "custom.tb-pub.c1": {"skill_id": "custom.tb-pub.c1", "p_known": 0.9,
-                                      "attempts": 3, "correct": 3,
-                                      "last_review": 1.0, "mistakes": [],
-                                      "params": {}}}, "memory": {}},
-                ensure_ascii=False), encoding="utf-8")
 
         ga = self.client.get("/api/v1/knowledge/graph", headers=self.ha).json()
         ids_a = {n["id"] for n in ga["nodes"]}
@@ -294,7 +286,8 @@ class TestGraphIsolation(unittest.TestCase):
         self.assertIn("custom.tb-pub.c1", ids_a)    # 公用可见
         self.assertNotIn("custom.tb-b.c1", ids_a)   # 他人不可见
         pub_a = next(n for n in ga["nodes"] if n["id"] == "custom.tb-pub.c1")
-        self.assertIsNotNone(pub_a["mastery"])      # A 有变色
+        self.assertNotIn("mastery", pub_a)          # 旧数值键必须消失
+        self.assertIsNone(pub_a.get("evaluation"))  # 无 workspace 不着色
 
         gb = self.client.get("/api/v1/knowledge/graph", headers=self.hb).json()
         ids_b = {n["id"] for n in gb["nodes"]}
@@ -302,7 +295,8 @@ class TestGraphIsolation(unittest.TestCase):
         self.assertIn("custom.tb-pub.c1", ids_b)
         self.assertNotIn("custom.tb-a.c1", ids_b)
         pub_b = next(n for n in gb["nodes"] if n["id"] == "custom.tb-pub.c1")
-        self.assertIsNone(pub_b["mastery"])         # B 无变色——同一公用图谱，变色各自独立
+        self.assertNotIn("mastery", pub_b)
+        self.assertIsNone(pub_b.get("evaluation"))
 
 
 if __name__ == "__main__":

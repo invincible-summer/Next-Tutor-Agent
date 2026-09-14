@@ -146,9 +146,9 @@ async def generate_question(goal: AssessmentGoal, ctx: AssessmentContext,
     The difficulty comes from the AssessmentContext (which the supervisor
     assembles from teaching_engine's difficulty engine), so the generated
     question lands in the zone of proximal development. The Bloom cognitive
-    level is decided by the generating LLM itself, grounded in the student's
-    cognitive-profile snapshot (student_id -> bloom_profile.context_line);
-    no data / no LLM tag simply leaves the question untagged. Never raises.
+    level is decided by the generating LLM itself (G4：布鲁姆数值档案已删，
+    认知层级由 P1 蓝图约束与 LLM 判定); no LLM tag simply leaves the
+    question untagged. Never raises.
     """
     concept = goal.concept or ctx.concept
     if not concept:
@@ -158,12 +158,6 @@ async def generate_question(goal: AssessmentGoal, ctx: AssessmentContext,
     from ..teaching_engine.stage_profile import is_auto, normalize_grade
     grade = normalize_grade(ctx.grade or "")
     bloom_context = ""
-    if student_id:
-        try:
-            from ...core.bloom_profile import context_line as bloom_ctx
-            bloom_context = bloom_ctx(student_id, concept)
-        except Exception:
-            bloom_context = ""
     # 统一 Quiz Grounding（plan.md §5.3）：ctx grounding -> render ->
     # blueprint -> generation -> critic。检索发生在 API 层 helper，本函数
     # 只读 ctx.grounding_sources。

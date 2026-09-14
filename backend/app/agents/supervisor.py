@@ -52,8 +52,9 @@ def derive_snapshot(session: TutorSession) -> StudentSnapshot:
 
     V2 base (always): grade / materials / quiz count / topic hint from V1
     signals. V3 extension (when the Student Model module is enabled): fuse in
-    goals / weak_skills / strong_skills / mastery_map / learning_style /
-    recent_mistakes / unfinished_prereqs from the Student Model. The Student
+    goals / learning_style / recent_weak_points (quiz wrong/partial in this
+    session) / topic hint. G4：数值能力字段已删，评价语义经
+    understanding.evaluation_context 注入。The Student
     Model path is fully guarded -- any failure leaves the V2 base untouched.
     """
     # Merge workspace shared files so the snapshot (and thus the planner)
@@ -104,12 +105,7 @@ def derive_snapshot(session: TutorSession) -> StudentSnapshot:
                 recent_quiz_count=snap.recent_quiz_count,
             )
             snap.goals = sm_snap.get("goals", [])
-            snap.weak_skills = sm_snap.get("weak_skills", [])
-            snap.strong_skills = sm_snap.get("strong_skills", [])
-            snap.mastery_map = sm_snap.get("mastery_map", {})
             snap.learning_style = sm_snap.get("learning_style", {})
-            snap.recent_mistakes = sm_snap.get("recent_mistakes", [])
-            snap.unfinished_prereqs = sm_snap.get("unfinished_prereqs", [])
     except Exception:
         pass
     return snap
@@ -133,23 +129,8 @@ def _plan_learning_path(understanding, session, trace) -> str:
         _sid = getattr(session, 'student_id', '') or DEFAULT_STUDENT_ID
         sm = get_student_model(_sid)
         subject = understanding.subject or ""
-        mview = sm.mastery_view()
-        # next learnable from the graph (prereqs met, not yet mastered)
-        nxt: list[dict] = []
-        try:
-            for n in sm.graph.next_learnable(subject or None, mview, limit=4):
-                nxt.append({"name": n.name, "skill_id": n.id, "difficulty": n.difficulty})
-        except Exception:
-            pass
-        # review candidates: seen concepts with middling mastery
+        nxt: list[dict] = []     # G4：掌握度候选已删（路径非个性化）
         revs: list[dict] = []
-        for sid, m in sm.mastery.records.items():
-            if m.attempts > 0 and 0.3 <= m.p_known < 0.8:
-                node = sm.graph.get(sid)
-                revs.append({"name": node.name if node else sid,
-                             "skill_id": sid, "mastery": m.p_known,
-                             "last_review": m.last_review,
-                             "difficulty": node.difficulty if node else 3})
         lp = get_teaching_manager().plan_curriculum(
             current_name=understanding.concept or subject or "",
             current_skill_id="", next_learnable=nxt, review_candidates=revs)
@@ -216,6 +197,23 @@ class _GatedSearchStore:
             return []
 
 
+def _journal_evaluation_view(student_id: str) -> dict | None:
+    """G4：journal 统一评价投影 {concept_id: {"state": ...}}；失败 None。"""
+    try:
+        from .student_model.evaluation.store import get_journal
+        state = get_journal(student_id).state()
+        out = {}
+        for (_ws, _k), jid in state.concept_current.items():
+            j = state.judgments.get(jid)
+            if j is None:
+                continue
+            out[j.concept_ref.concept_id] = {
+                "state": j.state.value if hasattr(j.state, "value") else str(j.state)}
+        return out or None
+    except Exception:
+        return None
+
+
 async def _knowledge_directive_for_turn(understanding, session, trace) -> str:
     """M5: build the [知识智能·...] soft-directive block for this turn's concept.
 
@@ -234,15 +232,10 @@ async def _knowledge_directive_for_turn(understanding, session, trace) -> str:
                            and understanding.intent.value == "chitchat"):
             return ""
         ks = get_knowledge_service()
-        # mastery view from the Student Model (plain {id: p_known}); guarded so
-        # M5 still works (graph-only) when the Student Model is disabled.
-        mastery_view = None
-        try:
-            from .student_model import get_student_model, is_enabled as sm_enabled
-            if sm_enabled():
-                mastery_view = get_student_model().mastery_view()
-        except Exception:
-            mastery_view = None
+        # G4：M5 前置补缺读统一评价投影（fragile/conflicting/emerging 的
+        # 前置才提示补缺；未观察 ≠ 未掌握）。读失败则 None（图-only 降级）。
+        evaluation_view = _journal_evaluation_view(
+            getattr(session, "student_id", ""))
         # duck-typed material store for content grounding. Prefer hybrid
         # retrieval (BM25 + vector RRF) over the scoped session/workspace
         # stores when the embedding track is configured; otherwise reuse the
@@ -275,7 +268,8 @@ async def _knowledge_directive_for_turn(understanding, session, trace) -> str:
                 store = _GatedSearchStore(merged_knowledge_store(session))
             except Exception:
                 store = None
-        directive = ks.build_directive(concept=concept, mastery_view=mastery_view,
+        directive = ks.build_directive(concept=concept,
+                                        evaluation_view=evaluation_view,
                                         knowledge_store=store, grade=session.grade,
                                         student_id=(getattr(session, "student_id", "") or ""))
         if directive:
@@ -395,7 +389,9 @@ async def _adapt_for_turn(understanding, snapshot, session, trace, llm=None):
                                             session.grade, understanding,
                                             trace, sid=_sid, llm=llm)
         else:
-            strat = sm.adapt(concept, subject, intent=intent, grade=session.grade)
+            from .teaching_engine.state import TeachingStrategy
+            strat = TeachingStrategy(target_concept=concept,
+                                     rationale="适配降级")
 
         lines = _render_strategy(strat, concept, subject)
         trace.log("supervisor_adaptation",
@@ -556,75 +552,32 @@ def _enrich_plan_with_strategy_check(plan: TaskPlan, strategy: Any,
     return enriched
 
 
-async def _adapt_via_engine(sm, concept, subject, intent, grade, understanding, trace,
-                            sid: str, llm=None):
-    """M3 path: assemble a TeachingContext from live student state + the
-    cross-turn teaching_log, then let the TeachingEngine pick a mode.
-
-    PURE-READ over student_model: we only call graph/mastery/memory getters,
-    never mutators. The context is a flat plain-data projection so the engine
-    itself stays import-clean (teaching_engine never imports student_model).
-    """
+async def _adapt_via_engine(sm, concept, subject, intent, grade,
+                            understanding, trace, sid: str, llm=None):
+    """G4（plan §13.3）：TeachingContext 不携带掌握度；评价上下文经
+    understanding.evaluation_context 只读注入。"""
     from .teaching_engine import (TeachingContext, get_teaching_manager,
                                   is_enabled as te_enabled,
                                   previous_mode_for)
     if not te_enabled():
-        return sm.adapt(concept, subject, intent=intent, grade=grade)
-    target = sm.graph.match_concept(concept) if concept else None
-    mastery_view = sm.mastery_view()
-    mastery_p = 0.0
-    unmet_nodes = []
-    unmet_names: list[str] = []
-    if target is not None:
-        mrec = sm.mastery.get(target.id)
-        mastery_p = mrec.p_known if mrec else 0.0
-        try:
-            unmet_nodes = sm.graph.unmet_prerequisites(target.id, mastery_view)
-            unmet_nodes.sort(key=lambda n: float((mastery_view.get(n.id) or {}).get("p_known", 0)))
-            unmet_names = [n.name for n in unmet_nodes[:3]]
-        except Exception:
-            unmet_nodes, unmet_names = [], []
-    misconceptions: list[str] = []
-    mistake_types: list[str] = []
-    mistakes: list[str] = []
-    rec = sm.memory.get(target.id) if target else None
-    if rec:
-        misconceptions = list(rec.misconceptions[-2:])
-        mistake_types = list(getattr(rec, "mistake_types", [])[-2:])
-    mrec = sm.mastery.get(target.id) if target else None
-    if mrec:
-        mistakes = list(mrec.mistakes[-3:])
-    concept_key = target.id if target else (concept or "")
+        from .teaching_engine.state import TeachingStrategy
+        return TeachingStrategy(target_concept=concept, rationale="适配降级")
+    concept_key = concept or ""
     prev_mode, prev_outcome, turns = previous_mode_for(sid, concept_key)
     ctx = TeachingContext(
         concept=concept, subject=subject, task_type=intent, grade=grade,
-        mastery=mastery_p,
-        unmet_prereqs=unmet_nodes, unmet_prereq_names=unmet_names,
-        mistakes=mistakes, misconceptions=misconceptions,
-        mistake_types=mistake_types,
         learning_style=sm.profile.learning_style.to_dict(),
         concept_key=concept_key,
         previous_mode=prev_mode, previous_outcome=prev_outcome,
         turns_on_concept=turns,
-    )
-    trace.log("teaching_engine_context",
-              concept=ctx.concept, mastery=round(ctx.mastery, 3),
+        evaluation_context=getattr(understanding, "evaluation_context",
+                                   None) or {})
+    trace.log("teaching_engine_context", concept=ctx.concept,
               previous_mode=ctx.previous_mode,
-              previous_outcome=ctx.previous_outcome.value,
-              turns_on_concept=ctx.turns_on_concept,
-              unmet_prereq_names=ctx.unmet_prereq_names)
+              turns_on_concept=ctx.turns_on_concept)
     strat = get_teaching_manager().adapt(ctx, student_id=sid)
-    # Close the teaching_log read/write key loop: the engine is import-clean
-    # from student_model, so it cannot name the graph node itself. Without
-    # this the record_turn site falls back to the raw concept string while
-    # reads use the node id — the log fragmented ("切线放缩" vs
-    # "math.geometry_advanced.tangent") and previous_mode/difficulty history
-    # was never found.
-    try:
-        if target is not None and getattr(strat, "target_skill_id", "") == "":
-            strat.target_skill_id = target.id
-    except Exception:
-        pass
+    if getattr(strat, "target_skill_id", "") == "":
+        strat.target_skill_id = concept_key
     # P4: 情绪弱信号进难度——学生最近明确说过「太难了/看不懂」（M8 规则分类
     # 的显式反馈）时，把收尾检测难度降一档。这是 supervisor 合成层的输入
     # 叠加（不是 M8 改教学计划，M3/M8 边界不动）；学业信号（quiz verdict
@@ -741,52 +694,6 @@ def _render_strategy(strat, concept, subject) -> list[str]:
 
 
 
-def _collect_turn_events(understanding, user_message, final_answer, trace):
-    """V3: derive LearningEvents for this turn (rule-based, no LLM).
-
-    A teaching turn that produced a real answer records CONCEPT_TAUGHT for the
-    understood concept; a user message containing a goal phrase records GOAL_SET.
-    Returns a list of LearningEvents (possibly empty). Never raises.
-    """
-    events = []
-    try:
-        from .student_model import EventCollector
-        col = EventCollector()
-        if final_answer and understanding.intent and understanding.intent.value not in ("chitchat",):
-            concept = understanding.concept or ""
-            if concept:
-                col.concept_taught(concept, subject=understanding.subject or "",
-                                   brief=user_message[:40])
-        # goal detection: cheap keyword scan (the LLM understanding may also flag this)
-        msg = user_message or ""
-        goal_markers = ("高考", "考研", "期末", "期中", "想考", "目标", "想拿", "想上", "准备")
-        if any(k in msg for k in goal_markers) and len(msg) <= 60:
-            col.goal(msg[:50], subject=understanding.subject or "")
-        events = col.drain()
-        if events:
-            trace.log("supervisor_events_collected",
-                      count=len(events), types=[e.type.value for e in events])
-    except Exception as e:
-        trace.log("supervisor_events_error", message=str(e))
-    return events
-
-
-def _read_mastery_for(understanding, session, student_id: str = "") -> float | None:
-    try:
-        from .student_model import get_student_model, is_enabled as sm_enabled
-        if not sm_enabled():
-            return None
-        sm = get_student_model()
-        concept = understanding.concept or ""
-        if not concept:
-            return None
-        node = sm.graph.match_concept(concept) if concept else None
-        if node is None:
-            return None
-        rec = sm.mastery.get(node.id)
-        return rec.p_known if rec else None
-    except Exception:
-        return None
 
 
 def _evaluation_directive_for_turn(understanding, session, trace) -> str:
@@ -811,7 +718,7 @@ def _evaluation_directive_for_turn(understanding, session, trace) -> str:
         return ""
 
 
-def _evaluation_record_turn(student_id, understanding, user_message, session, strategy, final_tool_calls, final_answer, before_mastery, trace) -> None:
+def _evaluation_record_turn(student_id, understanding, user_message, session, strategy, final_tool_calls, final_answer, trace) -> None:
     try:
         from .evaluation import get_evaluation_service, is_enabled as ev_enabled
         if not ev_enabled():
@@ -834,10 +741,9 @@ def _evaluation_record_turn(student_id, understanding, user_message, session, st
                     v = str(res.get("verdict")).lower()
                     outcome = ("correct" if "correct" in v or v == "\u5bf9" else "wrong" if "wrong" in v or v == "\u9519" else "partial")
                     break
-        after_mastery = _read_mastery_for(understanding, session, student_id)
-        stats = es.evaluate_turn(student_id=student_id, session_id=session.session_id, concept=concept, subject=subject, intent=intent, grade=session.grade, mode=mode, outcome=outcome, tool_calls=[tc.get("name") for tc in final_tool_calls], steps=len(final_tool_calls), tokens_used=0, before_mastery=before_mastery, after_mastery=after_mastery, n_questions=n_questions, had_assessment=had_assessment)
+        stats = es.evaluate_turn(student_id=student_id, session_id=session.session_id, concept=concept, subject=subject, intent=intent, grade=session.grade, mode=mode, outcome=outcome, tool_calls=[tc.get("name") for tc in final_tool_calls], steps=len(final_tool_calls), tokens_used=0, n_questions=n_questions, had_assessment=had_assessment)
         if stats is not None:
-            trace.log("evaluation_record", concept=concept, mode=mode, outcome=outcome, failure_type=stats.failure_type, learning_gain=stats.learning_gain)
+            trace.log("evaluation_record", concept=concept, mode=mode, outcome=outcome, failure_type=stats.failure_type)
     except Exception as e:
         trace.log("evaluation_record_error", message=str(e))
 
@@ -1446,12 +1352,6 @@ async def run(
     # when the Skill runtime is off or a planner proposed extra assessment.
     plan = _apply_response_constraints_to_plan(plan, understanding, trace)
 
-    # Capture the student's mastery BEFORE the turn executes, so M7 can compute
-    # learning gain (after - before) at step 6e. Read-only; None when the
-    # Student Model is off or the concept is unknown.
-   # M0: use the resolved student id for mastery reads
-    before_mastery = _read_mastery_for(understanding, session, sid)
-
     # --- 3c. Phase 3: learning-path planning (intent=plan only) ---
     if understanding.intent and understanding.intent.value == "plan":
         curriculum_recap = _plan_learning_path(understanding, session, trace)
@@ -1661,17 +1561,7 @@ async def run(
     safe_user_message = memory_safe_text(user_message)
     safe_final_answer = memory_safe_text(final_answer)
 
-    # --- 6b. V3: record learning events (student intelligence update) ---
-    evs: list = []
-    try:
-        from .student_model import get_student_model, is_enabled
-        if is_enabled():
-            evs = _collect_turn_events(understanding, safe_user_message,
-                                       safe_final_answer, trace)
-            if evs:
-                get_student_model(sid).record_events(evs)
-    except Exception as e:
-        trace.log("supervisor_events_record_error", message=str(e))
+    # G4：M2 学生事件链已删除（评价经 journal 受理；教学日志在 6c）。
 
     # --- 6c. M3: record teaching_log turn (cross-turn strategy memory) ---
     # Closes the loop for the teaching engine: persists (mode, outcome) so the
@@ -1738,6 +1628,7 @@ async def run(
     # Appends episodic memories immediately (zero LLM), folds procedural
     # strategy outcomes. Consumes the SAME events list as 6b (no recompute).
     # The periodic LLM consolidation runs separately (frequency-gated).
+    evs: list = []      # G4：学生事件链已删；M6 只收作答事件（compat 空）
     try:
         _memory_consolidate_turn(
             sid, session.session_id, session.workspace_id,
@@ -1755,7 +1646,7 @@ async def run(
     try:
         _evaluation_record_turn(
             sid, understanding, safe_user_message, session,
-            strategy, final_tool_calls, safe_final_answer, before_mastery, trace)
+            strategy, final_tool_calls, safe_final_answer, trace)
     except Exception as e:
         trace.log("evaluation_hook_error", message=str(e))
     # periodic LLM advisory (async, frequency-gated). Runs after the trace

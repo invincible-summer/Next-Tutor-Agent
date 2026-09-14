@@ -1,14 +1,14 @@
 """KnowledgeContextBuilder: assemble the knowledge view one teaching turn uses.
 
 This composes the outputs of the graph + retriever + content resolver + the
-student's mastery into a single KnowledgeContext, then renders it as a
-[知识智能·...] soft-directive block the Supervisor injects into the LLM context
-(alongside the existing [学生智能·...] / [教学策略] blocks).
+student's unified evaluation into a single KnowledgeContext, then renders it
+as a [知识智能·...] soft-directive block the Supervisor injects into the LLM
+context (alongside the existing [学生智能·...] / [教学策略] blocks).
 
 It is the ONLY place that decides what knowledge hints a turn sees, which keeps
 the coupling surface to exactly one guarded call from the Supervisor. It stays
-import-clean: mastery arrives as plain {id: p_known} dicts and materials as
-plain snippet dicts -- it never imports student_model.
+import-clean: evaluation arrives as plain {concept_id: {"state": ...}} dicts
+and materials as plain snippet dicts -- it never imports student_model.
 
 Rendering rules (each line is advisory; the LLM stays in charge):
   - [知识智能·概念定位]      which concept + confidence
@@ -31,7 +31,7 @@ _EMIT_THRESHOLD = 0.25
 
 
 def build_knowledge_context(*, concept: str, graph, retriever=None,
-                            mastery_view: dict[str, Any] | None = None,
+                            evaluation_view: Any | None = None,
                             knowledge_store: Any | None = None,
                             grade: str = "") -> KnowledgeContext:
     """Assemble a KnowledgeContext for one concept (plain-data in/out).
@@ -48,10 +48,11 @@ def build_knowledge_context(*, concept: str, graph, retriever=None,
             return ctx
         ctx.node_id = node.id
         ctx.confidence = _confidence(retriever, concept) or 0.9
-        # prerequisite chain (root-first) + unmet prereqs vs mastery
+        # prerequisite chain (root-first) + 待解决 prereqs vs 统一评价
         chain_ids = graph.prerequisites_of(node.id)
         ctx.prerequisite_chain = [_name(graph, i) for i in chain_ids]
-        ctx.missing_prereqs = _missing_prereqs(graph, chain_ids, mastery_view)
+        ctx.missing_prereqs = _missing_prereqs(graph, chain_ids,
+                                               evaluation_view)
         # common errors: node-level + MISCONCEPTION-edge targets
         errs = list(node.common_errors)
         for e in graph.edges_of(node.id, edge_type=EdgeType.MISCONCEPTION):
@@ -129,27 +130,23 @@ def _name(graph, node_id: str) -> str:
 
 
 def _missing_prereqs(graph, chain_ids: list[str],
-                     mastery_view: dict[str, Any] | None) -> list[str]:
-    """Prereqs KNOWN to be weak: tracked (has a mastery record) and p<0.6.
-
-    Nodes with NO mastery record are excluded — after M5.6 the graph holds
-    ~1500 seed-pack concepts while BKT only tracks a subset, so treating
-    "untracked" as "unmastered" would flag false missing-prereqs on every
-    turn. Untracked nodes still appear in the [前置链] line (informative, no
-    false claim); per-node tracking for pack concepts arrives with the M5.8
-    bridge wiring.
+                     evaluation_view: dict[str, Any] | None) -> list[str]:
+    """G4：前置「待补」= 统一评价判定为待解决的概念（fragile/conflicting/
+    emerging）。未观察/无记录不在此列（unknown ≠ unmastered，§6.6），它们
+    仍出现在 [前置链] 行（告知性，不虚报）；supported_in_scope 视为具备。
     """
     if not chain_ids:
         return []
-    mv = mastery_view or {}
-    out: list[tuple[float, str]] = []
+    ev = evaluation_view or {}
+    order = {"fragile": 0, "conflicting": 0, "emerging": 1}
+    out: list[tuple[int, str]] = []
     for nid in chain_ids:
-        rec = mv.get(nid)
-        if not isinstance(rec, dict) or "p_known" not in rec:
-            continue  # untracked -> unknown, not "missing"
-        p = float(rec.get("p_known", 0))
-        if p < 0.6:
-            out.append((p, _name(graph, nid)))
+        rec = ev.get(nid)
+        if not isinstance(rec, dict):
+            continue  # 未观察 -> 不宣称缺失
+        st = str(rec.get("state", ""))
+        if st in order:
+            out.append((order[st], _name(graph, nid)))
     out.sort(key=lambda x: x[0])
     return [name for _, name in out[:3]]
 

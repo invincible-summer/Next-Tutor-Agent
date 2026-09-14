@@ -207,59 +207,45 @@ class TestGraphForConcurrency(StorageSandboxTestCase):
         self.assertEqual(dp.call_count, 1)
 
 
-class TestSkillGraphTraversalCache(unittest.TestCase):
-    """P2: SkillGraph memoizes ancestors + reverse adjacency; the M5 merge
-    must invalidate them (it inserts nodes with new prerequisite edges)."""
-
-    def test_caches_and_invalidation(self):
-        from app.agents.student_model.skill_graph import SkillGraph
-        g = SkillGraph(extra_nodes=[
-            {"id": "t.a", "name": "A", "subject": "s", "difficulty": 1,
-             "prerequisites": [], "aliases": []},
-            {"id": "t.b", "name": "B", "subject": "s", "difficulty": 2,
-             "prerequisites": ["t.a"], "aliases": []},
-            {"id": "t.c", "name": "C", "subject": "s", "difficulty": 3,
-             "prerequisites": ["t.b"], "aliases": []},
-        ])
-        self.assertEqual(g.prerequisites_of("t.c"), ["t.b", "t.a"])
-        self.assertEqual(g.descendants_of("t.a"), ["t.b", "t.c"])
-        # second call served from cache returns equal results
-        self.assertEqual(g.prerequisites_of("t.c"), g.prerequisites_of("t.c"))
-        # merge adds a new chain: caches must be dropped or the new edges
-        # would be invisible
-        g.nodes["t.d"] = type(list(g.nodes.values())[0])(
-            id="t.d", name="D", subject="s",
-            prerequisites=["t.c"], difficulty=4, aliases=[])
-        g.invalidate_traversal_cache()
-        self.assertIn("t.d", g.descendants_of("t.a"))
-        self.assertEqual(g.prerequisites_of("t.d"), ["t.c", "t.b", "t.a"])
+# G4：student_model.skill_graph 已删（M5 合并图谱为唯一图源）；其缓存
+# 契约由上方 KnowledgeService/graph_for 的合并缓存测试覆盖。
 
 
-class TestMasteryViewNamespace(StorageSandboxTestCase):
-    """M9's read-side helpers must key the student model by the caller's
-    student_id (they used the guest namespace unconditionally)."""
+class TestEvaluationViewNamespace(StorageSandboxTestCase):
+    """M9 的读侧助手必须按调用者的 student_id 键控 journal / 图谱命名
+    空间（旧缺陷：无条件回退游客命名空间）。"""
 
-    def test_mastery_view_uses_caller_namespace(self):
+    def test_evaluation_view_uses_caller_namespace(self):
+        """G4：M9 读侧（评价投影 journal 键控 + M5 graph_for）必须用调用者
+        的 student_id，不得静默回退游客命名空间。"""
         from app.agents.learning_orchestration.manager import (
             get_orchestration_service)
-        from app.agents import student_model as sm_pkg
-        from app.agents.student_model import manager as sm_manager
+        from app.agents.knowledge.manager import KnowledgeService
+        from app.agents.student_model.evaluation import store as ev_store
 
         svc = get_orchestration_service()
-        seen: list[str] = []
-        real = sm_manager.get_student_model
+        seen_journal: list[str] = []
+        seen_graph: list[str] = []
+        real_journal = ev_store.get_journal
 
-        def spy(student_id=sm_manager.DEFAULT_STUDENT_ID):
-            seen.append(student_id)
-            return real(student_id)
+        def spy_journal(sid):
+            seen_journal.append(sid)
+            return real_journal(sid)
 
-        with mock.patch.object(sm_pkg, "get_student_model", spy):
-            svc._mastery_view_safe("usr_namespace_probe")
+        real_graph = KnowledgeService.graph_for
+
+        def spy_graph(self, student_id=""):
+            seen_graph.append(student_id)
+            return real_graph(self, student_id)
+
+        with mock.patch.object(ev_store, "get_journal", spy_journal), \
+                mock.patch.object(KnowledgeService, "graph_for", spy_graph):
+            svc._evaluation_view_safe("usr_namespace_probe")
             svc._concept_names_safe("数学", student_id="usr_namespace_probe2")
             svc._prereq_map_safe("usr_namespace_probe3")
+        self.assertEqual(seen_journal, ["usr_namespace_probe"])
         self.assertEqual(
-            seen, ["usr_namespace_probe", "usr_namespace_probe2",
-                   "usr_namespace_probe3"])
+            seen_graph, ["usr_namespace_probe2", "usr_namespace_probe3"])
 
 
 if __name__ == "__main__":

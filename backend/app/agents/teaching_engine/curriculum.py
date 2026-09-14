@@ -21,11 +21,9 @@ import time
 from dataclasses import dataclass, field
 from typing import Any
 
-from .state import BAND_NOVICE, BAND_PROGRESSING, BAND_STRONG
 
 # spaced-repetition: a skill at middling mastery is worth reviewing once it has
 # not been touched for this many seconds. ~3 days; tunable.
-_REVIEW_STALE_SECONDS = 3 * 24 * 3600
 _MAX_NEXT = 4
 _MAX_REVIEW = 4
 
@@ -89,25 +87,26 @@ def build_learning_path(
                 name=str(n.get("name", "")), skill_id=str(n.get("skill_id", "")),
                 difficulty=int(n.get("difficulty", 3)),
                 reason="前置已满足，按难度排序"))
-        # review: middling mastery (between novice and strong) AND stale, or
-        # explicitly flagged. Sort by staleness (oldest review first).
+        # G4：复习候选由调用方按统一评价预筛（state=fragile/conflicting/
+        # emerging，或显式 flagged）；这里只按最旧观察优先排序并渲染理由，
+        # 不再按数值掌握度重新判定。
+        _zh = {"fragile": "有明确待解决点", "conflicting": "证据尚待核对",
+               "emerging": "已有局部证据"}
         revs: list[tuple[float, dict[str, Any]]] = []
         for r in (review_candidates or []):
-            mastery = float(r.get("mastery", 0.0))
-            last = float(r.get("last_review", 0.0))
-            is_middling = BAND_NOVICE <= mastery < BAND_STRONG
-            is_stale = (now - last) >= _REVIEW_STALE_SECONDS if last > 0 else False
+            state = str(r.get("state") or "")
             flagged = bool(r.get("flagged"))
-            if (is_middling and is_stale) or flagged:
-                # sort key: oldest review first (most overdue)
-                revs.append((last if last > 0 else 0.0, r))
+            if not (state or flagged):
+                continue
+            # sort key: oldest observation first (most overdue)
+            revs.append((float(r.get("last_review", 0.0) or 0.0), r))
         revs.sort(key=lambda kv: kv[0])
         for _, r in revs[:_MAX_REVIEW]:
-            stale_days = int((now - float(r.get("last_review", 0.0))) / 86400) \
-                if r.get("last_review") else 0
-            reason = (f"掌握度{float(r.get('mastery',0)):.2f}，"
-                      f"{stale_days}天未复习" if stale_days
-                      else f"掌握度{float(r.get('mastery',0)):.2f}，建议巩固")
+            stale_days = int((now - float(r.get("last_review", 0.0) or 0.0)) / 86400)                 if r.get("last_review") else 0
+            state = str(r.get("state") or "")
+            label = _zh.get(state, "值得巩固")
+            reason = (f"{label}，{stale_days}天未复习" if stale_days
+                      else f"{label}，建议巩固")
             path.review_nodes.append(PathNode(
                 name=str(r.get("name", "")), skill_id=str(r.get("skill_id", "")),
                 difficulty=int(r.get("difficulty", 3)), reason=reason))

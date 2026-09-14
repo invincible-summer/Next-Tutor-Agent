@@ -37,15 +37,10 @@ _ACCURACY_UP = 0.8
 _ACCURACY_DOWN = 0.4
 
 
-def seed_from_mastery(mastery: float) -> int:
-    """Map a mastery score onto the 1..5 seed (used when no history yet)."""
-    if mastery < BAND_NOVICE:
-        return 1
-    if mastery < BAND_PROGRESSING:
-        return 2
-    if mastery < BAND_STRONG:
-        return 3
-    return 4
+def neutral_seed() -> int:
+    """G4 中性起点：难度只是任务控制旋钮，不再从数值掌握播种（恒 2）。"""
+    return 2
+
 
 
 def _assessed_outcomes(recent: list[Any]) -> list[str]:
@@ -66,7 +61,7 @@ def compute_difficulty(mastery: float, recent_outcomes: list[Any]) -> int:
     `recent_outcomes` is the list of recent TeachingLogEntry (or raw outcome
     strings) for this concept, oldest-first. Assessed outcomes only count.
     """
-    base = seed_from_mastery(mastery)
+    base = 2
     assessed = _assessed_outcomes(recent_outcomes)[-_WINDOW:]
     if not assessed:
         return base

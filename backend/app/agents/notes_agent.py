@@ -177,19 +177,43 @@ def collect_workspace_block(student_id: str, workspace_id: str) -> str | None:
 
 
 def collect_error_notebook_block(student_id: str) -> str:
-    from ..core.error_notebook import collect_error_notebook
-    items = collect_error_notebook(student_id, limit=_ERROR_NOTEBOOK_LIMIT)
+    """G4：错题本改为 journal 投影（kind=assessment 且 verdict=wrong/partial）。"""
+    try:
+        from ..agents.student_model.evaluation.store import get_journal
+        state = get_journal(student_id).state()
+        items = []
+        for src_state in state.sources.values():
+            if src_state.availability != "available":
+                continue
+            meta = src_state.interpretations.get(
+                src_state.current_interpretation_id, {})
+            tr = meta.get("task_result") or {}
+            if tr.get("verdict") in ("wrong", "partial"):
+                task = None
+                ref = src_state.receipt.task_ref
+                if ref is not None:
+                    task = state.tasks.get(ref.question_id, {}).get(
+                        ref.question_revision)
+                items.append({
+                    "topic": task.task_family if task else "",
+                    "knowledge_point": task.source_badge if task else "",
+                    "stem": task.stem[:300] if task else "",
+                    "verdict": tr.get("verdict"),
+                    "ts": src_state.receipt.observed_at,
+                })
+        items.sort(key=lambda i: i["ts"], reverse=True)
+        items = items[:20]
+    except Exception:
+        return ""
     if not items:
         return ""
-    lines = ["<material_excerpt type=\"error_notebook\">"]
+    lines = ['<material_excerpt type="error_notebook">']
     for it in items:
-        lines.append(
-            f"- [{it.get('verdict') or '错'}] {it.get('knowledge_point') or ''}："
-            f"{str(it.get('stem') or '')[:150]}"
-            f"（学生作答：{str(it.get('student_answer') or '')[:60]}；"
-            f"正确答案：{str(it.get('correct_answer') or '')[:80]}）")
+        point = it.get("knowledge_point") or it.get("topic")
+        lines.append("- [{}] {}: {}".format(
+            it.get("verdict"), point, it.get("stem", "")))
     lines.append("</material_excerpt>")
-    return _clip("\n".join(lines), _SESSION_CHAR_BUDGET)
+    return "\n".join(lines)
 
 
 def assemble_sources(student_id: str, *,
@@ -229,8 +253,7 @@ def assemble_sources(student_id: str, *,
 # --- 检索语料（三形态来源 → RAG） ------------------------------------------------
 
 
-def _resolve_source_mode(sources: dict[str, Any]) -> str:
-    """来源三形态；缺省时按旧字段推断（老客户端兼容）。"""
+def _resolve_source_mode(sources: dict | None) -> str:
     mode = str((sources or {}).get("source_mode") or "").strip().lower()
     if mode in ("sessions", "workspace", "textbooks"):
         return mode

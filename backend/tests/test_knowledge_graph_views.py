@@ -23,7 +23,7 @@ class TestKnowledgeGraphViews(unittest.TestCase):
                         patch.object(kg_store, "_KG_DIR", root / "knowledge"),
                         patch.object(kg_store, "_CUSTOM_DIR", root / "knowledge" / "custom"),
                         patch.object(api._kn, "is_enabled", return_value=True),
-                        patch.object(api, "_mastery_overlay", return_value={})]
+                        patch.object(api, "_evaluation_overlay", return_value={})]
         for item in self.patches: item.start()
         self.group = tb_store.create_group("s", file_ids=["f1", "f2"], title="大学物理", subject="物理", level="本科")
         topic = self.group["topic_key"]

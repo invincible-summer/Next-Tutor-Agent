@@ -29,7 +29,6 @@ def patch_all_storage_roots(root: Path) -> list:
     调用方负责在 tearDown 里逆序 stop。同时重置 vector_store 与
     StudentModel 缓存——它们持有旧路径，不重置会把沙箱写穿到生产目录。
     """
-    from app.agents.assessment import session_store as assess_store
     from app.agents.evaluation import store as eval_store
     from app.agents.knowledge import store as graph_store
     from app.agents.learning_orchestration import store as orch_store
@@ -40,8 +39,8 @@ def patch_all_storage_roots(root: Path) -> list:
     from app.agents.student_model.evaluation import store as eval_journal_store
     from app.agents.teaching_engine import guidance_store, teaching_log
     from app.agents.ux_intelligence import store as ux_store
-    from app.core import context, learning_episodes, learning_records, library, notes
-    from app.core import quiz_recent, session, textbook, trash, usage_docs, workspace
+    from app.core import context, learning_episodes, library, notes
+    from app.core import session, textbook, trash, usage_docs, workspace
     from app.core import vector_store
     from app.core.config import settings
     patches = [
@@ -63,17 +62,14 @@ def patch_all_storage_roots(root: Path) -> list:
         patch.object(prompt_memory, "_POLICY_PATH",
                      root / "students" / "prompt_memory_policy.json"),
         patch.object(memory_store, "_STUDENTS_DIR", root / "students"),
-        patch.object(learning_records, "_STUDENTS_DIR", root / "students"),
         patch.object(learning_episodes, "_STUDENTS_DIR", root / "students"),
-        patch.object(quiz_recent, "_STUDENTS_DIR", root / "students"),
         patch.object(sm_store, "_STUDENTS_DIR", root / "students"),
         patch.object(teaching_log, "_STUDENTS_DIR", root / "students"),
         patch.object(guidance_store, "_STUDENTS_DIR", root / "students"),
         patch.object(eval_store, "_STUDENTS_DIR", root / "students"),
         patch.object(eval_journal_store, "STUDENTS_DIR", root / "students"),
-        patch.object(ux_store, "_STUDENTS_DIR", root / "students"),
         patch.object(orch_store, "_STUDENTS_DIR", root / "students"),
-        patch.object(assess_store, "_STUDENTS_DIR", root / "students"),
+        patch.object(ux_store, "_STUDENTS_DIR", root / "students"),
         patch.object(notes, "_NOTES_DIR", root / "notes"),
         patch.object(usage_docs, "_DOCS_FILE",
                      root / "chat_history" / "settings" / "usage_docs.json"),

@@ -310,7 +310,7 @@ class NextProbe(StrictModel):
 # 概念判断（§4.3 / §4.4）
 # ---------------------------------------------------------------------------
 
-class ConceptState(str, Enum):
+class ConceptEvalState(str, Enum):
     """类别不是等级阶梯；禁止映射 0/25/50/75/100（§4.4）。"""
     NOT_OBSERVED = "not_observed"
     EMERGING = "emerging"
@@ -319,12 +319,12 @@ class ConceptState(str, Enum):
     CONFLICTING = "conflicting"
 
 
-CONCEPT_STATE_LABELS_ZH: dict[ConceptState, str] = {
-    ConceptState.NOT_OBSERVED: "尚无学习证据",
-    ConceptState.EMERGING: "已有局部证据",
-    ConceptState.SUPPORTED_IN_SCOPE: "在这些条件下已有支持",
-    ConceptState.FRAGILE: "有明确待解决点",
-    ConceptState.CONFLICTING: "证据尚待核对",
+CONCEPT_STATE_LABELS_ZH: dict[ConceptEvalState, str] = {
+    ConceptEvalState.NOT_OBSERVED: "尚无学习证据",
+    ConceptEvalState.EMERGING: "已有局部证据",
+    ConceptEvalState.SUPPORTED_IN_SCOPE: "在这些条件下已有支持",
+    ConceptEvalState.FRAGILE: "有明确待解决点",
+    ConceptEvalState.CONFLICTING: "证据尚待核对",
 }
 
 
@@ -369,7 +369,7 @@ class ConceptUpdate(StrictModel):
     revise_claims: list[ReviseClaim] = Field(default_factory=list,
                                              max_length=64)
     close_claims: list[CloseClaim] = Field(default_factory=list, max_length=64)
-    proposed_state: ConceptState
+    proposed_state: ConceptEvalState
     statement: str = Field(default="", max_length=MAX_STATEMENT_CHARS)
     change: LearningChange | None = None
     next_probe: NextProbe | None = None
@@ -396,7 +396,7 @@ class ConceptJudgment(StrictModel):
     base_judgment_id: str = Field(default="", max_length=64)
     concept_ref: ConceptRef
     workspace_id: str = Field(min_length=1, max_length=96)
-    state: ConceptState
+    state: ConceptEvalState
     statement: str = Field(default="", max_length=1200)
     claims: list[ClaimView] = Field(default_factory=list, max_length=64)
     change: LearningChange | None = None
@@ -1058,6 +1058,7 @@ class OpReviewResolved(_OpBase):
 class OpInterpretationRevoked(_OpBase):
     op: Literal["interpretation_revoked"] = "interpretation_revoked"
     interpretation_id: str = Field(min_length=1, max_length=64)
+    outbox: list[dict[str, Any]] = Field(default_factory=list, max_length=64)
     source_id: str = Field(min_length=1, max_length=64)
     reason: str = Field(min_length=1, max_length=600)
     affected_judgment_ids: list[str] = Field(default_factory=list,
@@ -1171,7 +1172,7 @@ class JournalTransaction(StrictModel):
 class ConceptEvaluationView(StrictModel):
     """概念当前投影：未观察节点由 scope 左连接生成（§11.2）。"""
     concept_ref: ConceptRef
-    state: ConceptState | None
+    state: ConceptEvalState | None
     evaluation_status: EvaluationStatus
     judgment_id: str = Field(default="", max_length=64)
     statement: str = Field(default="", max_length=1200)

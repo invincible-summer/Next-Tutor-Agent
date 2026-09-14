@@ -73,7 +73,11 @@ def invalidate_interpretation(
         interpretation_id=interpretation_id,
         source_id=source_id,
         reason=reason[:600],
-        affected_judgment_ids=sorted(set(affected.values())))])
+        affected_judgment_ids=sorted(set(affected.values())),
+        # G4 §6.6：撤销事件投递 M9（复习卡重放），不能只处理正向新增
+        outbox=[{"event_id": f"m9_revoke_{interpretation_id}",
+                 "consumer": "m9", "kind": "interpretation_revoked",
+                 "concept_keys": sorted(affected.keys())}])])
     if affected and ws:
         request_resynthesis(student_id, ws, reason="invalidate")
     return affected

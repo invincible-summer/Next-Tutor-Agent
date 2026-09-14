@@ -134,11 +134,40 @@ def concept_views(student_id: str, scope: S.EvaluationScope
             views.append(_view_from_judgment(judgment))
         else:
             views.append(S.ConceptEvaluationView(
-                concept_ref=concept, state=S.ConceptState.NOT_OBSERVED,
+                concept_ref=concept, state=S.ConceptEvalState.NOT_OBSERVED,
                 evaluation_status=S.EvaluationStatus.READY))
     views.sort(key=lambda v: (v.concept_ref.graph_owner_namespace,
                               v.concept_ref.concept_id))
     return views
+
+
+def wrong_answer_items(student_id: str, limit: int = 200) -> list[dict]:
+    """错题本投影（§11.2）：available 的 assessment 来源且当前 TaskResult
+    判定 ∈ {wrong, partial}，新→旧。供 /student/error-notebook 与笔记素材
+    共用；读侧聚合，不物化副本。"""
+    state = get_journal(student_id).state()
+    items: list[dict] = []
+    for src in state.sources.values():
+        if src.availability != "available":
+            continue
+        meta = src.interpretations.get(src.current_interpretation_id, {})
+        tr = meta.get("task_result") or {}
+        if tr.get("verdict") not in ("wrong", "partial"):
+            continue
+        task = None
+        ref = src.receipt.task_ref
+        if ref is not None:
+            task = state.tasks.get(ref.question_id, {}).get(
+                ref.question_revision)
+        items.append({
+            "topic": task.task_family if task else "",
+            "knowledge_point": task.source_badge if task else "",
+            "stem": task.stem[:300] if task else "",
+            "verdict": tr.get("verdict"),
+            "ts": src.receipt.observed_at,
+        })
+    items.sort(key=lambda i: i["ts"], reverse=True)
+    return items[:max(1, int(limit))]
 
 
 def workspace_summary(student_id: str, scope: S.EvaluationScope, *,
@@ -154,7 +183,7 @@ def workspace_summary(student_id: str, scope: S.EvaluationScope, *,
             reconciling += 1
             observed += 1
             continue
-        if v.state and v.state != S.ConceptState.NOT_OBSERVED:
+        if v.state and v.state != S.ConceptEvalState.NOT_OBSERVED:
             observed += 1
             by_state[v.state.value] = by_state.get(v.state.value, 0) + 1
     journal = get_journal(student_id)

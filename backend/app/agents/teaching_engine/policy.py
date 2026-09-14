@@ -26,7 +26,7 @@ from typing import Any
 from .state import (BAND_NOVICE, BAND_PROGRESSING, BAND_STRONG, TeachingContext,
                     TeachingOutcome)
 from .difficulty import (_assessed_outcomes, compute_difficulty,
-                           difficulty_to_level, seed_from_mastery)
+                           difficulty_to_level, neutral_seed)
 from .misconception import correction_focus_avoid
 from .strategy import TeachingMode
 
@@ -144,15 +144,17 @@ _MODE_RECIPES: dict[TeachingMode, dict[str, list[str] | bool]] = {
 }
 
 
-def _quiz_level_from_mastery(mastery: float) -> tuple[str, int]:
-    """Map mastery -> (exercise_level, numeric difficulty 1..5)."""
-    if mastery < BAND_NOVICE:
+def _quiz_level_for_band(band: str) -> tuple[str, int]:
+    """G4：状态带 → 练习档（novice easy / progressing easy+ / solid
+    medium / strong hard）。band 来自评价状态派生（§13.3）。"""
+    if band == "novice":
         return "easy", 1
-    if mastery < BAND_PROGRESSING:
+    if band == "progressing":
         return "easy", 2
-    if mastery < BAND_STRONG:
+    if band == "solid":
         return "medium", 3
     return "hard", 4
+
 
 
 def _depth_for_mode(mode: TeachingMode, style_depth: str) -> str:
@@ -288,7 +290,7 @@ def compose(ctx: TeachingContext, mode: TeachingMode,
     # assessed outcomes exist, else seeded from mastery. The 1..5 internal scale
     # is mapped to easy/medium/hard for the quiz tool (no interface change).
     recent = recent_outcomes or []
-    diff = compute_difficulty(ctx.mastery, recent) if recent else seed_from_mastery(ctx.mastery)
+    diff = compute_difficulty(0.0, recent) if recent else 2
     level = difficulty_to_level(diff)
     # Grade floor: 高中/本科的 fresh concept（还没有任何作答证据）不从
     # 课本例题档起步——older students 的 "easy" 几乎必然偏简单，是学生
@@ -297,6 +299,9 @@ def compose(ctx: TeachingContext, mode: TeachingMode,
     if level == "easy" and ctx.grade in ("高中", "本科") \
             and not _assessed_outcomes(recent):
         diff = max(diff, 3)
+        level = difficulty_to_level(diff)
+    if mode == TeachingMode.CHALLENGE and not _assessed_outcomes(recent) and level != "hard":
+        diff = max(diff, 4)
         level = difficulty_to_level(diff)
     strat.exercise_level = level
     strat.suggested_quiz_difficulty = level   # legacy mirror

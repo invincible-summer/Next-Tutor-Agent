@@ -11,7 +11,7 @@ DESIGN CONTRACT（反僵化原则）:
     context (it may jump, mix, or revisit levels freely); the level tag is
     just a shared vocabulary every module uses to TALK about cognition.
   - Levels attach to questions as metadata ("bloom_level") and aggregate into
-    the student's cognitive profile (core/bloom_profile) — one source of truth
+    RBT level guidance (G4: per-student numeric bloom profile removed)
     shared by M4 generation/grading, chat quiz tools, M9 planning advice, and
     the profile page.
   - All helpers are pure functions; never raise.
@@ -79,7 +79,7 @@ def guidance_block(*, focus: str = "", context_line: str = "") -> str:
     focus: an explicitly requested level ("" / "auto" = the LLM decides in
         context — the default and preferred mode).
     context_line: a one-line snapshot of the student's cognitive profile
-        (see core.bloom_profile.context_line); "" = no profile data.
+        (G4: per-student context line removed); "" = no data.
 
     The block ASKS the generator to (a) choose the level freely based on the
     student and purpose, (b) tag the question with "bloom_level" in its JSON

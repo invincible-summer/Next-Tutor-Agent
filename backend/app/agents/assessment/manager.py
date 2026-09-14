@@ -470,6 +470,18 @@ async def run_assessment_job(student_id: str, claimed: ClaimedJob, *,
                                           receipt.canonical_text)
 
     base_claims = _active_claims_for(state, scope, pack)
+    # G4 §6.6：可观察召回（verdict 非 null）→ journal outbox 给 M9 消费
+    m9_outbox: list[dict] = []
+    if task_result is not None and task_result.verdict is not None:
+        v = task_result.verdict.value if hasattr(task_result.verdict, "value") \
+            else task_result.verdict
+        m9_outbox.append({
+            "event_id": f"m9_{receipt.source_id}",
+            "consumer": "m9", "kind": "task_result",
+            "source_id": receipt.source_id,
+            "question_id": task.question_id if task is not None else "",
+            "concept": (task.source_badge if task is not None else "") or "",
+            "verdict": str(v), "observed_at": receipt.observed_at})
     try:
         service.commit_result(
             student_id, job_id=job.job_id, lease_token=claimed.lease_token,
@@ -478,7 +490,8 @@ async def run_assessment_job(student_id: str, claimed: ClaimedJob, *,
             interpretation=parsed.learner,
             task_result=task_result, continuation=parsed.continuation,
             expected_scope_revision=job.scope_revision or None,
-            expected_base_judgments=base_claims)
+            expected_base_judgments=base_claims,
+            outbox=m9_outbox)
     except CommitRejected as exc:
         # 硬校验失败：job failed，不产生新能力结论（§7.1 C6）
         scheduler.fail(student_id, job.job_id,

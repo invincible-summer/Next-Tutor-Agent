@@ -256,6 +256,8 @@ def _apply_op(state: JournalState, op: Any) -> None:
         for key, cur in list(state.concept_current.items()):
             if cur in op.affected_judgment_ids:
                 state.concept_current[key] = ""
+        for item in op.outbox:
+            _track_outbox(state, item)
     elif isinstance(op, S.OpSynthesisCommitted):
         state.syntheses[op.synthesis.synthesis_id] = op.synthesis
     elif isinstance(op, S.OpScopeChanged):

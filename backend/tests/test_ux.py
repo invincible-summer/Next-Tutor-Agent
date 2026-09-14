@@ -398,8 +398,6 @@ class TestContextBuilder(unittest.TestCase):
         # the new sources (M3 teaching log / learning ledger) both failing
         # still yields a generic greeting, never an exception
         with patch("app.agents.teaching_engine.teaching_log.load_teaching_log",
-                   side_effect=RuntimeError("boom")), \
-             patch("app.core.learning_records.list_records",
                    side_effect=RuntimeError("boom")):
             g = context_builder.greeting("s1", lang="zh")
         # falls back to a generic greeting, not an exception
@@ -499,19 +497,15 @@ class TestSingleTruthSource(unittest.TestCase):
         UXService._instance = None
 
     def test_record_turn_does_not_write_m2(self):
-        """M8 must not call any StudentModel mutating method. We assert by
-        patching the M2 facade's record_events and snapshot to fail loudly
-        if invoked."""
+        # G4：M2 无评价写入面；manager.consume_turn 不触碰 student_model。
+        from unittest.mock import patch, Mock
         from app.agents import student_model as sm_pkg
-        guard = MagicMock()
-        with patch.object(sm_pkg.StudentModel, "record_events", guard), \
-             patch.object(sm_pkg.StudentModel, "adapt", guard), \
-             patch.object(sm_pkg.StudentModel, "load", MagicMock()):
-            ux = get_ux_service()
-            ux.record_turn(student_id="s1", user_message="看不懂",
-                           answer="x" * 500, grade="高中")
-            guard.assert_not_called()
-
+        from app.agents.ux_intelligence import manager as ux_manager
+        guard = Mock(side_effect=AssertionError("M2 不应被写"))
+        with patch.object(sm_pkg.StudentModel, "update_learning_style",
+                          guard):
+            ux_manager.get_ux_service().record_turn(
+                student_id="stu1", session_id="sess1")
     def test_m2_read_is_defensive(self):
         # M2 disabled -> returns None, M8 still works
         with patch("app.agents.student_model.is_enabled", return_value=False):

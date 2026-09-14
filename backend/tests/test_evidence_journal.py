@@ -207,7 +207,7 @@ class TestEvidenceJournal(StorageSandboxTestCase):
         views = projections.concept_views(SID, scope)
         self.assertEqual(len(views), 1)
         self.assertEqual(views[0].judgment_id, "")
-        self.assertEqual(views[0].state, S.ConceptState.NOT_OBSERVED)
+        self.assertEqual(views[0].state, S.ConceptEvalState.NOT_OBSERVED)
         summary = projections.workspace_summary(SID, scope)
         self.assertEqual(summary.coverage.not_observed_concepts, 1)
         self.assertEqual(summary.coverage.observed_concepts, 0)

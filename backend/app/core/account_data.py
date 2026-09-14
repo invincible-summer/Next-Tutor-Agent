@@ -195,21 +195,24 @@ def _owned_session_files(uid: str) -> list[tuple[Path, dict[str, Any]]]:
 
 
 def _forget_chat_memory(uid: str, session_ids: list[str]) -> None:
-    """逐会话精确遗忘可归属的聊天记忆（镜像 trash._purge_session_memory 与
-    _detach_learning_source_ids 的行为；不可安全分解的聚合档案保留）。"""
+    """逐会话精确遗忘可归属的聊天记忆（镜像 trash._purge_session_memory 的
+    行为；不可安全分解的聚合档案保留）。G4：learning_records/quiz_recent
+    已删，答题记录统一在 learning-evidence journal——该会话的 dialogue
+    来源按 §5.3 永久删除语义物理去除（独立 assessment 档案保留）。"""
     from app.agents.memory.prompt_memory import forget_session_contribution
     from app.agents.memory.store import remove_episodes_for_session
-    from app.core.learning_records import detach_source_session
-    from app.core.quiz_recent import detach_session_source
     for sid in session_ids:
         for forget in (lambda: forget_session_contribution(uid, sid),
-                       lambda: remove_episodes_for_session(uid, sid),
-                       lambda: detach_source_session(uid, sid),
-                       lambda: detach_session_source(uid, sid)):
+                       lambda: remove_episodes_for_session(uid, sid)):
             try:
                 forget()
             except Exception:
                 pass
+        try:
+            from app.agents.student_model.evaluation import lifecycle as ev_lifecycle
+            ev_lifecycle.delete_session_sources(uid, sid)
+        except Exception:
+            pass
 
 
 def _delete_upload_files(fids: set[str]) -> None:
@@ -454,6 +457,12 @@ def purge_account(user_id: str) -> dict[str, Any]:
         pass
 
     shutil.rmtree(notes_mod._NOTES_DIR / notes_mod._key(uid), ignore_errors=True)
+    # G4：learning-evidence journal 及派生投影文件（含内存缓存重置）。
+    try:
+        from app.agents.student_model.evaluation.store import purge_journal_files
+        purge_journal_files(uid)
+    except Exception:
+        pass
     if sm_store._STUDENTS_DIR.is_dir():
         for p in sm_store._STUDENTS_DIR.glob(f"{uid}*"):
             try:

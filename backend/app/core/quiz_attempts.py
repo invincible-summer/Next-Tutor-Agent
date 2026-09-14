@@ -188,7 +188,8 @@ def record_quiz_attempt(session_id: str, *, stem: str, verdict: str,
                         correct: bool | None = None, note: str = "",
                         attempt_id: str = "",
                         task_binding: dict | None = None) -> None:
-    """Persist one graded answer to transcript + M6 episodic + M3 teaching_log.
+    """Persist one graded answer to transcript + M6 episodic (G4：评价侧
+    由统一受理链写 journal，M3/M9 各自读新投影 / 消费 outbox)。
 
     ``unknown`` verdicts (grading could not run, e.g. malformed request) are
     skipped entirely — they carry no signal and must not pollute the
@@ -199,14 +200,8 @@ def record_quiz_attempt(session_id: str, *, stem: str, verdict: str,
     attribute to exactly that task."""
     if verdict == "unknown":
         return
-    try:
-        from .learning_records import record_verdict
-        record_verdict(student_id, session_id, stem=stem, verdict=verdict,
-                       student_answer=student_answer, concept=concept,
-                       subject=subject, attempt_id=attempt_id,
-                       score={"correct": 1.0, "partial": 0.5, "wrong": 0.0}.get(verdict))
-    except Exception:
-        pass
+    # G4：作答结论由统一受理链（assessment.evaluate_submission）写入
+    # learning-evidence journal；本函数只做聊天流 UX 持久化（转写/M6）。
     # 1. transcript record (recall_history JIT retrieval + compaction material)
     try:
         if session_id and verdict:
@@ -235,53 +230,14 @@ def record_quiz_attempt(session_id: str, *, stem: str, verdict: str,
                     subject=subject)
     except Exception:
         pass
-    # 3. M3 teaching_log: the difficulty dial's only assessed-outcome source.
-    # Card grading happens on /quiz/* endpoints, outside any chat turn, so the
-    # supervisor's inline peek never saw these verdicts — every concept stayed
-    # at seed difficulty ("engaged" only). Normalize to the graph node id so
-    # the read side (TeachingContext.concept_key) finds them.
+    # 3. M9（G4 §6.6）：不再按端点推送判分；M9 以 journal outbox 消费者的
+    # 身份幂等领取已提交的可观察召回（consumer_ack 落盘）。fail-open。
     try:
-        if not verdict or not concept:
-            return
-        from ..agents.teaching_engine import (TeachingMode, TeachingOutcome,
-                                              get_teaching_manager,
-                                              is_enabled as te_enabled)
-        if not te_enabled():
-            return
-        from ..agents.student_model.store import DEFAULT_STUDENT_ID
-        sid = student_id or DEFAULT_STUDENT_ID
-        ckey = str(concept)
-        try:
-            from ..agents.student_model import (get_student_model,
-                                                is_enabled as sm_enabled)
-            if sm_enabled():
-                node = get_student_model(sid).load().graph.match_concept(ckey)
-                if node is not None:
-                    ckey = node.id
-        except Exception:
-            pass
-        outcome = {"correct": TeachingOutcome.CORRECT,
-                   "wrong": TeachingOutcome.WRONG}.get(
-                       verdict, TeachingOutcome.PARTIAL)
-        get_teaching_manager().record_turn(
-            sid, ckey, mode=TeachingMode.PRACTICE, outcome=outcome,
-            note=str(concept)[:40])
-    except Exception:
-        pass
-    # 4. M9: committed recall evidence for SRS + task attribution (W4/A08).
-    # Card grading happens on /quiz/* endpoints, outside any chat turn — the
-    # supervisor's same-turn peek never saw these verdicts, so until now the
-    # main grading path fed M9 nothing (no SRS quality update, no task
-    # progress). record_quiz_evidence is attempt-idempotent; fail-open.
-    try:
-        if student_id and verdict and concept:
+        if student_id:
             from ..agents.learning_orchestration import (
                 get_orchestration_service,
                 is_enabled as orch_enabled)
             if orch_enabled():
-                get_orchestration_service().record_quiz_evidence(
-                    student_id=student_id, concept=concept, verdict=verdict,
-                    attempt_id=attempt_id, session_id=session_id,
-                    subject=subject, task_binding=task_binding)
+                get_orchestration_service().consume_evaluation_outbox(student_id)
     except Exception:
         pass

@@ -33,7 +33,7 @@ from app.core.config import settings  # noqa: E402
 
 def _ctx():
     return TeachingContext(concept="条件概率", subject="数学", grade="本科",
-                           mastery=0.35, concept_key="math.prob.cond",
+                           evaluation_context={"state": "emerging"}, concept_key="math.prob.cond",
                            misconceptions=[], mistakes=["分母算错", "条件读错"])
 
 

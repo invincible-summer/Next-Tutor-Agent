@@ -24,7 +24,6 @@ from typing import Any, AsyncGenerator, Callable
 from ..core.config import settings
 from ..core.llm_async import AsyncLLMClient
 from ..core.quiz_attempts import record_generated_quiz
-from ..core.quiz_recent import record_recent_quiz
 from ..core.session import TutorSession
 from ..core.tool_base import Tool
 from ..core.tool_protocol import ErrorCode, ToolResult, err
@@ -1027,11 +1026,8 @@ async def execute(
         if tool_name in ("generate_quiz", "fit_quiz") and not result.is_error:
             session.quiz_history.append(result.data)
             record_generated_quiz(session.session_id, result.data)
-            # 跨会话「最近习题」库（测评中心列表，每学生上限 100 道）
-            record_recent_quiz(session.session_id,
-                               getattr(session, "student_id", "") or "",
-                               result.data)
-            # G2 统一评价链：题目即刻注册 TaskSnapshot（journal），题卡提交
+            # G2/G4：题目即刻注册 TaskSnapshot（journal，最近习题=journal
+            # 投影 /quiz/recent），题卡提交
             # 携带 question_id/revision（§11.4；不再以题干前缀定位题目）。
             _register_quiz_tasks(session, result.data)
 

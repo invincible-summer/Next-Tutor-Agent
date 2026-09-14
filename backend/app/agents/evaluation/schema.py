@@ -3,7 +3,6 @@
 Plain dataclasses with to_dict/from_dict round-trips, mirroring
 student_model/state.py, knowledge/schema.py, and memory/schema.py. No behaviour
 here beyond serialization; the logic lives in sibling modules
-(trace_analyzer, learning_gain, strategy_analyzer, advisor, experiment).
 
 This layer owns ONLY evaluation artifacts -- never any business state. Mastery
 is M2's, teaching mode history is M3's, narrative memories are M6's. M7 reads
@@ -79,9 +78,6 @@ class TurnTrace:
     steps: int = 0                   # ReAct loop iterations
     tokens_used: int = 0             # prompt + completion total
     duration_sec: float = 0.0
-    before_mastery: float | None = None
-    after_mastery: float | None = None
-    learning_gain: float | None = None
     failure_type: str = FailureType.NONE.value
     failure_cause: str = ""
     recommendation: str = ""
@@ -103,9 +99,6 @@ class TurnTrace:
             "steps": self.steps,
             "tokens_used": self.tokens_used,
             "duration_sec": round(self.duration_sec, 3),
-            "before_mastery": self.before_mastery,
-            "after_mastery": self.after_mastery,
-            "learning_gain": self.learning_gain,
             "failure_type": self.failure_type,
             "failure_cause": self.failure_cause,
             "recommendation": self.recommendation,
@@ -130,9 +123,6 @@ class TurnTrace:
             steps=int(d.get("steps", 0)),
             tokens_used=int(d.get("tokens_used", 0)),
             duration_sec=float(d.get("duration_sec", 0.0)),
-            before_mastery=d.get("before_mastery"),
-            after_mastery=d.get("after_mastery"),
-            learning_gain=d.get("learning_gain"),
             failure_type=FailureType.from_value(d.get("failure_type")).value,
             failure_cause=str(d.get("failure_cause", "")),
             recommendation=str(d.get("recommendation", "")),
@@ -193,13 +183,11 @@ class StrategyEffectiveness:
     """Aggregated effectiveness of a teaching mode, computed by strategy_analyzer.
 
     This is the M7 contribution ON TOP of M6 procedural: M6 tracks per-student
-    success_rate; M7 aggregates avg learning_gain across turns to compare
     strategies against each other. Reads M3 teaching_log + M6 procedural +
     M7's own traces -- does NOT duplicate their raw data.
     """
     strategy: str = ""              # TeachingMode value
     subject: str = ""
-    avg_gain: float = 0.0          # mean learning_gain across turns
     avg_success_rate: float = 0.0  # mean of per-turn correct/engaged ratio
     sample_size: int = 0          # how many turns contributed
     last_updated: float = field(default_factory=time.time)
@@ -324,7 +312,6 @@ class MetricSnapshot:
     ts: float = field(default_factory=time.time)
     total_turns: int = 0
     total_evaluated: int = 0        # turns with a measurable outcome
-    avg_learning_gain: float = 0.0
     failure_distribution: dict[str, int] = field(default_factory=dict)
     top_strategies: list[dict[str, Any]] = field(default_factory=list)
     pending_proposals: int = 0
@@ -334,7 +321,6 @@ class MetricSnapshot:
         return {
             "ts": self.ts, "total_turns": self.total_turns,
             "total_evaluated": self.total_evaluated,
-            "avg_learning_gain": round(self.avg_learning_gain, 4),
             "failure_distribution": dict(self.failure_distribution),
             "top_strategies": list(self.top_strategies),
             "pending_proposals": self.pending_proposals,

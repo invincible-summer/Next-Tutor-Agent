@@ -62,10 +62,17 @@ _PROGRESSION: tuple[TeachingMode, ...] = (
 )
 
 
-def _band_mode(mastery: float) -> TeachingMode:
-    """Map a raw mastery score onto the band mode (ignoring cross-turn state)."""
-    if mastery < BAND_NOVICE:
+def _band_mode(band: str):
+    if band == "novice":
         return TeachingMode.INTRODUCTION
+    if band == "progressing":
+        return TeachingMode.EXPLANATION
+    if band == "solid":
+        return TeachingMode.PRACTICE
+    return TeachingMode.CHALLENGE
+    if band == "progressing":
+        return TeachingMode.EXPLANATION
+    return TeachingMode.PRACTICE
     if mastery < BAND_PROGRESSING:
         return TeachingMode.EXPLANATION
     if mastery < BAND_STRONG:
@@ -98,7 +105,7 @@ def select_strategy(ctx: TeachingContext) -> TeachingMode:
         return TeachingMode.REVIEW
     # practice intent: still respect a hard prerequisite gap, but otherwise pin
     if task == "practice":
-        if ctx.has_unmet_prereqs and ctx.mastery < BAND_NOVICE:
+        if ctx.has_unmet_prereqs and ctx.band_hint == "novice":
             return TeachingMode.REMEDIATION
         return TeachingMode.PRACTICE
 
@@ -107,14 +114,14 @@ def select_strategy(ctx: TeachingContext) -> TeachingMode:
     #    merely-unseen prereq, and "重新建立模型" must come before new content.
     if ctx.has_misconception:
         return TeachingMode.REMEDIATION
-    if ctx.has_unmet_prereqs and ctx.mastery < BAND_NOVICE:
+    if ctx.has_unmet_prereqs and ctx.band_hint == "novice":
         # only treat prereqs as blocking when the student is also a novice on
         # the target -- a progressing student can usually follow a quick recap
         # inline (handled by policy's review_first) without a full remediation.
         return TeachingMode.REMEDIATION
 
     # 2. mastery band -> base mode
-    base = _band_mode(ctx.mastery)
+    base = _band_mode(ctx.band_hint)
 
     # 3. cross-turn advancement: a clean CORRECT on the previous turn bumps
     #    the band up by one rung. This is the "上次你做对了，今天进下一步" path.
@@ -129,7 +136,7 @@ def select_strategy(ctx: TeachingContext) -> TeachingMode:
 
     # 4. first touch with no evidence -> INTRODUCTION, regardless of the prior
     #    L0 prior (0.0 would already map there, but be explicit for clarity)
-    if ctx.turns_on_concept == 0 and ctx.mastery < BAND_NOVICE:
+    if ctx.turns_on_concept == 0 and ctx.band_hint == "novice":
         return TeachingMode.INTRODUCTION
 
     return base

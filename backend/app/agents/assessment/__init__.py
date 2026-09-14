@@ -1,6 +1,6 @@
 """M4 测评智能 facade：统一作答服务的唯一出口（plan §11.4/§13.4）。
 
-旧 evaluate_and_record / raw_grade / derive_concept_status 出口已随本版
+旧 evaluate_and_record / raw_grade / 概念状态推导出口已随本版
 删除（A02/A03）；出题工具保留（generator + P1/P2 质量链）。所有作答
 （聊天题卡/习题中心/CAT）经 evaluate_submission 进入同一评价协议。
 """

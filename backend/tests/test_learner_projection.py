@@ -25,7 +25,7 @@ def _concept(cid: str, name: str) -> S.ConceptRef:
                         concept_revision="cr_1", display_name=name)
 
 
-def _judgment(concept: S.ConceptRef, state: S.ConceptState,
+def _judgment(concept: S.ConceptRef, state: S.ConceptEvalState,
               statement: str = "") -> S.ConceptJudgment:
     return S.ConceptJudgment(
         judgment_id="jdg_" + concept.concept_id + "_" + statement[:4],
@@ -71,9 +71,9 @@ class ProjectionFixture(StorageSandboxTestCase):
 class TestConceptViews(ProjectionFixture):
     def test_left_join_and_five_states(self):
         concepts = [_concept(f"c{i}", f"概念{i}") for i in range(5)]
-        states = [S.ConceptState.EMERGING, S.ConceptState.SUPPORTED_IN_SCOPE,
-                  S.ConceptState.FRAGILE, S.ConceptState.CONFLICTING,
-                  S.ConceptState.NOT_OBSERVED]
+        states = [S.ConceptEvalState.EMERGING, S.ConceptEvalState.SUPPORTED_IN_SCOPE,
+                  S.ConceptEvalState.FRAGILE, S.ConceptEvalState.CONFLICTING,
+                  S.ConceptEvalState.NOT_OBSERVED]
         self.commit([_judgment(c, s) for c, s in zip(concepts, states)])
         scope = S.EvaluationScope(
             workspace_id=WS, scope_revision="sr_1", selected_volumes=[],
@@ -82,11 +82,11 @@ class TestConceptViews(ProjectionFixture):
         views = projections.concept_views(SID, scope)
         by_name = {v.concept_ref.display_name: v for v in views}
         self.assertEqual(by_name["概念1"].state,
-                         S.ConceptState.SUPPORTED_IN_SCOPE)
-        self.assertEqual(by_name["概念4"].state, S.ConceptState.NOT_OBSERVED)
+                         S.ConceptEvalState.SUPPORTED_IN_SCOPE)
+        self.assertEqual(by_name["概念4"].state, S.ConceptEvalState.NOT_OBSERVED)
         # 左连接：完全没碰过的概念也出现
         self.assertIn("未观察", by_name)
-        self.assertEqual(by_name["未观察"].state, S.ConceptState.NOT_OBSERVED)
+        self.assertEqual(by_name["未观察"].state, S.ConceptEvalState.NOT_OBSERVED)
         self.assertEqual(by_name["未观察"].judgment_id, "")
         # 投影无任何数值掌握度
         dumped = str([v.model_dump() for v in views])
@@ -95,16 +95,16 @@ class TestConceptViews(ProjectionFixture):
 
     def test_latest_judgment_wins(self):
         concept = _concept("c_latest", "最新")
-        j1 = _judgment(concept, S.ConceptState.EMERGING, statement="早期")
+        j1 = _judgment(concept, S.ConceptEvalState.EMERGING, statement="早期")
         self.commit([j1])
-        j2 = _judgment(concept, S.ConceptState.SUPPORTED_IN_SCOPE,
+        j2 = _judgment(concept, S.ConceptEvalState.SUPPORTED_IN_SCOPE,
                        statement="后期")
         self.commit([j2])
         scope = S.EvaluationScope(
             workspace_id=WS, scope_revision="sr_1", selected_volumes=[],
             allowed_concepts=[concept], graph_revisions=[])
         views = projections.concept_views(SID, scope)
-        self.assertEqual(views[0].state, S.ConceptState.SUPPORTED_IN_SCOPE)
+        self.assertEqual(views[0].state, S.ConceptEvalState.SUPPORTED_IN_SCOPE)
         self.assertEqual(views[0].judgment_id, j2.judgment_id)
 
 

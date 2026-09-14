@@ -148,27 +148,28 @@ class TestQuizProvenanceContract(StorageSandboxTestCase):
         self.assertEqual(refs[0].get("file_id"), "file_zx17")
         self.assertEqual(refs[0].get("chunk_id"), "file_zx17#0")
 
-    def test_learning_records_and_recent_quiz_keep_refs(self):
-        """learning_records / recent quiz 快照保留紧凑 ref（可审计定位）。"""
-        from app.core.learning_records import record_question
-        from app.core.quiz_recent import record_recent_quiz
+    def test_journal_keeps_grounding_refs(self):
+        """G4：learning_records/quiz_recent 已删——来源溯源随统一受理链进
+        journal：TaskSnapshot.grounding_refs 持久化，/quiz/recent 投影保留
+        题目身份字段。"""
+        from app.agents.assessment.manager import task_snapshot_from_quiz_dict
+        from app.agents.student_model.evaluation import schema as S
+        from app.agents.student_model.evaluation.store import get_journal
         llm = _RefidQuizLLM(["src_1"])
         result = self._run_tool(llm, _StubProvider(_bundle("found", True)))
         q = result.data["questions"][0]
         sid = "student_prov"
-        qid = record_question(sid, "sess_prov", q, topic="ZX-17")
-        self.assertTrue(qid)
-        from app.core.learning_records import list_records
-        rec = [r for r in list_records(sid)
-               if r.get("record_id") == qid][0]
-        self.assertEqual(rec.get("grounding_mode"), "textbook")
-        self.assertEqual(rec.get("source_refs")[0]["file_id"], "file_zx17")
-        record_recent_quiz("sess_prov", sid, result.data)
-        from app.core.quiz_recent import list_recent_questions
-        items = list_recent_questions(sid)
-        self.assertTrue(items)
-        self.assertEqual(items[-1].get("grounding_mode"), "textbook")
-        self.assertTrue(items[-1].get("source_refs"))
+        task = task_snapshot_from_quiz_dict(q, workspace_id="")
+        get_journal(sid).append([S.OpQuestionRegistered(task=task)])
+        state = get_journal(sid).state()
+        snap = state.tasks[task.question_id][task.question_revision]
+        self.assertTrue(snap.grounding_refs)
+        self.assertEqual(snap.grounding_refs[0], "file_zx17")
+        # 最近习题投影（/quiz/recent 同源）保留题目身份字段
+        rows = [dict(id=s2.receipt.attempt_id, stem=None)
+                for s2 in state.sources.values()
+                if s2.receipt.kind == S.SourceKind.ASSESSMENT]
+        self.assertEqual(rows, [])  # 未作答 → 无最近记录，不伪造
 
 
 if __name__ == "__main__":

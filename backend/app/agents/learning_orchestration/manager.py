@@ -173,10 +173,10 @@ class LearningOrchestrationService:
                     if t <= state.habit.current_streak) if state.habit.current_streak >= 3                         else state.last_streak_reported
 
             # goal-progress checkpoint detect (read-only over M2 mastery)
-            mastery_view = self._mastery_view_safe(student_id)
-            if mastery_view and state.has_goals:
+            evaluation_view = self._evaluation_view_safe(student_id)
+            if evaluation_view and state.has_goals:
                 from . import goal_manager as _gm
-                ratio = _gm.overall_progress(state, mastery_view)
+                ratio = _gm.overall_progress(state, evaluation_view)
                 prog_ev = event_emitter.emit_for_goal_progress(
                     ratio, last_reported=state.last_progress_reported,
                     subject=state.primary_subject or subject)
@@ -256,19 +256,24 @@ class LearningOrchestrationService:
             binding = task_binding if isinstance(task_binding, dict) else {}
             bound_task_id = str(binding.get("task_id") or "")
             # bound evidence keys the review card by the task's canonical
-            # concept id; organic (unbound) evidence keeps the concept string
-            review_key = (str(binding.get("concept_id") or "").strip()
-                          or cid)
+            # concept id; organic (unbound) evidence keeps the concept string.
+            # G4 §13.8：卡片键 (workspace_id, concept_key)——有 workspace
+            # 绑定时用复合键避免跨区撞卡；无绑定保持裸概念键（旧档兼容）。
+            ws_id = str(binding.get("workspace_id") or "").strip()
+            review_key = (f"{ws_id}::{cid}" if ws_id else
+                          (str(binding.get("concept_id") or "").strip() or cid))
             quality = srs.quality_from_verdict(v)
             if quality is None:
                 if review_key not in state.review_queue:
                     state.review_queue[review_key] = srs.create_card(
-                        review_key, concept_name=cid, now=now)
+                        review_key, concept_name=cid, workspace_id=ws_id,
+                        now=now)
                     self._save(student_id, state)
                 return False
             card = state.review_queue.get(review_key)
             if card is None:
-                card = srs.create_card(review_key, concept_name=cid, now=now)
+                card = srs.create_card(review_key, concept_name=cid,
+                                       workspace_id=ws_id, now=now)
             card = srs.update_review(card, quality, now=now)
             state.review_queue[review_key] = card
             emitted: list[OrchestrationLearningEvent] = []
@@ -360,6 +365,8 @@ class LearningOrchestrationService:
             s.title = (task.title or task.concept_name or task_id)[:20]
             s.task_binding = {"task_id": task_id,
                               "goal_id": "",
+                              "workspace_id": task.workspace_id,  # G4 §13.8
+                              "evaluation_scope_revision": "",
                               "episode_id": "",   # stamped below
                               "concept_id": task.concept_id,
                               "launched_at": time.time()}
@@ -393,12 +400,100 @@ class LearningOrchestrationService:
             pass
         return False
 
+    # --- G4 §6.6：journal outbox 消费（M9 可靠闭环） ----------------------
+
+    def consume_evaluation_outbox(self, student_id: str) -> int:
+        """以 journal outbox 消费者身份领取 consumer="m9" 的事件并 ack。
+
+        - task_result：已提交的可观察召回（verdict 非 null）→ SRS quality
+          + 绑定任务完成（只完成绑定任务；attempt 做完≠学会）。
+        - review_resolved / interpretation_revoked：受影响概念的复习卡
+          日期状态重放（复核/撤销不能只处理正向新增，§6.6）。
+        幂等两层：M9 侧 attempt_id 去重（与 SRS/task 状态同一次原子写落
+        盘）+ journal consumer_ack（(event_id, consumer) 键）。单事件处理
+        失败不 ack，可重投；不撤销已提交的学生评价。返回 ack 数。"""
+        try:
+            from ..student_model.evaluation import schema as S
+            from ..student_model.evaluation.store import get_journal
+            journal = get_journal(student_id)
+            state = journal.state()
+            generation = state.generation
+            pending = [(eid, item) for (eid, consumer), item in
+                       sorted(state.outbox_unacked.items())
+                       if consumer == "m9"]
+            if not pending:
+                return 0
+            acks: list[Any] = []
+            for eid, item in pending:
+                try:
+                    kind = str(item.get("kind") or "")
+                    if kind == "task_result":
+                        self._consume_task_result(student_id, item, event_id=eid)
+                    elif kind in ("review_resolved", "interpretation_revoked"):
+                        self._rebuild_review_cards(
+                            student_id,
+                            [str(k) for k in item.get("concept_keys") or []])
+                    else:
+                        pass  # 未知种类：直接 ack，避免无限重投
+                    acks.append(S.OpConsumerAck(event_id=eid, consumer="m9"))
+                except Exception:
+                    continue
+            if acks:
+                journal.append(acks, expected_generation=generation)
+            return len(acks)
+        except Exception:
+            return 0
+
+    def _consume_task_result(self, student_id: str, item: dict[str, Any],
+                             *, event_id: str) -> None:
+        """一个 task_result 事件 → record_quiz_evidence（attempt 幂等）。"""
+        verdict = item.get("verdict")
+        v = verdict.value if hasattr(verdict, "value") else verdict
+        concept = str(item.get("concept") or "")
+        if not concept:
+            # 概念徽标缺失时退回题目族名，保证复习卡仍能建立
+            concept = str(item.get("question_id") or "")
+        ok = self.record_quiz_evidence(
+            student_id=student_id, concept=concept, verdict=str(v or ""),
+            attempt_id=str(item.get("attempt_id") or event_id),
+            session_id=str(item.get("session_id") or ""),
+            task_binding=dict(item.get("task_binding") or {}))
+        if not ok:
+            return  # 幂等命中或无效证据：交给外层 ack
+
+    def _rebuild_review_cards(self, student_id: str,
+                              concept_keys: list[str]) -> None:
+        """复核/撤销后重放受影响复习卡的日期状态（§13.8：旧错误判断不能
+        长期影响计划）。重置 SM-2 调度，不删除卡片。"""
+        try:
+            if not concept_keys:
+                return
+            state = self._load(student_id)
+            now = time.time()
+            touched = 0
+            for key in concept_keys:
+                card = state.review_queue.get(key)
+                if card is None:
+                    continue
+                state.review_queue[key] = srs.create_card(
+                    key, concept_name=card.concept_name,
+                    workspace_id=card.workspace_id, now=now)
+                touched += 1
+            if touched:
+                self._save(student_id, state, event=OrchestrationEvent(
+                    type="review_rebuilt",
+                    payload={"concepts": list(concept_keys),
+                             "count": touched}))
+        except Exception:
+            pass
+
     # --- WRITE SIDE: goal + plan management ------------------------------
 
     def add_goal(self, student_id: str, *, title: str, description: str = "",
                  goal_type: str = "ability", subjects: list[str] | None = None,
                  deadline: float = 0.0,
-                 target_concept_ids: list[str] | None = None) -> LearningGoal:
+                 target_concept_ids: list[str] | None = None,
+                 workspace_id: str = "") -> LearningGoal:
         """Append a long-term learning goal (multi-goal, capped).
 
         After setting the goal intent, runs GoalAnalyzer (modification 3) to
@@ -415,7 +510,8 @@ class LearningOrchestrationService:
                                      description=description,
                                      goal_type=goal_type, subjects=subjects,
                                      deadline=deadline,
-                                     target_concept_ids=target_concept_ids)
+                                     target_concept_ids=target_concept_ids,
+                                     workspace_id=workspace_id)
         # goal reasoning: gap analysis + backward plan (read-only M2/M5)
         self._analyze_goals_safe(state, student_id=student_id)
         self._save(student_id, state,
@@ -432,7 +528,8 @@ class LearningOrchestrationService:
                     goal_type: str | None = None,
                     subjects: list[str] | None = None,
                     deadline: float | None = None,
-                    target_concept_ids: list[str] | None = None) -> bool:
+                    target_concept_ids: list[str] | None = None,
+                    workspace_id: str | None = None) -> bool:
         """Patch fields of one existing goal (all parameters optional).
 
         Re-runs the gap analysis afterwards. The SRS review queue and all
@@ -445,7 +542,8 @@ class LearningOrchestrationService:
             goal = goal_manager.update_goal(
                 state, goal_id, title=title, description=description,
                 goal_type=goal_type, subjects=subjects,
-                deadline=deadline, target_concept_ids=target_concept_ids)
+                deadline=deadline, target_concept_ids=target_concept_ids,
+                workspace_id=workspace_id)
             if goal is None:
                 return False
             self._analyze_goals_safe(state, student_id=student_id)
@@ -522,7 +620,7 @@ class LearningOrchestrationService:
                                 required.append(sid)
                     window = required[:num_weeks * learning_planner._MAX_CONCEPTS_PER_WEEK]
                     if window:
-                        mastery_view = self._mastery_view_safe(student_id)
+                        evaluation_view = self._evaluation_view_safe(student_id)
                         # concept-bound goals span subjects: look names up
                         # across the whole graph, not just the first subject
                         name_subject = ("" if any(g.target_concept_ids
@@ -533,7 +631,7 @@ class LearningOrchestrationService:
                         content, _usage = await self._get_llm().complete(
                             weekly_planner_llm.build_weekly_prompt(
                                 state.goals_label, window, names,
-                                mastery_view, num_weeks,
+                                evaluation_view, num_weeks,
                                 state.schedule.daily_minutes),
                             max_tokens=3000, disable_thinking=True)
                         skeletons = weekly_planner_llm.parse_weekly_response(
@@ -550,7 +648,7 @@ class LearningOrchestrationService:
                 weeks = learning_planner.generate_weekly_plan(
                     state, next_learnable=inputs["next_learnable"],
                     review_candidates=inputs["review_candidates"],
-                    mastery_view=inputs["mastery_view"],
+                    evaluation_view=inputs["evaluation_view"],
                     prereq_map=inputs["prereq_map"],
                     num_weeks=num_weeks, now=now)
                 weekly_planner_llm.derive_tasks_fallback(weeks)
@@ -618,8 +716,8 @@ class LearningOrchestrationService:
                 # The pool build reads the (cold-cacheable) student model, so
                 # it runs off the event loop.
                 try:
-                    mastery_view = await asyncio.to_thread(
-                        self._mastery_view_safe, student_id)
+                    evaluation_view = await asyncio.to_thread(
+                        self._evaluation_view_safe, student_id)
                     name_subject = ("" if any(g.target_concept_ids
                                               for g in state.goals)
                                     else state.primary_subject)
@@ -627,7 +725,7 @@ class LearningOrchestrationService:
                         self._concept_names_safe, name_subject, student_id)
                     pool = await asyncio.to_thread(
                         daily_composer.build_candidate_pool, state,
-                        mastery_view=mastery_view, concept_names=names, now=now)
+                        evaluation_view=evaluation_view, concept_names=names, now=now)
                     if pool:
                         context = await asyncio.to_thread(
                             self._compose_context_safe, student_id)
@@ -1173,14 +1271,30 @@ class LearningOrchestrationService:
         except Exception:
             return None
 
-    def _bloom_context_safe(self, student_id: str) -> str:
-        """布鲁姆认知档案薄弱项（L1 共享档案）→ 一段 prompt 上下文。空串安全。"""
+    def _weakness_context_safe(self, student_id: str) -> str:
+        """G4：布鲁姆数值档案已删。统一评价投影中已观察待解决的概念
+        （fragile/conflicting 优先，emerging 补足）→ 一段 prompt 上下文。
+        空串安全。"""
         try:
-            from ...core.bloom_profile import weakness_lines
-            lines = weakness_lines(student_id, limit=5)
+            from ..student_model.evaluation.store import get_journal
+            state = get_journal(student_id).state()
+            rank = {"fragile": 0, "conflicting": 0, "emerging": 1}
+            picks: list[tuple[int, str, str]] = []
+            for (_ws, _key), jid in state.concept_current.items():
+                j = state.judgments.get(jid)
+                if j is None:
+                    continue
+                st = j.state.value if hasattr(j.state, "value") else str(j.state)
+                if st in rank:
+                    picks.append((rank[st],
+                                  j.concept_ref.display_name
+                                  or j.concept_ref.concept_id,
+                                  (j.statement or "")[:60]))
+            picks.sort()
+            lines = [f"{k}：{s}" for _r, k, s in picks[:5]]
             if not lines:
                 return ""
-            return "学生认知层级薄弱项（布鲁姆档案，供批注参考，不要照抄）：" \
+            return "学生近期待解决概念（统一评价投影，供批注参考，不要照抄）：" \
                 + "；".join(lines)
         except Exception:
             return ""
@@ -1295,7 +1409,7 @@ class LearningOrchestrationService:
             # W4/A13：needs_replan 必须读本人档案——漏传 student_id 会让登录
             # 学生的重规划信号静默回退游客命名空间（审查 A13 复核确认未修）。
             out["needs_replan"] = learning_planner.needs_replan(
-                state, self._mastery_view_safe(student_id))
+                state, self._evaluation_view_safe(student_id))
             # W4 容量可行性：确定性按日负载 vs 时间预算（advisory，不阻断）。
             out["capacity"] = schedule_engine.capacity_report(state)
         except Exception:
@@ -1310,37 +1424,51 @@ class LearningOrchestrationService:
         from ...core.llm_async import get_llm
         return get_llm()
 
+    def _graph_for_safe(self, student_id: str):
+        """G4：M5 合并图谱（seed + 公用 + 本人 custom），student_id 键控
+        命名空间；失败返回 None。"""
+        try:
+            from ..knowledge.manager import get_knowledge_service
+            return get_knowledge_service().graph_for(student_id or "")
+        except Exception:
+            return None
+
     def _concept_names_safe(self, subject: str = "",
                             student_id: str = "") -> dict[str, str]:
-        """Read M5/M2 graph node names (read-only). Empty dict on failure."""
+        """Read M5 graph node names (read-only). Empty dict on failure."""
         try:
-            from ..student_model import get_student_model, is_enabled
-            from ..student_model.store import DEFAULT_STUDENT_ID
-            if is_enabled():
-                sm = get_student_model(student_id or DEFAULT_STUDENT_ID)
+            graph = self._graph_for_safe(student_id)
+            if graph is not None:
                 return {nid: node.name
-                        for nid, node in sm.graph.nodes.items()
+                        for nid, node in graph.nodes.items()
                         if not subject or node.subject == subject}
         except Exception:
             pass
         return {}
 
-    def _mastery_view_safe(self, student_id: str = "") -> dict[str, Any]:
-        """Read M2 mastery view (read-only). Returns {} on any failure.
-
-        `student_id` keys the mastery namespace -- passing the caller's id is
-        required, otherwise a logged-in user's plan/composition silently
-        reads the guest namespace (and needlessly cold-builds a second one).
-        """
+    def _evaluation_view_safe(self, student_id: str = "") -> dict[str, Any]:
+        """G4：统一评价只读投影 {concept_key: {"state": ...}}（全工作区
+        当前判断聚合）。`student_id` 必须显式传本人 id——漏传会让登录学生
+        的规划/编排静默回退游客命名空间。任何失败返回 {}。"""
         try:
-            from ..student_model import get_student_model, is_enabled
             from ..student_model.store import DEFAULT_STUDENT_ID
-            if is_enabled():
-                return get_student_model(
-                    student_id or DEFAULT_STUDENT_ID).mastery_view()
+            from ..student_model.evaluation.store import get_journal
+            state = get_journal(student_id or DEFAULT_STUDENT_ID).state()
+            out: dict[str, Any] = {}
+            for (_ws, _key), jid in state.concept_current.items():
+                j = state.judgments.get(jid)
+                if j is None:
+                    continue
+                st = j.state.value if hasattr(j.state, "value") else str(j.state)
+                # 以裸概念 id（与 M5 图谱同一点分路径方案）为键；同概念
+                # 多工作区时保留最不利状态，避免任一区已支持就掩盖待解决。
+                cid = j.concept_ref.concept_id
+                prev = out.get(cid, {}).get("state", "")
+                if prev != "supported_in_scope":
+                    out[cid] = {"state": st}
+            return out
         except Exception:
-            pass
-        return {}
+            return {}
 
     def habit_patterns(self, student_id: str, *,
                        subject: str = "") -> list[dict[str, Any]]:
@@ -1362,12 +1490,12 @@ class LearningOrchestrationService:
         return []
 
     def _compose_context_safe(self, student_id: str) -> str:
-        """Grounded context for the daily compose prompt: Bloom weaknesses +
-        M6 long-term habits. Empty string when neither has data. Never raises.
+        """Grounded context for the daily compose prompt: 统一评价待解决概念
+        + M6 long-term habits. Empty string when neither has data. Never raises.
         """
         try:
             parts = [p for p in (
-                self._bloom_context_safe(student_id),
+                self._weakness_context_safe(student_id),
                 daily_composer.habit_context(self.habit_patterns(student_id)),
             ) if p]
             return "\n".join(parts)
@@ -1382,12 +1510,10 @@ class LearningOrchestrationService:
         gap analysis. Empty list on any failure (degrades to empty GoalState).
         """
         try:
-            from ..student_model import get_student_model, is_enabled
-            from ..student_model.store import DEFAULT_STUDENT_ID
-            if is_enabled():
-                sm = get_student_model(student_id or DEFAULT_STUDENT_ID)
+            graph = self._graph_for_safe(student_id)
+            if graph is not None:
                 out = []
-                for nid, node in sm.graph.nodes.items():
+                for nid, node in graph.nodes.items():
                     if subject and node.subject != subject:
                         continue
                     out.append({"skill_id": nid, "name": node.name,
@@ -1399,17 +1525,20 @@ class LearningOrchestrationService:
         return []
 
     def _prereq_map_safe(self, student_id: str = "") -> dict[str, list[str]]:
-        """Read M2/M5 prerequisite map (read-only). Empty dict on failure."""
+        """Read the M5 prerequisite map (PREREQUISITE 边 source→target，
+        即先学 source)（read-only）. Empty dict on failure."""
         try:
-            from ..student_model import get_student_model, is_enabled
-            from ..student_model.store import DEFAULT_STUDENT_ID
-            if is_enabled():
-                sm = get_student_model(student_id or DEFAULT_STUDENT_ID)
-                return {nid: list(node.prerequisites)
-                        for nid, node in sm.graph.nodes.items()}
+            graph = self._graph_for_safe(student_id)
+            if graph is None:
+                return {}
+            from ..knowledge.schema import EdgeType
+            pm: dict[str, list[str]] = {}
+            for e in graph.edges:
+                if e.type == EdgeType.PREREQUISITE:
+                    pm.setdefault(e.target, []).append(e.source)
+            return pm
         except Exception:
-            pass
-        return {}
+            return {}
 
     def _concept_chain_skills_safe(self, target_ids: list[str],
                                    student_id: str = "") -> list[dict[str, Any]]:
@@ -1420,27 +1549,28 @@ class LearningOrchestrationService:
         Empty list on any failure -> the caller falls back to subject mode.
         """
         try:
-            from ..student_model import get_student_model, is_enabled
-            from ..student_model.store import DEFAULT_STUDENT_ID
-            if not is_enabled() or not target_ids:
+            if not target_ids:
                 return []
-            sm = get_student_model(student_id or DEFAULT_STUDENT_ID)
-            mastery_view = self._mastery_view_safe(student_id)
+            graph = self._graph_for_safe(student_id)
+            if graph is None:
+                return []
+            evaluation_view = self._evaluation_view_safe(student_id)
             mastered = {
-                sid for sid, rec in (mastery_view or {}).items()
-                if isinstance(rec, dict) and float(rec.get("p_known", 0) or 0) >= 0.75}
-            prereq_map = {nid: list(node.prerequisites)
-                          for nid, node in sm.graph.nodes.items()}
+                sid for sid, rec in (evaluation_view or {}).items()
+                if isinstance(rec, dict)
+                and str(rec.get("state", "")) == "supported_in_scope"}
+            prereq_map = self._prereq_map_safe(student_id)
             closure = goal_analyzer.prerequisite_closure(
                 target_ids, prereq_map, mastered)
             out = []
             for nid in closure:
-                node = sm.graph.nodes.get(nid)
+                node = graph.nodes.get(nid)
                 if node is None:
                     continue
                 out.append({"skill_id": nid, "name": node.name,
                             "subject": node.subject,
-                            "difficulty": node.difficulty})
+                            "difficulty": int(getattr(node, "difficulty", 3)
+                                               or 3)})
             return out
         except Exception:
             return []
@@ -1465,14 +1595,14 @@ class LearningOrchestrationService:
         """
         try:
             now = now if now is not None else time.time()
-            mastery_view = self._mastery_view_safe(student_id)
+            evaluation_view = self._evaluation_view_safe(student_id)
             prereq_map = self._prereq_map_safe(student_id)
 
             states: list[GoalState] = []
             for goal in state.goals:
                 prev = state.goal_state_for(goal.id)
                 gs = self._analyze_one_goal(
-                    state, goal, mastery_view=mastery_view,
+                    state, goal, evaluation_view=evaluation_view,
                     prereq_map=prereq_map, now=now, student_id=student_id)
                 if gs is None:
                     gs = prev or GoalState(
@@ -1487,7 +1617,7 @@ class LearningOrchestrationService:
             pass
 
     def _analyze_one_goal(self, state: OrchestrationState, goal: LearningGoal,
-                          *, mastery_view: dict[str, Any],
+                          *, evaluation_view: dict[str, Any],
                           prereq_map: dict[str, list[str]],
                           now: float, student_id: str = "") -> GoalState | None:
         """Analyze one goal; None when nothing resolvable (caller keeps the
@@ -1504,7 +1634,7 @@ class LearningOrchestrationService:
                 if skills:
                     return goal_analyzer.compute_gap_analysis(
                         goal, subject_skills=skills,
-                        mastery_view=mastery_view, prereq_map=prereq_map,
+                        evaluation_view=evaluation_view, prereq_map=prereq_map,
                         now=now, chain_mode="concept_chain",
                         weekly_pace=learning_planner._MAX_CONCEPTS_PER_WEEK,
                         daily_minutes=sched_minutes,
@@ -1521,7 +1651,7 @@ class LearningOrchestrationService:
             if not skills:
                 return None  # no graph data
             return goal_analyzer.compute_gap_analysis(
-                goal, subject_skills=skills, mastery_view=mastery_view,
+                goal, subject_skills=skills, evaluation_view=evaluation_view,
                 prereq_map=prereq_map, now=now, chain_mode="subject",
                 weekly_pace=learning_planner._MAX_CONCEPTS_PER_WEEK,
                 daily_minutes=sched_minutes, available_days=sched_days)
@@ -1536,38 +1666,72 @@ class LearningOrchestrationService:
         inference, we call M3's planner with inputs gathered from M2/M3/M5.
         All reads are guarded so a disabled layer degrades gracefully.
         """
-        mastery_view = self._mastery_view_safe(student_id)
+        evaluation_view = self._evaluation_view_safe(student_id)
 
         next_learnable: list[dict[str, Any]] = []
         review_candidates: list[dict[str, Any]] = []
         prereq_map: dict[str, list[str]] = {}
 
         try:
-            from ..student_model import get_student_model, is_enabled
-            from ..student_model.store import DEFAULT_STUDENT_ID
-            if is_enabled():
-                sm = get_student_model(student_id or DEFAULT_STUDENT_ID)
+            # G4：M2 数值链已删。next-learnable / 复习候选 / 前置图全部读
+            # M5 合并图谱 + 统一评价投影（只读、零 LLM）。
+            graph = self._graph_for_safe(student_id)
+            if graph is not None:
+                prereq_map = self._prereq_map_safe(student_id)
                 # multi-goal: next-learnable across every goal's subjects;
-                # 0 or 2+ distinct subjects -> whole-graph frontier (None)
+                # 0 or 2+ distinct subjects -> whole-graph frontier
                 subjects = {s for g in state.goals for s in g.subjects if s}
                 subject = next(iter(subjects)) if len(subjects) == 1 else ""
-                # next-learnable from the skill graph (read-only)
-                for n in sm.graph.next_learnable(subject or None, mastery_view,
-                                                  limit=8):
-                    next_learnable.append({"name": n.name, "skill_id": n.id,
-                                           "difficulty": n.difficulty})
-                # review candidates: seen concepts with middling mastery
-                for rid, m in sm.mastery.records.items():
-                    if m.attempts > 0 and 0.3 <= m.p_known < 0.8:
-                        node = sm.graph.get(rid)
+                # 复习候选：已观察待解决概念（fragile/conflicting/emerging）
+                names = {nid: node.name for nid, node in
+                         graph.nodes.items()}
+                for rid, rec in (evaluation_view or {}).items():
+                    if not isinstance(rec, dict):
+                        continue
+                    if str(rec.get("state", "")) in (
+                            "fragile", "conflicting", "emerging")                             and rid in names:
+                        node = graph.nodes.get(rid)
                         review_candidates.append({
-                            "name": node.name if node else rid,
-                            "skill_id": rid, "mastery": m.p_known,
-                            "last_review": m.last_review,
-                            "difficulty": node.difficulty if node else 3})
-                # prereq map for topo-sort
-                for nid, node in sm.graph.nodes.items():
-                    prereq_map[nid] = list(node.prerequisites)
+                            "name": names[rid], "skill_id": rid,
+                            "difficulty": int(getattr(node, "difficulty", 3)
+                                               or 3)})
+                # next-learnable：拓扑序上「前置均支持/无前置 且 自身未支持」
+                # 的概念（确定性 frontier）。
+                def _supported(cid: str) -> bool:
+                    rec = evaluation_view.get(cid) or {}
+                    return isinstance(rec, dict) and                         str(rec.get("state", "")) == "supported_in_scope"
+
+                seen: set[str] = set()
+                order: list[str] = []
+
+                def visit(cid: str) -> None:
+                    if cid in seen or cid not in graph.nodes:
+                        return
+                    seen.add(cid)
+                    for pre in prereq_map.get(cid, []):
+                        visit(pre)
+                    order.append(cid)
+
+                for nid in graph.nodes:
+                    visit(nid)
+                for nid in order:
+                    if len(next_learnable) >= 8:
+                        break
+                    node = graph.nodes[nid]
+                    if getattr(node, "kind", "concept") not in (
+                            "concept",):
+                        continue
+                    if subject and node.subject != subject:
+                        continue
+                    if _supported(nid):
+                        continue
+                    if any(not _supported(pre)
+                           for pre in prereq_map.get(nid, [])):
+                        continue
+                    next_learnable.append({
+                        "name": node.name, "skill_id": nid,
+                        "difficulty": int(getattr(node, "difficulty", 3)
+                                           or 3)})
         except Exception:
             pass
 
@@ -1576,7 +1740,7 @@ class LearningOrchestrationService:
         return {
             "next_learnable": next_learnable,
             "review_candidates": review_candidates,
-            "mastery_view": mastery_view,
+            "evaluation_view": evaluation_view,
             "prereq_map": prereq_map,
         }
 

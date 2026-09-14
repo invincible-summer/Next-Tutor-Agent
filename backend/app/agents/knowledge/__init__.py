@@ -11,7 +11,7 @@ It owns the knowledge *ontology*: concepts, the typed relationships between
 them (PREREQUISITE / RELATED / APPLICATION / MISCONCEPTION), and their teaching
 content. The Student Model's SkillGraph is a per-student projection of the
 PREREQUISITE edges drawn from here, so there is ONE source of truth for
-learning order (M5 when enabled, skill_graph_seed as the resilient fallback).
+learning order (M5 scoped graph is authoritative).
 
 Pipeline (filled in across phases):
   M5.1 schema + graph + facade + switch              <-- this commit
@@ -28,7 +28,7 @@ Design contract (must hold to protect M1-M4):
     is downward).
   - SINGLE TRUTH SOURCE for PREREQUISITE edges: when this module is enabled,
     SkillGraph prerequisite edges come from here; when disabled, the existing
-    skill_graph_seed is authoritative. Never both at once.
+    the M5 seed is authoritative. Never both at once.
   - GRACEFUL: any failure degrades to a no-op; never breaks a turn. Toggled by
     KNOWLEDGE_INTELLIGENCE_MODE (default on); when off, every layer falls back
     to byte-identical M1-M4 behavior.

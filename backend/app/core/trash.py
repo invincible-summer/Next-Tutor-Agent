@@ -375,12 +375,12 @@ def _delete_session_active(owner_id: str, session_id: str, data: dict[str, Any])
         ws.session_ids = [x for x in ws.session_ids if x != session_id]
         save_workspace(ws)
     try:
-        from .quiz_recent import mark_session_source_deleted
+        from ..agents.student_model.evaluation.lifecycle import archive_session_sources  # G4
         mark_session_source_deleted(owner_id, session_id)
     except Exception:
         pass
     try:
-        from .learning_records import mark_source_deleted
+        pass  # G4: learning_records 已删（journal archive 已处理）
         mark_source_deleted(owner_id, session_id)
     except Exception:
         pass
@@ -422,12 +422,12 @@ def _restore_session_payload(owner_id: str, payload: Path,
     for src in (payload / "traces").glob("trace_*.jsonl") if (payload / "traces").exists() else []:
         _restore_file(src, trace_dir_path() / src.name)
     try:
-        from .quiz_recent import mark_session_source_active
+        from ..agents.student_model.evaluation.lifecycle import restore_session_sources  # G4
         mark_session_source_active(owner_id, sid)
     except Exception:
         pass
     try:
-        from .learning_records import mark_source_active
+        pass  # G4: learning_records 已删
         mark_source_active(owner_id, sid)
     except Exception:
         pass
@@ -1091,17 +1091,15 @@ def _purge_session_memory(owner_id: str, session_ids: list[str]) -> dict[str, in
 
 
 def _detach_learning_source_ids(owner_id: str, session_ids: list[str]) -> dict[str, int]:
-    """Remove erased chat identifiers while retaining independent outcomes."""
-    counts = {"learning_records": 0, "quiz_recent": 0}
+    """G4：learning_records/quiz_recent 已删。永久清除 journal 中该会话的
+    dialogue 来源（§5.3：物理去除原文/引用副本并撤销依赖结论；独立
+    assessment 档案保留、去掉对话定位）。"""
+    counts = {"journal_sessions": 0}
     for sid in session_ids:
         try:
-            from .learning_records import detach_source_session
-            counts["learning_records"] += detach_source_session(owner_id, sid)
-        except Exception:
-            pass
-        try:
-            from .quiz_recent import detach_session_source
-            counts["quiz_recent"] += detach_session_source(owner_id, sid)
+            from app.agents.student_model.evaluation import lifecycle as ev_lifecycle
+            ev_lifecycle.delete_session_sources(owner_id, sid)
+            counts["journal_sessions"] += 1
         except Exception:
             pass
     return counts

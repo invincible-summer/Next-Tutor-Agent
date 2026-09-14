@@ -187,9 +187,11 @@ class TestStudentAPI(_ProjectionTestBase):
         self.assertEqual(p["subjects"], ["物理"])
         self.assertEqual(p["goals"], ["期末物理上90"])
         self.assertEqual(p["events_processed"], 5)
-        for k in ("learning_style", "weak_points", "strong_points",
-                  "created_at", "updated_at", "last_active"):
+        for k in ("learning_style", "created_at", "updated_at", "last_active"):
             self.assertIn(k, p)
+        # G4：数值强弱项字段已删（统一评价语义化）
+        for k in ("weak_points", "strong_points"):
+            self.assertNotIn(k, p)
 
     def test_profile_disabled(self):
         with patch.dict(os.environ, {"STUDENT_MODEL_MODE": "0"}):
@@ -203,29 +205,11 @@ class TestStudentAPI(_ProjectionTestBase):
         body = self.get("/api/v1/student/profile")
         self.assertEqual(body, {"status": "empty", "profile": None})
 
-    def test_mastery_ok(self):
-        body = self.get("/api/v1/student/mastery")
-        self.assertEqual(body["status"], "ok")
-        self.assertEqual(body["count"], 2)
-        by_id = {s["skill_id"]: s for s in body["skills"]}
-        b = by_id["physics.fluid.buoyancy"]
-        self.assertEqual(b["concept"], "浮力")          # joined from memory
-        self.assertEqual(b["state"], "partial")          # joined from memory
-        self.assertEqual(b["subject"], "physics")        # first dotted segment
-        self.assertAlmostEqual(b["p_known"], 0.42)
-        self.assertEqual(b["attempts"], 3)
-        self.assertEqual(b["correct"], 1)
-        self.assertEqual(b["last_review"], 1500.0)
-        self.assertEqual(b["mistakes"], ["公式记错"])
-        # no memory record -> state falls back to "unknown"
-        self.assertEqual(by_id["general.auto.惯性"]["state"], "unknown")
-        # weakest first
-        self.assertEqual(body["skills"][0]["skill_id"], "physics.fluid.buoyancy")
-
-    def test_mastery_disabled(self):
-        with patch.dict(os.environ, {"STUDENT_MODEL_MODE": "0"}):
-            body = self.get("/api/v1/student/mastery")
-        self.assertEqual(body, {"status": "disabled"})
+    def test_mastery_route_removed(self):
+        """G4 §19.1：旧 /student/mastery 路由不注册——旧客户端应失败并刷新，
+        不留「已废弃但仍可调用」适配。"""
+        r = self.client.get("/api/v1/student/mastery")
+        self.assertEqual(r.status_code, 404)
 
     def test_teaching_log_ok(self):
         body = self.get("/api/v1/student/teaching-log")
@@ -250,17 +234,51 @@ class TestStudentAPI(_ProjectionTestBase):
         self.assertEqual(body, {"status": "disabled"})
 
     def test_learning_path_ok(self):
+        """G4：next = 图谱 frontier；review = 统一评价已观察待解决概念。"""
+        self._seed_fragile_judgment("physics.fluid.buoyancy", "浮力")
         body = self.get("/api/v1/student/learning-path")
         self.assertEqual(body["status"], "ok")
         self.assertIsInstance(body["next_to_learn"], list)
         self.assertIsInstance(body["review"], list)
         self.assertTrue(1 <= body["difficulty"] <= 5)
-        # buoyancy: middling mastery + very stale last_review -> review node
+        # buoyancy: journal 判定 fragile -> 待复习
         review_ids = [n["skill_id"] for n in body["review"]]
         self.assertIn("physics.fluid.buoyancy", review_ids)
-        for n in body["next_to_learn"] + body["review"]:
+        for n in body["next_to_learn"]:
             for k in ("name", "skill_id", "difficulty", "reason"):
                 self.assertIn(k, n)
+
+    def _seed_fragile_judgment(self, cid: str, name: str) -> None:
+        from app.agents.student_model.evaluation import schema as S
+        from app.agents.student_model.evaluation.store import get_journal
+        concept = S.ConceptRef(
+            graph_owner_namespace="public", textbook_id="tb-proj",
+            file_ids=[], concept_id=cid, concept_revision="cr_1",
+            display_name=name)
+        judgment = S.ConceptJudgment(
+            judgment_id="jdg_lp_" + cid.replace(".", "_"),
+            concept_ref=concept, workspace_id="ws_lp",
+            state=S.ConceptEvalState.FRAGILE,
+            statement="条件混淆，需继续学习", claims=[],
+            evidence_watermark="gen:1", policy_version=S.POLICY_VERSION,
+            theory_version=S.THEORY_VERSION, prompt_ref="p",
+            created_at=S.utc_now_iso(), source_id="src_lp",
+            scope_revision="sr_1")
+        journal = get_journal(SID)
+        receipt = S.SourceReceipt(
+            source_id="src_lp", source_revision=1,
+            kind=S.SourceKind.DIALOGUE, observed_at=S.utc_now_iso(),
+            workspace_id_at_observation="ws_lp", canonical_text="作答混乱",
+            scope_revision="sr_1")
+        journal.append([
+            S.OpSourceRegistered(source=receipt),
+            S.OpResultCommitted(
+                job_id="job_lp", source_id="src_lp", source_revision=1,
+                scope_revision="sr_1", interpretation_id="itp_lp",
+                interpretation=S.LearnerInterpretation(
+                    applicable=True, observation_claims=[], concept_updates=[],
+                    feedback=""),
+                judgments=[judgment], abstained=False)])
 
     def test_learning_path_disabled(self):
         with patch.dict(os.environ, {"TEACHING_ENGINE_MODE": "0"}):
@@ -281,24 +299,24 @@ class TestKnowledgeAPI(_ProjectionTestBase):
         self.assertGreater(len(body["edges"]), 0)
         n0 = body["nodes"][0]
         for k in ("id", "name", "subject", "level", "difficulty",
-                  "description", "aliases", "common_errors", "mastery"):
+                  "description", "aliases", "common_errors", "evaluation"):
             self.assertIn(k, n0)
         e0 = body["edges"][0]
         self.assertEqual(set(e0.keys()), {"from", "to", "type"})
         # isolated learned-edges file -> seed only
         self.assertEqual(body["learned_edges"], 0)
-        # mastery overlay joined for the seeded skill
+        # G4：无 workspace 不着色（evaluation=None；mastery 键已删）
         by_id = {n["id"]: n for n in body["nodes"]}
-        m = by_id["physics.fluid.buoyancy"]["mastery"]
-        self.assertIsNotNone(m)
-        self.assertAlmostEqual(m["p_known"], 0.42)
-        self.assertEqual(m["state"], "partial")
+        self.assertNotIn("mastery", by_id["physics.fluid.buoyancy"])
+        self.assertIsNone(by_id["physics.fluid.buoyancy"]["evaluation"])
 
-    def test_graph_mastery_null_when_m2_off(self):
+    def test_graph_evaluation_needs_workspace(self):
+        # G4（§11.6）：评价覆盖层按 workspace scope 求交；无 workspace 时
+        # 所有节点 evaluation 均为 None（模型开关不再影响该语义）。
         with patch.dict(os.environ, {"STUDENT_MODEL_MODE": "0"}):
             body = self.get("/api/v1/knowledge/graph")
         self.assertEqual(body["status"], "ok")
-        self.assertTrue(all(n["mastery"] is None for n in body["nodes"]))
+        self.assertTrue(all(n["evaluation"] is None for n in body["nodes"]))
 
     def test_graph_disabled(self):
         with patch.dict(os.environ, {"KNOWLEDGE_INTELLIGENCE_MODE": "0"}):
@@ -316,7 +334,9 @@ class TestKnowledgeAPI(_ProjectionTestBase):
         for k in ("prerequisites", "unlocks", "related",
                   "applications", "misconceptions"):
             self.assertIn(k, body["edges"])
-        self.assertAlmostEqual(body["mastery"]["p_known"], 0.42)
+        # G4：概念详情评价字段（无 workspace → None；mastery 键已删）
+        self.assertNotIn("mastery", body)
+        self.assertIsNone(body["evaluation"])
         # teaching log joined via the display name ("浮力")
         self.assertEqual(len(body["teaching_log"]), 2)
         self.assertEqual(body["teaching_log"][0]["ts"], 1200.0)  # newest first
@@ -428,7 +448,7 @@ class TestMemoryAPI(_ProjectionTestBase):
 
 _ALL_ENDPOINTS = [
     "/api/v1/student/profile",
-    "/api/v1/student/mastery",
+    "/api/v1/student/error-notebook",
     "/api/v1/student/teaching-log",
     "/api/v1/student/learning-path",
     "/api/v1/knowledge/graph",

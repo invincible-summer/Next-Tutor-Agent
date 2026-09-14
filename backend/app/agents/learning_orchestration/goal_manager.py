@@ -22,7 +22,8 @@ from .schema import (GoalType, LearningGoal, OrchestrationState,
 def add_goal(state: OrchestrationState, *, title: str, description: str = "",
              goal_type: str = "ability", subjects: list[str] | None = None,
              deadline: float = 0.0,
-             target_concept_ids: list[str] | None = None) -> LearningGoal:
+             target_concept_ids: list[str] | None = None,
+             workspace_id: str = "") -> LearningGoal:
     """Append a new long-term learning goal (id ``g_{seq}``).
 
     Raises ValueError on an empty title or when the goal cap is exceeded.
@@ -48,6 +49,7 @@ def add_goal(state: OrchestrationState, *, title: str, description: str = "",
         goal_type=GoalType.from_value(goal_type),
         subjects=list(subjects or []),
         target_concept_ids=[c for c in (target_concept_ids or []) if str(c).strip()],
+        workspace_id=str(workspace_id or "").strip(),
         deadline=float(deadline),
     )
     goal.updated_at = time.time()
@@ -60,7 +62,8 @@ def update_goal(state: OrchestrationState, goal_id: str, *,
                 goal_type: str | None = None,
                 subjects: list[str] | None = None,
                 deadline: float | None = None,
-                target_concept_ids: list[str] | None = None) -> LearningGoal | None:
+                target_concept_ids: list[str] | None = None,
+                workspace_id: str | None = None) -> LearningGoal | None:
     """Patch fields of one goal (all parameters optional). Returns the goal,
     or None when the id does not exist."""
     goal = next((g for g in state.goals if g.id == goal_id), None)
@@ -79,6 +82,8 @@ def update_goal(state: OrchestrationState, goal_id: str, *,
             c for c in target_concept_ids if str(c).strip()]
     if deadline is not None:
         goal.deadline = float(deadline)
+    if workspace_id is not None:
+        goal.workspace_id = str(workspace_id or "").strip()
     goal.updated_at = time.time()
     return goal
 
@@ -95,22 +100,18 @@ def remove_goal(state: OrchestrationState, goal_id: str) -> bool:
 
 
 def overall_progress(state: OrchestrationState,
-                     mastery_view: dict[str, Any]) -> float:
-    """A 0..1 progress score across the weekly plan, read-only over M2 mastery.
-
-    The fraction of planned concepts whose mastery reached their planned
-    target. Returns 0 when there is no plan. (Milestone-based before the
-    plan-hierarchy rebuild; now computed over weekly_plan concepts.)
-    """
+                     evaluation_view: dict[str, Any]) -> float:
+    """G4：0..1 计划进度 = 计划内概念被统一评价 supported_in_scope 的占比
+    （只读投影；无计划返回 0）。"""
     total = 0
-    mastered = 0
+    supported = 0
     for w in state.weekly_plan:
         for pc in w.concepts:
             total += 1
-            rec = mastery_view.get(pc.concept_id) or {}
-            p = float(rec.get("p_known", 0)) if isinstance(rec, dict) else 0.0
-            if p >= pc.planned_mastery:
-                mastered += 1
+            rec = evaluation_view.get(pc.concept_id) or {}
+            if isinstance(rec, dict) and \
+                    str(rec.get("state", "")) == "supported_in_scope":
+                supported += 1
     if not total:
         return 0.0
-    return round(mastered / total, 3)
+    return round(supported / total, 3)

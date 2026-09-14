@@ -20,7 +20,7 @@ re-computation of mastery or concept state.
 
 IMPORT-CLEAN: this module never imports student_model at module level (avoids
 circular deps). The caller (manager) passes plain-data projections
-(mastery_view, graph concepts, episodes) so the planner stays decoupled.
+(evaluation_view, graph concepts, episodes) so the planner stays decoupled.
 """
 from __future__ import annotations
 
@@ -64,7 +64,7 @@ def topo_sort_concepts(concept_ids: list[str],
 def generate_weekly_plan(state: OrchestrationState, *,
                          next_learnable: list[dict[str, Any]],
                          review_candidates: list[dict[str, Any]],
-                         mastery_view: dict[str, Any],
+                         evaluation_view: dict[str, Any],
                          prereq_map: dict[str, list[str]] | None = None,
                          num_weeks: int = 4,
                          now: float | None = None) -> list[WeeklyPlan]:
@@ -81,10 +81,10 @@ def generate_weekly_plan(state: OrchestrationState, *,
         pm = prereq_map or {}
         schedule = state.schedule
 
-        # filter already-mastered (read-only over M2)
+        # G4：已 supported_in_scope 的概念不排入新计划（统一评价只读投影）
         unmastered_next = [
             n for n in next_learnable
-            if _mastery(n.get("skill_id", ""), mastery_view) < 0.75
+            if _state(n.get("skill_id", ""), evaluation_view) != "supported_in_scope"
         ]
 
         # topo-sort the next-learnable by prerequisites for sensible ordering
@@ -120,8 +120,7 @@ def generate_weekly_plan(state: OrchestrationState, *,
                 diff = int(node.get("difficulty", 3))
                 concepts.append(PlanConcept(
                     concept_id=cid, name=name,
-                    week_index=wi, difficulty=diff,
-                    planned_mastery=0.75))
+                    week_index=wi, difficulty=diff))
             focus = concepts[0].name if concepts else ""
             weeks.append(WeeklyPlan(week_index=wi, week_start=week_start,
                                     focus=focus, concepts=concepts))
@@ -130,13 +129,13 @@ def generate_weekly_plan(state: OrchestrationState, *,
         return []
 
 
-def _mastery(skill_id: str, mastery_view: dict[str, Any]) -> float:
-    """Read-only helper: get p_known for a skill from the mastery projection."""
-    rec = mastery_view.get(skill_id) or {}
-    return float(rec.get("p_known", 0)) if isinstance(rec, dict) else 0.0
+def _state(skill_id: str, evaluation_view: dict[str, Any]) -> str:
+    """G4 只读助手：统一评价投影中该概念的语义状态（无证据 → ""）。"""
+    rec = evaluation_view.get(skill_id) or {}
+    return str(rec.get("state", "")) if isinstance(rec, dict) else ""
 
 
-def needs_replan(state: OrchestrationState, mastery_view: dict[str, Any],
+def needs_replan(state: OrchestrationState, evaluation_view: dict[str, Any],
                  *, now: float | None = None) -> bool:
     """Decide whether the current plan is stale and should be regenerated.
 
@@ -159,15 +158,15 @@ def needs_replan(state: OrchestrationState, mastery_view: dict[str, Any],
         last_plan_ts = state.weekly_plan[-1].week_start
         if last_plan_ts > 0 and (now - last_plan_ts) > 7 * _DAY_SECONDS:
             return True
-        # check if planned concepts are now mastered (plan is ahead of reality)
-        mastered_in_plan = 0
+        # G4：计划内概念已被统一评价支持（计划落后于现实）→ 触发重规划
+        supported_in_plan = 0
         total_in_plan = 0
         for wp in state.weekly_plan:
             for pc in wp.concepts:
                 total_in_plan += 1
-                if _mastery(pc.concept_id, mastery_view) >= pc.planned_mastery:
-                    mastered_in_plan += 1
-        if total_in_plan > 0 and mastered_in_plan / total_in_plan > 0.7:
+                if _state(pc.concept_id, evaluation_view) == "supported_in_scope":
+                    supported_in_plan += 1
+        if total_in_plan > 0 and supported_in_plan / total_in_plan > 0.7:
             return True
         return False
     except Exception:

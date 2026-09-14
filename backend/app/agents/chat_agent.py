@@ -22,7 +22,6 @@ from ..core.llm_async import AsyncLLMClient, get_llm
 from ..core.quiz_attempts import (merge_quiz_results_from_disk,
                                   quiz_digest_for_session,
                                   record_generated_quiz)
-from ..core.quiz_recent import record_recent_quiz
 from ..core.session import TutorSession, save_session
 from ..core.tool_base import Tool
 from ..core.tool_protocol import ErrorCode, ToolResult, err, ok

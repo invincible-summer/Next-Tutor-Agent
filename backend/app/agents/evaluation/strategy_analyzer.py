@@ -1,13 +1,11 @@
 """Strategy analyzer: aggregate teaching-mode effectiveness across turns.
 
 This is M7's cross-turn analysis engine. Given the accumulated TurnTraces, it
-groups them by (mode, subject) and computes avg learning_gain + avg success
 rate, producing a StrategyEffectiveness ranking -- the "which strategy works
 best" table from the M7 spec.
 
 Boundary with M6 (avoid double truth source): M6 procedural tracks per-student
 strategy success_rate (does this work for THIS student). M7 strategy_analyzer
-aggregates avg learning_gain across ALL turns to compare strategies against
 each other at the system level. It reads M7's OWN traces (which already encode
 mode + outcome + gain); it does NOT re-read M6 procedural raw data -- the
 strategy_analyzer owns the aggregation layer, M6 owns the per-student layer.
@@ -20,7 +18,6 @@ from typing import Any
 from . import store
 from .schema import (MIN_TRACES_FOR_EFFECTIVENESS, StrategyEffectiveness,
                      TurnTrace)
-from .learning_gain import classify_effectiveness
 
 
 # outcomes that count as "success" (strategy produced a good result)
@@ -47,7 +44,6 @@ def analyze_traces(traces: list[TurnTrace]) -> list[StrategyEffectiveness]:
     results: list[StrategyEffectiveness] = []
     for (mode, subject), group in buckets.items():
         n = len(group)
-        gains = [t.learning_gain for t in group if t.learning_gain is not None]
         avg_gain = sum(gains) / len(gains) if gains else 0.0
         successes = sum(1 for t in group if t.outcome.lower() in _SUCCESS_OUTCOMES)
         avg_success = successes / n if n else 0.0
@@ -123,8 +119,6 @@ def summarize(traces: list[TurnTrace]) -> dict[str, Any]:
     for t in traces:
         m = t.mode or "unknown"
         by_mode[m]["count"] += 1
-        if t.learning_gain is not None:
-            by_mode[m]["gains"].append(t.learning_gain)
         if t.outcome.lower() in _SUCCESS_OUTCOMES:
             by_mode[m]["successes"] += 1
         by_mode[m]["tokens"] += t.tokens_used

@@ -1,6 +1,6 @@
 """Curated seed ontology for the KnowledgeGraph — pack aggregator (M5.6).
 
-The seed is a STRICT SUPERSET of student_model/skill_graph_seed.py: every node
+The seed is the single curated source of prerequisite pairs: every node
 id and every PREREQUISITE edge present there also appears here with the same
 name, subject, and difficulty. On top of that base, the seed adds the richer
 M5 fields (level / description / aliases / common_errors) and the non-ordering
@@ -13,9 +13,9 @@ keeps the original public API (seed_nodes/seed_edges/seed_contents/
 seed_skill_prereqs) so manager.py and the tests are untouched by the split.
 
 Superset invariant (enforced by tests): the PREREQUISITE pairs declared by
-skill_graph_seed must all appear in seed_skill_prereqs(), with matching node
+pairs must all appear in seed_skill_prereqs(), with matching node
 attributes. New packs ADD nodes/edges beyond that base, so the invariant is
-one-directional (skill_graph_seed ⊆ M5 seed), not exact equality.
+one-directional (closure ⊆ M5 seed), not exact equality.
 """
 from __future__ import annotations
 
@@ -41,7 +41,7 @@ def seed_contents() -> list[dict]:
 def seed_skill_prereqs() -> set[tuple[str, str]]:
     """The (source, target) PREREQUISITE pairs this seed declares.
 
-    MUST cover the pairs skill_graph_seed declares (superset direction), so
+    MUST cover the declared prerequisite pairs (superset direction), so
     the bridge projects onto SkillGraph without divergence. Tested in
     test_knowledge.
     """
