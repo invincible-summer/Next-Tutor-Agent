@@ -452,6 +452,25 @@ async def _generate_cat_question(student_id: str, instance: cat.CatInstance,
     return task
 
 
+def _concept_label(scope, concept_keys: list[str]) -> str:
+    """concept key → 概念显示名（generator 提示词的出题目标）。
+
+    start 传入的 concept_keys 是 ConceptRef.key（24 位哈希）；直接把它当
+    concept 写进提示词，LLM 读不出题目主题（实测：选「曲线坐标」出成了
+    泊松分布题，且作答因归因失败而落不进概念评价）。scope 缺席/未命中时
+    退回 key 本身，不劣于旧行为。
+    """
+    if not concept_keys:
+        return ""
+    if scope is None:
+        return concept_keys[0]
+    wanted = set(concept_keys)
+    for ref in scope.allowed_concepts:
+        if ref.key in wanted and ref.display_name:
+            return ref.display_name
+    return concept_keys[0]
+
+
 def _match_concept_refs(student_id: str, instance: cat.CatInstance,
                         question) -> list[S.ConceptRef]:
     """题目知识点 → scope 允许概念（严格同名/别名；不造节点，§7.2）。"""
@@ -471,7 +490,10 @@ def _match_concept_refs(student_id: str, instance: cat.CatInstance,
     for concept in scope.allowed_concepts:
         if len(out) >= 3:
             break
-        if concept.display_name in names or concept.concept_id in \
+        # concept_keys 存的是 ConceptRef.key（哈希），按 key 对齐；
+        # 旧代码拿 concept_id（custom.tb-...）比 key 永远不相等，
+        # 导致 LLM 未回显同名 knowledge_points 时归因为空。
+        if concept.display_name in names or concept.key in \
                 instance.concept_keys:
             out.append(concept)
     return out
@@ -482,11 +504,12 @@ async def start_cat(req: CatStartRequest,
                     _sid: str = Depends(resolve_student_id)):
     _require_enabled()
     # §5.1.1：workspace 归属 404 先于任何检索/LLM 调用
+    scope = None
     if req.workspace_id:
         from app.agents.student_model.evaluation.scope import (
             ScopeNotFound, get_scope_resolver)
         try:
-            get_scope_resolver().resolve(_sid, req.workspace_id)
+            scope = get_scope_resolver().resolve(_sid, req.workspace_id)
         except ScopeNotFound:
             raise api_error(404, "workspace_not_found", "工作区不存在")
     instance = cat.CatInstance(
@@ -495,7 +518,7 @@ async def start_cat(req: CatStartRequest,
         purpose=req.goal.purpose,
         target_claims=list(req.goal.target_claims),
         concept_keys=list(req.concept_keys),
-        concept=req.concept_keys[0] if req.concept_keys else "",
+        concept=_concept_label(scope, req.concept_keys),
         grade=req.grade, subject=req.subject,
         count_limit=req.count, difficulty=2,
         probe_ref=dict(req.probe_ref),

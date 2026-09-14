@@ -62,7 +62,10 @@ class Settings:
     # DEEPSEEK_* aliases for backward compat with older .env files.
     llm_base_url: str = os.getenv("LLM_BASE_URL") or os.getenv("DEEPSEEK_BASE_URL", "https://api.deepseek.com/v1")
     llm_api_key: str = os.getenv("LLM_API_KEY") or os.getenv("DEEPSEEK_API_KEY", "")
-    llm_model: str = os.getenv("LLM_MODEL") or os.getenv("DEEPSEEK_MODEL_REASONING", "deepseek-v4-flash")
+    # 2026-09 DeepSeek API 只接受 deepseek-flash / deepseek-v4-pro；
+    # 旧名（deepseek-v4-flash 等）会被 400 invalid_request_error 拒绝，
+    # 表现为出题/对话全部 generation_failed。
+    llm_model: str = os.getenv("LLM_MODEL") or os.getenv("DEEPSEEK_MODEL_REASONING", "deepseek-flash")
     llm_max_tokens: int = int(os.getenv("LLM_MAX_TOKENS", "4000"))
     llm_context_window: int = int(os.getenv("LLM_CONTEXT_WINDOW", "65536"))
     llm_max_output_tokens: int = int(os.getenv("LLM_MAX_OUTPUT_TOKENS", "8000"))

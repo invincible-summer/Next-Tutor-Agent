@@ -248,5 +248,60 @@ class CatLifecycleTest(StorageSandboxTestCase):
                          "unavailable", rep["summary"]["items"][0])
 
 
+class ConceptLabelAndAttributionTest(StorageSandboxTestCase):
+    """CAT 出题目标与归因回归（G7 后 live 验收发现）。
+
+    start 传入的 concept_keys 是 ConceptRef.key（24 位哈希）：直接进提示词
+    会让 LLM 读不出主题（选「曲线坐标」出成泊松分布）；归因若拿 concept_id
+    对比 key 则永远落空。此处锁定 key→显示名解析与按 key 归因两个契约。
+    """
+
+    def _ref(self):
+        from app.agents.student_model.evaluation import schema as S
+        return S.ConceptRef(
+            graph_owner_namespace="public", textbook_id="tb_1",
+            file_ids=["f1"], concept_id="custom.tb-tb_1.c.abc",
+            concept_revision="cr_1", display_name="曲线坐标")
+
+    def test_concept_label_resolves_display_name(self):
+        from app.api.v1.assessment import _concept_label
+        ref = self._ref()
+
+        class _Scope:
+            allowed_concepts = [ref]
+
+        # scope 缺席（无工作区）→ key 原样，不劣于旧行为
+        self.assertEqual(_concept_label(None, [ref.key]), ref.key)
+        # 命中 → 概念名进提示词，LLM 可读
+        self.assertEqual(_concept_label(_Scope(), [ref.key]), "曲线坐标")
+        # 未命中 → key；空 keys → 空
+        self.assertEqual(_concept_label(_Scope(), ["deadbeefcafe"]), "deadbeefcafe")
+        self.assertEqual(_concept_label(_Scope(), []), "")
+
+    def test_match_concept_refs_by_key_not_concept_id(self):
+        from app.api.v1.assessment import _match_concept_refs
+        from app.agents.assessment import adaptive_test as cat
+        ref = self._ref()
+        instance = cat.CatInstance(
+            assessment_id="a1", workspace_id="ws_x",
+            concept_keys=[ref.key], concept=ref.display_name)
+
+        class _Q:  # LLM 未回显任何同名 knowledge_points 的最坏情形
+            concept = ""
+            knowledge_points = []
+
+        class _Resolver:
+            def resolve(self, sid, ws):
+                class _Scope:
+                    allowed_concepts = [ref]
+                return _Scope()
+
+        with patch("app.agents.student_model.evaluation.scope"
+                   ".get_scope_resolver", return_value=_Resolver()):
+            out = _match_concept_refs("usr_x", instance, _Q())
+        self.assertEqual(len(out), 1)
+        self.assertEqual(out[0].display_name, "曲线坐标")
+
+
 if __name__ == "__main__":
     unittest.main()
