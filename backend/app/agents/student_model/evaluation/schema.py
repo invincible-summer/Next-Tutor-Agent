@@ -112,6 +112,17 @@ class ConceptRef(StrictModel):
     concept_revision: str = Field(min_length=1, max_length=128)
     display_name: str = Field(default="", max_length=192)
 
+    @model_validator(mode="before")
+    @classmethod
+    def _drop_computed_key(cls, data: Any) -> Any:
+        """computed `key` 会随 model_dump 写进 journal 行与 API 响应；
+        读回时它必须被忽略（由四元组重算），否则 StrictModel 按 extra
+        拒绝——含 ConceptJudgment 的事务会在重放时被判损坏（G7 恢复
+        演练发现：重启后评价判断被静默截尾或整本 journal 拒写）。"""
+        if isinstance(data, dict):
+            return {k: v for k, v in data.items() if k != "key"}
+        return data
+
     @computed_field
     @property
     def key(self) -> str:

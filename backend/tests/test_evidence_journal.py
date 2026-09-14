@@ -212,6 +212,45 @@ class TestEvidenceJournal(StorageSandboxTestCase):
         self.assertEqual(summary.coverage.not_observed_concepts, 1)
         self.assertEqual(summary.coverage.observed_concepts, 0)
 
+    def test_concept_judgment_survives_reload(self):
+        """G7 恢复演练发现的缺陷回归：ConceptRef 的 computed `key` 随
+        model_dump 写进 journal 行，StrictModel 读回按 extra 拒绝——含
+        ConceptJudgment 的事务在重放时被当损坏尾截去（重启后评价判断
+        静默丢失）。修复后判定事务必须完整重放。"""
+        concept = S.ConceptRef(
+            graph_owner_namespace="public", textbook_id="tb_1",
+            file_ids=["f1"], concept_id="c_j", concept_revision="cr_1",
+            display_name="判断概念")
+        judgment = S.ConceptJudgment(
+            judgment_id="jdg_j1", concept_ref=concept, workspace_id="ws_1",
+            state=S.ConceptEvalState.EMERGING, statement="初现", claims=[],
+            evidence_watermark="gen:1", policy_version=S.POLICY_VERSION,
+            theory_version=S.THEORY_VERSION, prompt_ref="p3",
+            created_at=S.utc_now_iso(), source_id="src_1",
+            scope_revision="scope_1")
+        interp = S.LearnerInterpretation(
+            applicable=True, observation_claims=[], concept_updates=[],
+            feedback="ok")
+        j = st.get_journal(SID)
+        j.append([
+            S.OpSourceRegistered(source=_receipt()),
+            S.OpJobRequested(job=_job()),
+            S.OpResultCommitted(
+                job_id="job_1", source_id="src_1", source_revision=1,
+                scope_revision="scope_1", interpretation_id="itp_j1",
+                interpretation=interp, judgments=[judgment], abstained=False)])
+        raw = j.path.read_text(encoding="utf-8")
+        self.assertIn('"key"', raw)      # computed key 确实序列化进 journal
+        j.invalidate_cache()
+        state = j.state()                # 重放（模拟进程重启）
+        self.assertEqual(len(state.sources), 1)
+        self.assertIn("jdg_j1", state.judgments)
+        cur = state.concept_current.get(("ws_1", concept.key))
+        self.assertEqual(cur, "jdg_j1")
+        # API 响应侧：computed key 仍在（G5 前端依赖）
+        dumped = concept.model_dump()
+        self.assertIn("key", dumped)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -237,7 +237,11 @@ def build_record_ops(record: dict[str, Any], *, sid: str,
     source_id = "src_" + _stable_suffix(f"{sid}|{qid}|source")
     receipt = S.SourceReceipt(
         source_id=source_id, source_revision=1,
-        kind=S.SourceKind.DIALOGUE,          # 旧 source_kind=chat（§16.4 原样）
+        # 旧记录是题卡/测评的作答尝试（attempt 制、带 task_ref）→
+        # ASSESSMENT 观察类型（现行 chat quiz 卡也走 ASSESSMENT，§11.4）；
+        # DIALOGUE 留给无任务的对话观察，错题本/最近习题投影只认
+        # ASSESSMENT 来源，映射成 DIALOGUE 会让迁移作答从投影消失。
+        kind=S.SourceKind.ASSESSMENT,
         observed_at=_utc(created),
         workspace_id_at_observation=workspace,
         canonical_text=student_answer[:2_000_000],
@@ -861,6 +865,12 @@ def cmd_apply(args) -> int:
     print(f"apply complete; manifest → {manifest_path} "
           f"(reported issues: {total_errs})")
     print("run --verify next; --cleanup-legacy only after verify passes")
+    # G7 验收发现：journal 状态在长驻服务内进程级缓存，外部重写文件后
+    # 不会自动失效——apply/rollback 后必须重启在线服务（或另行调用
+    # invalidate_cache），否则 /quiz/recent 等投影继续返回旧状态。
+    print("NOTE: restart any long-running backend services now — "
+          "they cache journal state in-process and will not see "
+          "the migrated journal until restarted")
     return 0
 
 
