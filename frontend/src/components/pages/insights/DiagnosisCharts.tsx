@@ -7,7 +7,7 @@ import { Card, CardHeader } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { dt, type Lang } from "@/lib/labels";
 import type { EvalReport } from "@/lib/types-modules";
-import { failureColor, failureLabel, fmtGain, type Tr } from "./helpers";
+import { failureColor, failureLabel, type Tr } from "./helpers";
 
 export function DiagnosisCharts({ report, tr, lang }: { report: EvalReport; tr: Tr; lang: Lang }) {
   const failures = Object.entries(report.failure_distribution ?? {})
@@ -23,7 +23,7 @@ export function DiagnosisCharts({ report, tr, lang }: { report: EvalReport; tr: 
   const strategies: BarItem[] = (report.top_strategies ?? []).map((s) => ({
     label: `${dt(lang, `mode.${s.strategy}`, s.strategy)} · ${s.subject || "—"}`,
     value: s.avg_success_rate,
-    display: `${fmtGain(s.avg_gain)} / ${Math.round(s.avg_success_rate * 100)}%`,
+    display: `${Math.round(s.avg_success_rate * 100)}%`,
     hint: `${s.sample_size} ${tr("ins.strategy.samples")}`,
   }));
 

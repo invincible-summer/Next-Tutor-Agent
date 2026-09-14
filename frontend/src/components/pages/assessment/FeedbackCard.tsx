@@ -1,19 +1,24 @@
 "use client";
-
-// feedback 阶段：即时判分反馈卡。
+// feedback 阶段：两层反馈卡（§14.5）——本题结果 + 学习反馈走共用
+// SubmissionOutcome；提交身份由服务端记录（attempt_id），pending 可离开。
 import { ArrowRight, Flag, ListChecks } from "lucide-react";
 import { Card, CardHeader } from "@/components/ui/Card";
-import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
-import { dt, verdictTone } from "@/lib/labels";
+import { SubmissionOutcome } from "@/components/learning-evaluation/SubmissionOutcome";
 import type { Lang } from "@/lib/i18n";
 import type { PageTr } from "./common";
 
 export interface AnswerResult {
-  verdict?: string;
-  score?: number;
-  feedback?: string;
-  [key: string]: unknown;
+  taskResult: {
+    verdict?: string | null;
+    grading_status?: string;
+    criterion_results?: Array<{ criterion_id: string; result: string; comment?: string }>;
+    first_error?: { description?: string } | null;
+    hypotheses?: Array<{ statement?: string }>;
+    feedback?: { strengths?: string[]; improvement?: string; next_step?: string } | null;
+  } | null;
+  evaluationStatus: string;
+  learnerFeedback: string;
 }
 
 export function FeedbackCard({
@@ -33,7 +38,6 @@ export function FeedbackCard({
   onNext: () => void;
   onAbandon: () => void;
 }) {
-  const verdict = result.verdict || "unknown";
   return (
     <Card>
       <CardHeader
@@ -45,23 +49,14 @@ export function FeedbackCard({
           </Button>
         }
       />
-      <div className="flex items-center gap-3">
-        <Badge tone={verdictTone(verdict)}>
-          {dt(lang, `verdict.${verdict}`, tr("verdict.unknown"))}
-        </Badge>
-        {typeof result.score === "number" && (
-          <span className="text-sm text-fg-secondary">
-            {tr("fb.score")}
-            <span className="tnum ml-1.5 font-semibold text-fg">{result.score}</span>
-            <span className="text-xs text-muted"> / 1</span>
-          </span>
-        )}
-      </div>
-      {result.feedback && (
-        <div className="chat-prose mt-3 whitespace-pre-wrap rounded-[8px] bg-surface-sunken px-3.5 py-3">
-          {result.feedback}
-        </div>
-      )}
+      <SubmissionOutcome
+        lang={lang}
+        data={{
+          taskResult: result.taskResult,
+          evaluationStatus: result.evaluationStatus,
+          learnerFeedback: result.learnerFeedback,
+        }}
+      />
       <div className="mt-4 flex justify-end">
         <Button size="lg" icon={<ArrowRight size={15} />} disabled={busy} onClick={onNext}>
           {busy ? tr("fb.loading") : stop ? tr("fb.finish") : tr("fb.next")}

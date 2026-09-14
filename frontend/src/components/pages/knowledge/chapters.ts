@@ -31,19 +31,13 @@ export interface ChapterModel {
   sectionCount: Map<string, number>;
 }
 
-/** 子概念掌握度聚合 → 章节卡片色（复用 stateColor 的四态语义）。 */
-export function aggregateChapterState(children: KnowledgeNode[]): string {
-  if (children.length === 0) return "";
-  const states = children.map((c) => c.mastery?.state ?? "");
-  const learned = states.filter((s) => s !== "");
-  if (learned.length === 0) return ""; // 全部未学 → 灰
-  const mis = learned.filter((s) => s === "misconception").length;
-  // 误解加权：≥1/3 已学概念存在误解（或 ≥2 个）→ 偏红
-  if (mis >= 2 || mis * 3 >= learned.length) return "misconception";
-  const und = learned.filter((s) => s === "understood").length;
-  // 已学的全部掌握 → 偏绿（允许还有未学概念）
-  if (und === learned.length) return "understood";
-  return "partial";
+/** 子概念证据覆盖计数（plan §14.4）：章节只显示「有证据 K / 本卷概念 M」
+ * 文字，不做平均掌握颜色；章节/section 的 evaluation 固定 null。 */
+export function evidenceCountOf(children: KnowledgeNode[]): number {
+  return children.filter((c) => {
+    const s = c.evaluation?.state;
+    return !!s && s !== "not_observed";
+  }).length;
 }
 
 /**
@@ -51,7 +45,7 @@ export function aggregateChapterState(children: KnowledgeNode[]): string {
  * - 无 chapter 节点或无 part_of 边 → hasChapters=false，调用方回退平铺视图。
  * - 无 part_of 归属的孤儿概念以普通概念节点身份并入总览，保证混合图（新旧包并存）不丢节点。
  * - 节层可选：有节时概念经「概念→节→章」折叠归属；childrenOf/childCount/
- *   掌握度聚合均含挂节概念，旧（概念→章）形状数值不变。
+ *   证据覆盖计数均含挂节概念，旧（概念→章）形状数值不变。
  */
 export function buildChapterModel(nodes: KnowledgeNode[], edges: KnowledgeEdge[]): ChapterModel {
   const ids = new Set(nodes.map((n) => n.id));
@@ -148,7 +142,8 @@ export function buildChapterModel(nodes: KnowledgeNode[], edges: KnowledgeEdge[]
   }
   for (const arr of directConceptsOfChapter.values()) arr.sort((a, b) => a.id.localeCompare(b.id));
 
-  // 章节伪节点：掌握度 = 子概念聚合，难度 = 子概念均值（fallback 章节自身）
+  // 章节伪节点：难度 = 子概念均值（fallback 章节自身）；evaluation 固定
+  // null——覆盖文字（有证据 K/本卷概念 M）由调用方从 childrenOf 计数渲染。
   const overviewNodes: KnowledgeNode[] = [];
   const childCount = new Map<string, number>();
   const sectionCount = new Map<string, number>();
@@ -156,15 +151,12 @@ export function buildChapterModel(nodes: KnowledgeNode[], edges: KnowledgeEdge[]
     const children = childrenOf.get(chId) ?? [];
     childCount.set(chId, children.length);
     sectionCount.set(chId, (sectionsOfChapter.get(chId) ?? []).length);
-    const state = aggregateChapterState(children);
-    const known = children.map((c) => c.mastery?.p_known).filter((p): p is number => p != null);
-    const pKnown = known.length > 0 ? known.reduce((s, p) => s + p, 0) / known.length : 0;
     const diff =
       children.length > 0 ? children.reduce((s, c) => s + (c.difficulty || 1), 0) / children.length : ch.difficulty;
     overviewNodes.push({
       ...ch,
       difficulty: Math.round(diff * 10) / 10,
-      mastery: state ? { p_known: Math.round(pKnown * 100) / 100, state } : null,
+      evaluation: null,
     });
   }
   // 孤儿概念/节（未被任何章节收编）原样并入总览

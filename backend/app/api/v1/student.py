@@ -27,7 +27,7 @@ from app.identity.models import User
 router = APIRouter(prefix="/student", tags=["student"])
 
 
-def _evaluation_view(student_id: str) -> dict[str, Any]:
+def _evaluation_view(student_id: str, workspace_id: str = "") -> dict[str, Any]:
     """G4：统一评价只读投影 {concept_id: {"state": ...}}（全工作区当前
     判断聚合；多区同概念保留最不利状态）。失败返回 {}。"""
     try:
@@ -35,6 +35,8 @@ def _evaluation_view(student_id: str) -> dict[str, Any]:
         state = get_journal(student_id).state()
         out: dict[str, Any] = {}
         for (_ws, _key), jid in state.concept_current.items():
+            if workspace_id and _ws != workspace_id:
+                continue
             j = state.judgments.get(jid)
             if j is None:
                 continue
@@ -122,7 +124,11 @@ def student_profile(student_id: str = Depends(resolve_student_id)) -> dict:
         if not _sm_store._resolve(student_id).exists():
             return {"status": "empty", "profile": None}
         sm = _sm.get_student_model(student_id)
-        return {"status": "ok", "profile": sm.profile.to_dict()}
+        data = sm.profile.to_dict()
+        # §11.6：弱项/强项不再由画像接口返回——学习评价只在统一评价域。
+        for k in ("weak_points", "strong_points"):
+            data.pop(k, None)
+        return {"status": "ok", "profile": data}
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
@@ -184,6 +190,7 @@ def student_error_notebook(
 
 @router.get("/learning-path")
 def student_learning_path(student_id: str = Depends(resolve_student_id),
+                          workspace_id: str = Query(default=""),
                           user: User | None = Depends(optional_user)) -> dict:
     """The advisory learning path（G4：M5 图谱 × 统一评价投影）:
     what to learn next (frontier: 前置已支持、自身未支持), what to review
@@ -192,7 +199,7 @@ def student_learning_path(student_id: str = Depends(resolve_student_id),
     if not _te.is_enabled():
         return {"status": "disabled"}
     try:
-        view = _evaluation_view(student_id)
+        view = _evaluation_view(student_id, workspace_id)
         g = _graph_for(student_id)
         # review candidates: 已观察待解决概念（统一评价语义）
         revs: list[dict[str, Any]] = []

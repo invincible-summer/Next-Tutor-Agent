@@ -1,17 +1,17 @@
 "use client";
-// /memory 记忆中心 = 记忆总览（L3 呈现层）：
-// ①提示词记忆（用户级永久记忆：AI 跨对话记住什么，含窗口/压缩审计）
-// ②工作区共同记忆（同工作区对话共享的学习情况摘要）
-// ③学习内容档案（不注入对话的业务档案入口：学习账本/教学档案/编排档案）
-// ④Tabs：程序性记忆（活数据）+ 历史审计（旧版情景/语义只读陈列，C4 合并）。
+// /memory 记忆中心（plan §14.1）：两个清晰区域——
+// ①学习档案：按工作区展示统一学习评价（学科叙述/覆盖/近期变化/下一步；
+//   Tabs：近期变化=证据时间线、对话记录=本区来源会话、教材概念=主张列表）。
+//   它取代旧学习评价/六维/Bloom 弱项展示，不是在旧区域下再加一张新卡。
+// ②AI 记忆与偏好：提示词记忆（跨对话画像）+ 工作区共同记忆 + 程序性记忆
+//   + 历史审计（旧版情景/语义只读陈列，C4 合并）。
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   Archive,
-  BookOpen,
   ChevronDown,
   ChevronRight,
-  FileClock,
   Info,
   Layers,
   MessagesSquare,
@@ -24,7 +24,21 @@ import { EmptyState, ErrorNote, PageSkeleton } from "@/components/ui/EmptyState"
 import { EpisodeTimeline } from "@/components/pages/memory/EpisodeTimeline";
 import { SemanticFacts } from "@/components/pages/memory/SemanticFacts";
 import { StrategyBars } from "@/components/pages/memory/StrategyBars";
-import { getEpisodes, getLearningRecords, getProceduralMemory, getSemanticMemory } from "@/lib/api-modules";
+import { EvidenceTimeline } from "@/components/learning-evaluation/EvidenceTimeline";
+import { NextProbeAction } from "@/components/learning-evaluation/NextProbeAction";
+import { SemanticEvaluationPanel } from "@/components/learning-evaluation/SemanticEvaluationPanel";
+import { StatusNote } from "@/components/learning-evaluation/StatusNote";
+import {
+  getEpisodes,
+  getEvalConcepts,
+  getEvalEvidence,
+  getEvalSessionEvidence,
+  getEvalSessions,
+  getEvalWorkspace,
+  getEvalWorkspaces,
+  getProceduralMemory,
+  getSemanticMemory,
+} from "@/lib/api-modules";
 import {
   getPromptMemoryProfile,
   getWorkspace,
@@ -34,12 +48,19 @@ import {
 } from "@/lib/api";
 import { makePageT } from "@/lib/i18n-page";
 import { useUIStore } from "@/lib/store";
+import { et, evalStateTone, type Lang } from "@/lib/evaluation-labels";
 import { fmtDate, relTime } from "@/lib/format";
 import type {
+  ConceptEvaluationView,
   Episode,
-  LearningRecordItem,
+  EvalNextProbe,
+  EvalSessionEvidenceItem,
+  EvalSessionItem,
+  EvalSourceTimelineItem,
   ProceduralStrategy,
   SemanticFact,
+  WorkspaceEvaluationListItem,
+  WorkspaceEvaluationSummary,
 } from "@/lib/types-modules";
 import type { PromptMemoryProfile, WorkspaceItem } from "@/lib/types";
 import { STRINGS } from "./strings";
@@ -52,7 +73,15 @@ interface EpisodesState {
   hasMore: boolean;
 }
 
-/** ①提示词记忆区：core_profile 四字段 + 注入字符 + 窗口会话清单 + 压缩审计。 */
+function fmtIso(iso: string): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+
+/** ②提示词记忆区：core_profile 三字段（current_level 已随旧水平推断删除）+ 注入字符。 */
 function PromptMemorySection({
   profile,
   sessionTitles,
@@ -75,7 +104,6 @@ function PromptMemorySection({
   if (!profile) return null;
   const fields: Array<[string, string]> = [
     ["learning_summary", tr("pm.field.learning_summary")],
-    ["current_level", tr("pm.field.current_level")],
     ["tone_preference", tr("pm.field.tone_preference")],
     ["explanation_preference", tr("pm.field.explanation_preference")],
   ];
@@ -156,7 +184,7 @@ function PromptMemorySection({
   );
 }
 
-/** ②工作区共同记忆区：各工作区展开查看共享学习摘要（7 字段 LLM 结构化文本）。 */
+/** ②工作区共同记忆区：各工作区展开查看共享学习摘要（LLM 结构化文本）。 */
 function WorkspaceMemorySection({
   tr,
   lang,
@@ -246,75 +274,394 @@ function WorkspaceMemorySection({
   );
 }
 
-/** ③学习内容档案区：不注入对话提示词的业务档案入口（明示语义边界）。 */
-function LearningArchiveSection({
-  tr,
-  lang,
-}: {
-  tr: (key: string, fallback?: string) => string;
-  lang: string;
-}) {
-  const [records, setRecords] = useState<LearningRecordItem[] | null>(null);
+/** ①学习档案区：工作区选择 + 叙述/覆盖/下一步 + 三个内容 Tabs。 */
+function LearningArchiveRegion({ tr, lang }: { tr: (k: string, f?: string) => string; lang: Lang }) {
+  const router = useRouter();
+  const [wss, setWss] = useState<WorkspaceEvaluationListItem[] | null>(null);
+  const [wsId, setWsId] = useState("");
+  const [summary, setSummary] = useState<WorkspaceEvaluationSummary | null>(null);
+  const [evidence, setEvidence] = useState<EvalSourceTimelineItem[] | null>(null);
+  const [sessions, setSessions] = useState<EvalSessionItem[] | null>(null);
+  const [allConcepts, setAllConcepts] = useState<ConceptEvaluationView[] | null>(null);
+  const [tab, setTab] = useState("changes");
+  const [stateFilter, setStateFilter] = useState("");
+  const [openConcept, setOpenConcept] = useState<string>("");
+  const [openSession, setOpenSession] = useState<string>("");
+  const [sessionItems, setSessionItems] = useState<EvalSessionEvidenceItem[] | null>(null);
+  const [error, setError] = useState(false);
+
   useEffect(() => {
     let alive = true;
-    getLearningRecords(8)
-      .then((r) => alive && setRecords(r.status === "ok" ? r.items : []))
-      .catch(() => alive && setRecords([]));
+    getEvalWorkspaces(0, 100)
+      .then((r) => {
+        if (!alive) return;
+        const items = r.items || [];
+        setWss(items);
+        setWsId((prev) => prev || items[0]?.workspace_id || "");
+      })
+      .catch(() => {
+        if (!alive) return;
+        setWss([]);
+        setError(true);
+      });
     return () => {
       alive = false;
     };
   }, []);
-  const verdictOf = (v: string) =>
-    v === "correct" ? tr("ar.correct") : v === "partial" ? tr("ar.partial") : v === "wrong" ? tr("ar.wrong") : tr("ar.ungraded");
-  const toneOf = (v: string): "success" | "warning" | "danger" | "muted" =>
-    v === "correct" ? "success" : v === "partial" ? "warning" : v === "wrong" ? "danger" : "muted";
+
+  // 工作区切换时在渲染期重置面板状态（React 官方 derive-state 模式，
+  // 避免在 effect 内同步 setState 造成级联渲染）。
+  const [prevWsId, setPrevWsId] = useState(wsId);
+  if (wsId !== prevWsId) {
+    setPrevWsId(wsId);
+    setSummary(null);
+    setEvidence(null);
+    setSessions(null);
+    setAllConcepts(null);
+    setOpenConcept("");
+    setOpenSession("");
+    setSessionItems(null);
+    setStateFilter("");
+  }
+
+  useEffect(() => {
+    if (!wsId) return;
+    let alive = true;
+    Promise.all([
+      getEvalWorkspace(wsId),
+      getEvalEvidence(wsId, { limit: 30 }),
+      getEvalSessions(wsId, 0, 50),
+      getEvalConcepts(wsId, { limit: 200 }),
+    ])
+      .then(([s, ev, se, co]) => {
+        if (!alive) return;
+        setSummary(s);
+        setEvidence(ev.items || []);
+        setSessions(se.items || []);
+        setAllConcepts(co.items || []);
+        setError(false);
+      })
+      .catch(() => alive && setError(true));
+    return () => {
+      alive = false;
+    };
+  }, [wsId]);
+
+  if (wss === null) {
+    return <p className="py-2 text-xs text-muted">{tr("ws.loading")}</p>;
+  }
+  if (wss.length === 0) {
+    return (
+      <EmptyState
+        icon={<Archive size={20} />}
+        title={tr("arc.workspaces.empty")}
+        desc={tr("arc.workspaces.empty.desc")}
+      />
+    );
+  }
+  const t = (zh: string, en: string) => (lang === "en" ? en : zh);
+  const coverage = summary?.coverage;
+  const byState = coverage?.by_state || {};
+  const STATE_ORDER = ["emerging", "supported_in_scope", "fragile", "conflicting"];
+  const probe = summary?.synthesis?.priority_probe || null;
+
+  const filteredConcepts = stateFilter
+    ? (allConcepts || []).filter((c) => (c.state || "") === stateFilter)
+    : allConcepts || [];
+  const sortedConcepts = [...filteredConcepts].sort((a, b) => {
+    const rank = (v: ConceptEvaluationView) =>
+      !v.state || v.state === "not_observed" ? 1 : 0;
+    return (
+      rank(a) - rank(b) ||
+      (a.concept_ref.display_name || "").localeCompare(b.concept_ref.display_name || "")
+    );
+  });
+
+  const startProbe = (p: EvalNextProbe) => {
+    router.push(`/chat?q=${encodeURIComponent(p.instruction)}&send=1`);
+  };
 
   return (
-    <Card>
-      <CardHeader
-        icon={<Archive size={16} className="text-accent" />}
-        title={tr("ar.title")}
-        desc={tr("ar.desc")}
+    <div className="flex flex-col gap-4" data-testid="learning-archive">
+      <Card>
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+          <label className="flex items-center gap-2 text-xs text-fg-secondary">
+            {t("学习区", "Workspace")}
+            <select
+              value={wsId}
+              onChange={(e) => setWsId(e.target.value)}
+              className="h-8 rounded-[7px] border border-border bg-surface px-2 text-xs text-fg"
+            >
+              {wss.map((w) => (
+                <option key={w.workspace_id} value={w.workspace_id}>
+                  {w.workspace_name || w.workspace_id}
+                </option>
+              ))}
+            </select>
+          </label>
+          {summary?.updated_at && (
+            <span className="tnum text-[0.66rem] text-muted">
+              {tr("arc.updated")} {fmtIso(summary.updated_at)}
+            </span>
+          )}
+        </div>
+
+        {error ? (
+          <ErrorNote
+            message={tr("arc.error")}
+            retry={() => {
+              const keep = wsId;
+              setWsId("");
+              setTimeout(() => setWsId(keep), 0);
+            }}
+          />
+        ) : summary === null ? (
+          <p className="py-2 text-xs text-muted">…</p>
+        ) : (
+          <>
+            {summary.synthesis ? (
+              <p className="mb-3 text-xs leading-relaxed text-fg">
+                {summary.synthesis.statement}
+              </p>
+            ) : (
+              <p className="mb-3 text-xs leading-relaxed text-muted">
+                {tr("arc.synthesis.empty")}
+              </p>
+            )}
+            <div className="mb-3 flex flex-wrap items-center gap-1.5">
+              {STATE_ORDER.filter((s) => (byState[s] || 0) > 0).map((s) => (
+                <Badge key={s} tone={evalStateTone(s)}>
+                  {et(lang, `eval.state.${s}`)} {byState[s]}
+                </Badge>
+              ))}
+              <Badge tone="muted">
+                {et(lang, "eval.state.not_observed")} {coverage?.not_observed_concepts ?? 0}
+              </Badge>
+              <span className="text-[0.66rem] text-muted">{tr("arc.concepts.note")}</span>
+            </div>
+            <StatusNote
+              status={summary.evaluation_status}
+              pendingSourceCount={summary.pending_source_count}
+              lang={lang}
+            />
+            {probe && (
+              <div className="mt-2">
+                <p className="mb-1 text-[0.7rem] font-medium text-fg-secondary">
+                  {tr("arc.next")}
+                </p>
+                <NextProbeAction
+                  probe={probe}
+                  lang={lang}
+                  actions={
+                    <button
+                      type="button"
+                      onClick={() => startProbe(probe)}
+                      className="cursor-pointer rounded-[7px] bg-accent px-2.5 py-1 text-xs font-medium text-white hover:bg-accent-strong"
+                    >
+                      {tr("arc.startProbe")}
+                    </button>
+                  }
+                />
+              </div>
+            )}
+            {summary.synthesis?.limits?.length ? (
+              <ul className="mt-2 space-y-0.5">
+                {summary.synthesis.limits.map((l, i) => (
+                  <li key={i} className="text-[0.7rem] leading-relaxed text-muted">· {l}</li>
+                ))}
+              </ul>
+            ) : null}
+          </>
+        )}
+      </Card>
+
+      <Tabs
+        active={tab}
+        onChange={setTab}
+        items={[
+          { key: "changes", label: tr("arc.tab.changes") },
+          { key: "sessions", label: tr("arc.tab.sessions") },
+          { key: "concepts", label: tr("arc.tab.concepts") },
+        ]}
       />
-      <p className="mb-3 rounded-[8px] bg-surface-hover/50 px-3 py-2 text-[0.72rem] leading-relaxed text-fg-secondary">
-        {tr("ar.boundary")}
-      </p>
-      <div className="mb-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
-        <Link href="/knowledge"
-          className="flex items-center gap-2 rounded-[8px] border border-border-light bg-surface px-3 py-2 text-xs text-fg-secondary transition-colors hover:border-accent hover:text-accent">
-          <BookOpen size={13} />
-          {tr("ar.teaching")}
-        </Link>
-        <Link href="/orchestration"
-          className="flex items-center gap-2 rounded-[8px] border border-border-light bg-surface px-3 py-2 text-xs text-fg-secondary transition-colors hover:border-accent hover:text-accent">
-          <MessagesSquare size={13} />
-          {tr("ar.orchestration")}
-        </Link>
-      </div>
-      <p className="mb-1 flex items-center gap-1.5 text-[0.7rem] font-medium text-fg-secondary">
-        <FileClock size={12} />
-        {tr("ar.recent")}
-      </p>
-      {records === null ? (
-        <p className="py-1 text-xs text-muted">{tr("ws.loading")}</p>
-      ) : records.length === 0 ? (
-        <p className="py-1 text-[0.72rem] text-muted">{tr("ar.recent.empty")}</p>
-      ) : (
-        <ul className="divide-y divide-border-light">
-          {records.map((r) => (
-            <li key={r.record_id} className="flex items-center gap-2 py-1.5">
-              <Badge tone={toneOf(r.verdict)}>{verdictOf(r.verdict)}</Badge>
-              <span className="min-w-0 flex-1 truncate text-xs text-fg">
-                {r.knowledge_point || r.stem}
-              </span>
-              <span className="tnum shrink-0 text-[0.66rem] text-muted">
-                {new Date(r.updated_at * 1000).toLocaleDateString(lang === "en" ? "en" : "zh")}
-              </span>
-            </li>
-          ))}
-        </ul>
+
+      {tab === "changes" &&
+        (evidence === null ? (
+          <p className="py-2 text-xs text-muted">…</p>
+        ) : (
+          <EvidenceTimeline items={evidence} lang={lang} />
+        ))}
+
+      {tab === "sessions" && (
+        <Card>
+          {sessions === null ? (
+            <p className="py-2 text-xs text-muted">…</p>
+          ) : sessions.length === 0 ? (
+            <EmptyState
+              title={tr("arc.session.noEvidence")}
+              desc={tr("arc.workspaces.empty.desc")}
+            />
+          ) : (
+            <ul className="divide-y divide-border-light">
+              {sessions.map((s) => {
+                const isOpen = openSession === s.source_session_ref;
+                const chatAlive = s.availability === "available";
+                const independent = s.kinds.length > 0 && s.kinds.every((k) => k === "assessment");
+                return (
+                  <li key={s.source_session_ref}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setOpenSession(isOpen ? "" : s.source_session_ref);
+                        if (!isOpen) {
+                          setSessionItems(null);
+                          getEvalSessionEvidence(wsId, s.source_session_ref)
+                            .then((r) => setSessionItems(r.items || []))
+                            .catch(() => setSessionItems([]));
+                        }
+                      }}
+                      className="flex w-full cursor-pointer items-center gap-2 py-2 text-left"
+                    >
+                      {isOpen ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
+                      <span className="min-w-0 flex-1 truncate text-xs font-medium text-fg">
+                        {independent ? tr("arc.session.independent") : s.source_session_ref}
+                      </span>
+                      <Badge tone={s.has_evidence ? "accent" : "outline"}>
+                        {s.has_evidence ? tr("arc.session.evidence") : tr("arc.session.noEvidence")}
+                      </Badge>
+                      {s.availability !== "available" && (
+                        <Badge tone="muted">
+                          {s.availability === "deleted"
+                            ? tr("arc.session.deleted")
+                            : et(lang, `eval.avail.${s.availability}`)}
+                        </Badge>
+                      )}
+                      <span className="tnum shrink-0 text-[0.66rem] text-muted">
+                        {fmtIso(s.last_observed_at)}
+                      </span>
+                    </button>
+                    {isOpen && (
+                      <div className="space-y-1.5 pb-2.5 pl-5">
+                        {sessionItems === null ? (
+                          <p className="text-[0.72rem] text-muted">…</p>
+                        ) : sessionItems.length === 0 ? (
+                          <p className="text-[0.72rem] text-muted">{tr("arc.session.noEvidence")}</p>
+                        ) : (
+                          sessionItems.map((it) => (
+                            <div
+                              key={it.source_id}
+                              className="rounded-[8px] border border-border-light bg-surface px-2.5 py-2"
+                            >
+                              <div className="mb-1 flex items-center gap-1.5">
+                                <Badge tone={it.kind === "dialogue" ? "info" : "accent"}>
+                                  {et(lang, `eval.source.${it.kind || "dialogue"}`)}
+                                </Badge>
+                                <span className="tnum text-[0.66rem] text-muted">
+                                  {fmtIso(it.observed_at)}
+                                </span>
+                              </div>
+                              <p className="line-clamp-2 text-[0.72rem] leading-relaxed text-fg-secondary">
+                                {it.canonical_text}
+                              </p>
+                            </div>
+                          ))
+                        )}
+                        {/* §11.2：删除对话后不得把已删除 ID 编进聊天深链 */}
+                        {chatAlive && !independent && (
+                          <Link
+                            href={`/chat/${encodeURIComponent(s.source_session_ref)}`}
+                            className="inline-flex items-center gap-1 text-xs text-accent hover:underline"
+                          >
+                            <MessagesSquare size={12} />
+                            {tr("arc.session.back")}
+                          </Link>
+                        )}
+                      </div>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </Card>
       )}
-    </Card>
+
+      {tab === "concepts" && (
+        <Card>
+          <div className="mb-3 flex flex-wrap items-center gap-1.5">
+            <button
+              type="button"
+              onClick={() => setStateFilter("")}
+              className={`cursor-pointer rounded-full border px-2.5 py-1 text-xs transition-colors ${
+                stateFilter === ""
+                  ? "border-accent bg-accent-soft text-accent-strong"
+                  : "border-border text-fg-secondary hover:border-accent"
+              }`}
+            >
+              {tr("arc.filter.all")}{" "}
+              {coverage ? coverage.observed_concepts + coverage.not_observed_concepts : ""}
+            </button>
+            {STATE_ORDER.map((s) => (
+              <button
+                key={s}
+                type="button"
+                onClick={() => setStateFilter(stateFilter === s ? "" : s)}
+                className={`cursor-pointer rounded-full border px-2.5 py-1 text-xs transition-colors ${
+                  stateFilter === s
+                    ? "border-accent bg-accent-soft text-accent-strong"
+                    : "border-border text-fg-secondary hover:border-accent"
+                }`}
+              >
+                {et(lang, `eval.state.${s}`)} {byState[s] || 0}
+              </button>
+            ))}
+          </div>
+          {allConcepts === null ? (
+            <p className="py-2 text-xs text-muted">…</p>
+          ) : (
+            <ul className="divide-y divide-border-light">
+              {sortedConcepts.map((c) => {
+                const key = c.concept_ref.key || c.concept_ref.concept_id;
+                const isOpen = openConcept === key;
+                return (
+                  <li key={key} className="py-1">
+                    <button
+                      type="button"
+                      onClick={() => setOpenConcept(isOpen ? "" : key)}
+                      aria-expanded={isOpen}
+                      className="flex w-full cursor-pointer items-center gap-2 py-1 text-left"
+                    >
+                      {isOpen ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
+                      <span className="min-w-0 flex-1 truncate text-xs text-fg">
+                        {c.concept_ref.display_name || c.concept_ref.concept_id}
+                      </span>
+                      <Badge tone={evalStateTone(c.state || "not_observed")}>
+                        {et(lang, `eval.state.${c.state || "not_observed"}`)}
+                      </Badge>
+                    </button>
+                    {isOpen && (
+                      <div className="pb-2 pl-5">
+                        <SemanticEvaluationPanel
+                          view={c}
+                          lang={lang}
+                          workspaceId={wsId}
+                          onStartProbe={startProbe}
+                          onExplain={() =>
+                            router.push(
+                              `/knowledge?concept=${encodeURIComponent(c.concept_ref.concept_id)}`,
+                            )
+                          }
+                        />
+                      </div>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </Card>
+      )}
+    </div>
   );
 }
 
@@ -322,6 +669,7 @@ export default function MemoryPage() {
   const lang = useUIStore((s) => s.lang);
   const tr = makePageT(lang, STRINGS);
 
+  const [region, setRegion] = useState<"archive" | "ai">("archive");
   const [tab, setTab] = useState("procedural");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
@@ -362,12 +710,16 @@ export default function MemoryPage() {
   }, []);
 
   useEffect(() => {
-    // 延迟到 rAF 回调中触发，避免在 effect 体内同步 setState
-    // （react-hooks/set-state-in-effect），与 Sidebar 的既有模式一致。
-    const id = requestAnimationFrame(() => {
-      load();
+    // 延迟到微任务触发，避免在 effect 体内同步 setState
+    // （react-hooks/set-state-in-effect）。不用 rAF：后台标签页/不可见
+    // webview 不绘制帧时 rAF 永不触发，区域会永远停在骨架屏。
+    let cancelled = false;
+    void Promise.resolve().then(() => {
+      if (!cancelled) load();
     });
-    return () => cancelAnimationFrame(id);
+    return () => {
+      cancelled = true;
+    };
   }, [load]);
 
   const retry = useCallback(() => {
@@ -421,7 +773,18 @@ export default function MemoryPage() {
           <p className="mt-1 text-sm text-muted">{tr("mem.desc")}</p>
         </header>
 
-        {loading ? (
+        <Tabs
+          active={region}
+          onChange={(k) => setRegion(k as "archive" | "ai")}
+          items={[
+            { key: "archive", label: tr("mem.region.archive") },
+            { key: "ai", label: tr("mem.region.ai") },
+          ]}
+        />
+
+        {region === "archive" ? (
+          <LearningArchiveRegion tr={tr} lang={lang} />
+        ) : loading ? (
           <PageSkeleton />
         ) : error ? (
           <ErrorNote message={tr("mem.error")} retry={retry} />
@@ -438,10 +801,7 @@ export default function MemoryPage() {
               lang={lang}
             />
 
-            <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
-              <WorkspaceMemorySection tr={tr} lang={lang} />
-              <LearningArchiveSection tr={tr} lang={lang} />
-            </div>
+            <WorkspaceMemorySection tr={tr} lang={lang} />
 
             <Tabs
               active={activeTab}

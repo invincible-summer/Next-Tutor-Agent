@@ -1,83 +1,87 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
-import { AlertTriangle } from "lucide-react";
+import { ChevronRight } from "lucide-react";
 import { Card, CardHeader } from "@/components/ui/Card";
 import { Badge, ModuleBadge } from "@/components/ui/Badge";
 import { EmptyState } from "@/components/ui/EmptyState";
-import { Pager, paged, pageCount } from "@/components/ui/Pager";
-import { Progress } from "@/components/ui/Progress";
-import { dt, stateTone } from "@/lib/labels";
-import type { Lang } from "@/lib/i18n";
-import type { MasterySkill } from "@/lib/types-modules";
+import { et, evalStateTone, type Lang } from "@/lib/evaluation-labels";
+import type { WorkspaceEvaluationListItem } from "@/lib/types-modules";
 import type { Tr } from "./shared";
 
-/** 需要关注：state=misconception 或 p_known<0.5 的技能（分页展示）。
- * 阈值与 StatCards 的"需关注"统计口径统一（C14 修正：原 0.4 与统计卡 0.5 不一致）。 */
+/** 学习区近况（plan §14.1/§15.3）：各工作区的简短评价状态，点击回学习
+ * 档案；Dashboard 不另算指标、不展示总体能力等级。 */
 export function AttentionCard({
-  skills,
-  disabled,
+  workspaces,
   lang,
   tr,
 }: {
-  skills: MasterySkill[];
-  disabled: boolean;
+  workspaces: WorkspaceEvaluationListItem[];
   lang: Lang;
   tr: Tr;
 }) {
-  const [page, setPage] = useState(0);
-  const rows = useMemo(
-    () =>
-      skills
-        .filter((s) => s.state === "misconception" || s.p_known < 0.5)
-        .sort((a, b) => a.p_known - b.p_known),
-    [skills],
-  );
-  // 行内含进度条，5 条/页保持卡片紧凑
-  const cur = Math.min(page, pageCount(rows.length) - 1);
-  const visible = paged(rows, cur);
-
+  const [open, setOpen] = useState(false);
+  const rows = open ? workspaces : workspaces.slice(0, 4);
   return (
     <Card>
       <CardHeader
-        icon={<AlertTriangle size={16} />}
+        icon={<ChevronRight size={16} />}
         title={tr("attention.title")}
         desc={tr("attention.desc")}
-        right={<ModuleBadge id="M2" />}
+        right={<ModuleBadge id="L1" />}
       />
-      {disabled ? (
-        <EmptyState title={tr("empty.attention")} desc={tr("empty.disabled")} />
-      ) : rows.length === 0 ? (
+      {workspaces.length === 0 ? (
         <EmptyState title={tr("empty.attention")} desc={tr("empty.attention.desc")} />
       ) : (
         <div className="-mx-2 flex flex-col">
-          {visible.map((s) => (
-            <Link
-              key={s.skill_id}
-              href="/knowledge"
-              className="block rounded-[8px] px-2 py-2 transition-colors hover:bg-surface-hover"
+          {rows.map((w) => {
+            const by = w.coverage?.by_state ?? {};
+            const resolve = (by.fragile ?? 0) + (by.conflicting ?? 0);
+            return (
+              <Link
+                key={w.workspace_id}
+                href="/memory"
+                className="block rounded-[8px] px-2 py-2 transition-colors hover:bg-surface-hover"
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <span className="truncate text-sm text-fg">
+                    {w.workspace_name || w.workspace_id}
+                  </span>
+                  <ChevronRight size={14} className="shrink-0 text-muted" />
+                </div>
+                <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                  {resolve > 0 && (
+                    <Badge tone={evalStateTone("fragile")}>
+                      {et(lang, "eval.state.fragile")} {resolve}
+                    </Badge>
+                  )}
+                  {(by.emerging ?? 0) > 0 && (
+                    <Badge tone="info">
+                      {et(lang, "eval.state.emerging")} {by.emerging}
+                    </Badge>
+                  )}
+                  {(by.supported_in_scope ?? 0) > 0 && (
+                    <Badge tone="success">
+                      {et(lang, "eval.state.supported_in_scope")} {by.supported_in_scope}
+                    </Badge>
+                  )}
+                  <span className="text-[0.66rem] text-muted">
+                    {et(lang, "eval.state.not_observed")} {w.coverage?.not_observed_concepts ?? 0}
+                  </span>
+                </div>
+              </Link>
+            );
+          })}
+          {workspaces.length > 4 && (
+            <button
+              type="button"
+              onClick={() => setOpen((v) => !v)}
+              className="cursor-pointer px-2 py-1.5 text-left text-xs text-accent hover:underline"
             >
-              <div className="flex items-center justify-between gap-2">
-                <span className="truncate text-sm text-fg">{s.concept}</span>
-                <Badge tone={stateTone(s.state)}>{dt(lang, `state.${s.state}`, s.state)}</Badge>
-              </div>
-              <div className="mt-1.5 flex items-center gap-2">
-                <Progress
-                  value={s.p_known}
-                  tone={s.state === "misconception" ? "danger" : "warning"}
-                  className="flex-1"
-                />
-                <span className="tnum w-9 shrink-0 text-right text-xs text-muted">
-                  {Math.round(s.p_known * 100)}%
-                </span>
-              </div>
-              {s.mistakes[0] && (
-                <div className="mt-1 truncate text-xs text-muted">{s.mistakes[0]}</div>
-              )}
-            </Link>
-          ))}
+              {open ? tr("attention.less") : tr("attention.more")}
+            </button>
+          )}
         </div>
       )}
-      <Pager page={cur} total={rows.length} onPage={setPage} />
     </Card>
   );
 }

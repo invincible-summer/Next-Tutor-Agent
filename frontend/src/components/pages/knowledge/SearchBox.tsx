@@ -4,7 +4,6 @@
 import { useEffect, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight, Search, X } from "lucide-react";
 import { cn } from "@/lib/cn";
-import { stateColor } from "@/lib/labels";
 import { AnchoredPopover } from "@/components/ui/AnchoredPopover";
 import type { KnowledgeNode, KnowledgeTaxonomyGroup } from "@/lib/types-modules";
 import { SEARCH_RESULT_LIMIT } from "./search";
@@ -159,8 +158,11 @@ export function SearchBox({
                     )}
                   >
                     <span
-                      className="size-2 shrink-0 rounded-full"
-                      style={{ background: stateColor(n.mastery?.state ?? "") }}
+                      className={`size-2 shrink-0 rounded-full border ${
+                        n.evaluation?.state && n.evaluation.state !== "not_observed"
+                          ? "border-transparent bg-success"
+                          : "border-dashed border-border bg-transparent"
+                      }`}
                       aria-hidden
                     />
                     <span className={cn("truncate text-xs", hit ? "font-semibold text-accent-strong" : "text-fg")}>
@@ -169,7 +171,6 @@ export function SearchBox({
                     <span className="ml-auto flex shrink-0 items-center gap-1.5 text-[10px] text-muted">
                       {n.subject && <span>{n.subject}</span>}
                       {group && <span className="max-w-32 truncate">{group.name}</span>}
-                      <span className="tnum">{Math.round((n.mastery?.p_known ?? 0) * 100)}%</span>
                     </span>
                   </button>
                 );

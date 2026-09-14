@@ -221,7 +221,10 @@ class KnowledgeSearchQuizGroundingProvider:
         top_k: int = 6,
     ) -> QuizGroundingBundle:
         query = build_quiz_query(topic, focus)
-        kwargs: dict[str, Any] = {"query": query, "top_k": top_k}
+        kwargs: dict[str, Any] = {"query": query, "top_k": top_k,
+                                  # 出题依据必须过证据门相关性判定：
+                                  # 小材料直通只服务文件总结问答（§4.6）。
+                                  "strict_relevance": True}
         if self._file_ids:
             kwargs["file_ids"] = list(self._file_ids)
         result = await self._search_tool.run(**kwargs)

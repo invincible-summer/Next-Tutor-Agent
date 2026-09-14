@@ -1,5 +1,5 @@
 "use client";
-// /knowledge 知识图谱页：M5 图谱画布 + M2 掌握度叠加 + M3 学习路径条 +
+// /knowledge 知识图谱页：M5 图谱画布 + 学习评价叠加（按学习区）+ M3 学习路径条 +
 // M3 教学计划区（原 /plan 页迁入，C13：/plan 保留 redirect 深链）。
 // 单学段单学科浏览（学段 segmented 单选默认账户学段，「自动」回落本科；学科必选，与教材组/卷
 // 一样为客户端过滤、切换即时不重拉）；搜索按学段全量穿透，命中后自动把
@@ -34,7 +34,9 @@ import { ConfirmModal } from "@/components/ui/Modal";
 import { KnowledgeGraphView } from "@/components/pages/knowledge/KnowledgeGraphView";
 import { FilterBar, type FilterLevelInfo } from "@/components/pages/knowledge/FilterBar";
 import { SearchBox } from "@/components/pages/knowledge/SearchBox";
-import { buildChapterModel } from "@/components/pages/knowledge/chapters";
+import { listWorkspaces } from "@/lib/api";
+import { useEvaluationCacheStore } from "@/lib/store";
+import { buildChapterModel, evidenceCountOf } from "@/components/pages/knowledge/chapters";
 import { ConceptDrawer } from "@/components/pages/knowledge/ConceptDrawer";
 import { LearningPathBar } from "@/components/pages/knowledge/LearningPathBar";
 import { PlanSection } from "@/components/pages/knowledge/PlanSection";
@@ -73,6 +75,9 @@ function KnowledgePageInner() {
    * 学科同样必选（单科显示）：初始与学段一起默认到该学段第一个学科 */
   const [level, setLevel] = useState<string | null>(null);
   const [subject, setSubject] = useState<string | null>(null);
+  /** §14.4 toolbar 工作区选择："" = 仅浏览教材（无个人 overlay）。 */
+  const [workspaceId, setWorkspaceId] = useState("");
+  const [wsOptions, setWsOptions] = useState<{ id: string; name: string }[]>([]);
   const [textbookId, setTextbookId] = useState<string | null>(null);
   const [fileId, setFileId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
@@ -103,7 +108,7 @@ function KnowledgePageInner() {
   const fetchGraph = useCallback(() => {
     if (!level) return;
     const seq = ++requestSeq.current;
-    getKnowledgeGraph("student_default", { level, view: "full" })
+    getKnowledgeGraph("student_default", { level, view: "full", workspaceId })
       .then((r) => {
         if (seq !== requestSeq.current) return;
         setGraph(r);
@@ -113,7 +118,7 @@ function KnowledgePageInner() {
         if (seq === requestSeq.current) setGErr(e instanceof Error ? e.message : String(e));
       })
       .finally(() => { if (seq === requestSeq.current) setGLoading(false); });
-  }, [level]);
+  }, [level, workspaceId]);
 
   const fetchTaxonomy = useCallback(() => {
     getKnowledgeTaxonomy()
@@ -143,11 +148,11 @@ function KnowledgePageInner() {
   }, [profileGrade]);
 
   const fetchPath = useCallback(() => {
-    getLearningPath()
+    getLearningPath("student_default", workspaceId)
       .then(setPath)
       .catch(() => setPErr(true))
       .finally(() => setPLoading(false));
-  }, []);
+  }, [workspaceId]);
 
   // 自定义图谱列表：失败静默（页面主数据是 graph，列表属增强信息）
   const fetchCustom = useCallback(() => {
@@ -171,6 +176,33 @@ function KnowledgePageInner() {
     fetchCustom();
     getOrchPlan().then(setOrchPlan).catch(() => {});
   }, [fetchGraph, fetchTaxonomy, fetchPath, fetchCustom]);
+
+  // 工作区清单（一次性；失败静默回落 仅浏览教材）。
+  useEffect(() => {
+    listWorkspaces()
+      .then((r) =>
+        setWsOptions(
+          (r.workspaces ?? []).map((w) => ({ id: w.workspace_id, name: w.name })),
+        ),
+      )
+      .catch(() => {});
+  }, []);
+
+  const ownerId = useAuthStore((s) => s.user?.id ?? "");
+  /** 切区：清上一区评价缓存并 abort 在途（§14.4 防回包覆盖），图谱/路径复拉。 */
+  const pickWorkspace = useCallback(
+    (id: string) => {
+      if (id === workspaceId) return;
+      useEvaluationCacheStore.getState().invalidate(`${ownerId}|`);
+      setWorkspaceId(id);
+      setGLoading(true);
+      setPLoading(true);
+      setSelectedId(null);
+      setDrill(null);
+      setSectionDrill(null);
+    },
+    [workspaceId, ownerId],
+  );
 
   const retryGraph = useCallback(() => {
     setGLoading(true);
@@ -490,7 +522,7 @@ function KnowledgePageInner() {
   const directCard = useMemo<KnowledgeNode | null>(() => {
     const ch = drilled ? model.chapterById.get(drilled) : null;
     if (!ch || !showSectionLayer || directConcepts.length === 0) return null;
-    return { ...ch, id: `${drilled}:direct`, kind: "section", name: tr("unitDirectConcepts"), aliases: [], mastery: null };
+    return { ...ch, id: `${drilled}:direct`, kind: "section", name: tr("unitDirectConcepts"), aliases: [], evaluation: null };
   }, [drilled, model, showSectionLayer, directConcepts, tr]);
   const sectionCards = useMemo(
     () => (directCard ? [...sections, directCard] : sections),
@@ -560,7 +592,10 @@ function KnowledgePageInner() {
     (n: KnowledgeNode) => {
       if (n.kind !== "chapter") return undefined;
       const secs = model.sectionCount.get(n.id) ?? 0;
-      const count = `${secs > 0 ? `${secs} ${tr("statSections")} · ` : ""}${model.childCount.get(n.id) ?? 0} ${tr("statConcepts")}`;
+      const kids = model.childrenOf.get(n.id) ?? [];
+      const ev = evidenceCountOf(kids);
+      const evLabel = ev > 0 ? `${tr("evidenceCount").replace("%n", String(ev))} / ` : "";
+      const count = `${evLabel}${secs > 0 ? `${secs} ${tr("statSections")} · ` : ""}${model.childCount.get(n.id) ?? 0} ${tr("statConcepts")}`;
       // 跨教材范围只在展示层补来源，不污染持久化章节名/稳定 ID。
       if (!selectedGroup) {
         const source = groupsByPrefix.find((group) => n.id.startsWith(group.node_prefix));
@@ -573,9 +608,14 @@ function KnowledgePageInner() {
 
   // 节卡片副标题：节内概念数（语文篇目下常挂若干知识点概念；虚拟卡计直挂概念数）
   const sectionSubtitle = useCallback(
-    (n: KnowledgeNode) => n.id === directCard?.id
-      ? `${directConcepts.length} ${tr("statConcepts")}`
-      : `${model.conceptsOfSection.get(n.id)?.length ?? 0} ${tr("statConcepts")}`,
+    (n: KnowledgeNode) => {
+      const kids = n.id === directCard?.id
+        ? directConcepts
+        : (model.conceptsOfSection.get(n.id) ?? []);
+      const ev = evidenceCountOf(kids);
+      const evLabel = ev > 0 ? `${tr("evidenceCount").replace("%n", String(ev))} / ` : "";
+      return `${evLabel}${kids.length} ${tr("statConcepts")}`;
+    },
     [directCard, directConcepts, model, tr],
   );
 
@@ -623,6 +663,22 @@ function KnowledgePageInner() {
             <p className="mt-0.5 text-xs text-muted">{tr("desc")}</p>
           </div>
           <div className="flex shrink-0 items-center gap-3">
+            <label className="flex items-center gap-1.5 text-xs text-fg-secondary">
+              {tr("ws.label")}
+              <select
+                value={workspaceId}
+                onChange={(e) => pickWorkspace(e.target.value)}
+                className="h-8 max-w-44 rounded-[7px] border border-border bg-surface px-2 text-xs text-fg"
+                aria-label={tr("ws.label")}
+              >
+                <option value="">{tr("ws.browse")}</option>
+                {wsOptions.map((w) => (
+                  <option key={w.id} value={w.id}>
+                    {w.name || w.id}
+                  </option>
+                ))}
+              </select>
+            </label>
             {graphStatus === "ok" && (
               <span className="tnum text-xs text-muted">
                 {model.hasChapters && `${model.chapterById.size} ${tr("statChapters")} · `}
@@ -808,6 +864,7 @@ function KnowledgePageInner() {
         id={selectedId}
         lang={lang}
         tr={tr}
+        workspaceId={workspaceId}
         goal={drawerGoal}
         onClose={() => setSelectedId(null)}
         onNavigate={(cid) => setSelectedId(cid)}

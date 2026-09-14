@@ -33,11 +33,6 @@
   --warning: 176 126 12;
   --danger: 180 56 46;
   --info: 74 98 138;
-  /* 掌握度四态（全站统一） */
-  --m-mastered: 46 125 82;
-  --m-learning: 176 126 12;
-  --m-weak: 180 56 46;
-  --m-todo: 145 148 158;
   /* 阴影：低存在感 */
   --shadow-sm: 0 1px 2px 0 rgb(30 26 18 / 0.05);
   --shadow-md: 0 4px 14px -4px rgb(30 26 18 / 0.08), 0 2px 4px -1px rgb(30 26 18 / 0.03);
@@ -68,10 +63,6 @@
   --warning: 212 164 42;
   --danger: 224 106 94;
   --info: 122 148 190;
-  --m-mastered: 84 176 120;
-  --m-learning: 212 164 42;
-  --m-weak: 224 106 94;
-  --m-todo: 120 124 134;
   --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.25);
   --shadow-md: 0 4px 14px -4px rgb(0 0 0 / 0.3), 0 2px 4px -1px rgb(0 0 0 / 0.18);
   --shadow-lg: 0 10px 30px -8px rgb(0 0 0 / 0.35), 0 4px 8px -2px rgb(0 0 0 / 0.22);
@@ -98,10 +89,6 @@
   --color-warning: rgb(var(--warning));
   --color-danger: rgb(var(--danger));
   --color-info: rgb(var(--info));
-  --color-m-mastered: rgb(var(--m-mastered));
-  --color-m-learning: rgb(var(--m-learning));
-  --color-m-weak: rgb(var(--m-weak));
-  --color-m-todo: rgb(var(--m-todo));
   --font-sans: var(--font-sans);
   --font-serif: var(--font-serif);
   --font-mono: var(--font-mono);

@@ -15,13 +15,21 @@ import type {
   EvalGuidanceEntry,
   EvalReport,
   EvalTrace,
+  AssessmentQuestion,
   ContextBudgetReport,
-  EvidenceProfileResp,
+  EvalConceptsResp,
+  WorkspacesEvaluationResp,
+  EvalEvidenceDetail,
+  EvalJobDetail,
+  ConceptEvaluationView,
+  EvalSessionEvidenceItem,
+  WorkspaceEvaluationSummary,
+  EvalTimelineResp,
+  EvalSessionsResp,
   KnowledgeCatalogResp,
   KnowledgeGraphResp,
   KnowledgeTaxonomyResp,
   LearningPathResp,
-  MasteryResp,
   OrchDailyTask,
   OrchGoalResp,
   OrchHabit,
@@ -35,8 +43,6 @@ import type {
   ProceduralResp,
   RecentQuizResp,
   ErrorNotebookResp,
-  LearningRecordsResp,
-  BloomProfileResp,
   DocsContentResp,
   SemanticResp,
   StudentProfileResp,
@@ -50,14 +56,14 @@ const get = <T>(path: string): Promise<T> => apiFetch(`${API_BASE}${path}`).then
 export const getStudentProfile = (studentId = "student_default") =>
   get<StudentProfileResp>(`/student/profile?student_id=${encodeURIComponent(studentId)}`);
 
-export const getMastery = (studentId = "student_default") =>
-  get<MasteryResp>(`/student/mastery?student_id=${encodeURIComponent(studentId)}`);
-
 export const getTeachingLog = (studentId = "student_default") =>
   get<TeachingLogResp>(`/student/teaching-log?student_id=${encodeURIComponent(studentId)}`);
 
-export const getLearningPath = (studentId = "student_default") =>
-  get<LearningPathResp>(`/student/learning-path?student_id=${encodeURIComponent(studentId)}`);
+export const getLearningPath = (studentId = "student_default", workspaceId = "") => {
+  const q = new URLSearchParams({ student_id: studentId });
+  if (workspaceId) q.set("workspace_id", workspaceId);
+  return get<LearningPathResp>(`/student/learning-path?${q}`);
+};
 
 // --- M5 知识图谱（只读投影） ---
 
@@ -69,6 +75,8 @@ export interface KnowledgeGraphQuery {
   view?: "full" | "overview" | "chapter" | "search";
   chapterId?: string;
   search?: string;
+  /** 当前工作区（§11.6/§14.4）：带区强制与 scope 求交并附个人评价。 */
+  workspaceId?: string;
 }
 
 export const getKnowledgeGraph = (studentId = "student_default", options: string | KnowledgeGraphQuery = "") => {
@@ -81,16 +89,20 @@ export const getKnowledgeGraph = (studentId = "student_default", options: string
   if (query.view) q.set("view", query.view);
   if (query.chapterId) q.set("chapter_id", query.chapterId);
   if (query.search) q.set("q", query.search);
+  if (query.workspaceId) q.set("workspace_id", query.workspaceId);
   return get<KnowledgeGraphResp>(`/knowledge/graph?${q}`);
 };
 
 export const getKnowledgeTaxonomy = (studentId = "student_default") =>
   get<KnowledgeTaxonomyResp>(`/knowledge/taxonomy?student_id=${encodeURIComponent(studentId)}`);
 
-export const getConceptDetail = (conceptId: string, studentId = "student_default") =>
-  get<ConceptDetailResp>(
-    `/knowledge/concepts/${encodeURIComponent(conceptId)}?student_id=${encodeURIComponent(studentId)}`,
+export const getConceptDetail = (conceptId: string, studentId = "student_default", workspaceId = "") => {
+  const q = new URLSearchParams({ student_id: studentId });
+  if (workspaceId) q.set("workspace_id", workspaceId);
+  return get<ConceptDetailResp>(
+    `/knowledge/concepts/${encodeURIComponent(conceptId)}?${q}`,
   );
+};
 
 // --- M5.7 自定义知识图谱 + M5.8 学科目录 ---
 
@@ -131,21 +143,101 @@ export const getRecentQuizQuestions = () =>
 export const getErrorNotebook = () =>
   get<ErrorNotebookResp>(`/student/error-notebook`);
 
-/** 学习账本（L1 档案层：独立于对话的学习结果全量记录，新→旧分页）。 */
-export const getLearningRecords = (limit = 50, offset = 0) => {
-  const q = new URLSearchParams({ limit: String(limit), offset: String(offset) });
-  return get<LearningRecordsResp>(`/student/learning-records?${q}`);
+// --- 统一学习评价（/learner-evaluation/*，plan §11.2；全部走 apiFetch） ---
+
+/** 本人工作区卡片（无证据的工作区也出现）。 */
+export const getEvalWorkspaces = (offset = 0, limit = 20) =>
+  get<WorkspacesEvaluationResp>(
+    `/learner-evaluation/workspaces?offset=${offset}&limit=${limit}`);
+
+/** 工作区学习档案总览：叙述/覆盖/水位/pending。 */
+export const getEvalWorkspace = (workspaceId: string) =>
+  get<WorkspaceEvaluationSummary>(
+    `/learner-evaluation/workspaces/${encodeURIComponent(workspaceId)}`);
+
+/** 当前范围概念投影（未观察节点由 scope 左连接生成）。 */
+export const getEvalConcepts = (
+  workspaceId: string,
+  opts: { state?: string; textbookId?: string; q?: string; offset?: number; limit?: number } = {},
+) => {
+  const p = new URLSearchParams();
+  if (opts.state) p.set("state", opts.state);
+  if (opts.textbookId) p.set("textbook_id", opts.textbookId);
+  if (opts.q) p.set("q", opts.q);
+  p.set("offset", String(opts.offset ?? 0));
+  p.set("limit", String(opts.limit ?? 50));
+  return get<EvalConceptsResp>(
+    `/learner-evaluation/workspaces/${encodeURIComponent(workspaceId)}/concepts?${p}`);
 };
 
-/** 布鲁姆认知档案（L1 共享档案：每概念每层级表现 + 薄弱项，只读）。 */
-export const getBloomProfile = () =>
-  get<BloomProfileResp>("/student/bloom-profile");
+/** 单概念当前主张/条件/变化/next_probe（concept_key = ConceptRef.key）。 */
+export const getEvalConceptDetail = (workspaceId: string, conceptKey: string) =>
+  get<ConceptEvaluationView>(
+    `/learner-evaluation/workspaces/${encodeURIComponent(workspaceId)}/concepts/${encodeURIComponent(conceptKey)}`);
 
-/** W3/F05 证据档案（概念×维度投影 + 支持作答引用，concept 可选过滤）。 */
-export const getEvidenceProfile = (concept?: string) => {
-  const q = concept ? `?concept=${encodeURIComponent(concept)}` : "";
-  return get<EvidenceProfileResp>(`/student/evidence-profile${q}`);
+/** 本区对话（有历史来源的会话行，无证据也有行）。 */
+export const getEvalSessions = (workspaceId: string, offset = 0, limit = 20) =>
+  get<EvalSessionsResp>(
+    `/learner-evaluation/workspaces/${encodeURIComponent(workspaceId)}/sessions?offset=${offset}&limit=${limit}`);
+
+/** 单会话在本区发生的观察（历史归属按 §5.3）。 */
+export const getEvalSessionEvidence = (workspaceId: string, sourceSessionRef: string) =>
+  get<{ items: EvalSessionEvidenceItem[]; total: number }>(
+    `/learner-evaluation/workspaces/${encodeURIComponent(workspaceId)}/sessions/${encodeURIComponent(sourceSessionRef)}`);
+
+/** 可定位证据时间线（按概念/来源种类/会话过滤）。 */
+export const getEvalEvidence = (
+  workspaceId: string,
+  opts: { conceptKey?: string; sourceKind?: string; sourceSessionRef?: string; offset?: number; limit?: number } = {},
+) => {
+  const p = new URLSearchParams();
+  if (opts.conceptKey) p.set("concept_key", opts.conceptKey);
+  if (opts.sourceKind) p.set("source_kind", opts.sourceKind);
+  if (opts.sourceSessionRef) p.set("source_session_ref", opts.sourceSessionRef);
+  p.set("offset", String(opts.offset ?? 0));
+  p.set("limit", String(opts.limit ?? 50));
+  return get<EvalTimelineResp>(
+    `/learner-evaluation/workspaces/${encodeURIComponent(workspaceId)}/evidence?${p}`);
 };
+
+/** 单条证据明细：原始表现、题目公开/揭晓视图、解释、复核记录。 */
+export const getEvalEvidenceDetail = (sourceId: string) =>
+  get<EvalEvidenceDetail>(`/learner-evaluation/evidence/${encodeURIComponent(sourceId)}`);
+
+/** 作业状态（无原始模型输出）。 */
+export const getEvalJob = (jobId: string) =>
+  get<EvalJobDetail>(`/learner-evaluation/jobs/${encodeURIComponent(jobId)}`);
+
+/** 「评价不准确」→ C9 复核（§14.6：同源只允许一个 active review）。 */
+export const createEvalReview = (
+  sourceId: string,
+  body: { interpretation_id: string; reason: string; issue_kind?: string; expected_revision: number },
+) =>
+  post<{ review_id: string; job_id: string; duplicate?: boolean }>(
+    `/learner-evaluation/evidence/${encodeURIComponent(sourceId)}/reviews`, body);
+
+/** 失败作业手动重试（§10.3：另开 parent_job_id 新作业）。 */
+export const retryEvalJob = (jobId: string, expectedRevision = 0) =>
+  post<{ job_id: string; parent_job_id: string }>(
+    `/learner-evaluation/jobs/${encodeURIComponent(jobId)}/retry`,
+    { expected_revision: expectedRevision });
+
+/** 触发工作区综合（§12.5：仅重组织有效证据）。 */
+export const requestEvalSynthesis = (workspaceId: string, expectedScopeRevision = "") =>
+  post<{ job_id: string; duplicate?: boolean }>(
+    `/learner-evaluation/workspaces/${encodeURIComponent(workspaceId)}/synthesis`,
+    { expected_scope_revision: expectedScopeRevision });
+
+/** 删除一条证据（§14.6：物理清除来源副本、失效重综合）。 */
+export async function deleteEvalEvidence(sourceId: string): Promise<void> {
+  const res = await apiFetch(
+    `${API_BASE}/learner-evaluation/evidence/${encodeURIComponent(sourceId)}`,
+    { method: "DELETE" },
+  );
+  if (!res.ok && res.status !== 202) {
+    throw new Error(`DELETE evidence failed: ${res.status}`);
+  }
+}
 
 // --- 使用文档（/docs：全员读、管理员写） ---
 
@@ -214,33 +306,89 @@ async function post<T>(path: string, body: unknown): Promise<T> {
   return res.json();
 }
 
-export const assessmentStart = (body: {
-  concept: string;
+/** §11.5：concept_keys=ConceptRef.key 列表（1–20）；purpose=用户任务意图。 */
+export interface AssessmentStartPayload {
+  workspace_id?: string;
+  concept_keys: string[];
+  goal?: { purpose?: "adaptive" | "diagnose" | "practice"; target_claims?: string[] };
+  q_type?: string;
+  count?: number;
+  probe_ref?: Record<string, unknown>;
+  expected_scope_revision?: string;
   grade?: string;
   subject?: string;
-  /** 布鲁姆层级焦点（""/"auto" = 出题 LLM 结合认知档案综合判断） */
-  bloom_focus?: string;
-  /** 教材 grounding（additive）：从已授权会话/指定教材组取证据 scope */
-  session_id?: string;
-  textbook_ids?: string[];
-  strict_textbook?: boolean;
-}) => post<AssessmentStartResp>("/assessment/start", body);
+}
 
-export const assessmentAnswer = (body: { student_answer: string }) =>
-  post<AssessmentAnswerResp>("/assessment/answer", body);
+export const assessmentStart = (body: AssessmentStartPayload) =>
+  post<AssessmentStartResp>("/assessment/start", body);
 
-export const assessmentNext = () =>
-  post<AssessmentNextResp>("/assessment/next", {});
+/** 一次正式提交（§11.4/§11.5）：题目身份由服务端校验，不能只靠活动槽位。 */
+export const assessmentAnswer = (body: {
+  assessment_id: string;
+  question_id: string;
+  question_revision: number;
+  student_answer: string;
+}) => post<AssessmentAnswerResp>("/assessment/answer", body);
 
-export const assessmentReport = () =>
-  get<{ status: string; summary?: unknown }>(`/assessment/report`);
+export const assessmentNext = (assessmentId: string, expectedRevision = 0) =>
+  post<AssessmentNextResp>("/assessment/next", {
+    assessment_id: assessmentId,
+    expected_revision: expectedRevision,
+  });
 
-/** W2/A03 恢复端点：当前 CAT 的待答题目/进度或已持久化的终止状态。 */
-export const assessmentActive = () =>
-  get<AssessmentActiveResp>(`/assessment/active`);
+export const assessmentReport = (assessmentId = "") => {
+  const q = assessmentId ? `?assessment_id=${encodeURIComponent(assessmentId)}` : "";
+  return get<{ status: string; summary?: unknown }>(`/assessment/report${q}`);
+};
 
-export const assessmentAbandon = () =>
-  post<{ status: string }>("/assessment/abandon", {});
+/** W2/A03 恢复端点：当前选区 active 实例或已持久化的终止状态。 */
+export const assessmentActive = (workspaceId = "") => {
+  const q = workspaceId ? `?workspace_id=${encodeURIComponent(workspaceId)}` : "";
+  return get<AssessmentActiveResp>(`/assessment/active${q}`);
+};
+
+export const assessmentAbandon = (assessmentId: string) =>
+  post<{ status: string }>("/assessment/abandon", {
+    assessment_id: assessmentId,
+  });
+
+/** 关键步骤提示（服务端记录帮助事件；§7.3）。 */
+export async function assessmentHint(questionId: string, questionRevision: number) {
+  const res = await apiFetch(
+    `${API_BASE}/assessment/questions/${encodeURIComponent(questionId)}/hint`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ question_revision: questionRevision }),
+    },
+  );
+  if (!res.ok) throw new Error(`Hint failed: ${res.status}`);
+  return res.json() as Promise<{ status: string; hint: string }>;
+}
+
+/** 揭晓（服务端记录 answer_revealed；§14.5）。 */
+export async function assessmentReveal(questionId: string, questionRevision: number) {
+  const res = await apiFetch(
+    `${API_BASE}/assessment/questions/${encodeURIComponent(questionId)}/reveal`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ question_revision: questionRevision }),
+    },
+  );
+  if (!res.ok) throw new Error(`Reveal failed: ${res.status}`);
+  return res.json() as Promise<{
+    status: string; answer: string; explanation: string; already_answered: boolean;
+  }>;
+}
+
+/** 再练一次（§11.5）：新 question instance（same/variant）。 */
+export const assessmentPractice = (
+  questionId: string,
+  body: { question_revision: number; mode?: "same" | "variant"; expected_scope_revision?: string },
+) =>
+  post<{ status: string; question?: AssessmentQuestion }>(
+    `/assessment/questions/${encodeURIComponent(questionId)}/practice`, body);
 
 // --- M9 学习编排（目标/周计划/今日任务/SRS/习惯/模拟；读端点无 status 信封） ---
 

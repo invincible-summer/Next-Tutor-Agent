@@ -2,13 +2,14 @@
 
 // asking 阶段：答题卡（题干 + 选项/简答 + 提交）。
 import { useState } from "react";
-import { Send, FileQuestion, Flag } from "lucide-react";
+import { Send, FileQuestion, Flag, Lightbulb, Eye } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { Card, CardHeader } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import type { AssessmentQuestion } from "@/lib/types-modules";
 import { MiniMarkdown } from "@/components/chat/markdown";
+import { assessmentHint, assessmentReveal } from "@/lib/api-modules";
 import { DifficultyDots, difficultyOf, type PageTr } from "./common";
 
 export function isMultipleChoice(q: AssessmentQuestion): boolean {
@@ -38,6 +39,28 @@ export function QuestionCard({
 }) {
   const [selected, setSelected] = useState<string | null>(null);
   const [text, setText] = useState("");
+  // §14.5：提示/揭晓都由服务端记录并影响后续解释。
+  const [hint, setHint] = useState("");
+  const [hintBusy, setHintBusy] = useState(false);
+  const [revealed, setRevealed] = useState<{ answer: string; explanation: string } | null>(null);
+
+  const loadHint = async () => {
+    if (hintBusy || !question.question_id || hint) return;
+    setHintBusy(true);
+    try {
+      const r = await assessmentHint(question.question_id, question.question_revision || 1);
+      if (r.status === "ok") setHint(r.hint);
+    } catch { /* 静默：按钮可重试 */ } finally {
+      setHintBusy(false);
+    }
+  };
+  const reveal = async () => {
+    if (!question.question_id || revealed) return;
+    try {
+      const r = await assessmentReveal(question.question_id, question.question_revision || 1);
+      if (r.status === "ok") setRevealed({ answer: r.answer, explanation: r.explanation });
+    } catch { /* 静默 */ }
+  };
 
   const mc = isMultipleChoice(question);
   const options = mc
@@ -45,11 +68,6 @@ export function QuestionCard({
     : [];
   const answer = mc ? selected ?? "" : text.trim();
   const level = difficulty > 0 ? difficulty : difficultyOf(question);
-  const bloomLv = typeof question.bloom_level === "string" ? question.bloom_level : "";
-  const BLOOM_ZH: Record<string, string> = {
-    remember: "记忆", understand: "理解", apply: "应用",
-    analyze: "分析", evaluate: "评价", create: "创造",
-  };
 
   return (
     <Card>
@@ -59,11 +77,6 @@ export function QuestionCard({
           <span className="flex items-center gap-2">
             {tr("ask.difficulty")}
             <DifficultyDots level={level} />
-            {bloomLv && (
-              <Badge tone="info">
-                {BLOOM_ZH[bloomLv] ?? bloomLv}
-              </Badge>
-            )}
           </span>
         }
         right={
@@ -124,7 +137,32 @@ export function QuestionCard({
         />
       )}
 
-      <div className="mt-4 flex justify-end">
+      {/* 关键步骤提示（服务端量规派生，不含答案） */}
+      {hint && (
+        <div className="mt-3 rounded-[8px] border border-warning/30 bg-warning/5 px-3 py-2">
+          <p className="whitespace-pre-wrap text-xs leading-relaxed text-fg-secondary">{hint}</p>
+        </div>
+      )}
+
+      <div className="mt-4 flex flex-wrap items-center justify-end gap-3">
+        <button
+          type="button"
+          onClick={() => void loadHint()}
+          disabled={hintBusy || !!hint || busy}
+          className="flex cursor-pointer items-center gap-1 text-xs text-muted transition-colors hover:text-accent disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          <Lightbulb size={13} />
+          {tr("ask.hint", "关键步骤提示")}
+        </button>
+        <button
+          type="button"
+          onClick={() => void reveal()}
+          disabled={busy}
+          className="flex cursor-pointer items-center gap-1 text-xs text-muted transition-colors hover:text-accent disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          <Eye size={13} />
+          {tr("ask.reveal", "看答案")}
+        </button>
         <Button
           size="lg"
           icon={<Send size={15} />}
@@ -134,6 +172,15 @@ export function QuestionCard({
           {busy ? tr("ask.submitting") : tr("ask.submit")}
         </Button>
       </div>
+
+      {revealed && (
+        <div className="mt-3 rounded-[8px] border border-border-light bg-surface px-3 py-2.5 text-xs leading-relaxed">
+          <p className="font-medium text-fg">{tr("ask.revealed.answer", "答案")}: {revealed.answer}</p>
+          {revealed.explanation && (
+            <p className="mt-1 whitespace-pre-wrap text-fg-secondary">{revealed.explanation}</p>
+          )}
+        </div>
+      )}
     </Card>
   );
 }

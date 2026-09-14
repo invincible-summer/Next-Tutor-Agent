@@ -28,7 +28,7 @@ export const LANDING_STRINGS: PageStrings = {
     "landing.marquee.1": "苏格拉底式讲解",
     "landing.marquee.2": "CAT 自适应测评",
     "landing.marquee.3": "教材 RAG 检索",
-    "landing.marquee.4": "BKT 掌握度追踪",
+    "landing.marquee.4": "证据式学习评价",
     "landing.marquee.5": "SM-2 间隔重复",
     "landing.marquee.6": "教材知识图谱",
     "landing.marquee.7": "六模式教学引擎",
@@ -37,7 +37,7 @@ export const LANDING_STRINGS: PageStrings = {
     "landing.features.kicker": "功能 / Features",
     "landing.features.title": "一位真正懂教学的 AI",
     "landing.features.subtitle":
-      "不只是聊天机器人——每一轮对话背后，都有教学策略、掌握度追踪与教材依据。",
+      "不只是聊天机器人——每一轮对话背后，都有教学策略、学习评价与教材依据。",
     "landing.features.f1.title": "苏格拉底式讲解",
     "landing.features.f1.desc": "循循善诱的对话式讲解，引导你自己想明白，而不是直接给出答案。",
     "landing.features.f1.more":
@@ -48,9 +48,9 @@ export const LANDING_STRINGS: PageStrings = {
     "landing.features.f2.title": "智能出题测评",
     "landing.features.f2.desc": "约束出题、三级评分与 CAT 自适应测试，真实检验「学会了没有」。",
     "landing.features.f2.more":
-      "M4 测评智能在出题时施加教材与知识点约束，杜绝超纲题；作答按三级评分精细判定；CAT 自适应测试根据你的作答实时调整下一题难度，用更少的题精确定位真实水平，结果直接回写掌握度模型。",
+      "M4 测评智能在出题时施加教材与知识点约束，杜绝超纲题；作答按三级评分精细判定；CAT 自适应测试根据你的作答实时调整下一题难度，用更少的题定位当前表现，每道作答都沉淀为可查的学习证据。",
     "landing.features.f2.p1": "约束出题：题目严格限定在所选教材与知识点内",
-    "landing.features.f2.p2": "三级评分：完全正确 / 部分正确 / 错误，精细回写掌握度",
+    "landing.features.f2.p2": "三级评分：完全正确 / 部分正确 / 错误，判分理由可见",
     "landing.features.f2.p3": "CAT 自适应：难度随作答动态调整，短测验也有高信度",
     "landing.features.f3.title": "教材 RAG 检索",
     "landing.features.f3.desc": "回答基于你选用的教材内容，概念出处可溯源，拒绝凭空发挥。",
@@ -66,20 +66,20 @@ export const LANDING_STRINGS: PageStrings = {
     "landing.features.f4.p1": "[[双链]] + 标签 + 文件夹，未解析链接一键成篇",
     "landing.features.f4.p2": "AI 从对话 / 教材 / 错题生成：总结、修正、温故",
     "landing.features.f4.p3": "SM-2 间隔复习 + 力导向关系图，笔记与对话联动",
-    "landing.features.f5.title": "学情画像",
-    "landing.features.f5.desc": "BKT 掌握度追踪与知识图谱可视化，强项弱项一目了然。",
+    "landing.features.f5.title": "学习档案",
+    "landing.features.f5.desc": "证据式学习评价与知识图谱可视化，主张与证据一目了然。",
     "landing.features.f5.more":
-      "M2 学生模型用 BKT（贝叶斯知识追踪）从你的作答序列持续估计每个概念的掌握概率；学习总览与我的画像把掌握度、概念状态与学习风格画成可读的图谱与曲线，强项弱项一目了然。",
-    "landing.features.f5.p1": "BKT 按概念估计掌握概率，作答越多越准",
-    "landing.features.f5.p2": "教材知识图谱叠加掌握度着色，弱项一眼可见",
-    "landing.features.f5.p3": "画像透明可查：系统对你的理解全部展示",
+      "每一次讲解、作答与练习都会留下可溯源的学习证据；统一学习评价把它们归纳成有条件的主张——在哪些概念上已有支持证据、哪些仍待观察、哪些互相矛盾。学习档案与知识图谱按学习区展示这些主张及其证据，你看到的就是系统作判断所依据的全部。",
+    "landing.features.f5.p1": "有证据才下结论：每条主张都能追溯到原始作答",
+    "landing.features.f5.p2": "知识图谱按证据状态着色：已支持 / 形成中 / 有冲突",
+    "landing.features.f5.p3": "档案透明可查：系统对你的理解全部展示",
     "landing.features.f6.title": "长期学习编排",
     "landing.features.f6.desc": "从学期目标到今日任务，SM-2 间隔重复帮你对抗遗忘。",
     "landing.features.f6.more":
-      "设定一个或多个学期目标后，M9 编排智能把它们分解为周任务 → 今日任务，并把 SM-2 到期复习织进每日安排；完成情况回流掌握度模型，下一周的计划随之自动调整。",
+      "设定一个或多个学期目标后，M9 编排智能把它们分解为周任务 → 今日任务，并把 SM-2 到期复习织进每日安排；完成情况回流学习评价，下一周的计划随之自动调整。",
     "landing.features.f6.p1": "多目标 → 周 → 今日，任务自动分解",
     "landing.features.f6.p2": "SM-2 间隔重复对抗遗忘，复习自动排期",
-    "landing.features.f6.p3": "任务完成回流掌握度，计划动态调整",
+    "landing.features.f6.p3": "任务完成回流学习评价，计划动态调整",
     "landing.features.f7.title": "语音通话讲解",
     "landing.features.f7.desc": "像打电话一样开口提问，公式也能听得懂、看得清。",
     "landing.features.f7.more":
@@ -96,7 +96,7 @@ export const LANDING_STRINGS: PageStrings = {
     "landing.modules.m1.name": "任务智能",
     "landing.modules.m1.desc": "理解 → 规划 → 工具执行 → 状态更新",
     "landing.modules.m2.name": "学生模型",
-    "landing.modules.m2.desc": "学习画像 + BKT 掌握度 + 概念状态",
+    "landing.modules.m2.desc": "学习画像 + 统一学习评价",
     "landing.modules.m3.name": "教学引擎",
     "landing.modules.m3.desc": "六模式状态机 + 跨轮教学记忆",
     "landing.modules.m4.name": "测评智能",
@@ -121,7 +121,7 @@ export const LANDING_STRINGS: PageStrings = {
     "landing.how.s2.title": "提问或选教材",
     "landing.how.s2.desc": "直接使用公共教材，或上传你自己的资料，然后尽管提问。",
     "landing.how.s3.title": "持续进步",
-    "landing.how.s3.desc": "系统追踪你的掌握度，自动安排复习与测评。",
+    "landing.how.s3.desc": "系统记录你的学习证据，自动安排复习与测评。",
 
     "landing.cta.title": "准备好开始了吗？",
     "landing.cta.subtitle": "免费创建账号，让学习智能体为你定制第一课。",
@@ -155,7 +155,7 @@ export const LANDING_STRINGS: PageStrings = {
     "landing.marquee.1": "Socratic Tutoring",
     "landing.marquee.2": "CAT Adaptive Testing",
     "landing.marquee.3": "Textbook RAG",
-    "landing.marquee.4": "BKT Mastery Tracking",
+    "landing.marquee.4": "Evidence-Based Evaluation",
     "landing.marquee.5": "SM-2 Spaced Repetition",
     "landing.marquee.6": "Knowledge Graph",
     "landing.marquee.7": "Six-Mode Teaching Engine",
@@ -164,7 +164,7 @@ export const LANDING_STRINGS: PageStrings = {
     "landing.features.kicker": "Features",
     "landing.features.title": "An AI that actually teaches",
     "landing.features.subtitle":
-      "Not just a chatbot — behind every turn there is pedagogy, mastery tracking, and textbook evidence.",
+      "Not just a chatbot — behind every turn there is pedagogy, evidence-based evaluation, and textbook grounding.",
     "landing.features.f1.title": "Socratic explaining",
     "landing.features.f1.desc":
       "Guided dialogue that helps you figure things out yourself instead of handing you answers.",
@@ -175,11 +175,11 @@ export const LANDING_STRINGS: PageStrings = {
     "landing.features.f1.p3": "Every explanation links back to textbook concepts",
     "landing.features.f2.title": "Smart assessment",
     "landing.features.f2.desc":
-      "Constrained quiz generation, three-level grading, and CAT adaptive testing that verify real mastery.",
+      "Constrained quiz generation, three-level grading, and CAT adaptive testing that verify real learning.",
     "landing.features.f2.more":
-      "M4 constrains question generation to your chosen textbooks and topics — no out-of-scope items. Answers are graded on three levels, and CAT adaptive testing adjusts difficulty after every answer to pinpoint your level with fewer questions, writing results straight into the mastery model.",
+      "M4 constrains question generation to your chosen textbooks and topics — no out-of-scope items. Answers are graded on three levels, and CAT adaptive testing adjusts difficulty after every answer to pinpoint your current performance with fewer questions; every answer is preserved as inspectable learning evidence.",
     "landing.features.f2.p1": "Constrained generation — strictly within selected textbooks and topics",
-    "landing.features.f2.p2": "Three-level grading writes fine-grained mastery updates",
+    "landing.features.f2.p2": "Three-level grading with visible grading rationale",
     "landing.features.f2.p3": "CAT adapts difficulty live for precise, shorter tests",
     "landing.features.f3.title": "Textbook RAG",
     "landing.features.f3.desc":
@@ -197,22 +197,22 @@ export const LANDING_STRINGS: PageStrings = {
     "landing.features.f4.p1": "[[Wikilinks]], tags and folders; unresolved links create notes in one click",
     "landing.features.f4.p2": "AI generates summaries, corrections and reviews from your sources",
     "landing.features.f4.p3": "SM-2 spaced repetition plus a live relationship graph",
-    "landing.features.f5.title": "Mastery profile",
+    "landing.features.f5.title": "Learning archive",
     "landing.features.f5.desc":
-      "BKT mastery tracking and knowledge-graph visualization make strengths and gaps obvious.",
+      "Evidence-based evaluation and knowledge-graph visualization make claims and evidence obvious.",
     "landing.features.f5.more":
-      "The M2 student model runs BKT (Bayesian Knowledge Tracing) over your answer history to estimate mastery per concept. The dashboard and profile turn mastery, concept states and learning style into readable graphs — strengths and gaps at a glance.",
-    "landing.features.f5.p1": "BKT estimates mastery per concept, sharpening with every answer",
-    "landing.features.f5.p2": "Knowledge graph colored by mastery makes weak spots obvious",
-    "landing.features.f5.p3": "The profile is transparent — see everything the system knows",
+      "Every explanation, answer and exercise leaves traceable learning evidence; the unified learning evaluation condenses it into conditional claims — where evidence supports your understanding, where it is still pending, where it conflicts. The archive and knowledge graph show these claims per workspace — what you see is everything the system relies on.",
+    "landing.features.f5.p1": "Claims require evidence — every claim traces back to raw answers",
+    "landing.features.f5.p2": "Graph colored by evidence state: supported / emerging / conflicting",
+    "landing.features.f5.p3": "The archive is transparent — see everything the system knows",
     "landing.features.f6.title": "Long-term planning",
     "landing.features.f6.desc":
       "From semester goals down to today's tasks, with SM-2 spaced repetition against forgetting.",
     "landing.features.f6.more":
-      "Set one or more semester goals and M9 breaks them into weekly → today's tasks, weaving SM-2 due reviews into each day. Completions flow back into the mastery model and next week's plan adjusts automatically.",
+      "Set one or more semester goals and M9 breaks them into weekly → today's tasks, weaving SM-2 due reviews into each day. Completions flow back into the learning evaluation and next week's plan adjusts automatically.",
     "landing.features.f6.p1": "Multiple goals cascade into weekly and daily tasks",
     "landing.features.f6.p2": "SM-2 spaced repetition schedules reviews automatically",
-    "landing.features.f6.p3": "Completions feed mastery; plans adapt dynamically",
+    "landing.features.f6.p3": "Completions feed the evaluation; plans adapt dynamically",
     "landing.features.f7.title": "Voice call tutoring",
     "landing.features.f7.desc": "Ask out loud like a phone call — formulas you can both hear and see.",
     "landing.features.f7.more":
@@ -229,7 +229,7 @@ export const LANDING_STRINGS: PageStrings = {
     "landing.modules.m1.name": "Task intelligence",
     "landing.modules.m1.desc": "Understand → plan → execute tools → update state",
     "landing.modules.m2.name": "Student model",
-    "landing.modules.m2.desc": "Profile + BKT mastery + concept states",
+    "landing.modules.m2.desc": "Profile + unified learning evaluation",
     "landing.modules.m3.name": "Teaching engine",
     "landing.modules.m3.desc": "Six-mode state machine + cross-turn teaching memory",
     "landing.modules.m4.name": "Assessment",
@@ -256,7 +256,7 @@ export const LANDING_STRINGS: PageStrings = {
       "Use the public textbooks or upload your own materials, then ask anything.",
     "landing.how.s3.title": "Keep improving",
     "landing.how.s3.desc":
-      "The system tracks your mastery and schedules reviews and quizzes automatically.",
+      "The system records your learning evidence and schedules reviews and quizzes automatically.",
 
     "landing.cta.title": "Ready to start?",
     "landing.cta.subtitle": "Create a free account and let your tutor agent tailor the first lesson.",

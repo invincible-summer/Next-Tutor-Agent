@@ -160,6 +160,8 @@ def wrong_answer_items(student_id: str, limit: int = 200) -> list[dict]:
             task = state.tasks.get(ref.question_id, {}).get(
                 ref.question_revision)
         items.append({
+            # source_id 供前端打开证据详情（原题/作答/揭晓视图，§11.2）。
+            "source_id": sid,
             "topic": task.task_family if task else "",
             "knowledge_point": task.source_badge if task else "",
             "stem": task.stem[:300] if task else "",

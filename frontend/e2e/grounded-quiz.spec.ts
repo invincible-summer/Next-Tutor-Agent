@@ -1,8 +1,9 @@
 /**
  * Flow 4 + Flow 5（plan.md §26）：Grounded Quiz 与 NOT_FOUND。
  * 教材在场时出题 -> QuizCard 出现、教材依据 badge（quiz-source-badge）、
- * source_refs 可展开、作答与 record 成功；
- * 请求教材中没有的 ZX-999 -> strict 语义下不生成伪教材题。
+ * source_refs 可展开、服务端身份提交（/quiz/record）成功并出判定；
+ * 请求教材中没有的 ZX-999 -> strict 语义下不出伪教材题（G2 契约：
+ * 出题工具 partial + questions=[]，不注册题目，/quiz/recent 为空）。
  */
 import { test, expect } from "@playwright/test";
 import { request as pwRequest } from "@playwright/test";
@@ -42,13 +43,14 @@ test("根据教材出题：quiz 卡带教材依据 badge 与来源引用", async
   const badge = page.getByTestId("quiz-source-badge").first();
   await expect(badge).toBeVisible({ timeout: 90_000 });
 
-  // 作答第一题（MC 选 A）并揭晓 -> record 成功（掌握度提示或判定出现）
+  // 作答第一题（MC 选 A）并提交批改：题卡携带服务端 question_id
+  // （executor 注册 TaskSnapshot 后写回），/quiz/record 受理并出判定。
   const firstOption = page.getByRole("button", { name: /314159/ }).first();
   await expect(firstOption).toBeVisible({ timeout: 30_000 });
+  await expect(firstOption).toBeEnabled({ timeout: 15_000 });
   await firstOption.click();
-  const reveal = page.getByText(/揭晓|提交/).first();
-  await reveal.click();
-  await expect(page.getByText(/回答正确|正确答案/).first())
+  await page.getByRole("button", { name: /提交批改|Submit/ }).first().click();
+  await expect(page.getByText(/回答正确|答对|正确/).first())
     .toBeVisible({ timeout: 30_000 });
 
   // 解析展开后依据可见（filename + excerpt）
@@ -65,18 +67,29 @@ test("strict 请求教材中没有的知识点：不出伪教材题", async ({ p
   const a = await registerAndLogin(api);
   const sessionId = await sessionWithTextbook(api, a.token);
 
-  // Assessment API 的 strict 语义（服务端权威合同）：
-  // strict_textbook + scope 有效但教材无该内容 -> grounding_not_found
-  const resp = await api.post(`${BACKEND}/api/v1/assessment/start`, {
-    headers: { Authorization: `Bearer ${a.token}`,
-               "Content-Type": "application/json" },
-    data: { concept: "ZZZ-999 未定义概念", session_id: sessionId,
-            strict_textbook: true },
+  await loginViaStorage(page, a.token);
+  await page.goto(`/chat/${sessionId}`);
+  const input = page.locator("textarea").first();
+  await expect(input).toBeVisible({ timeout: 20_000 });
+  await input.fill("根据刚才的教材，给我出 2 道 ZX-999 未定义概念的练习");
+  await input.press("Enter");
+
+  // 回合结束的稳定信号：fake LLM 在 quiz 工具轮之后按“教材”意图合成回答。
+  await expect(page.getByText(/314159|继续/).first())
+    .toBeVisible({ timeout: 90_000 });
+
+  // strict 语义（plan.md §4.6）：检索未命中 + required -> 不生成伪教材题。
+  // 页面不出现 quiz 卡，也不出现可选选项。
+  await expect(page.getByTestId("quiz-source-badge")).toHaveCount(0);
+  await expect(page.getByRole("button", { name: /314159/ })).toHaveCount(0);
+
+  // 服务端权威合同：没有任何题目被注册为可作答任务（journal 投影为空）。
+  const recent = await api.get(`${BACKEND}/api/v1/quiz/recent`, {
+    headers: { Authorization: `Bearer ${a.token}` },
   });
-  expect(resp.status()).toBe(200);
-  const body = await resp.json();
-  expect(body.status).toBe("grounding_not_found");
-  expect(body.question).toBeNull();
-  expect(body.grounding?.tier).toBe("not_found");
+  expect(recent.status()).toBe(200);
+  const rb = await recent.json();
+  const items: unknown[] = rb.items ?? rb.questions ?? [];
+  expect(items.length).toBe(0);
   await api.dispose();
 });

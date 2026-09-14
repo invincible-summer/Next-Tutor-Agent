@@ -1,11 +1,13 @@
 "use client";
 
-// 顶部四张统计卡：总轮次 / 已评估 / 平均学习增量 / 待审批提案。
+// 顶部统计卡（plan §13.7/§14.7）：教学质量口径——轮次/已评估/待审批提案；
+// 平均学习增益等学生数值字段已删除。
 import { Stat } from "@/components/ui/Stat";
 import type { EvalReport } from "@/lib/types-modules";
-import { fmtGain, type Tr } from "./helpers";
+import type { Tr } from "./helpers";
 
 export function OverviewStats({ report, tr }: { report: EvalReport; tr: Tr }) {
+  const strategies = report.top_strategies?.length ?? 0;
   return (
     <div className="grid grid-cols-2 gap-4 xl:grid-cols-4">
       <Stat label={tr("ins.stat.turns")} value={report.total_turns} />
@@ -19,10 +21,10 @@ export function OverviewStats({ report, tr }: { report: EvalReport; tr: Tr }) {
         }
       />
       <Stat
-        label={tr("ins.stat.gain")}
-        value={fmtGain(report.avg_learning_gain)}
-        tone={report.avg_learning_gain == null ? "default" : report.avg_learning_gain >= 0 ? "success" : "danger"}
-        foot={tr("ins.stat.gain.foot")}
+        label={tr("ins.stat.strategies", "教学策略")}
+        value={strategies}
+        tone="accent"
+        foot={tr("ins.stat.strategies.foot", "有实测记录的教学策略数")}
       />
       <Stat
         label={tr("ins.stat.pending")}

@@ -16,7 +16,7 @@ from datetime import datetime, timezone
 from enum import Enum
 from typing import Annotated, Any, Literal, Union
 
-from pydantic import (BaseModel, ConfigDict, Field, field_validator,
+from pydantic import (computed_field, BaseModel, ConfigDict, Field, field_validator,
                       model_validator)
 
 # ---------------------------------------------------------------------------
@@ -112,9 +112,10 @@ class ConceptRef(StrictModel):
     concept_revision: str = Field(min_length=1, max_length=128)
     display_name: str = Field(default="", max_length=192)
 
+    @computed_field
     @property
     def key(self) -> str:
-        """服务端稳定编码，用于路径 token / 索引键。"""
+        """服务端稳定编码，用于路径 token / 索引键（序列化进 API 响应）。"""
         raw = "\u0001".join([self.graph_owner_namespace, self.textbook_id,
                              self.concept_id, self.concept_revision])
         return hashlib.sha256(raw.encode("utf-8")).hexdigest()[:24]

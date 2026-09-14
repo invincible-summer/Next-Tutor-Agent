@@ -214,3 +214,103 @@ export const useChatStore = create<ChatState>((set) => ({
     generation: s.generation + 1,
   })),
 }));
+
+// ---------------------------------------------------------------------------
+// 统一学习评价查询缓存（plan §14.4/§15.3）：key 必须含 owner + workspace +
+// scope_revision；切区清空上一区缓存并 abort 旧请求（防回包覆盖）；
+// 退出/换账号全清。禁止把评价缓存放 localStorage（私人数据）。
+// ---------------------------------------------------------------------------
+
+/** 评价缓存 key：owner|workspace|revision|kind[|arg]。 */
+export function evalCacheKey(
+  owner: string,
+  workspaceId: string,
+  revision: string,
+  kind: string,
+  arg = "",
+): string {
+  return [owner || "-", workspaceId || "-", revision || "-", kind, arg]
+    .filter((s) => s !== "")
+    .join("|");
+}
+
+interface EvaluationCacheState {
+  entries: Record<string, { at: number; data: unknown }>;
+  inflight: Record<string, AbortController>;
+  /** 命中且未过期时直接返回缓存（同步读）。 */
+  cached: <T>(key: string, maxAgeMs?: number) => T | undefined;
+  /** 取数（带去重）：命中新鲜缓存直接返回；在途复用同一 Promise。 */
+  fetchCached: <T>(
+    key: string,
+    fetcher: (signal: AbortSignal) => Promise<T>,
+    opts?: { maxAgeMs?: number },
+  ) => Promise<T>;
+  /** 使某前缀（如某工作区）的缓存失效（重综合/删除证据后调用）。 */
+  invalidate: (keyPrefix: string) => void;
+  /** 退出/换账号：清空全部缓存并 abort 所有在途请求。 */
+  clearAll: () => void;
+}
+
+const EVAL_CACHE_DEFAULT_MAX_AGE = 60_000;
+
+/** 在途请求复用：AbortController → Promise（不进 store 状态）。 */
+const inflightPromises = new WeakMap<AbortController, Promise<unknown>>();
+
+export const useEvaluationCacheStore = create<EvaluationCacheState>(
+  (set, get) => ({
+    entries: {},
+    inflight: {},
+    cached: <T,>(key: string, maxAgeMs = EVAL_CACHE_DEFAULT_MAX_AGE) => {
+      const e = get().entries[key];
+      if (!e) return undefined;
+      if (Date.now() - e.at > maxAgeMs) return undefined;
+      return e.data as T;
+    },
+    fetchCached: <T,>(
+      key: string,
+      fetcher: (signal: AbortSignal) => Promise<T>,
+      opts?: { maxAgeMs?: number },
+    ) => {
+      const maxAgeMs = opts?.maxAgeMs ?? EVAL_CACHE_DEFAULT_MAX_AGE;
+      const hit = get().cached<never>(key, maxAgeMs);
+      if (hit !== undefined) return Promise.resolve(hit);
+      const existing = get().inflight[key];
+      if (existing) {
+        const p = inflightPromises.get(existing);
+        if (p) return p as Promise<T>;
+      }
+      const ac = new AbortController();
+      const dropInflight = (s: { inflight: Record<string, AbortController> }) => {
+        const inflight = { ...s.inflight };
+        delete inflight[key];
+        return inflight;
+      };
+      const promise = fetcher(ac.signal)
+        .then((data) => {
+          set((s) => ({
+            entries: { ...s.entries, [key]: { at: Date.now(), data } },
+            inflight: dropInflight(s),
+          }));
+          return data;
+        })
+        .catch((err) => {
+          set((s) => ({ inflight: dropInflight(s) }));
+          throw err;
+        });
+      inflightPromises.set(ac, promise);
+      set((s) => ({ inflight: { ...s.inflight, [key]: ac } }));
+      return promise;
+    },
+    invalidate: (keyPrefix) =>
+      set((s) => ({
+        entries: Object.fromEntries(
+          Object.entries(s.entries).filter(([k]) => !k.startsWith(keyPrefix)),
+        ),
+      })),
+    clearAll: () => {
+      const { inflight } = get();
+      for (const ac of Object.values(inflight)) ac.abort();
+      set({ entries: {}, inflight: {} });
+    },
+  }),
+);

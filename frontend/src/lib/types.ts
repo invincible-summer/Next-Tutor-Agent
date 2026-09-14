@@ -179,8 +179,12 @@ export interface QuizQuestion {
   explanation: string;
   knowledge_point: string;
   difficulty: string;
-  /** 已作答记录（后端写回；存在时答题卡恢复为已答锁定状态） */
-  result?: { verdict: string; student_answer: string };
+  /** G2/G5 服务端身份（TaskSnapshot 注册后写回题卡；旧会话缺失时题卡
+   *  降级为只读陈列，不再允许本地判分提交）。 */
+  question_id?: string;
+  question_revision?: number;
+  /** 已作答记录（后端按 attempt_id 写回；存在时恢复已提交锁定状态）。 */
+  result?: { verdict: string; student_answer: string; attempt_id?: string };
   /** Grounded quiz provenance（additive：历史会话无这些字段也能正常加载） */
   grounding_mode?: "textbook" | "generic" | "reference" | "reference+textbook" | string;
   grounding_tier?: "found" | "partial" | "not_found" | string;

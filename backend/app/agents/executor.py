@@ -39,7 +39,9 @@ from .state import TaskPlan
 
 def _register_quiz_tasks(session: TutorSession, quiz_data: dict) -> None:
     """G2：quiz_history 题目注册为 journal TaskSnapshot（幂等，fail-open
-    不破坏对话回合）。concept_refs 严格匹配会话工作区 scope（§7.2）。"""
+    不破坏对话回合）。concept_refs 严格匹配会话工作区 scope（§7.2）。
+    注册后把 question_id/question_revision 写回题 dict——quiz_history 与
+    tool_result SSE 负载携带同一身份，题卡提交不再以题干定位（§11.4）。"""
     try:
         student_id = getattr(session, "student_id", "") or "student_default"
         workspace_id = getattr(session, "workspace_id", "") or ""
@@ -65,6 +67,8 @@ def _register_quiz_tasks(session: TutorSession, quiz_data: dict) -> None:
                 q, workspace_id=workspace_id, concept_refs=concept_refs,
                 variant_reference=str(quiz_data.get("reference") or ""))
             register_task_snapshot(student_id, task)
+            q["question_id"] = task.question_id
+            q["question_revision"] = task.question_revision
     except Exception:
         pass
 
@@ -1004,6 +1008,18 @@ async def execute(
         postconditions = skill_runtime.validate_result(tool_name, result)
         if postconditions is not None:
             trace.log("skill_postconditions", step=step, **postconditions.to_dict())
+
+        # stash quiz results into session (V1 side-effect)。必须在 tool_result
+        # yield 之前注册并写回 question_id/revision：SSE 负载、quiz_history
+        # 与持久化历史携带同一身份（§11.4；ToolResult.to_dict 按引用携带
+        # data，此处变异即进入下游所有副本）。
+        if tool_name in ("generate_quiz", "fit_quiz") and not result.is_error:
+            session.quiz_history.append(result.data)
+            record_generated_quiz(session.session_id, result.data)
+            # G2/G4：题目即刻注册 TaskSnapshot（journal，最近习题=journal
+            # 投影 /quiz/recent）。
+            _register_quiz_tasks(session, result.data)
+
         result_dict = result.to_dict()
         all_tool_calls.append({"name": tool_name, "result": result_dict})
         yield {"type": "tool_result", "result": result_dict}
@@ -1021,15 +1037,6 @@ async def execute(
         yield {"type": "thinking", "content": progress_summary.content + "\n\n",
                "is_delta": True, "summary": True,
                "stage": progress_summary.stage, "level": progress_summary.level}
-
-        # stash quiz results into session (V1 side-effect)
-        if tool_name in ("generate_quiz", "fit_quiz") and not result.is_error:
-            session.quiz_history.append(result.data)
-            record_generated_quiz(session.session_id, result.data)
-            # G2/G4：题目即刻注册 TaskSnapshot（journal，最近习题=journal
-            # 投影 /quiz/recent），题卡提交
-            # 携带 question_id/revision（§11.4；不再以题干前缀定位题目）。
-            _register_quiz_tasks(session, result.data)
 
         _step_text = (pseudo_guard.emitted if pseudo_guard and pseudo_guard.detected
                       else answer_buf)

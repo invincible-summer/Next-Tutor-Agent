@@ -41,6 +41,7 @@ def _evaluation_overlay(student_id: str, workspace_id: str = ""):
             "state": view.state.value if view.state else None,
             "statement": view.statement[:160],
             "judgment_id": view.judgment_id,
+            "concept_key": view.concept_ref.key,
             "evaluation_status": view.evaluation_status.value,
             "updated_at": view.updated_at,
         }
@@ -202,6 +203,7 @@ def knowledge_graph(
 @router.get("/concepts/{concept_id}")
 def knowledge_concept(
     concept_id: str,
+    workspace_id: str = Query(default=""),
     student_id: str = Depends(resolve_student_id),
 ) -> dict:
     """One concept's detail page: node fields + resolved teaching content,
@@ -251,7 +253,8 @@ def knowledge_concept(
         }
         content, _snippets = _kn.ContentResolver(g.contents).resolve(
             node.id, query_hint=node.name)
-        evaluation = (_evaluation_overlay(student_id) or {}).get(node.id)
+        evaluation = (_evaluation_overlay(student_id, workspace_id)
+                       or {}).get(node.id)
         # teaching log (M3) is keyed by whatever concept string the turn used
         # (often the display name, sometimes the skill id) -- try both.
         teaching: list[dict[str, Any]] = []

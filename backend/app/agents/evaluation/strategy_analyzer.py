@@ -1,14 +1,16 @@
 """Strategy analyzer: aggregate teaching-mode effectiveness across turns.
 
 This is M7's cross-turn analysis engine. Given the accumulated TurnTraces, it
-rate, producing a StrategyEffectiveness ranking -- the "which strategy works
-best" table from the M7 spec.
+aggregates per-(mode, subject) success rates, producing a StrategyEffectiveness
+ranking -- the "which strategy works best" table from the M7 spec. It ranks
+teaching-system quality only (outcome-based success rate); it carries no
+student mastery or numeric learning-gain values.
 
 Boundary with M6 (avoid double truth source): M6 procedural tracks per-student
 strategy success_rate (does this work for THIS student). M7 strategy_analyzer
-each other at the system level. It reads M7's OWN traces (which already encode
-mode + outcome + gain); it does NOT re-read M6 procedural raw data -- the
-strategy_analyzer owns the aggregation layer, M6 owns the per-student layer.
+aggregates the same question at the system level. It reads M7's OWN traces
+(which encode mode + outcome); it does NOT re-read M6 procedural raw data --
+the strategy_analyzer owns the aggregation layer, M6 owns the per-student layer.
 """
 from __future__ import annotations
 
@@ -28,7 +30,7 @@ def analyze_traces(traces: list[TurnTrace]) -> list[StrategyEffectiveness]:
     """Aggregate traces into per-(mode, subject) StrategyEffectiveness records.
 
     Pure function of the traces list; deterministic. Returns records sorted by
-    avg_gain descending. Records with fewer than MIN_TRACES_FOR_EFFECTIVENESS
+    avg_success_rate descending. Records with fewer than MIN_TRACES_FOR_EFFECTIVENESS
     samples are still returned (sample_size exposes the count) but flagged via
     the cap so callers can filter noise.
     """
@@ -44,15 +46,14 @@ def analyze_traces(traces: list[TurnTrace]) -> list[StrategyEffectiveness]:
     results: list[StrategyEffectiveness] = []
     for (mode, subject), group in buckets.items():
         n = len(group)
-        avg_gain = sum(gains) / len(gains) if gains else 0.0
         successes = sum(1 for t in group if t.outcome.lower() in _SUCCESS_OUTCOMES)
         avg_success = successes / n if n else 0.0
         results.append(StrategyEffectiveness(
             strategy=mode, subject=subject,
-            avg_gain=round(avg_gain, 4), avg_success_rate=round(avg_success, 4),
+            avg_success_rate=round(avg_success, 4),
             sample_size=n,
         ))
-    results.sort(key=lambda s: s.avg_gain, reverse=True)
+    results.sort(key=lambda s: s.avg_success_rate, reverse=True)
     return results
 
 
@@ -78,15 +79,15 @@ def best_strategies(student_id: str, subject: str = "",
     """Return the most effective strategies, filtered to trustworthy samples.
 
     Filters: sample_size >= MIN_TRACES_FOR_EFFECTIVENESS (avoid noise).
-    Prefers subject-scoped when a subject is given, then by avg_gain.
+    Prefers subject-scoped when a subject is given, then by success rate.
     """
     try:
         items = store.load_strategies(student_id)
         good = [s for s in items
-                if s.sample_size >= MIN_TRACES_FOR_EFFECTIVENESS and s.avg_gain > 0]
+                if s.sample_size >= MIN_TRACES_FOR_EFFECTIVENESS and s.avg_success_rate > 0]
         good.sort(key=lambda s: (
             not (subject and s.subject and subject.lower() in s.subject.lower()),
-            -s.avg_gain))
+            -s.avg_success_rate))
         return good[:limit]
     except Exception:
         return []
@@ -97,7 +98,7 @@ def worst_strategies(student_id: str, limit: int = 3) -> list[StrategyEffectiven
     try:
         items = store.load_strategies(student_id)
         bad = [s for s in items if s.sample_size >= MIN_TRACES_FOR_EFFECTIVENESS]
-        bad.sort(key=lambda s: s.avg_gain)
+        bad.sort(key=lambda s: s.avg_success_rate)
         return bad[:limit]
     except Exception:
         return []
@@ -106,14 +107,14 @@ def worst_strategies(student_id: str, limit: int = 3) -> list[StrategyEffectiven
 def summarize(traces: list[TurnTrace]) -> dict[str, Any]:
     """Build a compact stats dict for the MetricSnapshot / API.
 
-    Returns {total, by_mode: {mode: {count, avg_gain, success_rate}},
+    Returns {total, by_mode: {mode: {count, success_rate, avg_tokens}},
     failure_distribution: {type: count}, avg_tokens}. Pure function.
     """
     if not traces:
         return {"total": 0, "by_mode": {}, "failure_distribution": {},
                 "avg_tokens": 0.0}
     by_mode: dict[str, dict[str, Any]] = defaultdict(
-        lambda: {"count": 0, "gains": [], "successes": 0, "tokens": 0})
+        lambda: {"count": 0, "successes": 0, "tokens": 0})
     failures: dict[str, int] = defaultdict(int)
     total_tokens = 0
     for t in traces:
@@ -132,7 +133,6 @@ def summarize(traces: list[TurnTrace]) -> dict[str, Any]:
         n = d["count"]
         by_mode_out[mode] = {
             "count": n,
-            "avg_gain": round(sum(d["gains"]) / len(d["gains"]), 4) if d["gains"] else 0.0,
             "success_rate": round(d["successes"] / n, 4) if n else 0.0,
             "avg_tokens": round(d["tokens"] / n, 1) if n else 0.0,
         }

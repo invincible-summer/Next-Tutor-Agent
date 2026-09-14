@@ -1,4 +1,4 @@
-import type { ChatSSEEvent, SessionDetail, SessionItem, AttachmentMeta, LibraryFolder, LibraryFile, LibraryTree, WorkspaceDetail, WorkspaceItem, QuizSourceRef } from "./types";
+import type { ChatSSEEvent, SessionDetail, SessionItem, AttachmentMeta, LibraryFolder, LibraryFile, LibraryTree, WorkspaceDetail, WorkspaceItem, UxProfileSummary, UxMotivation, UxActivity, UxGreeting } from "./types";
 import { apiFetch } from "./api-fetch";
 
 // Single source of truth for the API origin. Covers all three deployment
@@ -765,128 +765,75 @@ export async function getUxGreeting(lang: string, grade: string): Promise<UxGree
   return apiFetch(`${BASE}/ux/greeting?${q.toString()}`).then((r) => r.json());
 }
 
-export type GradeVerdict = "correct" | "partial" | "wrong" | null;
-
-/** W3/D06 结构化批改明细（F01 展示；由服务端按冻结量规计算）。 */
-export interface QuizStructuredFeedback {
-  first_error?: { description?: string; preceding_correct?: string };
-  hypotheses?: { kind?: string; statement?: string }[];
-  uncertainties?: string[];
-  feedback?: { strength?: string; next_step?: string };
-  score?: number | null;
-  rubric_id?: string;
-}
-
-/** W3/F02 关键步骤提示（量规派生；服务端记录 assistance）。 */
-export async function fetchQuizHint(sessionId: string, stem: string): Promise<{
-  status: string; hint: string; message?: string;
-}> {
+/** 关键步骤提示（服务端从冻结量规派生并记录帮助事件，§7.3/§11.4）。 */
+/** 关键步骤提示（服务端从冻结量规派生并记录帮助事件，§7.3/§11.4）。 */
+export async function fetchQuizHint(
+  questionId: string,
+  questionRevision: number,
+): Promise<{ status: string; hint: string; message?: string }> {
   const res = await apiFetch(
-    `${BASE}/quiz/hint?session_id=${encodeURIComponent(sessionId)}&stem=${encodeURIComponent(stem)}`);
+    `${BASE}/quiz/hint?question_id=${encodeURIComponent(questionId)}&question_revision=${questionRevision}`);
   if (!res.ok) throw new Error(`Hint failed: ${res.status}`);
   return res.json();
 }
 
-/** W3/F05 异议标记（账本审计；修正走重答 supersede）。 */
-export async function disputeQuizAttempt(attemptId: string, reason = ""): Promise<{
-  status: string; message?: string;
-}> {
-  const res = await apiFetch(`${BASE}/quiz/dispute`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ attempt_id: attemptId, reason }),
-  });
-  if (!res.ok) throw new Error(`Dispute failed: ${res.status}`);
+/** 揭晓答案（服务端记录 answer_revealed；§14.5 影响后续解释）。 */
+export async function revealQuizAnswer(
+  questionId: string,
+  questionRevision: number,
+): Promise<{ status: string; answer: string; explanation: string; already_answered: boolean }> {
+  const res = await apiFetch(
+    `${BASE}/assessment/questions/${encodeURIComponent(questionId)}/reveal`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ question_revision: questionRevision }),
+    },
+  );
+  if (!res.ok) throw new Error(`Reveal failed: ${res.status}`);
   return res.json();
 }
 
-export async function recordAnswer(body: {
-  stem: string;
-  q_type: string;
+/** 正式提交（唯一提交通道：/quiz/record 服务端确定性判分 + 语义评价，
+ * §11.4：一次提交、一份反馈；409=已有正式提交）。 */
+export interface QuizSubmitOutcome {
+  status: string;
+  attempt_id: string;
+  source_id: string;
+  task_result: {
+    verdict?: string | null;
+    grading_status?: string;
+    criterion_results?: Array<{ criterion_id: string; result: string; comment?: string }>;
+    first_error?: { description?: string } | null;
+    hypotheses?: Array<{ statement?: string }>;
+    feedback?: { strengths?: string[]; improvement?: string; next_step?: string } | null;
+  } | null;
+  evaluation: { status: string; interpretation_id: string };
+  feedback: string;
+  continuation?: { action?: string; reason?: string } | null;
+  duplicate?: boolean;
+}
+
+export async function submitQuizAnswer(body: {
+  question_id: string;
+  question_revision: number;
   student_answer: string;
-  correct_answer: string;
-  options?: Record<string, string>;
-  explanation?: string;
-  knowledge_point?: string;
-  grade?: string;
   session_id?: string;
-  subject?: string;
-  difficulty?: number;
-  /** Grounded provenance（additive，仅审计/学习记录；服务端以原始生成记录为准） */
-  grounding_mode?: string;
-  grounding_tier?: string;
-  source_refs?: QuizSourceRef[];
-}): Promise<{ status: string; result?: { score: number; concept_status: string; verdict: string }; message?: string }> {
+  reply_message_ref?: string;
+  workspace_id?: string;
+}): Promise<QuizSubmitOutcome> {
   const res = await apiFetch(`${BASE}/quiz/record`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
-  if (!res.ok) throw new Error(`Record failed: ${res.status}`);
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data?.detail?.error?.code || `Submit failed: ${res.status}`);
+  }
   return res.json();
 }
 
-export async function* gradeAnswer(
-  body: {
-    stem: string;
-    q_type: string;
-    student_answer: string;
-    correct_answer: string;
-    explanation?: string;
-    knowledge_point?: string;
-    grade?: string;
-    session_id?: string;
-    subject?: string;
-    /** false = 只生成点评，不写掌握度/作答记录（MC 已走 /quiz/record） */
-    record?: boolean;
-  },
-  signal?: AbortSignal,
-): AsyncGenerator<
-  | { type: "delta"; content: string }
-  | { type: "retry"; attempt?: number; reason?: string }
-  | { type: "done"; verdict: GradeVerdict; feedback: string; full: string;
-      score?: number; concept_status?: string; attempt_id?: string;
-      structured?: QuizStructuredFeedback }
-  | { type: "error"; message: string }
-> {
-  const res = await apiFetch(`${BASE}/quiz/grade`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-    signal,
-  });
-  if (!res.ok || !res.body) throw new Error(`Grade failed: ${res.status}`);
-  const reader = res.body.getReader();
-  const decoder = new TextDecoder();
-  let buffer = "";
-  let currentEvent = "message";
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    buffer += decoder.decode(value, { stream: true });
-    const lines = buffer.split("\n");
-    buffer = lines.pop() || "";
-    for (const line of lines) {
-      const trimmed = line.trim();
-      if (trimmed.startsWith("event:")) {
-        currentEvent = trimmed.slice(6).trim();
-      } else if (trimmed.startsWith("data:")) {
-        try {
-          const payload = JSON.parse(trimmed.slice(5).trim());
-          if (currentEvent === "delta") yield { type: "delta", content: payload.content };
-          else if (currentEvent === "retry") yield { type: "retry", attempt: payload.attempt, reason: payload.reason };
-          else if (currentEvent === "done") yield { type: "done", verdict: payload.verdict, feedback: payload.feedback, full: payload.full };
-          else if (currentEvent === "error") yield { type: "error", message: payload.message };
-        } catch {
-          // skip malformed
-        }
-      }
-    }
-  }
-}
-import type { UxProfileSummary, UxMotivation, UxActivity, UxGreeting } from "./types";
-
-// --- Unified recycle bin / data lifecycle ---
 export async function listTrash(resourceType = ""): Promise<{ status: string; items: import("./types").TrashItem[] }> {
   const q = resourceType ? `?resource_type=${encodeURIComponent(resourceType)}` : "";
   const res = await apiFetch(`${BASE}/trash${q}`);

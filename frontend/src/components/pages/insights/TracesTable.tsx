@@ -10,7 +10,7 @@ import { cn } from "@/lib/cn";
 import { fmtTime } from "@/lib/format";
 import { dt, modeTone, verdictTone, type Lang } from "@/lib/labels";
 import type { EvalTrace } from "@/lib/types-modules";
-import { failureLabel, failureTone, fmtGain, type Tr } from "./helpers";
+import { failureLabel, failureTone, type Tr } from "./helpers";
 
 function outcomeLabel(tr: Tr, lang: Lang, outcome: string): string {
   const o = (outcome || "unknown").toLowerCase();
@@ -59,7 +59,6 @@ export function TracesTable({
                 <th className="px-3 py-2 font-medium">{tr("ins.col.subject")}</th>
                 <th className="px-3 py-2 font-medium">{tr("ins.col.mode")}</th>
                 <th className="px-3 py-2 font-medium">{tr("ins.col.outcome")}</th>
-                <th className="px-3 py-2 text-right font-medium">{tr("ins.col.gain")}</th>
                 <th className="px-4 py-2 font-medium">{tr("ins.col.failure")}</th>
               </tr>
             </thead>
@@ -84,18 +83,6 @@ export function TracesTable({
                     <td className="whitespace-nowrap px-3 py-2">
                       <Badge tone={outcomeTone(t.outcome)}>{outcomeLabel(tr, lang, t.outcome)}</Badge>
                     </td>
-                    <td
-                      className={cn(
-                        "tnum whitespace-nowrap px-3 py-2 text-right",
-                        t.learning_gain == null
-                          ? "text-muted"
-                          : t.learning_gain >= 0
-                            ? "text-success"
-                            : "text-danger",
-                      )}
-                    >
-                      {fmtGain(t.learning_gain)}
-                    </td>
                     <td className="whitespace-nowrap px-4 py-2">
                       <Badge tone={failureTone(t.failure_type)}>
                         {failureLabel(tr, t.failure_type)}
@@ -104,7 +91,7 @@ export function TracesTable({
                   </tr>,
                   open ? (
                     <tr key={`${t.id}-detail`} className="border-b border-border-light bg-surface-sunken/50">
-                      <td colSpan={7} className="px-4 py-3">
+                      <td colSpan={6} className="px-4 py-3">
                         <div className="flex flex-col gap-2">
                           {t.failure_cause && (
                             <div className="text-xs leading-relaxed text-fg-secondary">

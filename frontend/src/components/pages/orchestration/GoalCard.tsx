@@ -13,7 +13,6 @@ import {
   type PickedConcept,
 } from "@/components/shared/GenealogyConceptPicker";
 import { fmtDate } from "@/lib/format";
-import { masteryColor } from "@/lib/labels";
 import { cn } from "@/lib/cn";
 import type { OrchGap, OrchGoal, OrchGoalState } from "@/lib/types-modules";
 
@@ -41,9 +40,11 @@ function GapRow({ gap, tr }: { gap: OrchGap; tr: Tr }) {
         {tr(`goal.gap.${gap.status}`, gap.status)}
       </Badge>
       <span className="min-w-0 flex-1 truncate text-xs font-medium text-fg">{gap.name}</span>
-      <span className="tnum text-[0.68rem] text-muted">
-        {Math.round(gap.current_mastery * 100)}% → {Math.round(gap.target_mastery * 100)}%
-      </span>
+      {(gap.layer ?? 0) > 0 && (
+        <span className="tnum shrink-0 text-[0.68rem] text-muted">
+          {tr("goal.gap.layer", "第 %n 层").replace("%n", String(gap.layer))}
+        </span>
+      )}
       <button
         type="button"
         onClick={learn}
@@ -115,7 +116,7 @@ export function GoalCard({ goal, gs, tr, onEdit, onDelete }: {
   onDelete?: () => void;
 }) {
   const dl = goal.deadline && goal.deadline > 0 ? daysLeft(goal.deadline) : null;
-  const ratio = gs.mastered_ratio ?? 0;
+  const ratio = gs.supported_ratio ?? 0;
   const gaps = gs.gaps ?? [];
   const est = gs.estimate;
   const chain = gs.chain_mode === "concept_chain";
@@ -178,11 +179,8 @@ export function GoalCard({ goal, gs, tr, onEdit, onDelete }: {
           {tr("goal.progress")}
           {chain && <span className="ml-1 text-muted/70">({tr("goal.progress.chain", "目标链口径")})</span>}
         </span>
-        <span className="tnum font-medium" style={{ color: masteryColor(ratio) }}>
-          {Math.round(ratio * 100)}%
-          <span className="ml-1.5 text-muted/70">
-            {gs.mastered_skills ?? 0}/{gs.total_skills ?? 0} {tr("goal.skills")}
-          </span>
+        <span className="tnum font-medium text-fg-secondary">
+          {gs.supported_skills ?? 0}/{gs.total_skills ?? 0} {tr("goal.skills.supported", "已支持")}
         </span>
       </div>
       <Progress value={ratio} className="mb-2" />
@@ -216,11 +214,7 @@ export function GoalCard({ goal, gs, tr, onEdit, onDelete }: {
       )}
 
       <div className="mb-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-[0.72rem] text-muted">
-        <span>
-          {tr("goal.level")}: {tr(`goal.level.${gs.current_level || "novice"}`)}
-          <span className="mx-1 text-border">{tr("goal.level.to")}</span>
-          <span className="text-accent-strong">{tr(`goal.level.${gs.target_level || "proficient"}`)}</span>
-        </span>
+        {/* §14.7：不显示总体能力等级（当前水平/目标掌握率已随旧链删除） */}
         {(gs.urgency ?? 0) > 0 && (
           <span className="flex shrink-0 items-center gap-1.5 whitespace-nowrap">
             {tr("goal.urgency")}

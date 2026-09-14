@@ -57,19 +57,24 @@ function pickCompletion(body) {
     return QUESTIONS;
   }
   // executor 工具循环：学生要出题且模型可以调用工具 -> 调 generate_quiz。
-  // “已出过题”只认 generate_quiz 的 tool 响应（preresearch 的检索结果
-  // 也是 tool 消息，不能算）。
+  // "已出过题"只认 generate_quiz 的 tool 响应（preresearch 的检索结果
+  // 也是 tool 消息，不能算）：成功（questions）/ strict 拒绝（未生成
+  // 教材题）/ 重复调用拦截，三者都算"这轮出过题"，不再重试。
+  // topic 按学生意图路由：ZX-999 走 strict NOT_FOUND 用例（教材里没有
+  // 该知识点，不允许出伪教材题）。
   const quizAlready = (body.messages || []).some((m) =>
-    m.role === "tool" && /"questions"/.test(String(m.content || "")));
+    m.role === "tool" &&
+    /"questions"|未生成教材题|相同参数调用过/.test(String(m.content || "")));
   const wantsQuiz = /出题|练习|测一测|考我|出\s*\d*\s*道|道.*题/.test(userText);
   const hasQuizTool = (body.tools || []).some((t) =>
     (t.function?.name || "") === "generate_quiz");
   if (hasQuizTool && wantsQuiz && !quizAlready) {
+    const topic = /ZX-999/.test(userText) ? "ZX-999 未定义概念" : "ZX-17 定理";
     return { __tool_calls: [{
       id: "call_quiz_1", type: "function",
       function: { name: "generate_quiz",
                    arguments: JSON.stringify(
-                     { topic: "ZX-17 定理", grade: "本科", difficulty: "easy", count: 2 }) },
+                     { topic, grade: "本科", difficulty: "easy", count: 2 })},
     }] };
   }
   // 问答合成：preresearch 命中后的回答

@@ -57,7 +57,7 @@ class TurnTrace:
     Append-only, uncapped (the jsonl is a black box like the chat transcript
     and the M6 episodes log). Captures WHAT happened (mode/outcome/tools),
     HOW MUCH it cost (tokens/steps/duration), and WHETHER it worked
-    (before/after mastery + learning gain + failure diagnosis).
+    (outcome + failure diagnosis; no student mastery numerics).
 
     This is the atomic unit M7 analyzes: strategy_analyzer aggregates over
     traces, the advisor reads accumulated traces to propose improvements, and
@@ -183,8 +183,9 @@ class StrategyEffectiveness:
     """Aggregated effectiveness of a teaching mode, computed by strategy_analyzer.
 
     This is the M7 contribution ON TOP of M6 procedural: M6 tracks per-student
-    strategies against each other. Reads M3 teaching_log + M6 procedural +
-    M7's own traces -- does NOT duplicate their raw data.
+    strategy success, M7 aggregates the same question across turns. Reads only
+    M7's own traces -- does NOT duplicate M3/M6 raw data. Success rate measures
+    teaching-system quality, not student mastery.
     """
     strategy: str = ""              # TeachingMode value
     subject: str = ""
@@ -195,7 +196,6 @@ class StrategyEffectiveness:
     def to_dict(self) -> dict[str, Any]:
         return {
             "strategy": self.strategy, "subject": self.subject,
-            "avg_gain": round(self.avg_gain, 4),
             "avg_success_rate": round(self.avg_success_rate, 4),
             "sample_size": self.sample_size, "last_updated": self.last_updated,
         }
@@ -206,7 +206,6 @@ class StrategyEffectiveness:
         return cls(
             strategy=str(d.get("strategy", "")),
             subject=str(d.get("subject", "")),
-            avg_gain=float(d.get("avg_gain", 0.0)),
             avg_success_rate=float(d.get("avg_success_rate", 0.0)),
             sample_size=int(d.get("sample_size", 0)),
             last_updated=float(d.get("last_updated", 0.0)),

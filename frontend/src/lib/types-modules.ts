@@ -6,8 +6,6 @@ export interface StudentProfileData {
   subjects: string[];
   learning_style: { preference: string; explanation_depth: string };
   goals: string[];
-  weak_points: string[];
-  strong_points: string[];
   created_at: number;
   updated_at: number;
   last_active: number;
@@ -17,26 +15,6 @@ export interface StudentProfileData {
 export interface StudentProfileResp {
   status: string;
   profile: StudentProfileData | null;
-}
-
-export type ConceptState = "understood" | "partial" | "misconception" | "introduced" | string;
-
-export interface MasterySkill {
-  skill_id: string;
-  concept: string;
-  subject: string;
-  p_known: number;
-  state: ConceptState;
-  attempts: number;
-  correct: number;
-  last_review: number;
-  mistakes: string[];
-}
-
-export interface MasteryResp {
-  status: string;
-  skills: MasterySkill[];
-  count: number;
 }
 
 export interface TeachingLogEntry {
@@ -71,15 +49,22 @@ export interface PathNode {
 export interface LearningPathResp {
   status: string;
   next_to_learn: PathNode[];
+  /** G4：待复习=已观察待解决（emerging/fragile/conflicting），state 随行。 */
   review: PathNode[];
   difficulty?: number | null;
+  rationale?: string;
 }
 
 // --- M5 知识图谱 ---
 
-export interface KnowledgeNodeMastery {
-  p_known: number;
-  state: ConceptState;
+/** 图谱节点上的统一评价 overlay（§11.6/§14.4；章节节点固定 null）。 */
+export interface NodeEvaluation {
+  state: string | null;
+  statement: string;
+  judgment_id: string;
+  concept_key: string;
+  evaluation_status: string;
+  updated_at: string;
 }
 
 export interface KnowledgeNode {
@@ -91,7 +76,7 @@ export interface KnowledgeNode {
   description: string;
   aliases: string[];
   common_errors: string[];
-  mastery: KnowledgeNodeMastery | null;
+  evaluation?: NodeEvaluation | null;
   /** concept | chapter | section（章节容器靠 part_of 收编子概念，不参与检索；
    *  节 = 章内二级结构如课/篇目/小节，参与名称检索但不追踪掌握度）；旧包无此字段 */
   kind?: "concept" | "chapter" | "section" | string;
@@ -144,7 +129,7 @@ export interface ConceptDetailResp {
     applications: KnowledgeNode[];
     misconceptions: KnowledgeNode[];
   };
-  mastery: (KnowledgeNodeMastery & { attempts?: number; correct?: number }) | null;
+  evaluation?: NodeEvaluation | null;
   teaching_log: TeachingLogEntry[];
   memories: Episode[];
 }
@@ -309,19 +294,22 @@ export interface ProceduralResp {
 }
 
 /** 跨会话「最近习题」条目（测评中心列表，每学生上限 100 道）。 */
+/** 跨会话最近习题（G4：learning-evidence journal 投影，ISO 时间戳）。 */
 export interface RecentQuizQuestion {
-  id: number;
-  ts: number;
+  /** attempt_id（服务端身份，单次提交键）。 */
+  id: string;
+  ts: string;
   session_id: string;
+  question_id: string;
+  question_revision: number;
   topic: string;
-  grade: string;
+  knowledge_point: string;
   type: string;
-  difficulty: string;
   stem: string;
   verdict: string;
   student_answer?: string;
-  source_status?: "active" | "deleted" | "independent";
-  source_message?: string;
+  evaluation_status?: string;
+  availability?: string;
 }
 
 export interface RecentQuizResp {
@@ -329,24 +317,19 @@ export interface RecentQuizResp {
   questions: RecentQuizQuestion[];
 }
 
-/** 错题本条目（跨会话聚合 verdict=wrong/partial 的题）。 */
+/** 错题本条目（G4：learning-evidence journal 投影，新→旧）。 */
 export interface ErrorNotebookItem {
-  session_id: string;
-  source_session_id?: string;
-  source_kind?: "chat" | "assessment";
-  source_status?: "active" | "deleted" | "independent";
-  source_message?: string;
-  session_title: string;
+  /** 证据来源（打开详情：原题/你的作答/答案解析）。 */
+  source_id: string;
+  /** 任务族（topic）。 */
   topic: string;
+  /** 题目徽标概念（source_badge）。 */
   knowledge_point: string;
   stem: string;
-  type: string;
-  difficulty: string;
+  /** wrong | partial */
   verdict: string;
-  student_answer: string;
-  correct_answer: string;
-  explanation: string;
-  ts: number;
+  /** ISO 时间戳。 */
+  ts: string;
 }
 
 export interface ErrorNotebookResp {
@@ -355,76 +338,274 @@ export interface ErrorNotebookResp {
   count: number;
 }
 
-/** 学习账本条目（L1 档案层：独立于对话的学习结果全量记录）。 */
-export interface LearningRecordItem {
-  record_id: string;
-  session_id: string;
-  source_kind: "chat" | "assessment" | string;
-  source_status: "active" | "deleted" | "independent" | string;
-  knowledge_point: string;
-  subject: string;
-  stem: string;
-  type: string;
-  difficulty: string;
-  student_answer: string;
-  verdict: string;
-  score: number | null;
-  created_at: number;
-  updated_at: number;
+// --- 统一学习评价（/learner-evaluation/*，plan §11.2/§11.3） ---
+// 时间戳均为服务端 ISO 字符串；类别不是等级阶梯，禁止映射数值。
+
+export interface EvalConceptRef {
+  graph_owner_namespace: string;
+  textbook_id: string;
+  file_ids: string[];
+  concept_id: string;
+  concept_revision: string;
+  display_name: string;
+  /** 服务端稳定编码（ConceptRef.key，sha256 截断）：概念详情/证据过滤用。 */
+  key: string;
 }
 
-export interface LearningRecordsResp {
+export interface EvalClaim {
+  claim_id: string;
+  concept_ref: EvalConceptRef;
+  statement: string;
+  /** supported | tentative | challenged | unobserved */
   status: string;
-  items: LearningRecordItem[];
-  count: number;
+  support_refs: string[];
+  challenge_refs: string[];
+  assistance_scope: string;
+  limits: string[];
+  created_by_observation: string;
+  updated_at_observation: string;
+}
+
+export interface EvalLearningChange {
+  /** strengthened | weakened | mixed | stable | unknown */
+  direction: string;
+  /** comparable | partially_comparable | not_comparable | no_prior */
+  comparison: string;
+  prior_refs: string[];
+  current_refs: string[];
+  statement: string;
+  alternative_explanations: string[];
+}
+
+export interface EvalNextProbe {
+  /** explain | practice | variant | transfer | delayed_recheck | self_check */
+  kind: string;
+  concept_ref: string;
+  target_claim: string;
+  instruction: string;
+  rationale: string;
+  expected_observation: string;
+  /** full_demo | key_hints | independent */
+  assistance: string;
+  stop_condition: string;
+}
+
+export interface ConceptEvaluationView {
+  concept_ref: EvalConceptRef;
+  /** not_observed | emerging | supported_in_scope | fragile | conflicting | null */
+  state: string | null;
+  /** ready | pending | reconciling | unavailable | disabled */
+  evaluation_status: string;
+  judgment_id: string;
+  statement: string;
+  claims: EvalClaim[];
+  change: EvalLearningChange | null;
+  next_probe: EvalNextProbe | null;
+  /** current | out_of_scope | source_removed | needs_mapping */
+  scope_status: string;
+  evidence_count: number;
+  last_observed_at: string;
+  updated_at: string;
+}
+
+export interface EvalCoverageCounts {
+  observed_concepts: number;
+  not_observed_concepts: number;
+  by_state: Record<string, number>;
+  reconciling_concepts: number;
+}
+
+export interface EvalSynthesisChange {
+  statement: string;
+  prior_refs: string[];
+  current_refs: string[];
+  comparison: string;
+}
+
+export interface EvalOpenQuestion {
+  statement: string;
+  claim_refs: string[];
+}
+
+export interface EvalThemeSummary {
+  title: string;
+  statement: string;
+  claim_refs: string[];
+}
+
+export interface EvalScopeSynthesis {
+  synthesis_id: string;
+  /** concept | session | workspace */
+  scope_type: string;
+  workspace_id: string;
+  statement: string;
+  claim_refs: string[];
+  theme_summaries: EvalThemeSummary[];
+  changes: EvalSynthesisChange[];
+  open_questions: EvalOpenQuestion[];
+  priority_probe: EvalNextProbe | null;
+  limits: string[];
+  scope_revision: string;
+  evidence_watermark: string;
+  pending_source_count: number;
+  generated_at: string;
+}
+
+export interface WorkspaceEvaluationSummary {
+  workspace_id: string;
+  scope_revision: string;
+  evaluation_status: string;
+  evaluated_through: string;
+  pending_source_count: number;
+  allowed_concept_count: number;
+  coverage: EvalCoverageCounts;
+  synthesis: EvalScopeSynthesis | null;
+  workspace_name: string;
+  updated_at: string;
+}
+
+export interface WorkspaceEvaluationListItem {
+  workspace_id: string;
+  workspace_name: string;
+  evaluation_status: string;
+  scope_revision: string;
+  coverage: EvalCoverageCounts;
+  updated_at: string;
+}
+
+export interface WorkspacesEvaluationResp {
+  items: WorkspaceEvaluationListItem[];
   total: number;
   offset: number;
   limit: number;
 }
 
-/** 布鲁姆认知档案（/student/bloom-profile，学习账本确定性聚合）。 */
-export interface BloomLevelStat {
-  attempts: number;
-  correct: number;
-  rate: number;
+export interface EvalConceptsResp {
+  items: ConceptEvaluationView[];
+  total: number;
+  offset: number;
+  limit: number;
+  revision: string;
 }
 
-export interface BloomWeakness {
-  concept: string;
-  level: string;
-  level_zh: string;
-  attempts: number;
-  rate: number;
+export interface EvalSessionItem {
+  source_session_ref: string;
+  has_evidence: boolean;
+  /** available | archived | deleted */
+  availability: string;
+  last_observed_at: string;
+  kinds: string[];
 }
 
-/** W3/F05 证据档案（v2 能力投影：概念×维度，读时派生自 events+账本）。 */
-export interface EvidenceDimension {
-  status: "demonstrated_in_scope" | "developing" | "needs_recheck" | "not_observed";
-  evidence_count: number;
-}
-export interface EvidenceConcept {
-  concept: string;
-  evidence_count: number;
-  independent_count: number;
-  dimensions: Record<string, EvidenceDimension>;
-  not_observed: string[];
-  evidence: { attempt_id: string; verdict: string; assistance?: boolean; ts?: number }[];
-}
-export interface EvidenceProfileResp {
-  status: "ok" | "empty" | "disabled" | "error";
-  concepts: EvidenceConcept[];
-  count: number;
-  dimensions: string[];
-  message?: string;
+export interface EvalSessionsResp {
+  items: EvalSessionItem[];
+  total: number;
+  offset: number;
+  limit: number;
 }
 
-export interface BloomProfileResp {
-  status: string;
-  concepts: Record<string, { levels: Record<string, BloomLevelStat>; last_at: number }>;
-  overall: Record<string, BloomLevelStat>;
-  weaknesses: BloomWeakness[];
-  totals: { records: number; tagged: number };
-  updated_at: number;
+export interface EvalSessionEvidenceItem {
+  source_id: string;
+  /** dialogue | assessment */
+  kind: string;
+  observed_at: string;
+  availability: string;
+  canonical_text: string;
+  interpretation_id: string;
+  review_status: string;
+}
+
+export interface EvalSourceTimelineItem {
+  source_id: string;
+  kind: string;
+  observed_at: string;
+  scope_status: string;
+  /** available | archived | deleted */
+  availability: string;
+  concept_refs: string[];
+  summary: string;
+  source_session_ref: string;
+  interpretation_id: string;
+  review_status: string;
+}
+
+export interface EvalTimelineResp {
+  items: EvalSourceTimelineItem[];
+  total: number;
+  offset: number;
+  limit: number;
+}
+
+export interface EvalAssistanceEvent {
+  /** hint_requested | answer_revealed | worked_example | teacher_probe | prior_exposure */
+  kind: string;
+  at: string;
+  detail: string;
+  client_entry: string;
+}
+
+export interface EvalEvidenceTaskPublic {
+  question_id: string;
+  question_revision: number;
+  q_type: string;
+  stem: string;
+  options: Record<string, string>;
+  input_spec: { kind: string; max_bytes: number; requires_explanation: boolean };
+  concept_refs: Array<Record<string, unknown>>;
+  source_badge: string;
+  hints_available: boolean;
+}
+
+export interface EvalEvidenceDetail {
+  source_id: string;
+  kind: string;
+  observed_at: string;
+  /** 当前来源版本（C9 复核 expected_revision / 删除 If-Match 用）。 */
+  source_revision?: number;
+  /** 当前解释 id（空 = 尚未评价）。 */
+  interpretation_id?: string;
+  workspace_id: string;
+  availability: string;
+  canonical_text: string;
+  assistance: EvalAssistanceEvent[];
+  task: EvalEvidenceTaskPublic | null;
+  revealed: { answer: string; explanation: string } | null;
+  interpretation: {
+    applicable?: boolean;
+    abstain_reason?: string | null;
+    observation_claims?: Array<Record<string, unknown>>;
+    feedback?: string;
+    assistance_interpretation?: string;
+    next_probe?: EvalNextProbe | null;
+  } | null;
+  task_result: {
+    verdict?: string | null;
+    task_score?: number | null;
+    grading_status?: string;
+    criterion_results?: Array<{ criterion_id: string; result: string; comment: string }>;
+    first_error?: { description: string } | null;
+    feedback?: { strengths: string[]; improvement: string; next_step: string } | null;
+  } | null;
+  reviews: Array<{
+    review_id: string;
+    interpretation_id: string;
+    reason: string;
+    issue_kind: string;
+    requested_at: string;
+    status?: string;
+  }>;
+}
+
+export interface EvalJobDetail {
+  job_id: string;
+  /** queued | running | retry_wait | completed | abstained | failed | cancelled */
+  state: string;
+  kind: string;
+  workspace_id: string;
+  error_code: string;
+  attempt_count: number;
+  transport_attempts: number;
+  retryable: boolean;
 }
 
 // --- 使用文档（/docs：全员读、管理员写） ---
@@ -442,9 +623,8 @@ export interface EvalReport {
   ts: number;
   total_turns: number;
   total_evaluated: number;
-  avg_learning_gain: number | null;
   failure_distribution: Record<string, number>;
-  top_strategies: { strategy: string; subject: string; avg_gain: number; avg_success_rate: number; sample_size: number }[];
+  top_strategies: { strategy: string; subject: string; avg_success_rate: number; sample_size: number }[];
   pending_proposals: number;
   tokens_per_turn?: number | null;
 }
@@ -496,13 +676,12 @@ export interface EvalTrace {
   mode: string;
   outcome: string;
   tool_count: number;
+  steps?: number;
   tokens_used: number;
   duration_sec: number;
-  before_mastery: number | null;
-  after_mastery: number | null;
-  learning_gain: number | null;
   failure_type: string;
   failure_cause?: string;
+  recommendation?: string;
 }
 
 export interface ContextBudgetReport {
@@ -531,16 +710,22 @@ export interface ContextBudgetReport {
 
 // --- M4 CAT 自适应测评（既有端点的类型补全） ---
 
+/** QuestionPublic（A07 白名单投影；答案不在答前公开）。 */
 export interface AssessmentQuestion {
-  stem: string;
+  question_id: string;
+  question_revision: number;
   q_type?: string;
   type?: string;
+  stem: string;
   options?: Record<string, string>;
+  input_spec?: { kind?: string; max_bytes?: number; requires_explanation?: boolean };
+  concept_refs?: Array<Record<string, unknown>>;
+  source_badge?: string;
+  hints_available?: boolean;
   answer?: string;
   explanation?: string;
   knowledge_point?: string;
   difficulty?: string | number;
-  /** Grounded provenance（additive；strict 教材测评题携带） */
   grounding_mode?: string;
   grounding_tier?: string;
   source_refs?: import("./types").QuizSourceRef[];
@@ -566,10 +751,20 @@ export interface AssessmentStartResp {
   };
 }
 
+/** /assessment/answer（§11.5）：task_result + evaluation 两层。 */
 export interface AssessmentAnswerResp {
   status: string;
   assessment_id?: string;
-  result?: { verdict?: string; score?: number; feedback?: string; [key: string]: unknown };
+  task_result?: {
+    verdict?: string | null;
+    grading_status?: string;
+    task_score?: number | null;
+    criterion_results?: Array<{ criterion_id: string; result: string; comment?: string }>;
+    first_error?: { description?: string } | null;
+    hypotheses?: Array<{ statement?: string }>;
+    feedback?: { strengths?: string[]; improvement?: string; next_step?: string } | null;
+  } | null;
+  evaluation?: { status: string; interpretation_id: string };
   stop_reason?: string | null;
   summary?: AssessmentSummary;
 }
@@ -597,12 +792,33 @@ export interface AssessmentActiveResp {
   summary?: AssessmentSummary;
 }
 
+/** cat.report（§11.5）：本次表现 + 语义总结；分清 pending 与题目局部结果。 */
 export interface AssessmentSummary {
-  verdict?: string;
+  assessment_id?: string;
+  workspace_id?: string;
+  status?: string;
+  /** P3/硬上限枚举：sufficient_for_current_claim|needs_clarification|max_questions|max_time|user_stopped|generation_failed */
+  stop_code?: string;
+  /** 判分器给出的自由文本结束说明（可空）。 */
+  stop_reason?: string | null;
   asked?: number;
-  correct?: number;
-  concept?: string;
-  recommendation?: string;
+  graded?: number;
+  pending?: number;
+  counts?: { correct?: number; partial?: number; wrong?: number };
+  difficulty?: number;
+  items?: Array<{
+    question_id: string;
+    attempt_id: string;
+    observed_at: string;
+    task_result?: {
+      verdict?: string | null;
+      grading_status?: string;
+      feedback?: { strengths?: string[]; improvement?: string; next_step?: string } | null;
+      first_error?: { description?: string } | null;
+    } | null;
+    evaluation_status?: string;
+    feedback?: string;
+  }>;
   [key: string]: unknown;
 }
 
@@ -631,6 +847,8 @@ export interface OrchGoal {
   subjects: string[];
   /** 概念级绑定（L1 目标链）：绑定的图谱概念 id */
   target_concept_ids?: string[];
+  /** G4 §13.8：目标的工作区归属（评价/计划按区隔离）。 */
+  workspace_id?: string;
   deadline: number;
   created_at: number;
   updated_at: number;
@@ -641,10 +859,8 @@ export interface OrchGap {
   name: string;
   subject: string;
   difficulty: number;
-  /** unknown=未测（W4/A13，不宣称缺口） | weak=有证据的薄弱 | missing=旧数据 */
+  /** unknown=未观察（不宣称缺口） | weak=已观察待解决 | missing=旧数据 */
   status: string;
-  current_mastery: number;
-  target_mastery: number;
   /** 拓扑层级：1 = 现在就能学；0 = 未分层（旧数据） */
   layer?: number;
 }
@@ -670,12 +886,10 @@ export interface OrchGoalState {
   goal_type: string;
   subject: string;
   deadline: number;
-  /** novice | beginner | intermediate | advanced | proficient */
-  current_level: string;
-  target_level: string;
-  mastered_ratio: number;
+  /** 已支持概念占比（0..1，语义口径：supported_in_scope / 范围内概念） */
+  supported_ratio: number;
   total_skills: number;
-  mastered_skills: number;
+  supported_skills: number;
   gaps: OrchGap[];
   required_skills: string[];
   recommended_strategy: string;
@@ -694,7 +908,6 @@ export interface OrchMilestone {
   /** not_started | in_progress | completed */
   status: string;
   order: number;
-  target_mastery: number;
 }
 
 export interface OrchWeeklyConcept {
@@ -703,7 +916,6 @@ export interface OrchWeeklyConcept {
   milestone_id: string;
   week_index: number;
   difficulty: number;
-  planned_mastery: number;
 }
 
 /** 周任务内的一个可执行子任务（LLM 推荐或手动添加）。 */
@@ -726,6 +938,8 @@ export interface OrchWeekTask {
   source: string;
   done: boolean;
   subtasks: OrchSubTask[];
+  /** G4 §13.8：继承 goal 的工作区归属。 */
+  workspace_id?: string;
 }
 
 export interface OrchWeek {
@@ -829,6 +1043,8 @@ export interface OrchHabit {
 export interface OrchReviewItem {
   concept_id: string;
   concept_name: string;
+  /** G4 §13.8：卡片键 (workspace_id, concept_key) 的工作区侧。 */
+  workspace_id?: string;
   easiness: number;
   /** 天 */
   interval: number;
