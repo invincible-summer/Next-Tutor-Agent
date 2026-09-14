@@ -14,6 +14,7 @@ from app.agents.knowledge import store as kg_store
 from app.core import textbook as tb_store
 from app.core.workspace import Workspace, save_workspace
 from app.agents.student_model.evaluation import scope as scope_mod
+from app.agents.student_model.evaluation import schema as eval_schema
 from app.core import learner_runtime
 
 
@@ -219,6 +220,41 @@ class TestVolumePrimitive(unittest.TestCase):
         nodes = [{"id": "c", "kind": "concept",
                   "metadata": {"file_ids": ["f1"]}}]
         self.assertEqual(volume_scoped_subgraph(nodes, [], set()), ([], []))
+
+
+class TestScopeConceptCap(unittest.TestCase):
+    """G5 手工验收回归：公用教材库全选的学习区（60 卷 ≈ 8218 概念）必须
+    能构造合法 EvaluationScope；上限只防体积失控，不是产品限制。
+    （此前 max_length=4096 让 /learner-evaluation/workspaces 直接 500。）"""
+
+    def _concepts(self, n: int) -> list[eval_schema.ConceptRef]:
+        return [eval_schema.ConceptRef(
+            graph_owner_namespace="public", textbook_id=f"tb_{i}",
+            file_ids=[f"f{i}"], concept_id=f"c.{i}",
+            concept_revision="gr1", display_name=f"概念{i}")
+            for i in range(n)]
+
+    def test_full_public_library_workspace_scope_validates(self):
+        scope = eval_schema.EvaluationScope(
+            workspace_id="ws_full_library", scope_revision="sr1",
+            selected_volumes=[eval_schema.VolumeSelection(
+                textbook_id="tb", graph_owner_namespace="public",
+                topic_key="k", file_ids=["f"], graph_revision="gr1")],
+            allowed_concepts=self._concepts(8218))
+        self.assertEqual(len(scope.allowed_concepts), 8218)
+
+    def test_scope_changed_op_covers_full_concept_universe(self):
+        op = eval_schema.OpScopeChanged(
+            workspace_id="ws_full_library", scope_revision="sr2",
+            affected_concept_keys=[f"public:tb:c.{i}" for i in range(8218)])
+        self.assertEqual(len(op.affected_concept_keys), 8218)
+
+    def test_cap_still_rejects_absurd_sizes(self):
+        with self.assertRaises(Exception):
+            eval_schema.EvaluationScope(
+                workspace_id="ws", scope_revision="sr",
+                selected_volumes=[],
+                allowed_concepts=self._concepts(16385))
 
 
 if __name__ == "__main__":

@@ -326,6 +326,14 @@ async def evaluate_submission(
                 # unavailable(workspace_required)（§11.4）
                 if src.current_interpretation_id and workspace_id:
                     receipt_out.evaluation_status = "ready"
+                elif workspace_id:
+                    # 语义作业已终态却无 interpretation：按 §10.3 硬故障
+                    # →unavailable，不能停在 pending 误导"仍在评价"。
+                    rt = journal.state().jobs.get(job.job_id)
+                    if rt is not None and rt.job.state in (
+                            S.JobState.FAILED, S.JobState.CANCELLED):
+                        receipt_out.evaluation_status = "unavailable"
+                        receipt_out.evaluation_reason = "evaluation_failed"
     return receipt_out
 
 

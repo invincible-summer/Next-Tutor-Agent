@@ -105,6 +105,9 @@ class CatLifecycleTest(StorageSandboxTestCase):
 
     def _answer(self, assessment_id: str, question: dict, answer: str):
         self.runner.outputs = [_learner_output(applicable=False)]
+        return self._answer_raw(assessment_id, question, answer)
+
+    def _answer_raw(self, assessment_id: str, question: dict, answer: str):
         return self.client.post("/api/v1/assessment/answer", json={
             "assessment_id": assessment_id,
             "question_id": question["question_id"],
@@ -208,6 +211,41 @@ class CatLifecycleTest(StorageSandboxTestCase):
         self.assertNotIn("\"answer\"", dumped)
         self.assertNotIn("rubric", dumped)
         self.assertIn("question_id", dumped)
+
+    def test_next_not_blocked_after_failed_evaluation(self):
+        """语义评价硬失败（schema_invalid，终态）不得让 next 永远 409。
+
+        409 evaluation_pending 只表示"评价仍在途"（queued/running/
+        retry_wait）；终态 failed 时按 §10.3 评价层是 unavailable，
+        CAT 应继续出题而不是卡死在“评价仍在进行”。"""
+        start = self._start()
+        aid = start["assessment_id"]
+        q1 = start["question"]
+        # 两次 run_structured 都返回错误码 → 语义 job 终态 failed
+        self.runner.outputs = ["schema_invalid", "schema_invalid"]
+        r1 = self._answer_raw(aid, q1, "A")
+        self.assertEqual(r1.status_code, 200, r1.text)
+        self.assertEqual(r1.json()["task_result"]["verdict"], "correct")
+        # §10.3：硬故障 → unavailable，不冒充 pending
+        self.assertEqual(r1.json()["evaluation"]["status"], "unavailable")
+        state = st.get_journal("usr_life").state()
+        from app.agents.student_model.evaluation.schema import JobState
+        failed_jobs = [rt for rt in state.jobs.values()
+                       if rt.job.state == JobState.FAILED]
+        self.assertTrue(failed_jobs, "语义评价作业应已失败")
+        with patch("app.api.v1.assessment.get_llm", return_value=_GenLLM()):
+            r2 = self.client.post("/api/v1/assessment/next", json={
+                "assessment_id": aid}, headers=self._headers())
+        self.assertEqual(r2.status_code, 200, r2.text)
+        self.assertIsNotNone(r2.json()["question"],
+                             "评价失败后 next 必须照常出下一题")
+        # 报告：MC 局部判分不受语义失败影响（§11.5 分清 pending 与局部结果）
+        rep = self.client.get("/api/v1/assessment/report", params={
+            "assessment_id": aid}, headers=self._headers()).json()
+        self.assertEqual(rep["summary"]["graded"], 1, rep)
+        self.assertEqual(rep["summary"]["counts"]["correct"], 1, rep)
+        self.assertEqual(rep["summary"]["items"][0]["evaluation_status"],
+                         "unavailable", rep["summary"]["items"][0])
 
 
 if __name__ == "__main__":

@@ -190,6 +190,29 @@ def continuation_for(state: JournalState, instance: CatInstance
     return None
 
 
+def _first_committed_result(src) -> dict | None:
+    """source 已落盘的第一份 TaskResult（MC 确定性判分在语义解释之外，
+    单独提交为合成解释条目；与 instance_task_results 同一取法）。"""
+    for iid in sorted(src.interpretations):
+        raw = src.interpretations[iid].get("task_result")
+        if isinstance(raw, dict) and raw:
+            return raw
+    return None
+
+
+def _evaluation_status(state: JournalState, src) -> str:
+    """§10.3 映射：有可发布解释 ready；作业在途 pending；硬故障/取消
+    unavailable；无作业（旧数据）保持 pending。"""
+    if src.current_interpretation_id:
+        return "ready"
+    states = [rt.job.state for rt in state.jobs.values()
+              if rt.job.source_id == src.receipt.source_id]
+    if states and all(s in (S.JobState.FAILED, S.JobState.CANCELLED)
+                      for s in states):
+        return "unavailable"
+    return "pending"
+
+
 def report(state: JournalState, assessment_id: str) -> dict[str, Any] | None:
     """本次表现 + 语义总结（分清 pending 与题目局部结果，§11.5）。"""
     instance = load_instance(state, assessment_id)
@@ -206,13 +229,14 @@ def report(state: JournalState, assessment_id: str) -> dict[str, Any] | None:
             interp_id = src.current_interpretation_id
             meta = src.interpretations.get(interp_id, {}) if interp_id else {}
             raw_interp = meta.get("raw_interpretation") or {}
+            # 题目局部结果（MC 判分）不受语义评价在途/失败影响
             items.append({
                 "question_id": qref.question_id,
                 "question_revision": qref.question_revision,
                 "attempt_id": src.receipt.attempt_id,
                 "observed_at": src.receipt.observed_at,
-                "task_result": meta.get("task_result"),
-                "evaluation_status": ("ready" if interp_id else "pending"),
+                "task_result": _first_committed_result(src),
+                "evaluation_status": _evaluation_status(state, src),
                 "feedback": (raw_interp.get("feedback") or "")
                 if isinstance(raw_interp, dict) else "",
             })
@@ -220,7 +244,10 @@ def report(state: JournalState, assessment_id: str) -> dict[str, Any] | None:
               if (i["task_result"] or {}).get("verdict") is not None]
     counts = {"correct": 0, "partial": 0, "wrong": 0}
     for i in graded:
-        key = str(i["task_result"]["verdict"])
+        # 落盘 dict 里的 verdict 可能是 enum 实例：取 .value，避免
+        # str() 出 "Verdict.CORRECT" 这种键。
+        v = i["task_result"]["verdict"]
+        key = getattr(v, "value", str(v))
         counts[key] = counts.get(key, 0) + 1
     return {
         "assessment_id": assessment_id,

@@ -67,7 +67,8 @@ export function ConfigCard({
   useEffect(() => {
     if (!wsId) return;
     let alive = true;
-    getEvalConcepts(wsId, { limit: 300 })
+    // /concepts 契约 limit 上限 100（§11.2），超出会 422 直接砸掉概念列表。
+    getEvalConcepts(wsId, { limit: 100 })
       .then((r) => alive && setConcepts(r.items || []))
       .catch(() => alive && setConcepts([]));
     return () => {

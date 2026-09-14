@@ -106,12 +106,37 @@ export default function AssessmentPage() {
           return;
         }
         if (res.status !== "ok") return; // none：无会话，停留 idle
-        if (res.session_status === "active" && res.question) {
-          setQuestion(res.question);
-          setDifficulty(difficultyOf(res.question));
+        if (res.session_status === "active") {
+          // 恢复进行中的 CAT（§11.5）：assessment_id 必须一起恢复，
+          // 否则恢复出的题目无法提交（handleSubmit 的守卫会静默 return）。
+          setAssessmentId(res.assessment_id || "");
           setAnswered(res.answered ?? 0);
           setQIndex(res.answered ?? 0);
-          setStage("asking");
+          if (res.question) {
+            setQuestion(res.question);
+            setDifficulty(difficultyOf(res.question));
+            setStage("asking");
+          } else if (res.assessment_id) {
+            // 上一题已提交但还没取下一题：刷新后自动续跑取下一题，
+            // 不能把进行中的实例渲染成"总结"（会误导用户已结束）。
+            try {
+              const nx = await assessmentNext(res.assessment_id);
+              if (cancelled) return;
+              if (nx.status === "ok" && nx.question && !nx.stop_reason) {
+                setQuestion(nx.question);
+                setDifficulty(nx.difficulty ?? difficultyOf(nx.question));
+                setStage("asking");
+              } else {
+                setSummary(nx.summary ?? res.summary ?? null);
+                setStopReason(nx.stop_reason || res.stop_reason || null);
+                setStage("done");
+              }
+            } catch {
+              // 取下一题失败：保留恢复出的总结兜底，可点"再来一次"重开
+              setSummary(res.summary ?? null);
+              setStage("done");
+            }
+          }
         } else if (res.summary) {
           setSummary(res.summary);
           setStopReason(res.stop_reason || null);

@@ -141,7 +141,9 @@ class EvaluationScope(StrictModel):
     workspace_id: str = Field(min_length=1, max_length=96)
     scope_revision: str = Field(min_length=1, max_length=128)
     selected_volumes: list[VolumeSelection] = Field(max_length=64)
-    allowed_concepts: list[ConceptRef] = Field(max_length=4096)
+    # 上限只防序列化体积失控：公用教材库全选（60 卷 ≈ 8218 概念）是合法
+    # 学习区配置，上限必须覆盖它，否则 scope 解析直接 500。
+    allowed_concepts: list[ConceptRef] = Field(max_length=16384)
     graph_revisions: list[GraphRevisionInfo] = Field(default_factory=list,
                                                      max_length=64)
     unresolved_graph_count: int = Field(default=0, ge=0)
@@ -1078,8 +1080,9 @@ class OpScopeChanged(_OpBase):
     workspace_id: str = Field(min_length=1, max_length=96)
     scope_revision: str = Field(min_length=1, max_length=128)
     change: str = Field(default="", max_length=600)
+    # 与 EvaluationScope.allowed_concepts 同一概念全集，上限同步（见其注释）。
     affected_concept_keys: list[str] = Field(default_factory=list,
-                                             max_length=4096)
+                                             max_length=16384)
 
 
 class OpSourceArchived(_OpBase):

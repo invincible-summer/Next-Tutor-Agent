@@ -609,13 +609,26 @@ async def cat_next(req: CatNextRequest,
         return {"status": "ok", "assessment_id": instance.assessment_id,
                 "stop_reason": "", "difficulty": instance.difficulty,
                 "question": task.public_view() if task else None}
-    # 最后一题已提交但语义未判定 → 409 evaluation_pending
+    # 最后一题已提交但语义未判定 → 409 evaluation_pending。
+    # 只在评价作业仍在途（queued/running/retry_wait）时等待：作业已终态
+    # （failed/cancelled/…）却无 interpretation 时继续等待只会把测评卡死
+    # 在"评价仍在进行"，且评价层按 §10.3 已映射为 unavailable（§11.5）。
     last = instance.question_refs[-1]
-    pending_eval = any(
-        src.receipt.task_ref is not None
-        and src.receipt.task_ref.question_id == last.question_id
-        and not src.current_interpretation_id
-        for src in state.sources.values())
+    terminal = {S.JobState.SUCCEEDED, S.JobState.ABSTAINED,
+                S.JobState.FAILED, S.JobState.CANCELLED}
+
+    def _eval_actively_pending(src) -> bool:
+        ref = src.receipt.task_ref
+        if ref is None or ref.question_id != last.question_id:
+            return False
+        if src.current_interpretation_id:
+            return False
+        job_states = [rt.job.state for rt in state.jobs.values()
+                      if rt.job.source_id == src.receipt.source_id]
+        return any(st not in terminal for st in job_states)
+
+    pending_eval = any(_eval_actively_pending(src)
+                       for src in state.sources.values())
     if pending_eval:
         raise api_error(409, "evaluation_pending",
                         "上一题评价仍在进行，请稍候再取下一题",
