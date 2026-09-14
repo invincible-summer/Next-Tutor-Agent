@@ -572,13 +572,40 @@ async def cat_answer(req: CatAnswerRequest,
     if current is None or current.question_id != req.question_id:
         raise api_error(409, "question_not_current",
                         "题目与当前测评不一致，请刷新")
-    receipt = await evaluate_submission(
-        student_id=_sid,
-        question_ref=S.QuestionRef(question_id=req.question_id,
-                                   question_revision=req.question_revision),
-        student_answer=req.student_answer, source_surface="cat",
-        assessment_id=req.assessment_id,
-        workspace_id=instance.workspace_id, run_inline=True)
+    # 与 chat quiz / submissions 相同的 scope 解析：workspace 归属之外还必须
+    # 带 scope_revision，否则 ConceptJudgment 构造时 scope_revision 为空串
+    # 会以裸 ValidationError 逃逸成 500（live 验收实测）。
+    scope_revision = ""
+    if instance.workspace_id:
+        try:
+            from app.agents.student_model.evaluation.scope import (
+                get_scope_resolver)
+            scope_revision = get_scope_resolver().resolve(
+                _sid, instance.workspace_id).scope_revision
+        except Exception:
+            scope_revision = ""
+    try:
+        receipt = await evaluate_submission(
+            student_id=_sid,
+            question_ref=S.QuestionRef(question_id=req.question_id,
+                                       question_revision=req.question_revision),
+            student_answer=req.student_answer, source_surface="cat",
+            assessment_id=req.assessment_id,
+            workspace_id=instance.workspace_id,
+            scope_revision=scope_revision,
+            expected_scope_revision=scope_revision or None,
+            run_inline=True)
+    except AnswerTooLarge:
+        raise api_error(413, "answer_too_large",
+                        "作答超过 32KiB 上限，请缩小范围后提交")
+    except QuestionAlreadyAnswered:
+        # 半提交恢复：首答中断（如客户端取消）后重试会走到这里——同题同
+        # 答案本就是幂等重放路径，不同答案才冲突；裸 500 会让用户卡死在
+        # “提交答案失败”且无从得知原因（与 /submissions、chat quiz 同款
+        # 错误翻译，§11.4）。
+        raise api_error(409, "question_already_answered",
+                        "这道题已有正式提交；请刷新查看判分结果，"
+                        "再练一次请新建练习")
     state = get_journal(_sid).state()
     instance = cat.load_instance(state, req.assessment_id)
     instance.answered_question_ids.append(req.question_id)

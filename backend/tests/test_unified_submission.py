@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import time
 import unittest
 from typing import Any
 
@@ -299,6 +300,145 @@ class TestAssistanceFloor(SubmissionTestBase):
                          "hint_requested")
         # 情景文本进 system（§9.5 顺序：题型→帮助）
         self.assertIn("明确引用答前帮助", system)
+
+
+class TestInlineRecovery(SubmissionTestBase):
+    """首答中断后的自愈契约（G7 后 live 验收发现的三处缺陷）。
+
+    场景原型：客户端中断/未预期异常让 run_inline 评价中途死亡——source
+    与 job 已落盘、无终态；此后同题重试撞 QuestionAlreadyAnswered，而
+    claim_next FIFO 又会认领旧 job 并因“不是本次的 job”跳过执行。
+    """
+
+    def _seed_stale(self, question_id: str) -> str:
+        """模拟中断残留：受理 + 入队，但评价从未运行。"""
+        am.register_task_snapshot(SID, _open_task(question_id))
+        receipt = asyncio.run(am.evaluate_submission(
+            student_id=SID,
+            question_ref=S.QuestionRef(question_id=question_id,
+                                       question_revision=1),
+            student_answer="中断前的旧答案", run_inline=False,
+            runner=self.runner))
+        rt = get_journal(SID).state().jobs.get(receipt.job_id)
+        self.assertEqual(rt.job.state, S.JobState.QUEUED)
+        return receipt.job_id
+
+    def test_stale_queued_job_drained_and_own_evaluated(self):
+        stale_job = self._seed_stale("q_stale_1")
+        # created_at 秒级截断（schema.utc_now_iso 契约）：跨过整秒保证
+        # 旧 job 在 claim_next 的 (priority, created_at) 排序里严格在前，
+        # 排空顺序确定（同秒内按 job_id 决胜属合法行为，不测）。
+        time.sleep(1.05)
+        self.runner.outputs = [_learner_output(applicable=False),
+                               _learner_output(applicable=False)]
+        receipt = self.submit(_open_task("q_fresh_1"), "新提交的答案")
+        # 旧 job 被排空执行（不再因 job_id 不匹配被跳过）；fixture 输出
+        # applicable=False → 弃权解释，合法终态是 ABSTAINED
+        self.assertEqual(
+            get_journal(SID).state().jobs[stale_job].job.state,
+            S.JobState.ABSTAINED)
+        # 本次提交的评价也真实跑完
+        self.assertTrue(receipt.interpretation_id)
+        self.assertEqual(len(self.runner.calls), 2)
+
+    def test_runner_crash_marks_job_terminal_not_stranded(self):
+        class _CrashRunner:
+            async def run_structured(self, **kw):
+                raise RuntimeError("transport 未分类的意外崩溃")
+
+        am.register_task_snapshot(SID, _open_task("q_crash_1"))
+        receipt = asyncio.run(am.evaluate_submission(
+            student_id=SID,
+            question_ref=S.QuestionRef(question_id="q_crash_1",
+                                       question_revision=1),
+            student_answer="任何答案", run_inline=True, runner=_CrashRunner()))
+        # 提交受理成功（不向调用方抛 500），评价进入可重试终态
+        rt = get_journal(SID).state().jobs.get(receipt.job_id)
+        self.assertIn(rt.job.state, (S.JobState.RETRY_WAIT,
+                                     S.JobState.FAILED))
+        self.assertIn("runner_crashed", rt.job.error_code)
+
+    def test_commit_crash_fails_job_not_request(self):
+        """commit 内部意外异常（如 ConceptJudgment 的 pydantic 校验）→
+        job 落可重试终态，请求方拿到正常回执而不是裸 500。"""
+        from app.agents.student_model.evaluation import service as svc
+        task = _open_task("q_cc_1")
+        am.register_task_snapshot(SID, task)
+        self.runner.outputs = [_learner_output()]
+
+        def boom(self, *a, **kw):
+            raise RuntimeError(
+                "scope_revision: String should have at least 1 character")
+
+        orig = svc.LearnerEvaluationService.commit_result
+        svc.LearnerEvaluationService.commit_result = boom
+        try:
+            receipt = asyncio.run(am.evaluate_submission(
+                student_id=SID,
+                question_ref=S.QuestionRef(question_id="q_cc_1",
+                                           question_revision=1),
+                student_answer="答案", run_inline=True, runner=self.runner))
+        finally:
+            svc.LearnerEvaluationService.commit_result = orig
+        rt = get_journal(SID).state().jobs.get(receipt.job_id)
+        self.assertIn(rt.job.state, (S.JobState.RETRY_WAIT,
+                                     S.JobState.FAILED))
+        self.assertIn("commit_crashed", rt.job.error_code)
+
+
+class TestSpanNormalization(unittest.TestCase):
+    """真实 provider 的证据 span 坐标归一化（live 验收发现的契约缺口）。"""
+
+    TEXT = "J = 1/3。理由：代换后行列式化简为常数。"
+
+    def _claim(self, spans: list[tuple[int, int, str]],
+               local_id: str = "oc1") -> S.ObservationClaim:
+        return S.ObservationClaim(
+            local_id=local_id, concept_ref="c:tb_1.c1",
+            statement="能在代换题中写出雅可比", stance=S.ClaimStance.SUPPORTS,
+            opportunity_ref="op1",
+            current_evidence=[
+                S.EvidenceSpan(ref="src_1", start=a, end=b, quote=q)
+                for a, b, q in spans])
+
+    def _interp(self, *claims: S.ObservationClaim) -> S.LearnerInterpretation:
+        return S.LearnerInterpretation(applicable=True, observation_claims=
+                                       list(claims), feedback="反馈")
+
+    def test_zero_offsets_repaired_by_unique_quote(self):
+        out = am.normalize_evidence_spans(
+            self._interp(self._claim([(0, 0, "J = 1/3")])), self.TEXT)
+        span = out.observation_claims[0].current_evidence[0]
+        self.assertEqual((span.start, span.end), (0, 7))
+        self.assertEqual(self.TEXT[span.start:span.end], span.quote)
+
+    def test_mid_text_quote_gets_real_offsets(self):
+        out = am.normalize_evidence_spans(
+            self._interp(self._claim([(0, 0, "行列式化简为常数")])), self.TEXT)
+        span = out.observation_claims[0].current_evidence[0]
+        self.assertEqual(self.TEXT[span.start:span.end], "行列式化简为常数")
+
+    def test_unknown_quote_kept_for_hard_rejection(self):
+        """quote 定位不到（疑似伪造）→ 原样保留，交给硬校验拒绝整份。"""
+        out = am.normalize_evidence_spans(
+            self._interp(self._claim([(0, 0, "原文里没有这句")])), self.TEXT)
+        span = out.observation_claims[0].current_evidence[0]
+        self.assertEqual((span.start, span.end), (0, 0))
+
+    def test_ambiguous_quote_kept_for_hard_rejection(self):
+        """多处出现（坐标不可定）→ 同样保留原样，不做静默取舍。"""
+        text = "对 对 对"
+        out = am.normalize_evidence_spans(
+            self._interp(self._claim([(0, 0, "对")])), text)
+        span = out.observation_claims[0].current_evidence[0]
+        self.assertEqual((span.start, span.end), (0, 0))
+
+    def test_valid_span_untouched_and_input_immutable(self):
+        claim = self._claim([(0, 7, "J = 1/3")])
+        interp = self._interp(claim)
+        out = am.normalize_evidence_spans(interp, self.TEXT)
+        self.assertIs(out, interp)          # 无变化时原样返回
+        self.assertEqual(out.observation_claims[0].current_evidence[0].start, 0)
 
 
 if __name__ == "__main__":

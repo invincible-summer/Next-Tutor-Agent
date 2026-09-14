@@ -123,6 +123,21 @@ class CatLifecycleTest(StorageSandboxTestCase):
                                  headers=self._headers()).json()
         self.assertEqual(active["assessment_id"], a2["assessment_id"])
 
+    def test_reanswer_different_answer_is_409_not_500(self):
+        """首答中断后重试（不同答案）→ 409 语义错误，不是裸 500。
+
+        G7 后 live 验收发现：cat_answer 未翻译 QuestionAlreadyAnswered，
+        半提交卡死的测评里每次重试都 Internal Server Error。"""
+        start = self._start()
+        aid = start["assessment_id"]
+        q1 = start["question"]
+        r1 = self._answer(aid, q1, "A")
+        self.assertEqual(r1.status_code, 200, r1.text)
+        r2 = self._answer_raw(aid, q1, "B")
+        self.assertEqual(r2.status_code, 409, r2.text)
+        self.assertEqual(r2.json()["detail"]["error"]["code"],
+                         "question_already_answered")
+
     def test_answer_then_next_new_question_and_stop_on_max(self):
         start = self._start()
         aid = start["assessment_id"]
