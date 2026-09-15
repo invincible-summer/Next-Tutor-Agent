@@ -37,7 +37,8 @@ class TestGradeMcTask(unittest.TestCase):
         self.assertEqual(am.grade_mc_task(task, " b ").verdict,
                          S.Verdict.CORRECT)
         self.assertEqual(am.grade_mc_task(task, "A").verdict, S.Verdict.WRONG)
-        self.assertEqual(am.grade_mc_task(task, "").verdict, S.Verdict.WRONG)
+        # R14：空白作答不是错误观察 → indeterminate（verdict=None）
+        self.assertIsNone(am.grade_mc_task(task, "").verdict)
         self.assertEqual(am.grade_mc_task(task, "B").task_score, 1.0)
 
 

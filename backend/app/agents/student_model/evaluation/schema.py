@@ -1026,6 +1026,10 @@ class OpJobInputPrepared(_OpBase):
     input_hash: str = Field(min_length=8, max_length=96)
     prompt_binding: str = Field(default="", max_length=192)
     generation: str = Field(min_length=1, max_length=64)
+    # R16：最小可复现输入清单（引用 ID/裁剪记录，不含正文副本）——
+    # 满足"复盘当时模型读了哪些依据"，敏感原文不重复落账
+    included_refs: list[str] = Field(default_factory=list, max_length=32)
+    truncations: list[str] = Field(default_factory=list, max_length=16)
 
 
 class OpJobSubresultStaged(_OpBase):
@@ -1043,6 +1047,14 @@ class OpJobFailed(_OpBase):
     attempt_count: int = Field(default=1, ge=1, le=100)
     transport_attempts: int = Field(default=1, ge=0, le=64)
     retry_after_seconds: int = Field(default=0, ge=0, le=3600)
+    # R17：绝对重试时刻（fail 事务冻结；重放/重启不再按当前时间重算，
+    # 旧 journal 无此字段时才回退 retry_after_seconds 推导）
+    retry_not_before: str = Field(default="", max_length=40)
+
+    @field_validator("retry_not_before")
+    @classmethod
+    def _utc_opt(cls, v: str) -> str:
+        return _check_utc(v) if v else v
 
 
 class OpJobCancelled(_OpBase):
@@ -1112,6 +1124,13 @@ class OpSynthesisCommitted(_OpBase):
     op: Literal["synthesis_committed"] = "synthesis_committed"
     synthesis: ScopeSynthesis
     replaces_synthesis_id: str = Field(default="", max_length=64)
+    # R01/R08：综合与 job 终态同一事务（此前只写 ScopeSynthesis，job 永
+    # 远 RUNNING 直到 lease 过期再被认领，形成无限重执行）
+    job_id: str = Field(default="", max_length=64)
+    # R08：递归失效后的确定性重放——依据仍存活的旧判断恢复为当前判断
+    # （全部存活原样恢复；部分存活降级 fragile；零存活不恢复）
+    restored_judgments: list[ConceptJudgment] = Field(default_factory=list,
+                                                      max_length=32)
 
 
 class OpScopeChanged(_OpBase):

@@ -179,3 +179,64 @@ class TestReviewRebuild(ConsumerTestBase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestR19OutboxFieldsAndRecallGate(ConsumerTestBase):
+    """R19（update_plan §4）：outbox 事件字段完整 + 独立召回条件。"""
+
+    def test_event_carries_full_attribution(self):
+        import asyncio
+        receipt = asyncio.run(self.submit_mc("A"))
+        state = get_journal(SID).state()
+        item = state.outbox_unacked[(f"m9_{receipt.source_id}", "m9")]
+        src = state.sources[receipt.source_id].receipt
+        # 消费者需要的完整归属（此前缺这些字段只能回退 event_id）
+        self.assertTrue(item.get("attempt_id"))
+        self.assertEqual(item.get("attempt_id"), src.attempt_id)
+        self.assertEqual(item.get("workspace_id"),
+                         src.workspace_id_at_observation)
+        self.assertIn("assistance_floor", item)
+        self.assertIn("verified", item)
+        self.assertIn("session_id", item)
+        self.assertIn("question_revision", item)
+
+    def test_unverified_task_does_not_grow_srs(self):
+        import asyncio
+        # 未审核题：MC 判分照常，但不算独立召回 → 建卡不延长间隔
+        task = _mc_task().model_copy(
+            update={"question_id": "q_unverified",
+                    "verification": S.TaskVerification(status="unreviewed")})
+        am.register_task_snapshot(SID, task)
+        if not self.runner.outputs:
+            self.runner.outputs = [_learner_output()]
+        asyncio.run(am.evaluate_submission(
+            student_id=SID,
+            question_ref=S.QuestionRef(question_id="q_unverified",
+                                       question_revision=1),
+            student_answer="A", run_inline=True, runner=self.runner))
+        svc = get_orchestration_service()
+        acked = svc.consume_evaluation_outbox(SID)
+        self.assertEqual(acked, 1)
+        cards = orch_store.load(SID).review_queue if hasattr(
+            orch_store, "load") else {}
+        if not cards:
+            state = svc._load(SID)  # noqa: SLF001
+            cards = state.review_queue
+        self.assertTrue(cards)          # 接触记录建卡
+        card = next(iter(cards.values()))
+        interval = getattr(card, "interval",
+                           card.get("interval") if isinstance(card, dict)
+                           else 0)
+        self.assertEqual(interval, 0)
+
+    def test_verified_task_grows_srs(self):
+        import asyncio
+        asyncio.run(self.submit_mc("A"))
+        svc = get_orchestration_service()
+        self.assertEqual(svc.consume_evaluation_outbox(SID), 1)
+        state = svc._load(SID)  # noqa: SLF001
+        card = next(iter(state.review_queue.values()))
+        interval = getattr(card, "interval",
+                           card.get("interval") if isinstance(card, dict)
+                           else 0)
+        self.assertGreaterEqual(interval, 1)

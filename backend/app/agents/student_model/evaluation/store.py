@@ -191,6 +191,9 @@ def _apply_op(state: JournalState, op: Any) -> None:
             rt.job.state = S.JobState.RUNNING
             rt.job.lease_token = op.lease_token
             rt.job.lease_expires_at = op.lease_expires_at
+            # R17：认领事务原子递增 attempt_count（此前只在认领方内存
+            # 副本 +1，重放不增值 → 连续失败恒为 1，MAX_AUTO_RETRY 永真）
+            rt.job.attempt_count += 1
     elif isinstance(op, S.OpJobInputPrepared):
         rt = state.jobs.get(op.job_id)
         if rt is not None:
@@ -207,8 +210,11 @@ def _apply_op(state: JournalState, op: Any) -> None:
             rt.job.error_code = op.error_code
             if op.retryable and op.attempt_count <= MAX_AUTO_RETRY:
                 rt.job.state = S.JobState.RETRY_WAIT
-                rt.retry_not_before = _retry_not_before(
-                    op.retry_after_seconds)
+                # R17：绝对时刻优先（fail 事务冻结，重启/重放不改值）；
+                # 旧 journal 无该字段时按间隔推导保持兼容
+                rt.retry_not_before = (op.retry_not_before
+                                       or _retry_not_before(
+                                           op.retry_after_seconds))
             else:
                 rt.job.state = S.JobState.FAILED
     elif isinstance(op, S.OpJobCancelled):
@@ -306,6 +312,16 @@ def _apply_op(state: JournalState, op: Any) -> None:
             _track_outbox(state, item)
     elif isinstance(op, S.OpSynthesisCommitted):
         state.syntheses[op.synthesis.synthesis_id] = op.synthesis
+        # R01/R08：综合提交与 job 终态原子（§6.2 结果提交行）
+        if op.job_id:
+            rt = state.jobs.get(op.job_id)
+            if rt is not None:
+                rt.job.state = S.JobState.SUCCEEDED
+                rt.job.error_code = ""
+        for judgment in op.restored_judgments:
+            state.judgments[judgment.judgment_id] = judgment
+            state.concept_current[(judgment.workspace_id,
+                                   judgment.concept_ref.key)] =                 judgment.judgment_id
     elif isinstance(op, S.OpScopeChanged):
         state.workspace_scopes[op.workspace_id] = op.scope_revision
         for key in op.affected_concept_keys:

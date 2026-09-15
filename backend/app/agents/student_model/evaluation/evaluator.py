@@ -13,11 +13,69 @@ from typing import Any
 
 from . import context as pack_builder
 from . import schema as S
-from .jobs import ClaimedJob
+from .jobs import ClaimedJob, job_deadline
 from .llm import EvaluationLLMRunner, build_system_message
 from .service import CommitRejected, LearnerEvaluationService
 from .store import (JournalState, get_journal, new_interpretation_id,
-                    new_synthesis_id)
+                    new_judgment_id, new_synthesis_id)
+
+
+def _dialogue_session_context(
+        receipt: S.SourceReceipt) -> tuple[list[str], dict]:
+    """R03：有边界的前文与会话情景。
+
+    - prior_texts：本消息之前的 assistant 追问/讲解文本（短答"3"的
+      概念归属来自上一追问）；
+    - session_context：最近消息摘要（角色/摘录/ID/时间）+ 任务绑定，
+      不含全文、不越过本消息（答后内容不得倒用作答前帮助）。
+    """
+    prior_texts: list[str] = []
+    context_messages: list[dict] = []
+    task_binding: dict = {}
+    try:
+        from app.core.session import load_session
+        session = load_session(receipt.source_session_ref)
+        if session is None:
+            return prior_texts, {}
+        messages = list(getattr(session, "messages", []) or [])
+        seen_current = False
+        window: list[dict] = []
+        for message in reversed(messages):
+            mid = str(message.get("message_id") or "")
+            if mid == receipt.message_ref:
+                seen_current = True
+                continue
+            if not seen_current:
+                continue
+            role = str(message.get("role") or "")
+            content = str(message.get("content") or "")
+            if role not in ("user", "assistant") or not content.strip():
+                continue
+            window.append({
+                "role": role,
+                "excerpt": content[:200],
+                "message_id": mid,
+                "created_at": message.get("created_at"),
+            })
+            if role == "assistant":
+                prior_texts.append(content[:400])
+            if len(window) >= 6:
+                break
+        context_messages = list(reversed(window))
+        prior_texts = list(reversed(prior_texts))[-3:]
+        binding = getattr(session, "task_binding", None)
+        if isinstance(binding, dict) and binding.get("concept_id"):
+            task_binding = {
+                "task_id": binding.get("task_id") or "",
+                "goal_id": binding.get("goal_id") or "",
+                "concept_id": binding.get("concept_id") or "",
+            }
+    except Exception:
+        return [], {}
+    session_context: dict = {"recent_messages": context_messages}
+    if task_binding:
+        session_context["task_binding"] = task_binding
+    return prior_texts, session_context
 
 
 async def run_dialogue_job(student_id: str, claimed: ClaimedJob, *,
@@ -54,9 +112,11 @@ async def run_dialogue_job(student_id: str, claimed: ClaimedJob, *,
     async with learner_runtime.workspace_lock(
             student_id, receipt.workspace_id_at_observation):
         from .dialogue import concept_candidates
-        candidates = concept_candidates(student_id,
-                                        receipt.workspace_id_at_observation,
-                                        receipt.canonical_text)
+        prior_texts, session_context = _dialogue_session_context(
+            receipt)
+        candidates = concept_candidates(
+            student_id, receipt.workspace_id_at_observation,
+            receipt.canonical_text, prior_texts=prior_texts)
         # §7.2：概念候选完全无法取得 → concept_unresolved（记录原因，仍提交
         # applicable=false 解释；不能零候选静默跳过）
         scenarios = _dialogue_scenarios(state, receipt)
@@ -76,15 +136,18 @@ async def run_dialogue_job(student_id: str, claimed: ClaimedJob, *,
             return "abstained"
         pack = pack_builder.assemble_dialogue_pack(
             source=receipt, scope=scope, state=state, scenarios=scenarios,
-            candidates=candidates)
+            candidates=candidates, session_context=session_context)
         pack.job_id = job.job_id
         service.record_job_input(
             student_id, job.job_id, input_hash=pack.manifest.input_hash,
-            prompt_binding=binding, generation=state.generation)
+            prompt_binding=binding, generation=state.generation,
+            included_refs=list(pack.manifest.included_refs),
+            truncations=list(pack.manifest.truncations))
         system = build_system_message(
             "dialogue_learner_evaluation", scenarios=scenarios,
             output_model=S.LearnerInterpretation)
         out = await runner.run_structured(
+            deadline_at=job_deadline(claimed.job),
             system=system, user=pack_builder.pack_user_message(pack),
             output_model=S.LearnerInterpretation, max_output_tokens=4000)
         if out.parsed is None:
@@ -260,6 +323,7 @@ async def run_review_job(student_id: str, claimed: ClaimedJob, *,
     system = build_system_message(
         "learner_evaluation_review", output_model=S.ReviewDecisionOutput)
     out = await runner.run_structured(
+        deadline_at=job_deadline(claimed.job),
         system=system, user=user, output_model=S.ReviewDecisionOutput,
         max_output_tokens=4000)
     if out.parsed is None:
@@ -402,6 +466,7 @@ async def run_synthesis_job(student_id: str, claimed: ClaimedJob, *,
     system = build_system_message(
         "learning_scope_synthesis", output_model=S.ScopeSynthesisOutput)
     out = await runner.run_structured(
+        deadline_at=job_deadline(claimed.job),
         system=system, user=S.canonical_json(inputs),
         output_model=S.ScopeSynthesisOutput, max_output_tokens=4000)
     if out.parsed is None:
@@ -428,8 +493,110 @@ async def run_synthesis_job(student_id: str, claimed: ClaimedJob, *,
         scope_revision=job.scope_revision or "unknown",
         evidence_watermark=state.watermark,
         pending_source_count=0, generated_at=S.utc_now_iso())
-    journal.append([S.OpSynthesisCommitted(synthesis=synthesis)])
+    # R08：确定性重放失效概念（见 _restorable_judgments 规则）
+    restored = _restorable_judgments(
+        state, workspace_id,
+        [concept_key] if (scope_type == S.ScopeType.CONCEPT and concept_key)
+        else "")
+    journal.append([S.OpSynthesisCommitted(
+        synthesis=synthesis, job_id=job.job_id,
+        restored_judgments=restored)])
     return "succeeded"
+
+
+def _obs_to_source_index(state: JournalState) -> dict[str, str]:
+    """obs_id -> source_id（从各解释持久化的 observation_map 重建）。"""
+    idx: dict[str, str] = {}
+    for src in state.sources.values():
+        for meta in src.interpretations.values():
+            if isinstance(meta, dict):
+                for m in meta.get("observation_map") or []:
+                    if isinstance(m, dict) and m.get("obs_id"):
+                        idx[str(m["obs_id"])] = str(m.get("source_id") or "")
+    return idx
+
+
+def _interpretation_revoked(state: JournalState, interpretation_id: str,
+                            ) -> bool:
+    for src in state.sources.values():
+        meta = src.interpretations.get(interpretation_id)
+        if isinstance(meta, dict) and meta.get("revoked"):
+            return True
+    return False
+
+
+def _restorable_judgments(state: JournalState, workspace_id: str,
+                          concept_keys: list[str] | str,
+                          ) -> list[S.ConceptJudgment]:
+    """R08：失效概念的确定性重放（§12 重放基础概念判断）。
+
+    对当前没有有效判断的概念键，找最近一个同概念判断 J：
+    - J 的全部主张依据仍存活（来源 available 且产生解释未撤销）→
+      原样恢复（state/statement 不变）；
+    - 部分存活 → 恢复存活主张，state=fragile（依据基础被削弱）；
+    - 零存活 → 不恢复（保持 not_observed）。
+    纯 journal 事实推导，不新增 LLM 语义。
+    """
+    keys = ([concept_keys] if isinstance(concept_keys, str)
+            else list(concept_keys))
+    if not keys:
+        # 工作区综合：重放该区全部缺失概念
+        known: set[str] = set()
+        for (ws, key) in state.concept_current:
+            if ws == workspace_id:
+                known.add(key)
+        for judgment in state.judgments.values():
+            if judgment.workspace_id == workspace_id:
+                known.add(judgment.concept_ref.key)
+        keys = [k for k in known
+                if (workspace_id, k) not in state.concept_current]
+    if not keys:
+        return []
+    obs_src = _obs_to_source_index(state)
+    latest: dict[str, S.ConceptJudgment] = {}
+    for judgment in state.judgments.values():
+        if judgment.workspace_id != workspace_id:
+            continue
+        key = judgment.concept_ref.key
+        if key not in keys:
+            continue
+        old = latest.get(key)
+        if old is None or judgment.created_at >= old.created_at:
+            latest[key] = judgment
+    restored: list[S.ConceptJudgment] = []
+    for key, judgment in latest.items():
+        if (workspace_id, key) in state.concept_current:
+            continue
+        surviving: list[S.ClaimView] = []
+        for claim in judgment.claims:
+            obs = claim.created_by_observation or                 claim.updated_at_observation
+            source_id = obs_src.get(obs, "")
+            src_state = state.sources.get(source_id)
+            if src_state is None or src_state.availability != "available":
+                continue
+            interp = next(
+                (i for i, meta in src_state.interpretations.items()
+                 if isinstance(meta, dict)
+                 and not meta.get("revoked")
+                 and obs in {str(m.get("obs_id"))
+                             for m in (meta.get("observation_map") or [])
+                             if isinstance(m, dict)}), "")
+            if not interp:
+                continue
+            surviving.append(claim)
+        if not surviving:
+            continue
+        replay = judgment.model_copy(deep=True)
+        replay = replay.model_copy(update={
+            "judgment_id": new_judgment_id(),
+            "claims": surviving,
+            "state": (judgment.state if len(surviving) == len(judgment.claims)
+                      else S.ConceptEvalState.FRAGILE),
+            "evidence_watermark": state.watermark,
+            "created_at": S.utc_now_iso(),
+        })
+        restored.append(replay)
+    return restored
 
 
 def _recent_observations(state: JournalState, workspace_id: str,

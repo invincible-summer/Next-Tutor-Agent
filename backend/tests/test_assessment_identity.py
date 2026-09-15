@@ -87,7 +87,7 @@ class AssessmentIdentityTest(unittest.TestCase):
         r1 = self._submit(self.token_alice, {
             "question_id": "q_ident_1", "question_revision": 1,
             "student_answer": "A"})
-        self.assertEqual(r1.status_code, 200, r1.text)
+        self.assertEqual(r1.status_code, 202, r1.text)
         # Bob 没有 Alice journal 里的题目 → 404（不可见，非 403）
         r2 = self._submit(self.token_bob, {
             "question_id": "q_ident_1", "question_revision": 1,

@@ -95,8 +95,8 @@ class QuizOwnershipTest(StorageSandboxTestCase):
         r1 = self._grade(body)
         calls = len(self.runner.calls)
         r2 = self._grade(body)
-        self.assertEqual(r1.status_code, 200, r1.text)
-        self.assertEqual(r2.status_code, 200)
+        self.assertEqual(r1.status_code, 202, r1.text)
+        self.assertEqual(r2.status_code, 202)
         self.assertTrue(r2.json()["duplicate"])
         self.assertEqual(r2.json()["attempt_id"], r1.json()["attempt_id"])
         self.assertEqual(len(self.runner.calls), calls)  # 不二次评价
@@ -155,6 +155,11 @@ class QuizOwnershipTest(StorageSandboxTestCase):
         grade = self._grade({"question_id": task.question_id,
                              "question_revision": 1, "student_answer": "B",
                              "session_id": "sess_own"}).json()
+        # R02：HTTP 不再同步评价——先由 worker 驱动语义作业完成
+        import asyncio
+        from app.agents.student_model.evaluation.worker import EvaluationWorker
+        asyncio.run(EvaluationWorker(
+            runner_provider=lambda: self.runner).process_pass())
         r1 = self.client.post("/api/v1/quiz/dispute", json={
             "source_id": grade["source_id"],
             "reason": "我用了等价解法，判分没有识别"},

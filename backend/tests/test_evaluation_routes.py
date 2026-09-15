@@ -215,3 +215,77 @@ class TestManageRoutes(RouteFixture):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestR11StatusBucketsAndSSE(RouteFixture):
+    """R11（update_plan §4）：pending 分桶与 job SSE 真实跟随终态。"""
+
+    def _workspace(self) -> str:
+        return WS
+
+    def test_detail_distinguishes_pending_failed_disabled(self):
+        src_id = self.add_source()
+        # 无 job 的来源（off 模式受理）→ disabled 桶
+        r = self.client.get(
+            f"/api/v1/learner-evaluation/workspaces/{WS}",
+            headers=self.headers())
+        self.assertEqual(r.status_code, 200)
+        body = r.json()
+        self.assertEqual(body.get("pending_source_count"), 1)
+        self.assertEqual(body.get("disabled_source_count"), 0)
+        # failed job → failed 桶（构造：直接种一个 failed job）
+        from app.agents.student_model.evaluation.store import get_journal
+        journal = get_journal(SID)
+        from app.agents.student_model.evaluation import schema as ES
+        job = ES.EvaluationJob(
+            job_id="job_fail_1", kind=ES.JobKind.DIALOGUE_EVALUATION,
+            source_id=src_id, workspace_id=WS,
+            state=ES.JobState.FAILED, error_code="llm_timeout",
+            created_at=ES.utc_now_iso(), updated_at=ES.utc_now_iso())
+        journal.append([ES.OpJobRequested(job=job),
+                        ES.OpJobFailed(
+                            job_id="job_fail_1", error_code="llm_timeout",
+                            retryable=False, attempt_count=1,
+                            retry_after_seconds=0)])
+        r = self.client.get(
+            f"/api/v1/learner-evaluation/workspaces/{WS}",
+            headers=self.headers())
+        body = r.json()
+        self.assertEqual(body.get("pending_source_count"), 0)
+        self.assertEqual(body.get("failed_source_count"), 1)
+
+    def test_sse_follows_job_to_terminal(self):
+        import asyncio
+        from app.agents.student_model.evaluation.store import get_journal
+        src_id = self.add_source()
+        state = get_journal(SID).state()
+        job_id = next(j.job.job_id for j in state.jobs.values())
+
+        async def complete_later() -> None:
+            await asyncio.sleep(1.2)
+            from app.agents.student_model.evaluation import lifecycle
+            from app.core import learner_runtime
+            scheduler = learner_runtime.get_scheduler()
+            scheduler.cancel(SID, job_id, reason="test_done")
+
+        # 用线程驱动完成动作；SSE 流内联消费
+        import threading
+        t = threading.Timer(1.2, lambda: asyncio.run(complete_later()))
+        t.start()
+        try:
+            with self.client.stream(
+                    "GET",
+                    f"/api/v1/learner-evaluation/jobs/{job_id}/events",
+                    headers=self.headers()) as resp:
+                self.assertEqual(resp.status_code, 200)
+                events = []
+                for line in resp.iter_lines():
+                    if line.startswith("event:"):
+                        events.append(line.split(":", 1)[1].strip())
+                    if line.startswith("event: end"):
+                        break
+                self.assertIn("queued", events)
+                self.assertIn("cancelled", events)
+                self.assertEqual(events[-1], "end")
+        finally:
+            t.join()

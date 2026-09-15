@@ -125,5 +125,11 @@ def reset_learner_runtime() -> None:
         _SCHEDULER = None
         _RUNNER = None
         _WORKSPACE_LOCKS.clear()
+    try:
+        from app.agents.student_model.evaluation.worker import (
+            set_evaluation_worker)
+        set_evaluation_worker(None)
+    except Exception:
+        pass
     reset_journal_cache()
     set_scope_resolver(None)

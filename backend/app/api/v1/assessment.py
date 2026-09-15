@@ -12,6 +12,7 @@ import uuid
 from typing import Any
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Query
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
 from app.agents.assessment import (
@@ -75,7 +76,9 @@ async def submit_answer(
     req: SubmissionRequest,
     _sid: str = Depends(resolve_student_id),
     idempotency_key: str = Header(default="", alias="Idempotency-Key")):
-    _require_enabled()
+    # R21：off=暂停长期评价，不是关练习——受理与 MC 判分照常
+    #（语义解释由 manager 降级跳过）；CAT start/next 仍受门控（自适应
+    # 依赖评价投影，off 期间不开新测评实例，在途实例可继续作答）。
     qref = S.QuestionRef(question_id=req.question_id,
                          question_revision=req.question_revision)
     try:
@@ -95,8 +98,7 @@ async def submit_answer(
             expected_scope_revision=req.expected_scope_revision or None,
             assessment_id=req.assessment_id or None,
             reply_message_ref=req.reply_message_ref or None,
-            workspace_id=req.workspace_id,
-            run_inline=True)
+            workspace_id=req.workspace_id)
     except AnswerTooLarge:
         raise api_error(413, "answer_too_large",
                         "作答超过 32KiB 上限，请缩小范围后提交")
@@ -106,7 +108,9 @@ async def submit_answer(
     except (WorkspaceNotOwned, SessionNotOwned, AssessmentBindingError,
             ScopeRevisionConflict) as exc:
         raise _translate_submission_error(exc)
-    return _receipt_payload(_sid, receipt)
+    # R02：受理完成即返回（202）——MC 判分已随受理事务落盘；语义解释由
+    # 后台 worker 执行，前端经 links.poll/events 获取结果。
+    return JSONResponse(_receipt_payload(_sid, receipt), status_code=202)
 
 
 def _receipt_payload(_sid: str, receipt) -> dict[str, Any]:
@@ -546,7 +550,7 @@ class CatAnswerRequest(BaseModel):
 @router.post("/answer")
 async def cat_answer(req: CatAnswerRequest,
                      _sid: str = Depends(resolve_student_id)):
-    _require_enabled()
+    # R21：在途 CAT 作答不受评价停用影响（受理+MC 判分照常）
     state = get_journal(_sid).state()
     instance = cat.load_instance(state, req.assessment_id)
     if instance is None:
@@ -565,8 +569,7 @@ async def cat_answer(req: CatAnswerRequest,
             question_ref=S.QuestionRef(question_id=req.question_id,
                                        question_revision=req.question_revision),
             student_answer=req.student_answer, source_surface="cat",
-            assessment_id=req.assessment_id,
-            run_inline=True)
+            assessment_id=req.assessment_id)
     except AnswerTooLarge:
         raise api_error(413, "answer_too_large",
                         "作答超过 32KiB 上限，请缩小范围后提交")
@@ -604,7 +607,9 @@ async def cat_answer(req: CatAnswerRequest,
     }
     if instance.status != cat.STATUS_ACTIVE:
         out["summary"] = cat.report(state, instance.assessment_id)
-    return out
+    # R02：可靠受理即返回（202）；语义解释由 worker 执行（同 /submissions
+    # 与 /quiz/record 契约）
+    return JSONResponse(out, status_code=202)
 
 
 class CatNextRequest(BaseModel):
@@ -647,6 +652,12 @@ async def cat_next(req: CatNextRequest,
         if ref is None or ref.question_id != last.question_id:
             return False
         if src.current_interpretation_id:
+            return False
+        # §5.2/R02：下一题只消费本题确定结果——MC 判分已随受理事务落盘
+        #（verdict 非 null）即可继续，不把 learner 语义评价的排队当阻塞；
+        # 开放题判分本身需要语义作业，仍在途时才等待。
+        committed = src.interpretations.get("", {}).get("task_result")
+        if isinstance(committed, dict) and committed.get("verdict"):
             return False
         job_states = [rt.job.state for rt in state.jobs.values()
                       if rt.job.source_id == src.receipt.source_id]

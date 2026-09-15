@@ -800,6 +800,8 @@ export interface QuizSubmitOutcome {
   status: string;
   attempt_id: string;
   source_id: string;
+  /** R02/R11：202 受理返回的语义评价作业（前端轮询到终态后刷新反馈）。 */
+  job_id?: string;
   task_result: {
     verdict?: string | null;
     grading_status?: string;

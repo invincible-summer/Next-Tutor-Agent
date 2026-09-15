@@ -80,6 +80,21 @@ async def _lifespan(app: FastAPI):
     await run_bootstrap_step(report, "trash_cleanup", _trash_cleanup_once,
                              to_thread=True)
 
+    # R01：评价作业后台 worker——受理/对话 hook 只入队，执行/重试/恢复/
+    # outbox 消费全部在此闭环。评价功能停用时不启动。
+    evaluation_worker_task = None
+    try:
+        from app.core import learner_runtime
+        from app.agents.student_model.evaluation.worker import (
+            EvaluationWorker, get_evaluation_worker)
+        if learner_runtime.evaluation_enabled():
+            def _start_worker() -> None:
+                get_evaluation_worker().start()
+            await run_bootstrap_step(report, "evaluation_worker",
+                                     _start_worker)
+    except Exception:
+        log.warning("evaluation worker not started", exc_info=True)
+
     # 回收站过期清扫不依赖浏览器打开：启动时先扫一次，之后进程内定时扫。
     cleanup_task = None
     try:
@@ -103,6 +118,14 @@ async def _lifespan(app: FastAPI):
         yield
     finally:
         # shutdown 类失败只 warning（plan.md §19），不再无痕。
+        # R01：先停评价 worker（停止认领、等待在途租约、关闭共享 LLM 客户端）
+        try:
+            from app.agents.student_model.evaluation.worker import (
+                get_evaluation_worker)
+            await get_evaluation_worker().stop()
+        except Exception:
+            log.warning("shutdown: evaluation worker stop failed",
+                        exc_info=True)
         try:
             from app.core.textbook_ocr import cancel_all_textbook_ocr
             cancel_all_textbook_ocr()

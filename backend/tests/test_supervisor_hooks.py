@@ -144,3 +144,45 @@ class TestRealSummaryReflection(StorageSandboxTestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestR20EvaluationInjection(unittest.TestCase):
+    """R20（update_plan §4）：M3 evaluation_context 注入与 P7 接入。"""
+
+    def test_understanding_carries_evaluation_context(self):
+        from app.agents.state import TaskUnderstanding
+        u = TaskUnderstanding()
+        self.assertEqual(u.evaluation_context, {})
+
+    def test_p7_directive_requires_active_projection(self):
+        from app.agents.supervisor import _teaching_evidence_directive_for_turn
+        from app.agents.state import TaskUnderstanding
+
+        class _Trace:
+            def __init__(self):
+                self.logs = []
+
+            def log(self, *a, **kw):
+                self.logs.append((a, kw))
+
+        trace = _Trace()
+        # 无投影 / not_observed → 空块（不给负向呈现）
+        u = TaskUnderstanding(concept="并联")
+        self.assertEqual(
+            _teaching_evidence_directive_for_turn(u, None, trace), "")
+        u.evaluation_context = {"phys.parallel": {
+            "state": "not_observed", "display_name": "并联"}}
+        self.assertEqual(
+            _teaching_evidence_directive_for_turn(u, None, trace), "")
+        # 有效投影 → P7 文本进入软指令
+        u.evaluation_context = {"phys.parallel": {
+            "state": "supported_in_scope", "display_name": "并联"}}
+        block = _teaching_evidence_directive_for_turn(u, None, trace)
+        self.assertIn("证据智能·教学呈现", block)
+        self.assertIn("并联", block)
+        self.assertIn("teaching", block.lower())  # P7 registry 文本在内
+        # trace 记录了触发（trace.log(name, **kw) 首参为事件名）
+        self.assertTrue(any(
+            (a and a[0] == "teaching_evidence_directive") or
+            kw.get("concept") == "并联"
+            for a, kw in trace.logs))

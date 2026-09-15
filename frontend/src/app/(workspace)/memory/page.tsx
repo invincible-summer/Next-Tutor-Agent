@@ -359,9 +359,12 @@ function LearningArchiveRegion({ tr, lang }: { tr: (k: string, f?: string) => st
   useEffect(() => {
     if (!wsId) return;
     let alive = true;
-    setSummaryErr(false);
     getEvalWorkspace(wsId)
-      .then((s) => alive && setSummary(s))
+      .then((s) => {
+        if (!alive) return;
+        setSummary(s);
+        setSummaryErr(false);
+      })
       .catch(() => alive && setSummaryErr(true));
     return () => {
       alive = false;
@@ -390,9 +393,18 @@ function LearningArchiveRegion({ tr, lang }: { tr: (k: string, f?: string) => st
 
   useEffect(() => {
     if (!wsId) return;
-    setEvidence(null);
-    setEvidenceDone(false);
-    loadEvidencePage(0);
+    // 重置走微任务：避免 effect 体内同步 setState 的级联渲染
+    // （react-hooks/set-state-in-effect）。
+    let alive = true;
+    queueMicrotask(() => {
+      if (!alive) return;
+      setEvidence(null);
+      setEvidenceDone(false);
+      loadEvidencePage(0);
+    });
+    return () => {
+      alive = false;
+    };
   }, [wsId, loadEvidencePage]);
 
   const loadSessionsPage = useCallback(
@@ -417,17 +429,23 @@ function LearningArchiveRegion({ tr, lang }: { tr: (k: string, f?: string) => st
 
   useEffect(() => {
     if (!wsId) return;
-    setSessions(null);
-    setSessionsDone(false);
-    loadSessionsPage(0);
+    // 重置走微任务：避免 effect 体内同步 setState（同 evidence 区）。
+    let alive = true;
+    queueMicrotask(() => {
+      if (!alive) return;
+      setSessions(null);
+      setSessionsDone(false);
+      loadSessionsPage(0);
+    });
+    return () => {
+      alive = false;
+    };
   }, [wsId, loadSessionsPage]);
 
   // ③概念：服务端筛选 + 分页（limit ≤100 统一上限），不拉全量（R09）。
   useEffect(() => {
     if (!wsId) return;
     let alive = true;
-    setConceptsErr(false);
-    setConcepts(null);
     getEvalConcepts(wsId, {
       state: stateFilter || undefined,
       offset: conceptPage * CONCEPTS_PER_PAGE,
@@ -437,6 +455,7 @@ function LearningArchiveRegion({ tr, lang }: { tr: (k: string, f?: string) => st
         if (!alive) return;
         setConcepts(co.items || []);
         setConceptTotal(co.total || 0);
+        setConceptsErr(false);
       })
       .catch(() => alive && setConceptsErr(true));
     return () => {

@@ -84,13 +84,34 @@ async def workspace_detail(wid: str,
     summary = projections.workspace_summary(student_id, scope,
                                             workspace_name=ws.name if ws
                                             else "")
-    pending = sum(
-        1 for src in get_journal(student_id).state().sources.values()
-        if src.receipt.workspace_id_at_observation == wid
-        and not src.current_interpretation_id
-        and src.availability == "available")
+    # R11（update_plan §4）：pending 不能把 failed/cancelled/停用伪装成
+    # "排队中"——分桶呈现，UI 各自有合法操作（重试/查看原因）。
+    state_obj = get_journal(student_id).state()
+    pending = failed = disabled = 0
+    job_by_source: dict[str, Any] = {}
+    for rt in state_obj.jobs.values():
+        if rt.job.source_id:
+            job_by_source[rt.job.source_id] = rt.job
+    for src in state_obj.sources.values():
+        if src.receipt.workspace_id_at_observation != wid:
+            continue
+        if src.availability != "available":
+            continue
+        if src.current_interpretation_id:
+            continue
+        job = job_by_source.get(src.receipt.source_id)
+        if job is None:
+            disabled += 1        # 受理于 off 模式：无语义 job
+        elif job.state == S.JobState.FAILED:
+            failed += 1
+        elif job.state == S.JobState.CANCELLED:
+            continue             # 已取消（来源删除/撤区）不是待办
+        else:
+            pending += 1
     data = summary.model_dump()
     data["pending_source_count"] = pending
+    data["failed_source_count"] = failed
+    data["disabled_source_count"] = disabled
     return data
 
 
@@ -303,17 +324,44 @@ async def job_detail(job_id: str,
 @router.get("/jobs/{job_id}/events")
 async def job_events(job_id: str, last_event_id: str = Header(default=""),
                      student_id: str = Depends(resolve_student_id)):
-    """SSE：job 已是终态时立即发送完成事件并关闭；未完成发送当前状态
-    （生产 worker 循环在 G4 接入前，作业以 inline 方式推进）。"""
+    """SSE（R11：真实跟随到终态，不是外形存在）。
+
+    - 每 0.5s 轮询 journal；状态变化即发事件；终态发完成事件并关闭；
+    - Last-Event-ID 记录上次已见状态（重连时不重发重复事件）；
+    - 有界（60s）防悬挂连接；客户端断开由 ASGI 取消协程。
+    """
     import asyncio
     rt = get_journal(student_id).state().jobs.get(job_id)
     if rt is None:
         raise _error(404, "job_not_found", "作业不存在")
 
     async def stream():
-        state = rt.job.state.value
-        yield f"event: {state}\ndata: {S.canonical_json({'job_id': job_id, 'state': state})}\n\n"
-        yield "event: end\ndata: {}\n\n"
+        last_sent = last_event_id or ""
+        loop = asyncio.get_event_loop()
+        deadline = loop.time() + 60.0
+        while True:
+            from app.agents.student_model.evaluation.store import (
+                reset_journal_cache)
+            reset_journal_cache()   # worker 提交后重放盘上事实
+            job = get_journal(student_id).state().jobs.get(job_id)
+            state = (job.job.state.value if job is not None
+                     else "vanished")
+            if state != last_sent:
+                eid = f"{job_id}:{state}"
+                payload = S.canonical_json(
+                    {"job_id": job_id, "state": state})
+                yield (f"id: {eid}" + "\n" +
+                       f"event: {state}" + "\n" +
+                       f"data: {payload}" + "\n\n")
+                last_sent = state
+            if state in ("succeeded", "abstained", "failed",
+                         "cancelled", "vanished"):
+                yield "event: end" + "\n" + "data: {}" + "\n\n"
+                return
+            if loop.time() >= deadline:
+                yield "event: timeout" + "\n" + "data: {}" + "\n\n"
+                return
+            await asyncio.sleep(0.5)
 
     return StreamingResponse(stream(), media_type="text/event-stream",
                              headers=_NO_STORE)

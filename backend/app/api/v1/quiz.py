@@ -11,6 +11,7 @@ import uuid
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
 from app.agents.assessment import (AnswerTooLarge,
@@ -108,9 +109,8 @@ class QuizSubmitRequest(BaseModel):
 
 async def _submit(req: QuizSubmitRequest, student_id: str,
                   surface: str) -> dict[str, Any]:
-    if not is_enabled():
-        raise _error(503, "evaluation_disabled",
-                     "学习评价当前已停用；作答与反馈暂不可用。", retryable=True)
+    # R21：off=暂停长期评价，不是关练习——受理与 MC 判分照常
+    #（语义解释由 manager 降级跳过）。
     qref = S.QuestionRef(question_id=req.question_id,
                          question_revision=req.question_revision)
     try:
@@ -128,8 +128,7 @@ async def _submit(req: QuizSubmitRequest, student_id: str,
             student_id=student_id, question_ref=qref,
             student_answer=req.student_answer, source_surface=surface,
             source_session_ref=req.session_id,
-            reply_message_ref=req.reply_message_ref or None,
-            run_inline=True)
+            reply_message_ref=req.reply_message_ref or None)
     except AnswerTooLarge:
         raise _error(413, "answer_too_large", "作答超过 32KiB 上限")
     except QuestionAlreadyAnswered:
@@ -159,10 +158,13 @@ async def _submit(req: QuizSubmitRequest, student_id: str,
         cont = meta.get("continuation")
         if isinstance(cont, dict):
             continuation = cont
-    return {
+    # R02：可靠受理即返回（202）；MC 判分与写回已完成，开放题语义反馈
+    # 由 worker 提交，前端经 evaluation.job 链接轮询。
+    return JSONResponse({
         "status": "ok",
         "attempt_id": receipt.attempt_id,
         "source_id": receipt.source_id,
+        "job_id": receipt.job_id,
         "task_result": (receipt.task_result.model_dump()
                         if receipt.task_result else None),
         "evaluation": {"status": receipt.evaluation_status,
@@ -170,7 +172,7 @@ async def _submit(req: QuizSubmitRequest, student_id: str,
         "feedback": feedback,
         "continuation": continuation,
         "duplicate": receipt.duplicate,
-    }
+    }, status_code=202)
 
 
 @router.post("/grade")
@@ -279,6 +281,10 @@ async def recent_questions(limit: int = Query(100, ge=1, le=100),
             continue
         interp_id = src.current_interpretation_id
         meta = src.interpretations.get(interp_id, {}) if interp_id else {}
+        # R02：202 受理后语义评价可能未完成——MC 判分已在受理事务落盘
+        #（interpretations[""]），仍可读
+        if not meta.get("task_result"):
+            meta = src.interpretations.get("", meta)
         task = state.tasks.get(
             src.receipt.task_ref.question_id, {}).get(
             src.receipt.task_ref.question_revision)

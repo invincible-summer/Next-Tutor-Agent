@@ -32,7 +32,8 @@ class FakeRunner:
         self.calls: list[tuple[str, str]] = []
 
     async def run_structured(self, *, system: str, user: str,
-                             output_model, max_output_tokens: int = 4000
+                             output_model, max_output_tokens: int = 4000,
+                             deadline_at=None,
                              ) -> StructuredOutput:
         self.calls.append((system, user))
         item = self.outputs.pop(0) if self.outputs else "empty_content"
@@ -55,7 +56,8 @@ def _mc_task(question_id: str = "q_mc_1") -> S.TaskSnapshot:
         options={"A": "同端点", "B": "上下排列", "C": "随机", "D": "都行"},
         answer="A", explanation="公共端点判断",
         rubric=[S.FrozenCriterion(id="c1", description="选对", weight=1.0)],
-        concept_refs=[_concept()])
+        concept_refs=[_concept()],
+        verification=S.TaskVerification(status="passed"))
 
 
 def _open_task(question_id: str = "q_open_1") -> S.TaskSnapshot:
@@ -70,7 +72,8 @@ def _open_task(question_id: str = "q_open_1") -> S.TaskSnapshot:
                               weight=1.0, critical=True),
             S.FrozenCriterion(id="k2", description="写出新端点计算", weight=1.0),
         ],
-        concept_refs=[_concept()])
+        concept_refs=[_concept()],
+        verification=S.TaskVerification(status="passed"))
 
 
 def _learner_output(claims: list[dict] | None = None,
@@ -323,22 +326,29 @@ class TestInlineRecovery(SubmissionTestBase):
         self.assertEqual(rt.job.state, S.JobState.QUEUED)
         return receipt.job_id
 
-    def test_stale_queued_job_drained_and_own_evaluated(self):
+    def test_inline_leaves_stale_for_worker_and_runs_own(self):
+        """R02（update_plan §4）：inline 只认领本次提交的作业，绝不借
+        HTTP 请求排空其他 job——中断残留由后台 worker 负责。"""
         stale_job = self._seed_stale("q_stale_1")
-        # created_at 秒级截断（schema.utc_now_iso 契约）：跨过整秒保证
-        # 旧 job 在 claim_next 的 (priority, created_at) 排序里严格在前，
-        # 排空顺序确定（同秒内按 job_id 决胜属合法行为，不测）。
         time.sleep(1.05)
-        self.runner.outputs = [_learner_output(applicable=False),
-                               _learner_output(applicable=False)]
+        self.runner.outputs = [_learner_output(applicable=False)]
         receipt = self.submit(_open_task("q_fresh_1"), "新提交的答案")
-        # 旧 job 被排空执行（不再因 job_id 不匹配被跳过）；fixture 输出
-        # applicable=False → 弃权解释，合法终态是 ABSTAINED
+        # 旧 job 不被 HTTP 请求排空：仍 QUEUED，等 worker
+        self.assertEqual(
+            get_journal(SID).state().jobs[stale_job].job.state,
+            S.JobState.QUEUED)
+        # 本次提交的评价（claim_job 按 ID）真实跑完
+        self.assertTrue(receipt.interpretation_id)
+        self.assertEqual(len(self.runner.calls), 1)
+        # worker 一轮处理把残留作业归位（fake 输出 applicable=False →
+        # ABSTAINED 合法终态）
+        self.runner.outputs = [_learner_output(applicable=False)]
+        from app.agents.student_model.evaluation.worker import EvaluationWorker
+        asyncio.run(EvaluationWorker(
+            runner_provider=lambda: self.runner).process_pass())
         self.assertEqual(
             get_journal(SID).state().jobs[stale_job].job.state,
             S.JobState.ABSTAINED)
-        # 本次提交的评价也真实跑完
-        self.assertTrue(receipt.interpretation_id)
         self.assertEqual(len(self.runner.calls), 2)
 
     def test_runner_crash_marks_job_terminal_not_stranded(self):
@@ -443,3 +453,171 @@ class TestSpanNormalization(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestR14GatesAndFeedback(SubmissionTestBase):
+    """R14（update_plan §4）：题目审核准入、判分鲁棒与反馈贯通。"""
+
+    def _task_with(self, **kw) -> S.TaskSnapshot:
+        base = _open_task("q_r14_1")
+        return base.model_copy(update=kw)
+
+    def test_unverified_task_abstains_learner_but_keeps_grading(self):
+        # 未审核题：本题判分照常（open → 模型 criterion），学习者判断不发布
+        task = self._task_with(
+            verification=S.TaskVerification(status="unreviewed"))
+        am.register_task_snapshot(SID, task)
+        self.runner.outputs = [_learner_output()]
+        receipt = asyncio.run(am.evaluate_submission(
+            student_id=SID,
+            question_ref=S.QuestionRef(question_id="q_r14_1",
+                                       question_revision=1),
+            student_answer="因为映射改变端点", run_inline=True,
+            runner=self.runner))
+        state = get_journal(SID).state()
+        src = state.sources[receipt.source_id]
+        # 学习者弃权：无概念判断
+        self.assertEqual(len(state.judgments), 0)
+        meta = src.interpretations.get(src.current_interpretation_id, {})
+        self.assertTrue(meta.get("abstained"))
+
+    def test_duplicate_criterion_is_indeterminate(self):
+        task = self._task_with()
+        am.register_task_snapshot(SID, task)
+        from app.agents.student_model.evaluation.grading import (
+            compute_task_result)
+        cr = lambda cid, kind: S.CriterionResult(  # noqa: E731
+            criterion_id=cid, result=kind)
+        # k1 重复 → indeterminate（旧缺陷：后者覆盖可得 correct）
+        result = compute_task_result(task, [cr("k1", S.CriterionResultKind.MET),
+                                            cr("k1", S.CriterionResultKind.MET),
+                                            cr("k2", S.CriterionResultKind.MET)],
+                                     "答案")
+        self.assertEqual(result.grading_status,
+                         S.GradingStatus.INDETERMINATE)
+        self.assertIsNone(result.verdict)
+
+    def test_unknown_criterion_is_indeterminate(self):
+        from app.agents.student_model.evaluation.grading import (
+            compute_task_result)
+        task = self._task_with()
+        result = compute_task_result(
+            task,
+            [S.CriterionResult(criterion_id="ghost",
+                               result=S.CriterionResultKind.MET),
+             S.CriterionResult(criterion_id="k1",
+                               result=S.CriterionResultKind.MET),
+             S.CriterionResult(criterion_id="k2",
+                               result=S.CriterionResultKind.MET)],
+            "答案")
+        self.assertEqual(result.grading_status,
+                         S.GradingStatus.INDETERMINATE)
+
+    def test_blank_mc_not_wrong(self):
+        from app.agents.student_model.evaluation.grading import grade_mc_task
+        result = grade_mc_task(_mc_task("q_blank"), "")
+        self.assertEqual(result.grading_status,
+                         S.GradingStatus.INDETERMINATE)
+        self.assertIsNone(result.verdict)
+
+    def test_first_error_and_feedback_persisted(self):
+        # P3 的 first_error/task_feedback 原子保存进 TaskResult
+        task = self._task_with()
+        am.register_task_snapshot(SID, task)
+        claim = {
+            "local_id": "ob1", "concept_ref": "c1",
+            "statement": "指出映射改变端点", "stance": "supports",
+            "current_evidence": [
+                {"ref": "s1", "start": 0, "end": 1, "quote": "因"}],
+            "opportunity_ref": "t1", "warrant": "作答首句给出理由",
+        }
+        out = S.AssessmentInterpretationOutput.model_validate({
+            "criterion_results": [
+                {"criterion_id": "k1", "result": "met"},
+                {"criterion_id": "k2", "result": "not_met"}],
+            "first_error": {"location_ref": "k2",
+                            "description": "未写出新端点计算"},
+            "task_feedback": {"strengths": ["指出了映射方向"],
+                              "improvement": "缺端点计算",
+                              "next_step": "试把 x=g(t) 代入端点"},
+            "learner": {
+                "applicable": True, "observation_claims": [claim],
+                "concept_updates": [], "feedback": "反馈"},
+            "continuation": {"action": "continue", "reason": ""},
+        })
+        self.runner.outputs = [out]
+        asyncio.run(am.evaluate_submission(
+            student_id=SID,
+            question_ref=S.QuestionRef(question_id="q_r14_1",
+                                       question_revision=1),
+            student_answer="因为映射改变端点", run_inline=True,
+            runner=self.runner))
+        state = get_journal(SID).state()
+        src = next(s for s in state.sources.values()
+                   if s.receipt.kind == S.SourceKind.ASSESSMENT)
+        tr = src.interpretations[""]["task_result"]
+        self.assertIsNotNone(tr["first_error"])
+        self.assertEqual(tr["first_error"]["location_ref"], "k2")
+        self.assertIsNotNone(tr["feedback"])
+        self.assertEqual(tr["feedback"]["next_step"], "试把 x=g(t) 代入端点")
+
+
+class TestR21DegradationAndGuests(SubmissionTestBase):
+    """R21（update_plan §4）：停用降级分层与游客隔离。"""
+
+    def test_guest_submission_local_feedback_no_journal(self):
+        from app.agents.student_model.store import DEFAULT_STUDENT_ID
+        task = _mc_task()
+        am.register_task_snapshot(DEFAULT_STUDENT_ID, task)
+        receipt = asyncio.run(am.evaluate_submission(
+            student_id=DEFAULT_STUDENT_ID,
+            question_ref=S.QuestionRef(question_id=task.question_id,
+                                       question_revision=1),
+            student_answer="A", runner=self.runner))
+        # MC 当场判定可用
+        self.assertIsNotNone(receipt.task_result)
+        self.assertEqual(receipt.task_result.verdict, "correct")
+        # 不写共享长期 journal（无 source/job）
+        state = get_journal(DEFAULT_STUDENT_ID).state()
+        self.assertEqual(len(state.sources), 0)
+        self.assertEqual(len(state.jobs), 0)
+        self.assertEqual(receipt.evaluation_status, "unavailable")
+        self.assertEqual(receipt.evaluation_reason,
+                         "guest_no_persistent_evaluation")
+
+    def test_guest_open_answer_unjudged(self):
+        from app.agents.student_model.store import DEFAULT_STUDENT_ID
+        task = _open_task("q_guest_open")
+        am.register_task_snapshot(DEFAULT_STUDENT_ID, task)
+        receipt = asyncio.run(am.evaluate_submission(
+            student_id=DEFAULT_STUDENT_ID,
+            question_ref=S.QuestionRef(question_id="q_guest_open",
+                                       question_revision=1),
+            student_answer="我的解答", runner=self.runner))
+        # 开放题游客态不可判：未判定、无模型调用、零持久化
+        self.assertIsNone(receipt.task_result)
+        self.assertEqual(len(self.runner.calls), 0)
+        self.assertEqual(len(get_journal(DEFAULT_STUDENT_ID).state().sources),
+                         0)
+
+    def test_off_mode_still_accepts_and_grades_mc(self):
+        from unittest import mock
+        from app.core.config import settings
+        task = _mc_task("q_off_mc")
+        am.register_task_snapshot(SID, task)
+        with mock.patch.object(settings, "learner_evaluation_mode", "off"):
+            receipt = asyncio.run(am.evaluate_submission(
+                student_id=SID,
+                question_ref=S.QuestionRef(question_id="q_off_mc",
+                                           question_revision=1),
+                student_answer="A", runner=self.runner))
+        # 原作答 + MC 判分照常；语义评价停用
+        self.assertIsNotNone(receipt.task_result)
+        self.assertEqual(receipt.task_result.verdict, "correct")
+        self.assertEqual(receipt.evaluation_status, "disabled")
+        self.assertEqual(receipt.evaluation_reason, "evaluation_disabled")
+        state = get_journal(SID).state()
+        self.assertEqual(len(state.sources), 1)
+        # 无语义 job（不积压付费重试）
+        self.assertEqual(len(state.jobs), 0)
+        self.assertEqual(len(self.runner.calls), 0)

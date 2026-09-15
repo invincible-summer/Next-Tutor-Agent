@@ -129,11 +129,17 @@ class LearnerEvaluationService:
     # ------------------------------------------------------------------
     def record_job_input(self, student_id: str, job_id: str, *,
                          input_hash: str, prompt_binding: str,
-                         generation: str) -> None:
+                         generation: str,
+                         included_refs: list[str] | None = None,
+                         truncations: list[str] | None = None) -> None:
+        """R16：随输入指纹保存最小可复现清单（引用 ID 与裁剪说明，
+        不含正文副本）。"""
         get_journal(student_id).append(
             [S.OpJobInputPrepared(job_id=job_id, input_hash=input_hash,
                                   prompt_binding=prompt_binding,
-                                  generation=generation)],
+                                  generation=generation,
+                                  included_refs=included_refs or [],
+                                  truncations=truncations or [])],
             expected_generation=generation)
 
     # ------------------------------------------------------------------

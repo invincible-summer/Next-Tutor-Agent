@@ -47,6 +47,18 @@ class ClaimedJob:
     lease_expires_at: str
 
 
+def job_deadline(job: S.EvaluationJob) -> datetime:
+    """R17：job 的统一 wall-clock 截止；旧数据无冻结值时按预算回退，
+    保证 executor/runner 始终拿到一个确定的总预算。"""
+    parsed = _parse(job.wall_deadline_at)
+    if parsed is not None:
+        return parsed
+    from app.core.config import settings
+    budget = max(1, int(getattr(settings, "learner_eval_job_budget", 120)))
+    base = _parse(job.created_at) or _now()
+    return base + timedelta(seconds=budget)
+
+
 def _claimable(rt, now: datetime) -> bool:
     job = rt.job
     if job.state == S.JobState.QUEUED:
@@ -76,14 +88,27 @@ class JobScheduler:
                 parent_job_id: str = "",
                 prompt_binding: str = "") -> S.EvaluationJob:
         journal = get_journal(student_id)
+        from app.core.config import settings
+        budget = max(1, int(getattr(settings, "learner_eval_job_budget",
+                                    120)))
         job = S.EvaluationJob(
             job_id=new_job_id(), kind=kind, source_id=source_id,
             source_revision=source_revision, workspace_id=workspace_id,
             scope_revision=scope_revision, state=S.JobState.QUEUED,
             priority=priority, parent_job_id=parent_job_id,
             prompt_binding=prompt_binding, created_at=S.utc_now_iso(),
-            updated_at=S.utc_now_iso())
+            updated_at=S.utc_now_iso(),
+            # R17：整个 job（初次 + transport 重试 + repair）的统一
+            # wall-clock 预算在入队事务冻结，重启后不重置
+            deadline_seconds=budget,
+            wall_deadline_at=_iso(_now() + timedelta(seconds=budget)))
         journal.append([S.OpJobRequested(job=job)])
+        # R01：唤醒后台 worker（空闲唤醒目标 ≤1s；未运行时 no-op）
+        try:
+            from .worker import notify_evaluation_worker
+            notify_evaluation_worker()
+        except Exception:
+            pass
         return job
 
     # -- claim ----------------------------------------------------------
@@ -137,10 +162,19 @@ class JobScheduler:
         journal = get_journal(student_id)
         rt = journal.state().jobs.get(job_id)
         attempts = (rt.job.attempt_count if rt else 0) or 1
+        now = _now()
+        # R17：wall-clock 预算耗尽 → 即使仍可重试也落终态（UI 不再
+        # 长期 pending，重试不无限延长/反复计费）
+        deadline = _parse(rt.job.wall_deadline_at) if rt else None
+        if deadline is not None and now >= deadline:
+            retryable = False
         journal.append([S.OpJobFailed(
             job_id=job_id, error_code=error_code, retryable=retryable,
             attempt_count=attempts, transport_attempts=transport_attempts,
-            retry_after_seconds=retry_after_seconds)])
+            retry_after_seconds=retry_after_seconds,
+            # R17：绝对重试时刻在本事务冻结（重启/重放不改）
+            retry_not_before=_iso(now + timedelta(
+                seconds=max(0, retry_after_seconds))))])
         new_state = journal.state().jobs.get(job_id)
         return new_state.job.state if new_state else S.JobState.FAILED
 

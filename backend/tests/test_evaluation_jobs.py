@@ -188,3 +188,82 @@ class TestBudgetConfig(StorageSandboxTestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestRetryBudgetR17(StorageSandboxTestCase):
+    """R17（update_plan §4）：重试次数与总调用预算可兑现。
+
+    - 认领事务原子递增 attempt_count（旧缺陷：只改内存副本，连续失败恒 1）
+    - retry_not_before 绝对时刻冻结（重启/重放不改）
+    - wall-clock 预算耗尽 → 强制终态，不再无限重试
+    """
+
+    def setUp(self) -> None:
+        super().setUp()
+        st.reset_journal_cache()
+        self.scheduler = JobScheduler(lease_seconds=150)
+
+    def test_consecutive_failures_terminate_via_atomic_attempts(self):
+        job = _mk_job(self.scheduler)
+        states = []
+        claims = 0
+        for _ in range(5):
+            claimed = self.scheduler.claim_next(SID)
+            if claimed is None:
+                break
+            claims += 1
+            states.append(self.scheduler.fail(
+                SID, job.job_id, error_code="llm_timeout", retryable=True,
+                retry_after_seconds=0))
+        # MAX_AUTO_RETRY=2：第 3 次认领后终态，之后不再可认领
+        self.assertEqual(claims, 3)
+        self.assertEqual(states, [S.JobState.RETRY_WAIT,
+                                  S.JobState.RETRY_WAIT,
+                                  S.JobState.FAILED])
+        rt = st.get_journal(SID).state().jobs[job.job_id]
+        # 原子递增：3 次认领 → attempt_count=3（旧缺陷恒为 1）
+        self.assertEqual(rt.job.attempt_count, 3)
+        self.assertEqual(rt.job.state, S.JobState.FAILED)
+        self.assertIsNone(self.scheduler.claim_next(SID))
+
+    def test_retry_not_before_survives_journal_reload(self):
+        job = _mk_job(self.scheduler)
+        self.scheduler.claim_next(SID)
+        self.scheduler.fail(SID, job.job_id, error_code="rate_limited",
+                            retryable=True, retry_after_seconds=3600)
+        before = st.get_journal(SID).state().jobs[job.job_id].retry_not_before
+        self.assertTrue(before > S.utc_now_iso())
+        # 模拟重启：缓存丢弃、从盘重放
+        st.reset_journal_cache()
+        after = st.get_journal(SID).state().jobs[job.job_id].retry_not_before
+        # 绝对时刻重放后不变（旧缺陷：按当前时间重算）
+        self.assertEqual(before, after)
+        self.assertIsNone(self.scheduler.claim_next(SID))
+
+    def test_wall_deadline_exhaustion_forces_terminal(self):
+        job = _mk_job(self.scheduler)
+        # 把冻结的 wall deadline 改到过去（模拟预算已耗尽）
+        journal = st.get_journal(SID)
+        with st.file_lock(journal.path):
+            lines = journal.path.read_text(encoding="utf-8").splitlines()
+            tx = S.JournalTransaction.model_validate_json(lines[-1])
+            assert isinstance(tx.operations[0], S.OpJobRequested)
+            j = tx.operations[0].job
+            tx.operations[0].job = j.model_copy(
+                update={"wall_deadline_at": "2020-01-01T00:00:00Z"})
+            tx.checksum = tx.resolved_checksum()
+            lines[-1] = tx.model_dump_json()
+            journal.path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+        st.reset_journal_cache()
+        self.scheduler.claim_next(SID)
+        state = self.scheduler.fail(SID, job.job_id, error_code="llm_timeout",
+                                    retryable=True, retry_after_seconds=0)
+        self.assertEqual(state, S.JobState.FAILED)
+
+    def test_enqueue_freezes_wall_deadline(self):
+        from app.core.config import settings
+        job = _mk_job(self.scheduler)
+        rt = st.get_journal(SID).state().jobs[job.job_id]
+        self.assertTrue(rt.job.wall_deadline_at)
+        self.assertEqual(rt.job.deadline_seconds,
+                         settings.learner_eval_job_budget)

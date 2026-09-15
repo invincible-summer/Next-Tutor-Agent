@@ -313,6 +313,42 @@ def _memory_directive_for_turn(understanding, session, trace) -> str:
         return ""
 
 
+def _teaching_evidence_directive_for_turn(understanding, session,
+                                          trace) -> str:
+    """R20（update_plan §4）：P7 teaching_evidence_directive 的使用入口。
+
+    当前工作区对理解层识别的概念存在有效统一评价投影（supported/
+    fragile/conflicting/emerging）时，输出 [证据智能·教学呈现] 软指令
+    块：已有独立表现 → 撤冗余示范；fragile → 定位验证。not_observed
+    不触发（无证据 ≠ 不会，不给负向呈现）。纯读 journal 投影，不写。
+    """
+    try:
+        view = getattr(understanding, "evaluation_context", None) or {}
+        concept = (understanding.concept or "").strip()
+        if not view or not concept:
+            return ""
+        hit = None
+        for key, entry in view.items():
+            names = [str(key), str((entry or {}).get("display_name") or "")]
+            if any(n and (concept in n or n in concept) for n in names):
+                hit = entry
+                break
+        if hit is None:
+            return ""
+        state = str((hit or {}).get("state") or "")
+        if state in ("", "not_observed"):
+            return ""
+        from app.prompts.registry import get as get_prompt
+        text = get_prompt("teaching_evidence_directive").text
+        trace.log("teaching_evidence_directive", concept=concept,
+                  eval_state=state)
+        return ("[证据智能·教学呈现|当前区:" + concept +
+                "|评价:" + state + "]" + chr(10) + text)
+    except Exception as e:
+        trace.log("teaching_evidence_directive_error", message=str(e))
+        return ""
+
+
 def _memory_consolidate_turn(student_id, session_id, workspace_id,
                              understanding, user_message,
                              final_answer, final_tool_calls, evs,
@@ -1283,6 +1319,14 @@ async def run(
         understanding = TaskUnderstanding(intent=TaskType.EXPLAIN,
                                           concept=user_message[:30],
                                           requires_tools=False, source="fallback")
+    # R20（update_plan §4）：composition root 注入 scoped 评价投影——
+    # M3/M5 教学输入读到当前工作区有效判断（此前 evaluation_context
+    # 无赋值路径，恒空）。无 workspace → 空 dict（非个性化降级）。
+    try:
+        understanding.evaluation_context = _journal_evaluation_view(
+            sid, getattr(session, "workspace_id", "") or "") or {}
+    except Exception:
+        understanding.evaluation_context = {}
     trace.log("supervisor_understanding", **understanding.to_dict())
 
     # --- 2. student snapshot ---
@@ -1385,6 +1429,14 @@ async def run(
     # PURE-READ: builds the "[交互智能·...]" block from the UX profile + the
     # most recent feedback + a once-per-milestone motivation nudge. Advisory
     # only; never alters content correctness. Mirrors 3d/3e/3f.
+    # --- 3f2. R20（update_plan §4）：P7 教学证据指令 —— 当前工作区对
+    # 本轮概念已有有效评价投影时，把 registry 的 P7 文本作为讲解呈现
+    # 约束并入本轮软指令（此前 P7 注册后零使用）。纯读、不改评价。
+    p7_recap = _teaching_evidence_directive_for_turn(understanding, session,
+                                                     trace)
+    if p7_recap:
+        adaptation_recap = (adaptation_recap + chr(10) + p7_recap).strip()
+
     ux_recap = _ux_directive_for_turn(understanding, session, trace)
     if ux_recap:
         adaptation_recap = (adaptation_recap + "\n" + ux_recap).strip()

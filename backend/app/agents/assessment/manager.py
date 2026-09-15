@@ -19,7 +19,8 @@ from app.agents.student_model.evaluation import schema as S
 from app.agents.student_model.evaluation import context as pack_builder
 from app.agents.student_model.evaluation.grading import (compute_task_result,
                                                          grade_mc_task)
-from app.agents.student_model.evaluation.jobs import ClaimedJob
+from app.agents.student_model.evaluation.jobs import (ClaimedJob,
+                                                        job_deadline)
 from app.agents.student_model.evaluation.llm import (EvaluationLLMRunner,
                                                      build_system_message)
 from app.agents.student_model.evaluation.service import (
@@ -357,6 +358,22 @@ async def evaluate_submission(
         (question_ref.question_id, question_ref.question_revision), []))
     assistance_floor = _assistance_floor(assistance)
 
+    # R21（update_plan §4）：共享游客（student_default）只给当场反馈——
+    # MC 本地判分直接返回，不写共享长期 learner journal（登录后从新表现
+    # 建档）；开放题在游客态不可判，返回未判定回执。
+    from app.agents.student_model.store import DEFAULT_STUDENT_ID
+    if student_id == DEFAULT_STUDENT_ID:
+        mc = task.q_type == S.QuestionType.MULTIPLE_CHOICE
+        task_result = grade_mc_task(task, raw) if mc else None
+        return SubmissionReceipt(
+            attempt_id=new_attempt_id(), source_id="", job_id="",
+            question_id=question_ref.question_id,
+            question_revision=question_ref.question_revision,
+            task_result=task_result,
+            evaluation_status="unavailable",
+            evaluation_reason="guest_no_persistent_evaluation",
+            interpretation_id="", duplicate=False)
+
     attempt_id = new_attempt_id()
     source_id = new_source_id()
     receipt = S.SourceReceipt(
@@ -376,46 +393,59 @@ async def evaluate_submission(
     task_result = grade_mc_task(task, raw) if mc else None
 
     from app.core import learner_runtime
+    # R21：评价停用（LEARNER_EVALUATION_MODE=off）＝暂停长期评价——
+    # 原作答与可确定 MC 判分照常受理落盘；语义解释 job 不建（不积压
+    # 付费重试），恢复 active 后新表现正常评价。
+    evaluation_off = not learner_runtime.evaluation_enabled()
     scheduler = learner_runtime.get_scheduler()
-    job = S.EvaluationJob(
-        job_id="job_" + uuid.uuid4().hex[:16],
-        kind=S.JobKind.ASSESSMENT_EVALUATION,
-        source_id=source_id, source_revision=1,
-        workspace_id=workspace_id, scope_revision=receipt.scope_revision,
-        priority=S.JobPriority.AWAITING_FEEDBACK.value,
-        created_at=S.utc_now_iso(), updated_at=S.utc_now_iso())
-    ops: list[Any] = [S.OpSourceRegistered(source=receipt),
-                      S.OpJobRequested(job=job)]
+    ops: list[Any] = [S.OpSourceRegistered(source=receipt)]
+    job = None
+    if not evaluation_off:
+        job = S.EvaluationJob(
+            job_id="job_" + uuid.uuid4().hex[:16],
+            kind=S.JobKind.ASSESSMENT_EVALUATION,
+            source_id=source_id, source_revision=1,
+            workspace_id=workspace_id, scope_revision=receipt.scope_revision,
+            priority=S.JobPriority.AWAITING_FEEDBACK.value,
+            created_at=S.utc_now_iso(), updated_at=S.utc_now_iso())
+        ops.append(S.OpJobRequested(job=job))
     if task_result is not None:
+        # off 模式无语义 job：MC 判分事务用本地占位 job_id（journal 中
+        # 无此 job → apply 不终结任何作业，仅落 TaskResult）
         ops.append(S.OpResultCommitted(
-            job_id=job.job_id, source_id=source_id, source_revision=1,
+            job_id=(job.job_id if job is not None
+                    else "job_mc_" + source_id[4:]),
+            source_id=source_id, source_revision=1,
             scope_revision=receipt.scope_revision or "no_scope",
             task_result=task_result))
     journal.append(ops)     # 受理 + job（+MC 判分）同一事务，fsync 后确认
+    try:
+        from app.agents.student_model.evaluation.worker import (
+            notify_evaluation_worker)
+        notify_evaluation_worker()
+    except Exception:
+        pass
 
     receipt_out = SubmissionReceipt(
-        attempt_id=attempt_id, source_id=source_id, job_id=job.job_id,
+        attempt_id=attempt_id, source_id=source_id,
+        job_id=(job.job_id if job is not None else ""),
         question_id=question_ref.question_id,
         question_revision=question_ref.question_revision,
         task_result=task_result,
-        evaluation_status=("unavailable" if not workspace_id else "pending"),
-        evaluation_reason="" if workspace_id else "workspace_required")
-    if run_inline:
-        # claim_next 按（优先级, 创建时间）FIFO 取 job；队列里可能压着
-        # 历史遗留的同 workspace job（如客户端中断留下的 leased-running，
-        # lease 过期后重新可认领）。只认领不等于本次的 job 就跳过，会把
-        # 本次提交的评价永远留在 pending——所以认领到谁就执行谁（同学生
-        # 的 assessment job 执行总是安全的），直到本次的 job 跑完或队列
-        # 排空（上限防意外无限循环）。
-        for _ in range(6):
-            claimed = scheduler.claim_next(student_id,
-                                           workspace_id=workspace_id)
-            if claimed is None:
-                break
+        evaluation_status=(
+            "disabled" if evaluation_off else
+            "unavailable" if not workspace_id else "pending"),
+        evaluation_reason=(
+            "evaluation_disabled" if evaluation_off else
+            "" if workspace_id else "workspace_required"))
+    if run_inline and job is not None:
+        # R02：inline 只认领**本次提交的作业**（claim_job 按 ID），绝不
+        # 借 HTTP 请求排空其他类型/其他来源的 job——那是 worker 的职责；
+        # 认领失败（worker 已先认领）时自然等待后台完成。
+        claimed = scheduler.claim_job(student_id, job.job_id)
+        if claimed is not None:
             await run_assessment_job(student_id, claimed,
                                      runner=runner or _default_runner())
-            if claimed.job.job_id == job.job_id:
-                break
         src = journal.state().sources.get(source_id)
         if src is not None:
             receipt_out.interpretation_id = src.current_interpretation_id
@@ -607,13 +637,16 @@ async def run_assessment_job(student_id: str, claimed: ClaimedJob, *,
         pack.job_id = job.job_id
         service.record_job_input(
             student_id, job.job_id, input_hash=pack.manifest.input_hash,
-            prompt_binding=binding, generation=state.generation)
+            prompt_binding=binding, generation=state.generation,
+            included_refs=list(pack.manifest.included_refs),
+            truncations=list(pack.manifest.truncations))
 
         system = build_system_message(
             "assessment_learner_evaluation", scenarios=scenarios,
             output_model=S.AssessmentInterpretationOutput)
         try:
             out = await runner.run_structured(
+                deadline_at=job_deadline(claimed.job),
                 system=system, user=pack_builder.pack_user_message(pack),
                 output_model=S.AssessmentInterpretationOutput,
                 max_output_tokens=4000)
@@ -626,11 +659,22 @@ async def run_assessment_job(student_id: str, claimed: ClaimedJob, *,
             parsed: S.AssessmentInterpretationOutput = out.parsed
             parsed.learner = normalize_evidence_spans(
                 parsed.learner, receipt.canonical_text)
+            # R14：正式概念评价硬准入门——题目未通过 C3 审核时学习者
+            # 判断不发布（本题判分/反馈保留），降级为 task-only 弃权。
+            if task is not None and                     task.verification.status != "passed":
+                parsed.learner = parsed.learner.model_copy(update={
+                    "applicable": False,
+                    "abstain_reason": "task_not_verified",
+                    "observation_claims": [], "concept_updates": []})
 
             task_result = mc_result
             if task is not None and task.q_type != S.QuestionType.MULTIPLE_CHOICE:
-                task_result = compute_task_result(task, parsed.criterion_results,
-                                                  receipt.canonical_text)
+                task_result = compute_task_result(
+                    task, parsed.criterion_results,
+                    receipt.canonical_text,
+                    first_error=parsed.first_error,
+                    hypotheses=parsed.hypotheses,
+                    feedback=parsed.task_feedback)
 
             base_claims = _active_claims_for(state, scope, pack)
             # R05：pack 构建时冻结基线判断 ID（concept_key → judgment_id），
@@ -646,13 +690,26 @@ async def run_assessment_job(student_id: str, claimed: ClaimedJob, *,
             if task_result is not None and task_result.verdict is not None:
                 v = task_result.verdict.value if hasattr(task_result.verdict, "value") \
                     else task_result.verdict
+                # R19：消费者需要的完整归属（此前缺 attempt/session/
+                # workspace/帮助/审核条件，消费端只能回退 event_id）
                 m9_outbox.append({
                     "event_id": f"m9_{receipt.source_id}",
                     "consumer": "m9", "kind": "task_result",
                     "source_id": receipt.source_id,
                     "question_id": task.question_id if task is not None else "",
+                    "question_revision": (
+                        task.question_revision if task is not None else 0),
                     "concept": (task.source_badge if task is not None else "") or "",
-                    "verdict": str(v), "observed_at": receipt.observed_at})
+                    "verdict": str(v), "observed_at": receipt.observed_at,
+                    "attempt_id": receipt.attempt_id,
+                    "session_id": receipt.source_session_ref or
+                        receipt.reply_message_ref,
+                    "workspace_id": receipt.workspace_id_at_observation,
+                    "assistance_floor": receipt.assistance_floor.value,
+                    "verified": (task.verification.status == "passed"
+                                 if task is not None else False),
+                    "student_answer_fingerprint":
+                        task_result.answer_fingerprint})
         except Exception as exc:  # noqa: BLE001
             # run_structured 自身不抛（transport 层全分类为 error_code）；这里
             # 兜的是它之外的未预期异常。放任逃逸会让 job 永远停在 leased-

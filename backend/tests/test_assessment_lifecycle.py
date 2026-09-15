@@ -132,7 +132,7 @@ class CatLifecycleTest(StorageSandboxTestCase):
         aid = start["assessment_id"]
         q1 = start["question"]
         r1 = self._answer(aid, q1, "A")
-        self.assertEqual(r1.status_code, 200, r1.text)
+        self.assertEqual(r1.status_code, 202, r1.text)
         r2 = self._answer_raw(aid, q1, "B")
         self.assertEqual(r2.status_code, 409, r2.text)
         self.assertEqual(r2.json()["detail"]["error"]["code"],
@@ -143,7 +143,7 @@ class CatLifecycleTest(StorageSandboxTestCase):
         aid = start["assessment_id"]
         q1 = start["question"]
         r1 = self._answer(aid, q1, "A")
-        self.assertEqual(r1.status_code, 200, r1.text)
+        self.assertEqual(r1.status_code, 202, r1.text)
         self.assertEqual(r1.json()["task_result"]["verdict"], "correct")
         with patch("app.api.v1.assessment.get_llm", return_value=_GenLLM()):
             r2 = self.client.post("/api/v1/assessment/next", json={
@@ -178,7 +178,7 @@ class CatLifecycleTest(StorageSandboxTestCase):
         self._answer(aid, q1, "A")
         r = self._answer(aid, q1, "A")
         # 同题同答案重放：重复提交语义（不产生第二份观察）
-        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r.status_code, 202)
         state = st.get_journal("usr_life").state()
         count = sum(1 for s in state.sources.values()
                     if s.receipt.assessment_id == aid)
@@ -239,7 +239,12 @@ class CatLifecycleTest(StorageSandboxTestCase):
         # 两次 run_structured 都返回错误码 → 语义 job 终态 failed
         self.runner.outputs = ["schema_invalid", "schema_invalid"]
         r1 = self._answer_raw(aid, q1, "A")
-        self.assertEqual(r1.status_code, 200, r1.text)
+        self.assertEqual(r1.status_code, 202, r1.text)
+        # R02：HTTP 不再同步评价——worker 驱动语义作业到失败终态
+        import asyncio
+        from app.agents.student_model.evaluation.worker import EvaluationWorker
+        asyncio.run(EvaluationWorker(
+            runner_provider=lambda: self.runner).process_pass())
         self.assertEqual(r1.json()["task_result"]["verdict"], "correct")
         # §10.3：硬故障 → unavailable，不冒充 pending
         self.assertEqual(r1.json()["evaluation"]["status"], "unavailable")

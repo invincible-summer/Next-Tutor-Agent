@@ -72,6 +72,10 @@ class TaskUnderstanding:
     # Bounded to 3 by task_understanding; each entry is a short search term,
     # never the full sentence (see preresearch R10 contract).
     search_queries: list[str] = field(default_factory=list)
+    # R20（update_plan §4）：composition root 注入的当前工作区统一评价
+    # 投影（readers 只读；concept_id → {state,...}）。理解层自身不读
+    # journal——默认空 = 非个性化降级，不继承任何区的能力结论。
+    evaluation_context: dict = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
         return {

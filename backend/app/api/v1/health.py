@@ -26,6 +26,17 @@ def ready():
     report = get_bootstrap_report()
     body = {"status": report.status_label(),
             "checks": report.to_dict()["checks"]}
+    # R01：worker 状态（评价功能停用时明确 disabled，不伪装就绪）
+    try:
+        from app.core import learner_runtime
+        if learner_runtime.evaluation_enabled():
+            from app.agents.student_model.evaluation.worker import (
+                get_evaluation_worker)
+            body["evaluation_worker"] = get_evaluation_worker().status()
+        else:
+            body["evaluation_worker"] = {"running": False, "disabled": True}
+    except Exception:
+        body["evaluation_worker"] = {"running": False, "error": True}
     if not report.ready:
         return JSONResponse(body, status_code=503)
     return body

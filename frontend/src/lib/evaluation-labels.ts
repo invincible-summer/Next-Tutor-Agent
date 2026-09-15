@@ -21,6 +21,7 @@ const ZH: Dict = {
   "eval.status.reconciling": "正在重新核对",
   "eval.status.unavailable": "暂时无法完成评价",
   "eval.status.disabled": "评价未启用",
+  "eval.status.failed": "本次评价失败，可稍后重试",
   // ClaimStatus
   "eval.claim.supported": "有证据支持",
   "eval.claim.tentative": "初步观察",
@@ -92,6 +93,7 @@ const EN: Dict = {
   "eval.status.reconciling": "Re-checking",
   "eval.status.unavailable": "Evaluation unavailable",
   "eval.status.disabled": "Evaluation disabled",
+  "eval.status.failed": "Evaluation failed; retry later",
   "eval.claim.supported": "Supported by evidence",
   "eval.claim.tentative": "Preliminary observation",
   "eval.claim.challenged": "Challenged by counter-evidence",

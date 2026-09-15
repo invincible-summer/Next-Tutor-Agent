@@ -240,7 +240,13 @@ class TestEvaluationViewNamespace(StorageSandboxTestCase):
 
         with mock.patch.object(ev_store, "get_journal", spy_journal), \
                 mock.patch.object(KnowledgeService, "graph_for", spy_graph):
-            svc._evaluation_view_safe("usr_namespace_probe")
+            # R18 契约：读评价投影必须显式 workspace（无区 → {} 不读盘，
+            # 不回退游客命名空间）；有区时经调用者 namespace 键控。
+            self.assertEqual(svc._evaluation_view_safe("usr_namespace_probe"), {})
+            from app.core.workspace import Workspace, save_workspace
+            save_workspace(Workspace(workspace_id="ws_ns_probe", name="数学",
+                                     student_id="usr_namespace_probe"))
+            svc._evaluation_view_safe("usr_namespace_probe", "ws_ns_probe")
             svc._concept_names_safe("数学", student_id="usr_namespace_probe2")
             svc._prereq_map_safe("usr_namespace_probe3")
         self.assertEqual(seen_journal, ["usr_namespace_probe"])

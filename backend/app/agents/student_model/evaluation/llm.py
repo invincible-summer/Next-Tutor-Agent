@@ -24,6 +24,7 @@ from __future__ import annotations
 import asyncio
 import json
 from dataclasses import dataclass, field
+from datetime import datetime, timezone
 from typing import Any
 
 from pydantic import BaseModel, ValidationError
@@ -101,27 +102,36 @@ class EvaluationLLMRunner:
 
     # ------------------------------------------------------------------
     async def _one_call(self, system: str, user: str, *,
-                        max_output_tokens: int) -> tuple[str, str, dict | None,
-                                                         str, int]:
+                        max_output_tokens: int,
+                        deadline_at: datetime | None = None,
+                        ) -> tuple[str, str, dict | None, str, int]:
         """单次 transport 调用（含 runner 级重试）。
 
         返回 (content, error_code, usage, finish_reason, attempts)。
         error_code 为空表示成功。
+
+        R17：deadline_at 为整个 job 的统一 wall-clock 预算（初次调用与
+        repair 共享，不各自重置）；单次等待 ≤ min(单调用上限, 剩余预算)。
         """
         transport_cap = settings.learner_eval_transport_max
         auto_extra = 2                       # 自动网络重试 ≤2 次额外尝试
         attempts = 0
         while attempts < transport_cap:
             attempts += 1
+            remaining = _remaining_seconds(deadline_at)
+            if remaining is not None and remaining <= 0:
+                return "", ERR_BUDGET_EXCEEDED, None, "budget", attempts
             try:
                 async with self._gate:
-                    content, usage, finish = await self.client.complete(
-                        messages=[{"role": "system", "content": system},
-                                  {"role": "user", "content": user}],
-                        temperature=0.2,
-                        max_tokens=max_output_tokens,
-                        disable_thinking=True,
-                        return_finish_reason=True)
+                    content, usage, finish = await asyncio.wait_for(
+                        self.client.complete(
+                            messages=[{"role": "system", "content": system},
+                                      {"role": "user", "content": user}],
+                            temperature=0.2,
+                            max_tokens=max_output_tokens,
+                            disable_thinking=True,
+                            return_finish_reason=True),
+                        timeout=_call_timeout(remaining))
                 if not content or not content.strip():
                     return "", ERR_EMPTY_CONTENT, usage, finish or "", attempts
                 if finish == "length":
@@ -146,10 +156,15 @@ class EvaluationLLMRunner:
     async def run_structured(self, *, system: str, user: str,
                              output_model: type[BaseModel],
                              max_output_tokens: int = 4000,
+                             deadline_at: datetime | None = None,
                              ) -> StructuredOutput:
-        """一次解释调用 + 至多一次 P10 格式修复（§10.2.7）。"""
+        """一次解释调用 + 至多一次 P10 格式修复（§10.2.7）。
+
+        R17：deadline_at 覆盖初次调用与 repair（repair 不重置预算）。
+        """
         content, error, usage, finish, attempts = await self._one_call(
-            system, user, max_output_tokens=max_output_tokens)
+            system, user, max_output_tokens=max_output_tokens,
+            deadline_at=deadline_at)
         if error:
             return StructuredOutput(
                 raw=content, finish_reason=finish, usage=usage,
@@ -170,7 +185,8 @@ class EvaluationLLMRunner:
             "same_context": user[:12000],
         }, ensure_ascii=False)
         r_content, r_error, r_usage, r_finish, r_attempts = await self._one_call(
-            repair_system, repair_user, max_output_tokens=max_output_tokens)
+            repair_system, repair_user, max_output_tokens=max_output_tokens,
+            deadline_at=deadline_at)
         total_attempts = attempts + r_attempts
         if r_error:
             return StructuredOutput(
@@ -218,6 +234,21 @@ def _parse_json_model(raw: str,
 
 
 _STANCE_ORDER = {"inconclusive": 0, "challenges": 1, "supports": 2}
+
+
+def _remaining_seconds(deadline_at: datetime | None) -> float | None:
+    """距统一预算截止的剩余秒数；无截止（测试/旧路径）返回 None。"""
+    if deadline_at is None:
+        return None
+    return (deadline_at - datetime.now(timezone.utc)).total_seconds()
+
+
+def _call_timeout(remaining: float | None) -> float | None:
+    """单次调用等待上限 = min(单调用 wall 上限, 剩余预算)。"""
+    cap = float(settings.learner_eval_wall_deadline)
+    if remaining is None:
+        return cap
+    return max(0.05, min(cap, remaining))
 
 
 def _repair_diff_violation(parsed_orig: BaseModel | None,

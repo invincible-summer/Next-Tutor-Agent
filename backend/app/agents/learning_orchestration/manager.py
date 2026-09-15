@@ -219,7 +219,11 @@ class LearningOrchestrationService:
                              verdict: str, attempt_id: str = "",
                              session_id: str = "", subject: str = "",
                              task_binding: dict | None = None,
-                             now: float | None = None) -> bool:
+                             now: float | None = None,
+                             workspace_id: str = "",
+                             assistance_floor: str = "",
+                             verified: bool = True,
+                             recall_eligible: bool | None = None) -> bool:
         """Record one committed quiz verdict as M9 evidence (W4/A08).
 
         Quiz grading happens on /quiz/record, /quiz/grade and /assessment
@@ -261,10 +265,18 @@ class LearningOrchestrationService:
             # concept id; organic (unbound) evidence keeps the concept string.
             # G4 §13.8：卡片键 (workspace_id, concept_key)——有 workspace
             # 绑定时用复合键避免跨区撞卡；无绑定保持裸概念键（旧档兼容）。
-            ws_id = str(binding.get("workspace_id") or "").strip()
+            ws_id = (workspace_id.strip() or
+                     str(binding.get("workspace_id") or "").strip())
             review_key = (f"{ws_id}::{cid}" if ws_id else
                           (str(binding.get("concept_id") or "").strip() or cid))
             quality = srs.quality_from_verdict(v)
+            # R19：recall_eligible=False（未审核题/全演示后作答）→ 不算
+            # 独立召回：建卡但不延长 SRS 间隔；绑定任务"已尝试"完成与
+            # 事件仍照常（做题行为完成 ≠ 能力达成）。None 表示按
+            # verified+帮助推导（outbox 消费默认语义）。
+            if recall_eligible is None:
+                recall_eligible = (verified and
+                                   assistance_floor != "full_demo")
             if quality is None:
                 if review_key not in state.review_queue:
                     state.review_queue[review_key] = srs.create_card(
@@ -272,12 +284,16 @@ class LearningOrchestrationService:
                         now=now)
                     self._save(student_id, state)
                 return False
-            card = state.review_queue.get(review_key)
-            if card is None:
-                card = srs.create_card(review_key, concept_name=cid,
-                                       workspace_id=ws_id, now=now)
-            card = srs.update_review(card, quality, now=now)
-            state.review_queue[review_key] = card
+            if recall_eligible:
+                card = state.review_queue.get(review_key)
+                if card is None:
+                    card = srs.create_card(review_key, concept_name=cid,
+                                           workspace_id=ws_id, now=now)
+                card = srs.update_review(card, quality, now=now)
+                state.review_queue[review_key] = card
+            elif review_key not in state.review_queue:
+                state.review_queue[review_key] = srs.create_card(
+                    review_key, concept_name=cid, workspace_id=ws_id, now=now)
             emitted: list[OrchestrationLearningEvent] = []
             episode_done = ""
             if bound_task_id:
@@ -457,9 +473,17 @@ class LearningOrchestrationService:
             concept = str(item.get("question_id") or "")
         ok = self.record_quiz_evidence(
             student_id=student_id, concept=concept, verdict=str(v or ""),
-            attempt_id=str(item.get("attempt_id") or event_id),
+            # R19：事件带完整归属；缺失 attempt 的事件不处理（不回退
+            # event_id 当作 attempt——那会让重复投递伪装成新尝试）
+            attempt_id=str(item.get("attempt_id") or ""),
             session_id=str(item.get("session_id") or ""),
-            task_binding=dict(item.get("task_binding") or {}))
+            task_binding=dict(item.get("task_binding") or {}),
+            workspace_id=str(item.get("workspace_id") or ""),
+            assistance_floor=str(item.get("assistance_floor") or ""),
+            verified=bool(item.get("verified")),
+            recall_eligible=(bool(item.get("verified")) and
+                             str(item.get("assistance_floor") or "")
+                             != "full_demo"))
         if not ok:
             return  # 幂等命中或无效证据：交给外层 ack
 

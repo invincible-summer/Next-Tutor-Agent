@@ -81,15 +81,21 @@ def _sources_by_concept_key(state: JournalState) -> dict[str, set[str]]:
 
 
 def prior_same_concept(state: JournalState, workspace_id: str,
-                       concept_keys: set[str]) -> dict[str, Any]:
+                       concept_keys: set[str],
+                       observed_before: str = "") -> dict[str, Any]:
     """§8.2 历史挑选：当前判断、最近有效表现、最近反例；只取本来源之前
     的历史（observed_at 序），不取 superseded/revoked。来源按概念归属
-    过滤（经判断/任务），不同概念的历史不互相污染。"""
+    过滤（经判断/任务），不同概念的历史不互相污染。
+
+    R16：observed_before（当前来源 observed_at）是硬上界——后到历史
+    观察不入本次解释（"只用发生前的历史"，防未来表现污染比较）。"""
     by_concept = _sources_by_concept_key(state)
     out: dict[str, Any] = {}
     for key in concept_keys:
         judgment_id = state.concept_current.get((workspace_id, key), "")
         judgment = state.judgments.get(judgment_id) if judgment_id else None
+        if judgment is not None and observed_before and                 judgment.created_at > observed_before:
+            judgment = None        # R16：晚于本次观察的判断不作历史
         entry: dict[str, Any] = {"concept_key": key}
         if judgment is not None:
             entry["current_claim_views"] = [c.model_dump()
@@ -105,6 +111,8 @@ def prior_same_concept(state: JournalState, workspace_id: str,
                 continue
             if src.receipt.source_id not in attributed:
                 continue
+            if observed_before and                     src.receipt.observed_at > observed_before:
+                continue      # R16：后到观察不入历史
             interp = src.interpretations.get(src.current_interpretation_id)
             if not interp or interp.get("revoked") or interp.get("abstained"):
                 continue
@@ -153,9 +161,9 @@ def assemble_assessment_pack(
         if scope is not None else list(task.concept_refs[:MAX_ALLOWLIST])
     entries = _short_refs(allow_concepts)
     keys = {e.concept.key for e in entries}
-    prior = prior_same_concept(state,
-                               source.workspace_id_at_observation,
-                               keys) if scope is not None else {}
+    prior = prior_same_concept(
+        state, source.workspace_id_at_observation, keys,
+        observed_before=source.observed_at) if scope is not None else {}
     task_payload: dict[str, Any] = {
         "task_mode": ("multiple_choice"
                       if task.q_type == S.QuestionType.MULTIPLE_CHOICE
@@ -165,6 +173,10 @@ def assemble_assessment_pack(
         "q_type": task.q_type.value,
         "stem": task.stem,
         "options": task.options,
+        # R14：权威判分依据随 pack 下发（P3 开放题阅卷需要参考答案；
+        # 此前有字段无数据）
+        "answer": task.answer,
+        "explanation": task.explanation,
         "frozen_rubric": [c.model_dump() for c in task.rubric],
         "equivalent_solutions": task.equivalent_solutions,
         "verification": task.verification.model_dump(),
@@ -188,12 +200,21 @@ def assemble_assessment_pack(
         "source": source.source_id, "revision": source.source_revision,
         "answer": source.canonical_text,
         "task": task.question_id + "@" + str(task.question_revision),
-        "prior": sorted(prior.keys()),
+        "prior": prior,
         "allowlist": [e.concept.key for e in entries],
+        # R16：冻结任务内容/审核/合同版本入 hash
+        "rubric_hash": task.rubric_hash,
+        "verification": task.verification.status,
+        "contract": prompt_binding,
+        "schema_v": S.SCHEMA_VERSION,
     }
     input_hash = "ih_" + hashlib.sha256(json.dumps(
         payload_for_hash, ensure_ascii=False, sort_keys=True)
         .encode()).hexdigest()[:32]
+    textbook_reference: dict[str, Any] = {
+        "grounding_refs": list(task.grounding_refs),
+        "source_badge": task.source_badge,
+    }
     return S.EvaluationContextPack(
         pack_id=_pack_id(source.source_id),
         job_id="",
@@ -206,6 +227,7 @@ def assemble_assessment_pack(
         task=task_payload,
         assistance_before_response=[a.model_dump()
                                     for a in source.assistance_events],
+        textbook_reference=textbook_reference,
         prior_same_concept=prior,
         workspace_context={"workspace_id": source.workspace_id_at_observation,
                            "workspace_name": workspace_name,
@@ -237,7 +259,8 @@ def assemble_dialogue_pack(
     """C5 对话解释的 ContextPack（P4，§8.1 分层）。"""
     entries = _short_refs(candidates)
     keys = {e.concept.key for e in entries}
-    prior = prior_same_concept(state, source.workspace_id_at_observation, keys)
+    prior = prior_same_concept(state, source.workspace_id_at_observation,
+                               keys, observed_before=source.observed_at)
     current: dict[str, Any] = {
         "ref": "s1",
         "source_id": source.source_id,
@@ -247,11 +270,16 @@ def assemble_dialogue_pack(
         "message_ref": source.message_ref,
         "order_hint": "本块是唯一新增学习证据",
     }
+    # R16：hash 覆盖历史内容与合同版本——同来源/键但历史或合同变化 →
+    # 不同 hash（可审计"当时到底读了哪些依据"）
     input_hash = "ih_" + hashlib.sha256(json.dumps({
         "source": source.source_id, "revision": source.source_revision,
         "text": source.canonical_text,
-        "prior": sorted(prior.keys()),
+        "prior": prior,
         "allowlist": [e.concept.key for e in entries],
+        "contract": "learning_evidence_contract@1.0.0+"
+                    "dialogue_learner_evaluation@1.0.0",
+        "schema_v": S.SCHEMA_VERSION,
     }, ensure_ascii=False, sort_keys=True).encode()).hexdigest()[:32]
     binding = ("learning_evidence_contract@1.0.0+"
                "dialogue_learner_evaluation@1.0.0")

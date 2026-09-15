@@ -57,6 +57,7 @@ class KnowledgeScopeFixture(StorageSandboxTestCase):
         self._enabled = patch.object(knowledge_api._kn, "is_enabled",
                                      return_value=True)
         self._enabled.start()
+        self.addCleanup(self._enabled.stop)   # 不停止会泄漏到后续模块
         # 自有教材：f1 力学卷（力+能量） / f2 热学卷（热）
         from app.core.library import load_library, save_library
         lib = load_library(SID)

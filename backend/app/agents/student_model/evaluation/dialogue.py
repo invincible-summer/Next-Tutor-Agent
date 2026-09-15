@@ -24,7 +24,10 @@ _TRIVIAL_PATTERNS = re.compile(
     re.IGNORECASE)
 _COMMAND_PATTERN = re.compile(
     r"^/(chat|new|clear|help|settings|voice|tts)\b", re.IGNORECASE)
-_MIN_CHARS = 2
+# R03：单字符也可承载有意义作答（"3"/"是"/反例符号）；明确无关由
+# _TRIVIAL/_COMMAND 清单排除，不用长度门（A18）
+_MIN_CHARS = 1
+_RECONCILE_WINDOW = 20      # R03：hook 故障回补窗口（条）
 
 
 def is_eligible_text(text: str) -> bool:
@@ -41,21 +44,29 @@ def is_eligible_text(text: str) -> bool:
 
 def concept_candidates(student_id: str, workspace_id: str,
                        message_text: str, *,
+                       prior_texts: list[str] | None = None,
                        max_candidates: int = 12) -> list[S.ConceptRef]:
-    """概念候选（§7.2）：来自已选教材节点的严格名称/别名匹配。零候选时
-    返回空列表——由 LLM/服务端记 concept_unresolved，不静默跳过。"""
+    """概念候选（§7.2）：来自已选教材节点的严格名称匹配。
+
+    R03：短答（"3"/"是"）本身不含概念名——并集上一条 assistant 追问
+    与会话当前任务绑定概念（teaching goal），使追问后的简短回答仍可
+    评价。零候选返回空列表——由 LLM/服务端记 concept_unresolved，
+    不静默跳过。
+    """
     try:
         from .scope import get_scope_resolver
         scope = get_scope_resolver().resolve(student_id, workspace_id)
     except Exception:
         return []
+    extra = " ".join(t for t in (prior_texts or []) if t)
     hits: list[S.ConceptRef] = []
     for concept in scope.allowed_concepts:
         names = [concept.display_name] + _aliases_of(concept)
-        for name in names:
-            if name and name in message_text:
-                hits.append(concept)
-                break
+        matched = any(name and (name in message_text or
+                                (extra and name in extra))
+                      for name in names)
+        if matched:
+            hits.append(concept)
         if len(hits) >= max_candidates:
             break
     return hits
@@ -63,6 +74,45 @@ def concept_candidates(student_id: str, workspace_id: str,
 
 def _aliases_of(concept: S.ConceptRef) -> list[str]:
     return []   # ConceptRef 不带别名；严格名称匹配（§7.2），模糊匹配不做
+
+
+def _message_observed_at(message: dict[str, Any]) -> str:
+    """R03：消息 created_at（epoch 秒）→ ISO UTC；缺失回退当前时间。"""
+    raw = message.get("created_at")
+    try:
+        epoch = float(raw)
+        from datetime import datetime, timezone
+        return datetime.fromtimestamp(epoch, tz=timezone.utc).strftime(
+            "%Y-%m-%dT%H:%M:%SZ")
+    except (TypeError, ValueError):
+        return S.utc_now_iso()
+
+
+def _free_spans(n: int, owned: set[tuple[int, int]]) -> list[tuple[int, int]]:
+    """[0,n) 减去 owned 区间后的剩余片段（assessment 优先属主）。"""
+    if n <= 0:
+        return []
+    if not owned:
+        return [(0, n)]
+    merged: list[list[int]] = []
+    for s, e in sorted(owned):
+        if s >= e:
+            continue
+        if merged and s <= merged[-1][1]:
+            merged[-1][1] = max(merged[-1][1], e)
+        else:
+            merged.append([s, e])
+    free: list[tuple[int, int]] = []
+    pos = 0
+    for s, e in merged:
+        if s > pos:
+            free.append((pos, min(s, n)))
+        pos = max(pos, e)
+        if pos >= n:
+            break
+    if pos < n:
+        free.append((pos, n))
+    return [(s, e) for s, e in free if e > s]
 
 
 def prior_assessment_owned_spans(state: JournalState,
@@ -113,14 +163,23 @@ def register_dialogue_source(
         scope_revision = scope.scope_revision
     except Exception:
         return None      # 工作区不合法/不存在：不受理（404 语义在 API 层）
+    # R03：observed_at 取消息首次可靠落盘时间（ensure_message_ids 冻结
+    # 的 created_at），不用 hook 执行时间——跨零点/延迟受理归属正确
+    observed_at = _message_observed_at(message)
+    # R03：减去 assessment 已拥有的片段（题卡作答不重复评价）；整条被
+    # 拥有 → 不受理（§7.2 evidence_ownership 单一属主）
+    owned = prior_assessment_owned_spans(state, message_id)
+    spans = _free_spans(len(text), owned)
+    if not spans:
+        return None
     source_id = new_source_id()
     receipt = S.SourceReceipt(
         source_id=source_id, source_revision=1, kind=S.SourceKind.DIALOGUE,
-        observed_at=S.utc_now_iso(),
+        observed_at=observed_at,
         workspace_id_at_observation=workspace_id,
         canonical_text=text, assistance_events=[],
         spans=[S.EvidenceSpanOwnership(
-            start=0, end=len(text), owner="dialogue")],
+            start=s, end=e, owner="dialogue") for s, e in spans],
         source_session_ref=session_ref, message_ref=message_id,
         scope_revision=scope_revision)
     job = S.EvaluationJob(
@@ -131,6 +190,11 @@ def register_dialogue_source(
         priority=S.JobPriority.CURRENT_DIALOGUE.value,
         created_at=S.utc_now_iso(), updated_at=S.utc_now_iso())
     journal.register_source(receipt, job=job)
+    try:
+        from .worker import notify_evaluation_worker
+        notify_evaluation_worker()
+    except Exception:
+        pass
     return source_id
 
 
@@ -140,21 +204,27 @@ def after_turn_hook(student_id: str, session: Any) -> list[str]:
     source_ids: list[str] = []
     try:
         messages = list(getattr(session, "messages", []) or [])
-        # 本回合的 user 消息 = 尚无 dialogue 受理且未被 assessment 拥有的
         state = get_journal(student_id).state()
         handled = {src.receipt.message_ref
                    for src in state.sources.values()
                    if src.receipt.message_ref}
+        # R03：从最新往回回补所有"已落盘但未受理"的学生消息（上一 hook
+        # 崩溃/写失败不丢评），最多回看 _RECONCILE_WINDOW 条；遇到连续
+        # 已受理即止（更早的都处理过了）
+        budget = _RECONCILE_WINDOW
         for message in reversed(messages):
+            if budget <= 0:
+                break
             if message.get("role") != "user":
                 continue
-            if str(message.get("message_id") or "") in handled:
-                break   # 已受理过的最近一条 → 更早的都处理过了
+            mid = str(message.get("message_id") or "")
+            if mid in handled:
+                break
+            budget -= 1
             sid = register_dialogue_source(
                 student_id=student_id, session=session, message=message)
             if sid is not None:
                 source_ids.append(sid)
-            break   # 只处理本回合最后一条学生消息
     except Exception:
         pass
     return source_ids

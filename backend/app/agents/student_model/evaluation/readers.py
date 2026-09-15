@@ -39,6 +39,7 @@ def scoped_concept_states(student_id: str, workspace_id: str, *,
             "statement": view.statement,
             "judgment_id": view.judgment_id,
             "concept_key": view.concept_ref.key,
+            "display_name": view.concept_ref.display_name,
             "claims": [c.statement for c in view.claims[:6]],
         }
     if include_out_of_scope:
@@ -60,6 +61,7 @@ def scoped_concept_states(student_id: str, workspace_id: str, *,
                 "statement": judgment.statement,
                 "judgment_id": judgment.judgment_id,
                 "concept_key": judgment.concept_ref.key,
+                "display_name": judgment.concept_ref.display_name,
                 "claims": [c.statement for c in judgment.claims[:6]],
             }
     return out or None

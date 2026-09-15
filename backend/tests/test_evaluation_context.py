@@ -129,5 +129,84 @@ class TestSystemAssembly(ContextFixture):
         self.assertIn(malicious, user)       # 学生正文在 user message 数据位
 
 
+class TestR16HistoryBound(ContextFixture):
+    """R16（update_plan §4）：历史时间上界与输入审计。"""
+
+    def test_future_observations_excluded_from_prior(self):
+        # 历史来源 observed_at 晚于当前来源 → 不入历史（防未来污染）
+        self.seed_prior("supports", "较早的支持表现")
+        # 把历史来源改成"晚于"当前来源（2026-09-13T09:00:00Z）
+        journal = get_journal(SID)
+        with journal.path.open(encoding="utf-8") as f:
+            lines = f.read().splitlines()
+        import json as _json
+        rebuilt = []
+        for line in lines:
+            tx = _json.loads(line)
+            ops = []
+            for op in tx.get("operations", []):
+                if op.get("op") == "source_registered":
+                    op["source"]["observed_at"] = "2026-09-14T09:00:00Z"
+                if op.get("op") == "result_committed":
+                    for j in op.get("judgments", []):
+                        j["created_at"] = "2026-09-14T09:00:01Z"
+                ops.append(op)
+            tx["operations"] = ops
+            tx["checksum"] = ""   # 由下方重算
+            rebuilt.append(tx)
+        # 重算 checksum：resolved_checksum 以 operations 为准
+        for tx in rebuilt:
+            model = S.JournalTransaction.model_validate(tx)
+            model.checksum = model.resolved_checksum()
+            rebuilt[rebuilt.index(tx)] = model
+        with journal.path.open("w", encoding="utf-8") as f:
+            for tx in rebuilt:
+                f.write(tx.model_dump_json() + chr(10))
+        from app.agents.student_model.evaluation.store import reset_journal_cache
+        reset_journal_cache()
+        prior = ctx.prior_same_concept(
+            get_journal(SID).state(), WS,
+            {_concept().key}, observed_before="2026-09-13T09:00:00Z")
+        entry = prior[_concept().key]
+        # 后到来源不入历史
+        self.assertEqual(entry["recent_sources"], [])
+        # 后到判断同样不作历史基线
+        self.assertNotIn("current_state", entry)
+        self.assertTrue(entry["no_prior"])
+
+    def test_input_hash_changes_with_history(self):
+        # 同来源/键但历史变化 → hash 不同（R16 审计可检测）
+        self.seed_prior("supports", "第一条支持表现")
+        state = get_journal(SID).state()
+        scope = S.EvaluationScope(
+            workspace_id=WS, scope_revision="sr_1", selected_volumes=[],
+            allowed_concepts=[_concept()], graph_revisions=[],
+            unresolved_graph_count=0)
+        pack1 = ctx.assemble_dialogue_pack(
+            source=_receipt(), scope=scope, state=state, scenarios=[],
+            candidates=[_concept()])
+        # 再种一条历史 → hash 应变
+        self.seed_prior("challenges", "后来的反例表现")
+        state2 = get_journal(SID).state()
+        pack2 = ctx.assemble_dialogue_pack(
+            source=_receipt(), scope=scope, state=state2, scenarios=[],
+            candidates=[_concept()])
+        self.assertNotEqual(pack1.manifest.input_hash,
+                            pack2.manifest.input_hash)
+
+    def test_manifest_records_included_refs(self):
+        self.seed_prior("supports", "历史表现")
+        scope = S.EvaluationScope(
+            workspace_id=WS, scope_revision="sr_1", selected_volumes=[],
+            allowed_concepts=[_concept()], graph_revisions=[],
+            unresolved_graph_count=0)
+        pack = ctx.assemble_dialogue_pack(
+            source=_receipt(), scope=scope,
+            state=get_journal(SID).state(), scenarios=[],
+            candidates=[_concept()])
+        self.assertIn("s1", pack.manifest.included_refs)
+        self.assertTrue(any(e.short_ref for e in pack.allowlist))
+
+
 if __name__ == "__main__":
     unittest.main()
