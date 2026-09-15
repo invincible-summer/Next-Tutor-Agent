@@ -182,13 +182,22 @@ def register_dialogue_source(
             start=s, end=e, owner="dialogue") for s, e in spans],
         source_session_ref=session_ref, message_ref=message_id,
         scope_revision=scope_revision)
+    # 阶段C（§5/§6.2）：策略归属在受理时冻结（immediate=立即；
+    # daily_midnight=零点后可认领），本地活动日按 observed_at 归日
+    from app.core.learner_evaluation_policy import (load_policy,
+                                                scheduling_facts)
+    facts = scheduling_facts(observed_at, load_policy())
     job = S.EvaluationJob(
         job_id="job_" + source_id[4:],
         kind=S.JobKind.DIALOGUE_EVALUATION,
         source_id=source_id, source_revision=1,
         workspace_id=workspace_id, scope_revision=scope_revision,
         priority=S.JobPriority.CURRENT_DIALOGUE.value,
-        created_at=S.utc_now_iso(), updated_at=S.utc_now_iso())
+        created_at=S.utc_now_iso(), updated_at=S.utc_now_iso(),
+        eligible_after_utc=facts["eligible_after_utc"],
+        local_activity_date=facts["local_activity_date"],
+        schedule_mode=facts["schedule_mode"],
+        policy_revision=int(facts["policy_revision"]))
     journal.register_source(receipt, job=job)
     try:
         from .worker import notify_evaluation_worker

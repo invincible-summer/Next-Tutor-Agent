@@ -35,6 +35,9 @@ def ready():
             body["evaluation_worker"] = get_evaluation_worker().status()
         else:
             body["evaluation_worker"] = {"running": False, "disabled": True}
+        from app.agents.student_model.evaluation.schedule import (
+            get_daily_planner)
+        body["evaluation_daily_planner"] = get_daily_planner().status()
     except Exception:
         body["evaluation_worker"] = {"running": False, "error": True}
     if not report.ready:

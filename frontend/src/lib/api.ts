@@ -968,6 +968,52 @@ export interface AdminOCRPolicy {
   scope: string;
 }
 
+export interface AdminEvalPolicyStatus {
+  policy: {
+    schema_version: number;
+    revision: number;
+    evaluation_schedule: "immediate" | "daily_midnight";
+    timezone: string;
+    daily_local_time: string;
+    effective_at: string;
+  };
+  service_enabled: boolean;
+  service_mode: string;
+  next_run_utc: string;
+  pending_source_count: number;
+  oldest_pending_observed_at: string;
+  last_batch: {
+    local_date: string; timezone: string;
+    window_start_utc: string; window_end_utc: string;
+    evaluated_count: number; failed_count: number;
+    no_observation: boolean; closed_at: string;
+  } | null;
+}
+
+export async function getAdminEvalPolicy(): Promise<AdminEvalPolicyStatus> {
+  const res = await apiFetch(`${BASE}/admin/learner-evaluation-policy`);
+  if (!res.ok) throw new Error(`Get evaluation policy failed: ${res.status}`);
+  return res.json();
+}
+
+export async function setAdminEvalPolicy(body: {
+  evaluation_schedule: "immediate" | "daily_midnight";
+  timezone: string;
+  daily_local_time?: string;
+  expected_revision: number;
+}): Promise<{ policy: AdminEvalPolicyStatus["policy"]; released_backlog: number }> {
+  const res = await apiFetch(`${BASE}/admin/learner-evaluation-policy`, {
+    method: "PUT", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    const detail = await res.json().catch(() => null);
+    const code = detail?.detail?.error?.code || String(res.status);
+    throw new Error(code);
+  }
+  return res.json();
+}
+
 export async function getAdminOCRPolicy(): Promise<AdminOCRPolicy> {
   const res = await apiFetch(`${BASE}/admin/ocr-policy`);
   if (!res.ok) throw new Error(`Get OCR policy failed: ${res.status}`);

@@ -62,6 +62,11 @@ def job_deadline(job: S.EvaluationJob) -> datetime:
 def _claimable(rt, now: datetime) -> bool:
     job = rt.job
     if job.state == S.JobState.QUEUED:
+        # 阶段C：daily_midnight 受理的 job 在冻结的零点前不可认领
+        if job.eligible_after_utc:
+            eligible = _parse(job.eligible_after_utc)
+            if eligible is not None and now < eligible:
+                return False
         return True
     if job.state == S.JobState.RETRY_WAIT:
         nb = _parse(rt.retry_not_before)
@@ -86,7 +91,9 @@ class JobScheduler:
                 workspace_id: str = "", scope_revision: str = "",
                 priority: int = S.JobPriority.CURRENT_DIALOGUE.value,
                 parent_job_id: str = "",
-                prompt_binding: str = "") -> S.EvaluationJob:
+                prompt_binding: str = "",
+                scheduling: dict[str, str] | None = None
+                ) -> S.EvaluationJob:
         journal = get_journal(student_id)
         from app.core.config import settings
         budget = max(1, int(getattr(settings, "learner_eval_job_budget",
@@ -101,7 +108,14 @@ class JobScheduler:
             # R17：整个 job（初次 + transport 重试 + repair）的统一
             # wall-clock 预算在入队事务冻结，重启后不重置
             deadline_seconds=budget,
-            wall_deadline_at=_iso(_now() + timedelta(seconds=budget)))
+            wall_deadline_at=_iso(_now() + timedelta(seconds=budget)),
+            eligible_after_utc=str((scheduling or {}).get(
+                "eligible_after_utc") or ""),
+            local_activity_date=str((scheduling or {}).get(
+                "local_activity_date") or ""),
+            schedule_mode=str((scheduling or {}).get("schedule_mode") or ""),
+            policy_revision=int((scheduling or {}).get("policy_revision")
+                                or 0))
         journal.append([S.OpJobRequested(job=job)])
         # R01：唤醒后台 worker（空闲唤醒目标 ≤1s；未运行时 no-op）
         try:

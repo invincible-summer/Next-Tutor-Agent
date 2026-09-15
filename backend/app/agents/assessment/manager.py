@@ -397,9 +397,25 @@ async def evaluate_submission(
     # 原作答与可确定 MC 判分照常受理落盘；语义解释 job 不建（不积压
     # 付费重试），恢复 active 后新表现正常评价。
     evaluation_off = not learner_runtime.evaluation_enabled()
+    # 阶段C（§5.2/§6.2）：策略归属受理时冻结。daily_midnight 时：
+    # - MC 本题判定已随受理落盘（即时反馈保留）；
+    # - 开放题追加一个 task_only job（立即评价本题量规反馈，不发布
+    #   learner 判断）+ learner job（零点后语义解释）。两者同一 journal，
+    #   不新增第三种观察来源；成本变化已在配置说明记录。
+    from app.core.learner_evaluation_policy import (SCHEDULE_DAILY_MIDNIGHT,
+                                                    load_policy,
+                                                    scheduling_facts)
+    facts = scheduling_facts(receipt.observed_at, load_policy())
+    daily_mode = (not evaluation_off
+                  and facts["schedule_mode"] == SCHEDULE_DAILY_MIDNIGHT)
+    learner_facts = facts if daily_mode else {
+        "eligible_after_utc": "", "local_activity_date": "",
+        "schedule_mode": facts["schedule_mode"],
+        "policy_revision": facts["policy_revision"]}
     scheduler = learner_runtime.get_scheduler()
     ops: list[Any] = [S.OpSourceRegistered(source=receipt)]
     job = None
+    task_only_job = None
     if not evaluation_off:
         job = S.EvaluationJob(
             job_id="job_" + uuid.uuid4().hex[:16],
@@ -407,8 +423,23 @@ async def evaluate_submission(
             source_id=source_id, source_revision=1,
             workspace_id=workspace_id, scope_revision=receipt.scope_revision,
             priority=S.JobPriority.AWAITING_FEEDBACK.value,
-            created_at=S.utc_now_iso(), updated_at=S.utc_now_iso())
+            created_at=S.utc_now_iso(), updated_at=S.utc_now_iso(),
+            eligible_after_utc=learner_facts["eligible_after_utc"],
+            local_activity_date=learner_facts["local_activity_date"],
+            schedule_mode=learner_facts["schedule_mode"],
+            policy_revision=int(learner_facts["policy_revision"]))
         ops.append(S.OpJobRequested(job=job))
+        if daily_mode and task is not None and not mc:
+            task_only_job = S.EvaluationJob(
+                job_id="job_" + uuid.uuid4().hex[:16],
+                kind=S.JobKind.ASSESSMENT_EVALUATION,
+                source_id=source_id, source_revision=1,
+                workspace_id=workspace_id, scope_revision=receipt.scope_revision,
+                priority=S.JobPriority.AWAITING_FEEDBACK.value,
+                created_at=S.utc_now_iso(), updated_at=S.utc_now_iso(),
+                schedule_mode="task_only_immediate",
+                prompt_binding="task_only@1")
+            ops.append(S.OpJobRequested(job=task_only_job))
     if task_result is not None:
         # off 模式无语义 job：MC 判分事务用本地占位 job_id（journal 中
         # 无此 job → apply 不终结任何作业，仅落 TaskResult）
@@ -666,6 +697,15 @@ async def run_assessment_job(student_id: str, claimed: ClaimedJob, *,
                     "applicable": False,
                     "abstain_reason": "task_not_verified",
                     "observation_claims": [], "concept_updates": []})
+            # 阶段C §5.2：daily 模式的 task_only job——只提交本题量规
+            # 结果与反馈（TaskResult + criterion/first_error/feedback 全
+            # 保留），learner 判断显式弃权，零点由 learner job 再解释。
+            if job.schedule_mode == "task_only_immediate":
+                parsed.learner = parsed.learner.model_copy(update={
+                    "applicable": False,
+                    "abstain_reason": "task_only_deferred",
+                    "observation_claims": [], "concept_updates": [],
+                    "next_probe": None})
 
             task_result = mc_result
             if task is not None and task.q_type != S.QuestionType.MULTIPLE_CHOICE:

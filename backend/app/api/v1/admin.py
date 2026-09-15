@@ -202,6 +202,69 @@ async def update_textbook_pipeline_policy(
         raise HTTPException(400, str(exc))
 
 
+class LearnerEvaluationPolicyRequest(BaseModel):
+    model_config = {"extra": "forbid"}
+    evaluation_schedule: str = Field(pattern="^(immediate|daily_midnight)$")
+    timezone: str = Field(min_length=1, max_length=64)
+    daily_local_time: str = Field(default="00:00", pattern="^00:00$")
+    expected_revision: int = Field(ge=1, le=1_000_000)
+
+
+@router.get("/learner-evaluation-policy")
+def get_learner_evaluation_policy(admin: User = Depends(require_admin)) -> dict:
+    """阶段C（update_plan §5.3）：当前策略 + 面板状态（下次执行/待评价量/
+    最旧等待/上批次状态）。不暴露用户原始作答或 prompt。"""
+    from app.core import learner_evaluation_policy as lep
+    from app.core.config import settings
+    from app.agents.student_model.evaluation.schedule import (
+        pending_daily_status)
+    out = lep.status_summary()
+    out["service_enabled"] = (settings.learner_evaluation_mode == "active")
+    out["service_mode"] = settings.learner_evaluation_mode
+    stats = pending_daily_status()
+    out.update(stats)
+    return out
+
+
+@router.put("/learner-evaluation-policy")
+async def update_learner_evaluation_policy(
+        req: LearnerEvaluationPolicyRequest,
+        admin: User = Depends(require_admin)) -> dict:
+    """PATCH 语义：白名单字段 + expected_revision CAS（冲突 409）；保存后
+    读回确认。2 → 1 立即释放未到期 backlog（§5.4）。"""
+    from app.core import learner_evaluation_policy as lep
+    from app.agents.student_model.evaluation import schedule as sched
+    try:
+        old = lep.load_policy(refresh=True)
+        new = lep.update_policy(
+            evaluation_schedule=req.evaluation_schedule,
+            timezone_name=req.timezone,
+            expected_revision=req.expected_revision)
+    except lep.PolicyConflict as exc:
+        raise _admin_error(409, "policy_revision_conflict", str(exc))
+    except lep.PolicyInvalid as exc:
+        raise _admin_error(422, "policy_invalid", str(exc))
+    released = 0
+    if (old["evaluation_schedule"] == lep.SCHEDULE_DAILY_MIDNIGHT
+            and new["evaluation_schedule"] == lep.SCHEDULE_IMMEDIATE):
+        released = sched.release_backlog()
+        try:
+            from app.agents.student_model.evaluation.worker import (
+                notify_evaluation_worker)
+            notify_evaluation_worker()
+        except Exception:
+            pass
+    # 读回确认（§5.3）
+    confirmed = lep.load_policy(refresh=True)
+    return {"policy": confirmed, "released_backlog": released}
+
+
+def _admin_error(status: int, code: str, message: str):
+    from fastapi import HTTPException
+    return HTTPException(status_code=status,
+                         detail={"error": {"code": code, "message": message}})
+
+
 @router.get("/prompt-memory-policy")
 def get_prompt_memory_policy(admin: User = Depends(require_admin)) -> dict:
     from app.agents.memory.prompt_memory import get_policy

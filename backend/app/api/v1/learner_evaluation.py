@@ -321,6 +321,29 @@ async def job_detail(job_id: str,
     }
 
 
+@router.get("/schedule")
+def schedule_status(student_id: str = Depends(resolve_student_id)):
+    """阶段C（§5.3）：普通用户只读调度说明——专用 DTO，不读管理员配置
+    文件；无权限差异内容（mode/时区/下次执行/与自己相关的解释文案）。"""
+    from app.core import learner_evaluation_policy as lep
+    from app.core.config import settings
+    policy = lep.load_policy()
+    mode = policy["evaluation_schedule"]
+    tz = policy["timezone"]
+    next_run = ""
+    if mode == lep.SCHEDULE_DAILY_MIDNIGHT:
+        next_run = lep.status_summary()["next_run_utc"]
+    return {
+        "evaluation_schedule": mode,
+        "timezone": tz,
+        "next_run_utc": next_run,
+        "service_mode": settings.learner_evaluation_mode,
+        "description": (
+            "每轮对话/每次练习后立即评价" if mode == "immediate"
+            else f"每天 00:00（{tz}）汇总前一自然日"),
+    }
+
+
 @router.get("/jobs/{job_id}/events")
 async def job_events(job_id: str, last_event_id: str = Header(default=""),
                      student_id: str = Depends(resolve_student_id)):

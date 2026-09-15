@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/Badge";
 import { Tabs } from "@/components/ui/Tabs";
 import { AccountsPanel } from "@/components/pages/admin/AccountsPanel";
 import { PolicyPanel } from "@/components/pages/admin/PolicyPanel";
+import { EvaluationPolicyPanel } from "@/components/pages/admin/EvaluationPolicyPanel";
 import { OcrPanel } from "@/components/pages/admin/OcrPanel";
 import { TextbookPipelinePanel } from "@/components/pages/admin/TextbookPipelinePanel";
 import { TrashPanel } from "@/components/pages/admin/TrashPanel";
@@ -67,7 +68,12 @@ export default function AdminPage() {
         <AccountsPanel tr={tr} users={users} summary={summary}
           loading={loading} error={error} refresh={refresh} />
       )}
-      {tab === "policy" && <PolicyPanel tr={tr} />}
+      {tab === "policy" && (
+        <div className="flex flex-col gap-4">
+          <EvaluationPolicyPanel tr={tr} />
+          <PolicyPanel tr={tr} />
+        </div>
+      )}
       {tab === "ocr" && (
         <div className="flex flex-col gap-4">
           <OcrPanel tr={tr} />

@@ -131,6 +131,8 @@ class JobRuntimeState:
 @dataclass
 class JournalState:
     student_id: str
+    daily_batches: dict[str, dict[str, Any]] = field(
+        default_factory=dict)  # local_date -> batch record（阶段C）
     generation: str = ""
     last_seq: int = 0
     corrupt: bool = False
@@ -221,6 +223,20 @@ def _apply_op(state: JournalState, op: Any) -> None:
         rt = state.jobs.get(op.job_id)
         if rt is not None:
             rt.job.state = S.JobState.CANCELLED
+    elif isinstance(op, S.OpJobRescheduled):
+        rt = state.jobs.get(op.job_id)
+        if rt is not None:
+            rt.job.eligible_after_utc = ""
+    elif isinstance(op, S.OpDailyBatchClosed):
+        state.daily_batches[op.local_date] = {
+            "local_date": op.local_date, "timezone": op.timezone,
+            "window_start_utc": op.window_start_utc,
+            "window_end_utc": op.window_end_utc,
+            "candidate_source_ids": list(op.candidate_source_ids),
+            "evaluated_count": op.evaluated_count,
+            "failed_count": op.failed_count,
+            "no_observation": op.no_observation,
+            "closed_at": S.utc_now_iso()}
     elif isinstance(op, S.OpResultCommitted):
         _apply_result_committed(state, op)
     elif isinstance(op, S.OpReviewRequested):

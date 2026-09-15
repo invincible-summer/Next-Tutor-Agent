@@ -90,8 +90,13 @@ async def _lifespan(app: FastAPI):
         if learner_runtime.evaluation_enabled():
             def _start_worker() -> None:
                 get_evaluation_worker().start()
-            await run_bootstrap_step(report, "evaluation_worker",
-                                     _start_worker)
+
+            def _start_planner() -> None:
+                from app.agents.student_model.evaluation.schedule import (
+                    get_daily_planner)
+                get_daily_planner().start()
+            await run_bootstrap_step(report, "evaluation_daily_planner",
+                                     _start_planner)
     except Exception:
         log.warning("evaluation worker not started", exc_info=True)
 
@@ -125,6 +130,13 @@ async def _lifespan(app: FastAPI):
             await get_evaluation_worker().stop()
         except Exception:
             log.warning("shutdown: evaluation worker stop failed",
+                        exc_info=True)
+        try:
+            from app.agents.student_model.evaluation.schedule import (
+                get_daily_planner)
+            await get_daily_planner().stop()
+        except Exception:
+            log.warning("shutdown: daily planner stop failed",
                         exc_info=True)
         try:
             from app.core.textbook_ocr import cancel_all_textbook_ocr

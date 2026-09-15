@@ -22,6 +22,19 @@ if str(_BACKEND) not in sys.path:
     sys.path.insert(0, str(_BACKEND))
 
 
+class _PolicyCacheReset:
+    """策略缓存随沙箱生命周期重置（start/stop 与 patcher 同接口）。"""
+
+    def __init__(self, module) -> None:
+        self._module = module
+
+    def start(self) -> None:
+        self._module.reset_policy_cache()
+
+    def stop(self) -> None:
+        self._module.reset_policy_cache()
+
+
 def patch_all_storage_roots(root: Path) -> list:
     """把全部存储根常量 patch 到 <root>/ 标准布局并启动，返回 patch 列表。
 
@@ -40,11 +53,17 @@ def patch_all_storage_roots(root: Path) -> list:
     from app.agents.teaching_engine import guidance_store, teaching_log
     from app.agents.ux_intelligence import store as ux_store
     from app.core import context, learning_episodes, library, notes
+    from app.core import learner_evaluation_policy
     from app.core import session, textbook, trash, usage_docs, workspace
     from app.core import vector_store
     from app.core.config import settings
     patches = [
         patch.object(trash, "_TRASH_DIR", root / "chat_history" / "trash"),
+        # 阶段C：策略文件是全局设置（不入账号清理），但测试必须落沙箱
+        patch.object(learner_evaluation_policy, "POLICY_FILE",
+                     root / "chat_history" / "settings" /
+                     "learner_evaluation_policy.json"),
+        _PolicyCacheReset(learner_evaluation_policy),
         patch.object(trash, "_GLOBAL_POLICY",
                      root / "chat_history" / "trash" / "policy.json"),
         patch.object(session, "_SESSIONS_DIR", root / "chat_history"),

@@ -897,6 +897,11 @@ class EvaluationJob(StrictModel):
     repair_used: bool = False
     deadline_seconds: int = Field(default=120, ge=1, le=600)
     wall_deadline_at: str = Field(default="", max_length=40)
+    # §6.2 调度归属（update_plan 阶段C）：服务端事实，不接受客户端自报
+    eligible_after_utc: str = Field(default="", max_length=40)
+    local_activity_date: str = Field(default="", max_length=10)
+    schedule_mode: str = Field(default="", max_length=16)
+    policy_revision: int = Field(default=0, ge=0, le=1_000_000)
     error_code: str = Field(default="", max_length=64)
     input_hash: str = Field(default="", max_length=96)
     prompt_binding: str = Field(default="", max_length=192)
@@ -904,7 +909,7 @@ class EvaluationJob(StrictModel):
     updated_at: str = ""
 
     @field_validator("created_at", "updated_at", "lease_expires_at",
-                     "wall_deadline_at")
+                     "wall_deadline_at", "eligible_after_utc")
     @classmethod
     def _utc_opt(cls, v: str) -> str:
         return _check_utc(v) if v else v
@@ -1063,6 +1068,37 @@ class OpJobCancelled(_OpBase):
     reason: str = Field(default="", max_length=300)
 
 
+class OpJobRescheduled(_OpBase):
+    """阶段C（§5.4 2→1）：策略切换立即放行——清空未到期 job 的冻结
+    eligible_after（受理事实不重写，只解除调度门）。"""
+    op: Literal["job_rescheduled"] = "job_rescheduled"
+    job_id: str = Field(min_length=1, max_length=64)
+    reason: str = Field(default="", max_length=120)
+
+
+class OpDailyBatchClosed(_OpBase):
+    """阶段C（§6.2 日批次）：该自然日窗口全部候选已有最终处置。
+
+    no_observation=True 表示窗口内有候选但零评价零失败（如全部受理于
+    off）——明确记录，不编造综合。
+    """
+    op: Literal["daily_batch_closed"] = "daily_batch_closed"
+    local_date: str = Field(min_length=10, max_length=10)
+    timezone: str = Field(min_length=1, max_length=64)
+    window_start_utc: str
+    window_end_utc: str
+    candidate_source_ids: list[str] = Field(default_factory=list,
+                                            max_length=200)
+    evaluated_count: int = Field(default=0, ge=0, le=100000)
+    failed_count: int = Field(default=0, ge=0, le=100000)
+    no_observation: bool = False
+
+    @field_validator("window_start_utc", "window_end_utc")
+    @classmethod
+    def _utc(cls, v: str) -> str:
+        return _check_utc(v)
+
+
 class OpResultCommitted(_OpBase):
     op: Literal["result_committed"] = "result_committed"
     job_id: str = Field(min_length=1, max_length=64)
@@ -1173,7 +1209,8 @@ JournalOperation = Annotated[
     Union[
         OpQuestionRegistered, OpAssistanceRecorded, OpSourceRegistered,
         OpSourceRevised, OpJobRequested, OpJobLeased, OpJobInputPrepared,
-        OpJobSubresultStaged, OpJobFailed, OpJobCancelled, OpResultCommitted,
+        OpJobSubresultStaged, OpJobFailed, OpJobCancelled, OpJobRescheduled,
+        OpDailyBatchClosed, OpResultCommitted,
         OpReviewRequested, OpReviewResolved, OpReviewDismissed,
         OpInterpretationRevoked,
         OpSynthesisCommitted, OpScopeChanged, OpSourceArchived,
@@ -1193,6 +1230,8 @@ JOURNAL_OPERATION_TYPES: dict[str, type[_OpBase]] = {
     "job_subresult_staged": OpJobSubresultStaged,
     "job_failed": OpJobFailed,
     "job_cancelled": OpJobCancelled,
+    "job_rescheduled": OpJobRescheduled,
+    "daily_batch_closed": OpDailyBatchClosed,
     "result_committed": OpResultCommitted,
     "review_requested": OpReviewRequested,
     "review_resolved": OpReviewResolved,

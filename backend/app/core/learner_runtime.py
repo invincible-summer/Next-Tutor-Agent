@@ -131,5 +131,16 @@ def reset_learner_runtime() -> None:
         set_evaluation_worker(None)
     except Exception:
         pass
+    try:
+        from app.agents.student_model.evaluation.schedule import (
+            set_daily_planner)
+        set_daily_planner(None)
+    except Exception:
+        pass
+    try:
+        from app.core.learner_evaluation_policy import reset_policy_cache
+        reset_policy_cache()
+    except Exception:
+        pass
     reset_journal_cache()
     set_scope_resolver(None)
