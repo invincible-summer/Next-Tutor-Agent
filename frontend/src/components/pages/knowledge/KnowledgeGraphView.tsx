@@ -63,6 +63,7 @@ export function KnowledgeGraphView({
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const [view, setView] = useState<View>({ k: 1, x: 0, y: 0 });
+  const [focusedId, setFocusedId] = useState("");
   const [dragging, setDragging] = useState(false);
   const drag = useRef<{ px: number; py: number; moved: boolean } | null>(null);
   // 任一名超宽 → 该节点两行渲染，整图节点盒统一加高（分层间距同步增大）。
@@ -206,6 +207,7 @@ export function KnowledgeGraphView({
             const hit = matched.has(n.id);
             const dim = hasQuery && !hit;
             const selected = selectedId === n.id;
+            const focused = focusedId === n.id;
             const evalState = n.evaluation?.state ?? null;
             const vis = evalStateVisual(evalState);
             const onDark = vis.ring === "supported";
@@ -230,11 +232,23 @@ export function KnowledgeGraphView({
                 key={n.id}
                 transform={`translate(${it.cx - it.w / 2} ${it.cy - effNodeH / 2})`}
                 opacity={dim ? 0.28 : 1}
-                className="cursor-pointer"
+                className="cursor-pointer focus:outline-none"
+                tabIndex={0}
+                role="button"
+                aria-label={`${n.name} · ${n.subject} · ${et(lang, `eval.state.${evalState ?? "not_observed"}`)}`}
+                onFocus={() => setFocusedId(n.id)}
+                onBlur={() => setFocusedId((f) => (f === n.id ? "" : f))}
+                onKeyDown={(e) => {
+                  // R24：键盘可达——Enter/Space 打开概念抽屉（同指针点击）
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    onSelect(n);
+                  }
+                }}
               >
                 <title>{`${n.name} · ${n.subject} · ${et(lang, `eval.state.${evalState ?? "not_observed"}`)}`}</title>
-                {selected && (
-                  <rect x={-3} y={-3} width={it.w + 6} height={effNodeH + 6} rx={9} fill="none" stroke="rgb(var(--accent))" strokeWidth={2.4} />
+                {(selected || focused) && (
+                  <rect x={-3} y={-3} width={it.w + 6} height={effNodeH + 6} rx={9} fill="none" stroke="rgb(var(--accent))" strokeWidth={selected ? 2.4 : 1.6} strokeDasharray={selected ? undefined : "3 2"} />
                 )}
                 {!selected && hit && hasQuery && (
                   <rect x={-3} y={-3} width={it.w + 6} height={effNodeH + 6} rx={9} fill="none" stroke="rgb(var(--accent2))" strokeWidth={2} />

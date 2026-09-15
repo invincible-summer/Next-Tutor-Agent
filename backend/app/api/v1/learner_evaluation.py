@@ -441,18 +441,17 @@ async def create_review(source_id: str, req: ReviewCreateRequest,
         scope_revision=src.receipt.scope_revision,
         priority=S.JobPriority.REVIEW.value,
         created_at=S.utc_now_iso(), updated_at=S.utc_now_iso())
-    # 受理 + job 同一事务（R06）
+    # 受理 + job 同一事务（R06）；执行由 R01 worker 按 JobKind 路由认领
+    # （R02 原则：HTTP 请求不做模型等待——旧 inline 路径还会在无注入
+    # runner 的环境里打真实 LLM）。
     journal.append([S.OpJobRequested(job=job),
                     S.OpReviewRequested(review=review, job_id=job.job_id)])
-    # inline 执行本 job（worker 上线后由 dispatcher 认领；这里只认领
-    # 指定 job，不排空其他类型作业）
-    claimed = scheduler.claim_job(student_id, job.job_id)
-    if claimed is not None:
-        from app.agents.student_model.evaluation.evaluator import (
-            run_review_job)
-        await run_review_job(student_id, claimed,
-                             runner=learner_runtime.get_evaluation_runner(),
-                             scheduler=scheduler)
+    try:
+        from app.agents.student_model.evaluation.worker import (
+            notify_evaluation_worker)
+        notify_evaluation_worker()
+    except Exception:
+        pass
     return {"review_id": review.review_id, "job_id": job.job_id}
 
 
@@ -529,11 +528,38 @@ async def backfill(wid: str, req: BackfillRequest,
         if src is None or src.availability != "available":
             skipped.append({"source_id": sid, "reason": "not_available"})
             continue
+        # R22：逐条资格——受理时归属别的区/无区的来源不自动评价（历史
+        # 归属以 observed_at 的 workspace_id_at_observation 为准）
+        if src.receipt.workspace_id_at_observation != wid:
+            skipped.append({"source_id": sid,
+                            "reason": "workspace_mismatch"})
+            continue
+        # R22：assessment 来源缺任务冻结材料（完整答案/量规/审核）只归档
+        task = None
+        if src.receipt.kind == S.SourceKind.ASSESSMENT:
+            ref = src.receipt.task_ref
+            if ref is None:
+                skipped.append({"source_id": sid,
+                                "reason": "missing_task_snapshot"})
+                continue
+            task = state.tasks.get(ref.question_id, {}).get(
+                ref.question_revision)
+            if task is None:
+                skipped.append({"source_id": sid,
+                                "reason": "missing_task_snapshot"})
+                continue
         if not src.current_interpretation_id:
+            # R22：kind 保持原 source_kind 语义（此前非迁移 assessment 被
+            # 错排成 dialogue_evaluation）
+            if src.receipt.kind == S.SourceKind.DIALOGUE:
+                kind = (S.JobKind.BACKFILL
+                        if src.receipt.provenance ==
+                        S.SourceProvenance.MIGRATION
+                        else S.JobKind.DIALOGUE_EVALUATION)
+            else:
+                kind = S.JobKind.ASSESSMENT_EVALUATION
             job = scheduler.enqueue(
-                student_id,
-                kind=S.JobKind.BACKFILL if src.receipt.provenance ==
-                S.SourceProvenance.MIGRATION else S.JobKind.DIALOGUE_EVALUATION,
+                student_id, kind=kind,
                 source_id=sid, source_revision=src.receipt.source_revision,
                 workspace_id=wid, scope_revision=scope.scope_revision,
                 priority=S.JobPriority.BACKFILL.value)

@@ -88,13 +88,17 @@ async def _lifespan(app: FastAPI):
         from app.agents.student_model.evaluation.worker import (
             EvaluationWorker, get_evaluation_worker)
         if learner_runtime.evaluation_enabled():
-            def _start_worker() -> None:
+            async def _start_worker() -> None:
+                # run_bootstrap_step 会 await 步骤函数；asyncio.create_task
+                # 需在运行中的事件循环内执行（lifespan 线程即循环线程）
                 get_evaluation_worker().start()
 
-            def _start_planner() -> None:
+            async def _start_planner() -> None:
                 from app.agents.student_model.evaluation.schedule import (
                     get_daily_planner)
                 get_daily_planner().start()
+            await run_bootstrap_step(report, "evaluation_worker",
+                                     _start_worker)
             await run_bootstrap_step(report, "evaluation_daily_planner",
                                      _start_planner)
     except Exception:

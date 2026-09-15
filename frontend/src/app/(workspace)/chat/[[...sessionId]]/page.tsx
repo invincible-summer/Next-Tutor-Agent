@@ -87,6 +87,9 @@ function ChatWorkspace() {
   const deepPrefill = searchParams.get("q");
   const deepSend = searchParams.get("send");
   const legacySession = searchParams.get("s");
+  // R12：来自 Memory/图谱的"开始验证"深链携带工作区——新对话绑定该区，
+  // 评价来源归属可信（服务端 resolve_submission_binding 仍复核）。
+  const deepWs = searchParams.get("ws");
 
   // Backward compat: old /chat?s=<id> deep links redirect to /chat/<id>.
   useEffect(() => {
@@ -101,6 +104,10 @@ function ChatWorkspace() {
     getUxGreeting(lang, grade).then((g) => setGreeting(g.greeting || "")).catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    if (deepWs) sessionStorage.setItem("edu-agent-active-ws", deepWs);
+  }, [deepWs]);
 
   useEffect(() => {
     const refresh = () => {

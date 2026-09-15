@@ -362,3 +362,5 @@
 {"ts": 1788233844.0252397, "student_id": "usr_12e410b4e2", "session_id": "chat_20260901_113617_傅里叶变化有什么知识点以及应用_总结一下", "concept": "傅里叶变换及其应用", "type": "quality", "feedback": "none", "response_length": 1200, "note": "score=0.45 failure=too_verbose"}
 {"ts": 1788233974.996948, "student_id": "usr_12e410b4e2", "session_id": "chat_20260901_113617_傅里叶变化有什么知识点以及应用_总结一下", "concept": "", "type": "response", "feedback": "none", "response_length": 154, "note": "154 chars"}
 {"ts": 1788233974.996986, "student_id": "usr_12e410b4e2", "session_id": "chat_20260901_113617_傅里叶变化有什么知识点以及应用_总结一下", "concept": "", "type": "quality", "feedback": "none", "response_length": 154, "note": "score=0.85 failure=none"}
+{"ts": 1789465203.181682, "student_id": "usr_12e410b4e2", "session_id": "chat_20260915_173849_请出几道关于能量形式信噪比的题目考我", "concept": "能量形式信噪比", "type": "response", "feedback": "none", "response_length": 50, "note": "50 chars"}
+{"ts": 1789465203.1817396, "student_id": "usr_12e410b4e2", "session_id": "chat_20260915_173849_请出几道关于能量形式信噪比的题目考我", "concept": "能量形式信噪比", "type": "quality", "feedback": "none", "response_length": 50, "note": "score=0.85 failure=none"}

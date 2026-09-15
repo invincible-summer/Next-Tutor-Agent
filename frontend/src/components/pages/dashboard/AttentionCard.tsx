@@ -39,7 +39,7 @@ export function AttentionCard({
             return (
               <Link
                 key={w.workspace_id}
-                href="/memory"
+                href={"/memory?ws=" + encodeURIComponent(w.workspace_id)}
                 className="block rounded-[8px] px-2 py-2 transition-colors hover:bg-surface-hover"
               >
                 <div className="flex items-center justify-between gap-2">

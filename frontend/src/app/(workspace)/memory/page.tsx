@@ -312,7 +312,10 @@ function LearningArchiveRegion({ tr, lang }: { tr: (k: string, f?: string) => st
         if (!alive) return;
         const items = r.items || [];
         setWss(items);
-        setWsId((prev) => prev || items[0]?.workspace_id || "");
+        // R12：Dashboard/图谱深链 ?ws= 优先于默认第一个学习区
+        const deepWs = new URLSearchParams(window.location.search).get("ws") || "";
+        const wanted = items.some((w) => w.workspace_id === deepWs) ? deepWs : "";
+        setWsId((prev) => prev || wanted || items[0]?.workspace_id || "");
       })
       .catch(() => {
         if (!alive) return;
@@ -482,7 +485,10 @@ function LearningArchiveRegion({ tr, lang }: { tr: (k: string, f?: string) => st
   const probe = summary?.synthesis?.priority_probe || null;
 
   const startProbe = (p: EvalNextProbe) => {
-    router.push(`/chat?q=${encodeURIComponent(p.instruction)}&send=1`);
+    // R12：深链携带来源工作区——新对话/作答在服务端绑定该区，产生的
+    // source 归属原判断的工作区；后续经概念/原文/图谱可回到同一处。
+    const ws = wsId ? `&ws=${encodeURIComponent(wsId)}` : "";
+    router.push(`/chat?q=${encodeURIComponent(p.instruction)}&send=1${ws}`);
   };
 
   return (

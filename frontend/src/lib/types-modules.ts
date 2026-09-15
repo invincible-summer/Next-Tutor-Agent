@@ -593,6 +593,11 @@ export interface EvalEvidenceDetail {
     issue_kind: string;
     requested_at: string;
     status?: string;
+    /** R24：真实决定（uphold/revise/invalidate/insufficient_evidence）；
+     * 空串 = 仍在复核。 */
+    decided_kind?: string;
+    decided_at?: string;
+    resolution_note?: string;
   }>;
 }
 

@@ -183,3 +183,4 @@
 {"ts": 1788233477.3914852, "type": "turn_recorded", "payload": {"concept": "", "verdict": "", "emitted": 0}}
 {"ts": 1788233844.0393672, "type": "turn_recorded", "payload": {"concept": "傅里叶变换及其应用", "verdict": "", "emitted": 0}}
 {"ts": 1788233975.0111854, "type": "turn_recorded", "payload": {"concept": "", "verdict": "", "emitted": 0}}
+{"ts": 1789465203.2077434, "type": "turn_recorded", "payload": {"concept": "能量形式信噪比", "emitted": 0}}

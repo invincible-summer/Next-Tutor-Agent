@@ -410,8 +410,8 @@
     }
   ],
   "advisor": {
-    "traces_since_last": 4,
+    "traces_since_last": 5,
     "last_ts": 1788228659.8233607
   },
-  "updated_at": 1788746149.5721226
+  "updated_at": 1789465203.1741285
 }

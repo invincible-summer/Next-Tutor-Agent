@@ -29,6 +29,12 @@ const T = {
     empty: "尚无学习证据",
     emptyDesc: "完成一次对话讲解或习题作答后，这里会出现对应证据。",
     review: "复核中",
+    decided: {
+      uphold: "复核维持原判读",
+      revise: "复核修正判读",
+      invalidate: "复核撤销判读",
+      insufficient_evidence: "证据不足·待再核对",
+    },
     deleted: "材料已删除",
     raw: "你的原始表现",
     task: "题目",
@@ -67,6 +73,12 @@ const T = {
     empty: "No learning evidence yet",
     emptyDesc: "Evidence appears here after a dialogue explanation or an assessment answer.",
     review: "Under review",
+    decided: {
+      uphold: "Review upheld",
+      revise: "Review revised",
+      invalidate: "Review invalidated",
+      insufficient_evidence: "Insufficient evidence",
+    },
     deleted: "Material deleted",
     raw: "Your original response",
     task: "Question",
@@ -333,12 +345,24 @@ export function EvidenceDetailDrawer({
             <section>
               <p className="mb-1 text-[0.7rem] font-medium text-fg-secondary">{t.reviews}</p>
               <ul className="space-y-1">
-                {detail.reviews.map((r) => (
-                  <li key={r.review_id} className="rounded-[8px] border border-border-light bg-surface px-2.5 py-2 text-[0.72rem] leading-relaxed text-fg-secondary">
-                    <Badge tone="info" className="mr-1.5">{t.review}</Badge>
-                    {r.reason}
-                  </li>
-                ))}
+                {detail.reviews.map((r) => {
+                  // R24：展示真实决定与时间——"复核中"只用于仍在途的复核
+                  const kind = (r.decided_kind || "").trim();
+                  const label = kind && t.decided[kind as keyof typeof t.decided];
+                  return (
+                    <li key={r.review_id} className="rounded-[8px] border border-border-light bg-surface px-2.5 py-2 text-[0.72rem] leading-relaxed text-fg-secondary">
+                      <Badge tone={label ? "success" : "info"} className="mr-1.5">
+                        {label || t.review}
+                      </Badge>
+                      {r.reason}
+                      {label && r.decided_at && (
+                        <span className="ml-1 text-muted">
+                          {new Date(r.decided_at).toLocaleDateString()}
+                        </span>
+                      )}
+                    </li>
+                  );
+                })}
               </ul>
             </section>
           )}
