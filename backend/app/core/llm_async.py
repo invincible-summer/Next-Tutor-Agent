@@ -259,9 +259,22 @@ class AsyncLLMClient:
                     return "", None, f"status_{e.status_code}"
                 return "", None
 
-def get_llm() -> AsyncLLMClient:
-    return AsyncLLMClient()
+def get_llm(purpose: str = "") -> AsyncLLMClient:
+    """Return the shared client, with a bounded fast lane for quiz calls.
 
+    The normal tutor client keeps its historical model and retry behavior.
+    CAT/structured-question generation is short JSON work: using the light
+    model and disabling SDK-level retries avoids multiplying a single failed
+    request by both the SDK and the application's own bounded fallback.
+    """
+    if purpose == "quiz":
+        return AsyncLLMClient(
+            model=settings.quiz_model,
+            sdk_max_retries=settings.quiz_sdk_max_retries,
+            retry_max=settings.quiz_retry_max,
+            retry_base_delay=settings.quiz_retry_base_delay,
+        )
+    return AsyncLLMClient()
 
 
 

@@ -233,7 +233,8 @@ async def _revise_after_critic(
 async def generate_question(goal: AssessmentGoal, ctx: AssessmentContext,
                             *, llm: "AsyncLLMClient",
                             student_id: str = "",
-                            budget: GenerationBudget | None = None) -> "Question | None":
+                            budget: GenerationBudget | None = None,
+                            use_blueprint: bool = True) -> "Question | None":
     """Generate one constraint-driven question. Returns None on any failure.
 
     The difficulty comes from the AssessmentContext (which the supervisor
@@ -262,14 +263,17 @@ async def generate_question(goal: AssessmentGoal, ctx: AssessmentContext,
     # 只读 ctx.grounding_sources。
     grounding_context, ref_map = _ctx_grounding_context(ctx)
     strict_textbook = bool(ctx.grounding_required and ref_map)
-    # 两轮出题（QUIZ_DESIGN_MODE=two_pass）：先跑蓝图设计轮（单题的设计要点：
-    # 深层考点、陷阱、如何体现约束），失败自动回退单轮。focus 用约束子能力。
-    from ...core.quiz_design import design_blueprint
-    blueprint, _design_status = await design_blueprint(
-        llm, topic=concept, grade=grade,
-        difficulty=_difficulty_label(difficulty), count=1,
-        focus="、".join(goal.assesses) if goal.assesses else "",
-        grounding_context=grounding_context, illustration_policy=policy)
+    # Chat/工具出题保留 two-pass 设计。CAT 的单题首屏走 fast path：蓝图
+    # 是质量增强而非题卡合同，跳过它可少一次串行 LLM 请求；生成仍经过
+    # 同一 SVG 规范化和 critic 质量门。
+    blueprint = ""
+    if use_blueprint:
+        from ...core.quiz_design import design_blueprint
+        blueprint, _design_status = await design_blueprint(
+            llm, topic=concept, grade=grade,
+            difficulty=_difficulty_label(difficulty), count=1,
+            focus="、".join(goal.assesses) if goal.assesses else "",
+            grounding_context=grounding_context, illustration_policy=policy)
     prompt = _build_gen_prompt(grade=grade, concept=concept, difficulty=difficulty,
                                goal=goal, q_type=q_type,
                                bloom_context=bloom_context, blueprint=blueprint)

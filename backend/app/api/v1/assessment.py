@@ -8,6 +8,7 @@
 """
 from __future__ import annotations
 
+import time
 import uuid
 from typing import Any, Literal
 
@@ -393,13 +394,17 @@ async def _generate_cat_question(student_id: str, instance: cat.CatInstance,
     from app.agents.assessment.generator import generate_question
     from app.agents.assessment.state import (AssessmentContext,
                                              AssessmentGoal)
+    from app.core.config import settings
     from app.core.quiz_generation_budget import GenerationBudget
     from app.core.quiz_illustration_policy import resolve_illustration_policy, IllustrationDisabled
     try:
         policy = resolve_illustration_policy(student_id, instance.illustration_request)
     except IllustrationDisabled as exc:
         raise api_error(409, exc.code, str(exc))
-    budget = GenerationBudget() if policy != "off" else None
+    budget = (GenerationBudget(
+        max_calls=settings.assessment_generation_max_calls,
+        deadline=time.monotonic() + settings.assessment_generation_deadline_seconds)
+              if policy != "off" else None)
     ctx_kwargs: dict[str, Any] = {}
     # M5 教材 grounding：工作区已选教材即命题证据 scope（非 strict；
     # strict 语义由 P2 unsupported 审核承担）
@@ -438,23 +443,22 @@ async def _generate_cat_question(student_id: str, instance: cat.CatInstance,
     except Exception:
         avoid = []
     q = None
-    for attempt in range(3):
+    for attempt in range(settings.assessment_generation_max_attempts):
         if budget is not None and not budget.available:
             break
-        # 前两次按原难度重试（generator 内部已带 critic 修订回炉）；第三
-        # 次降一档难度兜底——高难度计算题的答案/解析不一致是 critic 连续
-        # 拒题的主要来源，降档可避免测评因 generation_failed 中断
-        # （§11.5 可用性）。
+        # 第二次只做一次有界降档兜底。每次 generator 仍共用同一个预算，
+        # 不再出现 3 次外层 × 蓝图/生成/审题/修订的串行放大。
         goal = AssessmentGoal(
             concept=instance.concept, purpose=instance.purpose,
             count=1, q_type=q_type,
             difficulty=max(1, instance.difficulty -
-                           (1 if attempt == 2 else 0)),
+                           (1 if attempt > 0 else 0)),
             assesses=list(instance.target_claims[:4]),
             avoid_stems=avoid, illustration_request=instance.illustration_request)
         try:
-            q = await generate_question(goal, ctx, llm=get_llm(),
-                                        student_id=student_id, budget=budget)
+            q = await generate_question(
+                goal, ctx, llm=get_llm("quiz"), student_id=student_id,
+                budget=budget, use_blueprint=False)
         except IllustrationDisabled as exc:
             raise api_error(409, exc.code, str(exc))
         if q is not None:

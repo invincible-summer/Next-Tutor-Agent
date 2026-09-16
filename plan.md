@@ -1,8 +1,8 @@
 # Edu_Agent：结构化题目 SVG 插图接入与简答题状态修复计划
 
-版本：1.2（实施中）；代码核对日期：2026-09-16。
+版本：1.3（实施中）；代码核对日期：2026-09-16。
 
-**最新执行状态：测评中心与 Chat 的结构化题卡已统一接入 SVG 题图；本轮又完成了 Chat 模糊出题语义识别和 V2/legacy 结构化题卡强制兜底。理解 LLM 现在输出独立的 `structured_quiz_request` 决策，词法语义评分只在模型失败或自相矛盾时兜底；模型漏调工具时仍自动调用 `generate_quiz/fit_quiz`，不会把新题正文直接交给学生。本轮已完成后端全量回归、前端 TypeScript、ESLint、生产构建，以及 fake LLM Playwright 图题用例；真实 LLM 学科抽样和生产部署仍未执行。测试结果与剩余人工验收见第 17 节。**
+**最新执行状态：测评中心与 Chat 的结构化题卡已统一接入 SVG 题图；本轮又完成了 Chat 模糊出题语义识别和 V2/legacy 结构化题卡强制兜底。理解 LLM 现在输出独立的 `structured_quiz_request` 决策，词法语义评分只在模型失败或自相矛盾时兜底；模型漏调工具时仍自动调用 `generate_quiz/fit_quiz`，不会把新题正文直接交给学生。针对 example 账号最近的 `generation_failed`，已完成真实 `deepseek-flash` 诊断和 CAT 快速路径修复：CAT 跳过非必要蓝图轮，使用独立快速模型/重试通道，保留 SVG 规范化与 critic，并以共享调用数/截止时间限制恢复尝试。fake LLM 与真实模型专项均已执行；完整生产部署仍未执行。测试结果与剩余人工验收见第 17 节。**
 
 **交付边界：设计阶段已完成，用户已授权按本计划实施 SVG 功能。** 第 17 节持续记录各阶段实际完成情况；代码实现与测试验收分开标记。第 15 节保留已落地的简答题修复记录。保留本次开始前已有的未提交修改，不回退正在进行的出题与评价改造。
 
@@ -74,7 +74,7 @@
 
 - GenerateQuiz：`max_tokens=5000`；FitQuiz：`8000`；M4 普通生成/局部修订：`1500`；critic：`2500`。把 SVG 直接追加到原 prompt 而不调整预算，很容易截断 JSON，造成题卡消失。
 - `GenerateQuizTool` 有题型不符合时交付结构合法备用题的分支；该分支不得绕过 `required` 和 SVG 安全校验。
-- `_generate_cat_question` 当前可尝试 3 次，generator 和 quiz_verify 内部也有重试/修订；不能再无边界嵌套图片重试。
+- `_generate_cat_question` 原来可尝试 3 次，generator 和 quiz_verify 内部也有重试/修订；实现时必须把 CAT 外层与内层放进同一有界预算，不能无边界嵌套图片重试。
 - 现有 `Question.id` 到稳定 `question_id` 的桥接已经存在；图的身份必须绑定稳定题号和 revision，不用题干前 60 字识别。
 - 工作区没有教材或没有长期学习评价，不意味着不能渲染题图或不能显示本题的批改结果。
 
@@ -349,7 +349,7 @@ JSON 解析
   -> SSE tool_result / CAT QuestionPublic
 ```
 
-原题型备用分支、critic 故障分支、M4 的 3 次外层重试和拟合出题全部遵循同一顺序。检查开关控制的是语义审核力度，不能关闭 SVG 安全门。
+原题型备用分支、critic 故障分支、M4 普通路径和拟合出题全部遵循同一顺序。CAT 使用同一安全门，但采用独立的快速模型和最多两次有界逻辑尝试；检查开关控制的是语义审核力度，不能关闭 SVG 安全门。
 
 ### 7.3 学科一致性核对
 
@@ -384,6 +384,7 @@ JSON 解析
 - auto 没图时也不新增独立绘图调用；有图将预估输出预算纳入原生成调用。建议初始上限：聊天最多 5 题时 `min(16000, 5000 + 2200*count)`；fit 为 `min(18000, 8000 + 2200*count)`；M4 单题生成/修订上限 4500；图形 critic 最多 6000。
 - 上限是初始工程配置，不是已测性能承诺；须核对实际 provider/context 上限。允许图最多 24KiB 是安全上限，prompt 应要求典型图 2–6KiB，避免把预算都用在 path 数据。
 - 增加共享 `GenerationBudget`（概念接口）：记录截止时间、已调用次数、图修订次数，并贯穿外层 CAT 和内层 generator。初始每个最终题候选最多 1 次插图修订；必须消费现有重试配额，不额外乘上 3×2×2。无预算返回 partial/failure。
+- CAT 首题默认使用 `get_llm("quiz")` 快速通道：`QUIZ_MODEL` 优先，其次 `DEEPSEEK_MODEL_LIGHT`，最后回退 `LLM_MODEL`；SDK 重试默认 0，应用层最多 2 次短重试。CAT 默认最多 2 次逻辑尝试、共享 6 次 logical completion、90 秒截止；`use_blueprint=False` 只作用于 CAT，普通 Chat/Fit 仍保留蓝图。若 critic 拒绝插图，修订提示词要求按题干事实完整重画 SVG，不得只改图注或伪造通过。
 - 第一阶段先把调用数、输出 tokens、p50/p95 时延记录出来，与 off 基线同批比较，再确定上线时限；不得在计划中把未测延迟写成保证。
 
 ## 8. 系统提示词准确变更方案
@@ -756,7 +757,7 @@ GET 状态的关键形状：
 
 ## 17. 实施进度（2026-09-16 起）
 
-状态区分代码、自动化检查和人工验收。自动化检查结果记录在 17.2；真实 LLM 学科抽样和生产发布仍未完成。
+状态区分代码、自动化检查、真实模型抽样和生产发布。自动化与真实模型结果记录在 17.2；生产发布仍未完成。
 
 | 阶段 | 实施状态 | 本轮记录 |
 |---|---|---|
@@ -766,7 +767,7 @@ GET 状态的关键形状：
 | S3 生成闭环 | 代码完成，自动化回归通过 | prompt 注册、蓝图、三个生成入口、安全校验/审题/一次修订/共享预算 |
 | S4 设置与控制面 | 代码完成，自动化回归通过 | prefs 原子合并、LLM 主导的模糊出题语义理解 + 有界兜底、结构化题卡 `auto_invoke`、v2/legacy/语音复用、CAT request 持久化及 409 |
 | S5 共享 UI | 代码完成，类型/Lint/构建通过 | `QuestionIllustration` 以图片上下文安全渲染；Chat、测评答题/反馈/总结/证据详情复用；设置与“本次必须配图”内嵌习题生成卡；中英文与真实 Button 控件 |
-| S6 测试与上线验收 | 图题/语义自动化完成，人工/真实 LLM 待执行 | 后端 1818 项（4 跳过）、前端类型/Lint/构建和图题/语义 Playwright 3 项通过；旧开放题暗色窄屏重测、学科抽样、部署仍待执行 |
+| S6 测试与上线验收 | 图题/语义自动化完成，真实 CAT 抽样完成，生产验收待执行 | 后端全量回归、前端类型/Lint/构建和图题/语义 Playwright 通过；example 账号失败样本已定位为 required SVG 生成/critic 链路并用 `deepseek-flash` 复测通过；旧开放题暗色窄屏重测、更多学科抽样、部署仍待执行 |
 
 
 ### 17.1 已落地清单（代码完成，不代表验收通过）
@@ -777,7 +778,7 @@ GET 状态的关键形状：
 - [x] S2：journal 原始 envelope 校验先于新增默认字段解析，旧图字段缺省兼容，不改旧记录和量规 hash。
 - [x] S3：新 `prompts/quiz_generation.py` 保留迁移模板、`quiz_illustration.py` 注册合同及增量版本；抽出纯文本 `quiz_rubric.py`，避免 registry/quiz_verify/quiz_design 相互 import。
 - [x] S3：generate_quiz / fit_quiz / M4 共用 SVG 校验与图题审核；off/basic 也不能跳过有图审核。模型自报 verification/rubric 不直接进入权威数据；坏图不进入 raw preview。
-- [x] S3：共享 `GenerationBudget` 默认 7 次逻辑 complete 调用、180 秒、最多 1 次修订；CAT 外层重试共用；记录逻辑调用次数、completion_tokens、elapsed_ms。底层 provider 自有网络重试不算新的逻辑调用，但仍受截止时间约束。
+- [x] S3：共享 `GenerationBudget` 默认 7 次逻辑 complete 调用、180 秒、最多 1 次修订；普通生成链路继续使用该预算。CAT 外层重试改为共享独立预算（默认最多 2 次逻辑尝试、6 次调用、90 秒），记录逻辑调用次数、completion_tokens、elapsed_ms。底层 provider 自有网络重试不算新的逻辑调用，但仍受截止时间约束。
 - [x] S4：账户 prefs 精确 bool 校验、锁内浅合并，增加 `quiz_svg_available`；Chat provider、TaskUnderstanding、显式计划、legacy、语音复用统一策略；匿名与兼容账户关闭。
 - [x] S4：Chat 新增 `structured_quiz_request` 控制字段和 `quiz_intent_system@1.0.0`；LLM 优先识别“给我来个题/考我一下/想练练/quiz me”等模糊新题语义，`new_question_request_score()` 仅在模型失败或自相矛盾时兜底；已有题求解与“不要出题”有否定护栏。V2/legacy 均在模型漏调工具时自动补调结构化题卡，并抑制临时文字题面。
 - [x] S4：CAT start/instance/next 贯通 `illustration_request`；关闭冲突在调用模型前拦截，保存前再次复查；冲突不将旧 CAT 终止，前端刷新后的下一题冲突仍可恢复。
@@ -793,7 +794,7 @@ GET 状态的关键形状：
 - 图题/语义 Playwright：`pnpm exec playwright test e2e/quiz-illustration.spec.ts --reporter=line` **3 项通过**（Chat 明确要求带图并验证题卡内 SVG、图片尺寸、放大/ Esc；Chat “考我一下”模糊表达仍进入结构化题卡；测评设置内嵌且开关可切换）。测试使用隔离 fake LLM 和 `QUIZ_SVG_ENABLED=1`，未连接真实模型或生产数据。
 - 原有结构化题卡回归：`pnpm exec playwright test e2e/quiz-card-contract.spec.ts --reporter=line` **1 项通过**；测评配置默认题量确认保持为 1。
 - Chat 语义专项：规则兜底覆盖“给我来个题/考我一下/想练练/quiz me”等新题表达；LLM 错误意图会被结构化字段护栏纠正，已有题求解与“不要出题”保持 direct answer；V2/legacy 的模型漏调工具均进入 `auto_invoke` 题卡调用。后端专项与既有 legacy 题卡测试全部通过。
-- 兼容性修复后重新执行了出题质量、CAT 生命周期、工作区 CAT、题目审计、提示词注册专项回归：**全部通过**。图题/语义 Playwright 3 项与结构化题卡回归 1 项均通过；真实 LLM/学科抽样和生产部署仍未执行。
+- 兼容性修复后重新执行了出题质量、CAT 生命周期、工作区 CAT、题目审计、提示词注册专项回归：**全部通过**。图题/语义 Playwright 3 项与结构化题卡回归 1 项均通过。2026-09-16 对 example 账号最近四条失败记录（均为 `illustration_request=required`，概念为“质心系角动量定理/完全非弹性碰撞”，失败耗时约 40–106 秒）完成复现分析：直接调用 `deepseek-flash` 的基础 JSON 请求成功，失败发生在 SVG 生成/critic 重试链路。修复后的 CAT 快速路径真实调用结果：质心系角动量定理 required 约 12.8 秒成功（含 SVG），完全非弹性碰撞 required 约 21.9 秒成功（含一次降档/重试与 SVG 审核），同概念 auto 无图约 6.2 秒成功；生产部署与更广泛学科抽样仍未完成。
 - `git diff --check` 与 Python `ast.parse` 静态检查继续通过；`python3 scripts/check_repository_invariants.py` 全部通过。没有修改生产私有记录、没有提交 Git、没有重启服务。
 - 部署闸门默认 1；账户偏好缺省 true，运维设为 0 时所有入口 fail-closed。生产启用仍需完成真实 LLM 学科与安全人工验收，不能把前端能展示开关当作质量验收。
 - 在途关闭开关采用明确失败/重新生成的边界，不在剩余时间里偷偷删图或无限重试。旧冻结图继续可看、原题重练可复用，这是“禁止生成新图”与“保留已交付题目”之间的约定。
@@ -814,4 +815,5 @@ GET 状态的关键形状：
 - [x] `pnpm exec tsc --noEmit`、ESLint、production build；单独验证新增组件和导入边界。
 - [x] Playwright 图题与模糊出题基础链路：图片上下文、题卡内渲染、放大与 Esc、“考我一下”进入题卡、测评设置真实 Button；3 项通过。
 - [ ] Playwright 完整图像上下文/CSP/零外部请求、浅深色/窄屏/保存失败/刷新；第 15.3 节暗色窄屏开放题提交超时仍待定位，未宣称已修好。
-- [ ] 学科抽样与 off/auto/required 成本、时延对比，生成失败/服务端无 XML 解析器时的降级；验收后再决定是否开启部署闸门。
+- [x] example 账号最新失败样本的真实模型诊断与修复后回归：确认失败点为 required SVG 质量门，不是 API key/model 连通性；`deepseek-flash` 快速路径在 required 与 auto 样本成功返回结构化题卡和 SVG/无图结果。
+- [ ] 扩大到更多学科的 off/auto/required 成本、时延对比，生成失败/服务端无 XML 解析器时的降级；验收后再决定是否开启部署闸门。

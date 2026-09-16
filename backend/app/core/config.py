@@ -66,6 +66,24 @@ class Settings:
     # 旧名（deepseek-v4-flash 等）会被 400 invalid_request_error 拒绝，
     # 表现为出题/对话全部 generation_failed。
     llm_model: str = os.getenv("LLM_MODEL") or os.getenv("DEEPSEEK_MODEL_REASONING", "deepseek-flash")
+    # Structured question generation is latency-sensitive and has its own
+    # model/retry lane.  Deployments that expose DEEPSEEK_MODEL_LIGHT get the
+    # fast model automatically; QUIZ_MODEL can override it explicitly.
+    quiz_model: str = (os.getenv("QUIZ_MODEL")
+                       or os.getenv("DEEPSEEK_MODEL_LIGHT")
+                       or llm_model)
+    quiz_sdk_max_retries: int = max(0, int(os.getenv("QUIZ_SDK_MAX_RETRIES", "0")))
+    quiz_retry_max: int = max(1, min(3, int(os.getenv("QUIZ_RETRY_MAX", "2"))))
+    quiz_retry_base_delay: float = max(0.1, float(os.getenv("QUIZ_RETRY_BASE_DELAY", "0.75")))
+    # CAT must not spend the 180-second generic budget on nested retries.  One
+    # initial attempt plus one bounded fallback is enough for transient model
+    # variance while keeping the endpoint responsive.
+    assessment_generation_max_attempts: int = max(
+        1, min(2, int(os.getenv("ASSESSMENT_GENERATION_MAX_ATTEMPTS", "2"))))
+    assessment_generation_max_calls: int = max(
+        2, min(8, int(os.getenv("ASSESSMENT_GENERATION_MAX_CALLS", "6"))))
+    assessment_generation_deadline_seconds: int = max(
+        30, min(180, int(os.getenv("ASSESSMENT_GENERATION_DEADLINE_SECONDS", "90"))))
     llm_max_tokens: int = int(os.getenv("LLM_MAX_TOKENS", "4000"))
     llm_context_window: int = int(os.getenv("LLM_CONTEXT_WINDOW", "65536"))
     llm_max_output_tokens: int = int(os.getenv("LLM_MAX_OUTPUT_TOKENS", "8000"))
