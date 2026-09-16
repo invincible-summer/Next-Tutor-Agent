@@ -13,7 +13,10 @@ from pydantic import BaseModel, Field
 
 from app.agents.assessment import adaptive_test as cat
 from app.agents.student_model.evaluation.store import get_journal
-from app.core.quiz_illustration_enrichment import generate_assessment_illustration
+from app.core.quiz_illustration_enrichment import (
+    generate_assessment_illustration,
+    get_cached_assessment_illustration,
+)
 from app.core.quiz_illustration_policy import (
     IllustrationDisabled,
     resolve_illustration_policy,
@@ -56,6 +59,21 @@ def _bound_instance(state, question_id: str, question_revision: int):
     return None
 
 
+def _public_result(question_id: str, question_revision: int,
+                   result: dict) -> dict:
+    illustration = result.get("illustration")
+    return {
+        "status": result.get("status", "failed"),
+        "question_id": question_id,
+        "question_revision": question_revision,
+        "illustration": illustration.model_dump(mode="json")
+        if illustration is not None else None,
+        "code": result.get("code", ""),
+        "retryable": False,
+        "metrics": result.get("metrics", {}),
+    }
+
+
 @router.post("/questions/{question_id}/illustration")
 async def enrich_question_illustration(
     question_id: str,
@@ -78,6 +96,19 @@ async def enrich_question_illustration(
             "retryable": False,
             "metrics": {"generation_calls": 0, "cache_hit": 1},
         }
+
+    # Switches gate only *new* generation. A previously reviewed enrichment is
+    # historical material for this question identity and must remain readable
+    # after the user or operator disables future diagram generation.
+    cached = get_cached_assessment_illustration(
+        student_id, question_id, req.question_revision)
+    if cached is not None:
+        return _public_result(question_id, req.question_revision, {
+            **cached,
+            "metrics": {"generation_calls": 0,
+                        "generation_elapsed_ms": 0, "cache_hit": 1},
+        })
+
     try:
         policy = resolve_illustration_policy(
             student_id, instance.illustration_request or "auto")
@@ -86,14 +117,4 @@ async def enrich_question_illustration(
                      "题目插图已关闭，请在习题中心开启后重试")
     result = await generate_assessment_illustration(
         student_id=student_id, task=task, policy=policy)
-    illustration = result.get("illustration")
-    return {
-        "status": result.get("status", "failed"),
-        "question_id": question_id,
-        "question_revision": req.question_revision,
-        "illustration": illustration.model_dump(mode="json")
-        if illustration is not None else None,
-        "code": result.get("code", ""),
-        "retryable": False,
-        "metrics": result.get("metrics", {}),
-    }
+    return _public_result(question_id, req.question_revision, result)
