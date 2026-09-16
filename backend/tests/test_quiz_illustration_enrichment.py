@@ -238,7 +238,7 @@ class TestAssessmentIllustrationApi(unittest.IsolatedAsyncioTestCase):
 
 class TestIllustrationEnrichment(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self):
-        enrichment._locks.clear()
+        enrichment._inflight.clear()
 
     async def test_required_enrichment_generates_audits_and_caches_without_regenerating_question(self):
         audited = json.dumps({"status": "passed", "issues": []})
@@ -292,7 +292,7 @@ class TestIllustrationEnrichment(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(result["metrics"]["illustration_repairs"], 1)
         self.assertIn('x2="500"', result["illustration"].svg)
 
-    async def test_concurrent_requests_share_one_generation_and_second_hits_cache(self):
+    async def test_concurrent_requests_share_one_success_result(self):
         audited = json.dumps({"status": "passed", "issues": []})
         llm = FakeLLM([_generated(), audited], delay=0.01)
         task = _task("q_concurrent")
@@ -307,10 +307,30 @@ class TestIllustrationEnrichment(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(first["status"], "ready")
         self.assertEqual(second["status"], "ready")
         self.assertEqual(llm.calls, 2)
-        self.assertEqual(
-            sorted([first["metrics"].get("cache_hit", 0), second["metrics"].get("cache_hit", 0)]),
-            [0, 1],
-        )
+        self.assertEqual(first["illustration"].content_hash,
+                         second["illustration"].content_hash)
+        self.assertEqual(first["metrics"]["generation_calls"], 2)
+        self.assertEqual(second["metrics"]["generation_calls"], 2)
+
+    async def test_concurrent_failure_is_single_flight_not_second_generation(self):
+        llm = FakeLLM([json.dumps({"illustration": None})], delay=0.01)
+        task = _task("q_concurrent_failure")
+        with tempfile.TemporaryDirectory() as tmp, \
+                patch.object(enrichment, "_STUDENTS_DIR", Path(tmp)):
+            first, second = await asyncio.gather(
+                enrichment.generate_assessment_illustration(
+                    student_id="usr_concurrent_failure", task=task,
+                    policy="required", llm=llm),
+                enrichment.generate_assessment_illustration(
+                    student_id="usr_concurrent_failure", task=task,
+                    policy="required", llm=llm),
+            )
+        self.assertEqual(first["status"], "failed")
+        self.assertEqual(second["status"], "failed")
+        self.assertEqual(first["code"], "illustration_required_missing")
+        self.assertEqual(second["code"], "illustration_required_missing")
+        self.assertEqual(llm.calls, 1)
+        self.assertEqual(enrichment._inflight, {})
 
     async def test_timeout_does_not_start_a_followup_call(self):
         llm = FakeLLM([_generated()], delay=0.05)
