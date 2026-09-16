@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useSyncExternalStore } from "react";
 import { API_BASE } from "@/lib/api";
 import { apiFetch } from "@/lib/api-fetch";
 import type { QuestionIllustrationData } from "@/lib/types";
@@ -30,9 +30,21 @@ type ClientEntry = {
 
 const CLIENT_CACHE_LIMIT = 100;
 const clientEntries = new Map<string, ClientEntry>();
+const listeners = new Set<() => void>();
+const IDLE_ENTRY: ClientEntry = { state: "idle", illustration: null, failureCode: "" };
+const GENERATING_ENTRY: ClientEntry = { state: "generating", illustration: null, failureCode: "" };
 
 function questionKey(questionId: string, revision: number): string {
   return `${questionId}:${revision}`;
+}
+
+function subscribe(listener: () => void): () => void {
+  listeners.add(listener);
+  return () => listeners.delete(listener);
+}
+
+function emitChange(): void {
+  for (const listener of listeners) listener();
 }
 
 function remember(key: string, entry: ClientEntry): ClientEntry {
@@ -41,7 +53,12 @@ function remember(key: string, entry: ClientEntry): ClientEntry {
     if (oldest) clientEntries.delete(oldest);
   }
   clientEntries.set(key, entry);
+  emitChange();
   return entry;
+}
+
+function forget(key: string): void {
+  if (clientEntries.delete(key)) emitChange();
 }
 
 function terminalEntry(result: IllustrationEnrichmentResponse): ClientEntry {
@@ -79,9 +96,12 @@ async function fetchIllustration(
 }
 
 function startClientFlight(key: string, questionId: string, revision: number): ClientEntry {
-  // The shared promise writes the terminal cache entry *before* it resolves or
-  // rejects to subscribers. This makes card transitions deterministic: a new
-  // mount can never observe a completed request as still "generating".
+  const existing = clientEntries.get(key);
+  if (existing) return existing;
+
+  // Terminal state is committed to the external store before the shared
+  // promise resolves/rejects. Card transitions therefore observe a completed
+  // request as terminal, never as stale "generating" state.
   const promise = fetchIllustration(questionId, revision).then(
     (result) => {
       remember(key, terminalEntry(result));
@@ -96,6 +116,9 @@ function startClientFlight(key: string, questionId: string, revision: number): C
       throw error;
     },
   );
+  // Consume rejection here as well as exposing the promise for diagnostics;
+  // the terminal failure has already been recorded above.
+  void promise.catch(() => undefined);
   return remember(key, {
     state: "generating",
     illustration: null,
@@ -104,15 +127,20 @@ function startClientFlight(key: string, questionId: string, revision: number): C
   });
 }
 
+function snapshotFor(key: string, enabled: boolean): ClientEntry {
+  if (!enabled || !key) return IDLE_ENTRY;
+  return clientEntries.get(key) ?? GENERATING_ENTRY;
+}
+
 /**
  * CAT is text-first: the frozen question is immediately usable, while this
  * hook independently enriches that exact question identity with a reviewed
  * SVG. Illustration work never participates in answer-button disabled state.
  *
- * QuestionCard and FeedbackCard are separate mounts. A bounded module-local
- * entry keeps one client-side flight/terminal state per authoritative question
- * identity so that crossing that UI boundary neither cancels an in-flight
- * request nor silently retries a completed failure. Only retry() starts a new
+ * QuestionCard and FeedbackCard are separate mounts. A bounded module-level
+ * external store keeps one client flight/terminal state per authoritative
+ * question identity. Crossing the UI boundary neither cancels an in-flight
+ * request nor silently retries a completed failure; only retry() starts a new
  * request after a failed terminal state.
  */
 export function useIllustrationEnrichment(question: AssessmentQuestion | null) {
@@ -122,66 +150,42 @@ export function useIllustrationEnrichment(question: AssessmentQuestion | null) {
   const frozenIllustration = question?.illustration ?? null;
   const hasFrozenIllustration = Boolean(frozenIllustration);
   const draft = questionId.startsWith("q_draft_");
+  const enabled = Boolean(questionId && !draft && !hasFrozenIllustration);
 
-  const initial = (() => {
-    if (hasFrozenIllustration) {
-      return { state: "ready" as const, illustration: frozenIllustration, failureCode: "" };
-    }
-    if (!questionId || draft) {
-      return { state: "idle" as const, illustration: null, failureCode: "" };
-    }
-    return clientEntries.get(key) ?? {
-      state: "generating" as const,
-      illustration: null,
-      failureCode: "",
-    };
-  })();
-  const [local, setLocal] = useState<ClientEntry>(initial);
-  const [retryVersion, setRetryVersion] = useState(0);
+  const clientEntry = useSyncExternalStore(
+    subscribe,
+    () => snapshotFor(key, enabled),
+    () => IDLE_ENTRY,
+  );
 
   useEffect(() => {
     if (hasFrozenIllustration) {
-      if (key) clientEntries.delete(key);
-      setLocal({ state: "ready", illustration: frozenIllustration, failureCode: "" });
+      if (key) forget(key);
       return;
     }
-    if (!questionId || draft) {
-      setLocal({ state: "idle", illustration: null, failureCode: "" });
-      return;
-    }
-
-    let active = true;
-    let entry = clientEntries.get(key);
-    if (!entry || retryVersion > 0) {
-      entry = startClientFlight(key, questionId, revision);
-    }
-    setLocal(entry);
-
-    const pending = entry.promise;
-    if (pending) {
-      const syncSettled = () => {
-        if (!active) return;
-        const settled = clientEntries.get(key);
-        if (settled) setLocal(settled);
-      };
-      // Two-branch then consumes rejection; unlike finally(), it does not leave
-      // a newly-created rejected promise unobserved.
-      void pending.then(syncSettled, syncSettled);
-    }
-    return () => { active = false; };
-  }, [questionId, revision, key, draft, hasFrozenIllustration, frozenIllustration, retryVersion]);
+    if (!enabled) return;
+    startClientFlight(key, questionId, revision);
+  }, [questionId, revision, key, enabled, hasFrozenIllustration]);
 
   function retry() {
-    if (!questionId || draft || hasFrozenIllustration || local.state !== "failed") return;
-    clientEntries.delete(key);
-    setLocal({ state: "generating", illustration: null, failureCode: "" });
-    setRetryVersion((value) => value + 1);
+    if (!enabled || clientEntry.state !== "failed") return;
+    forget(key);
+    startClientFlight(key, questionId, revision);
+  }
+
+  if (hasFrozenIllustration) {
+    return {
+      illustration: frozenIllustration,
+      state: "ready" as const,
+      failureCode: "",
+      retry,
+    };
   }
 
   return {
-    illustration: frozenIllustration ?? local.illustration,
-    state: hasFrozenIllustration ? "ready" as const : local.state,
-    failureCode: local.failureCode,
+    illustration: clientEntry.illustration,
+    state: clientEntry.state,
+    failureCode: clientEntry.failureCode,
     retry,
   };
 }
