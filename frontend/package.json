@@ -21,7 +21,7 @@
     "react-dom": "19.2.4",
     "react-markdown": "^10.1.0",
     "rehype-katex": "^7.0.1",
-    "remark-gfm": "^4.1.0",
+    "remark-gfm": "^4.0.1",
     "remark-math": "^6.0.0",
     "zustand": "^5.0.14"
   },
@@ -33,7 +33,7 @@
     "eslint": "^9",
     "eslint-config-next": "16.2.11",
     "playwright": "^1.61.1",
-    "tailwindcss": "^4.3.3",
+    "tailwindcss": "^4",
     "typescript": "^5.9.2",
     "@playwright/test": "1.61.1"
   },
