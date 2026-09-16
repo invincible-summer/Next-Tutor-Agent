@@ -173,7 +173,8 @@ export interface QuizSourceRef {
 export interface QuestionIllustrationData {
   kind: "svg";
   schema_version: 1;
-  sanitizer_version: 1;
+  /** v1 = original closed grammar; v2 = safe defs/marker + normalized inline presentation style. */
+  sanitizer_version: 1 | 2;
   svg: string;
   alt: string;
   caption: string;
