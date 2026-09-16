@@ -10,6 +10,7 @@ import asyncio
 import json
 import re
 import time
+import weakref
 from pathlib import Path
 from typing import Any
 
@@ -35,7 +36,10 @@ MAX_ILLUSTRATION_CALLS = 3
 _PROJECT_ROOT = Path(__file__).resolve().parents[3]
 _STUDENTS_DIR = _PROJECT_ROOT / "students"
 _STORE_SUFFIX = ".question_illustrations.json"
-_locks: dict[str, asyncio.Lock] = {}
+# Locks are strongly held by active/waiting coroutines. Once nobody uses a
+# question identity any more, the weak table releases the lock instead of
+# growing for the lifetime of a long-running worker.
+_locks: weakref.WeakValueDictionary[str, asyncio.Lock] = weakref.WeakValueDictionary()
 _locks_guard = asyncio.Lock()
 
 
@@ -124,7 +128,11 @@ async def _keyed_lock(student_id: str, question_id: str,
                       question_revision: int) -> asyncio.Lock:
     lock_key = f"{student_id}:{question_id}:{question_revision}"
     async with _locks_guard:
-        return _locks.setdefault(lock_key, asyncio.Lock())
+        lock = _locks.get(lock_key)
+        if lock is None:
+            lock = asyncio.Lock()
+            _locks[lock_key] = lock
+        return lock
 
 
 def _task_payload(task: S.TaskSnapshot) -> dict[str, Any]:
