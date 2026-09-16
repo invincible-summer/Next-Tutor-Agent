@@ -347,5 +347,67 @@ class TestIllustrationEnrichment(unittest.IsolatedAsyncioTestCase):
         self.assertLessEqual(result["metrics"]["generation_calls"], 1)
 
 
+SVG_V21 = """<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 400 300">
+<defs><marker id="a" markerWidth="8px" refX="4" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6 Z" fill="#000"/></marker></defs>
+<rect x="20" y="20" width="200px" height="100" fill="#eef" stroke="#000" stroke-width="2px" fill-opacity="0.5" opacity="0.9"/>
+<line x1="20" y1="150" x2="300" y2="150" stroke="#000" marker-end="url(#a)" stroke-miterlimit="4"/>
+<text x="30" y="60" font-size="18px" font-family="Arial, sans-serif" font-weight="bold" font-style="italic" fill="#000" dominant-baseline="middle" dy="-5">F = ma</text>
+<text x="30" y="90" style="font-size:14px;fill:#333;stroke-opacity:0.2;letter-spacing:2">note</text>
+<g opacity="0.8"><circle cx="350" cy="250" r="10" fill="black"/></g>
+</svg>"""
+
+
+class TestSvgV21Compatibility(unittest.TestCase):
+    def test_common_presentation_attributes_are_accepted(self):
+        normalized = normalize_svg(SVG_V21, alt="常见属性测试", caption="v2.1")
+        self.assertIn('font-size="18"', normalized.svg)
+        self.assertIn('font-family="sans-serif"', normalized.svg)
+        self.assertIn('stroke-width="2"', normalized.svg)
+        self.assertIn('opacity="0.9"', normalized.svg)
+        self.assertIn('width="200"', normalized.svg)
+        self.assertIn('markerWidth="8"', normalized.svg)
+        illustration = normalize_illustration({
+            "kind": "svg", "alt": "常见属性测试", "caption": "v2.1",
+            "svg": SVG_V21})
+        round_trip = normalize_illustration(illustration.model_dump(mode="json"))
+        self.assertEqual(round_trip.content_hash, illustration.content_hash)
+
+    def test_class_attribute_stays_rejected(self):
+        raw = SVG_V21.replace("<rect ", '<rect class="shape" ', 1)
+        with self.assertRaises(IllustrationValidationError):
+            normalize_svg(raw)
+
+    def test_model_extra_keys_and_long_text_are_tolerated(self):
+        """模型附带的额外字段/超长 caption 不得整体拒绝为 invalid_schema。"""
+        svg = ('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 200">'
+               '<line x1="10" y1="100" x2="280" y2="100" stroke="#000"/></svg>')
+        illustration = normalize_illustration({
+            "kind": "svg", "alt": "图" * 700, "caption": "注" * 300,
+            "svg": svg, "note": "model chatter"})
+        self.assertEqual(len(illustration.alt), 600)
+        self.assertEqual(len(illustration.caption), 120)
+        round_trip = normalize_illustration(illustration.model_dump(mode="json"))
+        self.assertEqual(round_trip.content_hash, illustration.content_hash)
+
+
+class TestReviewSwitchBehavior(unittest.IsolatedAsyncioTestCase):
+    async def asyncSetUp(self):
+        enrichment._inflight.clear()
+
+    async def test_disabled_illustration_review_skips_audit_llm_call(self):
+        from app.core import quiz_illustration_policy as policy
+        llm = FakeLLM([_generated()])  # audit response intentionally absent
+        with tempfile.TemporaryDirectory() as tmp, \
+                patch.object(enrichment, "_STUDENTS_DIR", Path(tmp)), \
+                patch.object(policy, "account_allows_illustration_review",
+                             return_value=False):
+            result = await enrichment.generate_assessment_illustration(
+                student_id="usr_no_review", task=_task("q_no_review"),
+                policy="required", llm=llm)
+        self.assertEqual(result["status"], "ready")
+        self.assertEqual(llm.calls, 1)
+        self.assertIsNotNone(result["illustration"])
+
+
 if __name__ == "__main__":
     unittest.main()

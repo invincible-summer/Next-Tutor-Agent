@@ -13,6 +13,7 @@ class GenerationBudget:
     deadline: float = field(default_factory=lambda: time.monotonic() + 180)
     calls: int = 0
     repairs: int = 0
+    max_repairs: int = 1
     started_at: float = field(default_factory=time.monotonic)
     completion_tokens: int = 0
 
@@ -25,7 +26,7 @@ class GenerationBudget:
         return self.calls < self.max_calls and self.remaining_seconds > 0
 
     def take_repair(self) -> bool:
-        if self.repairs >= 1 or not self.available:
+        if self.repairs >= self.max_repairs or not self.available:
             return False
         self.repairs += 1
         return True

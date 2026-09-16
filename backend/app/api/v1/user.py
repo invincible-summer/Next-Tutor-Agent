@@ -29,10 +29,11 @@ class UpdateProfileRequest(BaseModel):
 
     @field_validator("prefs")
     @classmethod
-    def validate_svg_preference(cls, prefs):
-        if prefs is not None and "quiz_svg_enabled" in prefs:
-            if type(prefs["quiz_svg_enabled"]) is not bool:
-                raise ValueError("quiz_svg_enabled must be a boolean")
+    def validate_boolean_preferences(cls, prefs):
+        for key in ("quiz_svg_enabled", "quiz_critic_enabled",
+                    "quiz_illustration_review_enabled"):
+            if prefs is not None and key in prefs and type(prefs[key]) is not bool:
+                raise ValueError(f"{key} must be a boolean")
         return prefs
 
 

@@ -84,16 +84,17 @@ Content-Type: application/json
 
 ## 5. 预算与 LLM 调用合同
 
-总体验从文字题开始到 enrichment 最终完成最多由两个独立上限组成：27 秒 + 18 秒。
+总体验从文字题开始到 enrichment 最终完成最多由两个独立上限组成：27 秒 + 30 秒（2026-09-17 起；enrichment 已异步化、不在学生阻塞路径上，原 18 秒/7 秒按同步阻塞时代校准，真实模型 2–6KiB SVG 常在 7 秒单调用超时处被杀）。
 
-文字阶段：CAT `GenerationBudget.deadline = min(existing_deadline, now+27s)`；只跑文字题 generation/必要 critic/既有有限修订，不调用插图 enrichment。
+文字阶段：CAT `GenerationBudget.deadline = min(existing_deadline, now+27s)`；只跑文字题 generation/必要 critic/既有有限修订，不调用插图 enrichment。外层 `_generate_cat_question` 不再把保底自检草稿当作交付成功，必须继续降档重采样；预算提供 2 次修复额度。critic 未返回/自身失败/被用户关闭时，结构合格题按 A06 交付为正常 `q_` 题（verification 诚实标注 unreviewed），`q_draft_` 只保留给全链失败的最后兜底。
 
-插图阶段新建 `GenerationBudget(max_calls=3, deadline=now+18s)`：
+插图阶段新建 `GenerationBudget(max_calls=3, deadline=now+30s)`：
 
-- Call 1：根据冻结文字题只生成 illustration；required 不能返回 null，auto 可返回 null。
-- 对 SVG 运行确定性 sanitizer；不合法时只有剩余时间 ≥7 秒且 repair quota 可用才允许一次生成修复。
-- 有效 SVG 进入独立语义 audit；至少为最终 audit 预留约 3.5 秒。
+- Call 1：根据冻结文字题只生成 illustration（单调用超时 18 秒）；required 不能返回 null，auto 可返回 null。
+- 对 SVG 运行确定性 sanitizer；不合法时只有剩余时间 ≥8 秒且 repair quota 可用才允许一次生成修复。
+- 有效 SVG 在账户开启「生成后审查题图」时进入独立语义 audit（超时 10 秒；纯判定收紧 token，剩余时间充足才允许审计内重画）；至少为最终 audit 预留约 4 秒。
 - audit 若返回 repair，只能修改 illustration，修复结果重新 sanitizer，并在总 calls≤3 内再次 audit。
+- 每账户审查开关（出题中心「生成审查选项」，`PUT /user/profile` prefs）：`quiz_illustration_review_enabled` 关闭时跳过语义 audit（确定性 sanitizer 始终执行）；`quiz_critic_enabled` 关闭时文字题跳过 critic。环境 `QUIZ_VERIFY_MODE` 保持最终裁量，用户开关只能降档不能升档。
 - 时间不足、audit failed、SVG 无法规范化时返回 failed；绝不重新生成另一道题。
 
 `BudgetedLLM` 继续负责 per-call timeout 与 phase deadline；SDK/provider 自身重试不能绕过本阶段 deadline。
@@ -102,7 +103,7 @@ Content-Type: application/json
 
 `backend/app/core/quiz_illustration.py` 仍使用 defusedxml 解析不可信 XML，再按白名单**重建** canonical SVG，而不是把模型字符串透传前端。
 
-v2 新增的兼容能力仅包括：`defs`、`marker`、线/path/polygon 的 `marker-start|mid|end=url(#local-id)`，以及有限 presentation inline style。marker id 必须匹配受限标识符，所有 marker 引用必须解析到同一 SVG 内已允许的 marker；style 先解析、逐属性走既有数值/颜色校验，再转成显式属性。
+v2 新增的兼容能力仅包括：`defs`、`marker`、线/path/polygon 的 `marker-start|mid|end=url(#local-id)`，以及有限 presentation inline style。marker id 必须匹配受限标识符，所有 marker 引用必须解析到同一 SVG 内已允许的 marker；style 先解析、逐属性走既有数值/颜色校验，再转成显式属性。v2.1（2026-09-17）再增加常见安全写法：`opacity/fill-opacity/stroke-opacity`、`font-weight/font-style/font-family`（归一为通用族）、`dominant-baseline`、`stroke-miterlimit`、`letter-spacing/word-spacing`、`text` 的 `dx/dy`、数值 `px` 后缀剥离、根节点 `xmlns:xlink` 声明忽略；模型 JSON 的额外键被忽略、超长 alt/caption 截断（600/120），不再整体拒绝为 invalid_schema。
 
 继续拒绝：`script`、`foreignObject`、`image`、`use`、`style` element、animation、event handlers、href/external URL、任意 CSS property、filter、DTD/entity/processing instruction、未知 namespace。24KiB、180 nodes、depth 10、path segment、坐标/尺寸/颜色/字体范围等原资源上限继续生效。
 

@@ -31,28 +31,39 @@ POST /api/v1/assessment/questions/{question_id}/illustration
 
 响应状态：
 
-- `ready`：返回通过确定性清洗和语义审图的规范化 SVG；
+- `ready`：返回通过确定性清洗和（开启时的）语义审图的规范化 SVG；
 - `not_required`：有效策略为 off，或 auto 判断不需要图；
-- `failed`：18 秒预算、SVG 校验或语义审图未通过。失败只影响图，文字题仍可作答；
+- `failed`：30 秒预算、SVG 校验或语义审图未通过。失败只影响图，文字题仍可作答；
 - `illustration_disabled`：required 请求与账户/运维开关冲突，按现有 409 合同返回。
 
 成功和 `not_required` 决策按 `(student_id, question_id, question_revision)` 写入账户私有 cache。并发控制采用真正的 **single-flight**：同题同时到达的请求 await 同一个后台 Task，因此成功与失败都只消耗一套 LLM 调用；单个浏览器请求取消不会取消共享底层生成。共享 Task 完成后从内存 registry 自动移除，只有后续显式重试才允许新一轮尝试。
 
 ## 3. 预算合同
 
-从用户点击开始到题图最终完成的两阶段预算上限为 45 秒：
+enrichment 在文字题已经显示之后异步执行，不再位于学生的阻塞路径上；两阶段预算独立计量：
 
-- 文字题：≤27 秒；
-- 插图：≤18 秒，最多 3 次 LLM 调用。
+- 文字题：≤27 秒（不变）；
+- 插图：≤30 秒，最多 3 次 LLM 调用（2026-09-17 起；原 18 秒/7 秒单调用超时按同步阻塞时代校准，真实模型 2–6KiB SVG 常在 7 秒超时处被杀，属过度约束）。
 
 插图阶段：
 
-1. Call 1：只生成 illustration；
-2. 确定性 SVG sanitizer；
-3. Call 2：独立核对图与冻结题目/答案的一致性；
-4. 只有剩余时间足够时才允许一次修复；修复后必须再次 sanitizer，并在最大 3 调用内完成最终审核。
+1. Call 1：只生成 illustration（单调用超时 18 秒）；
+2. 确定性 SVG sanitizer（始终执行）；
+3. Call 2（仅在账户开启“生成后审查题图”时）：独立核对图与冻结题目/答案的一致性（超时 10 秒；纯判定响应 token 收紧，只有剩余时间充足才允许审计内重画）；
+4. 只有剩余时间足够（≥8 秒）时才允许一次修复；修复后必须再次 sanitizer，并在最大 3 调用内完成最终审核。
 
-实现保留至少约 3.5 秒最终审图窗口，修复启动门槛约 7 秒。预算不足时直接失败，不再启动“注定做不完”的新阶段，也绝不重新生成另一道完整题。
+实现保留约 4 秒最终审图窗口。预算不足时直接失败，不再启动“注定做不完”的新阶段，也绝不重新生成另一道完整题。
+
+### 3.1 每账户审查开关（2026-09-17 起）
+
+出题中心（`/assessment` ConfigCard「生成审查选项」）提供两个持久化用户偏好（`PUT /user/profile` prefs）：
+
+- `quiz_illustration_review_enabled`（默认开）：关闭后跳过配图语义审计 LLM 调用，仅保留确定性 sanitizer；
+- `quiz_critic_enabled`（默认开）：关闭后 CAT 文字题跳过独立审题（critic），题目作为正常可答习题交付（`q_` 正常 id + verification.status=unreviewed，不冒充已审核）。环境变量 `QUIZ_VERIFY_MODE` 保持最终裁量：运维设为 basic/off 时用户开关无法升档。
+
+### 3.2 草稿语义（2026-09-17 起）
+
+`q_draft_` 保底自检草稿只保留给“生成+修订+降档重试全部失败”的最后兜底。critic 未返回/自身失败/被用户关闭时，结构合格的题目按 A06 交付为正常 `q_` 题并诚实标注 unreviewed；外层 `_generate_cat_question` 循环不再把草稿当作交付成功，必须继续降档重采样（预算给 2 次修复额度）。
 
 ## 4. SVG 安全子集
 
@@ -61,9 +72,10 @@ POST /api/v1/assessment/questions/{question_id}/illustration
 - `<defs>` + `<marker>`；
 - `marker-start|marker-mid|marker-end="url(#local-id)"`，仅允许本 SVG 内本地 id；
 - 有限 presentation inline `style`，解析后转换为显式属性；
-- 根节点少量无害 metadata/accessibility 属性可输入，但 canonical 输出会丢弃并重建根属性。
+- 根节点少量无害 metadata/accessibility 属性可输入，但 canonical 输出会丢弃并重建根属性；
+- v2.1（2026-09-17）：`opacity/fill-opacity/stroke-opacity`、`font-weight/font-style/font-family`（归一为通用族）、`dominant-baseline`、`stroke-miterlimit`、`letter-spacing/word-spacing`、`text` 的 `dx/dy`；数值属性容忍并剥离 `px` 后缀；根节点忽略 `xmlns:xlink` 声明。模型侧额外 JSON 键被忽略而非整体拒绝，超长 alt/caption 截断到 600/120。
 
-仍禁止：`script`、`foreignObject`、`image`、`use`、`style` element、动画、事件处理器、外部 href/URL、任意 CSS、DTD/实体/处理指令。尺寸、节点数、深度、path segment、数值范围、颜色、字体大小等原预算继续生效。
+仍禁止：`script`、`foreignObject`、`image`、`use`、`style` element、动画、事件处理器、外部 href/URL、任意 CSS、DTD/实体/处理指令、`class` 属性。尺寸、节点数、深度、path segment、数值范围、颜色、字体大小等原预算继续生效。
 
 前端 `QuestionIllustration` 同时接受 sanitizer v1/v2，并始终以 `img` 的 SVG data URI 图片上下文渲染，不把模型 SVG 以内联 DOM 方式执行。
 

@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useId, useRef, useState } from "react";
-import { ImageIcon, LoaderCircle, Play } from "lucide-react";
+import { useEffect, useId, useRef, useState, type ReactNode } from "react";
+import { FileSearch, ImageIcon, LoaderCircle, Play, ShieldCheck } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { FIELD_CLS, Input, LABEL_CLS } from "@/components/ui/Input";
@@ -52,6 +52,8 @@ function Configuration({ tr, lang, busy, onStart, userId }: ConfigProps & { user
   const [available, setAvailable] = useState(false);
   const [enabled, setEnabled] = useState(false);
   const [required, setRequired] = useState(false);
+  const [criticEnabled, setCriticEnabled] = useState(true);
+  const [illustrationReviewEnabled, setIllustrationReviewEnabled] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState(false);
 
@@ -90,6 +92,9 @@ function Configuration({ tr, lang, busy, onStart, userId }: ConfigProps & { user
       if (!active) return;
       setAvailable(response.quiz_svg_available === true);
       setEnabled(response.profile.prefs?.quiz_svg_enabled !== false);
+      setCriticEnabled(response.profile.prefs?.quiz_critic_enabled !== false);
+      setIllustrationReviewEnabled(
+        response.profile.prefs?.quiz_illustration_review_enabled !== false);
       setRequired(false);
       setProfileState("ready");
     }).catch(() => { if (active) setProfileState("error"); });
@@ -103,18 +108,20 @@ function Configuration({ tr, lang, busy, onStart, userId }: ConfigProps & { user
   const canStart = !busy && !saving && !profileBlocked && workspaceState === "ready"
     && conceptLoadState === "ready" && Boolean(workspaceId) && picked.length > 0 && countValid;
 
-  async function toggleIllustration() {
-    if (!userId || busy || saveError || profileState !== "ready" || !available || savingLock.current) return;
+  async function savePrefs(prefs: Record<string, boolean>) {
+    if (!userId || busy || saveError || profileState !== "ready" || savingLock.current) return;
     savingLock.current = true;
     setSaving(true);
     setSaveError(false);
     try {
-      const profile = await updateUserProfile({ prefs: { quiz_svg_enabled: !enabled } });
+      const profile = await updateUserProfile({ prefs });
       const user = useAuthStore.getState().user;
       if (!mounted.current || user?.id !== userId) return;
-      const nextEnabled = profile.prefs?.quiz_svg_enabled !== false;
-      setEnabled(nextEnabled);
-      if (!nextEnabled) setRequired(false);
+      setEnabled(profile.prefs?.quiz_svg_enabled !== false);
+      setCriticEnabled(profile.prefs?.quiz_critic_enabled !== false);
+      setIllustrationReviewEnabled(
+        profile.prefs?.quiz_illustration_review_enabled !== false);
+      if (profile.prefs?.quiz_svg_enabled === false) setRequired(false);
       useAuthStore.setState({ user: { ...user, profile } });
     } catch {
       if (mounted.current) setSaveError(true);
@@ -123,6 +130,14 @@ function Configuration({ tr, lang, busy, onStart, userId }: ConfigProps & { user
       if (mounted.current) setSaving(false);
     }
   }
+
+  const toggleIllustration = () => {
+    if (!available) return;
+    return savePrefs({ quiz_svg_enabled: !enabled });
+  };
+  const toggleCritic = () => savePrefs({ quiz_critic_enabled: !criticEnabled });
+  const toggleIllustrationReview = () =>
+    savePrefs({ quiz_illustration_review_enabled: !illustrationReviewEnabled });
 
   const status = !userId ? tr("illustration.login")
     : profileState === "loading" ? text("正在读取插图设置…", "Loading diagram settings…")
@@ -271,6 +286,29 @@ function Configuration({ tr, lang, busy, onStart, userId }: ConfigProps & { user
           </div>}
         </section>
 
+        <section data-testid="assessment-review-options" aria-labelledby={`${id}-review`}
+          className="rounded-lg border border-border-light bg-surface-sunken p-3">
+          <div className="flex items-start gap-2">
+            <ShieldCheck size={16} aria-hidden="true" className="mt-0.5 shrink-0 text-accent" />
+            <div className="min-w-0">
+              <h3 id={`${id}-review`} className="text-sm font-medium text-fg">{tr("review.sectionTitle")}</h3>
+              <p className="mt-1 break-words text-xs leading-5 text-muted">{tr("review.sectionDesc")}</p>
+            </div>
+          </div>
+          <div className="mt-3 space-y-2">
+            <ReviewToggle id={`${id}-critic`} icon={<FileSearch size={14} aria-hidden="true" />}
+              label={tr("review.critic")} help={tr("review.criticDesc")}
+              enabled={criticEnabled} disabled={!userId || profileState !== "ready" || saving || busy || saveError}
+              saving={saving} onToggle={() => void toggleCritic()}
+              onLabel={tr("review.on")} offLabel={tr("review.off")} />
+            <ReviewToggle id={`${id}-diagram-audit`} icon={<ImageIcon size={14} aria-hidden="true" />}
+              label={tr("review.illustrationAudit")} help={tr("review.illustrationAuditDesc")}
+              enabled={illustrationReviewEnabled} disabled={!userId || profileState !== "ready" || saving || busy || saveError}
+              saving={saving} onToggle={() => void toggleIllustrationReview()}
+              onLabel={tr("review.on")} offLabel={tr("review.off")} />
+          </div>
+        </section>
+
         <footer className="flex flex-col items-stretch gap-3 border-t border-border-light pt-3 sm:flex-row sm:items-center sm:justify-between">
           <p className="min-w-0 text-xs leading-5 text-muted">{text("请选择 1–8 个教材概念，题量为 1–20。", "Select 1–8 textbook concepts and 1–20 questions.")}</p>
           <Button type="submit" size="lg" className="shrink-0 whitespace-nowrap" disabled={!canStart}
@@ -280,5 +318,38 @@ function Configuration({ tr, lang, busy, onStart, userId }: ConfigProps & { user
         </footer>
       </form>
     </Card>
+  );
+}
+
+type ReviewToggleProps = {
+  id: string;
+  icon: ReactNode;
+  label: string;
+  help: string;
+  enabled: boolean;
+  disabled: boolean;
+  saving: boolean;
+  onToggle: () => void;
+  onLabel: string;
+  offLabel: string;
+};
+
+function ReviewToggle({ id, icon, label, help, enabled, disabled, saving, onToggle, onLabel, offLabel }: ReviewToggleProps) {
+  return (
+    <div data-testid={`assessment-review-${id}`} className="flex items-start justify-between gap-3 rounded-lg border border-border-light bg-surface p-2.5">
+      <div className="flex min-w-0 items-start gap-2">
+        <span className="mt-0.5 shrink-0 text-muted">{icon}</span>
+        <div className="min-w-0">
+          <label htmlFor={id} className="block text-xs font-medium text-fg">{label}</label>
+          <p id={`${id}-help`} className="mt-0.5 break-words text-xs leading-5 text-muted">{help}</p>
+        </div>
+      </div>
+      <Button type="button" size="sm" variant={enabled ? "primary" : "outline"}
+        id={id} className="shrink-0 whitespace-nowrap" aria-pressed={enabled}
+        aria-describedby={`${id}-help`} disabled={disabled} onClick={onToggle}>
+        {saving ? <LoaderCircle size={14} aria-hidden="true" className="animate-spin" />
+          : enabled ? onLabel : offLabel}
+      </Button>
+    </div>
   );
 }

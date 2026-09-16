@@ -403,6 +403,10 @@ async def _generate_cat_question(student_id: str, instance: cat.CatInstance,
         raise api_error(409, exc.code, str(exc))
     budget = (GenerationBudget(
         max_calls=settings.assessment_generation_max_calls,
+        # Each outer attempt may need one critic-revision repair; a single
+        # lifetime repair made the second (difficulty-fallback) attempt
+        # structurally unable to repair and produced self-check drafts.
+        max_repairs=max(2, settings.assessment_generation_max_attempts),
         deadline=time.monotonic() + settings.assessment_generation_deadline_seconds)
               if policy != "off" else None)
     ctx_kwargs: dict[str, Any] = {}
@@ -461,7 +465,13 @@ async def _generate_cat_question(student_id: str, instance: cat.CatInstance,
                 budget=budget, use_blueprint=False)
         except IllustrationDisabled as exc:
             raise api_error(409, exc.code, str(exc))
-        if q is not None:
+        # A self-check draft is a degradation, not a delivered question: it
+        # satisfied the old "q is not None" break and silently skipped the
+        # bounded difficulty-fallback retry below.  Only a real question (or
+        # the final attempt) exits the loop.
+        if q is not None and (
+                attempt == settings.assessment_generation_max_attempts - 1
+                or not str(q.id).startswith("q_draft_")):
             break
         # 单题生成是纯 LLM 路径：JSON 解析失败与 critic 退回都是单次采样
         # 方差，一次失败就把整个 CAT 会话打成 generation_failed 会让测评
