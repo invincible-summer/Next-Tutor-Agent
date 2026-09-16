@@ -46,45 +46,36 @@ async function fetchIllustration(
 /**
  * CAT is text-first: the frozen question is immediately usable, while this
  * hook independently enriches that exact question identity with a reviewed
- * SVG.  Illustration work never participates in answer-button disabled state.
+ * SVG. Illustration work never participates in answer-button disabled state.
  */
 export function useIllustrationEnrichment(question: AssessmentQuestion | null) {
+  const questionId = question?.question_id || "";
   const revision = question?.question_revision || 1;
   const frozenIllustration = question?.illustration ?? null;
-  const frozenHash = frozenIllustration?.content_hash || "";
-  const draft = Boolean(question?.question_id?.startsWith("q_draft_"));
-  const [illustration, setIllustration] = useState<QuestionIllustrationData | null>(frozenIllustration);
+  const hasFrozenIllustration = Boolean(frozenIllustration);
+  const draft = questionId.startsWith("q_draft_");
+  const [generatedIllustration, setGeneratedIllustration] = useState<QuestionIllustrationData | null>(null);
   const [state, setState] = useState<IllustrationEnrichmentState>(
-    frozenIllustration ? "ready" : draft || !question ? "idle" : "generating",
+    hasFrozenIllustration ? "ready" : draft || !questionId ? "idle" : "generating",
   );
   const [failureCode, setFailureCode] = useState("");
   const [retryVersion, setRetryVersion] = useState(0);
 
   useEffect(() => {
-    setIllustration(frozenIllustration);
-    setFailureCode("");
-    if (!question || draft) {
-      setState("idle");
-      return;
-    }
-    if (frozenIllustration) {
-      setState("ready");
-      return;
-    }
+    if (!questionId || draft || hasFrozenIllustration) return;
 
     let active = true;
     const controller = new AbortController();
-    setState("generating");
-    void fetchIllustration(question.question_id, revision, controller.signal)
+    void fetchIllustration(questionId, revision, controller.signal)
       .then((result) => {
         if (!active) return;
         if (result.status === "ready" && result.illustration) {
-          setIllustration(result.illustration);
+          setGeneratedIllustration(result.illustration);
           setState("ready");
           return;
         }
         if (result.status === "not_required") {
-          setIllustration(null);
+          setGeneratedIllustration(null);
           setState("not_required");
           return;
         }
@@ -101,12 +92,20 @@ export function useIllustrationEnrichment(question: AssessmentQuestion | null) {
       active = false;
       controller.abort();
     };
-  }, [question?.question_id, revision, frozenHash, retryVersion]);
+  }, [questionId, revision, draft, hasFrozenIllustration, retryVersion]);
+
+  function retry() {
+    if (!questionId || draft || hasFrozenIllustration) return;
+    setGeneratedIllustration(null);
+    setFailureCode("");
+    setState("generating");
+    setRetryVersion((value) => value + 1);
+  }
 
   return {
-    illustration,
-    state,
+    illustration: frozenIllustration ?? generatedIllustration,
+    state: hasFrozenIllustration ? "ready" as const : state,
     failureCode,
-    retry: () => setRetryVersion((value) => value + 1),
+    retry,
   };
 }
