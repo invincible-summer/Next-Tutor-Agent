@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
 import re
 import time
 from pathlib import Path
@@ -24,6 +25,8 @@ from app.core.quiz_illustration import (
     illustration_grammar,
     normalize_illustration,
 )
+
+logger = logging.getLogger(__name__)
 
 ILLUSTRATION_DEADLINE_SECONDS = 18.0
 GENERATION_CALL_TIMEOUT_SECONDS = 7.0
@@ -163,10 +166,28 @@ def _audit_payload(raw: str) -> dict[str, Any]:
     }
 
 
+_SVG_SKELETON = (
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 240">'
+    '<defs><marker id="arrow" markerWidth="8" markerHeight="8" refX="4" refY="3" '
+    'orient="auto"><path d="M0,0 L8,3 L0,6 Z" fill="#000"/></marker></defs>'
+    '<line x1="40" y1="200" x2="320" y2="200" stroke="#000" stroke-width="2" '
+    'marker-end="url(#arrow)"/><text x="40" y="225" font-size="18">F</text></svg>'
+)
+
+
 def _generation_messages(task: S.TaskSnapshot, policy: str) -> list[dict[str, str]]:
     from app.prompts.registry import get as prompt
     system = prompt("quiz_illustration_enrichment").text
     payload = json.dumps(_task_payload(task), ensure_ascii=False)
+    if policy == "required":
+        # Presenting null as an equal option invites the model to bail out on
+        # hard diagrams; under required it is a contract violation, not a choice.
+        contract = ("只返回 JSON：{\"illustration\":{\"kind\":\"svg\",\"alt\":\"...\","
+                    "\"caption\":\"...\",\"svg\":\"...\"}}。本次必须配图，"
+                    "illustration 不允许为 null，必须给出一份可用的 SVG。")
+    else:
+        contract = ("只返回 JSON：{\"illustration\": null|{\"kind\":\"svg\",\"alt\":\"...\","
+                    "\"caption\":\"...\",\"svg\":\"...\"}}。")
     return [
         {"role": "system", "content": system},
         {"role": "user", "content": (
@@ -175,7 +196,8 @@ def _generation_messages(task: S.TaskSnapshot, policy: str) -> list[dict[str, st
             "图不得增加文字题中不存在的必需条件，也不得泄露答案。\n"
             f"题目数据：{payload}\n"
             f"允许的 SVG 语法：{illustration_grammar()}\n"
-            "只返回 JSON：{\"illustration\": null|{\"kind\":\"svg\",\"alt\":\"...\",\"caption\":\"...\",\"svg\":\"...\"}}。"
+            f"结构参考（只示意骨架与命名空间，内容必须按本题重画，勿照抄）：{_SVG_SKELETON}\n"
+            + contract
         )},
     ]
 
@@ -193,6 +215,8 @@ def _repair_messages(task: S.TaskSnapshot, policy: str, raw: Any,
             f"上一版 illustration={json.dumps(raw, ensure_ascii=False)}\n"
             f"允许的 SVG 语法={illustration_grammar()}\n"
             "输出同样的单个 JSON 对象。"
+            + ("本次必须配图：不得返回 null 或放弃，必须重新给出一份能通过上述语法校验的 SVG。"
+               if policy == "required" else "")
         )},
     ]
 
@@ -309,10 +333,18 @@ async def _generate_uncached(*, student_id: str, task: S.TaskSnapshot,
                 "metrics": budget.summary()}
     except (IllustrationValidationError, TimeoutError, asyncio.TimeoutError) as exc:
         code = getattr(exc, "code", None) or str(exc) or "illustration_generation_failed"
+        sanitized = re.sub(r"[^a-z0-9_]+", "_", code.lower())[:80]
+        logger.warning(
+            "assessment illustration failed student=%s question=%s rev=%s code=%s metrics=%s",
+            student_id, task.question_id, task.question_revision, sanitized,
+            budget.summary())
         return {"status": "failed", "illustration": None,
-                "code": re.sub(r"[^a-z0-9_]+", "_", code.lower())[:80],
+                "code": sanitized,
                 "metrics": budget.summary()}
     except Exception:
+        logger.exception(
+            "assessment illustration crashed student=%s question=%s rev=%s",
+            student_id, task.question_id, task.question_revision)
         return {"status": "failed", "illustration": None,
                 "code": "illustration_generation_failed",
                 "metrics": budget.summary()}

@@ -253,6 +253,8 @@ async def generate_question(goal: AssessmentGoal, ctx: AssessmentContext, *,
                        "short_answer 中选择最适合本题考查目标的一种，"
                        "选定后整题结构必须与该题型一致。")
 
+        last_meta: dict[str, Any] = {}
+
         async def attempt(phase_policy: str, phase_deadline: float):
             def parse(raw: str):
                 candidate = _parse_dict(raw)
@@ -275,6 +277,8 @@ async def generate_question(goal: AssessmentGoal, ctx: AssessmentContext, *,
                 grounding_context=grounding, illustration_policy=phase_policy,
                 max_attempts=1, repair_max_tokens=4500 if phase_policy != "off" else 3500,
                 required_type=q_type if strict_type else "")
+            last_meta.clear()
+            last_meta.update(meta)
             for candidate in candidates:
                 try:
                     result = _lift(candidate, meta, goal=goal, ctx=ctx, concept=concept,
@@ -291,6 +295,12 @@ async def generate_question(goal: AssessmentGoal, ctx: AssessmentContext, *,
             # illustration endpoint enriches that exact question afterwards.
             best = await attempt("off", budget.deadline)
             baseline = best
+            if best is None:
+                # A dropped/self-check CAT is a real degradation; the critic
+                # flags and budget summary are the only way to tell a provider
+                # hiccup from a contract problem, so surface them in logs.
+                logger.warning("assessment text phase empty student=%s concept=%s meta=%s",
+                               student_id, concept, last_meta)
         else:
             best = await attempt(policy, budget.deadline)
     except IllustrationDisabled:

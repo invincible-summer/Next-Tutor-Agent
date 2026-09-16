@@ -67,6 +67,16 @@ async def _lifespan(app: FastAPI):
         from app.core.trash import cleanup_expired
         cleanup_expired()
 
+    # 插图清洗器依赖（defusedxml 等）缺失时所有 SVG 都 fail-closed，症状只
+    # 表现为远端配图失败；启动即跑一次最小规范化，让缺失直接变成 not_ready。
+    def _sanitizer_dependency() -> None:
+        from app.core.quiz_illustration import normalize_svg
+        normalize_svg('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 200">'
+                      '<line x1="10" y1="10" x2="300" y2="190"/></svg>')
+
+    await run_bootstrap_step(report, "sanitizer_dependency",
+                             _sanitizer_dependency, critical=True,
+                             to_thread=True)
     await run_bootstrap_step(report, "legacy_graph_cleanup",
                              _legacy_graph_cleanup)
     await run_bootstrap_step(report, "textbook_recovery", _textbook_recovery)

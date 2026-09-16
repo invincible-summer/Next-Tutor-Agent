@@ -135,3 +135,6 @@
 {"ts": 1789541723.4600194, "type": "turn_recorded", "payload": {"concept": "电偶极子在均匀外电场中的电势能", "emitted": 0}}
 {"ts": 1789541798.712996, "type": "turn_recorded", "payload": {"concept": "电偶极子在均匀外电场中的电势能", "emitted": 0}}
 {"ts": 1789541952.0765274, "type": "quiz_evidence", "payload": {"attempt_id": "att_61a038110f444557", "concept": "完全非弹性碰撞", "verdict": "correct", "session_id": "", "subject": "", "source": "quiz_evidence", "task_id": "", "emitted": 0}}
+{"ts": 1789573397.6546369, "type": "quiz_evidence", "payload": {"attempt_id": "att_a9a0ca5dba7a458e", "concept": "运动相对性", "verdict": "correct", "session_id": "", "subject": "", "source": "quiz_evidence", "task_id": "", "emitted": 0}}
+{"ts": 1789573528.44156, "type": "quiz_evidence", "payload": {"attempt_id": "att_ee25cf45fb5b47c7", "concept": "静电场的保守性", "verdict": "wrong", "session_id": "", "subject": "", "source": "quiz_evidence", "task_id": "", "emitted": 0}}
+{"ts": 1789573757.5276108, "type": "quiz_evidence", "payload": {"attempt_id": "att_95fac093306a416a", "concept": "分波阵面法", "verdict": "correct", "session_id": "", "subject": "", "source": "quiz_evidence", "task_id": "", "emitted": 0}}
