@@ -1,6 +1,6 @@
 # Next Tutor Agent：两阶段题目配图稳定化执行计划
 
-版本：2.0；制定日期：2026-09-16；目标分支：`fix/two-stage-quiz-illustration-20260916`；基线：`main@070e50384830d62af42b1133d7322164413c526b`。
+版本：2.1；制定日期：2026-09-16；目标分支：`fix/two-stage-quiz-illustration-20260916`；基线：`main@070e50384830d62af42b1133d7322164413c526b`。
 
 ## 1. 已审计现状与确定根因
 
@@ -108,12 +108,12 @@ CAT/测评中心改成两阶段，但不破坏聊天题卡当前已工作的同�
 - 修复 `quiz-open-answer.spec.ts` 的 DOM detach 根因，不能仅增加 timeout；
 - 保留现有 chat illustration smoke，防止本次 CAT 改造回归聊天题卡。
 
-真实模型验收必须在合并前完成。优先复用仓库已经配置的 quiz provider（`get_llm("quiz")` / `QUIZ_MODEL`），从实际前端测评页选择“必须配图”，至少连续多次走完整 `start -> 文字题可见 -> generating -> SVG ready`。每次记录 question_id、文字返回耗时、配图耗时、是否经过 repair、sanitizer/critic 结果；验收目标为所跑样本全部最终看到规范化 SVG，且无“配图未完成”前缀、无整题重生。如果当前 GitHub Actions 没有 LLM secret，则不伪造“真实模型已测”：利用已配置部署或可用 secret lane；若连接权限无法读取/设置 secrets，只能明确记录该外部权限阻塞，不能以 fake LLM 替代真实验收结论。
+真实模型验收仍必须在合并前完成，但**不进入 GitHub Actions，也不使用部署域名**。验收方式固定为开发机本地启动 frontend + backend，backend 直接复用开发者本机已配置的真实 quiz provider（`get_llm("quiz")` / `QUIZ_MODEL` / 本地环境变量），浏览器访问本地前端并选择“必须配图”，连续多次走完整 `start -> 文字题可见 -> generating -> SVG ready`。每次记录 question_id、文字返回耗时、配图耗时、是否经过 repair、sanitizer/critic 结果；验收目标为所跑样本全部最终看到规范化 SVG，且无“配图未完成”前缀、无整题重生。fake LLM E2E 只负责确定性回归，不能冒充真实模型验收；CI 不读取、注入或依赖任何真实 LLM secret。
 
 CI 收口：
 - 先修代码造成的 invariant/E2E 失败；
-- workflow 只做必要的稳定性修正（例如测试隔离/并发），不删除 gate；
-- branch Actions 全绿后再建 PR；如 Actions 写权限允许，重跑失败 job 验证非偶发；
+- workflow 只做必要的稳定性修正（例如测试隔离/并发），不删除 gate，也不新增真实 LLM 网络测试；
+- PR branch Actions 全绿后才允许合并；如 Actions 写权限允许，重跑失败 job 验证非偶发；
 - 合并 `main` 后再检查 main SHA 的 workflow run，main 未绿不算完成。
 
 ## 8. 完成标准
@@ -127,6 +127,6 @@ CI 收口：
 5. 前端能观测 `generating -> ready`，且等待配图不阻塞答题；
 6. TaskSnapshot/rubric/question_revision 不被异步补图原地篡改；
 7. 现有 backend、frontend type/lint/build、repository invariants、Playwright smoke 全绿；
-8. 真实 quiz LLM + 实际前端 required 模式连续验收通过，并有可核对记录；
+8. 本地真实 quiz LLM + 本地实际前端 required 模式连续验收通过，并有可核对记录；真实模型调用不进入 CI、不经过部署域名；
 9. PR 审核 diff 无死代码/旧重复路径，文档更新与实现一致；
 10. 合并到 `main`，并确认 main CI 通过。
