@@ -42,7 +42,7 @@ function Configuration({ tr, lang, busy, onStart, userId }: ConfigProps & { user
   const [workspaceRetry, setWorkspaceRetry] = useState(0);
   const [workspaceId, setWorkspaceId] = useState("");
   const [concepts, setConcepts] = useState<ConceptEvaluationView[]>([]);
-  const [conceptState, setConceptState] = useState<LoadState>("loading");
+  const [conceptLoadState, setConceptLoadState] = useState<LoadState>("loading");
   const [conceptRetry, setConceptRetry] = useState(0);
   const [picked, setPicked] = useState<string[]>([]);
   const [purpose, setPurpose] = useState<AssessmentStartIntent["purpose"]>("adaptive");
@@ -78,8 +78,8 @@ function Configuration({ tr, lang, busy, onStart, userId }: ConfigProps & { user
     getEvalConcepts(workspaceId, { limit: 100 }).then((response) => {
       if (!active) return;
       setConcepts(response.items ?? []);
-      setConceptState("ready");
-    }).catch(() => { if (active) setConceptState("error"); });
+      setConceptLoadState("ready");
+    }).catch(() => { if (active) setConceptLoadState("error"); });
     return () => { active = false; };
   }, [workspaceId, conceptRetry]);
 
@@ -101,7 +101,7 @@ function Configuration({ tr, lang, busy, onStart, userId }: ConfigProps & { user
   const countValid = count.trim() !== "" && Number.isInteger(parsedCount) && parsedCount >= 1 && parsedCount <= 20;
   const profileBlocked = Boolean(userId && (profileState !== "ready" || saveError));
   const canStart = !busy && !saving && !profileBlocked && workspaceState === "ready"
-    && conceptState === "ready" && Boolean(workspaceId) && picked.length > 0 && countValid;
+    && conceptLoadState === "ready" && Boolean(workspaceId) && picked.length > 0 && countValid;
 
   async function toggleIllustration() {
     if (!userId || busy || saveError || profileState !== "ready" || !available || savingLock.current) return;
@@ -177,7 +177,7 @@ function Configuration({ tr, lang, busy, onStart, userId }: ConfigProps & { user
                   setWorkspaceId(event.target.value);
                   setPicked([]);
                   setConcepts([]);
-                  setConceptState("loading");
+                  setConceptLoadState("loading");
                 }}>
                   {workspaces.map((workspace) => <option key={workspace.workspace_id} value={workspace.workspace_id}>
                     {workspace.workspace_name || workspace.workspace_id}
@@ -204,11 +204,11 @@ function Configuration({ tr, lang, busy, onStart, userId }: ConfigProps & { user
                 <span className="text-muted">{text("已选", "Selected")} {picked.length}/{MAX_CONCEPTS}</span>
               </div>
               <div className="flex max-h-40 min-w-0 flex-wrap content-start items-start gap-2 overflow-y-auto rounded-lg border border-border-light p-2.5">
-                {conceptState === "loading" ? <p role="status" className="text-xs text-muted">{text("正在读取概念…", "Loading concepts…")}</p>
-                  : conceptState === "error" ? <div role="alert" className="flex flex-wrap items-center gap-2 text-xs text-danger">
+                {conceptLoadState === "loading" ? <p role="status" className="text-xs text-muted">{text("正在读取概念…", "Loading concepts…")}</p>
+                  : conceptLoadState === "error" ? <div role="alert" className="flex flex-wrap items-center gap-2 text-xs text-danger">
                     {text("读取概念失败。", "Could not load concepts.")}
                     <Button type="button" variant="outline" size="sm" onClick={() => {
-                      setConceptState("loading");
+                      setConceptLoadState("loading");
                       setConceptRetry((value) => value + 1);
                     }}>{tr("illustration.retry")}</Button>
                   </div>
@@ -243,7 +243,8 @@ function Configuration({ tr, lang, busy, onStart, userId }: ConfigProps & { user
               </div>
             </div>
             <Button type="button" size="sm" variant={ready ? "primary" : "outline"}
-              className="shrink-0 whitespace-nowrap" aria-label={tr("illustration.setting")}
+              className="shrink-0 whitespace-nowrap"
+              aria-label={ready ? text("已开启", "On") : text("已关闭", "Off")}
               aria-pressed={ready} aria-describedby={`${id}-status`}
               disabled={!userId || profileState !== "ready" || !available || saving || busy || saveError}
               onClick={() => void toggleIllustration()}>

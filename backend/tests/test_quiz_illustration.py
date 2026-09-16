@@ -43,10 +43,36 @@ class IllustrationContractTest(unittest.TestCase):
             with self.assertRaises((IllustrationValidationError, ValueError)):
                 normalize_illustration({"kind": "svg", "alt": "图", "svg": payload})
 
-    def test_rejects_non_monochrome_and_bad_viewbox(self):
+    def test_normalizes_common_colors_and_offcanvas_viewbox(self):
+        """浏览器可显示的常见画布/颜色写法必须被规范化接受，而不是拒绝。"""
+        for payload, check in (
+            (_SVG.replace('stroke="#000"', 'stroke="red"'),
+             lambda img: self.assertIn('stroke="#f00"', img.svg)),
+            (_SVG.replace('stroke="#000"', 'stroke="#2a2a2a"'),
+             lambda img: self.assertIn('stroke="#2a2a2a"', img.svg)),
+            (_SVG.replace('stroke="#000"', 'stroke="rgb(30,30,30)"'),
+             lambda img: self.assertIn('stroke="#1e1e1e"', img.svg)),
+            # 非零起点：内容平移进标准画布，而不是整图拒绝。
+            (_SVG.replace('viewBox="0 0 640 400"', 'viewBox="1 0 640 400"'), None),
+            # 宽扁轴条图：比例越界 -> 自动缩放/留白到标准画布。
+            (_SVG.replace('viewBox="0 0 640 400"', 'viewBox="0 0 480 140"'), None),
+        ):
+            image = normalize_illustration({"kind": "svg", "alt": "图", "svg": payload})
+            self.assertEqual(image.sanitizer_version, 2)
+            self.assertTrue(320 <= image.width <= 960)
+            self.assertTrue(200 <= image.height <= 720)
+            self.assertTrue(0.75 <= image.width / image.height <= 3)
+            if check:
+                check(image)
+            # 幂等：已规范化快照再次清洗保持逐字节一致（canonical 校验依赖）。
+            self.assertEqual(image, normalize_illustration(image.model_dump()))
+
+    def test_rejects_degenerate_viewbox_and_url_colors(self):
         for payload in (
-            _SVG.replace('stroke="#000"', 'stroke="red"'),
-            _SVG.replace('viewBox="0 0 640 400"', 'viewBox="1 0 640 400"'),
+            _SVG.replace('viewBox="0 0 640 400"', 'viewBox="0 0 0 400"'),
+            _SVG.replace('viewBox="0 0 640 400"', 'viewBox="0 0 20000 400"'),
+            _SVG.replace('stroke="#000"', 'stroke="url(https://x.invalid/c)"'),
+            _SVG.replace('stroke="#000"', 'stroke="notacolor"'),
         ):
             with self.assertRaises((IllustrationValidationError, ValueError)):
                 normalize_illustration({"kind": "svg", "alt": "图", "svg": payload})

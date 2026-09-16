@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Eye, FileQuestion, Flag, Lightbulb, Send } from "lucide-react";
+import { Eye, FileQuestion, Flag, ImageIcon, Lightbulb, LoaderCircle, RefreshCw, Send } from "lucide-react";
 import { QuestionIllustration } from "@/components/quiz/QuestionIllustration";
 import { MiniMarkdown } from "@/components/chat/markdown";
 import { Badge } from "@/components/ui/Badge";
@@ -13,6 +13,7 @@ import { cn } from "@/lib/cn";
 import { useUIStore } from "@/lib/store";
 import type { AssessmentQuestion } from "@/lib/types-modules";
 import { DifficultyDots, difficultyOf, type PageTr } from "./common";
+import { useIllustrationEnrichment } from "./useIllustrationEnrichment";
 
 export function isMultipleChoice(question: AssessmentQuestion): boolean {
   return (question.q_type === "multiple_choice" || question.type === "multiple_choice")
@@ -48,6 +49,7 @@ function QuestionBody({ tr, question, difficulty, answered, busy, onSubmit, onAb
   const level = difficulty > 0 ? difficulty : difficultyOf(question);
   const options = multipleChoice ? Object.entries(question.options ?? {})
     .sort(([first], [second]) => first.localeCompare(second)) : [];
+  const illustration = useIllustrationEnrichment(question);
 
   async function assistance(kind: "hint" | "reveal") {
     if (disabled || draft) return;
@@ -86,7 +88,23 @@ function QuestionBody({ tr, question, difficulty, answered, busy, onSubmit, onAb
           : "正式题目未完成审核，先保留这一版供自检。本页不会提交草稿答案、自动评分或把它当作已审核题。输入内容仅保留在当前页面，离开前请自行复制。"}
       </div>}
       <div className="chat-prose min-w-0 break-words"><MiniMarkdown>{question.stem}</MiniMarkdown></div>
-      <QuestionIllustration illustration={question.illustration} />
+      {illustration.state === "generating" && <div data-testid="assessment-illustration-generating" role="status"
+        className="mt-3 flex items-center gap-2 rounded-lg border border-border-light bg-surface-sunken px-3 py-2 text-xs leading-5 text-muted">
+        <LoaderCircle size={14} aria-hidden="true" className="shrink-0 animate-spin" />
+        <span>{english
+          ? "The text question is ready. Generating and checking a diagram in the background…"
+          : "文字题已可作答，正在生成并审核配图…"}</span>
+      </div>}
+      {illustration.state === "failed" && <div data-testid="assessment-illustration-failed" role="status"
+        className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-warning/30 bg-warning/5 px-3 py-2 text-xs leading-5 text-muted">
+        <span className="flex min-w-0 items-center gap-2">
+          <ImageIcon size={14} aria-hidden="true" className="shrink-0" />
+          {english ? "The question is usable, but the diagram did not finish." : "文字题仍可正常作答，但本次配图未完成。"}
+        </span>
+        <Button type="button" size="sm" variant="outline" icon={<RefreshCw size={13} aria-hidden="true" />}
+          onClick={illustration.retry}>{english ? "Retry diagram" : "重试配图"}</Button>
+      </div>}
+      <QuestionIllustration illustration={illustration.illustration} />
       {multipleChoice ? <div className="mt-4 flex flex-col gap-2">
         {options.map(([key, value]) => <button key={key} type="button" disabled={disabled}
           aria-pressed={selected === key} onClick={() => setSelected(key)}

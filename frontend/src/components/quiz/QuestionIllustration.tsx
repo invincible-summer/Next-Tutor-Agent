@@ -12,7 +12,9 @@ import { STRINGS } from "@/app/(workspace)/assessment/strings";
 import type { QuestionIllustrationData } from "@/lib/types";
 
 function supported(value: QuestionIllustrationData): boolean {
-  return value.kind === "svg" && value.schema_version === 1 && value.sanitizer_version === 1
+  const sanitizerVersion = Number(value.sanitizer_version);
+  return value.kind === "svg" && value.schema_version === 1
+    && (sanitizerVersion === 1 || sanitizerVersion === 2)
     && typeof value.svg === "string" && value.svg.startsWith("<svg ")
     && new TextEncoder().encode(value.svg).length <= 24 * 1024
     && typeof value.content_hash === "string" && /^sha256:[a-f0-9]{64}$/.test(value.content_hash)

@@ -11,6 +11,14 @@ export function AppShell({ children }: { children: ReactNode }) {
     // Hydrate persisted UI prefs (lang/theme/font) AFTER mount so SSR and the
     // first client render match (no hydration mismatch).
     useUIStore.getState().hydrateClient();
+    // The chat session rail is useful by default on desktop, but at phone
+    // widths its 16rem flex width leaves only a sliver for the learning card.
+    // Keep the global module icon rail visible and start only the session rail
+    // closed; the chat page's menu button can still open it on demand.
+    if (window.matchMedia("(max-width: 767px)").matches
+        && useUIStore.getState().sidebarOpen) {
+      useUIStore.setState({ sidebarOpen: false });
+    }
   }, []);
 
   return (

@@ -8,6 +8,7 @@ from app.api.v1 import workspace
 from app.api.v1 import sidebar
 from app.api.v1 import library
 from app.api.v1 import assessment
+from app.api.v1 import assessment_illustration
 from app.api.v1 import learner_evaluation
 from app.api.v1 import evaluation
 from app.api.v1 import ux
@@ -34,6 +35,7 @@ api_router.include_router(workspace.router)
 api_router.include_router(sidebar.router)
 api_router.include_router(library.router)
 api_router.include_router(assessment.router)
+api_router.include_router(assessment_illustration.router)
 api_router.include_router(learner_evaluation.router)
 api_router.include_router(evaluation.router)
 api_router.include_router(ux.router)

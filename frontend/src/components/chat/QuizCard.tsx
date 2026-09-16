@@ -18,6 +18,26 @@ import { MiniMarkdown } from "./markdown";
 import { SubmissionOutcome } from "@/components/learning-evaluation/SubmissionOutcome";
 import type { QuizQuestion, QuizSourceRef } from "@/lib/types";
 
+// Streaming tool-result reconciliation can briefly remount a question card while
+// the user is typing. Keep a small in-memory draft keyed by authoritative
+// question identity so that remounts do not turn an enabled submit button into
+// a disabled empty card. Server submission remains the only persisted answer.
+const QUIZ_DRAFT_LIMIT = 100;
+const quizAnswerDrafts = new Map<string, string>();
+
+function rememberQuizDraft(key: string, value: string): void {
+  if (!key) return;
+  if (!value) {
+    quizAnswerDrafts.delete(key);
+    return;
+  }
+  if (!quizAnswerDrafts.has(key) && quizAnswerDrafts.size >= QUIZ_DRAFT_LIMIT) {
+    const oldest = quizAnswerDrafts.keys().next().value as string | undefined;
+    if (oldest) quizAnswerDrafts.delete(oldest);
+  }
+  quizAnswerDrafts.set(key, value);
+}
+
 /** 教材依据定位行：filename · 章节路径 · 页码（只展示学习者可理解的信息）。 */
 function sourceLocation(ref: QuizSourceRef): string {
   const parts: string[] = [];
@@ -45,9 +65,12 @@ export function QuizQuestionCard({
   const qid = q.question_id || "";
   const rev = q.question_revision || 1;
   const hasIdentity = !!qid;
+  const draftKey = hasIdentity ? `${qid}:${rev}` : "";
   const savedResult = q.result && (q.result.attempt_id || q.result.verdict) ? q.result : null;
 
-  const [selected, setSelected] = useState<string | null>(savedResult?.student_answer ?? null);
+  const [selected, setSelected] = useState<string | null>(
+    savedResult?.student_answer ?? (draftKey ? quizAnswerDrafts.get(draftKey) ?? null : null),
+  );
   const [outcome, setOutcome] = useState<QuizSubmitOutcome | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
@@ -59,6 +82,12 @@ export function QuizQuestionCard({
   const [canRefresh, setCanRefresh] = useState(false);
   const [expOpen, setExpOpen] = useState(false);
   const [sourcesOpen, setSourcesOpen] = useState(false);
+
+  function updateDraft(value: string) {
+    setSelected(value);
+    rememberQuizDraft(draftKey, value);
+  }
+
   useEffect(() => {
     if (!qid) return;
     let alive = true;
@@ -70,6 +99,7 @@ export function QuizQuestionCard({
         const { submission } = await fetchQuizSubmission(qid, rev);
         if (!alive) return;
         if (submission) {
+          rememberQuizDraft(draftKey, "");
           setOutcome(submission);
           setSelected(submission.student_answer);
           if (submission.revealed) setRevealed(submission.revealed);
@@ -92,7 +122,7 @@ export function QuizQuestionCard({
       alive = false;
       if (timer) clearTimeout(timer);
     };
-  }, [qid, rev, refreshVersion]);
+  }, [qid, rev, draftKey, refreshVersion]);
 
   const submitted = !!outcome || !!savedResult;
   // The POST outcome intentionally omits the answer; the controlled selection
@@ -142,6 +172,7 @@ export function QuizQuestionCard({
         student_answer: selected,
         session_id: sessionId,
       });
+      rememberQuizDraft(draftKey, "");
       setOutcome(res);
       // 揭晓视图：已评价的正式提交后可见（服务端判定）。
       if (res.task_result?.verdict) {
@@ -199,7 +230,7 @@ export function QuizQuestionCard({
               <button
                 key={key}
                 disabled={submitted || submitting || restoring || !hasIdentity}
-                onClick={() => setSelected(key)}
+                onClick={() => updateDraft(key)}
                 className={cn(
                   "flex w-full items-center gap-2.5 rounded-[8px] border px-3 py-2 text-left text-[0.8rem] transition-all",
                   cls,
@@ -236,7 +267,7 @@ export function QuizQuestionCard({
             className="resize-none text-[0.8rem]"
             rows={2}
             value={selected ?? ""}
-            onChange={(e) => setSelected(e.target.value)}
+            onChange={(e) => updateDraft(e.target.value)}
           />
         </div>
       )}

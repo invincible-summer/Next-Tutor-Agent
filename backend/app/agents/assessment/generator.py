@@ -18,6 +18,7 @@ logger = logging.getLogger(__name__)
 _DIFFICULTY_ZH = {1: "入门", 2: "基础", 3: "中等", 4: "进阶", 5: "挑战"}
 _GEN_PROMPT = _prompt("assessment_generate").text
 _GEN_PROMPT_AUTO = _prompt("assessment_generate_auto").text
+CAT_TEXT_DEADLINE_SECONDS = 27.0
 
 
 def _difficulty_label(difficulty: int) -> str:
@@ -205,8 +206,11 @@ async def generate_question(goal: AssessmentGoal, ctx: AssessmentContext, *,
     budget = budget or (GenerationBudget(max_calls=settings.assessment_generation_max_calls)
                         if cat_mode else GenerationBudget())
     if cat_mode:
-        budget.deadline = min(budget.deadline, time.monotonic() +
-                              min(45, settings.assessment_generation_deadline_seconds))
+        # CAT is text-first.  The same shared budget is capped here so outer
+        # retry loops cannot silently turn a 27s text phase into multiple 27s
+        # attempts.  SVG enrichment has its own independent 18s budget.
+        budget.deadline = min(budget.deadline,
+                              time.monotonic() + CAT_TEXT_DEADLINE_SECONDS)
     difficulty = max(1, min(5, int(goal.difficulty or ctx.base_difficulty or 3)))
     q_type = _pick_q_type(goal)
     if q_type not in {"multiple_choice", "fill_blank", "short_answer"}:
@@ -235,11 +239,33 @@ async def generate_question(goal: AssessmentGoal, ctx: AssessmentContext, *,
                 str(stem)[:200] for stem in goal.avoid_stems[-6:])
         if grounding:
             prompt += "\n\n[命题事实边界]\n" + grounding
+        # The JSON example alone does not stop models (fast lanes especially)
+        # from swapping in their preferred question type; an explicit contract
+        # line keeps strict requests strict and makes auto selection honest.
+        strict_type = bool(goal.q_type)
+        if strict_type:
+            prompt += (f"\n\n[题型硬性要求] 本题 \"type\" 必须等于 {q_type}，"
+                       "不得改用其他题型；" + ("选择题必须给出字母键 options。"
+                       if q_type == "multiple_choice"
+                       else "非选择题不得输出 options 字段。"))
+        else:
+            prompt += ("\n\n[题型] \"type\" 从 multiple_choice / fill_blank / "
+                       "short_answer 中选择最适合本题考查目标的一种，"
+                       "选定后整题结构必须与该题型一致。")
 
         async def attempt(phase_policy: str, phase_deadline: float):
             def parse(raw: str):
                 candidate = _parse_dict(raw)
-                return [candidate] if candidate and candidate.get("type") == q_type else []
+                if not candidate:
+                    return []
+                actual = str(candidate.get("type") or "")
+                if strict_type:
+                    return [candidate] if actual == q_type else []
+                # Auto-picked types are a server-side suggestion, not a student
+                # requirement — a well-formed question of any supported type is
+                # accepted instead of wasting the single CAT sampling attempt.
+                return [candidate] if actual in {
+                    "multiple_choice", "fill_blank", "short_answer"} else []
             candidates, meta = await generate_verified_questions(
                 BudgetedLLM(llm, budget, call_timeout=12 if cat_mode else None,
                             phase_deadline=phase_deadline),
@@ -248,7 +274,7 @@ async def generate_question(goal: AssessmentGoal, ctx: AssessmentContext, *,
                 temperature=0.3, max_tokens=4500 if phase_policy != "off" else 3500,
                 grounding_context=grounding, illustration_policy=phase_policy,
                 max_attempts=1, repair_max_tokens=4500 if phase_policy != "off" else 3500,
-                required_type=q_type)
+                required_type=q_type if strict_type else "")
             for candidate in candidates:
                 try:
                     result = _lift(candidate, meta, goal=goal, ctx=ctx, concept=concept,
@@ -260,19 +286,11 @@ async def generate_question(goal: AssessmentGoal, ctx: AssessmentContext, *,
             return None
 
         if cat_mode:
-            first_deadline = (min(budget.deadline, time.monotonic() + 27)
-                              if policy != "off" else budget.deadline)
-            best = await attempt("off", first_deadline)
+            # Never regenerate a second complete question merely to obtain an
+            # SVG.  The accepted text question is frozen first; the assessment
+            # illustration endpoint enriches that exact question afterwards.
+            best = await attempt("off", budget.deadline)
             baseline = best
-            if policy != "off" and budget.max_calls - budget.calls >= 2 and budget.remaining_seconds >= 4:
-                try:
-                    illustrated = await attempt(policy, budget.deadline)
-                    if illustrated is not None and illustrated.verification.get("answer_verified"):
-                        best = illustrated
-                except IllustrationDisabled:
-                    raise
-                except Exception:
-                    logger.warning("assessment illustration phase failed", exc_info=True)
         else:
             best = await attempt(policy, budget.deadline)
     except IllustrationDisabled:
@@ -285,8 +303,6 @@ async def generate_question(goal: AssessmentGoal, ctx: AssessmentContext, *,
     if best is None and cat_mode and not ctx.grounding_required:
         best = _self_check(concept, budget)
     if best is not None:
-        if policy == "required" and best.illustration is None:
-            best.stem = "【配图未完成：先返回文字保底版，并非带图题】\n\n" + best.stem
         best.verification.update(budget.summary())
         logger.info("assessment generation result=%s metrics=%s",
                     "draft" if best.id.startswith("q_draft_") else "verified", budget.summary())
