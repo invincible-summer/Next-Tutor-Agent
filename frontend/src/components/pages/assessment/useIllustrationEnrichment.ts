@@ -79,23 +79,29 @@ async function fetchIllustration(
 }
 
 function startClientFlight(key: string, questionId: string, revision: number): ClientEntry {
-  const promise = fetchIllustration(questionId, revision);
-  const generating = remember(key, {
+  // The shared promise writes the terminal cache entry *before* it resolves or
+  // rejects to subscribers. This makes card transitions deterministic: a new
+  // mount can never observe a completed request as still "generating".
+  const promise = fetchIllustration(questionId, revision).then(
+    (result) => {
+      remember(key, terminalEntry(result));
+      return result;
+    },
+    (error: unknown) => {
+      remember(key, {
+        state: "failed",
+        illustration: null,
+        failureCode: error instanceof Error ? error.message : "illustration_generation_failed",
+      });
+      throw error;
+    },
+  );
+  return remember(key, {
     state: "generating",
     illustration: null,
     failureCode: "",
     promise,
   });
-  void promise.then((result) => {
-    remember(key, terminalEntry(result));
-  }).catch((error: unknown) => {
-    remember(key, {
-      state: "failed",
-      illustration: null,
-      failureCode: error instanceof Error ? error.message : "illustration_generation_failed",
-    });
-  });
-  return generating;
 }
 
 /**
@@ -103,10 +109,10 @@ function startClientFlight(key: string, questionId: string, revision: number): C
  * hook independently enriches that exact question identity with a reviewed
  * SVG. Illustration work never participates in answer-button disabled state.
  *
- * QuestionCard and FeedbackCard are separate mounts.  A bounded module-local
+ * QuestionCard and FeedbackCard are separate mounts. A bounded module-local
  * entry keeps one client-side flight/terminal state per authoritative question
  * identity so that crossing that UI boundary neither cancels an in-flight
- * request nor silently retries a completed failure.  Only retry() starts a new
+ * request nor silently retries a completed failure. Only retry() starts a new
  * request after a failed terminal state.
  */
 export function useIllustrationEnrichment(question: AssessmentQuestion | null) {
@@ -153,11 +159,14 @@ export function useIllustrationEnrichment(question: AssessmentQuestion | null) {
 
     const pending = entry.promise;
     if (pending) {
-      void pending.finally(() => {
+      const syncSettled = () => {
         if (!active) return;
         const settled = clientEntries.get(key);
         if (settled) setLocal(settled);
-      });
+      };
+      // Two-branch then consumes rejection; unlike finally(), it does not leave
+      // a newly-created rejected promise unobserved.
+      void pending.then(syncSettled, syncSettled);
     }
     return () => { active = false; };
   }, [questionId, revision, key, draft, hasFrozenIllustration, frozenIllustration, retryVersion]);
