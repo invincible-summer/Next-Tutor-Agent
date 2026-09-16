@@ -40,17 +40,34 @@ def _error(status_code: int, code: str, message: str) -> HTTPException:
     }})
 
 
-def _bound_instance(state, question_id: str, question_revision: int):
-    """Resolve only the latest question of an assessment instance.
+def _assessment_instance(state, question_id: str, question_revision: int):
+    """Resolve CAT membership without granting permission for a new LLM call."""
+    for detail in state.assessments.values():
+        if not isinstance(detail, dict):
+            continue
+        instance = cat.CatInstance.from_detail(detail)
+        if any(ref.question_id == question_id
+               and ref.question_revision == question_revision
+               for ref in instance.question_refs):
+            return instance
+    return None
 
-    A completed assessment may still finish an in-flight diagram while the
-    feedback card is visible, but older questions in that same instance cannot
-    be manually re-enriched after the learner has moved on.
+
+def _bound_instance(state, question_id: str, question_revision: int):
+    """Resolve the current question of an *active* assessment instance.
+
+    Historical questions may read an already-reviewed cache, but only the
+    current question of an active CAT may start new illustration generation.
+    An enrichment request that already passed this check may finish while the
+    learner answers; no later replay of a stopped/old assessment can spend LLM
+    budget again.
     """
     for detail in state.assessments.values():
         if not isinstance(detail, dict):
             continue
         instance = cat.CatInstance.from_detail(detail)
+        if instance.status != cat.STATUS_ACTIVE:
+            continue
         current = instance.question_refs[-1] if instance.question_refs else None
         if (current is not None
                 and current.question_id == question_id
@@ -84,9 +101,8 @@ async def enrich_question_illustration(
     task = state.tasks.get(question_id, {}).get(req.question_revision)
     if task is None:
         raise _error(404, "question_not_found", "题目不存在或不属于当前账户")
-    instance = _bound_instance(state, question_id, req.question_revision)
-    if instance is None:
-        raise _error(404, "assessment_question_not_found", "题目不是测评实例的当前题")
+    if _assessment_instance(state, question_id, req.question_revision) is None:
+        raise _error(404, "assessment_question_not_found", "题目不属于测评实例")
     if task.illustration is not None:
         return {
             "status": "ready",
@@ -109,6 +125,10 @@ async def enrich_question_illustration(
                         "generation_elapsed_ms": 0, "cache_hit": 1},
         })
 
+    instance = _bound_instance(state, question_id, req.question_revision)
+    if instance is None:
+        raise _error(404, "assessment_question_not_current",
+                     "题目不是进行中测评的当前题")
     try:
         policy = resolve_illustration_policy(
             student_id, instance.illustration_request or "auto")
