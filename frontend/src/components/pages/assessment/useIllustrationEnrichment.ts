@@ -21,10 +21,46 @@ type IllustrationEnrichmentResponse = {
   metrics?: Record<string, number>;
 };
 
+type ClientEntry = {
+  state: IllustrationEnrichmentState;
+  illustration: QuestionIllustrationData | null;
+  failureCode: string;
+  promise?: Promise<IllustrationEnrichmentResponse>;
+};
+
+const CLIENT_CACHE_LIMIT = 100;
+const clientEntries = new Map<string, ClientEntry>();
+
+function questionKey(questionId: string, revision: number): string {
+  return `${questionId}:${revision}`;
+}
+
+function remember(key: string, entry: ClientEntry): ClientEntry {
+  if (!clientEntries.has(key) && clientEntries.size >= CLIENT_CACHE_LIMIT) {
+    const oldest = clientEntries.keys().next().value as string | undefined;
+    if (oldest) clientEntries.delete(oldest);
+  }
+  clientEntries.set(key, entry);
+  return entry;
+}
+
+function terminalEntry(result: IllustrationEnrichmentResponse): ClientEntry {
+  if (result.status === "ready" && result.illustration) {
+    return { state: "ready", illustration: result.illustration, failureCode: "" };
+  }
+  if (result.status === "not_required") {
+    return { state: "not_required", illustration: null, failureCode: "" };
+  }
+  return {
+    state: "failed",
+    illustration: null,
+    failureCode: result.code || "illustration_generation_failed",
+  };
+}
+
 async function fetchIllustration(
   questionId: string,
   questionRevision: number,
-  signal: AbortSignal,
 ): Promise<IllustrationEnrichmentResponse> {
   const response = await apiFetch(
     `${API_BASE}/assessment/questions/${encodeURIComponent(questionId)}/illustration`,
@@ -32,7 +68,6 @@ async function fetchIllustration(
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ question_revision: questionRevision }),
-      signal,
     },
   );
   const payload = await response.json().catch(() => ({}));
@@ -43,69 +78,101 @@ async function fetchIllustration(
   return payload as IllustrationEnrichmentResponse;
 }
 
+function startClientFlight(key: string, questionId: string, revision: number): ClientEntry {
+  const promise = fetchIllustration(questionId, revision);
+  const generating = remember(key, {
+    state: "generating",
+    illustration: null,
+    failureCode: "",
+    promise,
+  });
+  void promise.then((result) => {
+    remember(key, terminalEntry(result));
+  }).catch((error: unknown) => {
+    remember(key, {
+      state: "failed",
+      illustration: null,
+      failureCode: error instanceof Error ? error.message : "illustration_generation_failed",
+    });
+  });
+  return generating;
+}
+
 /**
  * CAT is text-first: the frozen question is immediately usable, while this
  * hook independently enriches that exact question identity with a reviewed
  * SVG. Illustration work never participates in answer-button disabled state.
+ *
+ * QuestionCard and FeedbackCard are separate mounts.  A bounded module-local
+ * entry keeps one client-side flight/terminal state per authoritative question
+ * identity so that crossing that UI boundary neither cancels an in-flight
+ * request nor silently retries a completed failure.  Only retry() starts a new
+ * request after a failed terminal state.
  */
 export function useIllustrationEnrichment(question: AssessmentQuestion | null) {
   const questionId = question?.question_id || "";
   const revision = question?.question_revision || 1;
+  const key = questionId ? questionKey(questionId, revision) : "";
   const frozenIllustration = question?.illustration ?? null;
   const hasFrozenIllustration = Boolean(frozenIllustration);
   const draft = questionId.startsWith("q_draft_");
-  const [generatedIllustration, setGeneratedIllustration] = useState<QuestionIllustrationData | null>(null);
-  const [state, setState] = useState<IllustrationEnrichmentState>(
-    hasFrozenIllustration ? "ready" : draft || !questionId ? "idle" : "generating",
-  );
-  const [failureCode, setFailureCode] = useState("");
+
+  const initial = (() => {
+    if (hasFrozenIllustration) {
+      return { state: "ready" as const, illustration: frozenIllustration, failureCode: "" };
+    }
+    if (!questionId || draft) {
+      return { state: "idle" as const, illustration: null, failureCode: "" };
+    }
+    return clientEntries.get(key) ?? {
+      state: "generating" as const,
+      illustration: null,
+      failureCode: "",
+    };
+  })();
+  const [local, setLocal] = useState<ClientEntry>(initial);
   const [retryVersion, setRetryVersion] = useState(0);
 
   useEffect(() => {
-    if (!questionId || draft || hasFrozenIllustration) return;
+    if (hasFrozenIllustration) {
+      if (key) clientEntries.delete(key);
+      setLocal({ state: "ready", illustration: frozenIllustration, failureCode: "" });
+      return;
+    }
+    if (!questionId || draft) {
+      setLocal({ state: "idle", illustration: null, failureCode: "" });
+      return;
+    }
 
     let active = true;
-    const controller = new AbortController();
-    void fetchIllustration(questionId, revision, controller.signal)
-      .then((result) => {
-        if (!active) return;
-        if (result.status === "ready" && result.illustration) {
-          setGeneratedIllustration(result.illustration);
-          setState("ready");
-          return;
-        }
-        if (result.status === "not_required") {
-          setGeneratedIllustration(null);
-          setState("not_required");
-          return;
-        }
-        setFailureCode(result.code || "illustration_generation_failed");
-        setState("failed");
-      })
-      .catch((error: unknown) => {
-        if (!active || controller.signal.aborted) return;
-        setFailureCode(error instanceof Error ? error.message : "illustration_generation_failed");
-        setState("failed");
-      });
+    let entry = clientEntries.get(key);
+    if (!entry || retryVersion > 0) {
+      entry = startClientFlight(key, questionId, revision);
+    }
+    setLocal(entry);
 
-    return () => {
-      active = false;
-      controller.abort();
-    };
-  }, [questionId, revision, draft, hasFrozenIllustration, retryVersion]);
+    const pending = entry.promise;
+    if (pending) {
+      void pending.finally(() => {
+        if (!active) return;
+        const settled = clientEntries.get(key);
+        if (settled) setLocal(settled);
+      });
+    }
+    return () => { active = false; };
+  }, [questionId, revision, key, draft, hasFrozenIllustration, frozenIllustration, retryVersion]);
 
   function retry() {
-    if (!questionId || draft || hasFrozenIllustration) return;
-    setGeneratedIllustration(null);
-    setFailureCode("");
-    setState("generating");
+    if (!questionId || draft || hasFrozenIllustration || local.state !== "failed") return;
+    clientEntries.delete(key);
+    setLocal({ state: "generating", illustration: null, failureCode: "" });
     setRetryVersion((value) => value + 1);
   }
 
   return {
-    illustration: frozenIllustration ?? generatedIllustration,
-    state: hasFrozenIllustration ? "ready" as const : state,
-    failureCode,
+    illustration: frozenIllustration ?? local.illustration,
+    state: hasFrozenIllustration ? "ready" as const : local.state,
+    failureCode: local.failureCode,
     retry,
   };
 }
