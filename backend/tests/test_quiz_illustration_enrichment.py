@@ -10,7 +10,12 @@ from unittest.mock import patch
 
 from app.agents.assessment import adaptive_test as cat
 from app.agents.student_model.evaluation import schema as S
-from app.api.v1.assessment_illustration import _bound_instance
+from app.api.v1 import assessment_illustration as illustration_api
+from app.api.v1.assessment_illustration import (
+    IllustrationRequest,
+    _bound_instance,
+    enrich_question_illustration,
+)
 from app.core import quiz_illustration_enrichment as enrichment
 from app.core.quiz_illustration import (
     IllustrationValidationError,
@@ -51,6 +56,15 @@ def _generated(svg: str = SVG_WITH_MARKER, *, alt: str = "小车速度箭头水�
             "svg": svg,
         }
     }, ensure_ascii=False)
+
+
+def _illustration():
+    return normalize_illustration({
+        "kind": "svg",
+        "alt": "小车速度箭头水平向右",
+        "caption": "速度方向示意",
+        "svg": SVG_WITH_MARKER,
+    })
 
 
 class FakeLLM:
@@ -139,6 +153,42 @@ class TestAssessmentIllustrationBinding(unittest.TestCase):
         self.assertIsNotNone(bound)
         self.assertEqual(bound.assessment_id, "asmt_1")
         self.assertEqual(bound.illustration_request, "required")
+
+    def test_private_store_rejects_path_aliases(self):
+        for bad in ("../usr_other", "nested/usr_other", r"nested\usr_other", ".hidden"):
+            with self.subTest(bad=bad), self.assertRaises(ValueError):
+                enrichment._safe_student(bad)
+        self.assertEqual(enrichment._safe_student("usr_valid_123"), "usr_valid_123")
+
+
+class TestAssessmentIllustrationApi(unittest.IsolatedAsyncioTestCase):
+    async def test_reviewed_cache_is_readable_after_new_generation_switch_is_off(self):
+        task = _task("q_cached")
+        instance = cat.CatInstance(
+            assessment_id="asmt_cached",
+            illustration_request="required",
+            question_refs=[S.QuestionRef(question_id=task.question_id, question_revision=1)],
+        )
+        state = SimpleNamespace(
+            tasks={task.question_id: {1: task}},
+            assessments={instance.assessment_id: instance.to_detail()},
+        )
+        journal = SimpleNamespace(state=lambda: state)
+        cached = {"status": "ready", "illustration": _illustration()}
+        with patch.object(illustration_api, "get_journal", return_value=journal), \
+                patch.object(illustration_api, "get_cached_assessment_illustration",
+                             return_value=cached), \
+                patch.object(illustration_api, "resolve_illustration_policy",
+                             side_effect=AssertionError("cache hit must precede switch")), \
+                patch.object(illustration_api, "generate_assessment_illustration",
+                             side_effect=AssertionError("cache hit must not generate")):
+            result = await enrich_question_illustration(
+                task.question_id, IllustrationRequest(question_revision=1),
+                student_id="usr_cached")
+        self.assertEqual(result["status"], "ready")
+        self.assertEqual(result["question_id"], task.question_id)
+        self.assertEqual(result["metrics"]["cache_hit"], 1)
+        self.assertEqual(result["illustration"]["sanitizer_version"], 2)
 
 
 class TestIllustrationEnrichment(unittest.IsolatedAsyncioTestCase):
