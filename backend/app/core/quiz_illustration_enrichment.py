@@ -40,8 +40,10 @@ _locks_guard = asyncio.Lock()
 
 
 def _safe_student(student_id: str) -> str:
-    name = Path(str(student_id or "")).name.strip()
-    if not name or name.startswith(".") or ".." in name or "/" in name:
+    raw = str(student_id or "").strip()
+    name = Path(raw).name
+    if (not name or raw != name or name.startswith(".") or ".." in name
+            or "/" in raw or "\\" in raw):
         raise ValueError("invalid_student_id")
     return name
 
@@ -85,6 +87,18 @@ def _read_cached(student_id: str, question_id: str,
     if status == "not_required":
         return {"status": "not_required", "illustration": None}
     return None
+
+
+def get_cached_assessment_illustration(
+    student_id: str, question_id: str, question_revision: int,
+) -> dict[str, Any] | None:
+    """Return an already-decided enrichment without consulting current switches.
+
+    Account/ops switches gate *new* generation. A previously reviewed SVG is
+    historical question material and remains readable after the switch is
+    turned off, matching the existing frozen-illustration product contract.
+    """
+    return _read_cached(student_id, question_id, question_revision)
 
 
 def _write_cached(student_id: str, question_id: str, question_revision: int,
