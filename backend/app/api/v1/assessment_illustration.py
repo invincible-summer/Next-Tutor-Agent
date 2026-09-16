@@ -1,6 +1,6 @@
 """Text-first CAT illustration enrichment API.
 
-The client submits only the frozen question identity.  Authoritative question
+The client submits only the frozen question identity. Authoritative question
 content, assessment binding, illustration policy and answer are resolved from
 the student's journal; no client-supplied SVG or answer is trusted.
 """
@@ -38,13 +38,20 @@ def _error(status_code: int, code: str, message: str) -> HTTPException:
 
 
 def _bound_instance(state, question_id: str, question_revision: int):
+    """Resolve only the latest question of an assessment instance.
+
+    A completed assessment may still finish an in-flight diagram while the
+    feedback card is visible, but older questions in that same instance cannot
+    be manually re-enriched after the learner has moved on.
+    """
     for detail in state.assessments.values():
         if not isinstance(detail, dict):
             continue
         instance = cat.CatInstance.from_detail(detail)
-        if any(ref.question_id == question_id and
-               ref.question_revision == question_revision
-               for ref in instance.question_refs):
+        current = instance.question_refs[-1] if instance.question_refs else None
+        if (current is not None
+                and current.question_id == question_id
+                and current.question_revision == question_revision):
             return instance
     return None
 
@@ -61,7 +68,7 @@ async def enrich_question_illustration(
         raise _error(404, "question_not_found", "题目不存在或不属于当前账户")
     instance = _bound_instance(state, question_id, req.question_revision)
     if instance is None:
-        raise _error(404, "assessment_question_not_found", "题目不属于测评实例")
+        raise _error(404, "assessment_question_not_found", "题目不是测评实例的当前题")
     if task.illustration is not None:
         return {
             "status": "ready",
