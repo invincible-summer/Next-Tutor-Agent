@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useId, useMemo, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
+import Image from "next/image";
 import { Expand } from "lucide-react";
-import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
+import { Modal } from "@/components/ui/Modal";
 import { useUIStore } from "@/lib/store";
 import { makePageT } from "@/lib/i18n-page";
 import { STRINGS } from "@/app/(workspace)/assessment/strings";
@@ -14,106 +15,113 @@ function supported(value: QuestionIllustrationData): boolean {
   return value.kind === "svg" && value.schema_version === 1 && value.sanitizer_version === 1
     && typeof value.svg === "string" && value.svg.startsWith("<svg ")
     && new TextEncoder().encode(value.svg).length <= 24 * 1024
-    && /^sha256:[a-f0-9]{64}$/.test(value.content_hash)
-    && typeof value.alt === "string" && !!value.alt.trim() && value.alt.length <= 600
+    && typeof value.content_hash === "string" && /^sha256:[a-f0-9]{64}$/.test(value.content_hash)
+    && typeof value.alt === "string" && value.alt.trim().length > 0 && value.alt.length <= 600
     && typeof value.caption === "string" && value.caption.length <= 120
     && Number.isInteger(value.width) && value.width >= 320 && value.width <= 960
-    && Number.isInteger(value.height) && value.height >= 200 && value.height <= 720;
+    && Number.isInteger(value.height) && value.height >= 200 && value.height <= 720
+    && value.width / value.height >= 0.75 && value.width / value.height <= 3;
 }
 
-/** Only canonical server diagrams. SVG stays in the isolated image context. */
-export function QuestionIllustration({ illustration }: {
-  illustration?: QuestionIllustrationData | null;
-}) {
+export function QuestionIllustration({ illustration }: { illustration?: QuestionIllustrationData | null }) {
   if (!illustration) return null;
-  return <IllustrationImage key={illustration.content_hash || "unsupported"} value={illustration} />;
+  return <Diagram key={`${illustration.content_hash}:${illustration.svg}`} value={illustration} />;
 }
 
-function IllustrationImage({ value }: { value: QuestionIllustrationData }) {
-  const lang = useUIStore((s) => s.lang);
+function Diagram({ value }: { value: QuestionIllustrationData }) {
+  const lang = useUIStore((store) => store.lang);
   const tr = useMemo(() => makePageT(lang, STRINGS), [lang]);
   const [failed, setFailed] = useState(false);
   const [open, setOpen] = useState(false);
+  const [attempt, setAttempt] = useState(0);
+  const close = useCallback(() => setOpen(false), []);
   const valid = supported(value);
-  const src = useMemo(() => valid ? `data:image/svg+xml;charset=utf-8,${encodeURIComponent(value.svg)}` : "", [valid, value.svg]);
-  if (!valid || failed) {
-    return <div role="status" className="my-3 rounded-lg border border-border p-3 text-sm text-muted">
+  const src = useMemo(() => valid
+    ? `data:image/svg+xml;charset=utf-8,${encodeURIComponent(value.svg)}` : "", [valid, value.svg]);
+
+  if (!valid || failed) return (
+    <div role="status" className="my-3 min-w-0 rounded-lg border border-border p-3 text-xs leading-5 text-muted">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p>{tr("illustration.unavailable")}</p>
-        {valid && failed && (
-          <Button
-            type="button"
-            data-testid="question-illustration-retry"
-            size="sm"
-            variant="outline"
-            onClick={() => setFailed(false)}
-          >
-            {tr("illustration.retry")}
-          </Button>
-        )}
+        {valid && <Button type="button" size="sm" variant="outline" data-testid="question-illustration-retry"
+          onClick={() => { setAttempt((previous) => previous + 1); setFailed(false); }}>
+          {tr("illustration.retry")}
+        </Button>}
       </div>
-      {typeof value.alt === "string" && <p className="mt-1 whitespace-pre-wrap">{value.alt.slice(0, 600)}</p>}
-    </div>;
-  }
-  // Native img deliberately preserves SVG's restricted image context.
-  const picture = (expanded = false) => (
-    // eslint-disable-next-line @next/next/no-img-element
-    <img data-testid="question-illustration-image" src={src} alt={value.alt}
-      width={value.width} height={value.height}
-      loading="eager" decoding="async" onError={() => setFailed(true)}
-      className="mx-auto block h-auto w-full bg-white dark:invert"
-      style={{ maxWidth: expanded ? value.width : Math.min(value.width, 720) }} />
+      {typeof value.alt === "string" && <p className="mt-2 whitespace-pre-wrap break-words">{value.alt.slice(0, 600)}</p>}
+    </div>
   );
+
+  const previewWidth = Math.min(value.width, 640, 280 * value.width / value.height);
+  const picture = (expanded: boolean) => (
+    <div className="mx-auto w-full" style={{ maxWidth: expanded ? value.width : previewWidth }}>
+      <Image key={`${expanded}:${attempt}`} unoptimized data-testid="question-illustration-image"
+        src={src} alt={value.alt} width={value.width} height={value.height}
+        loading="eager" decoding="async" onError={() => { setFailed(true); setOpen(false); }}
+        className="block h-auto w-full bg-white dark:invert" />
+    </div>
+  );
+
   return (
-    <figure data-testid="question-illustration" className="my-3 min-w-0 overflow-hidden rounded-lg border border-border-light bg-white p-2 dark:bg-black">
-      {picture()}
-      <figcaption className="mt-1 flex items-center justify-between gap-2 text-xs text-muted">
-        <span className="whitespace-pre-wrap">{value.caption || value.alt}</span>
-        <Button
-          type="button"
-          data-testid="question-illustration-expand"
-          size="sm"
-          variant="outline"
-          icon={<Expand size={13} />}
-          className="shrink-0"
-          onClick={() => setOpen(true)}
-        >
-          {tr("illustration.expand")}
-        </Button>
+    <figure data-testid="question-illustration" className="my-3 min-w-0 overflow-hidden rounded-lg border border-border-light bg-surface">
+      <div className="bg-white p-2 dark:bg-black">{picture(false)}</div>
+      <figcaption className="border-t border-border-light px-3 py-2">
+        <div className="flex flex-wrap items-start justify-between gap-2">
+          <p className="min-w-0 flex-1 break-words text-xs leading-5 text-fg-secondary">{value.caption || tr("illustration.title")}</p>
+          <Button type="button" size="sm" variant="outline" className="shrink-0 whitespace-nowrap"
+            data-testid="question-illustration-expand" icon={<Expand size={13} aria-hidden="true" />}
+            onClick={() => setOpen(true)}>{tr("illustration.expand")}</Button>
+        </div>
+        <details className="mt-1 text-xs leading-5 text-muted">
+          <summary className="cursor-pointer">{lang === "en" ? "Diagram description" : "图示说明"}</summary>
+          <p className="mt-1 whitespace-pre-wrap break-words">{value.alt}</p>
+        </details>
       </figcaption>
-      {open && <ExpandedIllustration title={tr("illustration.title")} closeText={tr("illustration.close")}
-        onClose={() => setOpen(false)}>{picture(true)}{value.caption && <p className="mt-2">{value.caption}</p>}</ExpandedIllustration>}
+      {open && <DiagramDialog title={tr("illustration.title")} closeText={tr("illustration.close")} onClose={close}>
+        {picture(true)}
+        <p className="mt-3 whitespace-pre-wrap break-words text-xs leading-5">{value.caption || value.alt}</p>
+      </DiagramDialog>}
     </figure>
   );
 }
 
-function ExpandedIllustration({ title, closeText, onClose, children }: {
-  title: string; closeText: string; onClose: () => void; children: ReactNode;
+function DiagramDialog({ title, closeText, onClose, children }: {
+  title: string;
+  closeText: string;
+  onClose: () => void;
+  children: ReactNode;
 }) {
   const dialog = useRef<HTMLDivElement>(null);
+  const titleId = useId();
   useEffect(() => {
-    const previous = document.activeElement as HTMLElement | null;
-    dialog.current?.focus();
-    const keys = (event: KeyboardEvent) => {
+    const previous = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    dialog.current?.querySelector<HTMLButtonElement>("button")?.focus();
+    const handleKey = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         event.preventDefault();
         event.stopImmediatePropagation();
         onClose();
       } else if (event.key === "Tab") {
-        // The close button is this read-only viewer's only interactive child.
         event.preventDefault();
         dialog.current?.querySelector<HTMLButtonElement>("button")?.focus();
       }
     };
-    window.addEventListener("keydown", keys, true);
-    return () => { window.removeEventListener("keydown", keys, true); previous?.focus(); };
+    window.addEventListener("keydown", handleKey, true);
+    return () => {
+      window.removeEventListener("keydown", handleKey, true);
+      if (previous?.isConnected) previous.focus();
+    };
   }, [onClose]);
-  return createPortal(<Modal open onClose={onClose} width={1000}>
-    <div ref={dialog} role="dialog" aria-modal="true" aria-label={title} tabIndex={-1}>
-      <div className="mb-3 flex items-center justify-between gap-2">
-        <span className="font-medium">{title}</span><Button size="sm" onClick={onClose}>{closeText}</Button>
+
+  return createPortal(
+    <Modal open width={1000} onClose={onClose}>
+      <div ref={dialog} role="dialog" aria-modal="true" aria-labelledby={titleId}>
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <h2 id={titleId} className="min-w-0 font-medium">{title}</h2>
+          <Button type="button" size="sm" variant="outline" className="shrink-0" onClick={onClose}>{closeText}</Button>
+        </div>
+        {children}
       </div>
-      {children}
-    </div>
-  </Modal>, document.body);
+    </Modal>, document.body,
+  );
 }
