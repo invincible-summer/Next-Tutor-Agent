@@ -1,4 +1,5 @@
 "use client";
+import { useState } from "react";
 import { BookOpen, ChevronRight, FileText, PanelRightClose, UploadCloud } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { t, type Lang } from "@/lib/i18n";
@@ -39,6 +40,11 @@ export function ChatMaterialsPanel({
   onClose: () => void;
 }) {
   const { lang } = useUIStore();
+  // Desktop keeps the historical "open by default" panel. On narrow screens
+  // the same default must not mount a full-height modal drawer over the quiz
+  // and input controls; the learner opens the drawer explicitly from this
+  // compact edge button instead.
+  const [mobileOpen, setMobileOpen] = useState(false);
   if (!open) return null;
   const workspace = sources.filter((s) => s.source_scope === "workspace" || s.source_scope === "workspace_textbook");
   const references = sources.filter((s) => s.source_scope === "library");
@@ -55,15 +61,32 @@ export function ChatMaterialsPanel({
   );
   return (
     <>
-      <div className="fixed inset-0 z-20 bg-black/20 md:hidden" onClick={onClose} />
+      {!mobileOpen && (
+        <button
+          type="button"
+          onClick={() => setMobileOpen(true)}
+          className="fixed right-2 top-20 z-20 flex h-8 w-8 items-center justify-center rounded-[9px] border border-border bg-bg/95 text-muted shadow-sm hover:bg-surface-hover hover:text-fg md:hidden"
+          aria-label={t(lang, "chat.materials.open", "打开资料栏")}
+        >
+          <BookOpen size={15} />
+        </button>
+      )}
+      {mobileOpen && (
+        <div className="fixed inset-0 z-20 bg-black/20 md:hidden" onClick={() => setMobileOpen(false)} />
+      )}
       <aside className={cn(
-        "relative z-30 flex w-[270px] shrink-0 flex-col border-l border-border bg-bg/95 p-3",
-        "max-md:fixed max-md:right-0 max-md:top-0 max-md:h-full max-md:shadow-xl",
+        "relative z-30 w-[270px] shrink-0 flex-col border-l border-border bg-bg/95 p-3 md:flex",
+        mobileOpen
+          ? "max-md:fixed max-md:right-0 max-md:top-0 max-md:flex max-md:h-full max-md:shadow-xl"
+          : "max-md:hidden",
       )} aria-label={t(lang, "chat.materials.title", "当前资料")}>
         <div className="mb-3 flex items-center gap-2">
           <BookOpen size={15} className="text-accent" />
           <h2 className="flex-1 text-[0.8rem] font-semibold text-fg">{t(lang, "chat.materials.title", "当前资料")}</h2>
-          <button onClick={onClose} className="rounded p-1 text-muted hover:bg-surface-hover hover:text-fg" aria-label={t(lang, "chat.materials.close", "关闭资料栏")}>
+          <button onClick={() => setMobileOpen(false)} className="rounded p-1 text-muted hover:bg-surface-hover hover:text-fg md:hidden" aria-label={t(lang, "chat.materials.close", "关闭资料栏")}>
+            <PanelRightClose size={15} />
+          </button>
+          <button onClick={onClose} className="rounded p-1 text-muted hover:bg-surface-hover hover:text-fg max-md:hidden" aria-label={t(lang, "chat.materials.close", "关闭资料栏")}>
             <PanelRightClose size={15} />
           </button>
         </div>
