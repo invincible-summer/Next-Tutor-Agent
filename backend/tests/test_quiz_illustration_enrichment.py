@@ -8,11 +8,14 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
 
+from fastapi import HTTPException
+
 from app.agents.assessment import adaptive_test as cat
 from app.agents.student_model.evaluation import schema as S
 from app.api.v1 import assessment_illustration as illustration_api
 from app.api.v1.assessment_illustration import (
     IllustrationRequest,
+    _assessment_instance,
     _bound_instance,
     enrich_question_illustration,
 )
@@ -139,7 +142,7 @@ class TestSvgCompatibility(unittest.TestCase):
 
 
 class TestAssessmentIllustrationBinding(unittest.TestCase):
-    def test_only_latest_question_in_instance_is_enrichable(self):
+    def test_only_latest_question_in_active_instance_is_enrichable(self):
         first = S.QuestionRef(question_id="q_old", question_revision=1)
         current = S.QuestionRef(question_id="q_current", question_revision=2)
         instance = cat.CatInstance(
@@ -154,6 +157,17 @@ class TestAssessmentIllustrationBinding(unittest.TestCase):
         self.assertEqual(bound.assessment_id, "asmt_1")
         self.assertEqual(bound.illustration_request, "required")
 
+    def test_stopped_instance_keeps_membership_but_cannot_generate(self):
+        current = S.QuestionRef(question_id="q_stopped", question_revision=1)
+        instance = cat.CatInstance(
+            assessment_id="asmt_stopped",
+            status=cat.STATUS_STOPPED,
+            question_refs=[current],
+        )
+        state = SimpleNamespace(assessments={instance.assessment_id: instance.to_detail()})
+        self.assertIsNotNone(_assessment_instance(state, "q_stopped", 1))
+        self.assertIsNone(_bound_instance(state, "q_stopped", 1))
+
     def test_private_store_rejects_path_aliases(self):
         for bad in ("../usr_other", "nested/usr_other", r"nested\usr_other", ".hidden"):
             with self.subTest(bad=bad), self.assertRaises(ValueError):
@@ -166,6 +180,7 @@ class TestAssessmentIllustrationApi(unittest.IsolatedAsyncioTestCase):
         task = _task("q_cached")
         instance = cat.CatInstance(
             assessment_id="asmt_cached",
+            status=cat.STATUS_STOPPED,
             illustration_request="required",
             question_refs=[S.QuestionRef(question_id=task.question_id, question_revision=1)],
         )
@@ -189,6 +204,36 @@ class TestAssessmentIllustrationApi(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(result["question_id"], task.question_id)
         self.assertEqual(result["metrics"]["cache_hit"], 1)
         self.assertEqual(result["illustration"]["sanitizer_version"], 2)
+
+    async def test_stopped_cache_miss_never_spends_generation_budget(self):
+        task = _task("q_stopped_miss")
+        instance = cat.CatInstance(
+            assessment_id="asmt_stopped_miss",
+            status=cat.STATUS_STOPPED,
+            illustration_request="required",
+            question_refs=[S.QuestionRef(question_id=task.question_id, question_revision=1)],
+        )
+        state = SimpleNamespace(
+            tasks={task.question_id: {1: task}},
+            assessments={instance.assessment_id: instance.to_detail()},
+        )
+        journal = SimpleNamespace(state=lambda: state)
+        with patch.object(illustration_api, "get_journal", return_value=journal), \
+                patch.object(illustration_api, "get_cached_assessment_illustration",
+                             return_value=None), \
+                patch.object(illustration_api, "resolve_illustration_policy",
+                             side_effect=AssertionError("historical miss must not resolve policy")), \
+                patch.object(illustration_api, "generate_assessment_illustration",
+                             side_effect=AssertionError("historical miss must not generate")):
+            with self.assertRaises(HTTPException) as raised:
+                await enrich_question_illustration(
+                    task.question_id, IllustrationRequest(question_revision=1),
+                    student_id="usr_stopped")
+        self.assertEqual(raised.exception.status_code, 404)
+        self.assertEqual(
+            raised.exception.detail["error"]["code"],
+            "assessment_question_not_current",
+        )
 
 
 class TestIllustrationEnrichment(unittest.IsolatedAsyncioTestCase):
