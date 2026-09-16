@@ -19,6 +19,7 @@ Design (B-scheme = explicit orchestration on top of the V1 single agent):
 from __future__ import annotations
 
 import asyncio
+import re
 import time
 from typing import Any, AsyncGenerator, Callable
 
@@ -511,6 +512,92 @@ def _apply_response_constraints_to_plan(plan: TaskPlan,
     trace.log("plan_response_constraint", removed_steps=len(plan.steps) - len(kept),
               response_format=getattr(understanding, "response_format", ""))
     return constrained
+
+
+_ZH_QUIZ_COUNTS = {"一": 1, "两": 2, "二": 2, "三": 3, "四": 4, "五": 5}
+
+
+def _explicit_quiz_count(message: str) -> int:
+    """显式题量 1–5；未指定时与习题中心统一默认 1 道。"""
+    match = re.search(r"([1-5])\s*道", message)
+    if match:
+        return int(match.group(1))
+    match = re.search(r"([一两二三四五])\s*道", message)
+    if match:
+        return _ZH_QUIZ_COUNTS[match.group(1)]
+    return 1
+
+
+def _explicit_quiz_type(message: str) -> str:
+    """Return the question type explicitly requested by the learner."""
+    if re.search(r"选择题|单选题|多选题", message):
+        return "multiple_choice"
+    if re.search(r"填空题?", message):
+        return "fill_blank"
+    if re.search(r"简答题|问答题", message):
+        return "short_answer"
+    return ""
+
+
+def _enforce_explicit_practice_plan(plan: TaskPlan,
+                                    understanding: TaskUnderstanding,
+                                    message: str, grade: str,
+                                    trace: Trace) -> TaskPlan:
+    """把学生明确练习意图变成必须完成的结构化题卡调用。
+
+    Prompt 仍可让模型主动调用；模型只在正文里出题时，executor 根据
+    auto_invoke 补执行这个已授权调用，杜绝“有文字题、无题卡”。
+    """
+    structured_request = bool(
+        getattr(understanding, "structured_quiz_request", False))
+    if (understanding.intent != TaskType.PRACTICE and not structured_request) \
+            or understanding.goal == "answer_pending" \
+            or not getattr(understanding, "allow_followup_assessment", True):
+        return plan
+    # A hand-built understanding or an older persisted state may carry the
+    # explicit response-mode bit while retaining intent=explain. Normalize it
+    # at this boundary so planner, strategy and executor all agree.
+    if structured_request and understanding.intent != TaskType.PRACTICE:
+        understanding.intent = TaskType.PRACTICE
+        understanding.goal = "practice"
+        understanding.requires_tools = True
+    count = _explicit_quiz_count(message)
+    q_type = _explicit_quiz_type(message)
+    difficulty = str(understanding.difficulty or "medium").lower()
+    if difficulty not in {"easy", "medium", "hard"}:
+        difficulty = "medium"
+    reference_intent = bool(re.search(r"仿照|变式|类似(?:这|上面|该)?题", message))
+    has_reference_body = (len(message.strip()) >= 20 and
+                          bool(re.search(r"题目\s*[:：]|已知|求(?:解|证|出)|多少|计算", message)))
+    if reference_intent and has_reference_body:
+        tool_name = "fit_quiz"
+        skill_ids = ["agent.skill.assessment.fit_variants"]
+        args = {"reference": message.strip()[:4000],
+                "difficulty": difficulty, "count": count}
+        task = "根据学生给出的完整参考题生成结构化变式题卡"
+    else:
+        tool_name = "generate_quiz"
+        skill_ids = ["agent.skill.assessment.generate_practice"]
+        topic = (understanding.concept or understanding.subject or
+                 message).strip()[:120]
+        args = {"topic": topic, "difficulty": difficulty, "count": count}
+        if q_type:
+            args["q_type"] = q_type
+        task = "围绕学生指定知识点生成结构化练习题卡"
+    if grade in {"小学", "初中", "高中", "本科"}:
+        args["grade"] = grade
+    args["illustration_request"] = understanding.illustration_request
+    step = PlanStep(
+        agent_role="assessment", task=task,
+        suggested_tools=[tool_name], skill_ids=skill_ids,
+        tool_args={tool_name: args}, auto_invoke=True)
+    enforced = TaskPlan(steps=[step], source=f"practice_enforced:{plan.source}",
+                        validated=plan.validated)
+    trace.log("explicit_practice_plan_enforced", tool=tool_name,
+              count=count, difficulty=difficulty, q_type=q_type,
+              source=getattr(understanding, "source", ""),
+              semantic_guard=structured_request)
+    return enforced
 
 
 def _enrich_plan_with_strategy_check(plan: TaskPlan, strategy: Any,
@@ -1316,9 +1403,13 @@ async def run(
         understanding = await understand(user_message, session, llm)
     except Exception as e:
         trace.log("supervisor_understand_error", message=str(e))
-        understanding = TaskUnderstanding(intent=TaskType.EXPLAIN,
-                                          concept=user_message[:30],
-                                          requires_tools=False, source="fallback")
+        # Keep the semantic quiz fallback available even if an unexpected
+        # understanding-layer exception occurs. The old hard-coded EXPLAIN
+        # fallback was another route by which “考我一下” could become plain
+        # text instead of a structured card.
+        from .task_understanding import rule_understand
+        understanding = rule_understand(user_message)
+        understanding.source = "fallback"
     # R20（update_plan §4）：composition root 注入 scoped 评价投影——
     # M3/M5 教学输入读到当前工作区有效判断（此前 evaluation_context
     # 无赋值路径，恒空）。无 workspace → 空 dict（非个性化降级）。
@@ -1327,6 +1418,10 @@ async def run(
             sid, getattr(session, "workspace_id", "") or "") or {}
     except Exception:
         understanding.evaluation_context = {}
+    for tool in tools:
+        provider = getattr(tool, "_illustration_policy_provider", None)
+        if provider is not None:
+            provider.bind_understanding(understanding.illustration_request)
     trace.log("supervisor_understanding", **understanding.to_dict())
 
     # --- 2. student snapshot ---
@@ -1368,6 +1463,10 @@ async def run(
         goal = _goal_from(understanding)
     trace.log("supervisor_plan", source=plan.source, steps=[s.to_dict() for s in plan.steps],
               goal=goal)
+
+    # 明确练习请求必须落到可交互题卡；不能把工具调用完全交给模型自由选择。
+    plan = _enforce_explicit_practice_plan(
+        plan, understanding, user_message, session.grade, trace)
 
     # --- 3b. V3 student-aware adaptation (soft strategy) ---
     strategy, adaptation_recap = await _adapt_for_turn(

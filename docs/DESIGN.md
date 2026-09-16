@@ -113,7 +113,7 @@ SSE 为前端直连后端的流式通道（`POST /chat/stream`、`POST /quiz/gra
 
 `agents/supervisor.py::run` 是一轮对话的生成器（逐事件 yield SSE）：
 
-1. **understand**：`task_understanding` 结构化任务理解（intent/subject/concept/requires_tools + response_format/allow_followup_assessment）；“一句话/简短/不要出题”等显式输出契约由确定性规则覆盖 LLM 猜测。
+1. **understand**：`task_understanding` 结构化任务理解（intent/subject/concept/requires_tools + response_format/allow_followup_assessment + `structured_quiz_request`）；`quiz_intent_system@1.0.0` 与理解器同一次低预算 LLM 调用识别“给我来个题/考我一下/想练练/quiz me”等模糊新题语义。模型失败或自相矛盾时，`new_question_request_score()` 组合请求短语、动作词+题目对象和已有题否定信号兜底；“一句话/简短/不要出题”等显式输出契约仍由确定性规则覆盖 LLM 猜测。
 2. **snapshot**：`derive_snapshot(session)` 派生轻量 StudentSnapshot（grade/资料/quiz_count），不臆造数值化掌握度。
 3. **skill decision**：M10 构建 TaskFrame，确定性检查 Skill 前置条件并把候选/拒绝原因写入 Trace；`gated` 模式随后对计划执行硬门。
 4. **plan + strategy alignment + gate**：`planner.make_plan` 产出 TaskPlan + goal，步骤携带 `skill_ids`；M3 教学策略若声明 `next_check`，M10 将可执行的 `generate_quiz` 收尾检测连同结构化参数加入计划；随后 gated 模式移除不满足前置条件的 Skill、收窄 generate/fit 歧义，缺参考题时改为最小澄清计划。
@@ -158,7 +158,7 @@ M10 Registry 将 Agent Skill 投影为能力 → 工具子集，收窄 LLM 每�
 - 错误恢复（R13）：每个错误码对应恢复建议注入工具结果。
 - `_lite_tool_calls`：done 事件里回传瘦身版工具调用（去大 payload）。
 - **M10 后置条件**：ToolResult 映射回 Skill，验证资料定界/题目集合/历史定界等确定性成功标准并写 `skill_postconditions` Trace。
-- **策略—Skill 对齐与必执行兜底**：`PlanStep` 可携带 `tool_args/auto_invoke`。只有教学策略明确要求、参数已由系统确定且工具在当前会话真实安装时才启用；模型正常函数调用优先，若只用文字模拟收尾题而漏调工具，Executor 发出 `skill_plan_auto_invoke` 并按授权参数补执行。普通 generate/fit 歧义计划不自动调用，仍由 Agent 决策。
+- **策略—Skill 对齐与必执行兜底**：`PlanStep` 可携带 `tool_args/auto_invoke`。只有教学策略明确要求、参数已由系统确定且工具在当前会话真实安装时才启用；模型正常函数调用优先，若只用文字模拟新题而漏调工具，Executor 发出 `skill_plan_auto_invoke` 并按授权参数补执行。`structured_quiz_request` 会把模糊的新题请求规范化为 generate/fit 的确定性题卡计划；已有题求解仍不自动出新卡。
 - **推理预算防饿死**：`EXECUTOR_TOOL_THINKING=1`（默认）时工具步保留模型 LOW 思考（预算充足时提升工具使用质量并为 real_summary 提供真实推理材料）；`budget_forces_direct` 在输出预算被压到答案保留区以下时仍强制关闭 thinking；若 provider 以 `finish_reason=length` 返回空或半截答案，执行器记录 `incomplete_answer_recovery`，保留已流式输出的前缀并用关闭 thinking 的第二次调用续写——续写指令显式禁止复述此前轮次内容（思考型模型会把整轮预算耗在隐藏推理后，于重试时复读上一轮答案）；最终回答与工具前讲解会合并写入会话历史，不再只显示深度思考或丢失前半段。工具步输出信封由 `EXECUTOR_TOOL_MAX_OUTPUT_TOKENS` 控制（默认 6000，旧硬顶 4000 常被思考吃光触发恢复，重试本身比放大信封更费 token）。`=0` 回到旧行为（有可见工具即关闭执行阶段 thinking）。
 - **R10 确定性预检索（反幻觉关键）**：`agents/preresearch.py` 是 legacy/Executor 两条路径的统一判定源。**本轮上传文件/图片、引用资料中心教材，或明确说“根据教材/附件/这份资料”时必须在回答前检索**；工作区仅仅存在资料不会让问候等无关轮次强制检索，内容型问题仍可由 Planner/M10 自主安排。Executor 用完整工具表查找 `knowledge_search`（不受 router 收窄影响），当前轮附件携带 file_id 时只检索这些文件，避免引用 A 却命中 B；结果命中则注入“严格基于原文”，未命中则注入“如实告知、禁止凭文件名编造”。Trace 记录 `grounding_reason/grounding_file_ids`。
 - **R10 预检索查询精炼（search_queries）**：understand_system（v1.2.0）让任务分析 LLM 同轮产出 `search_queries`（1–3 条概念/篇目/课文名精炼检索词，`task_understanding._clean_search_queries` 清洗：仅短字符串、≤20 字、≤3 条，整句口语丢弃）。Executor 预检索以 `search_queries[0]` 为主查询、其余经内部参数 `focus_queries`（不在 LLM 工具 schema 中）传给 `KnowledgeSearchTool._query_variants(focus=...)`：精炼词优先占据变体槽位，原句的确定性压缩词核/问句词核兜底占用剩余槽位保持召回广度。`search_queries` 为空（规则路径/LLM 失败）时保持旧的原句直查回落。Trace 在 `tool_result(reason=auto_preresearch)` 上记录 `query_source=llm_focus|raw_message`。V1 legacy 路径不接入（降级链路保持原行为）。
@@ -317,6 +317,26 @@ per-student 构建锁 + 全局 Semaphore(2) 防 429；任何异常落 `status=gr
 | `recall_history` | JIT 检索本会话 transcript（§4.3） |
 
 ### 7.2 出题交互闭环
+
+**当前题卡受理与恢复（2026-09-16 更新）**：以当前代码的 JSON 202
+受理协议为准，以下历史段落中的 `/quiz/grade` SSE 描述已不适用。
+聊天题卡的选择/填空/简答均经 `/quiz/record` 统一受理；获得
+`attempt_id` 即锁定，`verdict=null` 不代表未提交。会话缓存保存完整答案，
+按 `question_id + question_revision` 写入 quiz_history 和 toolCalls。
+`GET /quiz/submission?question_id=...&question_revision=...` 从本人学习证据
+journal 纯读恢复受理、当前本题判分和学习反馈（未提交为 null；他人题
+404，版本不匹配 409），不触发模型或追加受理。前端按返回的 `pending`
+有限轮询，独立于长期评价状态，支持无学习区的 task-only 判分；失败或
+未判定仍保留只读答案。旧会话丢失 result 缓存也可由题目身份恢复。
+SVG 题图代码已接入；自动化测试记录和剩余人工验收见根目录 `plan.md` 第 17 节。默认部署开关为 `1`，运维可设置为 `0` 立即关闭所有新图生成。
+
+**结构化题目 SVG（2026-09-16）**：沿用三条出题路径，题图与题面同次生成、同次审核、先冻结再交付。`QUIZ_SVG_ENABLED` 是默认 `1` 的运维总闸，设为 `0` 时所有入口 fail-closed；登录账户 `profile.prefs.quiz_svg_enabled` 缺省 true，读取失败或无可信账户则禁止新图。`/user/profile` 的 GET/PUT 响应增加 `quiz_svg_available`，PUT 在账户锁内浅合并偏好并严格校验新偏好为 bool。`illustration_request=auto|none|required` 是本次意图：关闭总闸时 auto/none 为 off、required 返回 `illustration_disabled`；开启后 auto 按题必要性选择，required 每题必须带图。Chat provider 绑定可信账户与当前用户意图，模型工具参数不能自行开启开关或伪造强制要求。CAT start 接收该枚举并在实例持久化，next/恢复复用，409 不终止已有实例。
+
+`core/quiz_illustration.py` 以 defusedxml 解析后按闭合白名单重建黑白 SVG（最多 24KiB、180 节点、深度 10、800 路径段）。禁止脚本、HTML、CSS、外链、引用、动画和 DTD/实体；不把非法图删掉后原样交付依图题。规范化对象 `{kind,schema_version,sanitizer_version,svg,alt,caption,width,height,content_hash}` 沿 `Question → TaskSnapshot → QuestionPublic` 保存与投影，并进入本题评分上下文。模型提供的审核/内部字段不受信任；即使 `QUIZ_VERIFY_MODE=off/basic`，带图题也必须独立审题并得到 `illustration_check=passed`。三个生成入口共用校验/修订路径，启用图时蓝图、生成、审核和 CAT 重试共享 7 次逻辑调用/180 秒预算、最多一次整题修订；provider 内部网络重试仍受统一期限约束。这是初始限制，尚无性能验收结论。
+
+题组注册在账户锁与 journal 锁内复查图生成权限、检查同题同 revision 材料不可变，再一次事务写入整组。账户开关变化不修改历史图；重练同一冻结题图仍可复用。journal 重放使用 `JournalTransaction.from_persisted_json`，先校验磁盘原始 envelope 再解析新增默认字段，避免将历史记录误判为 checksum 损坏；不批量迁移或重写旧行。
+
+前端共用 `QuestionIllustration`：仅接收规范化版本对象，以 `img` 的 SVG data URI 图片上下文展示，不启用 Markdown raw HTML，不用 DOM 内联 SVG/object/iframe。题图自适应至 720px，深色模式反转黑白，支持放大、Esc 与焦点返回；失败显示图意说明。出题中心把账户开关和“本次必须配图”直接放在习题生成 `ConfigCard` 内（无学习区/加载态也显示），不再单独创建插图模块；“本次必须配图”仅在有效开关开启时可选。聊天结构化题卡、测评答题/反馈、报告回看与证据详情均复用该组件，保证题图始终位于结构化卡片内。源码摘要仅保存短 alt，trace 仅新增 hash/大小/版本/调用统计，不回灌完整 SVG。
 
 - 前端渲染可交互卡片：MC 可点选（选中即高亮，揭晓后正确绿/错误红）、填空/简答可作答；先答后揭晓；出题后正文不复述题干。
 - **MC**：本地判对错，揭晓即 `POST /quiz/record` 回传 → 统一受理（MC 确定性判定随受理事务落 journal；修复了 MC 不回传的闭环缺口）。
@@ -716,7 +736,7 @@ frontend/src/
 
 ### 21.2 Prompt 工程
 
-`prompts/tutor.py` 四层控制：不可压缩红线 → 教学过程/学段适配 → 回合动态上下文 → 当前计划 Skill Card；工具规则由 M10 Manifest 与动态卡片承接，系统 Prompt 只保留通用调用边界。Prompt 注册表版本化（18 prompt，P2 移除死注册 skill_decision_system——决策是纯规则实现无 LLM 调用方），注入防护定界标签 + redline_tail（P2 归位：不再由 build_context 代压，改在 executor plan recap 之后/legacy 调用点压真正尾部，恢复 recency 设计意图）；多层 `[xx智能]` 软指令头部压显式仲裁序（显式约束 > 红线 > 教学策略 > 表达适配），策略 deep vs UX concise 冲突确定性收敛；M7 advisor prompt 中文化与全库一致；`prompt_eval` 25 金标回归。
+`prompts/tutor.py` 四层控制：不可压缩红线 → 教学过程/学段适配 → 回合动态上下文 → 当前计划 Skill Card；工具规则由 M10 Manifest 与动态卡片承接，系统 Prompt 只保留通用调用边界。Prompt 注册表版本化（新增 `quiz_intent_system@1.0.0`，与 `understand_system@1.3.0` 同一次调用识别模糊新题请求），注入防护定界标签 + redline_tail（P2 归位：不再由 build_context 代压，改在 executor plan recap 之后/legacy 调用点压真正尾部，恢复 recency 设计意图）；多层 `[xx智能]` 软指令头部压显式仲裁序（显式约束 > 红线 > 教学策略 > 表达适配），策略 deep vs UX concise 冲突确定性收敛；M7 advisor prompt 中文化与全库一致；`prompt_eval` 25 金标回归。
 
 ### 21.3 Trace 可观测
 
@@ -816,7 +836,7 @@ frontend/src/
 
 ## 24. 测试概览
 
-后端 `backend/tests/` 使用 unittest（`python -m unittest discover -s tests`，当前 1763+ 例、skip=4），核心覆盖面：统一学习评价域（journal 事务/校验和/损坏隔离/幂等重放、SourceReceipt 受理与答案指纹判重、MC 确定性判分、语义 job 生命周期与 §10.3 状态映射、scope 解析与公用教材全选上限、复核/撤销、删除与 generation 重写、learer-evaluation API 投影与鉴权隔离）、CAT 生命周期（start/answer/next/abandon/report/active、next 未答幂等重发、评价失败不阻塞出题、刷新恢复）、quiz 信任边界（越权 404 与存储零变化、unverified_practice 零写入、attempt 链与 M9 归因幂等）、量规冻结与 hint/dispute、出题质量门与两轮化、检索融合与证据门、学段去僵化、教材库/OCR/知识谱系（P2–P7 各批次回归）、M6 记忆生命周期、M7 诊断/提案/部署与无增益字段（BANNED_KEYS）、M8 滞后与单真相源、M9 SM-2/计划/任务/复习闭环、M-Notes 笔记仓库与智能体、M0 鉴权/限流/账号清除级联、P10 语音票据与 WS 协议、OpenAI 兼容门面、prompt 注册表版本钉扎。每关验收记录见 `docs/plan-gates/`。前端 `tsc --noEmit` 零错误 + eslint + `next build`（默认与 --webpack 双轨）通过，Playwright e2e 10/10。
+后端 `backend/tests/` 使用 unittest（`python -m unittest discover -s tests`，当前 1818 项通过、skip=4），核心覆盖面：统一学习评价域（journal 事务/校验和/损坏隔离/幂等重放、SourceReceipt 受理与答案指纹判重、MC 确定性判分、语义 job 生命周期与 §10.3 状态映射、scope 解析与公用教材全选上限、复核/撤销、删除与 generation 重写、learer-evaluation API 投影与鉴权隔离）、CAT 生命周期（start/answer/next/abandon/report/active、next 未答幂等重发、评价失败不阻塞出题、刷新恢复）、quiz 信任边界（越权 404 与存储零变化、unverified_practice 零写入、attempt 链与 M9 归因幂等）、量规冻结与 hint/dispute、出题质量门与两轮化、Chat 模糊出题语义与 `auto_invoke` 题卡护栏、检索融合与证据门、学段去僵化、教材库/OCR/知识谱系（P2–P7 各批次回归）、M6 记忆生命周期、M7 诊断/提案/部署与无增益字段（BANNED_KEYS）、M8 滞后与单真相源、M9 SM-2/计划/任务/复习闭环、M-Notes 笔记仓库与智能体、M0 鉴权/限流/账号清除级联、P10 语音票据与 WS 协议、OpenAI 兼容门面、prompt 注册表版本钉扎。每关验收记录见 `docs/plan-gates/`。前端 `tsc --noEmit` 零错误 + eslint + `next build`（默认与 --webpack 双轨）通过，Playwright e2e 10/10。
 
 ---
 

@@ -23,13 +23,18 @@ Design (same shape as the quiz tool, but single-question + constraint-aware):
 from __future__ import annotations
 
 import json
+import logging
 import re
 import uuid
 from typing import Any
 
+logger = logging.getLogger(__name__)
+
 from ...core.config import settings
 from ...core.llm_async import AsyncLLMClient
-from ...core.quiz_verify import freeze_rubric, is_well_formed, verify_questions
+from ...core.quiz_verify import freeze_rubric, is_well_formed, verify_questions, generate_verified_questions
+from ...core.quiz_generation_budget import BudgetedLLM, GenerationBudget
+from ...core.quiz_illustration_policy import resolve_illustration_policy, IllustrationDisabled
 from ...prompts.registry import get as _prompt
 from .question import Question, QuestionType
 from .state import AssessmentContext, AssessmentGoal
@@ -107,19 +112,15 @@ def _pick_q_type(goal: AssessmentGoal) -> str:
     for deeper practice. An explicit goal.q_type always wins."""
     if goal.q_type:
         return goal.q_type
-    if goal.purpose in ("check", "diagnose"):
+    if goal.purpose in ("check", "diagnose", "adaptive"):
         return QuestionType.MULTIPLE_CHOICE
     return QuestionType.SHORT_ANSWER
 
 
 def _parse_dict(raw: str) -> "dict[str, Any] | None":
     """Extract the first question JSON dict (pre-lift), or None."""
-    m = re.search(r"\{.*\}", raw, re.DOTALL)
-    candidate = m.group(0) if m else raw
-    try:
-        data = json.loads(candidate)
-    except json.JSONDecodeError:
-        return None
+    from ...core.json_utils import extract_json_object
+    data = extract_json_object(raw)
     qs = data.get("questions", []) if isinstance(data, dict) else []
     if not qs or not isinstance(qs[0], dict):
         return None
@@ -138,9 +139,101 @@ def _parse(raw: str, *, concept: str, difficulty: int) -> "Question | None":
     return q
 
 
+async def _revise_question(llm: "AsyncLLMClient", raw_q: dict[str, Any], *,
+                           fixes: list[str],
+                           grounding_context: str = "") -> "dict[str, Any] | None":
+    """按 critic 修复意见回炉一道题（单次修订调用，输出仍是题目 dict）。
+
+    critic 对「答案/解析有误但题目可修复」的题返回 revision_required +
+    recommended_revision；直接丢弃会让单题生成连续失败（live 验收：CAT
+    连续 3 次全被丢弃 → generation_failed，整个测评中断）。这里带着审核
+    意见让模型修订原题；修订结果仍要过同一质量门才被接受。
+    """
+    NL = chr(10)
+    prompt = (
+        "你是命题修订专家。下面这道题未通过独立审核，审核意见列出了必须修复的问题。"
+        "请输出修复后的完整题目 JSON 对象（与原题相同的 schema：type/stem/options/"
+        "answer/explanation/knowledge_point/difficulty/rubric_criteria/"
+        "equivalent_solutions；选择题保留 options，非选择题不得有 options）。"
+        "保持知识点、题型与难度不变；除修复审核指出的问题外，若审核指出题干"
+        "有歧义、条件缺失或符号约定不清，可以重写题干、更换数值或情境"
+        "（考查同一知识点即可），不必逐字保留原题。答案、解析、选项与量规"
+        "必须同步修正、彼此一致。若原题带 source_ref_ids 字段则原样保留。"
+        "只输出该 JSON 对象，不要输出任何其它文字。" + NL + NL
+        + "原题：" + NL + json.dumps(raw_q, ensure_ascii=False) + NL + NL
+        + "审核修复意见：" + NL + "- " + (NL + "- ").join(fixes))
+    if grounding_context:
+        prompt += (NL + NL + "[命题事实边界]" + NL
+                   + "修订后的题目仍不得引入下方证据之外的新教材专属事实。"
+                   + NL + grounding_context)
+    try:
+        full, _usage = await llm.complete(
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.2, max_tokens=1500, disable_thinking=True)
+    except Exception:
+        return None
+    from ...core.json_utils import extract_json_object
+    data = extract_json_object(full)
+    if isinstance(data, dict) and not str(data.get("stem") or "").strip():
+        # 模型常按出题习惯把单题包进 {"questions": [...]} 壳，这里兼容。
+        inner = data.get("questions")
+        if isinstance(inner, list) and inner and isinstance(inner[0], dict):
+            data = inner[0]
+    if isinstance(data, dict) and str(data.get("stem") or "").strip()             and str(data.get("answer") or "").strip():
+        return data
+    logger.info("assessment gen: revision output unparseable (head=%.200s)",
+                full or "")
+    return None
+
+
+async def _revise_after_critic(
+        llm: "AsyncLLMClient", raw_q: dict[str, Any], *,
+        bad: list[dict[str, Any]], topic: str, grade: str,
+        difficulty_label: str,
+        grounding_context: str = "") -> "tuple[dict[str, Any] | None, list]":
+    """critic 丢弃后的一次修复回炉，返回 (新题目, kept)。
+
+    只要审核给出了具体修复意见（recommended_revision）就尝试回炉——
+    live 验收中 critic 对答案错误的题判 rejected 但同样附带修正指令，
+    只认 revision_required 会让单题生成连续失败。修订题必须重新通过
+    well-formed + 独立重解，不因“改过”而豁免质量门；复审仍不过 →
+    (None, [])。
+    """
+    fixes = ["（{}）{}".format(b.get("_verdict") or "rejected",
+                              str(b.get("_drop_reason") or "").strip())
+             for b in bad]
+    fixes = [f for f in fixes if not f.endswith("（）")][:4]
+    if not fixes:
+        return None, []
+    revised = await _revise_question(
+        llm, raw_q, fixes=fixes, grounding_context=grounding_context)
+    if revised is None:
+        return None, []
+    from ...core.quiz_verify import prepare_illustrations
+    safe, _bad = prepare_illustrations([revised], "off")
+    if not safe:
+        return None, []
+    revised = safe[0]
+    if not is_well_formed(revised):
+        logger.info("assessment gen: revised question not well-formed")
+        return None, []
+    kept, bad2, critic_ok = await verify_questions(
+        llm, [revised], topic=topic, grade=grade,
+        difficulty=difficulty_label, grounding_context=grounding_context)
+    if not critic_ok or not kept:
+        logger.info("assessment gen: revision still dropped (topic=%s, "
+                    "reasons=%s)", topic,
+                    [str(b.get("_drop_reason") or "")[:160] for b in bad2])
+        return None, []
+    logger.info("assessment gen: revised after critic (topic=%s, fixes=%d)",
+                topic, len(fixes))
+    return kept[0], kept
+
+
 async def generate_question(goal: AssessmentGoal, ctx: AssessmentContext,
                             *, llm: "AsyncLLMClient",
-                            student_id: str = "") -> "Question | None":
+                            student_id: str = "",
+                            budget: GenerationBudget | None = None) -> "Question | None":
     """Generate one constraint-driven question. Returns None on any failure.
 
     The difficulty comes from the AssessmentContext (which the supervisor
@@ -152,7 +245,13 @@ async def generate_question(goal: AssessmentGoal, ctx: AssessmentContext,
     """
     concept = goal.concept or ctx.concept
     if not concept:
+        logger.warning("assessment gen failed: no concept (goal=%s ctx=%s)",
+                       goal.concept, ctx.concept)
         return None
+    # Required+disabled propagates as a structured control-plane conflict.
+    policy = resolve_illustration_policy(student_id, goal.illustration_request)
+    if policy != "off" and not isinstance(llm, BudgetedLLM):
+        llm = BudgetedLLM(llm, budget or GenerationBudget())
     difficulty = max(1, min(5, int(goal.difficulty or ctx.base_difficulty or 3)))
     q_type = _pick_q_type(goal)
     from ..teaching_engine.stage_profile import is_auto, normalize_grade
@@ -170,44 +269,46 @@ async def generate_question(goal: AssessmentGoal, ctx: AssessmentContext,
         llm, topic=concept, grade=grade,
         difficulty=_difficulty_label(difficulty), count=1,
         focus="、".join(goal.assesses) if goal.assesses else "",
-        grounding_context=grounding_context)
+        grounding_context=grounding_context, illustration_policy=policy)
     prompt = _build_gen_prompt(grade=grade, concept=concept, difficulty=difficulty,
                                goal=goal, q_type=q_type,
                                bloom_context=bloom_context, blueprint=blueprint)
+    avoid_stems = [str(s).strip() for s in (goal.avoid_stems or [])
+                   if str(s).strip()]
+    if avoid_stems:
+        nl = chr(10)
+        shown = nl + nl.join("- " + s[:120] for s in avoid_stems[:6])
+        prompt += (nl + nl + "以下题目本次测评已经出过，禁止重复或仅换数字"
+                   "（必须换情境、换考查角度、换数据）：" + nl + shown)
     if grounding_context:
         prompt += ("\n\n[命题事实边界]\n"
                    "本题的题干、正确答案与解析中的教材事实必须能由下方证据直接支持；"
                    "可以重新设计数值/情境，但不得引入证据之外的新教材专属事实。\n"
                    + grounding_context)
     try:
-        # Non-streaming call with thinking disabled (same hardening as the
-        # quiz tools, DESIGN §21.1): a reasoning model can otherwise burn the
-        # whole budget on reasoning_content and return an empty answer.
-        full, _usage = await llm.complete(
-            messages=[{"role": "user", "content": prompt}],
-            temperature=0.4, max_tokens=1500, disable_thinking=True)
-        raw_q = _parse_dict(full)
-        if raw_q is None:
+        def parse_candidate(raw: str) -> list[dict[str, Any]]:
+            candidate = _parse_dict(raw)
+            return [candidate] if candidate is not None and candidate.get("type") == q_type else []
+
+        questions, verification = await generate_verified_questions(
+            llm, make_prompt=lambda: prompt, parse=parse_candidate,
+            topic=concept, grade=grade, difficulty=_difficulty_label(difficulty),
+            temperature=0.4, max_tokens=4500 if policy != "off" else 1500,
+            grounding_context=grounding_context, illustration_policy=policy,
+            max_attempts=1, repair_max_tokens=4500 if policy != "off" else 1500,
+            required_type=q_type)
+        current = resolve_illustration_policy(student_id, goal.illustration_request)
+        if not questions:
             return None
-        # Shared quality gate: structural check + independent critic re-solve.
-        # A failed/dropped question returns None so the supervisor simply
-        # skips the closing check instead of quizzing with a broken key.
-        verification: dict[str, Any] = {
-            "mode": settings.quiz_verify_mode, "critic": "skipped",
-            "answer_verified": False}
-        if settings.quiz_verify_mode != "off" and not is_well_formed(raw_q):
+        raw_q = questions[0]
+        # Preserve the per-question audit in the frozen snapshot.
+        verification.update(raw_q.get("verification") or {})
+        verification["illustration_policy"] = policy
+        if current == "off" and raw_q.get("illustration"):
             return None
-        if settings.quiz_verify_mode == "critic":
-            kept, _bad, critic_ok = await verify_questions(
-                llm, [raw_q], topic=concept, grade=grade,
-                difficulty=_difficulty_label(difficulty),
-                grounding_context=grounding_context)
-            verification["critic"] = "ok" if critic_ok else "error"
-            if critic_ok and not kept:
-                return None
-        verification["answer_verified"] = (
-            settings.quiz_verify_mode == "critic"
-            and verification["critic"] == "ok")
+        if isinstance(llm, BudgetedLLM):
+            verification["generation_calls"] = llm.budget.calls
+            verification["illustration_repairs"] = llm.budget.repairs
         # Provenance 映射（plan.md §5.3/§5.4）：只认 ctx.grounding_sources
         # 对应的 src_N 短 id，模型返回的其它 ref 一律丢弃。
         raw_ids = raw_q.pop("source_ref_ids", None)
@@ -220,6 +321,8 @@ async def generate_question(goal: AssessmentGoal, ctx: AssessmentContext,
         if strict_textbook and not refs:
             # strict 教材测评：没有有效 source ref 的题不能标 grounded，
             # 也不能 fail-open 成教材题（plan.md §4.6 失败语义）。
+            logger.warning("assessment gen failed: strict grounding without "
+                           "valid source refs (concept=%s)", concept)
             return None
         # W3/D04（承接 W2/A14）：CAT 单题路径此前沿用 LLM 的裸 "id": 1，
         # 跨会话/跨题套不唯一；稳定 id 后在其上冻结量规。
@@ -227,6 +330,8 @@ async def generate_question(goal: AssessmentGoal, ctx: AssessmentContext,
         rubric = freeze_rubric(raw_q, raw_q["id"])
         q = Question.from_quiz_dict(raw_q, concept=concept, difficulty=difficulty)
         if not q.stem or not q.answer:
+            logger.warning("assessment gen failed: empty stem/answer after "
+                           "lift (concept=%s)", concept)
             return None
         q.assesses = list(goal.assesses)
         q.forbidden = list(goal.forbidden)
@@ -244,7 +349,11 @@ async def generate_question(goal: AssessmentGoal, ctx: AssessmentContext,
                 "content_checked" if verification.get("critic") == "ok"
                 else "unavailable")
         return q
+    except IllustrationDisabled:
+        raise
     except Exception:
+        logger.exception("assessment gen failed: unexpected error "
+                         "(concept=%s)", concept)
         return None
 
 

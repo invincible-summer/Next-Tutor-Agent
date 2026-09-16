@@ -29,6 +29,7 @@ _TAG_OPENS = (
     "<knowledge_search",
     "<tool_call",
     "<function=",
+    "<invoke",
 )
 _MAX_TAG_RAW = 2000  # 标签原文累计上限（防异常超长输出吃内存）
 _QUERY_LINE_RE = re.compile(r"(?:检索关键词|关键词|查询|query)\s*[:：]\s*([^\n<]{2,120})")

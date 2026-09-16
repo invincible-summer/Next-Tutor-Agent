@@ -13,7 +13,8 @@ from .manager import (AnswerTooLarge, AssessmentBindingError,
                       WorkspaceNotOwned, assistance_events,
                       evaluate_submission, is_enabled, load_task_snapshot,
                       new_assessment_id, new_attempt_id, record_assistance,
-                      register_task_snapshot, resolve_submission_binding,
+                      register_quiz_payload, register_task_snapshot,
+                      resolve_submission_binding,
                       run_assessment_job, task_snapshot_from_legacy)
 from .question import Question, QuestionType
 from .state import AssessmentContext, AssessmentGoal
@@ -27,7 +28,7 @@ __all__ = [
     "SubmissionReceipt", "WorkspaceNotOwned", "assistance_events",
     "evaluate_submission", "generate_question", "is_enabled",
     "load_task_snapshot", "new_assessment_id", "new_attempt_id",
-    "record_assistance", "register_task_snapshot",
+    "record_assistance", "register_quiz_payload", "register_task_snapshot",
     "resolve_submission_binding", "run_assessment_job",
     "task_snapshot_from_legacy",
 ]

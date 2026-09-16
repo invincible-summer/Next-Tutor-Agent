@@ -39,10 +39,38 @@ const QUESTIONS = JSON.stringify({
   ],
 });
 
+// Required-diagram fixture used by the SVG contract flow.  The backend still
+// owns sanitization, dimensions, and the content hash; this fixture only makes
+// the browser path deterministic without a real model.
+const DIAGRAM = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 400"><line x1="80" y1="300" x2="560" y2="300" stroke="#000" stroke-width="2"/><circle cx="300" cy="200" r="30" fill="none" stroke="#000" stroke-width="2"/></svg>';
+const QUESTIONS_WITH_ILLUSTRATION = JSON.stringify({
+  questions: [
+    { id: 1, type: "multiple_choice",
+      stem: "如图所示，物体位于水平面上。下列说法正确的是？",
+      options: { A: "甲", B: "乙", C: "丙", D: "丁" },
+      answer: "A",
+      explanation: "根据图示结构和受力关系，先识别物体与水平面的接触，再比较各选项条件，可以判断选项 A 正确。",
+      knowledge_point: "ZX-17 定理", difficulty: "easy", bloom_level: "understand",
+      illustration: { kind: "svg", alt: "水平面上的圆形物体示意图", caption: "示意图", svg: DIAGRAM } },
+    { id: 2, type: "fill_blank",
+      stem: "如图所示，水平面上的物体受到的支持力方向为______。",
+      answer: "竖直向上",
+      explanation: "支持力垂直于接触面并指向物体，水平面是平面，因此支持力方向为竖直向上。",
+      knowledge_point: "ZX-17 定理", difficulty: "easy", bloom_level: "understand",
+      illustration: { kind: "svg", alt: "水平面上的圆形物体示意图", caption: "示意图", svg: DIAGRAM } },
+  ],
+});
+
 const CRITIC_OK = JSON.stringify({
   verdicts: [
     { id: 1, verdict: "correct", reason: "与拟定答案一致" },
     { id: 2, verdict: "correct", reason: "与拟定答案一致" },
+  ],
+});
+const CRITIC_WITH_ILLUSTRATION = JSON.stringify({
+  items: [
+    { question_ref: "1", proposed_status: "passed", answer_check: "与拟定答案一致", alignment: "aligned", brief_basis: "题干、答案与图示一致", illustration_check: "passed", illustration_issues: [] },
+    { question_ref: "2", proposed_status: "passed", answer_check: "与拟定答案一致", alignment: "aligned", brief_basis: "题干、答案与图示一致", illustration_check: "passed", illustration_issues: [] },
   ],
 });
 
@@ -50,11 +78,15 @@ function pickCompletion(body) {
   const text = (body.messages || []).map((m) => m.content || "").join("\n");
   const userMsgs = (body.messages || []).filter((m) => m.role === "user");
   const userText = userMsgs.map((m) => String(m.content)).join("\n");
+  const requiresIllustration = text.includes("illustration_policy=required");
+  const auditsIllustrations = text.includes("illustration_check");
   // 出题三段（非 stream complete）
   if (text.includes("命题设计专家")) return BLUEPRINT;
-  if (text.includes("审题员")) return CRITIC_OK;
+  if (text.includes("出题审核员") || text.includes("illustration_check")) {
+    return auditsIllustrations ? CRITIC_WITH_ILLUSTRATION : CRITIC_OK;
+  }
   if (text.includes("出题专家") || text.includes("你是命题专家")) {
-    return QUESTIONS;
+    return requiresIllustration ? QUESTIONS_WITH_ILLUSTRATION : QUESTIONS;
   }
   // executor 工具循环：学生要出题且模型可以调用工具 -> 调 generate_quiz。
   // "已出过题"只认 generate_quiz 的 tool 响应（preresearch 的检索结果

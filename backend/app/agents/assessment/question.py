@@ -15,6 +15,7 @@ import re
 from typing import Any
 
 from ...core.bloom import normalize_level
+from ...core.quiz_illustration import QuestionIllustration, normalize_illustration
 
 
 class QuestionType:
@@ -68,6 +69,11 @@ class Question:
     grounding_mode: str = "generic"   # textbook | generic | reference...
     grounding_tier: str = ""          # found | partial | not_found
     source_refs: list[dict[str, Any]] = field(default_factory=list)
+    illustration: QuestionIllustration | None = None
+
+    def __post_init__(self) -> None:
+        if self.illustration is not None:
+            self.illustration = normalize_illustration(self.illustration)
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -89,6 +95,7 @@ class Question:
             "grounding_mode": self.grounding_mode,
             "grounding_tier": self.grounding_tier,
             "source_refs": [dict(r) for r in self.source_refs],
+            "illustration": self.illustration.model_dump() if self.illustration else None,
         }
 
     @property
@@ -102,7 +109,7 @@ class Question:
 
         Existing tools keep their field names (stem/options/answer/...). We
         normalize the few that differ: knowledge_point(s) -> knowledge_points,
-        the easy/medium/hard `difficulty` string -> a 1..5 int. Never raises.
+        the easy/medium/hard `difficulty` string -> a 1..5 int. Invalid illustrations are rejected.
         """
         d = d or {}
         kp = d.get("knowledge_point") or d.get("knowledge_points")
@@ -121,14 +128,17 @@ class Question:
             diff = difficulty or 3
         return cls(
             id=str(d.get("id") or ""),
-            concept=str(concept or d.get("topic") or ""),
+            concept=str(concept or d.get("concept") or d.get("topic") or ""),
             knowledge_points=kp_list,
             difficulty=max(1, min(5, diff)),
-            q_type=str(d.get("type") or QuestionType.MULTIPLE_CHOICE),
+            q_type=str(d.get("type") or d.get("q_type") or QuestionType.MULTIPLE_CHOICE),
             stem=str(d.get("stem", "") or ""),
             options=dict(d.get("options", {}) or {}),
             answer=str(d.get("answer", "") or ""),
             explanation=str(d.get("explanation", "") or ""),
+            assesses=list(d.get("assesses") or []),
+            forbidden=list(d.get("forbidden") or []),
+            distractor_targets=dict(d.get("distractor_targets") or {}),
             bloom_level=normalize_level(d.get("bloom_level")),
             verification=dict(d.get("verification", {}) or {}),
             rubric=dict(d.get("rubric", {}) or {}),
@@ -136,4 +146,6 @@ class Question:
             grounding_tier=str(d.get("grounding_tier", "") or ""),
             source_refs=[dict(r) for r in (d.get("source_refs") or [])
                          if isinstance(r, dict)],
+            illustration=(normalize_illustration(d["illustration"])
+                          if d.get("illustration") is not None else None),
         )

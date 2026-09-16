@@ -7,14 +7,14 @@ StudentModel profile so M1-M9 see the correct grade band going forward.
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from typing import Any
 
 from app.core.account_data import purge_account
 from app.identity.deps import require_user
 from app.identity.models import User
 from app.identity.security import verify_password
-from app.identity.store import update_user
+from app.identity.store import update_profile_fields
 
 router = APIRouter(prefix="/user", tags=["user"])
 
@@ -27,30 +27,37 @@ class UpdateProfileRequest(BaseModel):
     avatar: str | None = Field(default=None, max_length=200)
     prefs: dict[str, Any] | None = None
 
+    @field_validator("prefs")
+    @classmethod
+    def validate_svg_preference(cls, prefs):
+        if prefs is not None and "quiz_svg_enabled" in prefs:
+            if type(prefs["quiz_svg_enabled"]) is not bool:
+                raise ValueError("quiz_svg_enabled must be a boolean")
+        return prefs
+
 
 @router.get("/profile")
 def get_profile(user: User = Depends(require_user)):
-    return {"status": "ok", "profile": user.profile.to_dict()}
+    from app.core.quiz_illustration_policy import svg_available
+    return {"status": "ok", "profile": user.profile.to_dict(),
+            "quiz_svg_available": svg_available()}
 
 
 @router.put("/profile")
 def update_profile(req: UpdateProfileRequest, user: User = Depends(require_user)):
     """Update mutable profile fields. Only non-None fields are changed."""
-    changed = False
-    for field_name in ("name", "grade", "school", "subjects", "avatar"):
-        val = getattr(req, field_name)
-        if val is not None:
-            setattr(user.profile, field_name, val)
-            changed = True
-    if req.prefs is not None:
-        # 通用偏好浅合并（如 ocr_parallel）；dict 形态免 schema 演进。
-        user.profile.prefs.update(req.prefs)
-        changed = True
-    if changed:
+    fields = {name: getattr(req, name) for name in
+              ("name", "grade", "school", "subjects", "avatar")
+              if getattr(req, name) is not None}
+    if fields or req.prefs is not None:
+        try:
+            user = update_profile_fields(user.id, fields, req.prefs)
+        except ValueError:
+            raise HTTPException(status_code=404, detail="account_not_found")
         # Sync grade into the StudentModel profile so M1-M9 use the new band.
-        _sync_grade_to_student_model(user)
-        update_user(user)
-    return {"status": "ok", "profile": user.profile.to_dict()}
+        if "grade" in fields:
+            _sync_grade_to_student_model(user)
+    return get_profile(user)
 
 
 class DeleteAccountRequest(BaseModel):

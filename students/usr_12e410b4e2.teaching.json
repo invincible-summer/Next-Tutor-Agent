@@ -1,845 +1,713 @@
 {
   "concepts": {
-    "custom.tb-tb_ea0e4cf248.c.7dc35df5627f64b8": [
+    "函数极限的ε-δ定义": [
       {
         "mode": "introduction",
         "outcome": "engaged",
-        "ts": 1787981907.99913,
-        "note": "收敛数列"
-      },
-      {
-        "mode": "introduction",
-        "outcome": "engaged",
-        "ts": 1787982530.9861403,
-        "note": "收敛数列"
-      },
-      {
-        "mode": "introduction",
-        "outcome": "engaged",
-        "ts": 1787982609.5652366,
-        "note": "数列的极限与数列项的区别（收敛不等于最终等于极限）"
-      }
-    ],
-    "custom.tb-tb_56190ee634.c.1832990660bb60c2": [
-      {
-        "mode": "remediation",
-        "outcome": "engaged",
-        "ts": 1787983330.327248,
-        "note": "分段函数在分段点的可导性判断"
-      },
-      {
-        "mode": "remediation",
-        "outcome": "engaged",
-        "ts": 1787983363.0984876,
-        "note": "分段函数的连续性与可导性"
-      },
-      {
-        "mode": "remediation",
-        "outcome": "engaged",
-        "ts": 1787983551.8310254,
-        "note": "利用辅助函数构造证明（罗尔定理）"
-      },
-      {
-        "mode": "remediation",
-        "outcome": "engaged",
-        "ts": 1787983601.4530022,
-        "note": "利用二次函数求靠墙矩形的最大面积"
-      },
-      {
-        "mode": "remediation",
-        "outcome": "engaged",
-        "ts": 1787984154.3579147,
-        "note": "幂级数Σxⁿ/n!的和函数为何为eˣ及其收敛半径的计算"
-      },
-      {
-        "mode": "remediation",
-        "outcome": "engaged",
-        "ts": 1787984173.8765886,
-        "note": "泰勒公式与函数的多项式逼近"
-      }
-    ],
-    "custom.tb-tb_ea0e4cf248.c.aaf1b274bd08d191": [
-      {
-        "mode": "introduction",
-        "outcome": "engaged",
-        "ts": 1787982936.2644963,
-        "note": "极限与重要极限 sin x/x"
-      },
-      {
-        "mode": "introduction",
-        "outcome": "engaged",
-        "ts": 1787983150.3505487,
-        "note": "极限的 ε-δ 定义及 ε、δ 的作用"
-      },
-      {
-        "mode": "introduction",
-        "outcome": "engaged",
-        "ts": 1787983180.5209568,
-        "note": "ε-δ语言下的极限定义与δ的选取"
-      },
-      {
-        "mode": "introduction",
-        "outcome": "engaged",
-        "ts": 1787983221.0240283,
-        "note": "ε-δ极限定义中ε与δ的关系"
-      },
-      {
-        "mode": "practice",
-        "outcome": "engaged",
-        "ts": 1787983323.1576166,
-        "note": "用ε-δ定义验证具体极限"
-      },
-      {
-        "mode": "introduction",
-        "outcome": "engaged",
-        "ts": 1787983370.441232,
-        "note": "ε-δ极限定义与“无限接近”直观理解的关系"
-      }
-    ],
-    "custom.tb-tb_56190ee634.c.6ba19124690092fa": [
-      {
-        "mode": "remediation",
-        "outcome": "engaged",
-        "ts": 1787983116.2474792,
-        "note": "极限与泰勒展开（等价无穷小）"
-      }
-    ],
-    "math.calculus.derivative": [
-      {
-        "mode": "remediation",
-        "outcome": "engaged",
-        "ts": 1787983741.0168867,
-        "note": "定积分与导数的关系（牛顿-莱布尼茨公式）"
-      },
-      {
-        "mode": "remediation",
-        "outcome": "engaged",
-        "ts": 1787984411.0222528,
-        "note": "偏导数与一元函数导数的区别"
-      },
-      {
-        "mode": "remediation",
-        "outcome": "engaged",
-        "ts": 1787984442.9193556,
-        "note": "多元函数偏导数"
-      },
-      {
-        "mode": "remediation",
-        "outcome": "engaged",
-        "ts": 1787984542.5158603,
-        "note": "多元函数偏导数与链式法则"
-      },
-      {
-        "mode": "remediation",
-        "outcome": "engaged",
-        "ts": 1787984581.786013,
-        "note": "高阶混合偏导数相等的条件（克莱罗定理）"
-      },
-      {
-        "mode": "remediation",
-        "outcome": "engaged",
-        "ts": 1787985635.9465652,
-        "note": "导数与定积分的物理对应及微积分的历史起源"
-      }
-    ],
-    "洛必达法则与0/0未定式": [
-      {
-        "mode": "introduction",
-        "outcome": "engaged",
-        "ts": 1787983159.3324337,
-        "note": "洛必达法则与0/0未定式"
-      }
-    ],
-    "可导与连续的关系；连续但不可导的反例": [
-      {
-        "mode": "introduction",
-        "outcome": "engaged",
-        "ts": 1787983241.2813675,
-        "note": "可导与连续的关系；连续但不可导的反例"
-      }
-    ],
-    "数学.auto.洛必达法则与0_0未定式": [
-      {
-        "mode": "introduction",
-        "outcome": "engaged",
-        "ts": 1787983245.3463116,
-        "note": "洛必达法则的使用条件与适用范围"
-      },
-      {
-        "mode": "practice",
-        "outcome": "engaged",
-        "ts": 1787983397.7548296,
-        "note": "未定式"
-      }
-    ],
-    "custom.tb-tb_56190ee634.c.2331ddc1835f1cdc": [
-      {
-        "mode": "remediation",
-        "outcome": "engaged",
-        "ts": 1787983429.0060651,
-        "note": "罗尔定理的三个条件及其必要性"
-      },
-      {
-        "mode": "remediation",
-        "outcome": "engaged",
-        "ts": 1787983488.584437,
-        "note": "拉格朗日中值定理与罗尔定理的关系及中值点ξ的存在性"
-      }
-    ],
-    "math.function.monotonicity": [
-      {
-        "mode": "remediation",
-        "outcome": "engaged",
-        "ts": 1787983436.7386985,
-        "note": "函数单调性与导数符号的关系；导数为零点与单调性的判断"
-      }
-    ],
-    "math.calculus.integral": [
-      {
-        "mode": "remediation",
-        "outcome": "engaged",
-        "ts": 1787984613.409172,
-        "note": "一维运动中由加速度积分求速度和位移"
-      },
-      {
-        "mode": "remediation",
-        "outcome": "engaged",
-        "ts": 1787984671.7172048,
-        "note": "功的定义：力与位移的点积及路径积分"
-      },
-      {
-        "mode": "remediation",
-        "outcome": "engaged",
-        "ts": 1787984724.3736057,
-        "note": "变力做功与弹簧弹力，功的积分计算"
-      },
-      {
-        "mode": "remediation",
-        "outcome": "engaged",
-        "ts": 1787984775.1412754,
-        "note": "滑动摩擦生热与变力做功的积分计算"
-      },
-      {
-        "mode": "remediation",
-        "outcome": "engaged",
-        "ts": 1787985561.7109253,
-        "note": "微积分在大学物理中的应用与两门课程协同学习"
-      },
-      {
-        "mode": "remediation",
-        "outcome": "engaged",
-        "ts": 1787985721.3064375,
-        "note": "物理概念与微积分概念的对应关系"
-      }
-    ],
-    "第一类换元法（凑微分）": [
-      {
-        "mode": "introduction",
-        "outcome": "engaged",
-        "ts": 1787983543.7612329,
-        "note": "第一类换元法（凑微分）"
-      }
-    ],
-    "custom.tb-tb_56190ee634.c.ef52620571743529": [
-      {
-        "mode": "remediation",
-        "outcome": "engaged",
-        "ts": 1787983543.9952066,
-        "note": "驻点、极值点、拐点的区别及极值的第一、第二充分条件"
-      }
-    ],
-    "custom.tb-tb_88a77ed17c.c.7318f84518a3d130": [
-      {
-        "mode": "remediation",
-        "outcome": "engaged",
-        "ts": 1787983648.4578946,
-        "note": "拉格朗日中值定理证明不等式"
-      }
-    ],
-    "custom.tb-tb_137bb032c4.c.9bbe9f3294edc356": [
-      {
-        "mode": "remediation",
-        "outcome": "engaged",
-        "ts": 1787983673.5130856,
-        "note": "定周长矩形面积最大及边界条件"
-      }
-    ],
-    "custom.tb-tb_7f899fc40a.c.55954c7a163942b0": [
-      {
-        "mode": "remediation",
-        "outcome": "engaged",
-        "ts": 1787983695.290751,
-        "note": "拉格朗日中值定理与对数不等式"
-      }
-    ],
-    "custom.tb-tb_ea0e4cf248.c.66593fd3c84ae1bd": [
-      {
-        "mode": "remediation",
-        "outcome": "engaged",
-        "ts": 1787983996.0596774,
-        "note": "链式法则与复合函数求导"
-      }
-    ],
-    "custom.tb-tb_56190ee634.c.6385381ca9c17559": [
-      {
-        "mode": "remediation",
-        "outcome": "engaged",
-        "ts": 1787984032.1938279,
-        "note": "调和级数发散与级数收敛的必要条件"
-      },
-      {
-        "mode": "remediation",
-        "outcome": "engaged",
-        "ts": 1787984267.4826715,
-        "note": "幂级数收敛域与端点判定"
-      },
-      {
-        "mode": "remediation",
-        "outcome": "engaged",
-        "ts": 1787984273.289309,
-        "note": "级数收敛性与莱布尼茨判别法"
-      },
-      {
-        "mode": "remediation",
-        "outcome": "engaged",
-        "ts": 1787984489.5032902,
-        "note": "级数收敛性判别（比值判别法、交错级数/莱布尼茨判别法）"
-      }
-    ],
-    "custom.tb-tb_56190ee634.c.a4610f779a7189e0": [
-      {
-        "mode": "remediation",
-        "outcome": "engaged",
-        "ts": 1787984207.8500392,
-        "note": "幂级数的收敛半径与收敛域、比值判别法"
-      }
-    ],
-    "custom.tb-tb_88a77ed17c.c.8239a4d04d966204": [
-      {
-        "mode": "remediation",
-        "outcome": "engaged",
-        "ts": 1787984227.4943109,
-        "note": "麦克劳林级数与泰勒展开的截断误差"
-      }
-    ],
-    "custom.tb-tb_56190ee634.c.2d1bff2185187f3d": [
-      {
-        "mode": "remediation",
-        "outcome": "engaged",
-        "ts": 1787984292.6639683,
-        "note": "泰勒公式的拉格朗日余项与误差估计"
-      },
-      {
-        "mode": "remediation",
-        "outcome": "engaged",
-        "ts": 1787984325.9550812,
-        "note": "泰勒展开与误差估计"
-      }
-    ],
-    "custom.tb-tb_56190ee634.c.bfa7135f02dbb9cc": [
-      {
-        "mode": "remediation",
-        "outcome": "engaged",
-        "ts": 1787984333.121816,
-        "note": "绝对收敛与条件收敛；交错调和级数Σ(−1)ⁿ⁺¹/n的收敛性"
-      }
-    ],
-    "custom.tb-tb_137bb032c4.c.e383c09fdb78e4c6": [
-      {
-        "mode": "introduction",
-        "outcome": "engaged",
-        "ts": 1787984508.3927367,
-        "note": "大学物理运动学与高中运动学的差异；矢量与微元法"
-      },
-      {
-        "mode": "introduction",
-        "outcome": "engaged",
-        "ts": 1787984691.601542,
-        "note": "抛体运动的矢量分解与水平匀速、竖直匀加速的独立性"
-      },
-      {
-        "mode": "introduction",
-        "outcome": "engaged",
-        "ts": 1787985109.6484601,
-        "note": "简谐运动的相位、初相位与旋转矢量法"
-      }
-    ],
-    "physics.dynamics.newton_second": [
-      {
-        "mode": "remediation",
-        "outcome": "engaged",
-        "ts": 1787984595.982522,
-        "note": "牛顿第二定律中合外力的含义与受力分析常见错误"
-      },
-      {
-        "mode": "remediation",
-        "outcome": "engaged",
-        "ts": 1787984793.5008676,
-        "note": "动量定理与牛顿第二定律的关系、碰撞中的动量守恒"
-      }
-    ],
-    "custom.tb-tb_2d35023a6c.c.ae539963d0827dfd": [
-      {
-        "mode": "remediation",
-        "outcome": "engaged",
-        "ts": 1787984740.790144,
-        "note": "运动方向与受力方向、单摆最高点的向心力"
-      }
-    ],
-    "custom.tb-tb_137bb032c4.c.35e92e44ebf7eb67": [
-      {
-        "mode": "remediation",
-        "outcome": "engaged",
-        "ts": 1787984786.5270493,
-        "note": "竖直圆周运动绳模型通过最高点的临界条件"
-      },
-      {
-        "mode": "remediation",
-        "outcome": "engaged",
-        "ts": 1787984843.4118803,
-        "note": "竖直面圆周运动中轻杆与绳模型的约束条件及最低点速度"
-      }
-    ],
-    "custom.tb-tb_137bb032c4.c.b82afa748a656ec9": [
-      {
-        "mode": "review",
-        "outcome": "engaged",
-        "ts": 1787985084.031501,
-        "note": "角动量守恒与动能守恒的区别；收臂时内力做功导致动能变化"
-      },
-      {
-        "mode": "remediation",
-        "outcome": "engaged",
-        "ts": 1787985718.103364,
-        "note": "完全非弹性碰撞中的动量守恒与动能损失"
-      },
-      {
-        "mode": "remediation",
-        "outcome": "engaged",
-        "ts": 1787985738.1569417,
-        "note": "完全非弹性碰撞中的动量守恒与动能损失"
+        "ts": 1789493110.5920422,
+        "note": "函数极限的ε-δ定义"
       },
       {
         "mode": "review",
         "outcome": "engaged",
-        "ts": 1787985840.0608625,
-        "note": "子弹打木块模型：动量守恒、完全非弹性碰撞与动能损失生热"
+        "ts": 1789493267.8362486,
+        "note": "函数极限的ε-δ定义"
+      }
+    ],
+    "导数": [
+      {
+        "mode": "introduction",
+        "outcome": "engaged",
+        "ts": 1789493329.79258,
+        "note": "导数"
+      },
+      {
+        "mode": "introduction",
+        "outcome": "engaged",
+        "ts": 1789493587.1957605,
+        "note": "导数"
+      },
+      {
+        "mode": "introduction",
+        "outcome": "engaged",
+        "ts": 1789493800.8490758,
+        "note": "导数"
+      },
+      {
+        "mode": "introduction",
+        "outcome": "engaged",
+        "ts": 1789493955.0871496,
+        "note": "导数"
+      },
+      {
+        "mode": "introduction",
+        "outcome": "engaged",
+        "ts": 1789494302.4798653,
+        "note": "导数"
+      }
+    ],
+    "可导与连续的关系": [
+      {
+        "mode": "introduction",
+        "outcome": "engaged",
+        "ts": 1789493362.410759,
+        "note": "可导与连续的关系"
+      },
+      {
+        "mode": "introduction",
+        "outcome": "engaged",
+        "ts": 1789493402.5839162,
+        "note": "可导与连续的关系"
+      },
+      {
+        "mode": "introduction",
+        "outcome": "engaged",
+        "ts": 1789493621.4560013,
+        "note": "可导与连续的关系"
+      },
+      {
+        "mode": "introduction",
+        "outcome": "engaged",
+        "ts": 1789493842.9706297,
+        "note": "可导与连续的关系"
+      },
+      {
+        "mode": "introduction",
+        "outcome": "engaged",
+        "ts": 1789494005.4389257,
+        "note": "可导与连续的关系"
+      },
+      {
+        "mode": "introduction",
+        "outcome": "engaged",
+        "ts": 1789494367.0580468,
+        "note": "可导与连续的关系"
+      }
+    ],
+    "导数定义与可导性": [
+      {
+        "mode": "practice",
+        "outcome": "engaged",
+        "ts": 1789494104.1095238,
+        "note": "导数定义与可导性"
+      }
+    ],
+    "可导性与连续性": [
+      {
+        "mode": "practice",
+        "outcome": "engaged",
+        "ts": 1789494419.2036035,
+        "note": "可导性与连续性"
+      }
+    ],
+    "绝对值函数的可导性": [
+      {
+        "mode": "introduction",
+        "outcome": "engaged",
+        "ts": 1789494471.138627,
+        "note": "绝对值函数的可导性"
+      }
+    ],
+    "罗尔定理与拉格朗日中值定理": [
+      {
+        "mode": "introduction",
+        "outcome": "engaged",
+        "ts": 1789494515.3532224,
+        "note": "罗尔定理与拉格朗日中值定理"
+      }
+    ],
+    "拉格朗日中值定理": [
+      {
+        "mode": "introduction",
+        "outcome": "engaged",
+        "ts": 1789494585.6848745,
+        "note": "拉格朗日中值定理"
+      },
+      {
+        "mode": "introduction",
+        "outcome": "engaged",
+        "ts": 1789494666.4649003,
+        "note": "拉格朗日中值定理"
+      }
+    ],
+    "中值定理": [
+      {
+        "mode": "practice",
+        "outcome": "engaged",
+        "ts": 1789494625.13793,
+        "note": "中值定理"
+      }
+    ],
+    "洛必达法则": [
+      {
+        "mode": "introduction",
+        "outcome": "engaged",
+        "ts": 1789494801.8777556,
+        "note": "洛必达法则"
+      },
+      {
+        "mode": "introduction",
+        "outcome": "engaged",
+        "ts": 1789494966.259617,
+        "note": "洛必达法则"
+      },
+      {
+        "mode": "introduction",
+        "outcome": "engaged",
+        "ts": 1789495018.5095248,
+        "note": "洛必达法则"
       },
       {
         "mode": "practice",
-        "outcome": "wrong",
-        "ts": 1787997617.358484,
-        "note": "子弹打木块模型：动量守恒、完全非弹性碰撞、碰撞生热与滑动摩擦耗能的分阶段区分"
+        "outcome": "engaged",
+        "ts": 1789495122.5270584,
+        "note": "洛必达法则"
+      },
+      {
+        "mode": "introduction",
+        "outcome": "engaged",
+        "ts": 1789495232.5992906,
+        "note": "洛必达法则"
       },
       {
         "mode": "practice",
-        "outcome": "correct",
-        "ts": 1787997672.148411,
-        "note": "完全非弹性碰撞中的二维动量守恒、共同速度判定、实验误差与外力冲量分析、动能损失"
+        "outcome": "engaged",
+        "ts": 1789495268.884316,
+        "note": "洛必达法则"
       }
     ],
-    "custom.tb-tb_137bb032c4.c.452a9ca30c94de61": [
+    "换元积分法": [
       {
-        "mode": "remediation",
+        "mode": "introduction",
         "outcome": "engaged",
-        "ts": 1787984876.6709924,
-        "note": "摩擦生热、功能关系与机械能守恒（滑块撞弹簧并滑上斜面）"
+        "ts": 1789495341.216939,
+        "note": "换元积分法"
       },
       {
-        "mode": "remediation",
+        "mode": "introduction",
         "outcome": "engaged",
-        "ts": 1787985026.006939,
-        "note": "刚体绕定轴转动与机械能守恒"
+        "ts": 1789495418.6600888,
+        "note": "换元积分法"
+      },
+      {
+        "mode": "practice",
+        "outcome": "engaged",
+        "ts": 1789495462.3996232,
+        "note": "换元积分法"
       }
     ],
-    "custom.tb-tb_137bb032c4.c.55847d2e5bed2ac5": [
+    "三角恒等变形": [
       {
-        "mode": "remediation",
+        "mode": "introduction",
         "outcome": "engaged",
-        "ts": 1787984933.3280776,
-        "note": "转动惯量J=∫r²dm中r²的来源及其与质量m的对应关系"
+        "ts": 1789495516.442654,
+        "note": "三角恒等变形"
+      }
+    ],
+    "定积分": [
+      {
+        "mode": "introduction",
+        "outcome": "engaged",
+        "ts": 1789495606.9985907,
+        "note": "定积分"
+      }
+    ],
+    "定积分可积的充分条件": [
+      {
+        "mode": "introduction",
+        "outcome": "engaged",
+        "ts": 1789495668.459785,
+        "note": "定积分可积的充分条件"
       },
+      {
+        "mode": "introduction",
+        "outcome": "engaged",
+        "ts": 1789495747.9987473,
+        "note": "定积分可积的充分条件"
+      }
+    ],
+    "定积分定义与可积性": [
+      {
+        "mode": "practice",
+        "outcome": "engaged",
+        "ts": 1789495725.3924422,
+        "note": "定积分定义与可积性"
+      }
+    ],
+    "正项级数判别法": [
+      {
+        "mode": "introduction",
+        "outcome": "engaged",
+        "ts": 1789495813.0975554,
+        "note": "正项级数判别法"
+      },
+      {
+        "mode": "introduction",
+        "outcome": "engaged",
+        "ts": 1789495968.058829,
+        "note": "正项级数判别法"
+      }
+    ],
+    "p-级数与积分判别法": [
+      {
+        "mode": "introduction",
+        "outcome": "engaged",
+        "ts": 1789495823.8120766,
+        "note": "p-级数与积分判别法"
+      }
+    ],
+    "p-级数、积分判别法、调和级数": [
+      {
+        "mode": "introduction",
+        "outcome": "engaged",
+        "ts": 1789495990.5142303,
+        "note": "p-级数、积分判别法、调和级数"
+      }
+    ],
+    "级数敛散性判断": [
+      {
+        "mode": "practice",
+        "outcome": "engaged",
+        "ts": 1789496038.6028943,
+        "note": "级数敛散性判断"
+      }
+    ],
+    "正项级数收敛必要条件": [
       {
         "mode": "review",
         "outcome": "engaged",
-        "ts": 1787985024.5624568,
-        "note": "一维弹性碰撞后的速度公式与等质量碰撞"
+        "ts": 1789496105.6903718,
+        "note": "正项级数收敛必要条件"
       }
     ],
-    "custom.tb-tb_137bb032c4.c.c30426b8ef0a775b": [
-      {
-        "mode": "remediation",
-        "outcome": "engaged",
-        "ts": 1787984936.127923,
-        "note": "角动量中叉乘的物理意义及其与点乘的区别"
-      },
-      {
-        "mode": "remediation",
-        "outcome": "engaged",
-        "ts": 1787985656.140846,
-        "note": "级数判敛方法；刚体转动与角动量"
-      },
-      {
-        "mode": "remediation",
-        "outcome": "engaged",
-        "ts": 1787985705.11794,
-        "note": "刚体与角动量；级数判敛"
-      }
-    ],
-    "custom.tb-tb_137bb032c4.c.0ee441a49a965324": [
-      {
-        "mode": "remediation",
-        "outcome": "engaged",
-        "ts": 1787984959.5553904,
-        "note": "匀质圆盘绕中心轴的转动惯量推导（J=½mR²）"
-      },
-      {
-        "mode": "remediation",
-        "outcome": "engaged",
-        "ts": 1787984989.8692284,
-        "note": "转动惯量与平行轴定理；匀质杆绕端点和中点的转动惯量"
-      }
-    ],
-    "custom.tb-tb_137bb032c4.c.acfad98b39f58e45": [
-      {
-        "mode": "remediation",
-        "outcome": "engaged",
-        "ts": 1787985069.234403,
-        "note": "简谐振动及回复力F=-kx的本质特征"
-      }
-    ],
-    "custom.tb-tb_137bb032c4.c.7b703878bf89b504": [
-      {
-        "mode": "remediation",
-        "outcome": "engaged",
-        "ts": 1787985083.1917892,
-        "note": "简谐行波方程中各物理量的意义及ωT=kλ=2π的关系"
-      },
-      {
-        "mode": "remediation",
-        "outcome": "engaged",
-        "ts": 1787985147.6498165,
-        "note": "驻波与行波的区别及驻波波腹、波节位置固定的原因"
-      }
-    ],
-    "custom.tb-tb_137bb032c4.c.8bc7fbd7eecd54af": [
-      {
-        "mode": "remediation",
-        "outcome": "engaged",
-        "ts": 1787985116.0207179,
-        "note": "内能、热量、功与温度的关系"
-      },
-      {
-        "mode": "review",
-        "outcome": "engaged",
-        "ts": 1787985249.7704277,
-        "note": "理想气体自由膨胀中的内能、温度与不可逆性"
-      }
-    ],
-    "custom.tb-tb_137bb032c4.c.d98d5f43bf8cb0bb": [
-      {
-        "mode": "remediation",
-        "outcome": "engaged",
-        "ts": 1787985122.6893091,
-        "note": "波的干涉中加强、减弱条件及相位差与波程差的换算"
-      }
-    ],
-    "custom.tb-tb_c1738c6037.c.2fd7d5b1ead9f562": [
-      {
-        "mode": "remediation",
-        "outcome": "engaged",
-        "ts": 1787985143.4727385,
-        "note": "单摆小角度近似与简谐振动"
-      }
-    ],
-    "custom.tb-tb_137bb032c4.c.5de380748b5ace31": [
-      {
-        "mode": "remediation",
-        "outcome": "engaged",
-        "ts": 1787985156.9854932,
-        "note": "热力学第一定律符号约定与等压过程功的计算"
-      }
-    ],
-    "小角近似与泰勒展开": [
+    "幂级数收敛半径": [
       {
         "mode": "introduction",
         "outcome": "engaged",
-        "ts": 1787985172.0911665,
-        "note": "小角近似与泰勒展开"
-      }
-    ],
-    "custom.tb-tb_137bb032c4.c.ce35a6cad5a14c57": [
-      {
-        "mode": "remediation",
-        "outcome": "engaged",
-        "ts": 1787985174.828212,
-        "note": "机械波的干涉"
-      }
-    ],
-    "custom.tb-tb_137bb032c4.c.57054db36141ca6f": [
-      {
-        "mode": "remediation",
-        "outcome": "engaged",
-        "ts": 1787985182.8411014,
-        "note": "理想气体自由膨胀、等温过程与热力学第一定律"
-      }
-    ],
-    "custom.tb-tb_137bb032c4.c.9ce22316bf95f9af": [
-      {
-        "mode": "remediation",
-        "outcome": "engaged",
-        "ts": 1787985199.619607,
-        "note": "简谐运动的位移与速度"
-      },
-      {
-        "mode": "remediation",
-        "outcome": "engaged",
-        "ts": 1788057963.6689138,
-        "note": "位移、速度、加速度及三者关系"
-      }
-    ],
-    "custom.tb-tb_137bb032c4.c.a3966d93a46234cd": [
-      {
-        "mode": "remediation",
-        "outcome": "engaged",
-        "ts": 1787985224.422813,
-        "note": "电场强度E与电势V的关系；电场概念与超距作用"
-      },
-      {
-        "mode": "remediation",
-        "outcome": "engaged",
-        "ts": 1787985251.3626747,
-        "note": "高斯定理的适用条件与利用对称性求电场"
-      },
-      {
-        "mode": "remediation",
-        "outcome": "engaged",
-        "ts": 1787985288.820242,
-        "note": "电场强度与电势梯度的关系 E = −∇V"
-      },
-      {
-        "mode": "remediation",
-        "outcome": "engaged",
-        "ts": 1787985310.259965,
-        "note": "同心带电球壳的电场与高斯定律"
-      },
-      {
-        "mode": "remediation",
-        "outcome": "engaged",
-        "ts": 1787985342.0350738,
-        "note": "无限大均匀带电平面产生的电场与距离无关"
-      }
-    ],
-    "custom.tb-tb_137bb032c4.c.8e76109a39516747": [
-      {
-        "mode": "remediation",
-        "outcome": "engaged",
-        "ts": 1787985257.6915019,
-        "note": "电势、电势正负与试探电荷"
-      }
-    ],
-    "custom.tb-tb_137bb032c4.c.4ca6ebbb4d5bce43": [
-      {
-        "mode": "remediation",
-        "outcome": "engaged",
-        "ts": 1787985329.225445,
-        "note": "点电荷电势在r→0处的奇异性及等势面与电场线的关系"
-      },
-      {
-        "mode": "review",
-        "outcome": "engaged",
-        "ts": 1787985539.486537,
-        "note": "等量异号点电荷中垂面上的电势与电场：电势为零但电场不为零"
-      },
-      {
-        "mode": "practice",
-        "outcome": "correct",
-        "ts": 1787997426.347088,
-        "note": "等量异号点电荷中垂面上的电势与电场；电势的标量叠加、电场的矢量叠加；等势面与电场"
-      }
-    ],
-    "custom.tb-tb_137bb032c4.c.dbd7a1806c972af5": [
-      {
-        "mode": "remediation",
-        "outcome": "engaged",
-        "ts": 1787985341.6271389,
-        "note": "单原子理想气体等压过程的热量、内能变化与功"
-      }
-    ],
-    "custom.tb-tb_137bb032c4.c.d45b4fa3a7c814c0": [
-      {
-        "mode": "remediation",
-        "outcome": "engaged",
-        "ts": 1787985397.7918203,
-        "note": "法拉第电磁感应定律中负号与楞次定律"
-      }
-    ],
-    "custom.tb-tb_137bb032c4.c.9459154c7f046f40": [
-      {
-        "mode": "remediation",
-        "outcome": "engaged",
-        "ts": 1787985404.305604,
-        "note": "电偶极子中垂面上的电势与场强"
-      },
-      {
-        "mode": "practice",
-        "outcome": "correct",
-        "ts": 1787997400.227169,
-        "note": "电偶极子中垂面上的电势与场强"
-      },
-      {
-        "mode": "challenge",
-        "outcome": "engaged",
-        "ts": 1788088190.676468,
-        "note": "电偶极子"
-      }
-    ],
-    "custom.tb-tb_137bb032c4.c.e8fa3e97e719b622": [
-      {
-        "mode": "remediation",
-        "outcome": "engaged",
-        "ts": 1787985411.1716743,
-        "note": "杨氏双缝干涉条纹间距及白光干涉彩色条纹"
-      },
-      {
-        "mode": "practice",
-        "outcome": "correct",
-        "ts": 1787997294.0134144,
-        "note": "杨氏双缝干涉条纹间距及单位统一"
-      }
-    ],
-    "custom.tb-tb_137bb032c4.c.dd4aa7a8035a3f54": [
-      {
-        "mode": "remediation",
-        "outcome": "engaged",
-        "ts": 1787985427.5092497,
-        "note": "动生电动势公式 BLv 的推导"
-      },
-      {
-        "mode": "remediation",
-        "outcome": "engaged",
-        "ts": 1787985460.9995139,
-        "note": "导体棒切割磁感线产生的感应电动势、感应电流与安培力"
-      }
-    ],
-    "custom.tb-tb_137bb032c4.c.d008a984f8725fdf": [
-      {
-        "mode": "remediation",
-        "outcome": "engaged",
-        "ts": 1787985435.3861418,
-        "note": "半波损失及其在薄膜干涉中的出现条件"
-      }
-    ],
-    "custom.tb-tb_137bb032c4.c.b94ce38079c1d423": [
-      {
-        "mode": "remediation",
-        "outcome": "engaged",
-        "ts": 1787985460.0164618,
-        "note": "单缝衍射中央亮纹宽度为何是其他亮纹的两倍，以及反射相位突变的区别"
-      },
-      {
-        "mode": "remediation",
-        "outcome": "engaged",
-        "ts": 1787985480.6210022,
-        "note": "单缝衍射暗纹条件与中央明纹宽度"
-      }
-    ],
-    "custom.tb-tb_c1738c6037.c.e90f32923d2bf220": [
-      {
-        "mode": "remediation",
-        "outcome": "engaged",
-        "ts": 1787985584.5936759,
-        "note": "双缝干涉条纹间距"
-      }
-    ],
-    "custom.tb-tb_137bb032c4.c.261950b56e94249c": [
-      {
-        "mode": "introduction",
-        "outcome": "engaged",
-        "ts": 1787985587.4193423,
-        "note": "电磁感应中的电荷量与外力做功"
-      }
-    ],
-    "custom.tb-tb_137bb032c4.c.dbece6536887ec82": [
-      {
-        "mode": "remediation",
-        "outcome": "engaged",
-        "ts": 1787985617.3826962,
-        "note": "电磁感应中感应电荷与速度无关、感应电流和安培阻力随速度增大、焦耳热增加"
-      },
-      {
-        "mode": "practice",
-        "outcome": "correct",
-        "ts": 1787997348.0900211,
-        "note": "电磁感应中的电荷量、感应电流、外力做功与焦耳热；法拉第定律、能量守恒及结论的适用"
-      }
-    ],
-    "custom.tb-tb_137bb032c4.c.1cc64ffb180d818e": [
-      {
-        "mode": "practice",
-        "outcome": "correct",
-        "ts": 1788058024.7322106,
-        "note": "位移、速度、加速度及三者关系；位置—时间图像斜率；速度—时间图像面积与斜率；位移"
-      }
-    ],
-    "反常提问（具体术语不明确，可能指反问、设问等提问手法）": [
-      {
-        "mode": "introduction",
-        "outcome": "engaged",
-        "ts": 1788069861.4140286,
-        "note": "反常提问（具体术语不明确，可能指反问、设问等提问手法）"
-      }
-    ],
-    "custom.tb-tb_56190ee634.c.2c17566e01db5651": [
-      {
-        "mode": "remediation",
-        "outcome": "engaged",
-        "ts": 1788073800.7467816,
-        "note": "泰勒公式及其更高精度的近似计算方法"
-      },
-      {
-        "mode": "remediation",
-        "outcome": "engaged",
-        "ts": 1788085028.2469754,
-        "note": "泰勒公式"
-      }
-    ],
-    "custom.tb-tb_41754f28fc.c.86beddad7741639e": [
-      {
-        "mode": "introduction",
-        "outcome": "engaged",
-        "ts": 1788187863.3226063,
-        "note": "傅里叶变换"
+        "ts": 1789496185.2115831,
+        "note": "幂级数收敛半径"
       },
       {
         "mode": "introduction",
         "outcome": "engaged",
-        "ts": 1788228634.6820178,
-        "note": "傅里叶变换"
+        "ts": 1789496312.9813993,
+        "note": "幂级数收敛半径"
       },
-      {
-        "mode": "review",
-        "outcome": "engaged",
-        "ts": 1788233843.9564257,
-        "note": "傅里叶变换及其应用"
-      }
-    ],
-    "custom.tb-tb_88a77ed17c.c.6918ef0d3cc2e1f7": [
-      {
-        "mode": "remediation",
-        "outcome": "engaged",
-        "ts": 1788188477.0792594,
-        "note": "傅立叶变换"
-      }
-    ],
-    "能量形式信噪比": [
       {
         "mode": "practice",
         "outcome": "engaged",
-        "ts": 1789465203.1471157,
-        "note": "能量形式信噪比"
+        "ts": 1789496385.7178192,
+        "note": "幂级数收敛半径"
+      },
+      {
+        "mode": "introduction",
+        "outcome": "engaged",
+        "ts": 1789496428.895849,
+        "note": "幂级数收敛半径"
+      }
+    ],
+    "偏导数的几何意义": [
+      {
+        "mode": "introduction",
+        "outcome": "engaged",
+        "ts": 1789496464.7506785,
+        "note": "偏导数的几何意义"
+      }
+    ],
+    "混合偏导数相等定理": [
+      {
+        "mode": "introduction",
+        "outcome": "engaged",
+        "ts": 1789496517.1279287,
+        "note": "混合偏导数相等定理"
+      }
+    ],
+    "偏导数计算": [
+      {
+        "mode": "practice",
+        "outcome": "engaged",
+        "ts": 1789496567.191773,
+        "note": "偏导数计算"
+      },
+      {
+        "mode": "introduction",
+        "outcome": "engaged",
+        "ts": 1789496603.5441365,
+        "note": "偏导数计算"
+      }
+    ],
+    "二重积分化累次积分与坐标变换": [
+      {
+        "mode": "introduction",
+        "outcome": "engaged",
+        "ts": 1789496686.1611922,
+        "note": "二重积分化累次积分与坐标变换"
+      },
+      {
+        "mode": "introduction",
+        "outcome": "engaged",
+        "ts": 1789496971.7476113,
+        "note": "二重积分化累次积分与坐标变换"
+      }
+    ],
+    "雅可比行列式与坐标变换": [
+      {
+        "mode": "introduction",
+        "outcome": "engaged",
+        "ts": 1789496777.5597386,
+        "note": "雅可比行列式与坐标变换"
+      }
+    ],
+    "二重积分换序与曲线坐标计算": [
+      {
+        "mode": "introduction",
+        "outcome": "engaged",
+        "ts": 1789496840.1591425,
+        "note": "二重积分换序与曲线坐标计算"
+      }
+    ],
+    "位移、路程、平均速度、平均速率、瞬时速度": [
+      {
+        "mode": "introduction",
+        "outcome": "engaged",
+        "ts": 1789497101.2405548,
+        "note": "位移、路程、平均速度、平均速率、瞬时速度"
+      }
+    ],
+    "抛体运动": [
+      {
+        "mode": "introduction",
+        "outcome": "engaged",
+        "ts": 1789497166.8823302,
+        "note": "抛体运动"
+      }
+    ],
+    "运动学": [
+      {
+        "mode": "practice",
+        "outcome": "engaged",
+        "ts": 1789497254.3152633,
+        "note": "运动学"
+      }
+    ],
+    "圆周运动向心加速度": [
+      {
+        "mode": "practice",
+        "outcome": "engaged",
+        "ts": 1789497335.1501164,
+        "note": "圆周运动向心加速度"
+      }
+    ],
+    "牛顿第二定律": [
+      {
+        "mode": "introduction",
+        "outcome": "engaged",
+        "ts": 1789497393.968612,
+        "note": "牛顿第二定律"
+      },
+      {
+        "mode": "introduction",
+        "outcome": "engaged",
+        "ts": 1789497428.3060122,
+        "note": "牛顿第二定律"
+      },
+      {
+        "mode": "practice",
+        "outcome": "engaged",
+        "ts": 1789497495.6660833,
+        "note": "牛顿第二定律"
+      },
+      {
+        "mode": "introduction",
+        "outcome": "engaged",
+        "ts": 1789497524.283883,
+        "note": "牛顿第二定律"
+      }
+    ],
+    "动量守恒条件": [
+      {
+        "mode": "introduction",
+        "outcome": "engaged",
+        "ts": 1789497572.445385,
+        "note": "动量守恒条件"
+      }
+    ],
+    "碰撞与恢复系数": [
+      {
+        "mode": "introduction",
+        "outcome": "engaged",
+        "ts": 1789497600.0528224,
+        "note": "碰撞与恢复系数"
+      },
+      {
+        "mode": "introduction",
+        "outcome": "engaged",
+        "ts": 1789497959.8612099,
+        "note": "碰撞与恢复系数"
+      }
+    ],
+    "动量守恒": [
+      {
+        "mode": "practice",
+        "outcome": "engaged",
+        "ts": 1789497673.534891,
+        "note": "动量守恒"
+      }
+    ],
+    "碰撞后能量分析": [
+      {
+        "mode": "practice",
+        "outcome": "engaged",
+        "ts": 1789497737.104546,
+        "note": "碰撞后能量分析"
+      }
+    ],
+    "功能原理、机械能守恒定律、保守力与非保守力、摩擦力做功": [
+      {
+        "mode": "introduction",
+        "outcome": "engaged",
+        "ts": 1789498006.7508035,
+        "note": "功能原理、机械能守恒定律、保守力与非保守力、摩擦力做功"
+      }
+    ],
+    "势能零点": [
+      {
+        "mode": "introduction",
+        "outcome": "engaged",
+        "ts": 1789498043.2791667,
+        "note": "势能零点"
+      }
+    ],
+    "机械能守恒定律": [
+      {
+        "mode": "practice",
+        "outcome": "engaged",
+        "ts": 1789498105.486825,
+        "note": "机械能守恒定律"
+      },
+      {
+        "mode": "practice",
+        "outcome": "engaged",
+        "ts": 1789498199.270654,
+        "note": "机械能守恒定律"
+      }
+    ],
+    "转动惯量、平行轴定理、垂直轴定理、角动量守恒": [
+      {
+        "mode": "introduction",
+        "outcome": "engaged",
+        "ts": 1789498477.630418,
+        "note": "转动惯量、平行轴定理、垂直轴定理、角动量守恒"
+      }
+    ],
+    "角动量守恒": [
+      {
+        "mode": "introduction",
+        "outcome": "engaged",
+        "ts": 1789498512.0649557,
+        "note": "角动量守恒"
+      }
+    ],
+    "刚体力学": [
+      {
+        "mode": "practice",
+        "outcome": "engaged",
+        "ts": 1789498565.1178248,
+        "note": "刚体力学"
+      }
+    ],
+    "转动惯量": [
+      {
+        "mode": "introduction",
+        "outcome": "engaged",
+        "ts": 1789498636.661178,
+        "note": "转动惯量"
+      }
+    ],
+    "简谐振动": [
+      {
+        "mode": "introduction",
+        "outcome": "engaged",
+        "ts": 1789498684.8212624,
+        "note": "简谐振动"
+      },
+      {
+        "mode": "introduction",
+        "outcome": "engaged",
+        "ts": 1789498802.602232,
+        "note": "简谐振动"
+      },
+      {
+        "mode": "introduction",
+        "outcome": "engaged",
+        "ts": 1789498891.5199707,
+        "note": "简谐振动"
+      }
+    ],
+    "单摆周期公式与简谐振动回复力": [
+      {
+        "mode": "introduction",
+        "outcome": "engaged",
+        "ts": 1789498715.799256,
+        "note": "单摆周期公式与简谐振动回复力"
+      }
+    ],
+    "波动方程": [
+      {
+        "mode": "introduction",
+        "outcome": "engaged",
+        "ts": 1789498960.0968087,
+        "note": "波动方程"
+      }
+    ],
+    "波的干涉与驻波": [
+      {
+        "mode": "introduction",
+        "outcome": "engaged",
+        "ts": 1789498987.3679054,
+        "note": "波的干涉与驻波"
+      }
+    ],
+    "驻波、半波损失": [
+      {
+        "mode": "introduction",
+        "outcome": "engaged",
+        "ts": 1789499055.5362258,
+        "note": "驻波、半波损失"
+      }
+    ],
+    "波动": [
+      {
+        "mode": "practice",
+        "outcome": "engaged",
+        "ts": 1789499098.0270123,
+        "note": "波动"
+      }
+    ],
+    "半波损失": [
+      {
+        "mode": "introduction",
+        "outcome": "engaged",
+        "ts": 1789499163.15016,
+        "note": "半波损失"
+      }
+    ],
+    "热力学第一定律": [
+      {
+        "mode": "introduction",
+        "outcome": "engaged",
+        "ts": 1789499227.3594885,
+        "note": "热力学第一定律"
+      },
+      {
+        "mode": "introduction",
+        "outcome": "engaged",
+        "ts": 1789499367.5445423,
+        "note": "热力学第一定律"
+      },
+      {
+        "mode": "practice",
+        "outcome": "engaged",
+        "ts": 1789499432.8476768,
+        "note": "热力学第一定律"
+      },
+      {
+        "mode": "practice",
+        "outcome": "engaged",
+        "ts": 1789499467.2391171,
+        "note": "热力学第一定律"
+      }
+    ],
+    "卡诺效率": [
+      {
+        "mode": "introduction",
+        "outcome": "engaged",
+        "ts": 1789499501.6249516,
+        "note": "卡诺效率"
+      }
+    ],
+    "高斯定理": [
+      {
+        "mode": "introduction",
+        "outcome": "engaged",
+        "ts": 1789499563.121443,
+        "note": "高斯定理"
+      },
+      {
+        "mode": "introduction",
+        "outcome": "engaged",
+        "ts": 1789499604.2058709,
+        "note": "高斯定理"
+      }
+    ],
+    "静电场": [
+      {
+        "mode": "practice",
+        "outcome": "engaged",
+        "ts": 1789499638.3410075,
+        "note": "静电场"
+      }
+    ],
+    "电偶极子电势能与力矩": [
+      {
+        "mode": "introduction",
+        "outcome": "engaged",
+        "ts": 1789499662.8966508,
+        "note": "电偶极子电势能与力矩"
+      }
+    ],
+    "法拉第电磁感应定律": [
+      {
+        "mode": "introduction",
+        "outcome": "engaged",
+        "ts": 1789499743.9137056,
+        "note": "法拉第电磁感应定律"
+      }
+    ],
+    "动生电动势与感生电场": [
+      {
+        "mode": "introduction",
+        "outcome": "engaged",
+        "ts": 1789499792.106577,
+        "note": "动生电动势与感生电场"
+      }
+    ],
+    "电磁感应": [
+      {
+        "mode": "practice",
+        "outcome": "engaged",
+        "ts": 1789499870.0926354,
+        "note": "电磁感应"
+      }
+    ],
+    "动生电动势": [
+      {
+        "mode": "practice",
+        "outcome": "engaged",
+        "ts": 1789499938.9249008,
+        "note": "动生电动势"
+      },
+      {
+        "mode": "introduction",
+        "outcome": "engaged",
+        "ts": 1789499989.61,
+        "note": "动生电动势"
+      }
+    ],
+    "电偶极子在均匀外电场中的电势能": [
+      {
+        "mode": "introduction",
+        "outcome": "engaged",
+        "ts": 1789541723.413145,
+        "note": "电偶极子在均匀外电场中的电势能"
+      },
+      {
+        "mode": "introduction",
+        "outcome": "engaged",
+        "ts": 1789541798.6614144,
+        "note": "电偶极子在均匀外电场中的电势能"
       }
     ]
   },
-  "updated_at": 1789465203.147138
+  "updated_at": 1789541798.661433
 }

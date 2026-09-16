@@ -816,6 +816,21 @@ export interface QuizSubmitOutcome {
   duplicate?: boolean;
 }
 
+export interface QuizSubmissionState extends QuizSubmitOutcome {
+  student_answer: string;
+  /** Includes task-only grading even when long-term evaluation is unavailable. */
+  pending: boolean;
+  revealed: { answer: string; explanation: string } | null;
+}
+
+export async function fetchQuizSubmission(questionId: string, questionRevision: number): Promise<{
+  submission: QuizSubmissionState | null;
+}> {
+  const res = await apiFetch(`${BASE}/quiz/submission?question_id=${encodeURIComponent(questionId)}&question_revision=${questionRevision}`);
+  if (!res.ok) throw new Error(`Submission lookup failed: ${res.status}`);
+  return res.json();
+}
+
 export async function submitQuizAnswer(body: {
   question_id: string;
   question_revision: number;

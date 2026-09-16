@@ -11,83 +11,38 @@ import re
 from typing import Any
 
 from ..core.llm_async import AsyncLLMClient
-from ..core.quiz_verify import RUBRIC_REQUIREMENT, generate_verified_questions
+from ..core.quiz_generation_budget import BudgetedLLM, GenerationBudget
+from ..core.quiz_illustration_policy import IllustrationDisabled, REQUEST_SCHEMA
+from ..core.quiz_verify import generate_verified_questions
+from ..prompts.registry import get as _prompt
 from ..core.tool_base import Tool
 from ..core.tool_protocol import ErrorCode, err, ok, partial_result
 
 VALID_GRADES = ("小学", "初中", "高中", "本科")
 VALID_DIFFICULTY = ("easy", "medium", "hard")
+VALID_QUESTION_TYPES = ("multiple_choice", "fill_blank", "short_answer")
+_QUESTION_TYPE_ZH = {
+    "multiple_choice": "选择题（必须提供至少两个不重复选项，answer 必须是选项字母）",
+    "fill_blank": "填空题（不得提供 options）",
+    "short_answer": "简答题（不得提供 options）",
+}
+# 两个出题模板共用的「题型多样」要求原文。学生显式指定题型时必须整段
+# 替换为硬约束——只追加一条"本轮不适用"在实测中仍会被模型当作次要指令
+# 忽略（live 验收：要求 multiple_choice，模型仍输出 short_answer 被过滤
+# 成 0 题，题卡消失）。
+_TYPE_DIVERSITY_LINE = (
+    "- 题型多样：不要默认只出 multiple_choice。count≥2 时至少包含一道 "
+    "fill_blank 或 short_answer；count=1 时按知识点特点选题型（计算/推导/"
+    "步骤/代码实现类优先 fill_blank 或 short_answer，概念辨析类适合 "
+    "multiple_choice）；学生要求「换一种题型/别的类型」时必须更换题型。"
+)
 
-_QUIZ_PROMPT = """你是出题专家。为学段「{grade}」的学生，围绕知识点「{topic}」出 {count} 道练习题，难度：{difficulty_zh}。
-难度定义（相对于该学段，不是绝对难度）：
-- easy 基础：一步直接应用，课本例题级，识别题型套公式即得。
-- medium 中等：需要一次转化或综合两个知识点，不能照搬例题；有明确的过程分。
-- hard 挑战：多步推理、变式或含易错陷阱。
-该学段难度锚点（标定 easy/medium/hard 的参照系，必须遵守）：{anchor}
-该学段例题风格：{example_style}
-{blueprint}
-只输出一个 JSON 对象，不要输出任何其它文字、不要 markdown 代码块。
-格式：
-{{
-  "questions": [
-    {{
-      "id": 1,
-      "type": "multiple_choice",
-      "stem": "题干",
-      "options": {{"A": "...", "B": "...", "C": "...", "D": "..."}},
-      "answer": "B",
-      "explanation": "为什么选 B，讲清思路",
-      "knowledge_point": "对应知识点",
-      "difficulty": "本题实际难度 easy/medium/hard"
-    }}
-  ]
-}}
-要求：
-- 题型多样：不要默认只出 multiple_choice。count≥2 时至少包含一道 fill_blank 或 short_answer；count=1 时按知识点特点选题型（计算/推导/步骤/代码实现类优先 fill_blank 或 short_answer，概念辨析类适合 multiple_choice）；学生要求「换一种题型/别的类型」时必须更换题型。
-- 题目难度与学段、目标难度匹配，{grade} 学生能看懂。count=1 时严格按目标难度出题，不得暗中降档；count≥2 时套内递进：第 1 题比目标难度低一档起步，逐题加难，最后 1 题必须达到目标难度，每题 difficulty 字段写本题实际难度。
-- 题干、选项、答案中的公式和符号也用 LaTeX 语法（$...$ 行内）。
-- options 仅在 type 为 multiple_choice 时提供；填空题用 fill_blank，简答用 short_answer，这两类不需要 options，answer 直接写答案文本。
-- explanation 必须详细、可复盘：分步讲解。先用一两句点明考查的知识点与解题切入点；再分步给出推导过程（列出所用公式/定理、代入的数据、关键中间结果）；最后给出最终结论并点出学生最容易错的点。禁止只重复答案、禁止一句话带过。解析长度严格 80-200 字，不要超出。
-- explanation 字段只写给学生看的讲解，不要写你的思考过程、不要自我质疑、不要修改题目。如果想改题目，就在 stem 里直接写最终版本。
-- 所有公式、推导步骤、计算结果必须用 LaTeX 数学语法：行内公式用 $...$，独立公式用 $$...$$。例如 $F=ma$、$\\rho=\\frac{{m}}{{V}}$、$\\sum_{{i=1}}^{{n}}i$。禁止用纯文本写公式（如 F=ma、x^2+y^2=25），必须用 LaTeX。数学环境内不要直接写中文（包括中文下标），必须写中文时用 \\text{{}} 包裹：正确写法 $c_{{\\text{{待测}}}}$，错误写法 $c_{{待测}}$。
-- 数字与中英文之间保留一个空格：如「物体质量 5 kg」「$F=10 N$」「$g=10 N/kg$」「$\\rho=1.0\\times10^3 kg/m^3$」。中文与英文/数字之间也要有空格，如「代入 $F=ma$」「$v=10 m/s$」。
-- 严格输出可被 json.loads 解析的纯 JSON。""" + RUBRIC_REQUIREMENT
+_QUIZ_PROMPT = _prompt("quiz_generate").text
 
 _DIFFICULTY_ZH = {"easy": "基础", "medium": "中等", "hard": "挑战"}
 
 # 自动学段专用 prompt（P1）：省略学段锚点/例题风格，改注自适应难度说明。
-_QUIZ_PROMPT_AUTO = """你是出题专家。围绕知识点「{topic}」为{grade}的学生出 {count} 道练习题，难度：{difficulty_zh}。
-难度定义（按知识点本身标定，不是绝对难度）：
-- easy 基础：一步直接应用，识别题型套公式即得。
-- medium 中等：需要一次转化或综合两个知识点，不能照搬例题；有明确的过程分。
-- hard 挑战：多步推理、变式或含易错陷阱。
-{blueprint}
-只输出一个 JSON 对象，不要输出任何其它文字、不要 markdown 代码块。
-格式：
-{{
-  "questions": [
-    {{
-      "id": 1,
-      "type": "multiple_choice",
-      "stem": "题干",
-      "options": {{"A": "...", "B": "...", "C": "...", "D": "..."}},
-      "answer": "B",
-      "explanation": "为什么选 B，讲清思路",
-      "knowledge_point": "对应知识点",
-      "difficulty": "本题实际难度 easy/medium/hard"
-    }}
-  ]
-}}
-要求：
-- 题型多样：不要默认只出 multiple_choice。count≥2 时至少包含一道 fill_blank 或 short_answer；count=1 时按知识点特点选题型（计算/推导/步骤/代码实现类优先 fill_blank 或 short_answer，概念辨析类适合 multiple_choice）；学生要求「换一种题型/别的类型」时必须更换题型。
-- 题目难度与知识点、目标难度匹配。count=1 时严格按目标难度出题，不得暗中降档；count≥2 时套内递进：第 1 题比目标难度低一档起步，逐题加难，最后 1 题必须达到目标难度，每题 difficulty 字段写本题实际难度。
-- 题干、选项、答案中的公式和符号也用 LaTeX 语法（$...$ 行内）。
-- options 仅在 type 为 multiple_choice 时提供；填空题用 fill_blank，简答用 short_answer，这两类不需要 options，answer 直接写答案文本。
-- explanation 必须详细、可复盘：分步讲解。先用一两句点明考查的知识点与解题切入点；再分步给出推导过程（列出所用公式/定理、代入的数据、关键中间结果）；最后给出最终结论并点出学生最容易错的点。禁止只重复答案、禁止一句话带过。解析长度严格 80-200 字，不要超出。
-- explanation 字段只写给学生看的讲解，不要写你的思考过程、不要自我质疑、不要修改题目。如果想改题目，就在 stem 里直接写最终版本。
-- 所有公式、推导步骤、计算结果必须用 LaTeX 数学语法：行内公式用 $...$，独立公式用 $$...$$。例如 $F=ma$、$\\rho=\\frac{{m}}{{V}}$、$\\sum_{{i=1}}^{{n}}i$。禁止用纯文本写公式（如 F=ma、x^2+y^2=25），必须用 LaTeX。数学环境内不要直接写中文（包括中文下标），必须写中文时用 \\text{{}} 包裹：正确写法 $c_{{\\text{{待测}}}}$，错误写法 $c_{{待测}}$。
-- 数字与中英文之间保留一个空格：如「物体质量 5 kg」「$F=10 N$」「$g=10 N/kg$」「$\\rho=1.0\\times10^3 kg/m^3$」。中文与英文/数字之间也要有空格，如「代入 $F=ma$」「$v=10 m/s$」。
-- 严格输出可被 json.loads 解析的纯 JSON。""" + RUBRIC_REQUIREMENT
+_QUIZ_PROMPT_AUTO = _prompt("quiz_generate_auto").text
 
 
 class GenerateQuizTool(Tool):
@@ -95,23 +50,27 @@ class GenerateQuizTool(Tool):
     description = (
         "为指定知识点生成分层练习题（含答案与详细解析）。"
         "当学生想要练习、出题、测试、巩固某个知识点时调用。"
-        "参数：topic(知识点,必填) grade(学段:小学/初中/高中/本科,省略=按知识点自动) difficulty(easy/medium/hard) count(题目数1-5)。"
+        "参数：topic(知识点,必填) grade(学段:小学/初中/高中/本科,省略=按知识点自动) difficulty(easy/medium/hard) count(题目数1-5) q_type(可选显式题型)。"
     )
     parameters = {
         "type": "object",
         "properties": {
+            "illustration_request": REQUEST_SCHEMA,
             "topic": {"type": "string", "description": "要出题的知识点，如\"一元二次方程\"、\"牛顿第二定律\""},
             "grade": {"type": "string", "enum": list(VALID_GRADES), "description": "学生学段（省略=按知识点本身自适应标定难度）"},
             "difficulty": {"type": "string", "enum": list(VALID_DIFFICULTY), "description": "难度"},
             "count": {"type": "integer", "minimum": 1, "maximum": 5, "description": "题目数量"},
+            "q_type": {"type": "string", "enum": list(VALID_QUESTION_TYPES), "description": "学生明确指定的题型；未指定时省略"},
             "focus": {"type": "string", "description": "可选：本轮讲解的具体侧重点（如\"滴定步骤\"），出题必须与之直接相关"},
         },
         "required": ["topic"],
     }
 
     def __init__(self, llm: AsyncLLMClient, avoid_stems: list[str] | None = None,
-                 grounding_provider: Any | None = None) -> None:
+                 grounding_provider: Any | None = None,
+                 illustration_policy_provider: Any | None = None) -> None:
         self._llm = llm
+        self._illustration_policy_provider = illustration_policy_provider
         # 本会话已出过的题干（截断），注入 prompt 防止逐轮出同质题。
         self._avoid_stems = [s for s in (avoid_stems or []) if s][:8]
         # 统一 Quiz Grounding 输入层（plan.md §4.3）：服务端闭包绑定的
@@ -130,6 +89,10 @@ class GenerateQuizTool(Tool):
         difficulty = kwargs.get("difficulty") or "medium"
         if difficulty not in VALID_DIFFICULTY:
             return err(self.name, ErrorCode.BAD_ARGS, f"difficulty 必须是 {VALID_DIFFICULTY} 之一。")
+        q_type = str(kwargs.get("q_type") or "").strip()
+        if q_type and q_type not in VALID_QUESTION_TYPES:
+            return err(self.name, ErrorCode.BAD_ARGS,
+                       f"q_type 必须是 {VALID_QUESTION_TYPES} 之一或省略。")
         count = kwargs.get("count") or 3
         try:
             count = max(1, min(5, int(count)))
@@ -137,6 +100,19 @@ class GenerateQuizTool(Tool):
             count = 3
 
         focus = str(kwargs.get("focus", "")).strip()[:60]
+
+        request = str(kwargs.get("illustration_request") or "auto")
+        if request not in {"auto", "none", "required"}:
+            return err(self.name, ErrorCode.BAD_ARGS, "illustration_request 无效。")
+        provider = self._illustration_policy_provider
+        try:
+            policy = provider(request) if provider is not None else "off"
+            if provider is None and request == "required":
+                raise IllustrationDisabled("当前入口不支持题目插图。")
+        except IllustrationDisabled as exc:
+            return err(self.name, exc.code, str(exc))
+        llm = (BudgetedLLM(self._llm, GenerationBudget())
+               if policy != "off" else self._llm)
 
         # --- 统一 Quiz Grounding（plan.md §4.3）---------------------------
         # 检索先于蓝图：第一轮蓝图决定角度/Bloom/陷阱，若未见教材，蓝图会
@@ -180,9 +156,9 @@ class GenerateQuizTool(Tool):
         # 认知层级/陷阱设计），蓝图注入生成 prompt；蓝图轮失败自动回退单轮。
         from ..core.quiz_design import design_blueprint
         blueprint, design_status = await design_blueprint(
-            self._llm, topic=topic, grade=grade, difficulty=difficulty,
+            llm, topic=topic, grade=grade, difficulty=difficulty,
             count=count, focus=focus, avoid_stems=self._avoid_stems,
-            grounding_context=grounding_context)
+            grounding_context=grounding_context, illustration_policy=policy)
 
         def make_prompt() -> str:
             from ..agents.teaching_engine.stage_profile import (
@@ -206,6 +182,14 @@ class GenerateQuizTool(Tool):
             if focus:
                 extra += (f"\n- 本轮讲解的侧重点是「{focus}」，出的题必须直接检测这个侧重点，"
                           "不要只考知识点的泛化常识。")
+            if q_type:
+                # 硬替换模板里的「题型多样」要求，消除与显式题型约束的
+                # 指令冲突（模型会把互相矛盾的 bullets 按主次取舍）。
+                forced = (f"- 本套题型已由学生明确指定：每道题的 type 字段必须"
+                          f"恰好是 \"{q_type}\"（{_QUESTION_TYPE_ZH[q_type]}）。"
+                          "禁止输出任何其它题型——不符合的题目会被系统整题丢弃，"
+                          "导致你拿不到任何作答数据。")
+                base = base.replace(_TYPE_DIVERSITY_LINE, forced)
             if self._avoid_stems:
                 extra += ("\n- 以下题目本会话已经出过，禁止重复或仅换数字"
                           "（换情境、换考查角度、换数据）：\n"
@@ -233,11 +217,61 @@ class GenerateQuizTool(Tool):
         # and the answer channel comes back empty (unparseable -> 0 questions).
         # Every generation then passes the shared quality gate (structural
         # checks + independent critic re-solve) before reaching the student.
+        type_feedback: dict[str, Any] = {"wrong_types": [], "last_parsed": []}
+
+        def parse_requested_type(raw: str) -> list[dict[str, Any]]:
+            parsed = self._parse(raw)
+            if not q_type:
+                return parsed
+            kept = [q for q in parsed if q.get("type") == q_type]
+            if not kept and parsed:
+                type_feedback["wrong_types"] = sorted({
+                    str(q.get("type") or "unknown") for q in parsed})
+                type_feedback["last_parsed"] = parsed
+            return kept
+
+        gen_feedback: dict[str, Any] = {"critic_flags": []}
+
+        def make_prompt_with_feedback() -> str:
+            prompt = make_prompt()
+            wrong = type_feedback["wrong_types"]
+            if wrong:
+                prompt += (f"\n- 上一次输出被系统整题拒绝：题型是"
+                           f"「{'、'.join(wrong)}」，不符合学生的显式要求。"
+                           f"本次每道题的 type 字段必须恰好是 \"{q_type}\"，"
+                           "并按该题型补齐 options/answer 结构。")
+            flags = [f for f in (gen_feedback.get("critic_flags") or [])
+                     if f.get("reason")]
+            if flags:
+                lines = "\n".join(
+                    "- 未通过审核的题（{}）：{}".format(
+                        f.get("verdict") or "rejected",
+                        str(f.get("reason"))[:160]) for f in flags[:6])
+                prompt += ("\n- 上一轮部分题目未通过独立答案审核而被丢弃，"
+                           "本轮命题必须修正这些问题（答案、解析、选项保持"
+                           "一致正确）：\n" + lines)
+            return prompt
+
         questions, verification = await generate_verified_questions(
-            self._llm, make_prompt=make_prompt, parse=self._parse,
+            llm, make_prompt=make_prompt_with_feedback,
+            parse=parse_requested_type,
             topic=topic, grade=grade, difficulty=difficulty,
-            temperature=0.4, max_tokens=5000,
-            grounding_context=grounding_context)
+            temperature=0.4, max_tokens=(min(16000, 5000 + 2200 * count) if policy != "off" else 5000),
+            grounding_context=grounding_context, feedback=gen_feedback,
+            illustration_policy=policy, required_type=q_type)
+        if (not questions and q_type and type_feedback["last_parsed"] and policy == "off"):
+            # 题卡必须出现（update_plan 验收）：两轮显式题型约束后模型仍
+            # 输出其它题型时，交付结构完好的题目并如实标注，不让题卡
+            # 凭空消失。此类题按未通过内容审核处理（answer_verified=False）。
+            from ..core.quiz_verify import filter_well_formed
+            from ..core.quiz_verify import prepare_illustrations
+            safe_fallback, _invalid = prepare_illustrations(type_feedback["last_parsed"], "off")
+            fallback_kept, _dropped = filter_well_formed(safe_fallback)
+            if fallback_kept:
+                questions = fallback_kept
+                verification["type_contract_fallback"] = (
+                    type_feedback["wrong_types"])
+                verification["answer_verified"] = False
         verification["design"] = design_status
 
         # --- Provenance 验证与附加（plan.md §4.5）---------------------------
@@ -293,12 +327,12 @@ class GenerateQuizTool(Tool):
                      "verification": verification,
                      **({"grounding": bundle.grounding_meta()}
                         if bundle is not None else {})},
-                    "未能生成通过校验的题目，已返回模型原始输出片段。")
+                    "未能生成通过校验的题目，请重试。")
             return partial_result(self.name,
                 {"raw": verification.get("raw", ""), "questions": [],
                  "verification": verification,
                  "grounding": bundle.grounding_meta()},
-                "未能生成通过校验的题目，已返回模型原始输出片段。")
+                "未能生成通过校验的题目，请重试。")
 
         def _grounding_meta() -> dict[str, Any]:
             if bundle is not None and grounded:
@@ -309,27 +343,46 @@ class GenerateQuizTool(Tool):
                     "reason": resolve_error or "none", "query": topic,
                     "source_count": 0, "omitted_count": 0}
 
+        questions = questions[:count]
+        # Account permission can change while the model is generating.
+        if provider is not None:
+            try:
+                current_policy = provider(request)
+            except IllustrationDisabled as exc:
+                return err(self.name, exc.code, str(exc))
+            if current_policy == "off" and any(q.get("illustration") for q in questions):
+                return partial_result(self.name, {"questions": [],
+                    "reason": "illustration_disabled", "verification": verification},
+                    "插图生成已关闭，请重新生成无图题目。")
+        if isinstance(llm, BudgetedLLM):
+            verification["generation_calls"] = llm.budget.calls
+            verification["illustration_repairs"] = llm.budget.repairs
+        verification["illustration_policy"] = policy
         note = "（已通过答案校验）" if verification.get("answer_verified") else ""
         tier_note = ""
         if grounded and bundle.tier == "partial":
             tier_note = "（部分教材依据）"
-        return ok(self.name,
+        # A quality gate may legitimately drop some candidates.  Any
+        # surviving, fully audited questions are still a successful response;
+        # partial is reserved for the no-question outcome handled above.
+        result_fn = ok
+        return result_fn(self.name,
             {"topic": topic, "grade": grade, "difficulty": difficulty,
              "questions": questions,
              "answer_verified": verification.get("answer_verified", False),
              "verification": verification,
              "grounding": _grounding_meta()},
-            f"生成 {len(questions)} 道关于「{topic}」的练习题{note}{tier_note}。")
+            f"已生成 {len(questions)}/{count} 道关于「{topic}」的练习题{note}{tier_note}。")
 
     @staticmethod
     def _parse(raw: str) -> list[dict[str, Any]]:
-        m = re.search(r"\{.*\}", raw, re.DOTALL)
-        candidate = m.group(0) if m else raw
-        try:
-            data = json.loads(candidate)
-        except json.JSONDecodeError:
+        # LaTeX 题干里的 \{ \} $ 是非法 JSON 转义：loads_tolerant 修复后
+        # 重试，避免整份输出被当作 0 题（chat 出题卡直接消失）。
+        from ..core.json_utils import extract_json_object
+        data = extract_json_object(raw)
+        if not isinstance(data, dict):
             return []
-        qs = data.get("questions", []) if isinstance(data, dict) else []
+        qs = data.get("questions", [])
         out: list[dict[str, Any]] = []
         for i, q in enumerate(qs, 1):
             if not isinstance(q, dict) or "stem" not in q or "answer" not in q:

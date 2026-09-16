@@ -96,6 +96,11 @@ class Settings:
     # Post-generation quiz verification: critic = 结构校验 + LLM 独立重解审题,
     # basic = 仅确定性结构校验, off = 旧行为（不校验）。
     quiz_verify_mode: str = os.getenv("QUIZ_VERIFY_MODE", "critic").strip().lower()
+    # Opt-in rollout; independent from semantic verification and user prefs.
+    # SVG question diagrams are available by default; the deployment-level
+    # switch remains an emergency/rollout kill switch, while each account can
+    # opt out from the assessment center.
+    quiz_svg_enabled: bool = os.getenv("QUIZ_SVG_ENABLED", "1").strip().lower() in {"1", "true", "yes", "on"}
     # 出题两轮化：two_pass = 生成前先做一轮命题蓝图设计（考查角度/认知层级/
     # 陷阱设计），第二轮按蓝图写题；single = 旧行为（单轮直出）。
     # 蓝图轮失败时自动回退 single（fail-open，同 quiz_verify 哲学）。

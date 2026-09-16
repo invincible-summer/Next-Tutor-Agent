@@ -1,141 +1,45 @@
 {
   "version": 1,
-  "updated_at": 1789465203.1602323,
+  "updated_at": 1789541798.6805222,
   "items": [
     {
       "strategy": "introduction",
       "subject": "数学",
-      "success_rate": 0.993464052287582,
-      "trials": 16,
-      "last_used_ts": 1788228634.6897573,
-      "scope": "subject"
-    },
-    {
-      "strategy": "remediation",
-      "subject": "数学",
-      "success_rate": 0.9994535519125682,
-      "trials": 59,
-      "last_used_ts": 1788188477.088899,
+      "success_rate": 0.9989429175475687,
+      "trials": 42,
+      "last_used_ts": 1789496971.7731063,
       "scope": "subject"
     },
     {
       "strategy": "practice",
       "subject": "数学",
-      "success_rate": 0.8999999999999999,
-      "trials": 3,
-      "last_used_ts": 1787983397.7656353,
-      "scope": "subject"
-    },
-    {
-      "strategy": "introduction",
-      "subject": "物理",
-      "success_rate": 0.9642857142857143,
-      "trials": 6,
-      "last_used_ts": 1787985587.426173,
-      "scope": "subject"
-    },
-    {
-      "strategy": "remediation",
-      "subject": "物理",
-      "success_rate": 0.9995737425404944,
-      "trials": 67,
-      "last_used_ts": 1788057963.6776633,
+      "success_rate": 0.9871794871794873,
+      "trials": 11,
+      "last_used_ts": 1789496567.2148924,
       "scope": "subject"
     },
     {
       "strategy": "review",
-      "subject": "物理",
-      "success_rate": 0.9523809523809524,
-      "trials": 5,
-      "last_used_ts": 1787985840.0675323,
-      "scope": "subject"
-    },
-    {
-      "strategy": "introduction",
-      "subject": "数学/物理",
-      "success_rate": 0.6666666666666666,
-      "trials": 1,
-      "last_used_ts": 1787985172.1019845,
-      "scope": "subject"
-    },
-    {
-      "strategy": "remediation",
-      "subject": "数学/物理",
-      "success_rate": 0.6666666666666666,
-      "trials": 1,
-      "last_used_ts": 1787985561.719869,
-      "scope": "subject"
-    },
-    {
-      "strategy": "introduction",
-      "subject": "数学和物理",
-      "success_rate": 0.6666666666666666,
-      "trials": 1,
-      "last_used_ts": 1787985619.6055243,
-      "scope": "subject"
-    },
-    {
-      "strategy": "remediation",
-      "subject": "数学、物理",
-      "success_rate": 0.6666666666666666,
-      "trials": 1,
-      "last_used_ts": 1787985656.1518648,
-      "scope": "subject"
-    },
-    {
-      "strategy": "remediation",
-      "subject": "物理/数学",
-      "success_rate": 0.6666666666666666,
-      "trials": 1,
-      "last_used_ts": 1787985705.2602625,
-      "scope": "subject"
-    },
-    {
-      "strategy": "introduction",
-      "subject": "",
-      "success_rate": 0.9642857142857143,
-      "trials": 6,
-      "last_used_ts": 1788233477.348402,
-      "scope": "global"
-    },
-    {
-      "strategy": "introduction",
-      "subject": "语文",
-      "success_rate": 0.6666666666666666,
-      "trials": 1,
-      "last_used_ts": 1788069861.4212615,
-      "scope": "subject"
-    },
-    {
-      "strategy": "challenge",
-      "subject": "物理",
-      "success_rate": 0.6666666666666666,
-      "trials": 1,
-      "last_used_ts": 1788088190.6821692,
-      "scope": "subject"
-    },
-    {
-      "strategy": "practice",
-      "subject": "",
-      "success_rate": 0.8999999999999999,
-      "trials": 3,
-      "last_used_ts": 1788233974.977431,
-      "scope": "global"
-    },
-    {
-      "strategy": "review",
       "subject": "数学",
-      "success_rate": 0.6666666666666666,
-      "trials": 1,
-      "last_used_ts": 1788233843.9632108,
+      "success_rate": 0.8333333333333333,
+      "trials": 2,
+      "last_used_ts": 1789496105.7138636,
+      "scope": "subject"
+    },
+    {
+      "strategy": "introduction",
+      "subject": "物理",
+      "success_rate": 0.9983193277310926,
+      "trials": 33,
+      "last_used_ts": 1789541798.6804686,
       "scope": "subject"
     },
     {
       "strategy": "practice",
       "subject": "物理",
-      "success_rate": 0.6666666666666666,
-      "trials": 1,
-      "last_used_ts": 1789465203.160181,
+      "success_rate": 0.9916666666666669,
+      "trials": 14,
+      "last_used_ts": 1789499938.960807,
       "scope": "subject"
     }
   ]

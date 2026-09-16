@@ -58,11 +58,15 @@ def _session_workspace(student_id: str, session_id: str) -> tuple[str, Any]:
 
 def _write_back_result(session_id: str, question_id: str,
                        student_answer: str, verdict: str | None,
-                       attempt_id: str) -> None:
+                       attempt_id: str, *, question_revision: int = 1,
+                       submission: dict[str, Any] | None = None) -> None:
     """把受理结果写回会话 quiz_history（按 question_id，不用题干前缀），
     让下一轮对话与重载的题卡能看到作答状态。fail-open。"""
-    if not session_id or not verdict:
+    if not session_id or not attempt_id:
         return
+    result = {**(submission or {}), "verdict": verdict,
+              "student_answer": student_answer, "attempt_id": attempt_id,
+              "question_id": question_id, "question_revision": question_revision}
     try:
         with file_lock(session_path(session_id)):
             session = load_session(session_id)
@@ -72,12 +76,11 @@ def _write_back_result(session_id: str, question_id: str,
                       if isinstance(qh, dict)
                       for q in (qh.get("questions") or [])
                       if isinstance(q, dict)]:
-                if str(q.get("id") or "") != question_id:
+                stored_id = str(q.get("question_id") or q.get("id") or "")
+                if stored_id != question_id or int(
+                        q.get("question_revision") or 1) != question_revision:
                     continue
-                q["result"] = {"verdict": verdict,
-                               "student_answer": student_answer[:200],
-                               "attempt_id": attempt_id,
-                               "question_id": question_id}
+                q["result"] = dict(result)
             for msg in session.messages or []:
                 if not isinstance(msg, dict) or msg.get("role") != "assistant":
                     continue
@@ -87,12 +90,10 @@ def _write_back_result(session_id: str, question_id: str,
                             tc.get("result"), dict) else None
                     for mq in ((data or {}).get("questions") or []):
                         if isinstance(mq, dict) and \
-                                str(mq.get("id") or "") == question_id:
-                            mq["result"] = {
-                                "verdict": verdict,
-                                "student_answer": student_answer[:200],
-                                "attempt_id": attempt_id,
-                                "question_id": question_id}
+                                str(mq.get("question_id") or
+                                    mq.get("id") or "") == question_id and \
+                                int(mq.get("question_revision") or 1) == question_revision:
+                            mq["result"] = dict(result)
             save_session(session)
     except Exception:
         pass
@@ -141,12 +142,6 @@ async def _submit(req: QuizSubmitRequest, student_id: str,
     except ScopeRevisionConflict:
         raise _error(409, "scope_revision_conflict",
                      "教材范围已变化，请刷新后重试")
-    if req.session_id and receipt.task_result is not None:
-        _write_back_result(req.session_id, req.question_id,
-                           req.student_answer,
-                           receipt.task_result.verdict.value
-                           if receipt.task_result.verdict else None,
-                           receipt.attempt_id)
     state = get_journal(student_id).state()
     src = state.sources.get(receipt.source_id)
     feedback = ""
@@ -160,7 +155,7 @@ async def _submit(req: QuizSubmitRequest, student_id: str,
             continuation = cont
     # R02：可靠受理即返回（202）；MC 判分与写回已完成，开放题语义反馈
     # 由 worker 提交，前端经 evaluation.job 链接轮询。
-    return JSONResponse({
+    payload = {
         "status": "ok",
         "attempt_id": receipt.attempt_id,
         "source_id": receipt.source_id,
@@ -172,7 +167,34 @@ async def _submit(req: QuizSubmitRequest, student_id: str,
         "feedback": feedback,
         "continuation": continuation,
         "duplicate": receipt.duplicate,
-    }, status_code=202)
+    }
+    # Receipt existence locks the card, even before an open answer is graded.
+    from app.core.quiz_submission import quiz_submission
+    snapshot = quiz_submission(student_id, req.question_id, req.question_revision)
+    if snapshot is not None:
+        payload.update(snapshot)
+    _write_back_result(req.session_id, req.question_id,
+                       snapshot["student_answer"] if snapshot else req.student_answer,
+                       (payload.get("task_result") or {}).get("verdict"),
+                       receipt.attempt_id, question_revision=req.question_revision,
+                       submission=payload)
+    return JSONResponse(payload, status_code=202)
+
+
+@router.get("/submission")
+def get_quiz_submission(question_id: str = Query(min_length=1, max_length=96),
+                        question_revision: int = Query(1, ge=1, le=1_000_000),
+                        student_id: str = Depends(resolve_student_id)):
+    """Recover accepted answers by identity; GET never grades or writes."""
+    try:
+        load_task_snapshot(student_id, S.QuestionRef(
+            question_id=question_id, question_revision=question_revision))
+    except QuestionNotFound:
+        raise _error(404, "question_not_found", "题目不存在")
+    except QuestionRevisionMismatch:
+        raise _error(409, "question_revision_mismatch", "题目已更新，请刷新")
+    from app.core.quiz_submission import quiz_submission
+    return {"submission": quiz_submission(student_id, question_id, question_revision)}
 
 
 @router.post("/grade")
@@ -272,37 +294,63 @@ async def quiz_dispute(req: DisputeRequest,
 @router.get("/recent")
 async def recent_questions(limit: int = Query(100, ge=1, le=100),
                            student_id: str = Depends(resolve_student_id)):
-    """跨会话最近习题（journal 投影；替换 .quiz_recent.json 真相）。"""
+    """跨会话最近习题：题目注册左连接正式作答投影。
+
+    题目生成本身不是学习证据，但必须能在习题历史中恢复；旧实现只遍历
+    assessment source，导致所有未作答题目凭空消失。
+    """
     state = get_journal(student_id).state()
-    rows: list[dict[str, Any]] = []
+    attempts: dict[tuple[str, int], Any] = {}
     for src in state.sources.values():
-        if src.receipt.kind != S.SourceKind.ASSESSMENT or \
-                src.receipt.task_ref is None:
+        ref = src.receipt.task_ref
+        if src.receipt.kind != S.SourceKind.ASSESSMENT or ref is None:
             continue
-        interp_id = src.current_interpretation_id
-        meta = src.interpretations.get(interp_id, {}) if interp_id else {}
-        # R02：202 受理后语义评价可能未完成——MC 判分已在受理事务落盘
-        #（interpretations[""]），仍可读
-        if not meta.get("task_result"):
-            meta = src.interpretations.get("", meta)
-        task = state.tasks.get(
-            src.receipt.task_ref.question_id, {}).get(
-            src.receipt.task_ref.question_revision)
-        rows.append({
-            "id": src.receipt.attempt_id,
-            "ts": src.receipt.observed_at,
-            "session_id": src.receipt.source_session_ref,
-            "question_id": src.receipt.task_ref.question_id,
-            "question_revision": src.receipt.task_ref.question_revision,
-            "topic": task.task_family if task else "",
-            "knowledge_point": task.source_badge if task else "",
-            "type": task.q_type.value if task else "",
-            "stem": task.stem[:160] if task else "",
-            "verdict": ((meta.get("task_result") or {})
-                        .get("verdict") or ""),
-            "student_answer": src.receipt.canonical_text[:200],
-            "evaluation_status": ("ready" if interp_id else "pending"),
-            "availability": src.availability,
-        })
+        key = (ref.question_id, ref.question_revision)
+        prior = attempts.get(key)
+        if prior is None or src.receipt.observed_at > prior.receipt.observed_at:
+            attempts[key] = src
+
+    rows: list[dict[str, Any]] = []
+    for question_id, revisions in state.tasks.items():
+        for revision, task in revisions.items():
+            src = attempts.get((question_id, revision))
+            # 旧的无来源 TaskSnapshot 没有可排序/定位信息；若已有正式作答，
+            # source 提供完整兼容信息，仍正常展示。
+            if src is None and not task.registered_at:
+                continue
+            interp_id = src.current_interpretation_id if src else ""
+            meta = (src.interpretations.get(interp_id, {})
+                    if src and interp_id else {})
+            if src and not meta.get("task_result"):
+                meta = src.interpretations.get("", meta)
+            session_id = (src.receipt.source_session_ref if src else
+                          task.source_session_ref)
+            availability = src.availability if src else "available"
+            if src is None and session_id:
+                session = load_session(session_id)
+                if session is None or (session.student_id or
+                                       "student_default") != student_id:
+                    availability = "deleted"
+            rows.append({
+                "id": (src.receipt.attempt_id if src else
+                       f"{question_id}@{revision}"),
+                "ts": (src.receipt.observed_at if src else
+                       task.registered_at or task.frozen_at),
+                "session_id": session_id,
+                "question_id": question_id,
+                "question_revision": revision,
+                "topic": task.task_family,
+                "knowledge_point": task.source_badge,
+                "type": task.q_type.value,
+                "stem": task.stem[:160],
+                "verdict": ((meta.get("task_result") or {})
+                            .get("verdict") or ""),
+                "student_answer": (src.receipt.canonical_text[:200]
+                                   if src else ""),
+                "evaluation_status": (
+                    "ready" if interp_id else "pending" if src else
+                    "unanswered"),
+                "availability": availability,
+            })
     rows.sort(key=lambda r: r["ts"], reverse=True)
     return {"status": "ok", "questions": rows[:limit]}

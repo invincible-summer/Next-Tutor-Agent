@@ -51,8 +51,16 @@ def select_allowlist(scope: S.EvaluationScope,
         if len(chosen) >= MAX_ALLOWLIST:
             break
         for hint in hint_concepts or []:
-            if hint and (c.concept_id == hint or c.display_name == hint) \
-                    and c.key not in keys:
+            h = (hint or "").strip()
+            if not h:
+                continue
+            display = c.display_name or ""
+            # 精确同名优先；出题 knowledge_point 是自由措辞（「级数敛散」
+            # vs 编目名「正项级数的收敛判别法」），无精确命中时按互含回退
+            # ——仍只在当前 scope 概念中选择，不引入范围外身份。
+            exact = c.concept_id == h or display == h
+            contains = bool(display) and (h in display or display in h)
+            if (exact or contains) and c.key not in keys:
                 chosen.append(c)
                 keys.add(c.key)
     return chosen[:MAX_ALLOWLIST]
@@ -172,6 +180,9 @@ def assemble_assessment_pack(
         "question_revision": task.question_revision,
         "q_type": task.q_type.value,
         "stem": task.stem,
+        # Frozen question material, not student evidence. Never truncate a
+        # dependent diagram into an apparently complete grading context.
+        "illustration": task.illustration.model_dump() if task.illustration else None,
         "options": task.options,
         # R14：权威判分依据随 pack 下发（P3 开放题阅卷需要参考答案；
         # 此前有字段无数据）

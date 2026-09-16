@@ -1,4 +1,6 @@
 "use client";
+import { MiniMarkdown } from "@/components/chat/markdown";
+import { QuestionIllustration } from "@/components/quiz/QuestionIllustration";
 // done 阶段：测评总结卡（cat.report，§11.5）——本次表现 + 语义总结。
 // 只展示本次真实观察：题数/判定计数/每题反馈（SubmissionOutcome 行内）；
 // 删除旧 Bloom partial=0.5 百分比色条与正确率能力档案（§14.7）。
@@ -81,6 +83,11 @@ export function SummaryCard({
                   <Badge tone="info">{et(lang, `eval.status.${it.evaluation_status}`, it.evaluation_status)}</Badge>
                 )}
               </div>
+              {it.question && <details className="mb-2 text-sm">
+                <summary className="cursor-pointer">{tr("illustration.review")}</summary>
+                <MiniMarkdown>{it.question.stem}</MiniMarkdown>
+                <QuestionIllustration illustration={it.question.illustration} />
+              </details>}
               <SubmissionOutcome
                 lang={lang}
                 data={{

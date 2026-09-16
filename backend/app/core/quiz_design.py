@@ -49,6 +49,7 @@ def build_blueprint_messages(*, topic: str, grade: str, difficulty: str,
                              avoid_stems: list[str] | None = None,
                              grounding_context: str = "",
                              allowed_concepts: list[str] | None = None,
+                             illustration_policy: str = "off",
                              ) -> tuple[list[dict[str, str]], str]:
     """P0+P1 system message + JSON user message（学段锚点/历史题/证据入数据）。
 
@@ -58,7 +59,12 @@ def build_blueprint_messages(*, topic: str, grade: str, difficulty: str,
     from ..agents.teaching_engine.stage_profile import (
         difficulty_anchor, is_auto)
     p0 = _prompt("learning_evidence_contract").text
-    p1 = _prompt("quiz_blueprint").text
+    # Illustration-aware blueprint is a non-active additive prompt version;
+    # retaining the historical active version keeps prompt replay bindings
+    # stable for callers that do not request diagrams.
+    p1_def = _prompt("quiz_blueprint", version="2.1.0") \
+        if illustration_policy != "off" else _prompt("quiz_blueprint")
+    p1 = p1_def.text
     system = p0 + "\n\n---\n\n" + p1
     if is_auto(grade):
         anchor = "（未指定学段，按知识点本身自适应）"
@@ -72,6 +78,7 @@ def build_blueprint_messages(*, topic: str, grade: str, difficulty: str,
             "target_difficulty": _DIFFICULTY_ZH.get(difficulty,
                                                     difficulty or "中等"),
             "count": count,
+            "illustration_policy": illustration_policy,
             "focus": focus or "",
             "allowed_concepts": allowed_concepts or [topic],
             "prior_task_refs": [s for s in (avoid_stems or []) if s][:8],
@@ -88,20 +95,18 @@ def build_blueprint_messages(*, topic: str, grade: str, difficulty: str,
         payload["textbook_reference"] = {"grounding_block": block}
     user = json.dumps(payload, ensure_ascii=False)
     binding = (f"learning_evidence_contract@1.0.0+quiz_blueprint@"
-               f"{_prompt('quiz_blueprint').version}")
+               f"{p1_def.version}")
     return [{"role": "system", "content": system},
             {"role": "user", "content": user}], binding
 
 
 def parse_blueprint(raw: str) -> list[dict[str, Any]]:
     """Extract blueprint items（宽松解析：根对象或 {items:[…]}）。"""
-    m = re.search(r"\{.*\}", raw, re.DOTALL)
-    candidate = m.group(0) if m else raw
-    try:
-        data = json.loads(candidate)
-    except json.JSONDecodeError:
+    from .json_utils import extract_json_object
+    data = extract_json_object(raw)
+    if not isinstance(data, dict):
         return []
-    items = data.get("items") if isinstance(data, dict) else None
+    items = data.get("items")
     if items is None and isinstance(data, dict):
         items = data.get("blueprint")
     if not isinstance(items, list):
@@ -137,6 +142,8 @@ def _render(items: list[dict[str, Any]]) -> str:
             if req:
                 parts.append(f"证据机会={req}")
         parts.append(f"构想={item.get('construction_brief', '')}")
+        if item.get("illustration_needed") is True:
+            parts.append("题图构想=" + str(item.get("illustration_brief") or "")[:600])
         lines.append(f"第 {i} 题：" + "｜".join(parts))
     return "\n".join(lines)
 
@@ -144,7 +151,8 @@ def _render(items: list[dict[str, Any]]) -> str:
 async def design_blueprint(llm: AsyncLLMClient, *, topic: str, grade: str,
                            difficulty: str, count: int, focus: str = "",
                            avoid_stems: list[str] | None = None,
-                           grounding_context: str = ""
+                           grounding_context: str = "",
+                           illustration_policy: str = "off"
                            ) -> tuple[str, str]:
     """Run the blueprint design round（P1 v2）。
 
@@ -157,7 +165,7 @@ async def design_blueprint(llm: AsyncLLMClient, *, topic: str, grade: str,
         messages, _binding = build_blueprint_messages(
             topic=topic, grade=grade, difficulty=difficulty, count=count,
             focus=focus, avoid_stems=avoid_stems,
-            grounding_context=grounding_context)
+            grounding_context=grounding_context, illustration_policy=illustration_policy)
         full, _usage = await llm.complete(
             messages=messages,
             temperature=0.3, max_tokens=1800, disable_thinking=True)

@@ -176,6 +176,24 @@ _UNDERSTAND_SYSTEM = (
     "上下文只是参照，学生消息里的明确新请求优先。"
 )
 
+# Chat 任务理解的结构化题卡判定契约。它与 understand_system 组合进同一
+# 次低预算 LLM 调用，避免为每条消息增加一次分类请求；词法分数只在模型
+# 失败或自相矛盾时兜底。
+_QUIZ_INTENT_SYSTEM = """【结构化出题意图判定（高优先级）】
+先判断学生是否要你生成一题或多题新的、需要学生作答的练习题。只要是新题请求，必须把 intent 设为 practice、requires_tools 设为 true、goal 设为 practice，并额外输出 response_mode="structured_quiz"。不要要求学生使用固定关键词；要理解同义、口语、省略主语和中英文混合表达。
+
+下列表述都属于新题请求：
+- “给我来个题”“来一道函数题”“考我一下”“测试我看看”“想练练牛顿定律”“给点练习”“安排一题难点”“随便出个例题”；
+- “我想做几道”“挑战一下我”“让我练一道”“quiz me”“give me a problem”“practice question”。
+
+下列表述属于直接解答已有题目，不是新题请求：
+- “这道题怎么做”“上面那题为什么错”“解释一下这道题”“帮我求解这题”。
+如果同一条消息既提到已有题目又明确要求“再来/再出/类似的一题”，按新题请求处理，并走结构化题卡。只要判断为新题请求，就不要仅在正文中写题干；后续由 generate_quiz 或 fit_quiz 工具返回题卡。
+
+在 JSON 中增加字段：
+  "response_mode": "structured_quiz" | "direct_answer"
+普通讲解、已有题求解、闲聊使用 direct_answer；生成新题使用 structured_quiz。"""
+
 # 注意：planner_system 文本中的「4 步」与 planner._MAX_PLAN_STEPS 保持一致，
 # 改上限时两边同步并 bump 版本。
 _PLANNER_SYSTEM = (
@@ -311,7 +329,7 @@ _QUIZ_BLUEPRINT_ANCHOR_AUTO = "学生未指定学段：难度按知识点本身�
 # --- W3/D04：M4 约束驱动单题生成（原 agents/assessment/generator.py 模块常量迁入，
 # 追加量规契约；文本改动即 bump，现版 1.0.0） -----------------------------------
 
-from ..core.quiz_verify import RUBRIC_REQUIREMENT as _RUBRIC_REQUIREMENT
+from .quiz_rubric import RUBRIC_REQUIREMENT as _RUBRIC_REQUIREMENT
 
 _ASSESSMENT_GENERATE = """你是命题专家。为学段「{grade}」学生，围绕知识点「{concept}」出 1 道检测题，难度：{difficulty_zh}（{difficulty}/5）。
 {constraints}
@@ -456,6 +474,8 @@ _register(PromptDef(id="tutor_system", version="2.9.0", text=_TUTOR_SYSTEM))
 _register(PromptDef(id="understand_system", version="1.3.0", text=_UNDERSTAND_SYSTEM))
 _register(PromptDef(id="understand_system", version="1.2.0",
                     text=_UNDERSTAND_SYSTEM_V120), active=False)
+_register(PromptDef(id="quiz_intent_system", version="1.0.0",
+                    text=_QUIZ_INTENT_SYSTEM))
 
 # W3/D06：结构化作答分析（量规条目判定 + 首个实质错误 + 错因假设 + 下一步 +
 # continuation 建议，单次调用）。分数由服务端按冻结量规权重计算，不采信模型自报。
@@ -572,3 +592,5 @@ _register(PromptDef(id="quiz_blueprint_anchor_auto", version="1.0.0", text=_QUIZ
 
 # 统一学习评价 P0–P10（plan §9）——独立模块注册，此处 import 保持单一注册点
 from . import learner_evaluation as _learner_evaluation  # noqa: E402,F401
+from .quiz_illustration import register as _register_illustration_prompts
+_register_illustration_prompts()

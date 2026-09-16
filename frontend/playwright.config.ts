@@ -55,6 +55,11 @@ export default defineConfig({
         LLM_BASE_URL: `http://127.0.0.1:${FAKE_LLM_PORT}/v1`,
         LLM_API_KEY: "fake-e2e-key",
         LLM_MODEL: "fake-llm",
+        // Exercise the account switch and structured SVG question-card path
+        // in the isolated browser backend. Tests that do not request a diagram
+        // still receive the normal auto policy and may legitimately have no
+        // illustration.
+        QUIZ_SVG_ENABLED: "1",
         SUPERVISOR_LLM_PLAN: "0",
         TEXTBOOK_GRAPH_ENABLED: "0",
         JWT_SECRET: "e2e-test-secret-e2e-test-secret-e2e",

@@ -9,7 +9,7 @@
 from __future__ import annotations
 
 import uuid
-from typing import Any
+from typing import Any, Literal
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Query
 from fastapi.responses import JSONResponse
@@ -281,7 +281,7 @@ async def question_practice(qid: str, req: PracticeRequest,
                 question_id=qid, question_revision=req.question_revision),
             "task_family": task.task_family or qid,
         })
-    register_task_snapshot(_sid, new_task)
+    _register_generated_task(_sid, new_task)
     return {"status": "ok",
             "question": new_task.public_view(hints_available=False),
             "origin_question_ref": {"question_id": qid,
@@ -379,8 +379,9 @@ class CatStartRequest(BaseModel):
     workspace_id: str = Field("", max_length=96)
     concept_keys: list[str] = Field(min_length=1, max_length=20)
     goal: CatGoal = Field(default_factory=CatGoal)
+    illustration_request: Literal["auto", "none", "required"] = "auto"
     q_type: str = Field("", max_length=32)
-    count: int = Field(6, ge=1, le=20)
+    count: int = Field(1, ge=1, le=20)
     probe_ref: dict[str, Any] = Field(default_factory=dict)
     expected_scope_revision: str = Field("", max_length=128)
     grade: str = Field("本科", max_length=16)
@@ -392,10 +393,13 @@ async def _generate_cat_question(student_id: str, instance: cat.CatInstance,
     from app.agents.assessment.generator import generate_question
     from app.agents.assessment.state import (AssessmentContext,
                                              AssessmentGoal)
-    goal = AssessmentGoal(
-        concept=instance.concept, purpose=instance.purpose,
-        count=1, q_type=q_type, difficulty=instance.difficulty,
-        assesses=list(instance.target_claims[:4]))
+    from app.core.quiz_generation_budget import GenerationBudget
+    from app.core.quiz_illustration_policy import resolve_illustration_policy, IllustrationDisabled
+    try:
+        policy = resolve_illustration_policy(student_id, instance.illustration_request)
+    except IllustrationDisabled as exc:
+        raise api_error(409, exc.code, str(exc))
+    budget = GenerationBudget() if policy != "off" else None
     ctx_kwargs: dict[str, Any] = {}
     # M5 教材 grounding：工作区已选教材即命题证据 scope（非 strict；
     # strict 语义由 P2 unsupported 审核承担）
@@ -424,8 +428,40 @@ async def _generate_cat_question(student_id: str, instance: cat.CatInstance,
     ctx = AssessmentContext(concept=instance.concept,
                             subject=instance.subject, grade=instance.grade,
                             base_difficulty=instance.difficulty, **ctx_kwargs)
-    q = await generate_question(goal, ctx, llm=get_llm(),
-                                student_id=student_id)
+    avoid: list[str] = []
+    try:
+        st = get_journal(student_id).state()
+        for ref in instance.question_refs:
+            asked = st.tasks.get(ref.question_id, {}).get(ref.question_revision)
+            if asked is not None and asked.stem:
+                avoid.append(asked.stem[:400])
+    except Exception:
+        avoid = []
+    q = None
+    for attempt in range(3):
+        if budget is not None and not budget.available:
+            break
+        # 前两次按原难度重试（generator 内部已带 critic 修订回炉）；第三
+        # 次降一档难度兜底——高难度计算题的答案/解析不一致是 critic 连续
+        # 拒题的主要来源，降档可避免测评因 generation_failed 中断
+        # （§11.5 可用性）。
+        goal = AssessmentGoal(
+            concept=instance.concept, purpose=instance.purpose,
+            count=1, q_type=q_type,
+            difficulty=max(1, instance.difficulty -
+                           (1 if attempt == 2 else 0)),
+            assesses=list(instance.target_claims[:4]),
+            avoid_stems=avoid, illustration_request=instance.illustration_request)
+        try:
+            q = await generate_question(goal, ctx, llm=get_llm(),
+                                        student_id=student_id, budget=budget)
+        except IllustrationDisabled as exc:
+            raise api_error(409, exc.code, str(exc))
+        if q is not None:
+            break
+        # 单题生成是纯 LLM 路径：JSON 解析失败与 critic 退回都是单次采样
+        # 方差，一次失败就把整个 CAT 会话打成 generation_failed 会让测评
+        # 随机中断（§11.5 可用性），这里按次重试。
     if q is None:
         return None
     concept_refs = _match_concept_refs(student_id, instance, q)
@@ -501,6 +537,11 @@ async def start_cat(req: CatStartRequest,
             scope = get_scope_resolver().resolve(_sid, req.workspace_id)
         except ScopeNotFound:
             raise api_error(404, "workspace_not_found", "工作区不存在")
+    from app.core.quiz_illustration_policy import resolve_illustration_policy, IllustrationDisabled
+    try:
+        resolve_illustration_policy(_sid, req.illustration_request)
+    except IllustrationDisabled as exc:
+        raise api_error(409, exc.code, str(exc))
     instance = cat.CatInstance(
         assessment_id=new_assessment_id(),
         workspace_id=req.workspace_id,
@@ -510,8 +551,17 @@ async def start_cat(req: CatStartRequest,
         concept=_concept_label(scope, req.concept_keys),
         grade=req.grade, subject=req.subject,
         count_limit=req.count, difficulty=2,
+        illustration_request=req.illustration_request,
         probe_ref=dict(req.probe_ref),
         created_at=S.utc_now_iso())
+    task = await _generate_cat_question(_sid, instance, req.q_type)
+    if task is None:
+        instance.status = cat.STATUS_STOPPED
+        instance.stop_code = "generation_failed"
+        cat.save_instance(_sid, instance, change="start_failed")
+        raise api_error(503, "generation_failed", "暂时无法出题，请稍后再试",
+                        retryable=True)
+    _register_generated_task(_sid, task)
     # 同 owner+workspace 至多一个 active CAT；不同区可各有一个（§11.5）
     state = get_journal(_sid).state()
     for aid, detail in state.assessments.items():
@@ -521,14 +571,6 @@ async def start_cat(req: CatStartRequest,
             old.status = cat.STATUS_STOPPED
             old.stop_code = "user_stopped"
             cat.save_instance(_sid, old, change="superseded")
-    task = await _generate_cat_question(_sid, instance, req.q_type)
-    if task is None:
-        instance.status = cat.STATUS_STOPPED
-        instance.stop_code = "generation_failed"
-        cat.save_instance(_sid, instance, change="start_failed")
-        raise api_error(503, "generation_failed", "暂时无法出题，请稍后再试",
-                        retryable=True)
-    register_task_snapshot(_sid, task)
     instance.question_refs.append(S.QuestionRef(
         question_id=task.question_id,
         question_revision=task.question_revision))
@@ -670,6 +712,18 @@ async def cat_next(req: CatNextRequest,
                         "上一题评价仍在进行，请稍候再取下一题",
                         retryable=True)
     verdicts = cat.verdicts_of(cat.instance_task_results(state, instance))
+    # 停止规则必须在生成前再查一次：answer 时评价未完成的题不计入
+    # verdict，等评价陆续就绪后 count_limit 可能已满足——此时继续生成
+    # 会突破题数上限（live 验收：count=2 却出到第 3 题）。
+    stop_status, stop_code = cat.should_stop(instance, verdicts)
+    if stop_status:
+        instance.status = stop_status
+        instance.stop_code = stop_code
+        cat.save_instance(_sid, instance, change="stop_on_next")
+        return {"status": "ok", "assessment_id": instance.assessment_id,
+                "stop_reason": instance.stop_code, "question": None,
+                "summary": cat.report(get_journal(_sid).state(),
+                                      req.assessment_id)}
     instance.difficulty = cat.next_difficulty(verdicts, instance.difficulty)
     task = await _generate_cat_question(_sid, instance, "")
     if task is None:
@@ -680,7 +734,7 @@ async def cat_next(req: CatNextRequest,
                 "stop_reason": "generation_failed", "question": None,
                 "summary": cat.report(get_journal(_sid).state(),
                                       req.assessment_id)}
-    register_task_snapshot(_sid, task)
+    _register_generated_task(_sid, task)
     instance.question_refs.append(S.QuestionRef(
         question_id=task.question_id,
         question_revision=task.question_revision))
@@ -751,3 +805,11 @@ async def cat_abandon(req: CatAbandonRequest,
         cat.save_instance(_sid, instance, change="abandon")
     return {"status": "ok", "assessment_id": instance.assessment_id,
             "stop_reason": instance.stop_code}
+
+
+def _register_generated_task(student_id: str, task: S.TaskSnapshot) -> None:
+    from app.core.quiz_illustration_policy import IllustrationDisabled
+    try:
+        register_task_snapshot(student_id, task)
+    except IllustrationDisabled as exc:
+        raise api_error(409, exc.code, str(exc))

@@ -1,6 +1,8 @@
 "use client";
+import { QuestionIllustration } from "@/components/quiz/QuestionIllustration";
 
 // asking 阶段：答题卡（题干 + 选项/简答 + 提交）。
+import { Textarea } from "@/components/ui/Input";
 import { useState } from "react";
 import { Send, FileQuestion, Flag, Lightbulb, Eye } from "lucide-react";
 import { cn } from "@/lib/cn";
@@ -94,6 +96,8 @@ export function QuestionCard({
         <MiniMarkdown>{question.stem}</MiniMarkdown>
       </div>
 
+      <QuestionIllustration illustration={question.illustration} />
+
       {mc ? (
         <div className="mt-4 flex flex-col gap-2">
           {options.map(([key, value]) => (
@@ -127,7 +131,7 @@ export function QuestionCard({
           ))}
         </div>
       ) : (
-        <textarea
+        <Textarea
           value={text}
           onChange={(e) => setText(e.target.value)}
           placeholder={tr("ask.answerPh")}

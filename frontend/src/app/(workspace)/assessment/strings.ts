@@ -3,6 +3,23 @@ import type { PageStrings } from "@/lib/i18n-page";
 /** 测评中心（/assessment）页面词条。 */
 export const STRINGS = {
   zh: {
+    "illustration.review": "回看题目",
+    "illustration.title": "题目插图",
+    "illustration.optionsTitle": "出题插图选项",
+    "illustration.expand": "放大查看",
+    "illustration.close": "关闭",
+    "illustration.unavailable": "插图无法显示，请刷新后重试；下方为图意描述。",
+    "illustration.setting": "允许生成题目插图",
+    "illustration.desc": "同时控制出题中心和聊天。开启后由 AI 按题目需要选择配图，已有题图不受影响。",
+    "illustration.required": "本次必须配图",
+    "illustration.disabled": "题目插图生成已关闭，请在出题中心开启后重试。",
+    "illustration.unavailableSetting": "题目插图功能尚未开放。",
+    "illustration.login": "登录后可设置题目插图偏好。",
+    "illustration.saveFailed": "设置保存失败，请重试。",
+    "illustration.loadFailed": "设置读取失败，请重试。",
+    "illustration.retry": "重试",
+    "illustration.saving": "保存中…",
+
     "page.desc": "自适应诊断：根据你的作答动态调整题目难度，帮助了解你在本概念上的当前表现；结论仅反映本轮作答，不等同于长期掌握。",
 
     "config.title": "发起自适应测评",
@@ -80,6 +97,23 @@ export const STRINGS = {
     "err.noActive": "没有进行中的测评，请重新开始",
   },
   en: {
+    "illustration.review": "Review question",
+    "illustration.title": "Question illustration",
+    "illustration.optionsTitle": "Question illustration options",
+    "illustration.expand": "Enlarge",
+    "illustration.close": "Close",
+    "illustration.unavailable": "Unable to display the diagram. Refresh to retry. Its description follows.",
+    "illustration.setting": "Allow question illustrations",
+    "illustration.desc": "Applies to assessment and chat. AI adds diagrams when useful. Existing diagrams are preserved.",
+    "illustration.required": "Require diagrams for this assessment",
+    "illustration.disabled": "Illustrations are disabled. Enable them in the assessment center and retry.",
+    "illustration.unavailableSetting": "Question illustrations are not available on this server yet.",
+    "illustration.login": "Sign in to set your illustration preference.",
+    "illustration.saveFailed": "Could not save the setting. Please retry.",
+    "illustration.loadFailed": "Could not load the setting. Please retry.",
+    "illustration.retry": "Retry",
+    "illustration.saving": "Saving…",
+
     "page.desc": "Adaptive diagnosis: difficulty adapts to your answers to probe your current performance on a concept; the result reflects only this round, not long-term mastery.",
 
     "config.title": "Start an adaptive assessment",

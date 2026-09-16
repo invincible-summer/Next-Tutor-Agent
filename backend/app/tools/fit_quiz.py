@@ -17,117 +17,22 @@ import re
 from typing import Any
 
 from ..core.llm_async import AsyncLLMClient
-from ..core.quiz_verify import RUBRIC_REQUIREMENT, generate_verified_questions
+from ..core.quiz_generation_budget import BudgetedLLM, GenerationBudget
+from ..core.quiz_illustration_policy import IllustrationDisabled, REQUEST_SCHEMA
+from ..core.quiz_verify import generate_verified_questions
+from ..prompts.registry import get as _prompt
 from ..core.tool_base import Tool
 from ..core.tool_protocol import ErrorCode, err, ok, partial_result
 
 VALID_GRADES = ("小学", "初中", "高中", "本科")
 VALID_DIFFICULTY = ("easy", "medium", "hard")
 
-_FIT_PROMPT = """你是一位资深命题专家，擅长"拟合出题"——从一道参考题目出发，生成考察同一知识点体系、但角度和结构各异的变式题。
-
-## 参考题目
-{reference}
-
-## 任务
-为学段「{grade}」学生，围绕上述参考题目的知识点，拟合生成 {count} 道变式题。难度：{difficulty_zh}。
-
-## 拟合策略（必须遵循，不能只换数据）
-你要像命题专家一样先拆解参考题，再按以下三层策略生成变式：
-
-### 第一层：拆题（内部思考，不输出）
-识别参考题的：核心知识点、考查能力、解题路径结构、陷阱点。
-
-### 第二层：变式生成
-每道变式题必须明确采用以下策略之一（在 knowledge_point 字段末尾标注 [变式:X]）：
-- [变式:情境迁移] 同一知识结构，换一个完全不同的生活/工程情境。例如参考题是"木块浮力"，变式可以换成"轮船吃水深度"或"热气球升空"——核心物理规律不变，但学生需要在新情境中识别它。
-- [变式:结构反转] 同一知识点，但反转问题结构。例如参考题"已知密度求浮力"，变式可以是"已知浮力求密度"——考查同一公式但反向应用，训练逆向思维。
-- [变式:条件增减] 增加或删减一个已知条件，使解题路径改变。例如参考题有3个已知量，变式只给2个，需额外推导——训练学生判断信息充分性。
-- [变式:综合嫁接] 将参考题考点与一个相关知识点嫁接，形成小综合。例如浮力+压强、运动学+能量——训练知识迁移能力。
-- [变式:陷阱复制] 复制参考题的关键易错点，但换一个新壳子让学生再次踩坑——强化对常见错误的免疫力。
-
-### 约束
-- 变式题不能只是简单换数字。必须有结构性的变化。
-- 每道变式题的 knowledge_point 要写明它用了哪种变式策略。
-- 至少有一道采用[变式:情境迁移]，至少有一道采用[变式:结构反转]或[变式:条件增减]。
-- 题目难度与学段匹配，{grade} 学生能看懂。该学段难度锚点：{anchor}
-- 题干、选项、解析中所有公式用 LaTeX 语法（$...$ 行内，$$...$$ 独立）；数学环境内的中文（含中文下标）用 \\text{{}} 包裹，如 $c_{{\\text{{待测}}}}$。数字与中英文间保留空格。
-
-## 输出格式
-只输出一个 JSON 对象，不要任何其它文字、不要 markdown 代码块：
-{{
-  "analysis": "一句话拆解：参考题考什么知识点、什么能力",
-  "questions": [
-    {{
-      "id": 1,
-      "type": "multiple_choice",
-      "stem": "题干",
-      "options": {{"A": "...", "B": "...", "C": "...", "D": "..."}},
-      "answer": "B",
-      "explanation": "分步详解：知识点 -> 推导过程 -> 结论 -> 易错点（80-200字）",
-      "knowledge_point": "知识点名 [变式:情境迁移]",
-      "difficulty": "{difficulty}"
-    }}
-  ]
-}}
-要求：
-- options 仅在 type 为 multiple_choice 时提供；填空题用 fill_blank，简答用 short_answer，这两类不需要 options。
-- explanation 分步讲解，禁止元思考泄露、禁止自我质疑，只写给学生看的讲解。
-- 严格输出可被 json.loads 解析的纯 JSON。""" + RUBRIC_REQUIREMENT
+_FIT_PROMPT = _prompt("quiz_fit").text
 
 _DIFFICULTY_ZH = {"easy": "基础", "medium": "中等", "hard": "挑战"}
 
 # 自动学段专用拟合 prompt（P1）：省略学段难度锚点，改注自适应难度说明。
-_FIT_PROMPT_AUTO = """你是一位资深命题专家，擅长"拟合出题"——从一道参考题目出发，生成考察同一知识点体系、但角度和结构各异的变式题。
-
-## 参考题目
-{reference}
-
-## 任务
-为{grade}的学生，围绕上述参考题目的知识点，拟合生成 {count} 道变式题。难度：{difficulty_zh}。
-
-## 拟合策略（必须遵循，不能只换数据）
-你要像命题专家一样先拆解参考题，再按以下三层策略生成变式：
-
-### 第一层：拆题（内部思考，不输出）
-识别参考题的：核心知识点、考查能力、解题路径结构、陷阱点。
-
-### 第二层：变式生成
-每道变式题必须明确采用以下策略之一（在 knowledge_point 字段末尾标注 [变式:X]）：
-- [变式:情境迁移] 同一知识结构，换一个完全不同的生活/工程情境。例如参考题是"木块浮力"，变式可以换成"轮船吃水深度"或"热气球升空"——核心物理规律不变，但学生需要在新情境中识别它。
-- [变式:结构反转] 同一知识点，但反转问题结构。例如参考题"已知密度求浮力"，变式可以是"已知浮力求密度"——考查同一公式但反向应用，训练逆向思维。
-- [变式:条件增减] 增加或删减一个已知条件，使解题路径改变。例如参考题有3个已知量，变式只给2个，需额外推导——训练学生判断信息充分性。
-- [变式:综合嫁接] 将参考题考点与一个相关知识点嫁接，形成小综合。例如浮力+压强、运动学+能量——训练知识迁移能力。
-- [变式:陷阱复制] 复制参考题的关键易错点，但换一个新壳子让学生再次踩坑——强化对常见错误的免疫力。
-
-### 约束
-- 变式题不能只是简单换数字。必须有结构性的变化。
-- 每道变式题的 knowledge_point 要写明它用了哪种变式策略。
-- 至少有一道采用[变式:情境迁移]，至少有一道采用[变式:结构反转]或[变式:条件增减]。
-- 题目难度按知识点本身标定，与目标难度匹配。
-- 题干、选项、解析中所有公式用 LaTeX 语法（$...$ 行内，$$...$$ 独立）；数学环境内的中文（含中文下标）用 \\text{{}} 包裹，如 $c_{{\\text{{待测}}}}$。数字与中英文间保留空格。
-
-## 输出格式
-只输出一个 JSON 对象，不要任何其它文字、不要 markdown 代码块：
-{{
-  "analysis": "一句话拆解：参考题考什么知识点、什么能力",
-  "questions": [
-    {{
-      "id": 1,
-      "type": "multiple_choice",
-      "stem": "题干",
-      "options": {{"A": "...", "B": "...", "C": "...", "D": "..."}},
-      "answer": "B",
-      "explanation": "分步详解：知识点 -> 推导过程 -> 结论 -> 易错点（80-200字）",
-      "knowledge_point": "知识点名 [变式:情境迁移]",
-      "difficulty": "{difficulty}"
-    }}
-  ]
-}}
-要求：
-- options 仅在 type 为 multiple_choice 时提供；填空题用 fill_blank，简答用 short_answer，这两类不需要 options。
-- explanation 分步讲解，禁止元思考泄露、禁止自我质疑，只写给学生看的讲解。
-- 严格输出可被 json.loads 解析的纯 JSON。""" + RUBRIC_REQUIREMENT
+_FIT_PROMPT_AUTO = _prompt("quiz_fit_auto").text
 
 
 class FitQuizTool(Tool):
@@ -141,6 +46,7 @@ class FitQuizTool(Tool):
     parameters = {
         "type": "object",
         "properties": {
+            "illustration_request": REQUEST_SCHEMA,
             "reference": {
                 "type": "string",
                 "description": "参考题目的完整文本（题干+选项/答案，如有解析一并附上）",
@@ -153,8 +59,10 @@ class FitQuizTool(Tool):
     }
 
     def __init__(self, llm: AsyncLLMClient,
-                 grounding_provider: Any | None = None) -> None:
+                 grounding_provider: Any | None = None,
+                 illustration_policy_provider: Any | None = None) -> None:
         self._llm = llm
+        self._illustration_policy_provider = illustration_policy_provider
         # plan.md §6：fit_quiz 的事实源是 reference 本身，不强制重复检索；
         # provider 只用于继承本轮已解析的教材证据（peek 缓存）。
         self._grounding_provider = grounding_provider
@@ -175,6 +83,19 @@ class FitQuizTool(Tool):
             count = max(1, min(5, int(count)))
         except (TypeError, ValueError):
             count = 3
+
+        request = str(kwargs.get("illustration_request") or "auto")
+        if request not in {"auto", "none", "required"}:
+            return err(self.name, ErrorCode.BAD_ARGS, "illustration_request 无效。")
+        provider = self._illustration_policy_provider
+        try:
+            policy = provider(request) if provider is not None else "off"
+            if provider is None and request == "required":
+                raise IllustrationDisabled("当前入口不支持题目插图。")
+        except IllustrationDisabled as exc:
+            return err(self.name, exc.code, str(exc))
+        llm = (BudgetedLLM(self._llm, GenerationBudget())
+               if policy != "off" else self._llm)
 
         # plan.md §6：reference 来自普通粘贴 -> grounding_mode="reference"；
         # reference 来自本轮教材预检索/教材题卡（provider 已缓存证据）->
@@ -220,12 +141,30 @@ class FitQuizTool(Tool):
         # answer channel — disable thinking so reasoning models don't starve it.
         # Variants then pass the same shared quality gate (structural checks +
         # independent critic re-solve) before reaching the student.
+        gen_feedback: dict[str, Any] = {"critic_flags": []}
+
+        def make_prompt_with_feedback() -> str:
+            prompt = make_prompt()
+            flags = [f for f in (gen_feedback.get("critic_flags") or [])
+                     if f.get("reason")]
+            if flags:
+                lines = "\n".join(
+                    "- 未通过审核的变式题（{}）：{}".format(
+                        f.get("verdict") or "rejected",
+                        str(f.get("reason"))[:160]) for f in flags[:6])
+                prompt += ("\n- 上一轮部分变式题未通过独立答案审核而被丢弃，"
+                           "本轮变式必须修正这些问题（答案、解析、选项保持"
+                           "一致正确，仍须基于参考题做情境迁移而非换数字）：\n"
+                           + lines)
+            return prompt
+
         questions, verification = await generate_verified_questions(
-            self._llm, make_prompt=make_prompt, parse=self._parse,
+            llm, make_prompt=make_prompt_with_feedback, parse=self._parse,
             topic=reference[:60], grade=grade, difficulty=difficulty,
-            temperature=0.5, max_tokens=8000,
+            temperature=0.5, max_tokens=(min(18000, 8000 + 2200 * count) if policy != "off" else 8000),
             raw_preview_chars=3000,
-            grounding_context=grounding_context)
+            grounding_context=grounding_context, feedback=gen_feedback,
+            illustration_policy=policy)
         inherited_refs: list[dict[str, Any]] = []
         if inherited_usable:
             inherited_refs = [r.to_dict() for r in inherited.source_refs[:6]]
@@ -248,25 +187,42 @@ class FitQuizTool(Tool):
                 {"raw": verification.get("raw", ""), "questions": [],
                  "verification": verification,
                  "grounding": grounding_meta},
-                "未能生成通过校验的变式题，已返回模型原始输出片段。")
+                "未能生成通过校验的变式题，请重试。")
+        questions = questions[:count]
+        # Account permission can change while the model is generating.
+        if provider is not None:
+            try:
+                current_policy = provider(request)
+            except IllustrationDisabled as exc:
+                return err(self.name, exc.code, str(exc))
+            if current_policy == "off" and any(q.get("illustration") for q in questions):
+                return partial_result(self.name, {"questions": [],
+                    "reason": "illustration_disabled", "verification": verification},
+                    "插图生成已关闭，请重新生成无图题目。")
+        if isinstance(llm, BudgetedLLM):
+            verification["generation_calls"] = llm.budget.calls
+            verification["illustration_repairs"] = llm.budget.repairs
+        verification["illustration_policy"] = policy
         note = "（已通过答案校验）" if verification.get("answer_verified") else ""
-        return ok(self.name,
+        # Deliver surviving validated variants as success; partial is used
+        # only when the gate leaves no question to render.
+        result_fn = ok
+        return result_fn(self.name,
             {"reference": reference[:200], "grade": grade,
              "difficulty": difficulty, "questions": questions,
              "answer_verified": verification.get("answer_verified", False),
              "verification": verification,
              "grounding": grounding_meta},
-            f"拟合生成 {len(questions)} 道变式题{note}。")
+            f"拟合生成 {len(questions)}/{count} 道变式题{note}。")
 
     @staticmethod
     def _parse(raw: str) -> list[dict[str, Any]]:
-        m = re.search(r"\{.*\}", raw, re.DOTALL)
-        candidate = m.group(0) if m else raw
-        try:
-            data = json.loads(candidate)
-        except json.JSONDecodeError:
+        # 与 GenerateQuizTool._parse 相同：LaTeX 转义容错解析。
+        from ..core.json_utils import extract_json_object
+        data = extract_json_object(raw)
+        if not isinstance(data, dict):
             return []
-        qs = data.get("questions", []) if isinstance(data, dict) else []
+        qs = data.get("questions", [])
         out: list[dict[str, Any]] = []
         for i, q in enumerate(qs, 1):
             if not isinstance(q, dict) or "stem" not in q or "answer" not in q:

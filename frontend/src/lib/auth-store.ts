@@ -19,7 +19,7 @@ export interface AuthUser {
     subjects: string[];
     avatar: string;
     /** 通用每用户偏好（ocr_parallel OCR 并行、tts_speed 朗读语速）。 */
-    prefs?: { ocr_parallel?: boolean; tts_speed?: number };
+    prefs?: { ocr_parallel?: boolean; tts_speed?: number; quiz_svg_enabled?: boolean };
   };
 }
 

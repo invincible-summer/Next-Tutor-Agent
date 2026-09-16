@@ -2,3 +2,6 @@
 # Production BM25 deployments must not install this file.
 -c constraints.txt
 -r requirements-vector.txt
+# Starlette 1.3+ 的 TestClient 使用独立 httpx2 包；旧 httpx 兼容回退
+# 在当前版本组合中会挂起 API 回归。
+httpx2>=2.13

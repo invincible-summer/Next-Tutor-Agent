@@ -221,6 +221,18 @@ def _classify_intent(message: str, session: TutorSession) -> str:
     msg = message.strip()
     msg_lower = msg.lower()
 
+    # Keep the legacy compatibility path aligned with Supervisor's semantic
+    # quiz gate. This is a cheap fallback signal only; the legacy turn then
+    # asks the shared task-understanding LLM before deciding exact arguments.
+    # Without it, phrases such as “考我一下” could take the direct branch and
+    # never produce a structured QuizCard.
+    try:
+        from .task_understanding import is_new_question_request
+        if is_new_question_request(msg):
+            return "react"
+    except Exception:
+        pass
+
     # tool-trigger keywords — force ReAct even for short messages
     if any(kw in msg for kw in _TOOL_TRIGGERS):
         return "react"
@@ -392,6 +404,49 @@ async def chat_turn(
     session._turn_material_cache_enabled = True
     session.__dict__.pop("_turn_merged_knowledge_cache", None)
     intent = _classify_intent(user_message, session)
+    # The V2 supervisor is the normal path, but deployments can explicitly
+    # select legacy mode. Run the same shared understanding contract there so
+    # fuzzy new-question requests still receive a structured card. The call is
+    # skipped for exact greetings/direct fragments to preserve the cheap path.
+    structured_quiz_plan = None
+    structured_understanding = None
+    if intent == "react":
+        try:
+            from .task_understanding import understand as understand_task
+            from .state import TaskPlan
+            structured_understanding = await understand_task(
+                user_message, session, llm)
+            for provider in tools:
+                provider_policy = getattr(provider, "_illustration_policy_provider", None)
+                if provider_policy is not None:
+                    provider_policy.bind_understanding(
+                        structured_understanding.illustration_request)
+            if (structured_understanding.structured_quiz_request
+                    or structured_understanding.intent.value == "practice") \
+                    and structured_understanding.allow_followup_assessment:
+                from .supervisor import _enforce_explicit_practice_plan
+                structured_quiz_plan = _enforce_explicit_practice_plan(
+                    TaskPlan(steps=[], source="legacy"),
+                    structured_understanding, user_message, session.grade, trace)
+                intent = "react"
+        except Exception as exc:
+            trace.log("legacy_quiz_understanding_error", message=str(exc)[:200])
+            # If the shared LLM adapter itself is unavailable, retain the
+            # deterministic semantic fallback instead of losing the card
+            # guarantee for legacy mode.
+            try:
+                from .task_understanding import rule_understand
+                from .state import TaskPlan
+                structured_understanding = rule_understand(user_message)
+                if (structured_understanding.structured_quiz_request
+                        and structured_understanding.allow_followup_assessment):
+                    from .supervisor import _enforce_explicit_practice_plan
+                    structured_quiz_plan = _enforce_explicit_practice_plan(
+                        TaskPlan(steps=[], source="legacy_fallback"),
+                        structured_understanding, user_message, session.grade, trace)
+            except Exception as fallback_exc:
+                trace.log("legacy_quiz_rule_fallback_error",
+                          message=str(fallback_exc)[:200])
     # Language policy (simplified — no input auto-detection, which was fragile
     # with bare math/code blocks that aren't always $$-delimited):
     #   - explicit output_language zh|en (from settings or session) -> forced;
@@ -610,6 +665,14 @@ async def chat_turn(
         pseudo_guard: PseudoToolGuard | None = None
         tool_calls_raw: list[dict[str, Any]] = []
         finish_reason = "stop"
+        forced_quiz_call = None
+        if structured_quiz_plan is not None:
+            try:
+                from .executor import _enforced_plan_call
+                forced_quiz_call = _enforced_plan_call(
+                    structured_quiz_plan, tool_map, all_tool_calls)
+            except Exception:
+                forced_quiz_call = None
         try:
             # context already assembled+compacted once above; refresh the
             # tail todo_recap for the current step only (cheap).
@@ -631,7 +694,11 @@ async def chat_turn(
                     if pseudo_guard is None:
                         pseudo_guard = PseudoToolGuard()
                     safe = pseudo_guard.feed(ev["delta"])
-                    if safe:
+                    # A model may start writing a question before issuing the
+                    # tool call. Suppress that provisional text whenever this
+                    # turn has a pending deterministic quiz call; the card is
+                    # the sole source of truth for the question body.
+                    if safe and forced_quiz_call is None:
                         yield {"type": "answer", "content": safe, "is_delta": True}
                 elif ev["kind"] == "tool_calls":
                     tool_calls_raw = ev["calls"]
@@ -658,13 +725,23 @@ async def chat_turn(
                         tool_calls_raw[0]["name"] if tool_calls_raw else None,
                         bool(tool_calls_raw), finish_reason)
 
+        # If the model omitted a required quiz call, convert the provisional
+        # text-only completion into the validated call before the normal
+        # no-tool finalization branch. This keeps the card as the sole source
+        # of truth for the question body.
+        if not tool_calls_raw and forced_quiz_call is not None:
+            tool_calls_raw = [forced_quiz_call]
+            answer_buf = ""
+            pseudo_guard = None
+
         # no tool call -> finished
         if not tool_calls_raw:
             if pseudo_guard is not None and not pseudo_guard.detected:
                 tail = pseudo_guard.flush()
-                if tail:
+                if tail and forced_quiz_call is None:
                     yield {"type": "answer", "content": tail, "is_delta": True}
             if (pseudo_guard is not None and pseudo_guard.detected
+                    and forced_quiz_call is None
                     and not pseudo_guard_used and step < MAX_STEPS):
                 ks_live = tool_map.get("knowledge_search")
                 if ks_live is not None:
@@ -761,6 +838,19 @@ async def chat_turn(
                     result = err(tool_name, ErrorCode.BAD_ARGS, f"参数错误: {e}")
                 except Exception as e:
                     result = err(tool_name, ErrorCode.TOOL_ERROR, str(e))
+        if tool_name in ("generate_quiz", "fit_quiz") and not result.is_error:
+            from .executor import _register_quiz_tasks
+            try:
+                _register_quiz_tasks(session, result.data)
+            except Exception as exc:
+                result = err(tool_name, getattr(exc, "code", "question_registration_failed"),
+                             "题目未能保存，可能插图生成已关闭，请重新出题。")
+            else:
+                session.quiz_history.append(result.data)
+                record_generated_quiz(session.session_id, result.data)
+                from ..core.quiz_illustration import illustration_telemetry
+                trace.log("quiz_illustration", **illustration_telemetry(result.data))
+
         # R3: record result for circuit breaker
         _circuit_record(tool_name, result)
         trace.log("tool_result", step=step, tool=tool_name, status=result.status,
@@ -774,15 +864,6 @@ async def chat_turn(
         if warning:
             trace.log("warning", step=step, tool=tool_name, message=warning, source="reflector")
             yield {"type": "tool_warning", "warning": warning, "tool": tool_name}
-
-        # stash quiz results into session quiz_history
-        if tool_name in ("generate_quiz", "fit_quiz") and not result.is_error:
-            session.quiz_history.append(result.data)
-            record_generated_quiz(session.session_id, result.data)
-            # 跨会话「最近习题」库（测评中心列表，每学生上限 100 道）
-            record_recent_quiz(session.session_id,
-                               getattr(session, "student_id", "") or "",
-                               result.data)
 
         # feed result back to LLM for the next iteration
         messages.append({"role": "assistant", "content": (

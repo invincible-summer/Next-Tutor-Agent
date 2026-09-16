@@ -55,6 +55,8 @@ def _quiz_projection(result: ToolResult) -> str:
             seg += f"｜考点:{kp}"
         if explanation:
             seg += f"｜解析:{explanation}"
+        if isinstance(q.get("illustration"), dict):
+            seg += "｜图示:" + str(q["illustration"].get("alt") or "")[:160]
         lines.append(seg)
     digest = "\n".join(lines)
     return (f"[工具 {result.tool} 完成]\n"

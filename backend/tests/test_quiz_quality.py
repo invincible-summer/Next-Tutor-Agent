@@ -308,18 +308,33 @@ class TestGenerateVerified(unittest.TestCase):
         set_uid = qid1.rsplit("_", 1)[0]
         self.assertEqual(qid2.rsplit("_", 1)[0], set_uid)
 
-    def test_all_flagged_triggers_one_regeneration(self):
+    def test_all_flagged_recovers_via_revision_or_regeneration(self):
         from app.core.quiz_verify import generate_verified_questions
+        # 全拒后先带审核意见回炉修订（calls: gen/critic/revise/critic2），
+        # 修订复审通过即在同一 attempt 内交付。
         llm = QueueLLM([
             _gen_json([_q(1)]), _critic_json([(1, "incorrect")]),   # attempt 1: dropped
-            _gen_json([_q(1)]), _critic_json([(1, "correct")]),     # attempt 2: kept
+            _gen_json([_q(1)]), _critic_json([(1, "correct")]),     # revise + re-verify
         ])
         questions, meta = asyncio.run(generate_verified_questions(
             llm, make_prompt=lambda: "p", parse=lambda raw: json.loads(raw)["questions"],
             topic="浮力", grade="初中", temperature=0.4, max_tokens=1000))
         self.assertEqual(len(questions), 1)
-        self.assertEqual(meta["attempts"], 2)
+        self.assertEqual(meta["attempts"], 1)
         self.assertEqual(meta["dropped_by_critic"], 1)
+        self.assertEqual(meta.get("revised_kept"), 1)
+
+        # 修订也失败时，仍会走第二次完整重生成。
+        llm2 = QueueLLM([
+            _gen_json([_q(1)]), _critic_json([(1, "incorrect")]),   # attempt 1: dropped
+            "",                                                      # revise unparseable
+            _gen_json([_q(1)]), _critic_json([(1, "correct")]),     # attempt 2: kept
+        ])
+        questions2, meta2 = asyncio.run(generate_verified_questions(
+            llm2, make_prompt=lambda: "p", parse=lambda raw: json.loads(raw)["questions"] if raw else [],
+            topic="浮力", grade="初中", temperature=0.4, max_tokens=1000))
+        self.assertEqual(len(questions2), 1)
+        self.assertEqual(meta2["attempts"], 2)
 
     def test_mode_off_skips_all_checks(self):
         from app.core.quiz_verify import generate_verified_questions
@@ -660,3 +675,88 @@ class TestReasoningSummarizer(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+def _revise_critic_json(pairs) -> str:
+    """P2 审核回放：fixable→revision_required（带 recommended_revision）。"""
+    items = [{"question_ref": str(i),
+              "answer_check": "invalid",
+              "grounding_check": "not_required",
+              "actual_required_processes": ["understand"],
+              "knowledge_types": ["conceptual"], "alignment": "aligned",
+              "opportunity_checks": [], "rubric_issues": [],
+              "brief_basis": "", "grounding_refs": [],
+              "recommended_revision": reason,
+              "proposed_status": "revision_required"}
+             for i, reason in pairs]
+    return json.dumps({"items": items}, ensure_ascii=False)
+
+
+class TestAssessmentGeneratorRevision(unittest.TestCase):
+    """critic revision_required → 带修复意见回炉一次（live：CAT 连续拒题
+    中断的修复链）。"""
+
+    def _run(self, responses):
+        from app.agents.assessment.generator import generate_question
+        from app.agents.assessment.state import AssessmentContext, AssessmentGoal
+        llm = QueueLLM(responses)
+        ctx = AssessmentContext(concept="浮力", grade="初中", base_difficulty=2)
+        with mock.patch.object(settings, "quiz_design_mode", "two_pass"):
+            q = asyncio.run(generate_question(
+                AssessmentGoal(purpose="check"), ctx, llm=llm))
+        return q, llm
+
+    def test_revision_recovers_question(self):
+        fixed = _q(1)
+        fixed["answer"] = "C"
+        q, llm = self._run([
+            _blueprint_json(1),
+            _gen_json([_q(1)]),
+            _revise_critic_json([(1, "拟定答案应为 C，且解析与选项矛盾")]),
+            json.dumps(fixed, ensure_ascii=False),
+            _critic_json([(1, "correct")]),
+        ])
+        self.assertIsNotNone(q)
+        self.assertEqual(q.answer, "C")  # 交付的是修订后的题
+
+    def test_revision_fails_again_returns_none(self):
+        fixed = _q(1)
+        q, _llm = self._run([
+            _blueprint_json(1),
+            _gen_json([_q(1)]),
+            _revise_critic_json([(1, "拟定答案应为 C")]),
+            json.dumps(fixed, ensure_ascii=False),
+            _critic_json([(1, "incorrect")]),
+        ])
+        self.assertIsNone(q)
+
+    def test_rejected_still_none_when_revision_unparseable(self):
+        q, llm = self._run([
+            _blueprint_json(1),
+            _gen_json([_q(1)]),
+            _critic_json([(1, "incorrect")]),
+        ])
+        self.assertIsNone(q)
+        # rejected 也带意见回炉一次（队列空 → 修订输出不可解析），
+        # 但复审不会发生：blueprint/gen/critic/revise 共 4 次调用。
+        self.assertEqual(len(llm.calls), 4)
+
+
+class TestCriticFeedbackRetry(unittest.TestCase):
+    """generate_quiz 第二次命题 prompt 必须携带第一轮的 critic 拒绝原因。"""
+
+    def test_generate_quiz_retry_includes_critic_feedback(self):
+        from app.tools.quiz import GenerateQuizTool
+        reason = "拟定答案应为 B，原解析与选项矛盾"
+        critic1 = json.dumps({"items": [{
+            "question_ref": "1", "answer_check": "invalid",
+            "proposed_status": "rejected",
+            "recommended_revision": reason}]}, ensure_ascii=False)
+        llm = QueueLLM([_blueprint_json(1), _gen_json([_q(1)]), critic1,
+                        _gen_json([_q(1)]), _critic_json([(1, "correct")])])
+        with mock.patch.object(settings, "quiz_design_mode", "two_pass"):
+            result = asyncio.run(GenerateQuizTool(llm).run(
+                topic="浮力", grade="初中"))
+        self.assertEqual(result.status, "success")
+        # calls: blueprint / gen1 / critic1 / gen2(带反馈) / critic2
+        self.assertIn(reason, llm.calls[3][0]["content"])

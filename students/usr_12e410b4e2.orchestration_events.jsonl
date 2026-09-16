@@ -1,186 +1,137 @@
-{"ts": 1787981908.0741782, "type": "turn_recorded", "payload": {"concept": "收敛数列", "verdict": "", "emitted": 0}}
-{"ts": 1787982531.0478208, "type": "turn_recorded", "payload": {"concept": "收敛数列", "verdict": "", "emitted": 0}}
-{"ts": 1787982609.6442754, "type": "turn_recorded", "payload": {"concept": "数列的极限与数列项的区别（收敛不等于最终等于极限）", "verdict": "", "emitted": 0}}
-{"ts": 1787982713.5936866, "type": "turn_recorded", "payload": {"concept": "函数极限与可去间断点", "verdict": "", "emitted": 0}}
-{"ts": 1787982907.368083, "type": "turn_recorded", "payload": {"concept": "极限的概念与极限运算", "verdict": "", "emitted": 0}}
-{"ts": 1787982936.6387115, "type": "turn_recorded", "payload": {"concept": "极限与重要极限 sin x/x", "verdict": "", "emitted": 0}}
-{"ts": 1787983116.3264077, "type": "turn_recorded", "payload": {"concept": "极限与泰勒展开（等价无穷小）", "verdict": "", "emitted": 0}}
-{"ts": 1787983137.2188683, "type": "turn_recorded", "payload": {"concept": "导数的定义与极限的几何、变化率意义", "verdict": "", "emitted": 0}}
-{"ts": 1787983150.422635, "type": "turn_recorded", "payload": {"concept": "极限的 ε-δ 定义及 ε、δ 的作用", "verdict": "", "emitted": 0}}
-{"ts": 1787983159.3982713, "type": "turn_recorded", "payload": {"concept": "洛必达法则与0/0未定式", "verdict": "", "emitted": 0}}
-{"ts": 1787983168.9803116, "type": "turn_recorded", "payload": {"concept": "绝对值函数在x=0处的可导性与左右导数", "verdict": "", "emitted": 0}}
-{"ts": 1787983180.5927153, "type": "turn_recorded", "payload": {"concept": "ε-δ语言下的极限定义与δ的选取", "verdict": "", "emitted": 0}}
-{"ts": 1787983221.0948837, "type": "turn_recorded", "payload": {"concept": "ε-δ极限定义中ε与δ的关系", "verdict": "", "emitted": 0}}
-{"ts": 1787983241.3527894, "type": "turn_recorded", "payload": {"concept": "可导与连续的关系；连续但不可导的反例", "verdict": "", "emitted": 0}}
-{"ts": 1787983253.1821113, "type": "turn_recorded", "payload": {"concept": "洛必达法则的使用条件与适用范围", "verdict": "", "emitted": 0}}
-{"ts": 1787983323.2360296, "type": "turn_recorded", "payload": {"concept": "用ε-δ定义验证具体极限", "verdict": "", "emitted": 0}}
-{"ts": 1787983330.4020696, "type": "turn_recorded", "payload": {"concept": "分段函数在分段点的可导性判断", "verdict": "", "emitted": 0}}
-{"ts": 1787983363.1669185, "type": "turn_recorded", "payload": {"concept": "分段函数的连续性与可导性", "verdict": "", "emitted": 0}}
-{"ts": 1787983370.504616, "type": "turn_recorded", "payload": {"concept": "ε-δ极限定义与“无限接近”直观理解的关系", "verdict": "", "emitted": 0}}
-{"ts": 1787983397.8273225, "type": "turn_recorded", "payload": {"concept": "未定式", "verdict": "", "emitted": 0}}
-{"ts": 1787983420.6859734, "type": "turn_recorded", "payload": {"concept": "振荡型极限不存在", "verdict": "", "emitted": 0}}
-{"ts": 1787983429.077997, "type": "turn_recorded", "payload": {"concept": "罗尔定理的三个条件及其必要性", "verdict": "", "emitted": 0}}
-{"ts": 1787983436.8260064, "type": "turn_recorded", "payload": {"concept": "函数单调性与导数符号的关系；导数为零点与单调性的判断", "verdict": "", "emitted": 0}}
-{"ts": 1787983478.1535819, "type": "turn_recorded", "payload": {"concept": "不定积分中的积分常数C", "verdict": "", "emitted": 0}}
-{"ts": 1787983488.665107, "type": "turn_recorded", "payload": {"concept": "拉格朗日中值定理与罗尔定理的关系及中值点ξ的存在性", "verdict": "", "emitted": 0}}
-{"ts": 1787983543.8352847, "type": "turn_recorded", "payload": {"concept": "第一类换元法（凑微分）", "verdict": "", "emitted": 0}}
-{"ts": 1787983544.0644603, "type": "turn_recorded", "payload": {"concept": "驻点、极值点、拐点的区别及极值的第一、第二充分条件", "verdict": "", "emitted": 0}}
-{"ts": 1787983551.890641, "type": "turn_recorded", "payload": {"concept": "利用辅助函数构造证明（罗尔定理）", "verdict": "", "emitted": 0}}
-{"ts": 1787983601.528248, "type": "turn_recorded", "payload": {"concept": "利用二次函数求靠墙矩形的最大面积", "verdict": "", "emitted": 0}}
-{"ts": 1787983613.3612359, "type": "turn_recorded", "payload": {"concept": "分部积分中u与dv的选择；∫x ln x dx的拆分", "verdict": "", "emitted": 0}}
-{"ts": 1787983642.635306, "type": "turn_recorded", "payload": {"concept": "导数求最值与矩形面积优化", "verdict": "", "emitted": 0}}
-{"ts": 1787983648.5411818, "type": "turn_recorded", "payload": {"concept": "拉格朗日中值定理证明不等式", "verdict": "", "emitted": 0}}
-{"ts": 1787983673.5615168, "type": "turn_recorded", "payload": {"concept": "定周长矩形面积最大及边界条件", "verdict": "", "emitted": 0}}
-{"ts": 1787983695.3479888, "type": "turn_recorded", "payload": {"concept": "拉格朗日中值定理与对数不等式", "verdict": "", "emitted": 0}}
-{"ts": 1787983741.0881114, "type": "turn_recorded", "payload": {"concept": "定积分与导数的关系（牛顿-莱布尼茨公式）", "verdict": "", "emitted": 0}}
-{"ts": 1787983747.40161, "type": "turn_recorded", "payload": {"concept": "不定积分：凑微分法与分部积分法", "verdict": "", "emitted": 0}}
-{"ts": 1787983772.6281393, "type": "turn_recorded", "payload": {"concept": "变上限积分与微积分基本定理；被积变量 t 的哑变量性质", "verdict": "", "emitted": 0}}
-{"ts": 1787983790.415732, "type": "turn_recorded", "payload": {"concept": "连续函数的原函数存在性与微积分基本定理", "verdict": "", "emitted": 0}}
-{"ts": 1787983804.352783, "type": "turn_recorded", "payload": {"concept": "分部积分中的循环积分法", "verdict": "", "emitted": 0}}
-{"ts": 1787983816.802057, "type": "turn_recorded", "payload": {"concept": "微积分基本定理与链式法则", "verdict": "", "emitted": 0}}
-{"ts": 1787983855.882943, "type": "turn_recorded", "payload": {"concept": "反常积分与无穷区间面积的有限性", "verdict": "", "emitted": 0}}
-{"ts": 1787983857.22897, "type": "turn_recorded", "payload": {"concept": "定积分与不定积分的换元法区别；定积分换元时上下限的变换", "verdict": "", "emitted": 0}}
-{"ts": 1787983915.5551639, "type": "turn_recorded", "payload": {"concept": "反常积分与p-积分的收敛性判别", "verdict": "", "emitted": 0}}
-{"ts": 1787983941.7885187, "type": "turn_recorded", "payload": {"concept": "定积分的计算（换元法与几何意义）", "verdict": "", "emitted": 0}}
-{"ts": 1787983974.7210777, "type": "turn_recorded", "payload": {"concept": "p级数与反常积分的收敛性；通项趋于零不保证级数或积分收敛", "verdict": "", "emitted": 0}}
-{"ts": 1787983979.5383043, "type": "turn_recorded", "payload": {"concept": "正弦函数定积分的几何意义", "verdict": "", "emitted": 0}}
-{"ts": 1787983996.140816, "type": "turn_recorded", "payload": {"concept": "链式法则与复合函数求导", "verdict": "", "emitted": 0}}
-{"ts": 1787984032.2724245, "type": "turn_recorded", "payload": {"concept": "调和级数发散与级数收敛的必要条件", "verdict": "", "emitted": 0}}
-{"ts": 1787984048.537666, "type": "turn_recorded", "payload": {"concept": "极限与洛必达法则（积分函数求导）", "verdict": "", "emitted": 0}}
-{"ts": 1787984062.83026, "type": "turn_recorded", "payload": {"concept": "反常积分的收敛性与计算", "verdict": "", "emitted": 0}}
-{"ts": 1787984068.440306, "type": "turn_recorded", "payload": {"concept": "变限积分与洛必达法则处理积分型极限", "verdict": "", "emitted": 0}}
-{"ts": 1787984094.2818089, "type": "turn_recorded", "payload": {"concept": "瑕积分的收敛性", "verdict": "", "emitted": 0}}
-{"ts": 1787984154.4330635, "type": "turn_recorded", "payload": {"concept": "幂级数Σxⁿ/n!的和函数为何为eˣ及其收敛半径的计算", "verdict": "", "emitted": 0}}
-{"ts": 1787984174.048892, "type": "turn_recorded", "payload": {"concept": "泰勒公式与函数的多项式逼近", "verdict": "", "emitted": 0}}
-{"ts": 1787984196.908345, "type": "turn_recorded", "payload": {"concept": "正项级数的收敛性判别法（比较判别法、极限比较判别法、比值判别法、根值判别法、积分判别法等）", "verdict": "", "emitted": 0}}
-{"ts": 1787984207.9287655, "type": "turn_recorded", "payload": {"concept": "幂级数的收敛半径与收敛域、比值判别法", "verdict": "", "emitted": 0}}
-{"ts": 1787984227.575885, "type": "turn_recorded", "payload": {"concept": "麦克劳林级数与泰勒展开的截断误差", "verdict": "", "emitted": 0}}
-{"ts": 1787984267.561195, "type": "turn_recorded", "payload": {"concept": "幂级数收敛域与端点判定", "verdict": "", "emitted": 0}}
-{"ts": 1787984273.3615305, "type": "turn_recorded", "payload": {"concept": "级数收敛性与莱布尼茨判别法", "verdict": "", "emitted": 0}}
-{"ts": 1787984292.7379005, "type": "turn_recorded", "payload": {"concept": "泰勒公式的拉格朗日余项与误差估计", "verdict": "", "emitted": 0}}
-{"ts": 1787984334.7260344, "type": "turn_recorded", "payload": {"concept": "泰勒展开与误差估计", "verdict": "", "emitted": 0}}
-{"ts": 1787984342.7198572, "type": "turn_recorded", "payload": {"concept": "绝对收敛与条件收敛；交错调和级数Σ(−1)ⁿ⁺¹/n的收敛性", "verdict": "", "emitted": 0}}
-{"ts": 1787984350.1687717, "type": "turn_recorded", "payload": {"concept": "自然常数e的泰勒展开与余项估计", "verdict": "", "emitted": 0}}
-{"ts": 1787984364.8186872, "type": "turn_recorded", "payload": {"concept": "函数项级数的逐项求导与逐项积分、幂级数的收敛区间", "verdict": "", "emitted": 0}}
-{"ts": 1787984397.7966368, "type": "turn_recorded", "payload": {"concept": "幂级数逐项求导与求和函数", "verdict": "", "emitted": 0}}
-{"ts": 1787984411.108993, "type": "turn_recorded", "payload": {"concept": "偏导数与一元函数导数的区别", "verdict": "", "emitted": 0}}
-{"ts": 1787984442.990813, "type": "turn_recorded", "payload": {"concept": "多元函数偏导数", "verdict": "", "emitted": 0}}
-{"ts": 1787984489.5810142, "type": "turn_recorded", "payload": {"concept": "级数收敛性判别（比值判别法、交错级数/莱布尼茨判别法）", "verdict": "", "emitted": 0}}
-{"ts": 1787984508.46913, "type": "turn_recorded", "payload": {"concept": "大学物理运动学与高中运动学的差异；矢量与微元法", "verdict": "", "emitted": 0}}
-{"ts": 1787984523.4669354, "type": "turn_recorded", "payload": {"concept": "级数收敛性判别（比值判别法、莱布尼茨判别法、绝对收敛）", "verdict": "", "emitted": 0}}
-{"ts": 1787984542.588647, "type": "turn_recorded", "payload": {"concept": "多元函数偏导数与链式法则", "verdict": "", "emitted": 0}}
-{"ts": 1787984571.4135947, "type": "turn_recorded", "payload": {"concept": "由加速度积分求速度和位置（运动方程）", "verdict": "", "emitted": 0}}
-{"ts": 1787984581.87204, "type": "turn_recorded", "payload": {"concept": "高阶混合偏导数相等的条件（克莱罗定理）", "verdict": "", "emitted": 0}}
-{"ts": 1787984596.0587692, "type": "turn_recorded", "payload": {"concept": "牛顿第二定律中合外力的含义与受力分析常见错误", "verdict": "", "emitted": 0}}
-{"ts": 1787984599.1962729, "type": "turn_recorded", "payload": {"concept": "混合偏导连续时相等（克莱罗定理）", "verdict": "", "emitted": 0}}
-{"ts": 1787984613.4910219, "type": "turn_recorded", "payload": {"concept": "一维运动中由加速度积分求速度和位移", "verdict": "", "emitted": 0}}
-{"ts": 1787984681.2034752, "type": "turn_recorded", "payload": {"concept": "功的定义：力与位移的点积及路径积分", "verdict": "", "emitted": 0}}
-{"ts": 1787984691.6800168, "type": "turn_recorded", "payload": {"concept": "抛体运动的矢量分解与水平匀速、竖直匀加速的独立性", "verdict": "", "emitted": 0}}
-{"ts": 1787984717.9796934, "type": "turn_recorded", "payload": {"concept": "正交分解与动力学方程解耦", "verdict": "", "emitted": 0}}
-{"ts": 1787984724.450169, "type": "turn_recorded", "payload": {"concept": "变力做功与弹簧弹力，功的积分计算", "verdict": "", "emitted": 0}}
-{"ts": 1787984740.8790042, "type": "turn_recorded", "payload": {"concept": "运动方向与受力方向、单摆最高点的向心力", "verdict": "", "emitted": 0}}
-{"ts": 1787984775.2183616, "type": "turn_recorded", "payload": {"concept": "滑动摩擦生热与变力做功的积分计算", "verdict": "", "emitted": 0}}
-{"ts": 1787984786.6043441, "type": "turn_recorded", "payload": {"concept": "竖直圆周运动绳模型通过最高点的临界条件", "verdict": "", "emitted": 0}}
-{"ts": 1787984793.5791845, "type": "turn_recorded", "payload": {"concept": "动量定理与牛顿第二定律的关系、碰撞中的动量守恒", "verdict": "", "emitted": 0}}
-{"ts": 1787984843.4916434, "type": "turn_recorded", "payload": {"concept": "竖直面圆周运动中轻杆与绳模型的约束条件及最低点速度", "verdict": "", "emitted": 0}}
-{"ts": 1787984853.3007598, "type": "turn_recorded", "payload": {"concept": "完全非弹性碰撞中的动量守恒与动能损失", "verdict": "", "emitted": 0}}
-{"ts": 1787984868.02409, "type": "turn_recorded", "payload": {"concept": "竖直圆周运动中杆与绳的约束及最高点速度条件", "verdict": "", "emitted": 0}}
-{"ts": 1787984876.7520418, "type": "turn_recorded", "payload": {"concept": "摩擦生热、功能关系与机械能守恒（滑块撞弹簧并滑上斜面）", "verdict": "", "emitted": 0}}
-{"ts": 1787984908.8673012, "type": "turn_recorded", "payload": {"concept": "能量守恒与功能关系", "verdict": "", "emitted": 0}}
-{"ts": 1787984933.408937, "type": "turn_recorded", "payload": {"concept": "转动惯量J=∫r²dm中r²的来源及其与质量m的对应关系", "verdict": "", "emitted": 0}}
-{"ts": 1787984936.223415, "type": "turn_recorded", "payload": {"concept": "角动量中叉乘的物理意义及其与点乘的区别", "verdict": "", "emitted": 0}}
-{"ts": 1787984954.1598854, "type": "turn_recorded", "payload": {"concept": "完全弹性碰撞中联立动量守恒与动能守恒推导碰后速度公式", "verdict": "", "emitted": 0}}
-{"ts": 1787984954.355428, "type": "turn_recorded", "payload": {"concept": "角动量守恒与动量守恒的条件", "verdict": "", "emitted": 0}}
-{"ts": 1787984959.624991, "type": "turn_recorded", "payload": {"concept": "匀质圆盘绕中心轴的转动惯量推导（J=½mR²）", "verdict": "", "emitted": 0}}
-{"ts": 1787984980.9403896, "type": "turn_recorded", "payload": {"concept": "角动量守恒与开普勒第二定律的关系", "verdict": "", "emitted": 0}}
-{"ts": 1787984989.9520667, "type": "turn_recorded", "payload": {"concept": "转动惯量与平行轴定理；匀质杆绕端点和中点的转动惯量", "verdict": "", "emitted": 0}}
-{"ts": 1787985002.1986258, "type": "turn_recorded", "payload": {"concept": "角动量守恒与转动动能变化", "verdict": "", "emitted": 0}}
-{"ts": 1787985002.8126996, "type": "turn_recorded", "payload": {"concept": "平行轴定理与细棒转动惯量", "verdict": "", "emitted": 0}}
-{"ts": 1787985024.6422005, "type": "turn_recorded", "payload": {"concept": "一维弹性碰撞后的速度公式与等质量碰撞", "verdict": "", "emitted": 0}}
-{"ts": 1787985026.0832267, "type": "turn_recorded", "payload": {"concept": "刚体绕定轴转动与机械能守恒", "verdict": "", "emitted": 0}}
-{"ts": 1787985040.342725, "type": "turn_recorded", "payload": {"concept": "能量法与转动定律", "verdict": "", "emitted": 0}}
-{"ts": 1787985059.4201083, "type": "turn_recorded", "payload": {"concept": "动量守恒与火箭喷气加速", "verdict": "", "emitted": 0}}
-{"ts": 1787985069.3160377, "type": "turn_recorded", "payload": {"concept": "简谐振动及回复力F=-kx的本质特征", "verdict": "", "emitted": 0}}
-{"ts": 1787985083.2710328, "type": "turn_recorded", "payload": {"concept": "简谐行波方程中各物理量的意义及ωT=kλ=2π的关系", "verdict": "", "emitted": 0}}
-{"ts": 1787985084.1179118, "type": "turn_recorded", "payload": {"concept": "角动量守恒与动能守恒的区别；收臂时内力做功导致动能变化", "verdict": "", "emitted": 0}}
-{"ts": 1787985098.1543574, "type": "turn_recorded", "payload": {"concept": "波速、频率与波长的决定因素及波的折射", "verdict": "", "emitted": 0}}
-{"ts": 1787985118.0778592, "type": "turn_recorded", "payload": {"concept": "简谐运动的相位、初相位与旋转矢量法", "verdict": "", "emitted": 0}}
-{"ts": 1787985122.7780056, "type": "turn_recorded", "payload": {"concept": "波的干涉中加强、减弱条件及相位差与波程差的换算", "verdict": "", "emitted": 0}}
-{"ts": 1787985124.408384, "type": "turn_recorded", "payload": {"concept": "内能、热量、功与温度的关系", "verdict": "", "emitted": 0}}
-{"ts": 1787985143.5482235, "type": "turn_recorded", "payload": {"concept": "单摆小角度近似与简谐振动", "verdict": "", "emitted": 0}}
-{"ts": 1787985147.7346203, "type": "turn_recorded", "payload": {"concept": "驻波与行波的区别及驻波波腹、波节位置固定的原因", "verdict": "", "emitted": 0}}
-{"ts": 1787985157.0598316, "type": "turn_recorded", "payload": {"concept": "热力学第一定律符号约定与等压过程功的计算", "verdict": "", "emitted": 0}}
-{"ts": 1787985172.1767066, "type": "turn_recorded", "payload": {"concept": "小角近似与泰勒展开", "verdict": "", "emitted": 0}}
-{"ts": 1787985174.9099379, "type": "turn_recorded", "payload": {"concept": "机械波的干涉", "verdict": "", "emitted": 0}}
-{"ts": 1787985182.9205744, "type": "turn_recorded", "payload": {"concept": "理想气体自由膨胀、等温过程与热力学第一定律", "verdict": "", "emitted": 0}}
-{"ts": 1787985193.7105055, "type": "turn_recorded", "payload": {"concept": "波的干涉：波程差与波长的关系", "verdict": "", "emitted": 0}}
-{"ts": 1787985199.6941068, "type": "turn_recorded", "payload": {"concept": "简谐运动的位移与速度", "verdict": "", "emitted": 0}}
-{"ts": 1787985217.1135676, "type": "turn_recorded", "payload": {"concept": "简谐运动的相位与旋转矢量", "verdict": "", "emitted": 0}}
-{"ts": 1787985224.50415, "type": "turn_recorded", "payload": {"concept": "电场强度E与电势V的关系；电场概念与超距作用", "verdict": "", "emitted": 0}}
-{"ts": 1787985249.8554509, "type": "turn_recorded", "payload": {"concept": "理想气体自由膨胀中的内能、温度与不可逆性", "verdict": "", "emitted": 0}}
-{"ts": 1787985251.4462714, "type": "turn_recorded", "payload": {"concept": "高斯定理的适用条件与利用对称性求电场", "verdict": "", "emitted": 0}}
-{"ts": 1787985257.7754898, "type": "turn_recorded", "payload": {"concept": "电势、电势正负与试探电荷", "verdict": "", "emitted": 0}}
-{"ts": 1787985273.930104, "type": "turn_recorded", "payload": {"concept": "高斯定理与均匀带电球壳的电场", "verdict": "", "emitted": 0}}
-{"ts": 1787985303.3435404, "type": "turn_recorded", "payload": {"concept": "电场强度与电势梯度的关系 E = −∇V", "verdict": "", "emitted": 0}}
-{"ts": 1787985310.3370383, "type": "turn_recorded", "payload": {"concept": "同心带电球壳的电场与高斯定律", "verdict": "", "emitted": 0}}
-{"ts": 1787985329.3056881, "type": "turn_recorded", "payload": {"concept": "点电荷电势在r→0处的奇异性及等势面与电场线的关系", "verdict": "", "emitted": 0}}
-{"ts": 1787985341.7143364, "type": "turn_recorded", "payload": {"concept": "单原子理想气体等压过程的热量、内能变化与功", "verdict": "", "emitted": 0}}
-{"ts": 1787985342.112856, "type": "turn_recorded", "payload": {"concept": "无限大均匀带电平面产生的电场与距离无关", "verdict": "", "emitted": 0}}
-{"ts": 1787985361.3904421, "type": "turn_recorded", "payload": {"concept": "高斯定理与无限大带电平面的电场", "verdict": "", "emitted": 0}}
-{"ts": 1787985363.616524, "type": "turn_recorded", "payload": {"concept": "理想气体热容关系与迈尔公式", "verdict": "", "emitted": 0}}
-{"ts": 1787985397.876108, "type": "turn_recorded", "payload": {"concept": "法拉第电磁感应定律中负号与楞次定律", "verdict": "", "emitted": 0}}
-{"ts": 1787985404.3685358, "type": "turn_recorded", "payload": {"concept": "电偶极子中垂面上的电势与场强", "verdict": "", "emitted": 0}}
-{"ts": 1787985411.2482827, "type": "turn_recorded", "payload": {"concept": "杨氏双缝干涉条纹间距及白光干涉彩色条纹", "verdict": "", "emitted": 0}}
-{"ts": 1787985427.5980449, "type": "turn_recorded", "payload": {"concept": "动生电动势公式 BLv 的推导", "verdict": "", "emitted": 0}}
-{"ts": 1787985435.4775176, "type": "turn_recorded", "payload": {"concept": "半波损失及其在薄膜干涉中的出现条件", "verdict": "", "emitted": 0}}
-{"ts": 1787985460.1030676, "type": "turn_recorded", "payload": {"concept": "单缝衍射中央亮纹宽度为何是其他亮纹的两倍，以及反射相位突变的区别", "verdict": "", "emitted": 0}}
-{"ts": 1787985461.0791423, "type": "turn_recorded", "payload": {"concept": "导体棒切割磁感线产生的感应电动势、感应电流与安培力", "verdict": "", "emitted": 0}}
-{"ts": 1787985476.1824403, "type": "turn_recorded", "payload": {"concept": "电磁感应中的能量守恒", "verdict": "", "emitted": 0}}
-{"ts": 1787985490.5375946, "type": "turn_recorded", "payload": {"concept": "单缝衍射暗纹条件与中央明纹宽度", "verdict": "", "emitted": 0}}
-{"ts": 1787985539.5638378, "type": "turn_recorded", "payload": {"concept": "等量异号点电荷中垂面上的电势与电场：电势为零但电场不为零", "verdict": "", "emitted": 0}}
-{"ts": 1787985561.7984078, "type": "turn_recorded", "payload": {"concept": "微积分在大学物理中的应用与两门课程协同学习", "verdict": "", "emitted": 0}}
-{"ts": 1787985584.673242, "type": "turn_recorded", "payload": {"concept": "双缝干涉条纹间距", "verdict": "", "emitted": 0}}
-{"ts": 1787985587.4982355, "type": "turn_recorded", "payload": {"concept": "电磁感应中的电荷量与外力做功", "verdict": "", "emitted": 0}}
-{"ts": 1787985597.182036, "type": "turn_recorded", "payload": {"concept": "双缝干涉条纹间距公式", "verdict": "", "emitted": 0}}
-{"ts": 1787985617.466968, "type": "turn_recorded", "payload": {"concept": "电磁感应中感应电荷与速度无关、感应电流和安培阻力随速度增大、焦耳热增加", "verdict": "", "emitted": 0}}
-{"ts": 1787985619.6367, "type": "turn_recorded", "payload": {"concept": "", "verdict": "", "emitted": 0}}
-{"ts": 1787985636.0279412, "type": "turn_recorded", "payload": {"concept": "导数与定积分的物理对应及微积分的历史起源", "verdict": "", "emitted": 0}}
-{"ts": 1787985656.2279718, "type": "turn_recorded", "payload": {"concept": "级数判敛方法；刚体转动与角动量", "verdict": "", "emitted": 0}}
-{"ts": 1787985705.3457427, "type": "turn_recorded", "payload": {"concept": "刚体与角动量；级数判敛", "verdict": "", "emitted": 0}}
-{"ts": 1787985718.1867778, "type": "turn_recorded", "payload": {"concept": "完全非弹性碰撞中的动量守恒与动能损失", "verdict": "", "emitted": 0}}
-{"ts": 1787985718.8463397, "type": "turn_recorded", "payload": {"concept": "", "verdict": "", "emitted": 0}}
-{"ts": 1787985721.3898706, "type": "turn_recorded", "payload": {"concept": "物理概念与微积分概念的对应关系", "verdict": "", "emitted": 0}}
-{"ts": 1787985738.0791078, "type": "turn_recorded", "payload": {"concept": "微积分在物理中的应用", "verdict": "", "emitted": 0}}
-{"ts": 1787985747.3884702, "type": "turn_recorded", "payload": {"concept": "完全非弹性碰撞中的动量守恒与动能损失", "verdict": "", "emitted": 0}}
-{"ts": 1787985762.2552032, "type": "turn_recorded", "payload": {"concept": "完全非弹性碰撞中的共同速度与动能损失", "verdict": "", "emitted": 0}}
-{"ts": 1787985840.1451356, "type": "turn_recorded", "payload": {"concept": "子弹打木块模型：动量守恒、完全非弹性碰撞与动能损失生热", "verdict": "", "emitted": 0}}
-{"ts": 1788057438.112479, "type": "goal_set", "payload": {"title": "学明白大学物理学", "goal_type": "ability", "bound_concepts": 0}}
-{"ts": 1788057486.2951992, "type": "plan_regenerated", "payload": {"weeks": 4}}
-{"ts": 1788057517.0512562, "type": "task_completed", "payload": {"task_id": "2026-08-30_st_wt_0_1_1_study", "batch_complete": true}}
-{"ts": 1788057520.7959473, "type": "task_updated", "payload": {"task_id": "2026-08-30_st_wt_0_1_1_study"}}
-{"ts": 1788057552.1828988, "type": "subtasks_suggested", "payload": {"task_id": "wt_3_1", "count": 6}}
-{"ts": 1788057557.654589, "type": "subtask_toggled", "payload": {"subtask_id": "st_wt_3_2_1", "done": true}}
-{"ts": 1788057558.327068, "type": "subtask_toggled", "payload": {"subtask_id": "st_wt_3_2_1", "done": false}}
-{"ts": 1788057822.9914005, "type": "subtask_toggled", "payload": {"subtask_id": "st_wt_0_1_1", "done": false}}
-{"ts": 1788057823.3125923, "type": "subtask_toggled", "payload": {"subtask_id": "st_wt_0_1_1", "done": true}}
-{"ts": 1788057823.8643575, "type": "subtask_toggled", "payload": {"subtask_id": "st_wt_0_1_1", "done": false}}
-{"ts": 1788057963.752036, "type": "turn_recorded", "payload": {"concept": "位移、速度、加速度及三者关系", "verdict": "", "emitted": 0}}
-{"ts": 1788058061.454005, "type": "turn_recorded", "payload": {"concept": "", "verdict": "", "emitted": 0}}
-{"ts": 1788069861.512686, "type": "turn_recorded", "payload": {"concept": "反常提问（具体术语不明确，可能指反问、设问等提问手法）", "verdict": "", "emitted": 0}}
-{"ts": 1788069906.8139768, "type": "turn_recorded", "payload": {"concept": "", "verdict": "", "emitted": 0}}
-{"ts": 1788073800.8210287, "type": "turn_recorded", "payload": {"concept": "泰勒公式及其更高精度的近似计算方法", "verdict": "", "emitted": 0}}
-{"ts": 1788085028.3364608, "type": "turn_recorded", "payload": {"concept": "泰勒公式", "verdict": "", "emitted": 0}}
-{"ts": 1788088190.7417457, "type": "turn_recorded", "payload": {"concept": "电偶极子", "verdict": "", "emitted": 0}}
-{"ts": 1788104447.2372077, "type": "turn_recorded", "payload": {"concept": "", "verdict": "", "emitted": 0}}
-{"ts": 1788136141.2231586, "type": "turn_recorded", "payload": {"concept": "", "verdict": "", "emitted": 1}}
-{"ts": 1788187863.4060197, "type": "turn_recorded", "payload": {"concept": "傅里叶变换", "verdict": "", "emitted": 0}}
-{"ts": 1788188212.5608432, "type": "task_completed", "payload": {"task_id": "2026-08-30_st_wt_0_1_1_study", "batch_complete": false}}
-{"ts": 1788188213.320606, "type": "task_completed", "payload": {"task_id": "2026-08-31__summary_summary", "batch_complete": false}}
-{"ts": 1788188477.1643505, "type": "turn_recorded", "payload": {"concept": "傅立叶变换", "verdict": "", "emitted": 0}}
-{"ts": 1788228634.7614996, "type": "turn_recorded", "payload": {"concept": "傅里叶变换", "verdict": "", "emitted": 0}}
-{"ts": 1788228659.8508108, "type": "turn_recorded", "payload": {"concept": "", "verdict": "", "emitted": 0}}
-{"ts": 1788228676.4929357, "type": "turn_recorded", "payload": {"concept": "", "verdict": "", "emitted": 0}}
-{"ts": 1788233477.3914852, "type": "turn_recorded", "payload": {"concept": "", "verdict": "", "emitted": 0}}
-{"ts": 1788233844.0393672, "type": "turn_recorded", "payload": {"concept": "傅里叶变换及其应用", "verdict": "", "emitted": 0}}
-{"ts": 1788233975.0111854, "type": "turn_recorded", "payload": {"concept": "", "verdict": "", "emitted": 0}}
-{"ts": 1789465203.2077434, "type": "turn_recorded", "payload": {"concept": "能量形式信噪比", "emitted": 0}}
+{"ts": 1789493013.5254006, "type": "turn_recorded", "payload": {"concept": "函数的极限", "emitted": 0}}
+{"ts": 1789493110.6461477, "type": "turn_recorded", "payload": {"concept": "函数极限的ε-δ定义", "emitted": 0}}
+{"ts": 1789493182.132584, "type": "turn_recorded", "payload": {"concept": "函数极限与ε-δ定义", "emitted": 0}}
+{"ts": 1789493219.8330863, "type": "quiz_evidence", "payload": {"attempt_id": "att_1c854aec335a4639", "concept": "函数极限与ε-δ定义", "verdict": "partial", "session_id": "chat_20260916_012125_老师你好我是大一新生正在学微积分能", "subject": "", "source": "quiz_evidence", "task_id": "", "emitted": 0}}
+{"ts": 1789493267.8903806, "type": "turn_recorded", "payload": {"concept": "函数极限的ε-δ定义", "emitted": 0}}
+{"ts": 1789493329.8268821, "type": "turn_recorded", "payload": {"concept": "导数", "emitted": 0}}
+{"ts": 1789493362.4549706, "type": "turn_recorded", "payload": {"concept": "可导与连续的关系", "emitted": 0}}
+{"ts": 1789493402.6438951, "type": "turn_recorded", "payload": {"concept": "可导与连续的关系", "emitted": 0}}
+{"ts": 1789493544.197684, "type": "quiz_evidence", "payload": {"attempt_id": "att_bc58378098ca405e", "concept": "函数极限的ε-δ定义", "verdict": "correct", "session_id": "chat_20260916_012125_老师你好我是大一新生正在学微积分能", "subject": "", "source": "quiz_evidence", "task_id": "", "emitted": 0}}
+{"ts": 1789493587.241643, "type": "turn_recorded", "payload": {"concept": "导数", "emitted": 0}}
+{"ts": 1789493621.5084512, "type": "turn_recorded", "payload": {"concept": "可导与连续的关系", "emitted": 0}}
+{"ts": 1789493800.8942568, "type": "turn_recorded", "payload": {"concept": "导数", "emitted": 0}}
+{"ts": 1789493843.0262113, "type": "turn_recorded", "payload": {"concept": "可导与连续的关系", "emitted": 0}}
+{"ts": 1789493955.1273036, "type": "turn_recorded", "payload": {"concept": "导数", "emitted": 0}}
+{"ts": 1789494005.4956763, "type": "turn_recorded", "payload": {"concept": "可导与连续的关系", "emitted": 0}}
+{"ts": 1789494104.5032315, "type": "turn_recorded", "payload": {"concept": "导数定义与可导性", "emitted": 0}}
+{"ts": 1789494308.2544875, "type": "turn_recorded", "payload": {"concept": "导数", "emitted": 0}}
+{"ts": 1789494367.1065216, "type": "turn_recorded", "payload": {"concept": "可导与连续的关系", "emitted": 0}}
+{"ts": 1789494419.2596192, "type": "turn_recorded", "payload": {"concept": "可导性与连续性", "emitted": 0}}
+{"ts": 1789494444.7068708, "type": "quiz_evidence", "payload": {"attempt_id": "att_60df1ccbcc4c4805", "concept": "可导性与连续性的关系", "verdict": "correct", "session_id": "chat_20260916_014346_老师我能背导数定义但想真正理解它从", "subject": "", "source": "quiz_evidence", "task_id": "", "emitted": 0}}
+{"ts": 1789494460.7275357, "type": "quiz_evidence", "payload": {"attempt_id": "att_1436650e5d494b30", "concept": "可导性与连续性的关系", "verdict": "wrong", "session_id": "chat_20260916_014346_老师我能背导数定义但想真正理解它从", "subject": "", "source": "quiz_evidence", "task_id": "", "emitted": 0}}
+{"ts": 1789494471.1871178, "type": "turn_recorded", "payload": {"concept": "绝对值函数的可导性", "emitted": 0}}
+{"ts": 1789494515.3889472, "type": "turn_recorded", "payload": {"concept": "罗尔定理与拉格朗日中值定理", "emitted": 0}}
+{"ts": 1789494585.7317903, "type": "turn_recorded", "payload": {"concept": "拉格朗日中值定理", "emitted": 0}}
+{"ts": 1789494625.2029057, "type": "turn_recorded", "payload": {"concept": "中值定理", "emitted": 0}}
+{"ts": 1789494666.5052807, "type": "turn_recorded", "payload": {"concept": "拉格朗日中值定理", "emitted": 0}}
+{"ts": 1789494756.414208, "type": "turn_recorded", "payload": {"concept": "洛必达法则", "emitted": 0}}
+{"ts": 1789494801.9347959, "type": "turn_recorded", "payload": {"concept": "洛必达法则", "emitted": 0}}
+{"ts": 1789494966.3122494, "type": "turn_recorded", "payload": {"concept": "洛必达法则", "emitted": 0}}
+{"ts": 1789495018.5515363, "type": "turn_recorded", "payload": {"concept": "洛必达法则", "emitted": 0}}
+{"ts": 1789495122.57381, "type": "turn_recorded", "payload": {"concept": "洛必达法则", "emitted": 0}}
+{"ts": 1789495232.6465902, "type": "turn_recorded", "payload": {"concept": "洛必达法则", "emitted": 0}}
+{"ts": 1789495268.9347436, "type": "turn_recorded", "payload": {"concept": "洛必达法则", "emitted": 0}}
+{"ts": 1789495287.4630299, "type": "quiz_evidence", "payload": {"attempt_id": "att_f41ca0f6317a4b50", "concept": "洛必达法则的适用条件", "verdict": "correct", "session_id": "chat_20260916_015417_老师洛必达法则的使用条件是什么除了", "subject": "", "source": "quiz_evidence", "task_id": "", "emitted": 0}}
+{"ts": 1789495346.5372577, "type": "turn_recorded", "payload": {"concept": "换元积分法", "emitted": 0}}
+{"ts": 1789495418.6978846, "type": "turn_recorded", "payload": {"concept": "换元积分法", "emitted": 0}}
+{"ts": 1789495462.4453113, "type": "turn_recorded", "payload": {"concept": "换元积分法", "emitted": 0}}
+{"ts": 1789495516.4905508, "type": "turn_recorded", "payload": {"concept": "三角恒等变形", "emitted": 0}}
+{"ts": 1789495607.0436287, "type": "turn_recorded", "payload": {"concept": "定积分", "emitted": 0}}
+{"ts": 1789495668.5031233, "type": "turn_recorded", "payload": {"concept": "定积分可积的充分条件", "emitted": 0}}
+{"ts": 1789495725.4566371, "type": "turn_recorded", "payload": {"concept": "定积分定义与可积性", "emitted": 0}}
+{"ts": 1789495748.047824, "type": "turn_recorded", "payload": {"concept": "定积分可积的充分条件", "emitted": 0}}
+{"ts": 1789495748.5938528, "type": "quiz_evidence", "payload": {"attempt_id": "att_c807e7efe07946dc", "concept": "定积分定义与可积性", "verdict": "correct", "session_id": "chat_20260916_020523_老师定积分的定义为什么要搞分割取点", "subject": "", "source": "quiz_evidence", "task_id": "", "emitted": 0}}
+{"ts": 1789495763.4935935, "type": "quiz_evidence", "payload": {"attempt_id": "att_460f9f6858204165", "concept": "定积分定义与可积性", "verdict": "wrong", "session_id": "chat_20260916_020523_老师定积分的定义为什么要搞分割取点", "subject": "", "source": "quiz_evidence", "task_id": "", "emitted": 0}}
+{"ts": 1789495813.142794, "type": "turn_recorded", "payload": {"concept": "正项级数判别法", "emitted": 0}}
+{"ts": 1789495823.8566232, "type": "turn_recorded", "payload": {"concept": "p-级数与积分判别法", "emitted": 0}}
+{"ts": 1789495968.110822, "type": "turn_recorded", "payload": {"concept": "正项级数判别法", "emitted": 0}}
+{"ts": 1789495990.5597796, "type": "turn_recorded", "payload": {"concept": "p-级数、积分判别法、调和级数", "emitted": 0}}
+{"ts": 1789496038.6455727, "type": "turn_recorded", "payload": {"concept": "级数敛散性判断", "emitted": 0}}
+{"ts": 1789496064.755498, "type": "quiz_evidence", "payload": {"attempt_id": "att_b73721203e0b4731", "concept": "正项级数判别法选择", "verdict": "correct", "session_id": "chat_20260916_021105_老师正项级数的判别法比较比值根值", "subject": "", "source": "quiz_evidence", "task_id": "", "emitted": 0}}
+{"ts": 1789496084.7698667, "type": "quiz_evidence", "payload": {"attempt_id": "att_a25f4408488f4be3", "concept": "拉阿伯判别法", "verdict": "correct", "session_id": "chat_20260916_021105_老师正项级数的判别法比较比值根值", "subject": "", "source": "quiz_evidence", "task_id": "", "emitted": 0}}
+{"ts": 1789496097.7902162, "type": "quiz_evidence", "payload": {"attempt_id": "att_a061d5af206742e4", "concept": "正项级数收敛必要条件与比值判别法", "verdict": "correct", "session_id": "chat_20260916_021105_老师正项级数的判别法比较比值根值", "subject": "", "source": "quiz_evidence", "task_id": "", "emitted": 0}}
+{"ts": 1789496105.739095, "type": "turn_recorded", "payload": {"concept": "正项级数收敛必要条件", "emitted": 0}}
+{"ts": 1789496185.4946365, "type": "turn_recorded", "payload": {"concept": "幂级数收敛半径", "emitted": 0}}
+{"ts": 1789496319.023675, "type": "turn_recorded", "payload": {"concept": "幂级数收敛半径", "emitted": 0}}
+{"ts": 1789496385.7755468, "type": "turn_recorded", "payload": {"concept": "幂级数收敛半径", "emitted": 0}}
+{"ts": 1789496429.0079012, "type": "turn_recorded", "payload": {"concept": "幂级数收敛半径", "emitted": 0}}
+{"ts": 1789496464.791254, "type": "turn_recorded", "payload": {"concept": "偏导数的几何意义", "emitted": 0}}
+{"ts": 1789496517.1767037, "type": "turn_recorded", "payload": {"concept": "混合偏导数相等定理", "emitted": 0}}
+{"ts": 1789496567.245528, "type": "turn_recorded", "payload": {"concept": "偏导数计算", "emitted": 0}}
+{"ts": 1789496587.849109, "type": "quiz_evidence", "payload": {"attempt_id": "att_5575a4f7556c4da9", "concept": "偏导数计算", "verdict": "wrong", "session_id": "chat_20260916_022035_老师偏导数的几何意义是什么zx", "subject": "", "source": "quiz_evidence", "task_id": "", "emitted": 0}}
+{"ts": 1789496599.7869964, "type": "quiz_evidence", "payload": {"attempt_id": "att_c62b0e3bd3da42d8", "concept": "偏导数计算", "verdict": "correct", "session_id": "chat_20260916_022035_老师偏导数的几何意义是什么zx", "subject": "", "source": "quiz_evidence", "task_id": "", "emitted": 0}}
+{"ts": 1789496603.608754, "type": "turn_recorded", "payload": {"concept": "偏导数计算", "emitted": 0}}
+{"ts": 1789496686.2052772, "type": "turn_recorded", "payload": {"concept": "二重积分化累次积分与坐标变换", "emitted": 0}}
+{"ts": 1789496777.6067584, "type": "turn_recorded", "payload": {"concept": "雅可比行列式与坐标变换", "emitted": 0}}
+{"ts": 1789496840.2124016, "type": "turn_recorded", "payload": {"concept": "二重积分换序与曲线坐标计算", "emitted": 0}}
+{"ts": 1789496886.0240977, "type": "quiz_evidence", "payload": {"attempt_id": "att_0a3a5c3dceef4088", "concept": "二重积分化累次积分与坐标变换（雅可比行列式与曲线坐标）", "verdict": "partial", "session_id": "chat_20260916_022329_老师二重积分化累次积分时怎么定限什么", "subject": "", "source": "quiz_evidence", "task_id": "", "emitted": 0}}
+{"ts": 1789496913.491091, "type": "quiz_evidence", "payload": {"attempt_id": "att_3a1139d2859249b1", "concept": "二重积分化累次积分与坐标变换（换序定限、雅可比行列式与曲线坐标）", "verdict": "partial", "session_id": "chat_20260916_022329_老师二重积分化累次积分时怎么定限什么", "subject": "", "source": "quiz_evidence", "task_id": "", "emitted": 0}}
+{"ts": 1789496971.8008852, "type": "turn_recorded", "payload": {"concept": "二重积分化累次积分与坐标变换", "emitted": 0}}
+{"ts": 1789497101.646045, "type": "turn_recorded", "payload": {"concept": "位移、路程、平均速度、平均速率、瞬时速度", "emitted": 0}}
+{"ts": 1789497166.9350717, "type": "turn_recorded", "payload": {"concept": "抛体运动", "emitted": 0}}
+{"ts": 1789497254.3624403, "type": "turn_recorded", "payload": {"concept": "运动学", "emitted": 0}}
+{"ts": 1789497283.5254707, "type": "quiz_evidence", "payload": {"attempt_id": "att_dc8d834f6ff14b7e", "concept": "质点运动学·运动函数与加速度", "verdict": "wrong", "session_id": "chat_20260916_022949_老师位移和路程有什么区别平均速度和平", "subject": "", "source": "quiz_evidence", "task_id": "", "emitted": 0}}
+{"ts": 1789497335.2035975, "type": "turn_recorded", "payload": {"concept": "圆周运动向心加速度", "emitted": 0}}
+{"ts": 1789497399.7386932, "type": "turn_recorded", "payload": {"concept": "牛顿第二定律", "emitted": 0}}
+{"ts": 1789497428.353298, "type": "turn_recorded", "payload": {"concept": "牛顿第二定律", "emitted": 0}}
+{"ts": 1789497495.7290156, "type": "turn_recorded", "payload": {"concept": "牛顿第二定律", "emitted": 0}}
+{"ts": 1789497518.6199348, "type": "quiz_evidence", "payload": {"attempt_id": "att_247b2e4ec6ac4ede", "concept": "牛顿第二定律应用——整体法与隔离法", "verdict": "correct", "session_id": "chat_20260916_023549_老师牛顿三定律里我最容易混淆的是第二定", "subject": "", "source": "quiz_evidence", "task_id": "", "emitted": 0}}
+{"ts": 1789497524.3905106, "type": "turn_recorded", "payload": {"concept": "牛顿第二定律", "emitted": 0}}
+{"ts": 1789497532.33759, "type": "quiz_evidence", "payload": {"attempt_id": "att_690d626a37674c7c", "concept": "牛顿第二定律应用——非惯性系与惯性力", "verdict": "wrong", "session_id": "chat_20260916_023549_老师牛顿三定律里我最容易混淆的是第二定", "subject": "", "source": "quiz_evidence", "task_id": "", "emitted": 0}}
+{"ts": 1789497572.490075, "type": "turn_recorded", "payload": {"concept": "动量守恒条件", "emitted": 0}}
+{"ts": 1789497600.106225, "type": "turn_recorded", "payload": {"concept": "碰撞与恢复系数", "emitted": 0}}
+{"ts": 1789497673.58278, "type": "turn_recorded", "payload": {"concept": "动量守恒", "emitted": 0}}
+{"ts": 1789497737.163701, "type": "turn_recorded", "payload": {"concept": "碰撞后能量分析", "emitted": 0}}
+{"ts": 1789497760.528949, "type": "quiz_evidence", "payload": {"attempt_id": "att_271c3221bd2b45f7", "concept": "碰撞后能量分析", "verdict": "correct", "session_id": "chat_20260916_023850_老师动量守恒的条件到底是什么合外力", "subject": "", "source": "quiz_evidence", "task_id": "", "emitted": 0}}
+{"ts": 1789497959.9260695, "type": "turn_recorded", "payload": {"concept": "碰撞与恢复系数", "emitted": 0}}
+{"ts": 1789498006.7945292, "type": "turn_recorded", "payload": {"concept": "功能原理、机械能守恒定律、保守力与非保守力、摩擦力做功", "emitted": 0}}
+{"ts": 1789498043.3262239, "type": "turn_recorded", "payload": {"concept": "势能零点", "emitted": 0}}
+{"ts": 1789498105.5323443, "type": "turn_recorded", "payload": {"concept": "机械能守恒定律", "emitted": 0}}
+{"ts": 1789498128.9092765, "type": "quiz_evidence", "payload": {"attempt_id": "att_f787d01e0a494eef", "concept": "机械能守恒定律", "verdict": "correct", "session_id": "chat_20260916_024605_老师功能原理和机械能守恒定律的区别是什", "subject": "", "source": "quiz_evidence", "task_id": "", "emitted": 0}}
+{"ts": 1789498199.3245506, "type": "turn_recorded", "payload": {"concept": "机械能守恒定律", "emitted": 0}}
+{"ts": 1789498219.1321712, "type": "turn_recorded", "payload": {"concept": "机械能守恒定律", "emitted": 0}}
+{"ts": 1789498477.674129, "type": "turn_recorded", "payload": {"concept": "转动惯量、平行轴定理、垂直轴定理、角动量守恒", "emitted": 0}}
+{"ts": 1789498516.7079165, "type": "turn_recorded", "payload": {"concept": "角动量守恒", "emitted": 0}}
+{"ts": 1789498565.1932838, "type": "turn_recorded", "payload": {"concept": "刚体力学", "emitted": 0}}
+{"ts": 1789498604.6761158, "type": "quiz_evidence", "payload": {"attempt_id": "att_1ef9707cd37244d4", "concept": "转动惯量、平行轴定理、机械能守恒", "verdict": "wrong", "session_id": "chat_20260916_025029_老师刚体转动里转动惯量怎么算平行轴定", "subject": "", "source": "quiz_evidence", "task_id": "", "emitted": 0}}
+{"ts": 1789498636.713164, "type": "turn_recorded", "payload": {"concept": "转动惯量", "emitted": 0}}
+{"ts": 1789498684.8637705, "type": "turn_recorded", "payload": {"concept": "简谐振动", "emitted": 0}}
+{"ts": 1789498715.8506937, "type": "turn_recorded", "payload": {"concept": "单摆周期公式与简谐振动回复力", "emitted": 0}}
+{"ts": 1789498802.654278, "type": "turn_recorded", "payload": {"concept": "简谐振动", "emitted": 0}}
+{"ts": 1789498840.8883328, "type": "quiz_evidence", "payload": {"attempt_id": "att_06ebbba4f50b498a", "concept": "简谐振动相位与周期计算", "verdict": "wrong", "session_id": "chat_20260916_025730_老师简谐振动的动力学特征是什么x", "subject": "", "source": "quiz_evidence", "task_id": "", "emitted": 0}}
+{"ts": 1789498858.0355828, "type": "quiz_evidence", "payload": {"attempt_id": "att_6045c5f95fc649aa", "concept": "简谐振动合成中的相位概念", "verdict": "correct", "session_id": "chat_20260916_025730_老师简谐振动的动力学特征是什么x", "subject": "", "source": "quiz_evidence", "task_id": "", "emitted": 0}}
+{"ts": 1789498891.5723782, "type": "turn_recorded", "payload": {"concept": "简谐振动", "emitted": 0}}
+{"ts": 1789498960.301248, "type": "turn_recorded", "payload": {"concept": "波动方程", "emitted": 0}}
+{"ts": 1789498987.4203227, "type": "turn_recorded", "payload": {"concept": "波的干涉与驻波", "emitted": 0}}
+{"ts": 1789499055.5930011, "type": "turn_recorded", "payload": {"concept": "驻波、半波损失", "emitted": 0}}
+{"ts": 1789499098.0812333, "type": "turn_recorded", "payload": {"concept": "波动", "emitted": 0}}
+{"ts": 1789499126.6421387, "type": "quiz_evidence", "payload": {"attempt_id": "att_00aacb90da2e4e50", "concept": "波动方程、波速与质点振动速度、半波损失", "verdict": "correct", "session_id": "chat_20260916_030145_老师波动方程_yA_cosωt", "subject": "", "source": "quiz_evidence", "task_id": "", "emitted": 0}}
+{"ts": 1789499143.3978372, "type": "quiz_evidence", "payload": {"attempt_id": "att_672e22b33cf344cd", "concept": "驻波、波速与质点振动速度", "verdict": "correct", "session_id": "chat_20260916_030145_老师波动方程_yA_cosωt", "subject": "", "source": "quiz_evidence", "task_id": "", "emitted": 0}}
+{"ts": 1789499163.204617, "type": "turn_recorded", "payload": {"concept": "半波损失", "emitted": 0}}
+{"ts": 1789499227.4047668, "type": "turn_recorded", "payload": {"concept": "热力学第一定律", "emitted": 0}}
+{"ts": 1789499367.5959485, "type": "turn_recorded", "payload": {"concept": "热力学第一定律", "emitted": 0}}
+{"ts": 1789499432.8994148, "type": "turn_recorded", "payload": {"concept": "热力学第一定律", "emitted": 0}}
+{"ts": 1789499449.6763456, "type": "quiz_evidence", "payload": {"attempt_id": "att_12367d49a96e440a", "concept": "热力学第一定律", "verdict": "correct", "session_id": "chat_20260916_030609_老师热力学第一定律_ΔU_Q", "subject": "", "source": "quiz_evidence", "task_id": "", "emitted": 0}}
+{"ts": 1789499472.9722385, "type": "turn_recorded", "payload": {"concept": "热力学第一定律", "emitted": 0}}
+{"ts": 1789499501.6734293, "type": "turn_recorded", "payload": {"concept": "卡诺效率", "emitted": 0}}
+{"ts": 1789499532.3139281, "type": "quiz_evidence", "payload": {"attempt_id": "att_06ed8717db37462f", "concept": "热力学第一定律 绝热过程与循环效率", "verdict": "correct", "session_id": "chat_20260916_030609_老师热力学第一定律_ΔU_Q", "subject": "", "source": "quiz_evidence", "task_id": "", "emitted": 0}}
+{"ts": 1789499563.1609883, "type": "turn_recorded", "payload": {"concept": "高斯定理", "emitted": 0}}
+{"ts": 1789499604.2501535, "type": "turn_recorded", "payload": {"concept": "高斯定理", "emitted": 0}}
+{"ts": 1789499638.388253, "type": "turn_recorded", "payload": {"concept": "静电场", "emitted": 0}}
+{"ts": 1789499662.954766, "type": "turn_recorded", "payload": {"concept": "电偶极子电势能与力矩", "emitted": 0}}
+{"ts": 1789499665.9239433, "type": "quiz_evidence", "payload": {"attempt_id": "att_b906c8f2f1454848", "concept": "静电场环路定理", "verdict": "correct", "session_id": "chat_20260916_031153_老师高斯定理的物理意义是什么Ed", "subject": "", "source": "quiz_evidence", "task_id": "", "emitted": 0}}
+{"ts": 1789499677.4773598, "type": "quiz_evidence", "payload": {"attempt_id": "att_6517c4d5d27340a6", "concept": "电偶极子在外电场中的电势能", "verdict": "wrong", "session_id": "chat_20260916_031153_老师高斯定理的物理意义是什么Ed", "subject": "", "source": "quiz_evidence", "task_id": "", "emitted": 0}}
+{"ts": 1789499743.9574983, "type": "turn_recorded", "payload": {"concept": "法拉第电磁感应定律", "emitted": 0}}
+{"ts": 1789499792.1526952, "type": "turn_recorded", "payload": {"concept": "动生电动势与感生电场", "emitted": 0}}
+{"ts": 1789499870.1454337, "type": "turn_recorded", "payload": {"concept": "电磁感应", "emitted": 0}}
+{"ts": 1789499890.1702392, "type": "quiz_evidence", "payload": {"attempt_id": "att_87abe47e31fd4f82", "concept": "动生电动势", "verdict": "correct", "session_id": "chat_20260916_031428_老师法拉第电磁感应定律_ε_dΦ", "subject": "", "source": "quiz_evidence", "task_id": "", "emitted": 0}}
+{"ts": 1789499938.9902792, "type": "turn_recorded", "payload": {"concept": "动生电动势", "emitted": 0}}
+{"ts": 1789499964.859567, "type": "quiz_evidence", "payload": {"attempt_id": "att_213d11bc40e84dd9", "concept": "动生电动势", "verdict": "correct", "session_id": "chat_20260916_031428_老师法拉第电磁感应定律_ε_dΦ", "subject": "", "source": "quiz_evidence", "task_id": "", "emitted": 0}}
+{"ts": 1789499989.6644406, "type": "turn_recorded", "payload": {"concept": "动生电动势", "emitted": 0}}
+{"ts": 1789500208.3241742, "type": "quiz_evidence", "payload": {"attempt_id": "att_6e182aa01c944637", "concept": "罗尔定理", "verdict": "correct", "session_id": "", "subject": "", "source": "quiz_evidence", "task_id": "", "emitted": 0}}
+{"ts": 1789500248.8945434, "type": "quiz_evidence", "payload": {"attempt_id": "att_643c320da10841d4", "concept": "罗尔定理", "verdict": "correct", "session_id": "", "subject": "", "source": "quiz_evidence", "task_id": "", "emitted": 0}}
+{"ts": 1789500292.577304, "type": "quiz_evidence", "payload": {"attempt_id": "att_0a22dcb073f942d5", "concept": "罗尔定理", "verdict": "correct", "session_id": "", "subject": "", "source": "quiz_evidence", "task_id": "", "emitted": 0}}
+{"ts": 1789500338.5848877, "type": "quiz_evidence", "payload": {"attempt_id": "att_0056371a75684f56", "concept": "罗尔定理", "verdict": "correct", "session_id": "", "subject": "", "source": "quiz_evidence", "task_id": "", "emitted": 0}}
+{"ts": 1789541723.4600194, "type": "turn_recorded", "payload": {"concept": "电偶极子在均匀外电场中的电势能", "emitted": 0}}
+{"ts": 1789541798.712996, "type": "turn_recorded", "payload": {"concept": "电偶极子在均匀外电场中的电势能", "emitted": 0}}
+{"ts": 1789541952.0765274, "type": "quiz_evidence", "payload": {"attempt_id": "att_61a038110f444557", "concept": "完全非弹性碰撞", "verdict": "correct", "session_id": "", "subject": "", "source": "quiz_evidence", "task_id": "", "emitted": 0}}

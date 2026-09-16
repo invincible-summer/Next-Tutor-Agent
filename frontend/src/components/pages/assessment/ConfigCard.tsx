@@ -4,12 +4,19 @@
 // 概念不可选）；purpose 是用户任务意图（adaptive/diagnose/practice），
 // 不是能力事实；不再有布鲁姆焦点下拉（认知过程由任务蓝图约束）。
 import { useEffect, useState } from "react";
-import { Play } from "lucide-react";
+import { Input } from "@/components/ui/Input";
+import { Check, ImageIcon, LoaderCircle, Play } from "lucide-react";
 import { Card, CardHeader } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { EmptyState } from "@/components/ui/EmptyState";
-import { getEvalConcepts, getEvalWorkspaces } from "@/lib/api-modules";
+import {
+  getEvalConcepts,
+  getEvalWorkspaces,
+  getUserProfile,
+  updateUserProfile,
+} from "@/lib/api-modules";
+import { useAuthStore } from "@/lib/auth-store";
 import type { ConceptEvaluationView, WorkspaceEvaluationListItem } from "@/lib/types-modules";
 import type { PageTr } from "./common";
 
@@ -18,6 +25,7 @@ export interface AssessmentStartIntent {
   conceptKeys: string[];
   purpose: "adaptive" | "diagnose" | "practice";
   count: number;
+  illustrationRequest: "auto" | "required";
 }
 
 const MAX_CONCEPTS = 8;
@@ -34,12 +42,20 @@ export function ConfigCard({
   onStart: (intent: AssessmentStartIntent) => void;
 }) {
   const t = (zh: string, en: string) => (lang === "en" ? en : zh);
+  const userId = useAuthStore((s) => s.user?.id);
   const [workspaces, setWorkspaces] = useState<WorkspaceEvaluationListItem[] | null>(null);
   const [wsId, setWsId] = useState("");
   const [concepts, setConcepts] = useState<ConceptEvaluationView[] | null>(null);
   const [picked, setPicked] = useState<string[]>([]);
   const [purpose, setPurpose] = useState<"adaptive" | "diagnose" | "practice">("adaptive");
-  const [count, setCount] = useState(6);
+  const [count, setCount] = useState(1);
+  const [requireIllustration, setRequireIllustration] = useState(false);
+  const [illustrationAvailable, setIllustrationAvailable] = useState(false);
+  const [illustrationEnabled, setIllustrationEnabled] = useState(false);
+  const [illustrationProfileUserId, setIllustrationProfileUserId] = useState("");
+  const [illustrationProfileVersion, setIllustrationProfileVersion] = useState(0);
+  const [illustrationSaving, setIllustrationSaving] = useState(false);
+  const [illustrationError, setIllustrationError] = useState("");
 
   useEffect(() => {
     let alive = true;
@@ -76,10 +92,95 @@ export function ConfigCard({
     };
   }, [wsId]);
 
+  // The account switch belongs to the question-generation card.  It still
+  // reads the server snapshot so chat and assessment always share one source
+  // of truth; local state is only a loading/rendering convenience.
+  useEffect(() => {
+    if (!userId) {
+      return;
+    }
+    let alive = true;
+    getUserProfile()
+      .then((r) => {
+        if (!alive) return;
+        setIllustrationAvailable(r.quiz_svg_available === true);
+        setIllustrationEnabled(r.profile.prefs?.quiz_svg_enabled !== false);
+        if (r.quiz_svg_available !== true || r.profile.prefs?.quiz_svg_enabled === false) {
+          setRequireIllustration(false);
+        }
+        setIllustrationProfileUserId(userId);
+        setIllustrationError("");
+      })
+      .catch(() => {
+        if (!alive) return;
+        setIllustrationProfileUserId(userId);
+        setIllustrationError("illustration.loadFailed");
+      });
+    return () => {
+      alive = false;
+    };
+  }, [userId, illustrationProfileVersion]);
+
+  const toggleIllustration = async () => {
+    if (!userId || !illustrationAvailable || illustrationSaving) return;
+    const next = !illustrationEnabled;
+    if (!next) setRequireIllustration(false);
+    setIllustrationSaving(true);
+    setIllustrationError("");
+    try {
+      const profile = await updateUserProfile({ prefs: { quiz_svg_enabled: next } });
+      setIllustrationEnabled(profile.prefs?.quiz_svg_enabled !== false);
+      const user = useAuthStore.getState().user;
+      if (user?.id === userId) useAuthStore.setState({ user: { ...user, profile } });
+    } catch {
+      setIllustrationError("illustration.saveFailed");
+    } finally {
+      setIllustrationSaving(false);
+    }
+  };
+
+  const illustrationLoading = Boolean(userId && illustrationProfileUserId !== userId);
+  const illustrationReady = Boolean(
+    userId && !illustrationLoading && illustrationAvailable && illustrationEnabled,
+  );
+  const illustrationStatus = illustrationLoading
+    ? t("读取中…", "Loading…")
+    : !userId
+      ? t("登录后可设置", "Sign in to configure")
+      : !illustrationAvailable
+        ? tr("illustration.unavailableSetting")
+        : illustrationEnabled
+          ? t("已开启，AI 将按题目需要自动判断", "On — AI decides when a diagram helps")
+          : t("已关闭，本次及聊天均不生成新图", "Off — no new diagrams in this account");
+
   if (workspaces === null) {
     return (
       <Card>
-        <p className="py-2 text-xs text-muted">…</p>
+        <CardHeader icon={<Play size={16} />} title={tr("config.title")} desc={tr("config.desc")} />
+        <div className="flex items-center gap-2 py-5 text-sm text-muted">
+          <LoaderCircle size={15} className="animate-spin" />
+          {t("正在读取出题范围…", "Loading question scope…")}
+        </div>
+        <IllustrationOptions
+          tr={tr}
+          t={t}
+          userId={userId}
+          available={illustrationAvailable}
+          ready={illustrationReady}
+          loading={illustrationLoading}
+          saving={illustrationSaving}
+          generationBusy={busy}
+          status={illustrationStatus}
+          error={illustrationError}
+          onRetry={() => {
+            setIllustrationError("");
+            setIllustrationProfileUserId("");
+            setIllustrationProfileVersion((v) => v + 1);
+          }}
+          required={requireIllustration}
+          onToggle={() => void toggleIllustration()}
+          onRequired={setRequireIllustration}
+        />
       </Card>
     );
   }
@@ -93,6 +194,26 @@ export function ConfigCard({
             "自适应诊断以学习区的教材范围为界；创建学习区并选择教材后即可开始。",
             "Adaptive diagnosis is bounded by the workspace textbook scope.",
           )}
+        />
+        <IllustrationOptions
+          tr={tr}
+          t={t}
+          userId={userId}
+          available={illustrationAvailable}
+          ready={illustrationReady}
+          loading={illustrationLoading}
+          saving={illustrationSaving}
+          generationBusy={busy}
+          status={illustrationStatus}
+          error={illustrationError}
+          onRetry={() => {
+            setIllustrationError("");
+            setIllustrationProfileUserId("");
+            setIllustrationProfileVersion((v) => v + 1);
+          }}
+          required={requireIllustration}
+          onToggle={() => void toggleIllustration()}
+          onRequired={setRequireIllustration}
         />
       </Card>
     );
@@ -151,7 +272,7 @@ export function ConfigCard({
             min={1}
             max={20}
             value={count}
-            onChange={(e) => setCount(Math.max(1, Math.min(20, Number(e.target.value) || 6)))}
+            onChange={(e) => setCount(Math.max(1, Math.min(20, Number(e.target.value) || 1)))}
             className="h-8 w-16 rounded-[7px] border border-border bg-surface px-2 text-xs text-fg"
           />
         </label>
@@ -186,7 +307,28 @@ export function ConfigCard({
           })}
         </div>
       )}
-      <div className="flex items-center justify-between gap-3">
+      <IllustrationOptions
+        tr={tr}
+        t={t}
+        userId={userId}
+        available={illustrationAvailable}
+        ready={illustrationReady}
+        loading={illustrationLoading}
+        saving={illustrationSaving}
+        generationBusy={busy}
+        status={illustrationStatus}
+        error={illustrationError}
+        onRetry={() => {
+          setIllustrationError("");
+          setIllustrationProfileUserId("");
+          setIllustrationProfileVersion((v) => v + 1);
+        }}
+        required={requireIllustration}
+        onToggle={() => void toggleIllustration()}
+        onRequired={setRequireIllustration}
+      />
+
+      <div className="mt-4 flex items-center justify-between gap-3">
         <span className="text-xs text-muted">
           {picked.length > 0 && (
             <Badge tone="accent" className="mr-1.5">{picked.length}</Badge>
@@ -198,11 +340,88 @@ export function ConfigCard({
           size="lg"
           icon={<Play size={15} />}
           disabled={busy || picked.length === 0}
-          onClick={() => onStart({ workspaceId: wsId, conceptKeys: picked, purpose, count })}
+          onClick={() => onStart({ workspaceId: wsId, conceptKeys: picked, purpose, count, illustrationRequest: illustrationReady && requireIllustration ? "required" : "auto" })}
         >
           {busy ? tr("config.starting") : tr("config.start")}
         </Button>
       </div>
     </Card>
+  );
+}
+
+function IllustrationOptions({
+  tr,
+  t,
+  userId,
+  available,
+  ready,
+  loading,
+  saving,
+  generationBusy,
+  status,
+  error,
+  onRetry,
+  required,
+  onToggle,
+  onRequired,
+}: {
+  tr: PageTr;
+  t: (zh: string, en: string) => string;
+  userId?: string;
+  available: boolean;
+  ready: boolean;
+  loading: boolean;
+  saving: boolean;
+  generationBusy: boolean;
+  status: string;
+  error: string;
+  onRetry: () => void;
+  required: boolean;
+  onToggle: () => void;
+  onRequired: (value: boolean) => void;
+}) {
+  return (
+    <div className="mt-4 border-t border-border-light pt-3" data-testid="assessment-illustration-options">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="flex min-w-0 items-start gap-2.5">
+          <ImageIcon size={16} className="mt-0.5 shrink-0 text-accent" />
+          <div className="min-w-0">
+            <p className="text-sm font-medium text-fg">{tr("illustration.optionsTitle", tr("illustration.title"))}</p>
+            <p className="mt-0.5 text-xs leading-relaxed text-muted">{tr("illustration.desc")}</p>
+            <p className="mt-1 text-xs text-muted">{status}</p>
+          </div>
+        </div>
+        <Button
+          type="button"
+          size="sm"
+          variant={ready ? "primary" : "outline"}
+          icon={saving ? <LoaderCircle size={13} className="animate-spin" /> : ready ? <Check size={13} /> : undefined}
+          disabled={!userId || !available || loading || saving}
+          aria-pressed={ready}
+          onClick={onToggle}
+        >
+          {ready ? t("已开启", "On") : t("已关闭", "Off")}
+        </Button>
+      </div>
+      <label className="mt-3 flex items-start gap-2 text-xs text-fg-secondary">
+        <Input
+          type="checkbox"
+          className="mt-0.5 h-4 w-4 shrink-0 p-0"
+          checked={ready && required}
+          disabled={!ready || saving || generationBusy}
+          onChange={(e) => onRequired(e.target.checked)}
+        />
+        <span>
+          <span className="font-medium text-fg">{tr("illustration.required")}</span>
+          <span className="mt-0.5 block text-muted">{t("仅本次测评强制每道题配图；未勾选时仍由 AI 按题意自动判断。", "Only this assessment requires a diagram for every question. Otherwise AI decides per question.")}</span>
+        </span>
+      </label>
+      {error && (
+        <p role="alert" className="mt-2 flex items-center gap-2 text-xs text-danger">
+          <span>{tr(error)}</span>
+          <Button type="button" size="sm" variant="ghost" onClick={onRetry}>{tr("illustration.retry")}</Button>
+        </p>
+      )}
+    </div>
   );
 }

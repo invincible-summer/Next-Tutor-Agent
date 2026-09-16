@@ -16,8 +16,9 @@ from datetime import datetime, timezone
 from enum import Enum
 from typing import Annotated, Any, Literal, Union
 
-from pydantic import (computed_field, BaseModel, ConfigDict, Field, field_validator,
+from pydantic import (computed_field, BaseModel, ConfigDict, Field, PrivateAttr, field_validator,
                       model_validator)
+from app.core.quiz_illustration import QuestionIllustration
 
 # ---------------------------------------------------------------------------
 # 基础约定
@@ -486,6 +487,8 @@ class TaskVerification(StrictModel):
     rubric_issue_codes: list[str] = Field(default_factory=list, max_length=12)
     reviewed_at: str = ""
     reviewer: str = Field(default="quiz_critic", max_length=64)
+    illustration_check: Literal["not_required", "passed", "invalid",
+                                "inconsistent", "unreviewed"] = "not_required"
 
 
 class TaskSnapshot(StrictModel):
@@ -498,6 +501,7 @@ class TaskSnapshot(StrictModel):
     options: dict[str, str] = Field(default_factory=dict)
     answer: str = Field(min_length=1, max_length=4000)
     explanation: str = Field(default="", max_length=6000)
+    illustration: QuestionIllustration | None = None
     equivalent_solutions: list[str] = Field(default_factory=list,
                                             max_length=8)
     rubric: list[FrozenCriterion] = Field(min_length=1, max_length=12)
@@ -515,10 +519,19 @@ class TaskSnapshot(StrictModel):
     origin_question_ref: QuestionRef | None = None
     frozen_at: str = ""
     workspace_id: str = Field(default="", max_length=96)
+    # 题目注册来源只用于题卡恢复/习题历史寻址，不是学生表现证据。
+    # 旧 journal 没有这些字段时按空值兼容读取。
+    source_session_ref: str = Field(default="", max_length=96)
+    registered_at: str = ""
 
     @field_validator("frozen_at")
     @classmethod
     def _utc_opt(cls, v: str) -> str:
+        return _check_utc(v) if v else v
+
+    @field_validator("registered_at")
+    @classmethod
+    def _registered_utc_opt(cls, v: str) -> str:
         return _check_utc(v) if v else v
 
     @model_validator(mode="after")
@@ -552,6 +565,7 @@ class TaskSnapshot(StrictModel):
             concept_refs=[c.model_dump() for c in self.concept_refs],
             source_badge=self.source_badge,
             hints_available=hints_available,
+            illustration=self.illustration,
         )
 
 
@@ -573,6 +587,7 @@ class QuestionPublic(StrictModel):
                                                max_length=3)
     source_badge: str = ""
     hints_available: bool = False
+    illustration: QuestionIllustration | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -1256,16 +1271,42 @@ class JournalTransaction(StrictModel):
     operations: list[JournalOperation] = Field(min_length=1, max_length=32)
     checksum: str = Field(default="", max_length=96)
 
+    _persisted_checksum: str = PrivateAttr(default="")
+    _parsed_model_checksum: str = PrivateAttr(default="")
+
     @field_validator("created_at")
     @classmethod
     def _utc(cls, v: str) -> str:
         return _check_utc(v)
 
+    @classmethod
+    def from_persisted_json(cls, text: str) -> "JournalTransaction":
+        """Validate stored bytes' canonical envelope before adding new defaults.
+
+        A model round-trip injects newly introduced optional task fields. Their
+        absence in a historical line must not change its original checksum.
+        New writes still checksum the complete, current model_dump envelope.
+        """
+        raw = json.loads(text)
+        if not isinstance(raw, dict) or not raw.get("checksum"):
+            raise ValueError("checksum missing")
+        expected = compute_checksum({k: v for k, v in raw.items() if k != "checksum"})
+        if raw["checksum"] != expected:
+            raise ValueError("checksum mismatch")
+        parsed = cls.model_validate(raw)
+        parsed._persisted_checksum = raw["checksum"]
+        parsed._parsed_model_checksum = parsed.resolved_checksum()
+        return parsed
+
     def resolved_checksum(self) -> str:
         return compute_checksum(self.model_dump(exclude={"checksum"}))
 
     def verify_checksum(self) -> bool:
-        return bool(self.checksum) and self.checksum == self.resolved_checksum()
+        current = self.resolved_checksum()
+        return bool(self.checksum) and (
+            self.checksum == current or (
+                self.checksum == self._persisted_checksum
+                and current == self._parsed_model_checksum))
 
 
 # ---------------------------------------------------------------------------

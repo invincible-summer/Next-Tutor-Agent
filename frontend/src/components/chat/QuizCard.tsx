@@ -1,18 +1,19 @@
 "use client";
+import { QuestionIllustration } from "@/components/quiz/QuestionIllustration";
 // 单题练习卡（plan §14.5/§15.3）：服务端身份题卡——question_id 定位、
 // 一次正式提交（/quiz/record 服务端判分+评价）、提示与揭晓都由服务端记录
 // 并影响后续解释；反馈分两层（本题结果 / 学习反馈，SubmissionOutcome）。
 // 刷新/重开经 q.result.attempt_id 恢复已提交状态；旧会话无服务端身份的题
 // 只读陈列，不再本地判分。
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { BookOpen, ChevronDown, Eye, Lightbulb, Loader2, Send } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/cn";
 import { useUIStore } from "@/lib/store";
 import { t } from "@/lib/i18n";
-import { fetchQuizHint, revealQuizAnswer, submitQuizAnswer, type QuizSubmitOutcome } from "@/lib/api";
-import { getEvalJob } from "@/lib/api-modules";
+import { fetchQuizHint, fetchQuizSubmission, revealQuizAnswer, submitQuizAnswer, type QuizSubmitOutcome } from "@/lib/api";
 import { Badge } from "@/components/ui/Badge";
+import { Textarea } from "@/components/ui/Input";
 import { MiniMarkdown } from "./markdown";
 import { SubmissionOutcome } from "@/components/learning-evaluation/SubmissionOutcome";
 import type { QuizQuestion, QuizSourceRef } from "@/lib/types";
@@ -44,7 +45,7 @@ export function QuizQuestionCard({
   const qid = q.question_id || "";
   const rev = q.question_revision || 1;
   const hasIdentity = !!qid;
-  const savedResult = q.result && q.result.verdict ? q.result : null;
+  const savedResult = q.result && (q.result.attempt_id || q.result.verdict) ? q.result : null;
 
   const [selected, setSelected] = useState<string | null>(savedResult?.student_answer ?? null);
   const [outcome, setOutcome] = useState<QuizSubmitOutcome | null>(null);
@@ -53,14 +54,50 @@ export function QuizQuestionCard({
   const [hint, setHint] = useState("");
   const [hintLoading, setHintLoading] = useState(false);
   const [revealed, setRevealed] = useState<{ answer: string; explanation: string } | null>(null);
-  // R11（update_plan §4）：202 受理后语义评价的轮询状态（提交不再等模型）
-  const [evalFollowUp, setEvalFollowUp] = useState<"" | "pending" | "ready" | "failed">("");
+  const [restoring, setRestoring] = useState(hasIdentity && !savedResult);
+  const [refreshVersion, setRefreshVersion] = useState(0);
+  const [canRefresh, setCanRefresh] = useState(false);
   const [expOpen, setExpOpen] = useState(false);
   const [sourcesOpen, setSourcesOpen] = useState(false);
-  const followCleanupRef = useRef<(() => void) | null>(null);
-  useEffect(() => () => followCleanupRef.current?.(), []);
+  useEffect(() => {
+    if (!qid) return;
+    let alive = true;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    let attempts = 0;
+    async function refresh() {
+      attempts += 1;
+      try {
+        const { submission } = await fetchQuizSubmission(qid, rev);
+        if (!alive) return;
+        if (submission) {
+          setOutcome(submission);
+          setSelected(submission.student_answer);
+          if (submission.revealed) setRevealed(submission.revealed);
+        }
+        setRestoring(false);
+        if (!submission?.pending) {
+          setCanRefresh(false);
+          return;
+        }
+      } catch {
+        if (!alive) return;
+        // Keep the accepted answer locked on transient lookup failures.
+        setRestoring(false);
+      }
+      if (attempts < 20) timer = setTimeout(() => void refresh(), 2000);
+      else setCanRefresh(true);
+    }
+    void refresh();
+    return () => {
+      alive = false;
+      if (timer) clearTimeout(timer);
+    };
+  }, [qid, rev, refreshVersion]);
 
   const submitted = !!outcome || !!savedResult;
+  // The POST outcome intentionally omits the answer; the controlled selection
+  // is the submitted value, while persisted cards hydrate it from result.
+  const submittedAnswer = selected ?? savedResult?.student_answer ?? "";
   const isMC = q.type === "multiple_choice" && !!q.options;
   const options = q.options ? Object.entries(q.options) : [];
 
@@ -94,32 +131,8 @@ export function QuizQuestionCard({
     }
   }
 
-  async function followEvaluation(jobId: string) {
-    // 有界轮询：2s 间隔、最多 ~40s；组件卸载后不再 setState。
-    let alive = true;
-    const cleanup = () => { alive = false; };
-    followCleanupRef.current = cleanup;
-    for (let i = 0; i < 20 && alive; i++) {
-      try {
-        const job = await getEvalJob(jobId);
-        if (job.state === "succeeded" || job.state === "abstained") {
-          setEvalFollowUp("ready");
-          return;
-        }
-        if (job.state === "failed" || job.state === "cancelled") {
-          setEvalFollowUp("failed");
-          return;
-        }
-      } catch {
-        /* 网络抖动：继续轮询直到有界结束 */
-      }
-      await new Promise((r) => setTimeout(r, 2000));
-    }
-    if (alive) setEvalFollowUp("pending"); // 超时：保持等待态（下次打开页面可见结果）
-  }
-
   async function submit() {
-    if (!hasIdentity || !selected || submitting || submitted) return;
+    if (!hasIdentity || !selected?.trim() || restoring || submitting || submitted) return;
     setSubmitting(true);
     setSubmitError("");
     try {
@@ -134,14 +147,13 @@ export function QuizQuestionCard({
       if (res.task_result?.verdict) {
         setRevealed({ answer: q.answer, explanation: q.explanation });
       }
-      // R02/R11：202 已受理——MC 本题结果即时；语义学习评价由后台
-      // worker 执行，此处轮询 job 到终态（pending→ready/failed）。
-      if (res.job_id && res.evaluation?.status === "pending") {
-        setEvalFollowUp("pending");
-        void followEvaluation(res.job_id);
-      }
+      // Poll the actual result, including task-only grading outside a workspace.
+      setRefreshVersion((v) => v + 1);
     } catch (e) {
       setSubmitError((e as Error).message || tr("quiz.grade.error"));
+      // A lost POST response or a concurrent-tab submission may already have
+      // committed. Recover by identity without issuing another submission.
+      setRefreshVersion((v) => v + 1);
     } finally {
       setSubmitting(false);
     }
@@ -171,11 +183,12 @@ export function QuizQuestionCard({
       </div>
 
       <MiniMarkdown className="chat-prose mt-2 text-[0.82rem] font-medium text-fg">{q.stem}</MiniMarkdown>
+      <QuestionIllustration illustration={q.illustration} />
 
       {isMC ? (
         <div className="mt-2.5 space-y-1.5">
           {options.map(([key, val]) => {
-            const isSelected = selected === key;
+            const isSelected = (submitted ? submittedAnswer : selected) === key;
             const isCorrect = submitted && answerText === key;
             let cls = "border-border-light bg-bg hover:border-accent/40 hover:bg-surface";
             if (!submitted && isSelected) cls = "border-accent bg-accent-soft/50 ring-1 ring-accent/30";
@@ -185,7 +198,7 @@ export function QuizQuestionCard({
             return (
               <button
                 key={key}
-                disabled={submitted || !hasIdentity}
+                disabled={submitted || submitting || restoring || !hasIdentity}
                 onClick={() => setSelected(key)}
                 className={cn(
                   "flex w-full items-center gap-2.5 rounded-[8px] border px-3 py-2 text-left text-[0.8rem] transition-all",
@@ -206,12 +219,21 @@ export function QuizQuestionCard({
             );
           })}
         </div>
+      ) : submitted ? (
+        <div className="mt-2.5 rounded-[8px] border border-border-light bg-bg px-3 py-2" data-testid="quiz-submitted-answer">
+          <p className="mb-1 text-[0.7rem] font-medium text-muted">
+            {lang === "en" ? "Submitted answer" : "已提交的答案"}
+          </p>
+          <MiniMarkdown className="chat-prose whitespace-pre-wrap break-words text-[0.8rem] text-fg">
+            {submittedAnswer}
+          </MiniMarkdown>
+        </div>
       ) : (
         <div className="mt-2.5">
-          <textarea
-            disabled={submitted || submitting || !hasIdentity}
+          <Textarea
+            disabled={submitting || restoring || !hasIdentity}
             placeholder={hasIdentity ? tr("quiz.answer.placeholder") : tr("quiz.legacy.note", "旧题目仅供回看，新练习请让教练重新出题")}
-            className="w-full resize-none rounded-[8px] border border-border bg-bg px-3 py-2 text-[0.8rem] text-fg outline-none placeholder:text-muted focus:border-accent/40 disabled:opacity-60"
+            className="resize-none text-[0.8rem]"
             rows={2}
             value={selected ?? ""}
             onChange={(e) => setSelected(e.target.value)}
@@ -224,7 +246,7 @@ export function QuizQuestionCard({
         <div className="mt-2.5 flex items-center gap-3">
           <button
             onClick={() => void submit()}
-            disabled={!selected || submitting}
+            disabled={!selected?.trim() || submitting || restoring}
             className="flex items-center gap-1.5 text-[0.75rem] font-medium text-accent transition-colors hover:text-accent-strong disabled:cursor-not-allowed disabled:opacity-40"
           >
             {submitting ? <Loader2 size={13} className="animate-spin" /> : <Send size={13} />}
@@ -265,21 +287,29 @@ export function QuizQuestionCard({
       {/* 两层反馈：本题结果 + 学习反馈（§14.5） */}
       {submitted && (outcome || savedResult) && (
         <div className="mt-2.5">
+          <p className="mb-2 text-[0.72rem] font-medium text-muted" data-testid="quiz-submitted-status">
+            {lang === "en" ? "Submitted" : "已提交"}
+          </p>
           <SubmissionOutcome
             lang={lang}
             data={{
               taskResult: outcome?.task_result ?? {
                 verdict: savedResult?.verdict ?? null,
               },
-              evaluationStatus: evalFollowUp === "ready"
-                ? "ready"
-                : evalFollowUp === "failed"
-                  ? "failed"
-                  : outcome?.evaluation?.status || "ready",
+              evaluationStatus: outcome?.evaluation?.status || savedResult?.evaluation?.status || "pending",
               learnerFeedback: outcome?.feedback || "",
             }}
             onViewEvidence={() => router.push("/memory")}
           />
+          {canRefresh && (
+            <button
+              type="button"
+              className="mt-2 text-xs text-accent hover:underline"
+              onClick={() => { setCanRefresh(false); setRefreshVersion((v) => v + 1); }}
+            >
+              {lang === "en" ? "Refresh feedback" : "刷新评价"}
+            </button>
+          )}
         </div>
       )}
 

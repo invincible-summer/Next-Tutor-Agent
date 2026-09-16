@@ -170,7 +170,20 @@ export interface QuizSourceRef {
   confidence?: number | null;
 }
 
+export interface QuestionIllustrationData {
+  kind: "svg";
+  schema_version: 1;
+  sanitizer_version: 1;
+  svg: string;
+  alt: string;
+  caption: string;
+  width: number;
+  height: number;
+  content_hash: string;
+}
+
 export interface QuizQuestion {
+  illustration?: QuestionIllustrationData | null;
   id: number;
   type: "multiple_choice" | "fill_blank" | "short_answer";
   stem: string;
@@ -184,7 +197,14 @@ export interface QuizQuestion {
   question_id?: string;
   question_revision?: number;
   /** 已作答记录（后端按 attempt_id 写回；存在时恢复已提交锁定状态）。 */
-  result?: { verdict: string; student_answer: string; attempt_id?: string };
+  result?: {
+    verdict: string | null;
+    student_answer: string;
+    attempt_id?: string;
+    source_id?: string;
+    job_id?: string;
+    evaluation?: { status: string; interpretation_id: string };
+  };
   /** Grounded quiz provenance（additive：历史会话无这些字段也能正常加载） */
   grounding_mode?: "textbook" | "generic" | "reference" | "reference+textbook" | string;
   grounding_tier?: "found" | "partial" | "not_found" | string;

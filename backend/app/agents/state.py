@@ -65,6 +65,13 @@ class TaskUnderstanding:
     source: str = "rule"       # "rule" | "llm" | "fallback"
     # Explicit output constraints extracted from the student's wording. These
     # are control-plane facts, not a second teaching strategy.
+    illustration_request: str = "auto"
+    # Whether this turn asks the learner to receive one or more *new*
+    # interactive questions. This is deliberately separate from intent:
+    # ``solve``/``explain`` may mention a question while still being a direct
+    # answer, whereas a fuzzy request such as "考我一下" must enter the
+    # structured quiz-card path even when the model's coarse intent is wrong.
+    structured_quiz_request: bool = False
     response_format: str = ""  # one_sentence | concise | table | steps | ""
     allow_followup_assessment: bool = True
     # LLM-refined retrieval terms for the turn (concept/lesson/chapter names).
@@ -87,6 +94,8 @@ class TaskUnderstanding:
             "requires_tools": self.requires_tools,
             "confidence": self.confidence,
             "source": self.source,
+            "illustration_request": self.illustration_request,
+            "structured_quiz_request": self.structured_quiz_request,
             "response_format": self.response_format,
             "allow_followup_assessment": self.allow_followup_assessment,
             "search_queries": list(self.search_queries),
@@ -103,6 +112,8 @@ class TaskUnderstanding:
             requires_tools=bool(d.get("requires_tools", False)),
             confidence=float(d.get("confidence", 1.0)),
             source=d.get("source", "rule") or "rule",
+            illustration_request=d.get("illustration_request") if isinstance(d.get("illustration_request"), str) and d.get("illustration_request") in {"auto", "none", "required"} else "auto",
+            structured_quiz_request=bool(d.get("structured_quiz_request", False)),
             response_format=str(d.get("response_format", "") or ""),
             allow_followup_assessment=bool(d.get("allow_followup_assessment", True)),
             search_queries=[str(q).strip() for q in (d.get("search_queries") or [])

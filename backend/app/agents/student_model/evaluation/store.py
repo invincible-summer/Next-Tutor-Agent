@@ -496,9 +496,7 @@ class EvidenceJournal:
                 good_bytes_end = offset
                 continue
             try:
-                tx = S.JournalTransaction.model_validate_json(text)
-                if not tx.verify_checksum():
-                    raise ValueError("checksum mismatch")
+                tx = S.JournalTransaction.from_persisted_json(text)
                 txs.append(tx)
             except Exception as exc:  # noqa: BLE001 - 单行损坏定位
                 is_tail = (i == len(lines) - 1) and not corrupt_at
@@ -621,7 +619,7 @@ class EvidenceJournal:
             text = line.strip()
             if not text:
                 continue
-            out.append(S.JournalTransaction.model_validate_json(text))
+            out.append(S.JournalTransaction.from_persisted_json(text))
         return out
 
     # -- helpers -------------------------------------------------------

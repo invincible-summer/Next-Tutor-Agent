@@ -262,8 +262,14 @@ class TestValidatorGate(SubmissionTestBase):
         self.runner.outputs = [_learner_output([claim])]
         receipt = self.submit(_mc_task(), "A")
         state = get_journal(SID).state()
-        self.assertFalse(
-            state.sources[receipt.source_id].current_interpretation_id)
+        # 越界主张不得发布任何能力结论。§11.4/R15 语义（live 验收修订）：
+        # 净化为弃权提交（保留反馈），不物化判断，也不是 validation_rejected
+        # 硬故障——旧断言"连解释都不提交"会把 job 卡在 failed 并丢掉反馈。
+        self.assertFalse(state.concept_current)
+        self.assertFalse(state.judgments)
+        job = state.jobs[receipt.job_id]
+        self.assertEqual(job.job.state, S.JobState.ABSTAINED)
+        self.assertNotEqual(job.last_error_code, "validation_rejected")
 
 
 class TestNoWorkspace(SubmissionTestBase):

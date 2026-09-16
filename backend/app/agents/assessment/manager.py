@@ -11,6 +11,7 @@ stem/correct_answer 旧契约在本版退出（A02/A03/A05）。
 """
 from __future__ import annotations
 
+import hashlib
 import uuid
 from dataclasses import dataclass, field
 from typing import Any
@@ -119,12 +120,42 @@ def load_task_snapshot(student_id: str, qref: S.QuestionRef
 
 
 def register_task_snapshot(student_id: str, task: S.TaskSnapshot) -> None:
-    """question_registered：出题/迁移时的任务注册（幂等）。"""
+    """Freeze one task, idempotently; material changes require a new revision."""
+    register_task_snapshots(student_id, [task])
+
+
+def register_task_snapshots(student_id: str, tasks: list[S.TaskSnapshot]) -> None:
+    """Validate the entire generated set before appending a single transaction."""
+    from app.core.atomic import file_lock
+    from app.identity.store import account_record_lock
+    from app.core.quiz_illustration_policy import account_allows_illustration, IllustrationDisabled
+    if not tasks:
+        return
     journal = get_journal(student_id)
-    existing = journal.state().tasks.get(task.question_id, {}).get(
-        task.question_revision)
-    if existing is None:
-        journal.register_question(task)
+    with account_record_lock(), file_lock(journal.path):
+        state = journal.state()
+        pending: dict[tuple[str, int], S.TaskSnapshot] = {}
+        material = {"q_type", "stem", "options", "answer", "explanation",
+                    "illustration", "rubric", "rubric_hash", "equivalent_solutions"}
+        for task in tasks:
+            key = (task.question_id, task.question_revision)
+            existing = pending.get(key) or state.tasks.get(key[0], {}).get(key[1])
+            if existing is not None:
+                if existing.model_dump(include=material) != task.model_dump(include=material):
+                    raise QuestionRevisionMismatch("已冻结的题面不能覆盖，请生成新 revision")
+                continue
+            if task.illustration is not None:
+                if task.verification.illustration_check != "passed":
+                    raise ValueError("illustration_not_reviewed")
+                # Re-practising an unchanged frozen task generates no new SVG.
+                original = (state.tasks.get(task.origin_question_ref.question_id, {}).get(
+                    task.origin_question_ref.question_revision) if task.origin_question_ref else None)
+                reused = original is not None and original.illustration == task.illustration
+                if not reused and not account_allows_illustration(student_id):
+                    raise IllustrationDisabled("插图生成已关闭，请重新生成题目。")
+            pending[key] = task
+        if pending:
+            journal.append([S.OpQuestionRegistered(task=task) for task in pending.values()])
 
 
 def task_snapshot_from_legacy(question: Any, *,
@@ -161,24 +192,29 @@ def task_snapshot_from_legacy(question: Any, *,
         question_id=question_id, question_revision=1, q_type=q_type,
         stem=question.stem, options=dict(question.options or {}),
         answer=question.answer or "", explanation=question.explanation or "",
+        illustration=question.illustration,
         equivalent_solutions=[str(e) for e in
                               (legacy_rubric.get("equivalent_solutions")
                                or [])][:8],
         rubric=rubric,
-        verification=S.TaskVerification(status=status),
+        verification=S.TaskVerification(status=status,
+            illustration_check=verification.get("illustration_check", "not_required")),
         concept_refs=concept_refs or [],
         task_family="",
         grounding_refs=[str(r.get("id") or r) for r in
                         (question.source_refs or [])
                         if isinstance(r, (str, dict))][:16],
         source_badge=", ".join(question.knowledge_points[:3]),
-        frozen_at="", workspace_id=workspace_id)
+        frozen_at="", workspace_id=workspace_id,
+        registered_at=S.utc_now_iso())
 
 
 def task_snapshot_from_quiz_dict(qd: dict, *,
                                  workspace_id: str = "",
                                  concept_refs: list[S.ConceptRef] | None = None,
                                  variant_reference: str = "",
+                                 source_session_ref: str = "",
+                                 registered_at: str = "",
                                  ) -> S.TaskSnapshot:
     """quiz_history 题目 dict → TaskSnapshot（聊天题卡注册路径，§11.4）。"""
     q_type_raw = str(qd.get("type") or "multiple_choice")
@@ -203,28 +239,121 @@ def task_snapshot_from_quiz_dict(qd: dict, *,
                                     weight=1.0, critical=True)]
     verification = qd.get("verification") if isinstance(
         qd.get("verification"), dict) else {}
-    verified = bool(verification.get("answer_verified"))
+    # 逐题 verification 带 status（critic 单题结论）；套级 answer_verified
+    # 只在全部题 passed 时为 true。任一 passed 即内容已审核——只认
+    # answer_verified 会让聊天题卡永远 task_not_verified，答对也不产生
+    # 学习判断。
+    verified = (str(verification.get("status") or "").lower() == "passed"
+                or bool(verification.get("answer_verified")))
     refs = qd.get("source_refs")
     grounding = [str(r.get("id") or r.get("file_id") or "") for r in refs
                  if isinstance(r, dict)][:16] if isinstance(refs, list) else []
-    question_id = str(qd.get("id") or ("q_" + uuid.uuid4().hex[:10]))
+    question_id = str(qd.get("question_id") or qd.get("id") or
+                      ("q_" + uuid.uuid4().hex[:10]))
     return S.TaskSnapshot(
-        question_id=question_id, question_revision=1, q_type=q_type,
+        question_id=question_id, question_revision=int(qd.get("question_revision") or 1), q_type=q_type,
         stem=str(qd.get("stem") or "")[:4000],
         options={str(k): str(v) for k, v in
                  (qd.get("options") or {}).items()},
         answer=str(qd.get("answer") or ""),
         explanation=str(qd.get("explanation") or ""),
+        illustration=qd.get("illustration"),
         equivalent_solutions=[str(e) for e in
                               (legacy.get("equivalent_solutions") or [])][:8],
         rubric=rubric,
         verification=S.TaskVerification(
-            status="passed" if verified else "unreviewed"),
+            status="passed" if verified else "unreviewed",
+            illustration_check=verification.get("illustration_check", "not_required")),
         concept_refs=concept_refs or [],
         task_family=variant_reference or str(qd.get("topic") or ""),
         grounding_refs=grounding,
         source_badge=str(qd.get("knowledge_point") or "")[:192],
-        frozen_at="", workspace_id=workspace_id)
+        frozen_at="", workspace_id=workspace_id,
+        source_session_ref=source_session_ref,
+        registered_at=registered_at)
+
+
+def _match_scope_concepts(scope_concepts: list[S.ConceptRef],
+                          names: set[str]) -> list[S.ConceptRef]:
+    """题目 knowledge_point → scope ConceptRef。
+
+    出题工具产出的 knowledge_point 是自由措辞（如「级数敛散」「分部积分
+    法」），教材概念的 display_name 是编目名（「正项级数的收敛判别法」
+    「分部积分法」）。只做精确同名匹配会让多数工作区题卡绑定不到概念，
+    pack 白名单为空、答对也不产生学习判断。这里先精确同名，再按互含
+    回退（仍只绑定当前 scope 内的真实 ConceptRef，R04 完整概念键不受
+    影响），最多 3 个。
+    """
+    exact: list[S.ConceptRef] = []
+    contains: list[S.ConceptRef] = []
+    for c in scope_concepts:
+        display = c.display_name or ""
+        if display in names:
+            exact.append(c)
+            continue
+        for name in names:
+            n = name.strip()
+            if not n or not display:
+                continue
+            if n in display or display in n:
+                contains.append(c)
+                break
+    seen: set[str] = set()
+    out: list[S.ConceptRef] = []
+    for c in exact + contains:
+        if c.key not in seen:
+            out.append(c)
+            seen.add(c.key)
+        if len(out) >= 3:
+            break
+    return out
+
+
+def register_quiz_payload(*, student_id: str, workspace_id: str,
+                          session_id: str, quiz_data: dict) -> None:
+    """注册聊天题卡，并把稳定服务端身份写回原始 payload。"""
+    concept_refs: list[S.ConceptRef] = []
+    if workspace_id:
+        try:
+            from app.agents.student_model.evaluation.scope import (
+                get_scope_resolver)
+            scope = get_scope_resolver().resolve(student_id, workspace_id)
+            names = {str(q.get("knowledge_point") or "")
+                     for q in (quiz_data.get("questions") or [])
+                     if isinstance(q, dict)}
+            concept_refs = _match_scope_concepts(
+                scope.allowed_concepts, names)
+        except Exception:
+            concept_refs = []
+    registered_at = S.utc_now_iso()
+    # 同一份 payload 重试注册时保持身份；同一会话稍后再次生成内容相同的
+    # 题组仍获得新身份，避免把两次独立作答错误合并。
+    quiz_set_id = str(quiz_data.get("quiz_set_id") or
+                      ("qs_" + uuid.uuid4().hex[:24]))
+    quiz_data["quiz_set_id"] = quiz_set_id
+    tasks: list[S.TaskSnapshot] = []
+    for ordinal, q in enumerate(quiz_data.get("questions") or [], 1):
+        if not isinstance(q, dict):
+            continue
+        if not q.get("question_id"):
+            identity = S.canonical_json({
+                "session_id": session_id,
+                "quiz_set_id": quiz_set_id,
+                "ordinal": ordinal,
+                "generator_id": q.get("id"),
+                "stem": q.get("stem"),
+                "answer": q.get("answer"),
+            })
+            q["question_id"] = "q_" + hashlib.sha256(
+                identity.encode("utf-8")).hexdigest()[:24]
+        q["question_revision"] = int(q.get("question_revision") or 1)
+        task = task_snapshot_from_quiz_dict(
+            q, workspace_id=workspace_id, concept_refs=concept_refs,
+            variant_reference=str(quiz_data.get("reference") or
+                                  quiz_data.get("topic") or ""),
+            source_session_ref=session_id, registered_at=registered_at)
+        tasks.append(task)
+    register_task_snapshots(student_id, tasks)
 
 
 # ---------------------------------------------------------------------------
@@ -706,6 +835,40 @@ async def run_assessment_job(student_id: str, claimed: ClaimedJob, *,
                     "abstain_reason": "task_only_deferred",
                     "observation_claims": [], "concept_updates": [],
                     "next_probe": None})
+            # §11.4 + R15：概念主张必须在 pack 白名单内。无 workspace /
+            # 空 scope 时白名单为空，模型的概念主张必然撞
+            # concept_not_allowed——整个提交被拒会让 job 停在 failed 且
+            # 连本题反馈都丢失。这里先净化：白名单为空 → task-only 弃权
+            # （workspace_required）；非空 → 丢弃越界主张，保留合法部分。
+            # 白名单词表与 validator 一致：pack 短引用（c1/c2…）。
+            allowed_keys = {e.short_ref for e in pack.allowlist}
+            learner = parsed.learner
+            if allowed_keys:
+                kept_claims = [c for c in learner.observation_claims
+                               if c.concept_ref in allowed_keys]
+                kept_updates = [u for u in learner.concept_updates
+                                if u.concept_ref in allowed_keys]
+                if (len(kept_claims) != len(learner.observation_claims)
+                        or len(kept_updates) != len(learner.concept_updates)):
+                    # 级联：被丢弃主张的 local_id 不能再被 patch 引用
+                    # （add 引用本批 local；悬空引用是 HARD 拒绝项）。
+                    kept_local = {c.local_id for c in kept_claims}
+                    kept_updates = [
+                        u for u in kept_updates
+                        if set(u.add_claim_local_ids) <= kept_local]
+                    learner = learner.model_copy(update={
+                        "observation_claims": kept_claims,
+                        "concept_updates": kept_updates})
+                    if not kept_claims and not kept_updates:
+                        learner = learner.model_copy(update={
+                            "applicable": False,
+                            "abstain_reason": "concept_not_allowed"})
+                    parsed.learner = learner
+            elif (learner.observation_claims or learner.concept_updates):
+                parsed.learner = learner.model_copy(update={
+                    "applicable": False,
+                    "abstain_reason": "workspace_required",
+                    "observation_claims": [], "concept_updates": []})
 
             task_result = mc_result
             if task is not None and task.q_type != S.QuestionType.MULTIPLE_CHOICE:
@@ -717,6 +880,26 @@ async def run_assessment_job(student_id: str, claimed: ClaimedJob, *,
                     feedback=parsed.task_feedback)
 
             base_claims = _active_claims_for(state, scope, pack)
+            # 不重不漏的保守补全：模型遗漏处置的 active claims 默认
+            # retain（不改动现有判断）。live 验收中“忘记逐一处置旧主张”
+            # 这类格式性遗漏是 HARD 拒绝项，会让整题判分/反馈随 job
+            # failed 一并丢失；retain 是最保守的处置，语义上等价于
+            # “本题主张之外的旧结论维持不变”。
+            short_to_key = {e.short_ref: e.concept.key
+                            for e in pack.allowlist}
+            for update in parsed.learner.concept_updates:
+                key = short_to_key.get(update.concept_ref, "")
+                claims = base_claims.get(key) if key else None
+                if not claims:
+                    continue
+                current = set(update.retain_claim_ids)
+                current |= {rc.claim_id for rc in update.revise_claims}
+                current |= {cc.claim_id for cc in update.close_claims}
+                missing = [c.claim_id for c in claims
+                           if c.claim_id not in current]
+                if missing:
+                    update.retain_claim_ids = (list(
+                        update.retain_claim_ids) + missing)[:64]
             # R05：pack 构建时冻结基线判断 ID（concept_key → judgment_id），
             # 提交时 CAS——并发提交更新过基线即丢弃本次结果。
             base_judgment_ids: dict[str, str] = {}

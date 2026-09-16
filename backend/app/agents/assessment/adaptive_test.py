@@ -35,7 +35,8 @@ class CatInstance:
     concept: str = ""                   # 出题目标（generator 接口）
     grade: str = "本科"
     subject: str = ""
-    count_limit: int = 6
+    illustration_request: str = "auto"
+    count_limit: int = 1
     difficulty: int = 2
     status: str = STATUS_ACTIVE
     stop_reason: str = ""
@@ -54,6 +55,7 @@ class CatInstance:
             "concept_keys": list(self.concept_keys),
             "concept": self.concept,
             "grade": self.grade, "subject": self.subject,
+            "illustration_request": self.illustration_request,
             "count_limit": self.count_limit, "difficulty": self.difficulty,
             "status": self.status, "stop_reason": self.stop_reason,
             "stop_code": self.stop_code,
@@ -74,7 +76,8 @@ class CatInstance:
             concept=str(d.get("concept") or ""),
             grade=str(d.get("grade") or "本科"),
             subject=str(d.get("subject") or ""),
-            count_limit=int(d.get("count_limit") or 6),
+            illustration_request=str(d.get("illustration_request") or "auto"),
+            count_limit=int(d.get("count_limit") or 1),
             difficulty=int(d.get("difficulty") or 2),
             status=str(d.get("status") or STATUS_ACTIVE),
             stop_reason=str(d.get("stop_reason") or ""),
@@ -229,10 +232,12 @@ def report(state: JournalState, assessment_id: str) -> dict[str, Any] | None:
             interp_id = src.current_interpretation_id
             meta = src.interpretations.get(interp_id, {}) if interp_id else {}
             raw_interp = meta.get("raw_interpretation") or {}
+            task = state.tasks.get(qref.question_id, {}).get(qref.question_revision)
             # 题目局部结果（MC 判分）不受语义评价在途/失败影响
             items.append({
                 "question_id": qref.question_id,
                 "question_revision": qref.question_revision,
+                "question": task.public_view().model_dump(mode="json") if task else None,
                 "attempt_id": src.receipt.attempt_id,
                 "observed_at": src.receipt.observed_at,
                 "task_result": _first_committed_result(src),

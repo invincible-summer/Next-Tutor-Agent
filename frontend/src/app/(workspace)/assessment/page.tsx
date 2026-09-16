@@ -131,10 +131,14 @@ export default function AssessmentPage() {
                 setStopReason(nx.stop_reason || res.stop_reason || null);
                 setStage("done");
               }
-            } catch {
-              // 取下一题失败：保留恢复出的总结兜底，可点"再来一次"重开
+            } catch (exc) {
+              if (cancelled) return;
+              // Keep the active assessment resumable after settings conflicts.
               setSummary(res.summary ?? null);
-              setStage("done");
+              setResult({ taskResult: null, evaluationStatus: "pending", learnerFeedback: "" });
+              setError(exc instanceof Error && exc.message === "illustration_disabled"
+                ? makePageT(lang, STRINGS)("illustration.disabled") : makePageT(lang, STRINGS)("err.next"));
+              setStage("feedback");
             }
           }
         } else if (res.summary) {
@@ -221,6 +225,7 @@ export default function AssessmentPage() {
         concept_keys: intent.conceptKeys,
         goal: { purpose: intent.purpose },
         count: intent.count,
+        illustration_request: intent.illustrationRequest,
         grade,
       });
       if (res.status === "disabled") {
@@ -239,8 +244,8 @@ export default function AssessmentPage() {
       setStopReason(null);
       setSummary(null);
       setStage("asking");
-    } catch {
-      fail(tr("err.start"), () => handleStart(intent));
+    } catch (exc) {
+      fail(exc instanceof Error && exc.message === "illustration_disabled" ? tr("illustration.disabled") : tr("err.start"), () => handleStart(intent));
     } finally {
       setBusy(false);
     }
@@ -319,8 +324,8 @@ export default function AssessmentPage() {
       setQIndex((i) => i + 1);
       setResult(null);
       setStage("asking");
-    } catch {
-      fail(tr("err.next"), handleNext);
+    } catch (exc) {
+      fail(exc instanceof Error && exc.message === "illustration_disabled" ? tr("illustration.disabled") : tr("err.next"), handleNext);
     } finally {
       setBusy(false);
     }
@@ -388,6 +393,7 @@ export default function AssessmentPage() {
               <FeedbackCard
                 tr={tr}
                 lang={lang}
+                question={question}
                 result={result}
                 stop={!!stopReason}
                 busy={busy}

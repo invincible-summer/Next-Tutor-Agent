@@ -118,6 +118,7 @@ class AssessmentGoal:
     purpose: str = "check"   # check | diagnose | practice | adaptive
     difficulty: int = 0      # 0 = derive from context (M3 difficulty engine)
     count: int = 1           # 1 for single checks; upper bound for adaptive
+    illustration_request: str = "auto"
     q_type: str = ""         # "" = auto-select (MC for fast checks)
     assesses: list[str] = field(default_factory=list)   # sub-abilities to probe
     forbidden: list[str] = field(default_factory=list)  # methods disallowed
@@ -125,6 +126,9 @@ class AssessmentGoal:
     # 且推荐；显式层级只是"偏好聚焦"，不是硬约束）。带默认值：旧会话文件经
     # AssessmentGoal(**g) 重建保持兼容。
     bloom_focus: str = ""
+    # 本次测评已出过的题干（CAT 去重：同一测评内禁止重复出题；也避免
+    # critic 对连续同款题反复挑刺导致 generation_failed）。
+    avoid_stems: list[str] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -133,9 +137,11 @@ class AssessmentGoal:
             "difficulty": self.difficulty,
             "count": self.count,
             "q_type": self.q_type,
+            "illustration_request": self.illustration_request,
             "assesses": list(self.assesses),
             "forbidden": list(self.forbidden),
             "bloom_focus": self.bloom_focus,
+            "avoid_stems": list(self.avoid_stems),
         }
 
 

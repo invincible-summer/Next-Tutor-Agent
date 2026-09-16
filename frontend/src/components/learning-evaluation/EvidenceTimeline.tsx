@@ -1,4 +1,5 @@
 "use client";
+import { QuestionIllustration } from "@/components/quiz/QuestionIllustration";
 // 证据时间线 + 单条证据详情 Drawer（plan §14.2/§14.3/§14.6）：
 // - 行级：时间 / 来源 / 涉及概念 / 反馈摘要，[看这条依据] 打开详情。
 // - 详情：原始作答、题目公开/揭晓视图、帮助事件、解释主张（含 RBT
@@ -256,6 +257,7 @@ export function EvidenceDetailDrawer({
               <p className="mb-1 text-[0.7rem] font-medium text-fg-secondary">{t.task}</p>
               <div className="rounded-[8px] border border-border-light bg-surface px-2.5 py-2 text-xs leading-relaxed text-fg">
                 <p className="whitespace-pre-wrap">{detail.task.stem}</p>
+                <QuestionIllustration illustration={detail.task.illustration} />
                 {Object.keys(detail.task.options || {}).length > 0 && (
                   <ul className="mt-1 space-y-0.5 text-fg-secondary">
                     {Object.entries(detail.task.options).map(([k, v]) => (

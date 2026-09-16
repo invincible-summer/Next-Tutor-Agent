@@ -13,6 +13,7 @@ chunk_lookup 由调用方注入（chunk_id → dict(text/prev_id/next_id)），
 """
 from __future__ import annotations
 
+import hashlib
 import re
 from typing import Any, Callable
 
@@ -128,4 +129,11 @@ def reconstruct_evidence(items: list[dict[str, Any]],
     expanded = [expand_with_neighbors(dict(item), chunk_lookup,
                                       neighbor_chars=neighbor_chars)
                 for item in items]
-    return merge_lesson_groups(expanded, group_cap=group_cap)
+    reconstructed = merge_lesson_groups(expanded, group_cap=group_cap)
+    # context_hash 必须绑定最终注入模型的正文。证据门先计算哈希，但邻块扩展
+    # 和课文合并会改写 excerpt；若沿用旧哈希，SkillRuntime 会正确地把结果
+    # 判为被篡改，进而让“检索→出题”计划永远停在第一步。
+    for item in reconstructed:
+        excerpt = str(item.get("evidence_excerpt") or "")
+        item["context_hash"] = hashlib.sha256(excerpt.encode()).hexdigest()
+    return reconstructed

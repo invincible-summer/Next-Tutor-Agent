@@ -6,7 +6,10 @@ import { Card, CardHeader } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { SubmissionOutcome } from "@/components/learning-evaluation/SubmissionOutcome";
 import type { Lang } from "@/lib/i18n";
+import type { AssessmentQuestion } from "@/lib/types-modules";
 import type { PageTr } from "./common";
+import { QuestionIllustration } from "@/components/quiz/QuestionIllustration";
+import { MiniMarkdown } from "@/components/chat/markdown";
 
 export interface AnswerResult {
   taskResult: {
@@ -24,6 +27,7 @@ export interface AnswerResult {
 export function FeedbackCard({
   tr,
   lang,
+  question,
   result,
   stop,
   busy,
@@ -32,6 +36,7 @@ export function FeedbackCard({
 }: {
   tr: PageTr;
   lang: Lang;
+  question: AssessmentQuestion | null;
   result: AnswerResult;
   stop: boolean;
   busy: boolean;
@@ -49,6 +54,14 @@ export function FeedbackCard({
           </Button>
         }
       />
+      {question && (
+        <div className="mb-4 border-b border-border-light pb-4" data-testid="assessment-feedback-question">
+          <div className="chat-prose">
+            <MiniMarkdown>{question.stem}</MiniMarkdown>
+          </div>
+          <QuestionIllustration illustration={question.illustration} />
+        </div>
+      )}
       <SubmissionOutcome
         lang={lang}
         data={{

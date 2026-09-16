@@ -302,12 +302,17 @@ async function post<T>(path: string, body: unknown): Promise<T> {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
-  if (!res.ok) throw new Error(`POST ${path} failed: ${res.status}`);
+  if (!res.ok) {
+    const payload = await res.json().catch(() => ({}));
+    const code = payload.error?.code || payload.detail?.error?.code || payload.detail?.code || payload.code;
+    throw new Error(code === "illustration_disabled" ? code : `POST ${path} failed: ${res.status}`);
+  }
   return res.json();
 }
 
 /** §11.5：concept_keys=ConceptRef.key 列表（1–20）；purpose=用户任务意图。 */
 export interface AssessmentStartPayload {
+  illustration_request?: "auto" | "none" | "required";
   workspace_id?: string;
   concept_keys: string[];
   goal?: { purpose?: "adaptive" | "diagnose" | "practice"; target_claims?: string[] };
@@ -553,7 +558,7 @@ export const launchOrchTask = (taskId: string) =>
 
 // --- M0 账户资料（/user/profile，需登录；guest 模式前端不调用） ---
 export const getUserProfile = () =>
-  get<{ status: string; profile: import("./types-modules").UserProfileData }>("/user/profile");
+  get<{ status: string; quiz_svg_available?: boolean; profile: import("./types-modules").UserProfileData }>("/user/profile");
 
 export async function updateUserProfile(
   body: Partial<import("./types-modules").UserProfileData>,

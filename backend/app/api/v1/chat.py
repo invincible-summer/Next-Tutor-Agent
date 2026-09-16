@@ -108,9 +108,15 @@ def _build_tools(session: TutorSession, *, user_message: str = "",
             reason=decision.trace_reason,
             file_ids=decision.file_ids,
         )
+        from app.core.quiz_illustration_policy import (
+            IllustrationPolicyProvider, explicit_illustration_request)
+        illustrations = IllustrationPolicyProvider(
+            session.student_id, explicit_illustration_request(user_message))
         return (GenerateQuizTool(llm, avoid_stems=avoid_stems,
-                                 grounding_provider=quiz_grounding),
-                FitQuizTool(llm, grounding_provider=quiz_grounding))
+                                 grounding_provider=quiz_grounding,
+                                 illustration_policy_provider=illustrations),
+                FitQuizTool(llm, grounding_provider=quiz_grounding,
+                            illustration_policy_provider=illustrations))
 
     if session.workspace_id:
         from app.core.workspace import readable_files, readable_stores, workspace_for_session

@@ -44,6 +44,8 @@ def record_generated_quiz(session_id: str, quiz: dict[str, Any]) -> None:
             seg = f"{i}. {stem}｜答案:{answer}"
             if kp:
                 seg += f"｜考点:{kp}"
+            if isinstance(q.get("illustration"), dict):
+                seg += "｜图示:" + str(q["illustration"].get("alt") or "")[:160]
             parts.append(seg)
         content = (f"【出题记录】围绕「{topic}」出了 {len(parts)} 题：\n"
                    + "\n".join(parts))
@@ -59,7 +61,8 @@ def merge_quiz_results_from_disk(session: Any) -> bool:
     Card answers are recorded via /quiz/* endpoints (load-modify-save) while a
     chat turn may still be streaming; the turn's own save would otherwise
     overwrite those results with its stale in-memory quiz_history.  Matching
-    uses the same stem-prefix key as _write_back_answer.  Never raises.
+    uses question_id + revision, with an unambiguous full-stem fallback for
+    legacy records without identity. Never raises.
     """
     try:
         sid = getattr(session, "session_id", "")
@@ -70,27 +73,27 @@ def merge_quiz_results_from_disk(session: Any) -> bool:
         if disk is None:
             return False
 
-        def _key(q: dict) -> str:
-            return str(q.get("stem", "")).strip()[:60]
+        def questions_of(value):
+            return [q for entry in (getattr(value, "quiz_history", None) or [])
+                    if isinstance(entry, dict) for q in (entry.get("questions") or [])
+                    if isinstance(q, dict)]
 
+        disk_questions, memory_questions = questions_of(disk), questions_of(session)
+        def identity(q):
+            return (q["question_id"], int(q.get("question_revision") or 1)) if q.get("question_id") else None
         changed = False
-        for dqh in (getattr(disk, "quiz_history", None) or []):
-            if not isinstance(dqh, dict):
+        for dq in disk_questions:
+            if not isinstance(dq.get("result"), dict):
                 continue
-            for dq in (dqh.get("questions") or []):
-                if not isinstance(dq, dict) or not isinstance(dq.get("result"), dict):
-                    continue
-                dk = _key(dq)
-                if not dk:
-                    continue
-                for mqh in (getattr(session, "quiz_history", None) or []):
-                    if not isinstance(mqh, dict):
-                        continue
-                    for mq in (mqh.get("questions") or []):
-                        if (isinstance(mq, dict) and _key(mq) == dk
-                                and not isinstance(mq.get("result"), dict)):
-                            mq["result"] = dq["result"]
-                            changed = True
+            key = identity(dq)
+            matches = [q for q in memory_questions if identity(q) == key] if key else [
+                q for q in memory_questions if not identity(q) and q.get("stem") == dq.get("stem")]
+            if not key and (len(matches) != 1 or sum(q.get("stem") == dq.get("stem") for q in disk_questions) != 1):
+                continue
+            for mq in matches:
+                if not isinstance(mq.get("result"), dict) or not mq["result"].get("attempt_id"):
+                    mq["result"] = dict(dq["result"])
+                    changed = True
         if changed:
             from .session_learning_card import (SessionLearningCard,
                                                 reconcile_quiz_history)
@@ -139,6 +142,8 @@ def latest_quiz_digest(session: Any, *, max_questions: int = 3) -> str:
                     seg += f"｜学生答「{ans}」判{zh}"
                 else:
                     seg += "｜未作答"
+                if isinstance(q.get("illustration"), dict):
+                    seg += "｜图示:" + str(q["illustration"].get("alt") or "")[:160]
                 segs.append(seg)
             head = f"最近答题卡（{topic}，可逐题讲解/点评）：" if topic else "最近答题卡（可逐题讲解/点评）："
             return head + "；".join(segs)

@@ -1,3 +1,4 @@
+import type { QuestionIllustrationData } from "./types";
 // M2/M3/M5/M6 只读投影端点的响应类型（后端 api/v1/{student,knowledge,memory}.py）。
 
 export interface StudentProfileData {
@@ -545,6 +546,7 @@ export interface EvalAssistanceEvent {
 }
 
 export interface EvalEvidenceTaskPublic {
+  illustration?: QuestionIllustrationData | null;
   question_id: string;
   question_revision: number;
   q_type: string;
@@ -717,6 +719,7 @@ export interface ContextBudgetReport {
 
 /** QuestionPublic（A07 白名单投影；答案不在答前公开）。 */
 export interface AssessmentQuestion {
+  illustration?: QuestionIllustrationData | null;
   question_id: string;
   question_revision: number;
   q_type?: string;
@@ -812,6 +815,7 @@ export interface AssessmentSummary {
   counts?: { correct?: number; partial?: number; wrong?: number };
   difficulty?: number;
   items?: Array<{
+    question?: AssessmentQuestion | null;
     question_id: string;
     attempt_id: string;
     observed_at: string;
@@ -836,7 +840,7 @@ export interface UserProfileData {
   subjects: string[];
   avatar: string;
   /** 通用每用户偏好（ocr_parallel OCR 并行、tts_speed 朗读语速）。 */
-  prefs?: { ocr_parallel?: boolean; tts_speed?: number };
+  prefs?: { ocr_parallel?: boolean; tts_speed?: number; quiz_svg_enabled?: boolean };
 }
 
 // --- M9 学习编排（/orchestration/* · 无 status 信封，空态靠空字段/空数组表达） ---

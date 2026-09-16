@@ -38,39 +38,14 @@ from .state import TaskPlan
 
 
 def _register_quiz_tasks(session: TutorSession, quiz_data: dict) -> None:
-    """G2：quiz_history 题目注册为 journal TaskSnapshot（幂等，fail-open
-    不破坏对话回合）。concept_refs 严格匹配会话工作区 scope（§7.2）。
+    """G2：quiz_history 题目注册为 journal TaskSnapshot（幂等，失败不交付未注册题卡）。concept_refs 严格匹配会话工作区 scope（§7.2）。
     注册后把 question_id/question_revision 写回题 dict——quiz_history 与
     tool_result SSE 负载携带同一身份，题卡提交不再以题干定位（§11.4）。"""
-    try:
-        student_id = getattr(session, "student_id", "") or "student_default"
-        workspace_id = getattr(session, "workspace_id", "") or ""
-        from ..agents.assessment.manager import (register_task_snapshot,
-                                                  task_snapshot_from_quiz_dict)
-        from ..agents.student_model.evaluation.schema import ConceptRef
-        concept_refs: list[ConceptRef] = []
-        if workspace_id:
-            try:
-                from ..agents.student_model.evaluation.scope import (
-                    get_scope_resolver)
-                scope = get_scope_resolver().resolve(student_id, workspace_id)
-                names = {str(q.get("knowledge_point") or "")
-                         for q in (quiz_data.get("questions") or [])}
-                concept_refs = [c for c in scope.allowed_concepts
-                                if c.display_name in names][:3]
-            except Exception:
-                concept_refs = []
-        for q in (quiz_data.get("questions") or []):
-            if not isinstance(q, dict):
-                continue
-            task = task_snapshot_from_quiz_dict(
-                q, workspace_id=workspace_id, concept_refs=concept_refs,
-                variant_reference=str(quiz_data.get("reference") or ""))
-            register_task_snapshot(student_id, task)
-            q["question_id"] = task.question_id
-            q["question_revision"] = task.question_revision
-    except Exception:
-        pass
+    student_id = getattr(session, "student_id", "") or "student_default"
+    workspace_id = getattr(session, "workspace_id", "") or ""
+    from ..agents.assessment.manager import register_quiz_payload
+    register_quiz_payload(student_id=student_id, workspace_id=workspace_id,
+                          session_id=session.session_id, quiz_data=quiz_data)
 
 MAX_STEPS = settings.agent_max_steps  # V1 hard cap (default 6)
 _TOOL_MSG_MAX_CHARS = 2000
@@ -439,6 +414,11 @@ async def execute(
     from ..prompts.registry import get as _get_prompt
     messages = messages + [{"role": "system",
                             "content": _get_prompt("redline_tail").text}]
+    # ReAct 循环会以 user 角色追加工具结果消息；真正的学生提问要在循环
+    # 开始前留存（步数耗尽救援时引用）。
+    original_user_message = next(
+        (str(m.get("content") or "") for m in reversed(messages)
+         if m.get("role") == "user"), "")
 
     from ..core.context_budget import build_budget_snapshot
     from ..core.llm_runtime import current_capabilities, resolve_reasoning_policy
@@ -462,6 +442,10 @@ async def execute(
     trace.log("context_budget", **budget.to_dict())
 
     seen_calls: set[str] = set()
+    # 连续检索预算：live 验收中模型可把全部 6 步花在 knowledge_search 的
+    # 参数微调上（每次查询略不同，duplicate 守卫拦不住），最终正文只剩
+    # 开场白。超过 4 次后移除检索工具，逼模型用已有证据作答。
+    search_budget = 4
     all_tool_calls: list[dict[str, Any]] = []
     visible_answer_parts: list[str] = []
     # Raw reasoning accumulated across ReAct steps.  Each step resets its own
@@ -765,6 +749,10 @@ async def execute(
         pseudo_guard: PseudoToolGuard | None = None
         tool_calls_raw: list[dict[str, Any]] = []
         finish_reason = "stop"
+        # 必做题卡步骤先缓冲模型正文。若模型仍只用文字出题，后续自动
+        # 调用真实工具；不能先把文字题流给前端再追加一张重复题卡。
+        pending_required_call = _enforced_plan_call(
+            plan, tool_map, all_tool_calls)
         try:
             call_policy = resolve_reasoning_policy(
                 "executor_tool" if tool_schemas else "executor_direct",
@@ -811,7 +799,8 @@ async def execute(
                     if pseudo_guard is None:
                         pseudo_guard = PseudoToolGuard()
                     safe = pseudo_guard.feed(ev["delta"])
-                    if safe and empty_answer_retries == 0:
+                    if (safe and empty_answer_retries == 0 and
+                            pending_required_call is None):
                         yield {"type": "answer", "content": safe, "is_delta": True}
                 elif ev["kind"] == "tool_calls":
                     tool_calls_raw = ev["calls"]
@@ -846,6 +835,16 @@ async def execute(
         # 标记进入最终答案、续写前缀与会话历史。
         if pseudo_guard is not None and pseudo_guard.detected:
             answer_buf = pseudo_guard.emitted
+
+        if pending_required_call is not None:
+            # 必做工具完成前的正文只是模型遗漏工具时的替代题面/铺垫，既不
+            # 展示也不持久化；工具后下一轮再生成简短作答引导。
+            if answer_buf:
+                trace.log("required_tool_preamble_suppressed", step=step,
+                          chars=len(answer_buf),
+                          tool=pending_required_call["name"])
+            answer_buf = ""
+            pseudo_guard = None
 
         if empty_answer_retries and answer_buf:
             visible_prefix = "".join(visible_answer_parts)
@@ -936,7 +935,8 @@ async def execute(
                     {"role": "user", "content": followup},
                 ]
                 continue
-            forced_call = _enforced_plan_call(plan, tool_map, all_tool_calls)
+            forced_call = pending_required_call or _enforced_plan_call(
+                plan, tool_map, all_tool_calls)
             if forced_call is not None:
                 tool_calls_raw = [forced_call]
                 trace.log("skill_plan_auto_invoke", step=step,
@@ -986,6 +986,15 @@ async def execute(
                 result_text=_build_tool_result_message(result))
             continue
         seen_calls.add(call_key)
+        if tool_name == "knowledge_search" and search_budget > 0:
+            search_budget -= 1
+            if search_budget == 0 and "knowledge_search" in tool_map:
+                tool_map.pop("knowledge_search", None)
+                tool_schemas = [t.to_schema() for t in tool_map.values()]
+                trace.log("search_budget_exhausted")
+                messages.append({"role": "system", "content":
+                    "课程资料检索已达本轮上限，后续步骤不再提供检索工具；"
+                    "请基于已获得的资料直接作答。"})
 
         tool = tool_map.get(tool_name)
         if tool is None:
@@ -1014,11 +1023,16 @@ async def execute(
         # 与持久化历史携带同一身份（§11.4；ToolResult.to_dict 按引用携带
         # data，此处变异即进入下游所有副本）。
         if tool_name in ("generate_quiz", "fit_quiz") and not result.is_error:
-            session.quiz_history.append(result.data)
-            record_generated_quiz(session.session_id, result.data)
-            # G2/G4：题目即刻注册 TaskSnapshot（journal，最近习题=journal
-            # 投影 /quiz/recent）。
-            _register_quiz_tasks(session, result.data)
+            try:
+                _register_quiz_tasks(session, result.data)
+            except Exception as exc:
+                result = err(tool_name, getattr(exc, "code", "question_registration_failed"),
+                             "题目未能保存，可能插图生成已关闭，请重新出题。")
+            else:
+                session.quiz_history.append(result.data)
+                record_generated_quiz(session.session_id, result.data)
+                from ..core.quiz_illustration import illustration_telemetry
+                trace.log("quiz_illustration", **illustration_telemetry(result.data))
 
         result_dict = result.to_dict()
         all_tool_calls.append({"name": tool_name, "result": result_dict})
@@ -1070,8 +1084,11 @@ async def execute(
         # the remainder of shadow/off execution too. Otherwise the model can
         # see the still-visible schema and immediately request the same quiz a
         # second time, producing a noisy duplicate tool card before the guard.
+        # 0 题的 partial 不算达成（critic 全拒/检索未命中）：工具保持可见，
+        # 模型换参数重试才不会撞 NO_TOOL 死路。
         if (not result.is_error and _is_auto_fulfillment_tool(plan, tool_name)
-                and not gated):
+                and not gated
+                and (postconditions is None or postconditions.valid)):
             visible_tools = [t for t in visible_tools if t.name != tool_name]
             tool_map.pop(tool_name, None)
             tool_schemas = [t.to_schema() for t in visible_tools]
@@ -1115,9 +1132,78 @@ async def execute(
                               visible_tools=[t.name for t in visible_tools])
 
     # max steps reached
-    fallback = "我已经尽力处理，但暂时没能给出完整回答。可以换个说法再问一次吗？"
     trace.log("finish", branch="max_steps", tool_calls=len(all_tool_calls))
-    final_answer = "".join(visible_answer_parts) + fallback
+    # 步数耗尽不等于放弃：上下文里往往已有充分的工具结果（live 验收：
+    # 模型连用 6 步 search_materials 却始终没有输出正文）。移除全部工具
+    # 后再给一次“只准作答”的机会，把已付出的检索成本兑现成答案；这一
+    # 调用失败才回退固定文案。
+    rescued = ""
+    try:
+        rescue_messages = messages + [{
+            "role": "system",
+            "content": "工具调用次数已达上限，你现在没有任何可用工具，禁止再"
+                       "调用或请求任何工具，也不要用 <tool_call> 等文本格式"
+                       "书写工具调用。请立刻基于对话中已有的检索结果与教学"
+                       "内容，直接、完整地回答学生最近的问题；不要再复述检索"
+                       "过程，也不要提及工具上限。"}]
+        recovered_search = False
+        for _rescue_round in range(2):
+            text, _rescue_usage = await llm.complete(
+                messages=rescue_messages,
+                temperature=0.3, max_tokens=2500, disable_thinking=True)
+            text = (text or "").strip()
+            guard = PseudoToolGuard()
+            safe = (guard.feed(text) + guard.flush()).strip()
+            if not guard.detected:
+                rescued = safe
+                break
+            # 仍在叙述工具调用：按护栏提取检索词执行一次真实检索，把
+            # 结果注入后再给最后一次只准作答的机会。
+            if recovered_search:
+                break
+            recovered_search = True
+            search_tool = next((t for t in tools
+                                if getattr(t, "name", "") == "knowledge_search"),
+                               None)
+            if search_tool is None:
+                break
+            last_user = next((str(m.get("content") or "")[:80]
+                              for m in reversed(messages)
+                              if m.get("role") == "user"), "")
+            query = guard.extract_query("") or last_user
+            try:
+                sres = await search_tool.run(query=query, top_k=6)
+                payload = getattr(sres, "data", None)
+                result_text = json.dumps(payload, ensure_ascii=False,
+                                         default=str)[:6000]
+            except Exception:
+                result_text = ""
+            trace.log("max_steps_rescue_search", query=query[:80],
+                      chars=len(result_text))
+            if not result_text:
+                break
+            rescue_messages = rescue_messages + [
+                {"role": "assistant", "content": text[:400]},
+                {"role": "user", "content": "检索结果如下（仅供你作答使用）："
+                                            + result_text},
+                {"role": "user", "content":
+                    "所有工具与检索均已停用，请立刻用正文完整回答我最初的问题："
+                    + original_user_message[:600]
+                    + "。基于以上检索结果与你的数学知识作答，禁止输出任何"
+                      "工具调用语法。"}]
+        if len(rescued) < 150:
+            # 救援产物太短多半只是“我先检索/稍后讲解”式的程序性开场白，
+            # 不能当最终答案交付。
+            rescued = ""
+    except Exception:
+        rescued = ""
+    if rescued:
+        trace.log("max_steps_rescue", chars=len(rescued))
+        final_answer = rescued
+    else:
+        fallback = ("我已经尽力处理，但暂时没能给出完整回答。"
+                    "可以换个说法再问一次吗？")
+        final_answer = "".join(visible_answer_parts) + fallback
     yield {"type": "done", "thinking": "", "answer": final_answer,
            "tool_calls": _lite_tool_calls(all_tool_calls),
            "trace_id": trace.run_id, "trace_summary": trace.summary()}

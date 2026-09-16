@@ -1,1 +1,1 @@
-{"student_id": "usr_12e410b4e2", "note_id": "_vault", "mode": "ask", "messages": [], "pending_plan": null, "working": {"stage": "idle", "tool": "", "started_at": 0, "can_stop": false}, "created_at": 1788228567.6180384, "updated_at": 1788748606.9603724}
+{"student_id": "usr_12e410b4e2", "note_id": "_vault", "mode": "authorize", "messages": [], "pending_plan": null, "working": {"stage": "idle", "tool": "", "started_at": 0, "can_stop": false}, "created_at": 1789523657.5175, "updated_at": 1789537651.8976448}
