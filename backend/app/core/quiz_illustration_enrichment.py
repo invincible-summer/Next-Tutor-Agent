@@ -10,7 +10,6 @@ import asyncio
 import json
 import re
 import time
-import weakref
 from pathlib import Path
 from typing import Any
 
@@ -36,11 +35,12 @@ MAX_ILLUSTRATION_CALLS = 3
 _PROJECT_ROOT = Path(__file__).resolve().parents[3]
 _STUDENTS_DIR = _PROJECT_ROOT / "students"
 _STORE_SUFFIX = ".question_illustrations.json"
-# Locks are strongly held by active/waiting coroutines. Once nobody uses a
-# question identity any more, the weak table releases the lock instead of
-# growing for the lifetime of a long-running worker.
-_locks: weakref.WeakValueDictionary[str, asyncio.Lock] = weakref.WeakValueDictionary()
-_locks_guard = asyncio.Lock()
+# True single-flight registry: concurrent callers for the same frozen question
+# await one background task and therefore share both success and failure.  The
+# task is shielded from an individual HTTP/client cancellation and removes
+# itself on completion, so later explicit retries can start a fresh attempt.
+_inflight: dict[str, asyncio.Task[dict[str, Any]]] = {}
+_inflight_guard = asyncio.Lock()
 
 
 def _safe_student(student_id: str) -> str:
@@ -58,6 +58,11 @@ def _path(student_id: str) -> Path:
 
 def _key(question_id: str, question_revision: int) -> str:
     return f"{question_id}:{int(question_revision)}"
+
+
+def _flight_key(student_id: str, question_id: str,
+                question_revision: int) -> str:
+    return f"{_safe_student(student_id)}:{_key(question_id, question_revision)}"
 
 
 def _load_store(student_id: str) -> dict[str, Any]:
@@ -122,17 +127,6 @@ def _write_cached(student_id: str, question_id: str, question_revision: int,
         }
         atomic_write_text(path, json.dumps(
             data, ensure_ascii=False, sort_keys=True, separators=(",", ":")))
-
-
-async def _keyed_lock(student_id: str, question_id: str,
-                      question_revision: int) -> asyncio.Lock:
-    lock_key = f"{student_id}:{question_id}:{question_revision}"
-    async with _locks_guard:
-        lock = _locks.get(lock_key)
-        if lock is None:
-            lock = asyncio.Lock()
-            _locks[lock_key] = lock
-        return lock
 
 
 def _task_payload(task: S.TaskSnapshot) -> dict[str, Any]:
@@ -235,6 +229,99 @@ async def _complete(llm: Any, budget: GenerationBudget,
     return str(content or "")
 
 
+async def _generate_uncached(*, student_id: str, task: S.TaskSnapshot,
+                             policy: str, llm: Any | None) -> dict[str, Any]:
+    # A cache may have appeared between the public fast-path and single-flight
+    # task creation (for example, another request completed just before this
+    # task was installed).
+    cached = _read_cached(student_id, task.question_id, task.question_revision)
+    if cached:
+        return {**cached, "metrics": {"generation_calls": 0,
+                                      "generation_elapsed_ms": 0, "cache_hit": 1}}
+
+    budget = GenerationBudget(
+        max_calls=MAX_ILLUSTRATION_CALLS,
+        deadline=time.monotonic() + ILLUSTRATION_DEADLINE_SECONDS,
+    )
+    model = llm or get_llm("quiz")
+    try:
+        raw_text = await _complete(
+            model, budget, _generation_messages(task, policy),
+            timeout=GENERATION_CALL_TIMEOUT_SECONDS, max_tokens=3200)
+        raw = _generated_illustration(raw_text)
+        if raw is None:
+            if policy == "required":
+                raise IllustrationValidationError("illustration_required_missing")
+            _write_cached(student_id, task.question_id, task.question_revision,
+                          status="not_required")
+            return {"status": "not_required", "illustration": None,
+                    "metrics": budget.summary()}
+        try:
+            illustration = normalize_illustration(raw)
+        except IllustrationValidationError as exc:
+            if (budget.remaining_seconds < REPAIR_MIN_REMAINING_SECONDS
+                    or not budget.take_repair()):
+                raise
+            repaired_text = await _complete(
+                model, budget, _repair_messages(task, policy, raw, exc.code),
+                timeout=min(6.0, budget.remaining_seconds - FINAL_AUDIT_RESERVE_SECONDS),
+                max_tokens=3200)
+            repaired_raw = _generated_illustration(repaired_text)
+            if repaired_raw is None:
+                raise IllustrationValidationError("illustration_required_missing")
+            illustration = normalize_illustration(repaired_raw)
+
+        if budget.remaining_seconds < FINAL_AUDIT_RESERVE_SECONDS:
+            raise TimeoutError("illustration_audit_budget_missing")
+        audit_text = await _complete(
+            model, budget, _audit_messages(
+                task, illustration, allow_repair=(budget.calls < budget.max_calls - 1)),
+            timeout=AUDIT_CALL_TIMEOUT_SECONDS, max_tokens=3200)
+        audit = _audit_payload(audit_text)
+        if audit["status"] == "repair":
+            if (budget.calls >= budget.max_calls
+                    or budget.remaining_seconds < FINAL_AUDIT_RESERVE_SECONDS
+                    or not budget.take_repair()):
+                raise IllustrationValidationError("illustration_audit_failed")
+            repaired = normalize_illustration(audit.get("illustration"))
+            final_text = await _complete(
+                model, budget, _audit_messages(task, repaired, allow_repair=False),
+                timeout=budget.remaining_seconds, max_tokens=900)
+            final = _audit_payload(final_text)
+            if final["status"] != "passed":
+                raise IllustrationValidationError("illustration_audit_failed")
+            illustration = repaired
+        elif audit["status"] != "passed":
+            raise IllustrationValidationError("illustration_audit_failed")
+
+        _write_cached(student_id, task.question_id, task.question_revision,
+                      status="ready", illustration=illustration)
+        return {"status": "ready", "illustration": illustration,
+                "metrics": budget.summary()}
+    except (IllustrationValidationError, TimeoutError, asyncio.TimeoutError) as exc:
+        code = getattr(exc, "code", None) or str(exc) or "illustration_generation_failed"
+        return {"status": "failed", "illustration": None,
+                "code": re.sub(r"[^a-z0-9_]+", "_", code.lower())[:80],
+                "metrics": budget.summary()}
+    except Exception:
+        return {"status": "failed", "illustration": None,
+                "code": "illustration_generation_failed",
+                "metrics": budget.summary()}
+
+
+async def _run_singleflight(*, flight_key: str, student_id: str,
+                            task: S.TaskSnapshot, policy: str,
+                            llm: Any | None) -> dict[str, Any]:
+    try:
+        return await _generate_uncached(
+            student_id=student_id, task=task, policy=policy, llm=llm)
+    finally:
+        current = asyncio.current_task()
+        async with _inflight_guard:
+            if current is not None and _inflight.get(flight_key) is current:
+                _inflight.pop(flight_key, None)
+
+
 async def generate_assessment_illustration(
     *, student_id: str, task: S.TaskSnapshot, policy: str, llm: Any | None = None,
 ) -> dict[str, Any]:
@@ -246,77 +333,17 @@ async def generate_assessment_illustration(
     if cached:
         return {**cached, "metrics": {"generation_calls": 0,
                                       "generation_elapsed_ms": 0, "cache_hit": 1}}
-    lock = await _keyed_lock(student_id, task.question_id, task.question_revision)
-    async with lock:
-        cached = _read_cached(student_id, task.question_id, task.question_revision)
-        if cached:
-            return {**cached, "metrics": {"generation_calls": 0,
-                                          "generation_elapsed_ms": 0, "cache_hit": 1}}
-        budget = GenerationBudget(
-            max_calls=MAX_ILLUSTRATION_CALLS,
-            deadline=time.monotonic() + ILLUSTRATION_DEADLINE_SECONDS,
-        )
-        model = llm or get_llm("quiz")
-        try:
-            raw_text = await _complete(
-                model, budget, _generation_messages(task, policy),
-                timeout=GENERATION_CALL_TIMEOUT_SECONDS, max_tokens=3200)
-            raw = _generated_illustration(raw_text)
-            if raw is None:
-                if policy == "required":
-                    raise IllustrationValidationError("illustration_required_missing")
-                _write_cached(student_id, task.question_id, task.question_revision,
-                              status="not_required")
-                return {"status": "not_required", "illustration": None,
-                        "metrics": budget.summary()}
-            try:
-                illustration = normalize_illustration(raw)
-            except IllustrationValidationError as exc:
-                if (budget.remaining_seconds < REPAIR_MIN_REMAINING_SECONDS
-                        or not budget.take_repair()):
-                    raise
-                repaired_text = await _complete(
-                    model, budget, _repair_messages(task, policy, raw, exc.code),
-                    timeout=min(6.0, budget.remaining_seconds - FINAL_AUDIT_RESERVE_SECONDS),
-                    max_tokens=3200)
-                repaired_raw = _generated_illustration(repaired_text)
-                if repaired_raw is None:
-                    raise IllustrationValidationError("illustration_required_missing")
-                illustration = normalize_illustration(repaired_raw)
 
-            if budget.remaining_seconds < FINAL_AUDIT_RESERVE_SECONDS:
-                raise TimeoutError("illustration_audit_budget_missing")
-            audit_text = await _complete(
-                model, budget, _audit_messages(
-                    task, illustration, allow_repair=(budget.calls < budget.max_calls - 1)),
-                timeout=AUDIT_CALL_TIMEOUT_SECONDS, max_tokens=3200)
-            audit = _audit_payload(audit_text)
-            if audit["status"] == "repair":
-                if (budget.calls >= budget.max_calls
-                        or budget.remaining_seconds < FINAL_AUDIT_RESERVE_SECONDS
-                        or not budget.take_repair()):
-                    raise IllustrationValidationError("illustration_audit_failed")
-                repaired = normalize_illustration(audit.get("illustration"))
-                final_text = await _complete(
-                    model, budget, _audit_messages(task, repaired, allow_repair=False),
-                    timeout=budget.remaining_seconds, max_tokens=900)
-                final = _audit_payload(final_text)
-                if final["status"] != "passed":
-                    raise IllustrationValidationError("illustration_audit_failed")
-                illustration = repaired
-            elif audit["status"] != "passed":
-                raise IllustrationValidationError("illustration_audit_failed")
-
-            _write_cached(student_id, task.question_id, task.question_revision,
-                          status="ready", illustration=illustration)
-            return {"status": "ready", "illustration": illustration,
-                    "metrics": budget.summary()}
-        except (IllustrationValidationError, TimeoutError, asyncio.TimeoutError) as exc:
-            code = getattr(exc, "code", None) or str(exc) or "illustration_generation_failed"
-            return {"status": "failed", "illustration": None,
-                    "code": re.sub(r"[^a-z0-9_]+", "_", code.lower())[:80],
-                    "metrics": budget.summary()}
-        except Exception:
-            return {"status": "failed", "illustration": None,
-                    "code": "illustration_generation_failed",
-                    "metrics": budget.summary()}
+    flight_key = _flight_key(student_id, task.question_id, task.question_revision)
+    async with _inflight_guard:
+        shared = _inflight.get(flight_key)
+        if shared is None:
+            shared = asyncio.create_task(_run_singleflight(
+                flight_key=flight_key, student_id=student_id, task=task,
+                policy=policy, llm=llm))
+            _inflight[flight_key] = shared
+    # One browser component may unmount/abort while another view of the same
+    # frozen question is already waiting.  Shielding preserves the shared
+    # generation/audit and lets it populate cache; it does not keep the HTTP
+    # request itself alive.
+    return await asyncio.shield(shared)
