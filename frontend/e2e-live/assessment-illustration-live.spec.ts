@@ -127,17 +127,39 @@ test("local real LLM: required CAT is text-first and repeatedly reaches reviewed
       expect(question.illustration ?? null).toBeNull();
       expect(String(question.stem || "")).not.toContain("配图未完成");
 
-      await expect(page.getByText(String(question.stem))).toBeVisible();
+      // The card renders the stem through markdown/LaTeX, so only the plain
+      // prefix before the first formula/markup marker survives as text nodes.
+      const stemPlainPrefix = String(question.stem || "")
+        .split(/[$`#{\n]/)[0]
+        .trim()
+        .slice(0, 12);
+      expect(stemPlainPrefix.length).toBeGreaterThanOrEqual(4);
+      await expect(page.getByText(stemPlainPrefix)).toBeVisible();
       await expect(page.getByTestId("assessment-illustration-generating")).toBeVisible();
-      const answer = page.locator("textarea").first();
-      await expect(answer).toBeEnabled();
-      await answer.fill(`本地真实模型验收 ${run}`);
+      // The server accepts any supported well-formed type when the student did
+      // not pin one, so the answer surface adapts to the delivered question.
+      const isChoice = String(question.q_type ?? question.type ?? "") === "multiple_choice";
+      if (isChoice) {
+        const firstOption = page.locator("button[aria-pressed]").first();
+        await expect(firstOption).toBeEnabled();
+        await firstOption.click();
+      } else {
+        const answer = page.locator("textarea").first();
+        await expect(answer).toBeEnabled();
+        await answer.fill(`本地真实模型验收 ${run}`);
+      }
       await expect(page.getByRole("button", { name: /提交答案|Submit/ })).toBeEnabled();
 
       const illustrationResponse = await illustrationResponsePromise;
       const illustrationElapsedMs = Date.now() - startedAt - textElapsedMs;
       expect(illustrationResponse.status()).toBe(200);
       const illustrationBody = await illustrationResponse.json();
+      console.log("ILLUSTRATION_BODY run=" + run + " "
+        + JSON.stringify({
+          status: illustrationBody.status,
+          code: illustrationBody.code,
+          metrics: illustrationBody.metrics,
+        }));
       expect(illustrationBody.status).toBe("ready");
       expect(illustrationBody.question_id).toBe(questionId);
       expect(illustrationBody.question_revision).toBe(question.question_revision ?? 1);
@@ -150,7 +172,10 @@ test("local real LLM: required CAT is text-first and repeatedly reaches reviewed
       const illustration = page.getByTestId("question-illustration");
       await expect(illustration).toBeVisible({ timeout: 30_000 });
       await expect(page.getByTestId("assessment-illustration-generating")).toHaveCount(0);
-      await expect(answer).toHaveValue(`本地真实模型验收 ${run}`);
+      if (!isChoice) {
+        const answer = page.locator("textarea").first();
+        await expect(answer).toHaveValue(`本地真实模型验收 ${run}`);
+      }
       const naturalWidth = await illustration.getByTestId("question-illustration-image")
         .evaluate((image) => (image as HTMLImageElement).naturalWidth);
       expect(naturalWidth).toBeGreaterThan(0);

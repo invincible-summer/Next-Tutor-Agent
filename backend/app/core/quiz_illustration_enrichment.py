@@ -209,7 +209,9 @@ def _audit_messages(task: S.TaskSnapshot, illustration: QuestionIllustration,
             f"\n规范化题图={json.dumps(illustration.model_dump(mode='json'), ensure_ascii=False)}"
             f"\nallow_repair={str(allow_repair).lower()}。"
             "\n只返回 JSON：passed => {\"status\":\"passed\",\"issues\":[]}；"
-            "失败且 allow_repair=true 可返回 {\"status\":\"repair\",\"issues\":[...],\"illustration\":{...}}；"
+            "失败且 allow_repair=true 可返回 {\"status\":\"repair\",\"issues\":[...],"
+            "\"illustration\":{\"kind\":\"svg\",\"alt\":\"...\",\"caption\":\"...\",\"svg\":\"...\"}}"
+            "（illustration 只含这四个字段，不要回显 sanitizer_version/content_hash/宽高等服务端字段）；"
             "否则 {\"status\":\"failed\",\"issues\":[...]}。不要输出思维链。"
         )},
     ]
@@ -283,7 +285,14 @@ async def _generate_uncached(*, student_id: str, task: S.TaskSnapshot,
                     or budget.remaining_seconds < FINAL_AUDIT_RESERVE_SECONDS
                     or not budget.take_repair()):
                 raise IllustrationValidationError("illustration_audit_failed")
-            repaired = normalize_illustration(audit.get("illustration"))
+            repaired_raw = audit.get("illustration")
+            if isinstance(repaired_raw, dict):
+                # Auditors echo the snapshot they were shown; only the four
+                # model-authored fields may enter re-normalization, otherwise
+                # the snapshot-canonical branch rejects the redrawn SVG.
+                repaired_raw = {key: repaired_raw.get(key)
+                                for key in ("kind", "alt", "caption", "svg")}
+            repaired = normalize_illustration(repaired_raw)
             final_text = await _complete(
                 model, budget, _audit_messages(task, repaired, allow_repair=False),
                 timeout=budget.remaining_seconds, max_tokens=900)

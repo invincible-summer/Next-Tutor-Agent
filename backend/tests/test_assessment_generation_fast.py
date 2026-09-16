@@ -69,6 +69,48 @@ class AssessmentGenerationFastPathTest(unittest.TestCase):
         self.assertNotIn("任务设计者", llm.calls[0]["messages"][0]["content"])
         self.assertIn("出题审核员", llm.calls[1]["messages"][0]["content"])
 
+    def test_auto_type_accepts_model_chosen_supported_type(self):
+        """practice 自动建议 short_answer 时，模型自选的合格题型不得被丢弃。
+
+        live 验收曾因 strict type 过滤把一道完全合格的选择题判为
+        invalid_question_json，CAT 只有一次采样机会，直接掉进保底自检草稿。
+        """
+        from app.agents.assessment.generator import generate_question
+        from app.agents.assessment.state import AssessmentContext, AssessmentGoal
+
+        llm = _LLM([_question(), _audit()])
+        q = asyncio.run(generate_question(
+            AssessmentGoal(concept="牛顿第二定律", purpose="practice",
+                           q_type="", difficulty=2, illustration_request="none"),
+            AssessmentContext(concept="牛顿第二定律", grade="高中",
+                              subject="物理", base_difficulty=2),
+            llm=llm, use_blueprint=False))
+
+        self.assertIsNotNone(q)
+        self.assertFalse(q.id.startswith("q_draft_"))
+        self.assertEqual(q.q_type, "multiple_choice")
+        self.assertIn("题型", llm.calls[0]["messages"][0]["content"])
+
+    def test_explicit_type_still_rejects_mismatched_output(self):
+        from app.agents.assessment.generator import generate_question
+        from app.agents.assessment.state import AssessmentContext, AssessmentGoal
+
+        llm = _LLM([_question(), _audit()])
+        q = asyncio.run(generate_question(
+            AssessmentGoal(concept="牛顿第二定律", purpose="practice",
+                           q_type="short_answer", difficulty=2,
+                           illustration_request="none"),
+            AssessmentContext(concept="牛顿第二定律", grade="高中",
+                              subject="物理", base_difficulty=2),
+            llm=llm, use_blueprint=False))
+
+        # 单次采样被类型过滤拒绝后落到保底自检草稿，而不是把选择题冒充简答题。
+        self.assertIsNotNone(q)
+        self.assertTrue(q.id.startswith("q_draft_"))
+        self.assertEqual(q.q_type, "short_answer")
+        self.assertIn("题型硬性要求", llm.calls[0]["messages"][0]["content"])
+        self.assertEqual(len(llm.calls), 1)
+
     def test_quiz_client_uses_light_model_and_single_retry_lane(self):
         from app.core import config
         from app.core import llm_async

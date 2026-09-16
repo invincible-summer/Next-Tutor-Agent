@@ -239,11 +239,33 @@ async def generate_question(goal: AssessmentGoal, ctx: AssessmentContext, *,
                 str(stem)[:200] for stem in goal.avoid_stems[-6:])
         if grounding:
             prompt += "\n\n[命题事实边界]\n" + grounding
+        # The JSON example alone does not stop models (fast lanes especially)
+        # from swapping in their preferred question type; an explicit contract
+        # line keeps strict requests strict and makes auto selection honest.
+        strict_type = bool(goal.q_type)
+        if strict_type:
+            prompt += (f"\n\n[题型硬性要求] 本题 \"type\" 必须等于 {q_type}，"
+                       "不得改用其他题型；" + ("选择题必须给出字母键 options。"
+                       if q_type == "multiple_choice"
+                       else "非选择题不得输出 options 字段。"))
+        else:
+            prompt += ("\n\n[题型] \"type\" 从 multiple_choice / fill_blank / "
+                       "short_answer 中选择最适合本题考查目标的一种，"
+                       "选定后整题结构必须与该题型一致。")
 
         async def attempt(phase_policy: str, phase_deadline: float):
             def parse(raw: str):
                 candidate = _parse_dict(raw)
-                return [candidate] if candidate and candidate.get("type") == q_type else []
+                if not candidate:
+                    return []
+                actual = str(candidate.get("type") or "")
+                if strict_type:
+                    return [candidate] if actual == q_type else []
+                # Auto-picked types are a server-side suggestion, not a student
+                # requirement — a well-formed question of any supported type is
+                # accepted instead of wasting the single CAT sampling attempt.
+                return [candidate] if actual in {
+                    "multiple_choice", "fill_blank", "short_answer"} else []
             candidates, meta = await generate_verified_questions(
                 BudgetedLLM(llm, budget, call_timeout=12 if cat_mode else None,
                             phase_deadline=phase_deadline),
@@ -252,7 +274,7 @@ async def generate_question(goal: AssessmentGoal, ctx: AssessmentContext, *,
                 temperature=0.3, max_tokens=4500 if phase_policy != "off" else 3500,
                 grounding_context=grounding, illustration_policy=phase_policy,
                 max_attempts=1, repair_max_tokens=4500 if phase_policy != "off" else 3500,
-                required_type=q_type)
+                required_type=q_type if strict_type else "")
             for candidate in candidates:
                 try:
                     result = _lift(candidate, meta, goal=goal, ctx=ctx, concept=concept,

@@ -53,8 +53,46 @@ _PATH_ARITY = {"M": 2, "L": 2, "H": 1, "V": 1, "C": 6,
 _COLORS = {"none": "none", "black": "#000", "#000": "#000",
            "#000000": "#000", "currentColor": "#000", "white": "#fff",
            "#fff": "#fff", "#ffffff": "#fff"}
+# Real models routinely shade with dark greys or one accent colour; the
+# monochrome look stays a prompt-level recommendation, not a hard reject.
+_NAMED_COLORS = {
+    "gray": "#808080", "grey": "#808080", "silver": "#c0c0c0",
+    "dimgray": "#696969", "dimgrey": "#696969", "darkgray": "#a9a9a9",
+    "darkgrey": "#a9a9a9", "lightgray": "#d3d3d3", "lightgrey": "#d3d3d3",
+    "gainsboro": "#dcdcdc", "whitesmoke": "#f5f5f5", "red": "#f00",
+    "darkred": "#8b0000", "crimson": "#dc143c", "firebrick": "#b22222",
+    "tomato": "#ff6347", "blue": "#00f", "navy": "#000080",
+    "royalblue": "#4169e1", "dodgerblue": "#1e90ff", "steelblue": "#4682b4",
+    "skyblue": "#87ceeb", "green": "#008000", "darkgreen": "#006400",
+    "seagreen": "#2e8b57", "limegreen": "#32cd32", "teal": "#008080",
+    "orange": "#ffa500", "darkorange": "#ff8c00", "gold": "#ffd700",
+    "yellow": "#ff0", "purple": "#800080", "indigo": "#4b0082",
+    "violet": "#ee82ee", "pink": "#ffc0cb", "brown": "#a52a2a",
+    "sienna": "#a0522d", "maroon": "#800000", "olive": "#808000",
+    "cyan": "#0ff", "magenta": "#f0f", "darkblue": "#00008b",
+}
+_HEX_COLOR_RE = re.compile(r"#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})")
+_RGB_COLOR_RE = re.compile(
+    r"rgba?\(\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})\s*"
+    r"(?:,\s*(?:0(?:\.\d+)?|1(?:\.0+)?)\s*)?\)")
 _ID_RE = re.compile(r"[A-Za-z_][A-Za-z0-9_.-]{0,63}")
 _LOCAL_MARKER_RE = re.compile(r"url\(\s*#([A-Za-z_][A-Za-z0-9_.-]{0,63})\s*\)")
+
+
+def _color(raw: str) -> str:
+    value = raw.strip()
+    if value in _COLORS:
+        return _COLORS[value]
+    if _HEX_COLOR_RE.fullmatch(value):
+        return value.lower()
+    match = _RGB_COLOR_RE.fullmatch(value)
+    if match:
+        channels = [int(part) for part in match.groups()]
+        if max(channels) <= 255:
+            return "#{:02x}{:02x}{:02x}".format(*channels)
+    if value in _NAMED_COLORS:
+        return _NAMED_COLORS[value]
+    _reject("svg_forbidden_attribute")
 
 
 class IllustrationValidationError(ValueError):
@@ -167,9 +205,7 @@ def _attribute(name: str, raw: str) -> str:
     if "url(" in value.lower():
         _reject("svg_forbidden_attribute")
     if name in ("fill", "stroke"):
-        if value not in _COLORS:
-            _reject("svg_forbidden_attribute")
-        return _COLORS[value]
+        return _color(value)
     enums = {"stroke-linecap": {"butt", "round", "square"},
              "stroke-linejoin": {"miter", "round", "bevel"},
              "text-anchor": {"start", "middle", "end"},
@@ -189,7 +225,7 @@ def _attribute(name: str, raw: str) -> str:
     elif name == "d":
         _path(value)
     else:
-        limits = {"stroke-width": (0.5, 4), "font-size": (12, 28)}
+        limits = {"stroke-width": (0.25, 8), "font-size": (9, 40)}
         low, high = limits.get(name, (0 if name in {
             "width", "height", "rx", "ry", "r"} else -4096, 4096))
         _number(value, low, high)
@@ -238,13 +274,23 @@ def normalize_svg(raw_svg: str, *, alt: str = "", caption: str = "") -> Normaliz
     if source.tag != f"{{{SVG_NS}}}svg":
         _reject("svg_forbidden_node")
     box = _numbers(source.attrib.get("viewBox", ""), limit=4)
-    if len(box) != 4 or box[:2] != [0, 0]:
+    if len(box) != 4 or box[2] <= 0 or box[3] <= 0:
         _reject()
-    width, height = box[2:]
-    if (not width.is_integer() or not height.is_integer()
-            or not 320 <= width <= 960 or not 200 <= height <= 720
-            or not 0.75 <= width / height <= 3):
-        _reject()
+    # Off-canvas viewports (slim axis strips, non-zero origins, floats) used
+    # to be hard rejects; browsers render them fine, so normalize instead:
+    # uniform-scale oversized art down, then pad/centre it onto a canonical
+    # 320..960 x 200..720 canvas.  Art already in range stays byte-identical.
+    min_x, min_y, raw_w, raw_h = box
+    scale = min(1.0, 960.0 / raw_w, 720.0 / raw_h)
+    if scale < 0.1:
+        _reject("svg_budget_exceeded")
+    content_w, content_h = raw_w * scale, raw_h * scale
+    width = min(960, max(320, int(math.ceil(content_w))))
+    height = min(720, max(200, int(math.ceil(content_h))))
+    if width / height > 3:
+        height = min(720, max(200, int(math.ceil(width / 3))))
+    elif width / height < 0.75:
+        width = min(960, max(320, int(math.ceil(height * 0.75))))
     counters = {"nodes": 0, "text": 0, "segments": 0, "shapes": 0}
     marker_ids: set[str] = set()
     marker_refs: set[str] = set()
@@ -370,6 +416,23 @@ def normalize_svg(raw_svg: str, *, alt: str = "", caption: str = "") -> Normaliz
     root.attrib = {"viewBox": f"0 0 {int(width)} {int(height)}",
                    "width": str(int(width)), "height": str(int(height)),
                    "preserveAspectRatio": "xMidYMid meet"}
+    # Fit the (possibly rescaled) source viewport onto the canonical canvas:
+    # one wrapper <g> carries the translate/scale so no coordinate, stroke or
+    # font value inside the drawing has to be rewritten.
+    off_x = (width - content_w) / 2 - min_x * scale
+    off_y = (height - content_h) / 2 - min_y * scale
+    if abs(off_x) >= 0.01 or abs(off_y) >= 0.01 or scale != 1.0:
+        wrapper = ET.Element(f"{{{SVG_NS}}}g")
+        parts = []
+        if abs(off_x) >= 0.01 or abs(off_y) >= 0.01:
+            parts.append(f"translate({off_x:.2f} {off_y:.2f})")
+        if scale != 1.0:
+            parts.append(f"scale({scale:.4f})")
+        wrapper.set("transform", " ".join(parts))
+        for child in list(root):
+            root.remove(child)
+            wrapper.append(child)
+        root.append(wrapper)
     # Explicit shape/text defaults, without accepting arbitrary CSS or fonts.
     def defaults(node: ET.Element, inherited: dict[str, str]) -> None:
         tag = node.tag.split("}")[-1]
