@@ -11,7 +11,7 @@ CAT 题目分为两个彼此独立的阶段：
 
 `TaskSnapshot`、`rubric_hash` 与 `question_revision` 仍是冻结学习证据，不因后到的插图改变。插图属于题目身份上的附加视觉 enrichment；它不得增加文字题中没有的解题必需条件，也不得泄露正确答案或待求结论。
 
-## 2. API 与所有权
+## 2. API、所有权与历史读取
 
 请求：
 
@@ -20,7 +20,14 @@ POST /api/v1/assessment/questions/{question_id}/illustration
 {"question_revision": 1}
 ```
 
-服务端只信任 JWT 解析出的 `student_id`。它从该学生的 learning-evidence journal 读取权威 `TaskSnapshot`，并要求题目是某个 CAT instance 的**最后/当前 question_ref**；历史题不能通过手工调用重新触发生图。客户端不能提交题干、答案或 SVG。
+服务端只信任 JWT 解析出的 `student_id`，并从该学生的 learning-evidence journal 读取权威 `TaskSnapshot`。客户端不能提交题干、答案或 SVG。
+
+新生成与历史读取采用不同权限：
+
+- 题目必须真实属于该学生的某个 CAT instance；否则 404。
+- **只有进行中 CAT 的当前/最后 question_ref 可以启动新的 LLM enrichment**。旧题、已结束测评的最后一题、手工重放请求都不能重新烧模型预算。
+- 已经通过审核并写入 cache 的历史 enrichment 仍可只读返回，即使账户或运维后来关闭“生成新插图”；关闭开关只禁止新生成，不破坏已经交付的历史题面。
+- 已经通过 active-current 校验并开始执行的单次 enrichment 可以在学生提交答案/结束本轮后自然完成并写 cache；后续重放不会再次生成。
 
 响应状态：
 
@@ -29,11 +36,11 @@ POST /api/v1/assessment/questions/{question_id}/illustration
 - `failed`：18 秒预算、SVG 校验或语义审图未通过。失败只影响图，文字题仍可作答；
 - `illustration_disabled`：required 请求与账户/运维开关冲突，按现有 409 合同返回。
 
-成功结果按 `(student_id, question_id, question_revision)` 写入账户私有 cache；同题并发请求由 keyed asyncio lock 合并，后续刷新直接命中 cache，不再烧模型调用。
+成功和 `not_required` 决策按 `(student_id, question_id, question_revision)` 写入账户私有 cache。并发控制采用真正的 **single-flight**：同题同时到达的请求 await 同一个后台 Task，因此成功与失败都只消耗一套 LLM 调用；单个浏览器请求取消不会取消共享底层生成。共享 Task 完成后从内存 registry 自动移除，只有后续显式重试才允许新一轮尝试。
 
 ## 3. 预算合同
 
-总体验预算固定为 45 秒上限：
+从用户点击开始到题图最终完成的两阶段预算上限为 45 秒：
 
 - 文字题：≤27 秒；
 - 插图：≤18 秒，最多 3 次 LLM 调用。
@@ -49,7 +56,7 @@ POST /api/v1/assessment/questions/{question_id}/illustration
 
 ## 4. SVG 安全子集
 
-`app/core/quiz_illustration.py` 仍使用 defusedxml 解析后**重新构建** canonical SVG，而非透传模型字符串。当前 `sanitizer_version=2` 在原闭集基础上增加常见、安全的绘图能力：
+`app/core/quiz_illustration.py` 使用 defusedxml 解析后**重新构建** canonical SVG，而非透传模型字符串。当前 `sanitizer_version=2` 在原闭集基础上增加常见、安全的绘图能力：
 
 - `<defs>` + `<marker>`；
 - `marker-start|marker-mid|marker-end="url(#local-id)"`，仅允许本 SVG 内本地 id；
@@ -60,13 +67,15 @@ POST /api/v1/assessment/questions/{question_id}/illustration
 
 前端 `QuestionIllustration` 同时接受 sanitizer v1/v2，并始终以 `img` 的 SVG data URI 图片上下文渲染，不把模型 SVG 以内联 DOM 方式执行。
 
-## 5. 前端状态
+## 5. 前端状态与切换语义
 
 测评页收到文字题后立即进入可答状态。插图有独立局部状态：
 
 `idle -> generating -> ready | not_required | failed`
 
-`generating` 显示“文字题已可作答，正在生成并审核配图”，但输入、选项和提交按钮不被禁用；`ready` 原位显示图；`failed` 显示非阻塞失败提示和重试入口。题目身份变化会终止旧请求结果写回，避免上一题图串到下一题；快速提交进入 feedback 后，反馈卡继续监听同一题的 enrichment。
+`generating` 显示“文字题已可作答，正在生成并审核配图”，但输入、选项和提交按钮不被禁用；`ready` 原位显示图；`failed` 显示非阻塞失败提示和重试入口。
+
+`QuestionCard` 以题目序号 key 重挂，旧请求结果不会写入下一题。答题后切到 `FeedbackCard` 时会重新订阅同一题 enrichment；服务端 single-flight/cache 保证这不是第二次生成。移动端聊天“当前资料”侧栏默认只显示轻量入口，不再以 fixed 抽屉覆盖题卡和提交按钮，用户主动打开时才出现遮罩与抽屉。
 
 ## 6. 测试边界
 
