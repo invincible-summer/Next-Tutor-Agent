@@ -24,8 +24,14 @@ ET.register_namespace("", SVG_NS)
 
 PRESENTATION = {"stroke", "fill", "stroke-width", "stroke-linecap",
                 "stroke-linejoin", "stroke-dasharray", "transform"}
+STYLE_PRESENTATION = PRESENTATION - {"transform"}
+MARKER_LINKS = {"marker-start", "marker-mid", "marker-end"}
+ROOT_METADATA = {"version", "role", "aria-label", "aria-labelledby", "focusable"}
 ELEMENT_ATTRIBUTES = {
-    "svg": {"viewBox", "width", "height", "preserveAspectRatio"},
+    "svg": {"viewBox", "width", "height", "preserveAspectRatio"} | ROOT_METADATA,
+    "defs": set(),
+    "marker": {"id", "markerWidth", "markerHeight", "refX", "refY",
+               "orient", "markerUnits", "viewBox", "preserveAspectRatio"},
     "g": set(), "line": {"x1", "y1", "x2", "y2"},
     "rect": {"x", "y", "width", "height", "rx", "ry"},
     "circle": {"cx", "cy", "r"}, "ellipse": {"cx", "cy", "rx", "ry"},
@@ -34,8 +40,10 @@ ELEMENT_ATTRIBUTES = {
     "tspan": {"x", "y", "dx", "dy", "font-size", "baseline-shift"},
     "title": set(), "desc": set(),
 }
-for _tag in set(ELEMENT_ATTRIBUTES) - {"svg", "title", "desc"}:
-    ELEMENT_ATTRIBUTES[_tag] |= PRESENTATION
+for _tag in set(ELEMENT_ATTRIBUTES) - {"svg", "defs", "marker", "title", "desc"}:
+    ELEMENT_ATTRIBUTES[_tag] |= PRESENTATION | {"style"}
+for _tag in {"line", "polyline", "polygon", "path"}:
+    ELEMENT_ATTRIBUTES[_tag] |= MARKER_LINKS
 
 _NUMBER = r"[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?"
 _NUM_RE = re.compile(_NUMBER)
@@ -45,6 +53,8 @@ _PATH_ARITY = {"M": 2, "L": 2, "H": 1, "V": 1, "C": 6,
 _COLORS = {"none": "none", "black": "#000", "#000": "#000",
            "#000000": "#000", "currentColor": "#000", "white": "#fff",
            "#fff": "#fff", "#ffffff": "#fff"}
+_ID_RE = re.compile(r"[A-Za-z_][A-Za-z0-9_.-]{0,63}")
+_LOCAL_MARKER_RE = re.compile(r"url\(\s*#([A-Za-z_][A-Za-z0-9_.-]{0,63})\s*\)")
 
 
 class IllustrationValidationError(ValueError):
@@ -141,9 +151,20 @@ def _transform(raw: str) -> None:
         _reject()
 
 
+def _marker_link(value: str) -> tuple[str, str]:
+    match = _LOCAL_MARKER_RE.fullmatch(value.strip())
+    if not match:
+        _reject("svg_forbidden_attribute")
+    return f"url(#{match.group(1)})", match.group(1)
+
+
 def _attribute(name: str, raw: str) -> str:
     value = raw.strip()
-    if len(value) > 2048 or "url(" in value.lower():
+    if len(value) > 2048:
+        _reject("svg_forbidden_attribute")
+    if name in MARKER_LINKS:
+        return _marker_link(value)[0]
+    if "url(" in value.lower():
         _reject("svg_forbidden_attribute")
     if name in ("fill", "stroke"):
         if value not in _COLORS:
@@ -173,6 +194,25 @@ def _attribute(name: str, raw: str) -> str:
             "width", "height", "rx", "ry", "r"} else -4096, 4096))
         _number(value, low, high)
     return value
+
+
+def _style(raw: str) -> dict[str, str]:
+    if len(raw) > 1024 or any(token in raw for token in ("{", "}", "@", "/*", "*/")):
+        _reject("svg_forbidden_attribute")
+    out: dict[str, str] = {}
+    for declaration in raw.split(";"):
+        if not declaration.strip():
+            continue
+        if ":" not in declaration:
+            _reject("svg_forbidden_attribute")
+        name, value = declaration.split(":", 1)
+        name = name.strip().lower()
+        if name not in STYLE_PRESENTATION:
+            _reject("svg_forbidden_attribute")
+        out[name] = _attribute(name, value)
+    if not out:
+        _reject("svg_forbidden_attribute")
+    return out
 
 
 @dataclass(frozen=True)
@@ -206,31 +246,94 @@ def normalize_svg(raw_svg: str, *, alt: str = "", caption: str = "") -> Normaliz
             or not 0.75 <= width / height <= 3):
         _reject()
     counters = {"nodes": 0, "text": 0, "segments": 0, "shapes": 0}
+    marker_ids: set[str] = set()
+    marker_refs: set[str] = set()
 
-    def copy(node: ET.Element, depth: int, parent: str) -> ET.Element | None:
+    def copy(node: ET.Element, depth: int, parent: str,
+             in_defs: bool = False) -> ET.Element | None:
         counters["nodes"] += 1
         if counters["nodes"] > MAX_NODES or depth > MAX_DEPTH:
             _reject("svg_budget_exceeded")
         if not isinstance(node.tag, str) or not node.tag.startswith(f"{{{SVG_NS}}}"):
             _reject("svg_forbidden_node")
         tag = node.tag[len(SVG_NS) + 2:]
-        if (tag not in ELEMENT_ATTRIBUTES or (tag == "svg" and depth != 1)
-                or (tag == "tspan" and parent not in {"text", "tspan"})
-                or (parent in {"text", "tspan"} and tag != "tspan")
-                or (parent not in {"", "svg", "g", "text", "tspan"})):
+        if tag not in ELEMENT_ATTRIBUTES or (tag == "svg" and depth != 1):
+            _reject("svg_forbidden_node")
+        if tag == "defs" and parent not in {"svg", "g"}:
+            _reject("svg_forbidden_node")
+        if tag == "marker" and parent != "defs":
+            _reject("svg_forbidden_node")
+        if parent == "defs" and tag != "marker":
+            _reject("svg_forbidden_node")
+        if tag == "tspan" and parent not in {"text", "tspan"}:
+            _reject("svg_forbidden_node")
+        if parent in {"text", "tspan"} and tag != "tspan":
+            _reject("svg_forbidden_node")
+        if parent not in {"", "svg", "g", "defs", "marker", "text", "tspan"}:
             _reject("svg_forbidden_node")
         out = ET.Element(node.tag)
+        style_raw = ""
         for key, value in node.attrib.items():
             if key not in ELEMENT_ATTRIBUTES[tag]:
                 _reject("svg_forbidden_attribute")
             if tag == "svg":
                 continue  # canonical root properties are set below
-            out.set(key, _attribute(key, value))
+            if key == "style":
+                style_raw = value
+                continue
+            if tag == "marker":
+                if key == "id":
+                    if not _ID_RE.fullmatch(value):
+                        _reject("svg_forbidden_attribute")
+                    if value in marker_ids:
+                        _reject("svg_forbidden_attribute")
+                    marker_ids.add(value)
+                    out.set("id", value)
+                    continue
+                if key in {"markerWidth", "markerHeight"}:
+                    _number(value, 1, 32)
+                    out.set(key, value.strip())
+                    continue
+                if key in {"refX", "refY"}:
+                    _number(value, -64, 64)
+                    out.set(key, value.strip())
+                    continue
+                if key == "markerUnits":
+                    if value not in {"strokeWidth", "userSpaceOnUse"}:
+                        _reject("svg_forbidden_attribute")
+                    out.set(key, value)
+                    continue
+                if key == "orient":
+                    if value not in {"auto", "auto-start-reverse"}:
+                        _number(value, -360, 360)
+                    out.set(key, value.strip())
+                    continue
+                if key == "viewBox":
+                    values = _numbers(value, limit=4)
+                    if len(values) != 4 or values[2] <= 0 or values[3] <= 0:
+                        _reject()
+                    out.set(key, " ".join(str(int(v)) if v.is_integer() else str(v) for v in values))
+                    continue
+                if key == "preserveAspectRatio":
+                    if value not in {"xMidYMid meet", "xMidYMid slice", "none"}:
+                        _reject("svg_forbidden_attribute")
+                    out.set(key, value)
+                    continue
+            normalized = _attribute(key, value)
+            out.set(key, normalized)
+            if key in MARKER_LINKS:
+                marker_refs.add(_marker_link(normalized)[1])
+        if style_raw:
+            for key, value in _style(style_raw).items():
+                out.set(key, value)
+        if tag == "marker" and "id" not in out.attrib:
+            _reject("svg_forbidden_attribute")
         if tag in {"title", "desc"}:
             if len(node):
                 _reject("svg_forbidden_node")
             return None  # regenerate accessible text from the audited fields
-        if tag not in {"svg", "g", "text", "tspan"}:
+        nested_defs = in_defs or tag in {"defs", "marker"}
+        if tag not in {"svg", "g", "defs", "marker", "text", "tspan"} and not nested_defs:
             counters["shapes"] += 1
         if tag == "path":
             counters["segments"] += _path(node.attrib.get("d", ""))
@@ -247,7 +350,7 @@ def normalize_svg(raw_svg: str, *, alt: str = "", caption: str = "") -> Normaliz
         elif (node.text or "").strip():
             _reject("svg_forbidden_node")
         for child in node:
-            rebuilt = copy(child, depth + 1, tag)
+            rebuilt = copy(child, depth + 1, tag, nested_defs)
             if rebuilt is not None:
                 out.append(rebuilt)
                 if tag in {"text", "tspan"}:
@@ -262,16 +365,18 @@ def normalize_svg(raw_svg: str, *, alt: str = "", caption: str = "") -> Normaliz
     root = copy(source, 1, "")
     if root is None or not counters["shapes"]:
         _reject("svg_invalid_geometry")
+    if not marker_refs.issubset(marker_ids):
+        _reject("svg_forbidden_attribute")
     root.attrib = {"viewBox": f"0 0 {int(width)} {int(height)}",
                    "width": str(int(width)), "height": str(int(height)),
                    "preserveAspectRatio": "xMidYMid meet"}
-    # Explicit shape/text defaults, without accepting CSS or external fonts.
+    # Explicit shape/text defaults, without accepting arbitrary CSS or fonts.
     def defaults(node: ET.Element, inherited: dict[str, str]) -> None:
         tag = node.tag.split("}")[-1]
         if tag in {"text", "tspan"}:
             node.attrib.setdefault("fill", inherited.get("fill", "#000"))
             node.attrib.setdefault("font-size", "18")
-        elif tag not in {"svg", "g"}:
+        elif tag not in {"svg", "g", "defs", "marker"}:
             for key, default in (("fill", "none"), ("stroke", "#000"),
                                  ("stroke-width", "2")):
                 node.attrib.setdefault(key, inherited.get(key, default))
@@ -307,7 +412,7 @@ def _hash(svg: str, alt: str, caption: str) -> str:
 
 class QuestionIllustration(GeneratedIllustration):
     schema_version: Literal[1] = 1
-    sanitizer_version: Literal[1] = 1
+    sanitizer_version: Literal[1, 2] = 2
     content_hash: str
     width: int
     height: int
@@ -365,6 +470,8 @@ def normalize_question_illustration(question: dict, *, policy: str) -> dict:
 def illustration_grammar() -> str:
     """The prompt and validator share one element/attribute allowlist."""
     return json.dumps({"elements": {k: sorted(v) for k, v in ELEMENT_ATTRIBUTES.items()},
+                       "local_marker_refs_only": True,
+                       "style_properties": sorted(STYLE_PRESENTATION),
                        "max_utf8_bytes": MAX_SVG_BYTES, "max_nodes": MAX_NODES,
                        "max_depth": MAX_DEPTH, "max_path_segments": MAX_SEGMENTS},
                       ensure_ascii=False, sort_keys=True)
