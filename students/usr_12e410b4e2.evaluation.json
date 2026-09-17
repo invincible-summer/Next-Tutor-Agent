@@ -2,8 +2,8 @@
   "strategies": [],
   "proposals": [],
   "advisor": {
-    "traces_since_last": 1,
+    "traces_since_last": 3,
     "last_ts": 1789628421.509732
   },
-  "updated_at": 1789628444.9435806
+  "updated_at": 1789646993.7986307
 }

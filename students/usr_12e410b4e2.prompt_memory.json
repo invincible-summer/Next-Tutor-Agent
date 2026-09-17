@@ -204,6 +204,20 @@
       },
       "tone_preference": "",
       "explanation_preference": ""
+    },
+    {
+      "session_id": "chat_20260917_200837_去学质点模型",
+      "workspace_id": "ws_20260916_012039_大学物理学",
+      "created_at": 1789646935.5197802,
+      "updated_at": 1789646993.7917314,
+      "has_contribution": true,
+      "outcomes": {
+        "correct": 0,
+        "wrong": 0,
+        "engaged": 2
+      },
+      "tone_preference": "",
+      "explanation_preference": ""
     }
   ],
   "compacted_session_ids": [
@@ -224,5 +238,5 @@
   "compaction_generation": 12,
   "last_compacted_at": 1789541723.3925579,
   "core_needs_llm": false,
-  "updated_at": 1789628697.1073718
+  "updated_at": 1789646993.791732
 }

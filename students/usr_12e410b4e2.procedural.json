@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated_at": 1789628444.930232,
+  "updated_at": 1789646993.784399,
   "items": [
     {
       "strategy": "introduction",
@@ -29,17 +29,17 @@
     {
       "strategy": "introduction",
       "subject": "物理",
-      "success_rate": 0.998650472334683,
-      "trials": 37,
-      "last_used_ts": 1789628444.930191,
+      "success_rate": 0.9987179487179488,
+      "trials": 38,
+      "last_used_ts": 1789646935.568516,
       "scope": "subject"
     },
     {
       "strategy": "practice",
       "subject": "物理",
-      "success_rate": 0.9916666666666669,
-      "trials": 14,
-      "last_used_ts": 1789499938.960807,
+      "success_rate": 0.9926470588235297,
+      "trials": 15,
+      "last_used_ts": 1789646993.7843218,
       "scope": "subject"
     }
   ]

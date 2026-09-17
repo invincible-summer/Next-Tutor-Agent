@@ -218,3 +218,7 @@
 {"ts": 1789628421.5262756, "student_id": "usr_12e410b4e2", "session_id": "chat_20260917_145948_去学质点模型", "concept": "质点模型", "type": "quality", "feedback": "none", "response_length": 489, "note": "score=0.85 failure=none"}
 {"ts": 1789628444.9505043, "student_id": "usr_12e410b4e2", "session_id": "chat_20260917_150038_学习质点模型", "concept": "质点模型", "type": "response", "feedback": "none", "response_length": 540, "note": "540 chars"}
 {"ts": 1789628444.950555, "student_id": "usr_12e410b4e2", "session_id": "chat_20260917_150038_学习质点模型", "concept": "质点模型", "type": "quality", "feedback": "none", "response_length": 540, "note": "score=0.85 failure=none"}
+{"ts": 1789646935.597971, "student_id": "usr_12e410b4e2", "session_id": "chat_20260917_200837_去学质点模型", "concept": "质点模型", "type": "response", "feedback": "none", "response_length": 1200, "note": "1200 chars"}
+{"ts": 1789646935.5980213, "student_id": "usr_12e410b4e2", "session_id": "chat_20260917_200837_去学质点模型", "concept": "质点模型", "type": "quality", "feedback": "none", "response_length": 1200, "note": "score=0.85 failure=none"}
+{"ts": 1789646993.8056266, "student_id": "usr_12e410b4e2", "session_id": "chat_20260917_200837_去学质点模型", "concept": "质点模型", "type": "response", "feedback": "none", "response_length": 45, "note": "45 chars"}
+{"ts": 1789646993.8056755, "student_id": "usr_12e410b4e2", "session_id": "chat_20260917_200837_去学质点模型", "concept": "质点模型", "type": "quality", "feedback": "none", "response_length": 45, "note": "score=0.85 failure=none"}

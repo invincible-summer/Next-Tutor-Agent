@@ -718,8 +718,20 @@
         "outcome": "engaged",
         "ts": 1789628444.9161932,
         "note": "质点模型"
+      },
+      {
+        "mode": "introduction",
+        "outcome": "engaged",
+        "ts": 1789646935.5330608,
+        "note": "质点模型"
+      },
+      {
+        "mode": "practice",
+        "outcome": "engaged",
+        "ts": 1789646993.7650907,
+        "note": "质点模型"
       }
     ]
   },
-  "updated_at": 1789628444.916211
+  "updated_at": 1789646993.7651274
 }
