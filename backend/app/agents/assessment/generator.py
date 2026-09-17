@@ -8,7 +8,11 @@ from typing import Any
 
 from ...core.config import settings
 from ...core.quiz_generation_budget import BudgetedLLM, GenerationBudget
-from ...core.quiz_illustration_policy import IllustrationDisabled, resolve_illustration_policy
+from ...core.quiz_illustration_policy import (
+    IllustrationDisabled,
+    effective_quiz_verify_mode,
+    resolve_illustration_policy,
+)
 from ...core.quiz_verify import freeze_rubric, generate_verified_questions, is_well_formed, verify_questions
 from ...prompts.registry import get as _prompt
 from .question import Question, QuestionType
@@ -153,8 +157,14 @@ def _lift(candidate: dict[str, Any], meta: dict[str, Any], *,
     verification = {**meta, **(raw.get("verification") or {}), **budget.summary()}
     verified = meta.get("critic") == "ok" and verification.get("status") == "passed"
     verification["answer_verified"] = verified
-    prefix = "q_" if verified else "q_draft_"
-    raw["id"] = prefix + uuid.uuid4().hex[:24]
+    if not verified:
+        # A06: unreviewed ≠ rejected.  A structurally valid question that the
+        # critic could not confirm (critic error, skipped item, or an
+        # intentionally disabled critic lane) is still delivered as a normal
+        # answerable question, honestly marked unreviewed.  The dead-end
+        # q_draft_ marker is reserved for the local self-check fallback.
+        verification["status"] = "unreviewed"
+    raw["id"] = "q_" + uuid.uuid4().hex[:24]
     result = Question.from_quiz_dict(raw, concept=concept, difficulty=difficulty)
     result.assesses = list(goal.assesses)
     result.forbidden = list(goal.forbidden)
@@ -199,6 +209,7 @@ async def generate_question(goal: AssessmentGoal, ctx: AssessmentContext, *,
     if not concept:
         return None
     policy = resolve_illustration_policy(student_id, goal.illustration_request)
+    verify_mode = effective_quiz_verify_mode(student_id)
     if isinstance(llm, BudgetedLLM):
         budget = llm.budget
         llm = llm.llm
@@ -276,7 +287,8 @@ async def generate_question(goal: AssessmentGoal, ctx: AssessmentContext, *,
                 temperature=0.3, max_tokens=4500 if phase_policy != "off" else 3500,
                 grounding_context=grounding, illustration_policy=phase_policy,
                 max_attempts=1, repair_max_tokens=4500 if phase_policy != "off" else 3500,
-                required_type=q_type if strict_type else "")
+                required_type=q_type if strict_type else "",
+                verify_mode=verify_mode)
             last_meta.clear()
             last_meta.update(meta)
             for candidate in candidates:

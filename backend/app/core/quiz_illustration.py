@@ -23,10 +23,17 @@ MAX_SEGMENTS = 800
 ET.register_namespace("", SVG_NS)
 
 PRESENTATION = {"stroke", "fill", "stroke-width", "stroke-linecap",
-                "stroke-linejoin", "stroke-dasharray", "transform"}
+                "stroke-linejoin", "stroke-dasharray", "transform",
+                "stroke-opacity", "fill-opacity", "opacity",
+                "font-family", "font-weight", "font-style", "font-size",
+                "text-anchor", "stroke-miterlimit", "letter-spacing",
+                "word-spacing", "dominant-baseline"}
 STYLE_PRESENTATION = PRESENTATION - {"transform"}
 MARKER_LINKS = {"marker-start", "marker-mid", "marker-end"}
 ROOT_METADATA = {"version", "role", "aria-label", "aria-labelledby", "focusable"}
+# A namespace declaration alone (e.g. xmlns:xlink emitted "just in case") adds
+# no active content; the elements/links it would enable stay rejected below.
+ROOT_IGNORABLE = {"{http://www.w3.org/2000/xmlns/}xlink"}
 ELEMENT_ATTRIBUTES = {
     "svg": {"viewBox", "width", "height", "preserveAspectRatio"} | ROOT_METADATA,
     "defs": set(),
@@ -36,7 +43,7 @@ ELEMENT_ATTRIBUTES = {
     "rect": {"x", "y", "width", "height", "rx", "ry"},
     "circle": {"cx", "cy", "r"}, "ellipse": {"cx", "cy", "rx", "ry"},
     "polyline": {"points"}, "polygon": {"points"}, "path": {"d"},
-    "text": {"x", "y", "text-anchor", "font-size"},
+    "text": {"x", "y", "dx", "dy", "text-anchor", "font-size"},
     "tspan": {"x", "y", "dx", "dy", "font-size", "baseline-shift"},
     "title": set(), "desc": set(),
 }
@@ -196,6 +203,33 @@ def _marker_link(value: str) -> tuple[str, str]:
     return f"url(#{match.group(1)})", match.group(1)
 
 
+_FONT_FAMILY_GENERIC = ("sans-serif", "serif", "monospace")
+
+
+def _font_family(raw: str) -> str:
+    """Canonicalise any family list to one generic family.
+
+    Browsers need an installed font for a literal family name, which the
+    canonical SVG cannot guarantee; mapping to the closest generic family
+    keeps the drawing valid everywhere instead of rejecting the SVG.
+    """
+    first = raw.split(",")[0].strip().strip("\"'").lower()
+    if "mono" in first or "consol" in first:
+        return "monospace"
+    if "serif" in first and "sans" not in first:
+        return "serif"
+    return "sans-serif"
+
+
+def _px_number(raw: str, low: float = -4096, high: float = 4096) -> float:
+    # Presentation/geometry lengths legally carry a px unit in browsers
+    # (font-size="18px"); geometry lists (points/d/viewBox) stay unitless.
+    value = raw.strip()
+    if value.endswith("px"):
+        value = value[:-2].strip()
+    return _number(value, low, high)
+
+
 def _attribute(name: str, raw: str) -> str:
     value = raw.strip()
     if len(value) > 2048:
@@ -209,16 +243,41 @@ def _attribute(name: str, raw: str) -> str:
     enums = {"stroke-linecap": {"butt", "round", "square"},
              "stroke-linejoin": {"miter", "round", "bevel"},
              "text-anchor": {"start", "middle", "end"},
-             "baseline-shift": {"sub", "super", "0"}}
+             "baseline-shift": {"sub", "super", "0"},
+             "font-style": {"normal", "italic", "oblique"},
+             "dominant-baseline": {"auto", "middle", "central", "hanging",
+                                   "ideographic", "alphabetic",
+                                   "mathematical"},
+             "font-family": None}
     if name in enums:
-        if value not in enums[name]:
+        allowed = enums[name]
+        if allowed is None:
+            return _font_family(value)
+        if value not in allowed:
             _reject("svg_forbidden_attribute")
-    elif name == "transform":
+        return value
+    if name == "transform":
         _transform(value)
     elif name == "stroke-dasharray":
         values = _numbers(value, limit=8)
         if min(values) < 0 or not any(values):
             _reject()
+    elif name in ("opacity", "fill-opacity", "stroke-opacity"):
+        _number(value, 0, 1)
+    elif name == "stroke-miterlimit":
+        _number(value, 1, 100)
+    elif name in ("letter-spacing", "word-spacing"):
+        if value != "normal":
+            _number(value, -100, 100)
+    elif name == "font-weight":
+        if value not in {"normal", "bold", "bolder", "lighter"}:
+            if not re.fullmatch(r"[1-9]00", value):
+                _reject("svg_forbidden_attribute")
+    elif name in ("dx", "dy"):
+        values = _numbers(value, limit=4)
+        if any(abs(v) > 2000 for v in values):
+            _reject()
+        return " ".join(str(v) for v in values)
     elif name == "points":
         if len(_numbers(value)) % 2:
             _reject()
@@ -226,9 +285,15 @@ def _attribute(name: str, raw: str) -> str:
         _path(value)
     else:
         limits = {"stroke-width": (0.25, 8), "font-size": (9, 40)}
-        low, high = limits.get(name, (0 if name in {
-            "width", "height", "rx", "ry", "r"} else -4096, 4096))
-        _number(value, low, high)
+        if name in limits or name in {
+                "width", "height", "rx", "ry", "r", "opacity",
+                "fill-opacity", "stroke-opacity", "stroke-miterlimit",
+                "letter-spacing", "word-spacing"}:
+            low, high = limits.get(name, (0 if name in {
+                "width", "height", "rx", "ry", "r"} else -4096, 4096))
+            _px_number(value, low, high)
+            return value[:-2].strip() if value.endswith("px") else value
+        _number(value, -4096, 4096)
     return value
 
 
@@ -320,6 +385,8 @@ def normalize_svg(raw_svg: str, *, alt: str = "", caption: str = "") -> Normaliz
         out = ET.Element(node.tag)
         style_raw = ""
         for key, value in node.attrib.items():
+            if tag == "svg" and key in ROOT_IGNORABLE:
+                continue  # inert namespace declaration; canonical root rebuilt below
             if key not in ELEMENT_ATTRIBUTES[tag]:
                 _reject("svg_forbidden_attribute")
             if tag == "svg":
@@ -337,12 +404,12 @@ def normalize_svg(raw_svg: str, *, alt: str = "", caption: str = "") -> Normaliz
                     out.set("id", value)
                     continue
                 if key in {"markerWidth", "markerHeight"}:
-                    _number(value, 1, 32)
-                    out.set(key, value.strip())
+                    _px_number(value, 1, 32)
+                    out.set(key, value.strip().removesuffix("px").strip())
                     continue
                 if key in {"refX", "refY"}:
-                    _number(value, -64, 64)
-                    out.set(key, value.strip())
+                    _px_number(value, -64, 64)
+                    out.set(key, value.strip().removesuffix("px").strip())
                     continue
                 if key == "markerUnits":
                     if value not in {"strokeWidth", "userSpaceOnUse"}:
@@ -459,10 +526,14 @@ def normalize_svg(raw_svg: str, *, alt: str = "", caption: str = "") -> Normaliz
 
 
 class GeneratedIllustration(BaseModel):
-    model_config = {"extra": "forbid", "strict": True}
+    # Models routinely attach harmless extra keys (notes, usage echoes) or
+    # over-long captions to their JSON; the SVG itself is fully validated by
+    # normalize_svg, so parse tolerantly here (drop extras, clamp lengths)
+    # instead of rejecting the whole illustration as invalid_schema.
+    model_config = {"extra": "ignore", "strict": True}
     kind: Literal["svg"]
-    alt: str = Field(min_length=1, max_length=600)
-    caption: str = Field(default="", max_length=120)
+    alt: str = Field(min_length=1)
+    caption: str = ""
     svg: str = Field(max_length=MAX_SVG_BYTES)
 
 
@@ -501,12 +572,13 @@ def normalize_illustration(raw: Any) -> QuestionIllustration:
         generated = GeneratedIllustration.model_validate(raw)
         if not generated.alt.strip():
             _reject("illustration_alt_missing")
-        normalized = normalize_svg(generated.svg, alt=generated.alt,
-                                   caption=generated.caption)
+        alt = generated.alt.strip()[:600]
+        caption = generated.caption.strip()[:120]
+        normalized = normalize_svg(generated.svg, alt=alt, caption=caption)
         return QuestionIllustration(
-            kind="svg", alt=generated.alt, caption=generated.caption,
+            kind="svg", alt=alt, caption=caption,
             svg=normalized.svg, width=normalized.width, height=normalized.height,
-            content_hash=_hash(normalized.svg, generated.alt, generated.caption))
+            content_hash=_hash(normalized.svg, alt, caption))
     except IllustrationValidationError:
         raise
     except (ValueError, TypeError):

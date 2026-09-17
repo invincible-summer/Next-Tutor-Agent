@@ -487,6 +487,7 @@ async def generate_verified_questions(
         max_attempts: int = 2,
         repair_max_tokens: int | None = None,
         required_type: str = "",
+        verify_mode: str | None = None,
 ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     """Generate → structural filter → critic, with one regeneration retry.
 
@@ -499,7 +500,8 @@ async def generate_verified_questions(
     (plan.md §4.6) additionally enables the ``unsupported`` verdict in the
     critic when textbook evidence is present.
     """
-    mode = settings.quiz_verify_mode
+    mode = verify_mode if verify_mode in {"critic", "basic", "off"} \
+        else settings.quiz_verify_mode
     meta: dict[str, Any] = {"mode": mode, "attempts": 0, "critic": "skipped",
                             "dropped_ill_formed": 0, "dropped_by_critic": 0,
                             "dropped_rejected": 0,

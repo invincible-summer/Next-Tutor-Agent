@@ -20,6 +20,15 @@ export const STRINGS = {
     "illustration.retry": "重试",
     "illustration.saving": "保存中…",
 
+    "review.sectionTitle": "生成审查选项",
+    "review.sectionDesc": "审查更严格但更慢，偶尔会误拒可用的题目或插图；关闭后仅保留确定性的结构与安全校验。",
+    "review.critic": "生成后审核题目质量",
+    "review.criticDesc": "关闭后出题跳过独立审题（critic），题目更快交付且不易落入保底草稿，但答案正确性未经二次核对。",
+    "review.illustrationAudit": "生成后审查题图",
+    "review.illustrationAuditDesc": "关闭后题图仅过确定性 SVG 安全校验，不再由 AI 复核图文一致性，配图更快更稳定。",
+    "review.on": "开启",
+    "review.off": "关闭",
+
     "page.desc": "自适应诊断：根据你的作答动态调整题目难度，帮助了解你在本概念上的当前表现；结论仅反映本轮作答，不等同于长期掌握。",
 
     "config.title": "发起自适应测评",
@@ -113,6 +122,15 @@ export const STRINGS = {
     "illustration.loadFailed": "Could not load the setting. Please retry.",
     "illustration.retry": "Retry",
     "illustration.saving": "Saving…",
+
+    "review.sectionTitle": "Generation review options",
+    "review.sectionDesc": "Reviews are stricter but slower and occasionally reject usable questions or diagrams; turning them off keeps only deterministic structural and safety checks.",
+    "review.critic": "Review question quality after generation",
+    "review.criticDesc": "Off skips the independent critic: questions arrive faster and rarely fall back to self-check drafts, but answer keys are not double-checked.",
+    "review.illustrationAudit": "Review diagrams after generation",
+    "review.illustrationAuditDesc": "Off keeps only the deterministic SVG safety check without the AI consistency audit, so diagrams arrive faster and more reliably.",
+    "review.on": "On",
+    "review.off": "Off",
 
     "page.desc": "Adaptive diagnosis: difficulty adapts to your answers to probe your current performance on a concept; the result reflects only this round, not long-term mastery.",
 

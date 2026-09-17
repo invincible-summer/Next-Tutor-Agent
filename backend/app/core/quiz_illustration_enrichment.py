@@ -28,11 +28,16 @@ from app.core.quiz_illustration import (
 
 logger = logging.getLogger(__name__)
 
-ILLUSTRATION_DEADLINE_SECONDS = 18.0
-GENERATION_CALL_TIMEOUT_SECONDS = 7.0
-AUDIT_CALL_TIMEOUT_SECONDS = 6.0
-FINAL_AUDIT_RESERVE_SECONDS = 3.5
-REPAIR_MIN_REMAINING_SECONDS = 7.0
+# Enrichment runs after the text question is already displayed, so this
+# deadline no longer sits on the student's critical path.  The old 18s/7s
+# pair was tuned for the retired synchronous flow and routinely killed real
+# 2-6KiB SVG generations at the 7-second call timeout; the constants below
+# keep the ≤3-logical-call contract while letting a real model finish.
+ILLUSTRATION_DEADLINE_SECONDS = 30.0
+GENERATION_CALL_TIMEOUT_SECONDS = 18.0
+AUDIT_CALL_TIMEOUT_SECONDS = 10.0
+FINAL_AUDIT_RESERVE_SECONDS = 4.0
+REPAIR_MIN_REMAINING_SECONDS = 8.0
 MAX_ILLUSTRATION_CALLS = 3
 
 _PROJECT_ROOT = Path(__file__).resolve().parents[3]
@@ -270,6 +275,11 @@ async def _generate_uncached(*, student_id: str, task: S.TaskSnapshot,
         deadline=time.monotonic() + ILLUSTRATION_DEADLINE_SECONDS,
     )
     model = llm or get_llm("quiz")
+    from app.core.quiz_illustration_policy import account_allows_illustration_review
+    # The deterministic sanitizer always runs.  The independent semantic audit
+    # is the step most likely to time out or false-reject on a real model; the
+    # per-student switch skips it entirely (verified-ready, no audit trail).
+    review_enabled = account_allows_illustration_review(student_id)
     try:
         raw_text = await _complete(
             model, budget, _generation_messages(task, policy),
@@ -290,42 +300,49 @@ async def _generate_uncached(*, student_id: str, task: S.TaskSnapshot,
                 raise
             repaired_text = await _complete(
                 model, budget, _repair_messages(task, policy, raw, exc.code),
-                timeout=min(6.0, budget.remaining_seconds - FINAL_AUDIT_RESERVE_SECONDS),
+                timeout=min(GENERATION_CALL_TIMEOUT_SECONDS,
+                            budget.remaining_seconds - FINAL_AUDIT_RESERVE_SECONDS),
                 max_tokens=3200)
             repaired_raw = _generated_illustration(repaired_text)
             if repaired_raw is None:
                 raise IllustrationValidationError("illustration_required_missing")
             illustration = normalize_illustration(repaired_raw)
 
-        if budget.remaining_seconds < FINAL_AUDIT_RESERVE_SECONDS:
-            raise TimeoutError("illustration_audit_budget_missing")
-        audit_text = await _complete(
-            model, budget, _audit_messages(
-                task, illustration, allow_repair=(budget.calls < budget.max_calls - 1)),
-            timeout=AUDIT_CALL_TIMEOUT_SECONDS, max_tokens=3200)
-        audit = _audit_payload(audit_text)
-        if audit["status"] == "repair":
-            if (budget.calls >= budget.max_calls
-                    or budget.remaining_seconds < FINAL_AUDIT_RESERVE_SECONDS
-                    or not budget.take_repair()):
+        if review_enabled:
+            if budget.remaining_seconds < FINAL_AUDIT_RESERVE_SECONDS:
+                raise TimeoutError("illustration_audit_budget_missing")
+            # allow_repair invites a full SVG redraw inside the audit response,
+            # which needs a real token budget; a pure verdict stays small.
+            can_repair = (budget.calls < budget.max_calls - 1
+                          and budget.remaining_seconds >= REPAIR_MIN_REMAINING_SECONDS)
+            audit_text = await _complete(
+                model, budget, _audit_messages(task, illustration,
+                                               allow_repair=can_repair),
+                timeout=AUDIT_CALL_TIMEOUT_SECONDS,
+                max_tokens=2400 if can_repair else 700)
+            audit = _audit_payload(audit_text)
+            if audit["status"] == "repair":
+                if (budget.calls >= budget.max_calls
+                        or budget.remaining_seconds < FINAL_AUDIT_RESERVE_SECONDS
+                        or not budget.take_repair()):
+                    raise IllustrationValidationError("illustration_audit_failed")
+                repaired_raw = audit.get("illustration")
+                if isinstance(repaired_raw, dict):
+                    # Auditors echo the snapshot they were shown; only the four
+                    # model-authored fields may enter re-normalization, otherwise
+                    # the snapshot-canonical branch rejects the redrawn SVG.
+                    repaired_raw = {key: repaired_raw.get(key)
+                                    for key in ("kind", "alt", "caption", "svg")}
+                repaired = normalize_illustration(repaired_raw)
+                final_text = await _complete(
+                    model, budget, _audit_messages(task, repaired, allow_repair=False),
+                    timeout=budget.remaining_seconds, max_tokens=700)
+                final = _audit_payload(final_text)
+                if final["status"] != "passed":
+                    raise IllustrationValidationError("illustration_audit_failed")
+                illustration = repaired
+            elif audit["status"] != "passed":
                 raise IllustrationValidationError("illustration_audit_failed")
-            repaired_raw = audit.get("illustration")
-            if isinstance(repaired_raw, dict):
-                # Auditors echo the snapshot they were shown; only the four
-                # model-authored fields may enter re-normalization, otherwise
-                # the snapshot-canonical branch rejects the redrawn SVG.
-                repaired_raw = {key: repaired_raw.get(key)
-                                for key in ("kind", "alt", "caption", "svg")}
-            repaired = normalize_illustration(repaired_raw)
-            final_text = await _complete(
-                model, budget, _audit_messages(task, repaired, allow_repair=False),
-                timeout=budget.remaining_seconds, max_tokens=900)
-            final = _audit_payload(final_text)
-            if final["status"] != "passed":
-                raise IllustrationValidationError("illustration_audit_failed")
-            illustration = repaired
-        elif audit["status"] != "passed":
-            raise IllustrationValidationError("illustration_audit_failed")
 
         _write_cached(student_id, task.question_id, task.question_revision,
                       status="ready", illustration=illustration)

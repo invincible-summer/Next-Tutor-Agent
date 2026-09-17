@@ -35,6 +35,20 @@ def svg_available() -> bool:
     return settings.quiz_svg_enabled
 
 
+def _account_pref(student_id: str, key: str, default: bool) -> bool:
+    if not student_id or student_id in {"student_default", "compat_agent"}:
+        return default
+    try:
+        from ..identity.store import get_by_id
+        user = get_by_id(student_id)
+        if user is None:
+            return default
+        value = user.profile.prefs.get(key, default)
+        return value is True if default else value is not False
+    except Exception:
+        return default
+
+
 def account_allows_illustration(student_id: str) -> bool:
     if not svg_available() or not student_id or student_id in {"student_default", "compat_agent"}:
         return False
@@ -47,6 +61,37 @@ def account_allows_illustration(student_id: str) -> bool:
         return value is True
     except Exception:
         return False
+
+
+def account_allows_illustration_review(student_id: str) -> bool:
+    """Per-student switch for the post-generation diagram audit LLM call.
+
+    The deterministic sanitizer always runs; this only gates the independent
+    semantic audit, which is the step most likely to time out or false-reject
+    on a real model.
+    """
+    return _account_pref(student_id, "quiz_illustration_review_enabled", True)
+
+
+def account_allows_quiz_critic(student_id: str) -> bool:
+    """Per-student switch for the post-generation question critic."""
+    return _account_pref(student_id, "quiz_critic_enabled", True)
+
+
+def effective_quiz_verify_mode(student_id: str) -> str:
+    """Resolve QUIZ_VERIFY_MODE with the account-level critic switch.
+
+    The environment keeps final authority to *lower* quality gates only: an
+    operator-set basic/off stays basic/off. A student switch can only turn a
+    deployment-default critic lane down to basic, never up.
+    """
+    from .config import settings
+    mode = str(settings.quiz_verify_mode or "critic").strip().lower()
+    if mode not in {"critic", "basic", "off"}:
+        mode = "critic"
+    if mode == "critic" and not account_allows_quiz_critic(student_id):
+        return "basic"
+    return mode
 
 
 def resolve_illustration_policy(student_id: str, request: str = "auto") -> IllustrationPolicy:

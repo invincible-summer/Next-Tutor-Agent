@@ -840,7 +840,13 @@ export interface UserProfileData {
   subjects: string[];
   avatar: string;
   /** 通用每用户偏好（ocr_parallel OCR 并行、tts_speed 朗读语速）。 */
-  prefs?: { ocr_parallel?: boolean; tts_speed?: number; quiz_svg_enabled?: boolean };
+  prefs?: {
+    ocr_parallel?: boolean;
+    tts_speed?: number;
+    quiz_svg_enabled?: boolean;
+    quiz_critic_enabled?: boolean;
+    quiz_illustration_review_enabled?: boolean;
+  };
 }
 
 // --- M9 学习编排（/orchestration/* · 无 status 信封，空态靠空字段/空数组表达） ---
