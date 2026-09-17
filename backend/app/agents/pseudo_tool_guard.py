@@ -1,45 +1,50 @@
-"""弱模型伪工具标签护栏（2026-08-15「导数」对话回归，turn 6/8；
-2026-08-31「角动量守恒」回归扩展到 XML 叙述格式）。
+"""弱模型伪工具标签护栏。
 
-部分模型不发起 function-calling，而是在正文里"叙述"工具调用。已观测到
-两种格式，都必须拦下：
+历史回归覆盖：
+- 2026-08-15「导数」：``<knowledge_search>`` 假标签；
+- 2026-08-31「角动量守恒」：``<tool_call><function=...>`` XML 叙述；
+- 2026-09-17 DeepSeek V4.1 Flash：Provider 未投影 tool_calls 时，内部
+  ``<｜DSML｜ calls>`` 控制块落入 content（V4 为无空格 tool_calls）。
 
-- 假标签：``<knowledge_search>检索关键词：导数</knowledge_search>``；
-- XML 叙述：``<tool_call><function=knowledge_search>
-  <parameter=keywords>角动量守恒定律</parameter>…</tool_call>`` —— 其中
-  ``<knowledge_search`` 子串根本不出现，只匹配旧格式时整段标记会作为
-  正文流进聊天和 TTS（被原样朗读）。
-
-本模块在流式输出时做缓冲检测：
-
-- 任一标签开始形成（含半截前缀 ``<tool_c…``）就停止对外转发该段文本；
-- 命中后由调用方（chat_agent / executor 的 ReAct 环路）执行**真实**的
-  knowledge_search，把结果注入消息并继续环路，让模型基于真结果续写；
-- 标签前的正文（"我先检索一下…"）照常流出，作为该步可见前导。
-
-纯文本状态机，无 LLM 依赖；每步 LLM 调用新建一个实例。
+主路径由 ``core.llm_async`` 的 DSML parser 把控制文本归一化成结构化
+``tool_calls``。本模块仍保留独立的 fail-closed 防线：即使下游自定义 LLM
+adapter 绕过主 parser，任何已知工具控制标记也不得进入聊天、历史或 TTS。
 """
 from __future__ import annotations
 
 import re
 
 # 已观测的伪工具标记开头；命中任何一个都视为"模型在叙述工具调用"。
-# <function= 单独出现也绝无可能是正常教学内容。
+# DSML 同时兼容官方 V4.1 单竖线特殊 token 展示与部分网关的双竖线展示。
 _TAG_OPENS = (
     "<knowledge_search",
     "<tool_call",
     "<function=",
     "<invoke",
+    "<｜dsml｜",
+    "<｜｜dsml｜｜",
 )
-_MAX_TAG_RAW = 2000  # 标签原文累计上限（防异常超长输出吃内存）
+_MAX_TAG_RAW = 4000  # DSML 可含多个 invoke；仍保持严格内存上限。
 _QUERY_LINE_RE = re.compile(r"(?:检索关键词|关键词|查询|query)\s*[:：]\s*([^\n<]{2,120})")
 # XML 叙述格式的 keywords 参数（可能被 _MAX_TAG_RAW 截断而未闭合）。
 _KEYWORDS_PARAM_RE = re.compile(
     r"<parameter=keywords>\s*([^<]{2,200}?)\s*(?:</parameter>|$)", re.S)
+# DeepSeek V4/V4.1 DSML：空格由 \s* 同时覆盖 V4 ``｜parameter`` 与
+# V4.1 ``｜ parameter``；单双全角竖线均兼容。
+_DSML_TOKEN = r"(?:｜){1,2}DSML(?:｜){1,2}"
+_DSML_QUERY_RE = re.compile(
+    rf"<{_DSML_TOKEN}\s*parameter\b[^>]*name=\"(?:query|keywords)\"[^>]*>"
+    rf"\s*(.*?)\s*</{_DSML_TOKEN}\s*parameter\s*>",
+    re.I | re.S,
+)
+_DSML_INVOKE_RE = re.compile(
+    rf"<{_DSML_TOKEN}\s*invoke\b[^>]*name=\"([^\"]+)\"", re.I)
+_FUNCTION_RE = re.compile(r"<function=([^>\s]+)", re.I)
+_INVOKE_RE = re.compile(r"<invoke\b[^>]*name=\"([^\"]+)\"", re.I)
 
 
 class PseudoToolGuard:
-    """单次 LLM 流的伪工具标记检测器（假标签 + XML 叙述两种格式）。"""
+    """单次 LLM 流的伪工具/协议标记检测器。"""
 
     def __init__(self, tags: tuple[str, ...] = _TAG_OPENS) -> None:
         self._tags = tuple(t.lower() for t in tags)
@@ -62,7 +67,7 @@ class PseudoToolGuard:
         """喂入一个 answer delta；返回本次可安全转发的前端文本。"""
         if self._detected:
             if len(self._tag_raw) < _MAX_TAG_RAW:
-                self._tag_raw += delta
+                self._tag_raw += delta[:_MAX_TAG_RAW - len(self._tag_raw)]
             return ""
         buf = self._pending + delta
         lower = buf.lower()
@@ -93,7 +98,12 @@ class PseudoToolGuard:
         return out
 
     def extract_query(self, fallback: str) -> str:
-        """从标签原文提取检索词；无显式关键词时回退 fallback（用户消息）。"""
+        """从标签原文提取检索词；无显式关键词时回退 fallback。"""
+        # DeepSeek DSML uses a normal named parameter; prefer it before the
+        # historical XML/natural-language extractors.
+        m = _DSML_QUERY_RE.search(self._tag_raw)
+        if m and m.group(1).strip():
+            return m.group(1).strip()[:120]
         m = _KEYWORDS_PARAM_RE.search(self._tag_raw)
         if m and m.group(1).strip():
             return m.group(1).strip()[:120]
@@ -104,6 +114,21 @@ class PseudoToolGuard:
         if 2 <= len(text) <= 120 and not text.startswith("检索"):
             return text
         return (fallback or "").strip()[:120]
+
+    def extract_tool_name(self) -> str:
+        """Best-effort protocol name extraction for diagnostics/recovery."""
+        m = _DSML_INVOKE_RE.search(self._tag_raw)
+        if m:
+            return m.group(1).strip()
+        m = _FUNCTION_RE.search(self._tag_raw)
+        if m:
+            return m.group(1).strip()
+        m = _INVOKE_RE.search(self._tag_raw)
+        if m:
+            return m.group(1).strip()
+        if self._tag_raw.lower().startswith("<knowledge_search"):
+            return "knowledge_search"
+        return ""
 
     def _held_prefix_len(self, buf: str) -> int:
         """尾部是否存在任一标签的半截前缀（如 ``<tool_c``），返回持有长度。"""

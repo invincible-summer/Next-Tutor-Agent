@@ -110,13 +110,19 @@ def grade_preamble(grade: str, has_knowledge: bool, file_names: list[str] | None
 def skill_cards_preamble(skill_ids: list[str]) -> str:
     """Render only this turn's selected Skill contracts into a compact note.
 
-    Tool schemas remain the executable source of arguments; this block supplies
-    educational pre/postconditions without listing the entire registry.
+    Skill ids are planning/audit identifiers.  Executable function names come
+    exclusively from each manifest's ``tool_name`` and the actual tool schemas
+    passed to the Provider; spelling that distinction out prevents reasoning
+    models from emitting ``agent.skill.*@version`` as a function name.
     """
     if not skill_ids:
         return ""
     from ..agents.skill_runtime.registry import registry
-    cards: list[str] = ["[当前可用 Skill · 仅可按契约使用]"]
+    cards: list[str] = [
+        "[当前可用 Skill · 仅可按契约使用]\n"
+        "[调用约束] agent.skill.*@version 是规划/审计 ID，不是 function 名。"
+        "需要执行能力时，只能调用该卡片的“执行工具”，且名称必须与本轮 tools schema 的 function.name 完全一致。"
+    ]
     seen: set[str] = set()
     for skill_id in skill_ids:
         if skill_id in seen:
@@ -126,8 +132,11 @@ def skill_cards_preamble(skill_ids: list[str]) -> str:
             skill = registry.get(skill_id)
         except KeyError:
             continue
+        tool_name = (skill.tool_name
+                     or "无（仅教学行为，不发起 function call）")
         cards.append(
             f"- {skill.id}@{skill.version}｜{skill.display_name}：{skill.description}"
+            f"｜执行工具={tool_name}"
             f"｜前置={','.join(skill.preconditions) or '无'}"
             f"｜成功标准={','.join(skill.postconditions) or '返回有效结果'}"
         )
