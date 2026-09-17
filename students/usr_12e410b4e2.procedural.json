@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated_at": 1789541798.6805222,
+  "updated_at": 1789628444.930232,
   "items": [
     {
       "strategy": "introduction",
@@ -29,9 +29,9 @@
     {
       "strategy": "introduction",
       "subject": "物理",
-      "success_rate": 0.9983193277310926,
-      "trials": 33,
-      "last_used_ts": 1789541798.6804686,
+      "success_rate": 0.998650472334683,
+      "trials": 37,
+      "last_used_ts": 1789628444.930191,
       "scope": "subject"
     },
     {

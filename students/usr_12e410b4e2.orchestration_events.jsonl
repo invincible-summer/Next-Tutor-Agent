@@ -139,3 +139,12 @@
 {"ts": 1789573528.44156, "type": "quiz_evidence", "payload": {"attempt_id": "att_ee25cf45fb5b47c7", "concept": "静电场的保守性", "verdict": "wrong", "session_id": "", "subject": "", "source": "quiz_evidence", "task_id": "", "emitted": 0}}
 {"ts": 1789573757.5276108, "type": "quiz_evidence", "payload": {"attempt_id": "att_95fac093306a416a", "concept": "分波阵面法", "verdict": "correct", "session_id": "", "subject": "", "source": "quiz_evidence", "task_id": "", "emitted": 0}}
 {"ts": 1789616164.4938242, "type": "quiz_evidence", "payload": {"attempt_id": "att_e51ec116c1fa4c9e", "concept": "三重积分力学应用", "verdict": "correct", "session_id": "", "subject": "", "source": "quiz_evidence", "task_id": "", "emitted": 0}}
+{"ts": 1789626480.039331, "type": "quiz_evidence", "payload": {"attempt_id": "att_7389daf5940a4d82", "concept": "磁镜", "verdict": "wrong", "session_id": "", "subject": "", "source": "quiz_evidence", "task_id": "", "emitted": 0}}
+{"ts": 1789626606.0253298, "type": "quiz_evidence", "payload": {"attempt_id": "att_6c8198240c514a73", "concept": "正负电子对撞机", "verdict": "correct", "session_id": "", "subject": "", "source": "quiz_evidence", "task_id": "", "emitted": 0}}
+{"ts": 1789626809.1430597, "type": "quiz_evidence", "payload": {"attempt_id": "att_f8cb661ec6a54607", "concept": "激光谐振腔", "verdict": "wrong", "session_id": "", "subject": "", "source": "quiz_evidence", "task_id": "", "emitted": 0}}
+{"ts": 1789628323.8603382, "type": "goal_set", "payload": {"goal_id": "g_1", "title": "学习力学和运动学相关的内容，充分理解并运用其本质", "goal_type": "ability", "bound_concepts": 129}}
+{"ts": 1789628332.831459, "type": "plan_regenerated", "payload": {"weeks": 4}}
+{"ts": 1789628393.5900095, "type": "turn_recorded", "payload": {"concept": "质点模型", "emitted": 0}}
+{"ts": 1789628403.0363836, "type": "turn_recorded", "payload": {"concept": "质点模型", "emitted": 0}}
+{"ts": 1789628421.5420835, "type": "turn_recorded", "payload": {"concept": "质点模型", "emitted": 0}}
+{"ts": 1789628444.9635334, "type": "turn_recorded", "payload": {"concept": "质点模型", "emitted": 0}}

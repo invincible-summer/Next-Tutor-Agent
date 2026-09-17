@@ -1,19 +1,5 @@
 {
   "concepts": {
-    "函数极限的ε-δ定义": [
-      {
-        "mode": "introduction",
-        "outcome": "engaged",
-        "ts": 1789493110.5920422,
-        "note": "函数极限的ε-δ定义"
-      },
-      {
-        "mode": "review",
-        "outcome": "engaged",
-        "ts": 1789493267.8362486,
-        "note": "函数极限的ε-δ定义"
-      }
-    ],
     "导数": [
       {
         "mode": "introduction",
@@ -707,7 +693,33 @@
         "ts": 1789541798.6614144,
         "note": "电偶极子在均匀外电场中的电势能"
       }
+    ],
+    "质点模型": [
+      {
+        "mode": "introduction",
+        "outcome": "engaged",
+        "ts": 1789628393.5405052,
+        "note": "质点模型"
+      },
+      {
+        "mode": "introduction",
+        "outcome": "engaged",
+        "ts": 1789628402.987069,
+        "note": "质点模型"
+      },
+      {
+        "mode": "introduction",
+        "outcome": "engaged",
+        "ts": 1789628417.6670456,
+        "note": "质点模型"
+      },
+      {
+        "mode": "introduction",
+        "outcome": "engaged",
+        "ts": 1789628444.9161932,
+        "note": "质点模型"
+      }
     ]
   },
-  "updated_at": 1789541798.661433
+  "updated_at": 1789628444.916211
 }
