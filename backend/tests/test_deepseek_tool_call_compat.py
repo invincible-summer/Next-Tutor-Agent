@@ -219,12 +219,24 @@ class TestAsyncLLMDeepSeekIntegration(unittest.TestCase):
         llm = _fake_llm(chunks)
 
         async def collect():
-            return [event async for event in llm.stream(
+            events = [event async for event in llm.stream(
                 messages=[{"role": "user", "content": "什么是质点"}],
                 tools=TOOLS,
             )]
+            # ContextVar state is task-local. Production builds the native
+            # assistant/tool exchange in the same executor task immediately
+            # after stream consumption, so the regression test must exercise
+            # the same lifecycle instead of crossing asyncio.run() boundaries.
+            tool_event = next(e for e in events if e.get("kind") == "tool_calls")
+            first = tool_event["calls"][0]
+            exchange = build_openai_tool_messages(
+                "检索后再回答。", call_id=first["id"],
+                tool_name=first["name"], args=first["args"],
+                result_text="[工具 knowledge_search 完成]")
+            remaining_reasoning = take_tool_reasoning(first["id"])
+            return events, exchange, remaining_reasoning
 
-        events = asyncio.run(collect())
+        events, exchange, remaining_reasoning = asyncio.run(collect())
         visible = "".join(e.get("delta", "") for e in events
                           if e.get("kind") == "answer")
         self.assertEqual(visible, "检索后再回答。")
@@ -242,17 +254,13 @@ class TestAsyncLLMDeepSeekIntegration(unittest.TestCase):
         done = next(e for e in events if e.get("kind") == "done")
         self.assertEqual(done["finish_reason"], "tool_calls")
 
-        exchange = build_openai_tool_messages(
-            "检索后再回答。", call_id=first["id"],
-            tool_name=first["name"], args=first["args"],
-            result_text="[工具 knowledge_search 完成]")
         self.assertEqual(exchange[0]["reasoning_content"], "我要先检索教材。")
         self.assertEqual(exchange[0]["tool_calls"][0]["function"]["name"],
                          "knowledge_search")
         self.assertEqual(exchange[1]["role"], "tool")
         # The transient value is one-shot and therefore cannot accidentally be
         # persisted/replayed into unrelated future messages.
-        self.assertEqual(take_tool_reasoning(first["id"]), "")
+        self.assertEqual(remaining_reasoning, "")
 
 
 if __name__ == "__main__":
