@@ -6,6 +6,8 @@
 
 架构与实现细节见 [docs/DESIGN.md](docs/DESIGN.md)，教育理论与评价契约见 [docs/Related-Educational-Theory.md](docs/Related-Educational-Theory.md)，当前 CAT 结构化题图链见 [docs/ASSESSMENT_ILLUSTRATION_PIPELINE.md](docs/ASSESSMENT_ILLUSTRATION_PIPELINE.md)。
 
+**[在线项目展示（GitHub Pages）](https://invincible-summer.github.io/Next-Tutor-Agent/)** — `docs/show/Next-Tutor-Agent-show.pdf` 的网页版（23 页演示手册）；应用内「文档」页同样提供该演示手册标签（`/docs`）。源 PDF 更新后运行 `scripts/build_show_html.py` 重建 HTML，再运行 `scripts/deploy_gh_pages.sh` 重新发布。
+
 ---
 
 ## 项目主线
