@@ -1,0 +1,18 @@
+{
+  "id": "trash_c2069a572ce44e0a",
+  "owner_id": "usr_12e410b4e2",
+  "resource_type": "session",
+  "original_id": "chat_20260916_012809_老师导数的定义我背下来了但总觉得就是",
+  "title": "老师，导数的定义我背下来了，但总觉得就是",
+  "deleted_at": 1789493542.9584892,
+  "deleted_at_iso": "2026-09-15T17:32:22.958498+00:00",
+  "expires_at": 1790098342.9584892,
+  "retention_days": 7,
+  "metadata": {
+    "workspace_id": "ws_20260916_012038_高等数学",
+    "round_count": 3,
+    "forget_prompt_memory": false,
+    "memory_forget_status": "recent"
+  },
+  "version": 1
+}

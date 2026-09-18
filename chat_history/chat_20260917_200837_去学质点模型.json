@@ -1,0 +1,694 @@
+{
+  "session_id": "chat_20260917_200837_去学质点模型",
+  "grade": "本科",
+  "output_language": null,
+  "workspace_id": "ws_20260916_012039_大学物理学",
+  "student_id": "usr_12e410b4e2",
+  "compaction": null,
+  "supervisor_state": {
+    "current_goal": "练习质点模型",
+    "task_type": "practice",
+    "plan": {
+      "steps": [
+        {
+          "agent_role": "assessment",
+          "task": "围绕学生指定知识点生成结构化练习题卡",
+          "suggested_tools": [
+            "generate_quiz"
+          ],
+          "skill_ids": [
+            "agent.skill.assessment.generate_practice"
+          ],
+          "optional": false,
+          "tool_args": {
+            "generate_quiz": {
+              "topic": "质点模型",
+              "difficulty": "medium",
+              "count": 1,
+              "grade": "本科",
+              "illustration_request": "auto"
+            }
+          },
+          "auto_invoke": true
+        }
+      ],
+      "source": "skill_gated:practice_enforced:rule",
+      "validated": true,
+      "created_at": 1789646968.3878732
+    },
+    "completed": [
+      "assessment:围绕学生指定知识点生成结构化练习题卡"
+    ],
+    "remaining": [],
+    "execution_history": [
+      {
+        "ts": 1789646935.5018024,
+        "goal": "理解质点模型",
+        "intent": "explain",
+        "tool_calls": [
+          "knowledge_search"
+        ],
+        "plan_source": "skill_gated:rule"
+      },
+      {
+        "ts": 1789646993.7500288,
+        "goal": "练习质点模型",
+        "intent": "practice",
+        "tool_calls": [
+          "generate_quiz"
+        ],
+        "plan_source": "skill_gated:practice_enforced:rule"
+      }
+    ],
+    "updated_at": 1789646993.7500331
+  },
+  "context_card": {
+    "version": "1.0",
+    "session_goal": "练习质点模型",
+    "current_subject": "物理",
+    "active_concepts": [
+      "质点模型"
+    ],
+    "current_mode": "practice",
+    "explanation_depth": "adaptive",
+    "recent_mistakes": [],
+    "misconceptions": [],
+    "completed_steps": [
+      "assessment:围绕学生指定知识点生成结构化练习题卡"
+    ],
+    "remaining_steps": [],
+    "active_skill_ids": [
+      "agent.skill.assessment.generate_practice"
+    ],
+    "pending_assessment": true,
+    "unanswered_question_ids": [
+      "q_21f76862_1"
+    ],
+    "latest_verdicts": [],
+    "open_loops": [
+      {
+        "id": "assessment:质点模型",
+        "kind": "student_response",
+        "description": "等待学生完成「质点模型」检测题并提交作答",
+        "status": "pending",
+        "source_ref": "",
+        "created_turn": 1
+      }
+    ],
+    "source_refs": [
+      "quiz_history:1"
+    ],
+    "updated_at": 1789646993.7501466
+  },
+  "learning_summary": {
+    "schema": "session_summary.v1",
+    "built_at": 1789646993.7741745,
+    "concepts": [
+      "质点模型"
+    ],
+    "demonstrated": [],
+    "open_items": [],
+    "pending_questions": 1,
+    "coverage_note": "已讲解，待验证",
+    "resume_anchor": {
+      "concept": "质点模型",
+      "pending": 1,
+      "hint": "还有 1 道待答题目"
+    },
+    "polished": false,
+    "summary_line": "质点模型：已讲解，待验证",
+    "resume_line": "先完成待答的 1 道题目，再继续质点模型。"
+  },
+  "task_binding": null,
+  "messages": [
+    {
+      "role": "user",
+      "content": "去学质点模型",
+      "message_id": "m_2345743b2353",
+      "created_at": 1789646935.5033257
+    },
+    {
+      "role": "assistant",
+      "content": "# 质点模型\n\n## 一、为什么需要质点模型\n\n教材开篇就点明了引进它的理由：**\"实际的物体结构复杂，大小各异，为了从最简单的研究开始，引进质点模型，即以具有一定质量的点来代表物体。\"**（张三慧《大学物理学》第 4 版·力学热学，PDF 第 29 页）\n\n这句话里藏着两个信息，值得拆开看。\n\n第一，力学的研究顺序是\"先描述，再研究\"。教材说：\"经典力学是研究物体的机械运动的规律的。为了研究，首先描述。力学中描述物体运动的内容叫做运动学。\"（同上页）也就是说，运动学是力学的入口，而质点模型是运动学的入口。\n\n第二，为什么不能直接研究真实物体？因为真实物体有形状、有大小、有内部结构，它的每一个部分运动状态都可能不同。如果一开始就处理这种复杂性，我们连\"物体现在在哪\"都说不清楚——是描述它的头部、尾部，还是重心？**质点模型的作用，就是把\"描述一个复杂物体\"这个无从下手的问题，压缩成\"描述一个点\"这个有确定答案的问题。**\n\n## 二、严格定义与条件解读\n\n**定义**：质点是一个具有质量的几何点，它没有大小和形状，但保留物体的全部质量。\n\n这个定义有两个条件，缺一不可，我们逐条看它们为什么必要。\n\n**条件一：有质量。** 质量是物体惯性的量度，也是它参与引力相互作用的\"荷\"。如果质点没有质量，牛顿第二定律 $F = ma$ 就退化成 $F = 0$，物体在任何力下都\"无动于衷\"，动力学无从谈起。所以质量必须保留。\n\n**条件二：无大小、无形状。** 这一条是为了让\"位置\"这个概念有意义。一个有体积的物体，它的不同部分占据不同位置；只有把它抽象成一个点，我们才能说\"物体在位置 $\\vec{r}$ 处\"，$\\vec{r}$ 才是唯一确定的。\n\n这里要特别强调一个容易误解的地方：**质点不是\"很小的物体\"，而是\"可以忽略大小的物体\"。** 地球直径约 $1.3\\times10^4$ km，比一个原子大得多，但在研究地球绕日公转时，日地距离约 $1.5\\times10^8$ km，地球直径只占这个距离的万分之一量级，地球完全可以当作质点。反过来，一个几厘米的齿轮，在研究它自身的转动时，绝不能当作质点。\n\n**判断标准不是绝对尺寸，而是\"物体尺寸与研究问题所涉及的空间尺度之比\"。** 这个比值足够小，就可以用质点模型。\n\n## 三、什么时候可以用质点模型\n\n教材没有单独列一张\"适用条件表\"，但从定义可以推出两条判据：\n\n**判据一：物体上各点的运动状态相同（平动）。** 如果物体做平动——即物体上任意两点连成的直线在运动中始终保持平行——那么物体上每一点的速度、加速度都完全相同。此时描述任意一点就等于描述了整个物体，用质点代表它不损失任何信息。\n\n**判据二：物体的大小远小于所研究的运动范围。** 即使物体在转动，只要它的线度相对于运动轨迹的尺度可以忽略，它的内部运动对整体轨迹的影响就微乎其微，也可以近似为质点。\n\n这两条判据的共同逻辑是：**当物体的\"内部自由度\"对我们要回答的问题没有贡献时，就可以把它冻结掉，只保留\"整体位置\"这一个自由度。**\n\n## 四、理想模型的思想方法\n\n质点模型是物理学中**理想模型**方法的第一个范例，这个方法论值得单独说清楚，因为它会贯穿整个大学物理。\n\n理想模型的构造逻辑是：**保留对所研究问题起决定作用的属性，舍弃次要属性，从而得到一个在现实中不存在、但在数学上可以精确处理的客体。**\n\n- 保留：质量（决定惯性）\n- 舍弃：大小、形状、内部结构（对整体平动无贡献）\n\n这种\"舍弃\"不是偷懒，而是一种**受控的近似**。它的合法性来自一个可检验的判断：被舍弃的量对最终结果的影响，是否小于我们关心的精度。如果影响可以忽略，模型就是有效的；如果影响不可忽略，就必须换用更精细的模型——比如刚体（保留形状，舍弃形变）、弹性体（保留形变）、质点系（保留多个质点的相对位置）。\n\n所以质点模型不是\"错的简化\"，而是**在特定精度要求下正确的描述**。这一点在后续学习中会反复出现：理想气体、点电荷、无限长直导线，都是同一套方法论。\n\n## 五、与后续概念的衔接\n\n质点模型一旦建立，运动学就有了统一的描述框架：\n\n1. **参考系**：描述运动必须先选定参考系，因为\"位置\"和\"速度\"都是相对于某个参考系而言的。教材特别强调：\"强调了参考系的概念。\"（同上页）\n2. **坐标系**：在参考系上建立坐标系后，质点的位置可以用位置矢量 $\\vec{r}$ 表示。\n3. **运动学量**：教材指出，\"速度、加速度的定义都用了导数这一数学运算\"（同上页），即\n\n$$\\vec{v} = \\frac{d\\vec{r}}{dt}, \\qquad \\vec{a} = \\frac{d\\vec{v}}{dt} = \\frac{d^2\\vec{r}}{dt^2}$$\n\n这正是你今日任务里\"函数的极限、导数\"派上用场的地方——**没有导数，就无法严格定义瞬时速度**。中学用\"$\\Delta t$ 趋于零\"的直观说法，大学则用极限把它写严格：\n\n$$\\vec{v} = \\lim_{\\Delta t \\to 0} \\frac{\\Delta \\vec{r}}{\\Delta t}$$\n\n4. **矢量性**：教材还提到\"普遍加强了矢量概念\"（同上页），因为位置、速度、加速度都是矢量，它们的运算必须按矢量规则进行，不能简单当标量处理。\n\n## 六、小结\n\n- 质点 = 有质量的几何点，保留质量、舍弃大小形状。\n- 引进它的动机：让\"描述运动\"这件事有确定的数学对象。\n- 可用条件：物体平动，或物体线度远小于运动尺度。\n- 它是理想模型方法的第一个范例，后续刚体、理想气体等都沿用同一逻辑。\n- 它是运动学描述的起点，往下接参考系、坐标系、位置矢量、速度、加速度。\n\n---\n\n下面这道题检验你对\"能否看作质点\"的判断力，先自己想一想再作答。\n\n（说明：本轮讲解依据教材 PDF 第 29 页原文组织，其余为通用物理知识的展开。）",
+      "thinking": "我先确认任务重点：需要围绕「质点模型」建立可以迁移应用的理解，而不是只记住一句结论。\n\n接下来的路线是：核对已授权资料中的依据；按当前学段分层讲解。 当前采用 introduction 教学策略，我会据此调整例子、推导深度和检查难度。",
+      "toolCalls": [
+        {
+          "name": "knowledge_search",
+          "result": {
+            "tool": "knowledge_search",
+            "status": "success",
+            "data": {
+              "query": "质点模型",
+              "results": [
+                {
+                  "source": "大学物理学（第4版）力学、热学（张三慧）.pdf",
+                  "filename": "大学物理学（第4版）力学、热学（张三慧）.pdf",
+                  "file_id": "2a6bc063cc7f",
+                  "chunk_id": "2a6bc063cc7f#240",
+                  "index": 240,
+                  "score": 2.7,
+                  "page": 29,
+                  "concept": "质点模型",
+                  "concept_chapter": "第1章 质点运动学",
+                  "concept_bonus": 1.0,
+                  "section": "",
+                  "chapter": "第1章 质点运动学",
+                  "source_scope": "workspace_textbook",
+                  "source_visibility": "public",
+                  "location_type": "page",
+                  "location_label": "PDF 第 29 页",
+                  "matched_terms": [
+                    "质点",
+                    "点模",
+                    "模型"
+                  ],
+                  "matched_bigrams": [
+                    "模型",
+                    "点模",
+                    "质点"
+                  ],
+                  "matched_phrases": [
+                    "质点模型"
+                  ],
+                  "primary_phrase_coverage": 1.0,
+                  "title_match": 0.233,
+                  "noise_flags": [],
+                  "confidence": 0.61,
+                  "signals": {
+                    "lexical": 1.0,
+                    "exact_term_coverage": 1.0,
+                    "primary_phrase_coverage": 1.0,
+                    "title_match": 0.233,
+                    "bm25_raw": 2.7,
+                    "bm25_normalized": 0.7297,
+                    "bm25_relative": 0.1193,
+                    "vector_distance": null,
+                    "vector_calibrated": false,
+                    "variant_hits": [],
+                    "concept_bonus": 1.0
+                  },
+                  "query_intent": "content",
+                  "selection_reason": "exact_term+mmr",
+                  "evidence_excerpt": "……第1章\n质点运动学 经典力学是研究物体的机械运动的规律的。 为了研究,首先描述。 力学中描述物体运动的内容叫做运动学。 实际的物体结构复杂,大小各异,为了从最简单的研究开始,引进质点模型,即以具有一定质量的点来代表物体。 本章讲解质点运动学。 相当一部分概念和公式在中学物理课程中已学习过了,本章将对它们进行更严格、更全面也更系统化的讲解。 例如强调了参考系的概念,速度、加速度的定义都用了导数这一数学运算,还普遍加强了矢量概念。 又例如圆周运动介绍了切向加速度和法向加速度两个分加速度。 最后还介绍了同一物体运动的描述在不同参考系中的变换关系——伽利略变换。\n1.1 参考系……",
+                  "evidence_id": "ev_30b4534e2c836ace",
+                  "context_hash": "464d58bda57e9c3d3b4794f573b4436eed96710760023b7480755e738f61a3c2",
+                  "neighbor_expanded": true,
+                  "raw_text_sha256": "418b597ae659ad1bad9640ace7c6e69e587e024024b8bfbe6efa709f63c77029",
+                  "raw_audit_ref": {
+                    "file_id": "2a6bc063cc7f",
+                    "chunk_id": "2a6bc063cc7f#240"
+                  }
+                }
+              ],
+              "count": 1,
+              "omitted_count": 47,
+              "partial": false,
+              "evidence_bundle": {
+                "query": "质点模型",
+                "selected": [
+                  {
+                    "source": "大学物理学（第4版）力学、热学（张三慧）.pdf",
+                    "filename": "大学物理学（第4版）力学、热学（张三慧）.pdf",
+                    "file_id": "2a6bc063cc7f",
+                    "chunk_id": "2a6bc063cc7f#240",
+                    "index": 240,
+                    "score": 2.7,
+                    "page": 29,
+                    "concept": "质点模型",
+                    "concept_chapter": "第1章 质点运动学",
+                    "concept_bonus": 1.0,
+                    "section": "",
+                    "chapter": "第1章 质点运动学",
+                    "source_scope": "workspace_textbook",
+                    "source_visibility": "public",
+                    "location_type": "page",
+                    "location_label": "PDF 第 29 页",
+                    "matched_terms": [
+                      "质点",
+                      "点模",
+                      "模型"
+                    ],
+                    "matched_bigrams": [
+                      "模型",
+                      "点模",
+                      "质点"
+                    ],
+                    "matched_phrases": [
+                      "质点模型"
+                    ],
+                    "primary_phrase_coverage": 1.0,
+                    "title_match": 0.233,
+                    "noise_flags": [],
+                    "confidence": 0.61,
+                    "signals": {
+                      "lexical": 1.0,
+                      "exact_term_coverage": 1.0,
+                      "primary_phrase_coverage": 1.0,
+                      "title_match": 0.233,
+                      "bm25_raw": 2.7,
+                      "bm25_normalized": 0.7297,
+                      "bm25_relative": 0.1193,
+                      "vector_distance": null,
+                      "vector_calibrated": false,
+                      "variant_hits": [],
+                      "concept_bonus": 1.0
+                    },
+                    "query_intent": "content",
+                    "selection_reason": "exact_term+mmr",
+                    "evidence_excerpt": "……第1章\n质点运动学 经典力学是研究物体的机械运动的规律的。 为了研究,首先描述。 力学中描述物体运动的内容叫做运动学。 实际的物体结构复杂,大小各异,为了从最简单的研究开始,引进质点模型,即以具有一定质量的点来代表物体。 本章讲解质点运动学。 相当一部分概念和公式在中学物理课程中已学习过了,本章将对它们进行更严格、更全面也更系统化的讲解。 例如强调了参考系的概念,速度、加速度的定义都用了导数这一数学运算,还普遍加强了矢量概念。 又例如圆周运动介绍了切向加速度和法向加速度两个分加速度。 最后还介绍了同一物体运动的描述在不同参考系中的变换关系——伽利略变换。\n1.1 参考系……",
+                    "evidence_id": "ev_30b4534e2c836ace",
+                    "context_hash": "464d58bda57e9c3d3b4794f573b4436eed96710760023b7480755e738f61a3c2",
+                    "neighbor_expanded": true,
+                    "raw_text_sha256": "418b597ae659ad1bad9640ace7c6e69e587e024024b8bfbe6efa709f63c77029",
+                    "raw_audit_ref": {
+                      "file_id": "2a6bc063cc7f",
+                      "chunk_id": "2a6bc063cc7f#240"
+                    }
+                  }
+                ],
+                "omitted_count": 47,
+                "no_hit": false,
+                "context_hashes": [
+                  "464d58bda57e9c3d3b4794f573b4436eed96710760023b7480755e738f61a3c2"
+                ]
+              },
+              "telemetry": {
+                "gate_mode": "on",
+                "candidate_count": 48,
+                "selected_count": 1,
+                "omitted_count": 47,
+                "no_hit": false,
+                "tier": "found",
+                "drop_reasons": {
+                  "weak_primary_phrase": 46,
+                  "no_professional_phrase": 1
+                },
+                "latency_ms": 867.83,
+                "shadow_selected_count": 1,
+                "shadow_no_hit": false,
+                "duplicate_drop_count": 0,
+                "duplicate_rate": 0.0,
+                "candidate_ref_sha256": "972f9461b4b9e2dd0fdaae6c21f3bad99a48b0c8804bb38b7fa9c5984ac1b4d1",
+                "selected_context_hashes": [
+                  "7f9e670803403c01111ad9c9c7e55bc877b47ee922734fbaf1cc9821848e103f"
+                ]
+              },
+              "file_ids": null
+            },
+            "text": "从课程资料中筛选出 1 条可靠证据（过滤 47 条）：\n\n[来源：大学物理学（第4版）力学、热学（张三慧）.pdf · 第1章 质点运动学 · PDF第29页 · chunk 240]\n(置信度 0.61·中)\n<material_excerpt>……第1章\n质点运动学 经典力学是研究物体的机械运动的规律的。 为了研究,首先描述。 力学中描述物体运动的内容叫做运动学。 实际的物体结构复杂,大小各异,为了从最简单的研究开始,引进质点模型,即以具有一定质量的点来代表物体。 本章讲解质点运动学。 相当一部分概念和公式在中学物理课程中已学习过了,本章将对它们进行更严格、更全面也更系统化的讲解。 例如强调了参考系的概念,速度、加速度的定义都用了导数这一数学运算,还普遍加强了矢量概念。 又例如圆周运动介绍了切向加速度和法向加速度两个分加速度。 最后还介绍了同一物体运动的描述在不同参考系中的变换关系——伽利略变换。\n1.1 参考系……</material_excerpt>\n（需要更多上下文时，可用 knowledge_read 按上面的 chunk 指针读取完整原文及相邻片段。）",
+            "error": null,
+            "error_code": null
+          }
+        }
+      ],
+      "message_id": "m_2b598bac8e0c",
+      "created_at": 1789646935.5033257
+    },
+    {
+      "role": "user",
+      "content": "给出题目",
+      "message_id": "m_65feb1fac48b",
+      "created_at": 1789646993.7524495
+    },
+    {
+      "role": "assistant",
+      "content": "题目已生成，见上方答题卡。请先作答，选完我逐题讲解判断依据，并指出这个知识点最容易踩的坑。",
+      "thinking": "我会根据当前学段和「质点模型」选择合适的题型与难度，并确保题目可以直接作答。\n\n接下来的路线是：安排结构化检测题并让你先作答。 当前采用 practice 教学策略，我会据此调整例子、推导深度和检查难度。",
+      "toolCalls": [
+        {
+          "name": "generate_quiz",
+          "result": {
+            "tool": "generate_quiz",
+            "status": "success",
+            "data": {
+              "topic": "质点模型",
+              "grade": "本科",
+              "difficulty": "medium",
+              "questions": [
+                {
+                  "id": "q_21f76862_1",
+                  "type": "multiple_choice",
+                  "stem": "在研究下列运动时，能把研究对象视为质点的是（　　）",
+                  "options": {
+                    "A": "研究地球绕太阳公转的轨道周期",
+                    "B": "研究地球自转时地表各点的线速度",
+                    "C": "研究体操运动员在单杠上的转体动作",
+                    "D": "研究车轮滚动时轮缘上一点的轨迹"
+                  },
+                  "answer": "A",
+                  "explanation": "判断能否视为质点，关键看物体的大小和形状对所研究问题的影响能否忽略。地球直径约 $1.3\\times10^4\\ \\mathrm{km}$，而公转轨道半径约 $1.5\\times10^8\\ \\mathrm{km}$，两者尺度相差四个数量级，地球形状对轨道周期的影响可忽略，故 A 可视为质点。B、C、D 研究的都是物体上不同点的运动差异，形状和大小正是问题本身的核心，不能忽略，故不能视为质点。易错点：误以为「体积小就能当质点」，忽略了判断依据是尺度与研究问题的关系。",
+                  "knowledge_point": "质点模型",
+                  "difficulty": "medium",
+                  "rubric_criteria": [
+                    {
+                      "id": "c1",
+                      "description": "选出 A 且未多选",
+                      "weight": 1.0,
+                      "critical": true
+                    },
+                    {
+                      "id": "c2",
+                      "description": "能指出判断依据是物体尺度与研究问题涉及尺度的比较，而非物体绝对大小",
+                      "weight": 1.0,
+                      "critical": false
+                    }
+                  ],
+                  "equivalent_solutions": [],
+                  "illustration": null,
+                  "bloom_level": "analyze",
+                  "verification": {
+                    "status": "passed",
+                    "illustration_check": "not_required",
+                    "answer_check": "重解：质点判据为研究对象自身尺度对所研究问题的影响可否忽略。A 研究公转轨道周期，地球直径远小于轨道尺度，可视为质点；B 研究自转时地表各点线速度，必须区分各点位置，不可；C 研究转体动作，需考虑身体各部位姿态，不可；D 研究轮缘上一点的轨迹，需考虑轮上各点位置差异，不可。故唯一正确项为 A，答案键与选项一致。",
+                    "alignment": "考查质点模型适用条件，属第1章质点运动学核心概念；四个选项分别对应公转、自转、转体、轮缘轨迹，难度中等，与目标一致。",
+                    "actual_required_processes": []
+                  },
+                  "rubric": {
+                    "rubric_id": "q_21f76862_1",
+                    "version": 1,
+                    "criteria": [
+                      {
+                        "id": "c1",
+                        "description": "选出 A 且未多选",
+                        "weight": 1.0,
+                        "critical": true
+                      },
+                      {
+                        "id": "c2",
+                        "description": "能指出判断依据是物体尺度与研究问题涉及尺度的比较，而非物体绝对大小",
+                        "weight": 1.0,
+                        "critical": false
+                      }
+                    ],
+                    "equivalent_solutions": [],
+                    "frozen_at": 1789646992.7319336
+                  },
+                  "source_refs": [
+                    {
+                      "file_id": "2a6bc063cc7f",
+                      "chunk_id": "2a6bc063cc7f#240",
+                      "filename": "大学物理学（第4版）力学、热学（张三慧）.pdf",
+                      "source_scope": "workspace_textbook",
+                      "page": 29,
+                      "printed_page": null,
+                      "section_path": [
+                        "第1章 质点运动学"
+                      ],
+                      "excerpt": "……第1章\n质点运动学 经典力学是研究物体的机械运动的规律的。 为了研究,首先描述。 力学中描述物体运动的内容叫做运动学。 实际的物体结构复杂,大小各异,为了从最简单的研究开始,引进质点模型,即以具有一定质量的点来代表物体。 本章讲解质点运动学。 相当一部分概念和公式在中学物理课程中已学习过了,本章将对它们进行更严格、更全面也更系统化的讲解。 例如强调了参考系的概念,速度、加速度的定义都用了导数这一数学运算,还普遍加强了矢量概念。 又例如圆周运动介绍了切向加速度和法向加速度两个分加速度。 最后还介绍了同一物体运动的描述在不同参考系中的变换关系——伽利略变换。\n1.1 参考系……",
+                      "context_hash": "464d58bda57e9c3d3b4794f573b4436eed96710760023b7480755e738f61a3c2",
+                      "confidence": 0.393
+                    },
+                    {
+                      "file_id": "2a6bc063cc7f",
+                      "chunk_id": "2a6bc063cc7f#663",
+                      "filename": "大学物理学（第4版）力学、热学（张三慧）.pdf",
+                      "source_scope": "workspace_textbook",
+                      "page": 104,
+                      "printed_page": 88,
+                      "section_path": [
+                        "第2章 运动与力"
+                      ],
+                      "excerpt": "因此系统的动量守恒定律也可以说成是:当一质点系所受的合外力等于零时,其质心速度保持不变。 需要指出的是,在这以前我们常常用“物体”一词来代替“质点”。 在某些问题中,物体并不太小,因而不能当成质点看待,但我们还是用了牛顿定律来分析研究它们的运动。 严格地说,我们是对物体用了式(3. 18)那样的质心运动定理,而所分析的运动实际上是物体的质心的运动。 在物体作平动的条件下,因为物体中各质点的运动相同,所以完全可以用质心的运动来代表整个物体的运动而加以研究。 * 质心参考系 由于质心的特殊性,在分析力学问题时,利用质心参考系常常带来方便。 质心参考系就是物体系的质心在其中静止的平动参考系。 在很多情况下,就把质心选作质心参考系的原点。 既然在此参考系中, $\\boldsymbol{v}_C=0$,",
+                      "context_hash": "57cdec10163051b7b7538be7250c7a1ba3b8052e0daf20131cba4fbf0dc80028",
+                      "confidence": 0.39
+                    }
+                  ],
+                  "grounding_mode": "textbook",
+                  "grounding_tier": "found",
+                  "question_id": "q_3c4ee431f21587f483497013",
+                  "question_revision": 1,
+                  "result": {
+                    "status": "ok",
+                    "attempt_id": "att_5cf058c3eb9b46a5",
+                    "source_id": "src_87dbac6374a340ca",
+                    "job_id": "job_42265f4f325e46ee",
+                    "task_result": {
+                      "question_ref": {
+                        "question_id": "q_3c4ee431f21587f483497013",
+                        "question_revision": 1
+                      },
+                      "grading_status": "graded",
+                      "verdict": "correct",
+                      "task_score": 1.0,
+                      "criterion_results": [],
+                      "first_error": null,
+                      "hypotheses": [],
+                      "feedback": null,
+                      "answer_fingerprint": "af_559aead08264d5795d3909718cdd05ab",
+                      "computed_at": "2026-09-17T12:10:01Z",
+                      "rubric_hash": "rh_9653eeda16c8f89c0e510ed0bc02f5b19f05c573"
+                    },
+                    "evaluation": {
+                      "status": "pending",
+                      "interpretation_id": ""
+                    },
+                    "feedback": "",
+                    "continuation": null,
+                    "duplicate": false,
+                    "question_id": "q_3c4ee431f21587f483497013",
+                    "question_revision": 1,
+                    "student_answer": "A",
+                    "verdict": "correct",
+                    "pending": true,
+                    "revealed": {
+                      "answer": "A",
+                      "explanation": "判断能否视为质点，关键看物体的大小和形状对所研究问题的影响能否忽略。地球直径约 $1.3\\times10^4\\ \\mathrm{km}$，而公转轨道半径约 $1.5\\times10^8\\ \\mathrm{km}$，两者尺度相差四个数量级，地球形状对轨道周期的影响可忽略，故 A 可视为质点。B、C、D 研究的都是物体上不同点的运动差异，形状和大小正是问题本身的核心，不能忽略，故不能视为质点。易错点：误以为「体积小就能当质点」，忽略了判断依据是尺度与研究问题的关系。"
+                    }
+                  }
+                }
+              ],
+              "answer_verified": true,
+              "verification": {
+                "mode": "critic",
+                "attempts": 1,
+                "critic": "ok",
+                "dropped_ill_formed": 0,
+                "dropped_by_critic": 1,
+                "dropped_rejected": 0,
+                "dropped_revision_required": 1,
+                "unreviewed_count": 0,
+                "critic_flags": [
+                  {
+                    "id": 3,
+                    "verdict": "revision_required",
+                    "reason": "在题干中补充第二问的观测条件（如“观测时间内的均方位移约为若干 μm”或“容器/观测尺度为若干 mm”），使 10 μm 相对观测尺度是否可忽略可判定；或将该问改为“若观测尺度与颗粒尺度可比，结论如何变化”，并相应修改拟定答案与评分要点。"
+                  }
+                ],
+                "raw": "",
+                "answer_verified": true,
+                "generation_calls": 3,
+                "illustration_repairs": 0,
+                "completion_tokens": 3754,
+                "generation_elapsed_ms": 21678,
+                "design": "fallback",
+                "grounding_verification": "content_checked",
+                "illustration_policy": "auto"
+              },
+              "grounding": {
+                "mode": "textbook",
+                "tier": "found",
+                "required": false,
+                "reason": "none",
+                "query": "质点模型 能否将实际物体视为质点的判断（判断依据与研究问题的尺度关系）",
+                "source_count": 6,
+                "omitted_count": 42
+              },
+              "quiz_set_id": "qs_d419ca6491ad41a1bced9700"
+            },
+            "text": "已生成 1/1 道关于「质点模型」的练习题（已通过答案校验）。",
+            "error": null,
+            "error_code": null
+          }
+        }
+      ],
+      "message_id": "m_e34807d6815c",
+      "created_at": 1789646993.7524495
+    }
+  ],
+  "quiz_history": [
+    {
+      "topic": "质点模型",
+      "grade": "本科",
+      "difficulty": "medium",
+      "questions": [
+        {
+          "id": "q_21f76862_1",
+          "type": "multiple_choice",
+          "stem": "在研究下列运动时，能把研究对象视为质点的是（　　）",
+          "options": {
+            "A": "研究地球绕太阳公转的轨道周期",
+            "B": "研究地球自转时地表各点的线速度",
+            "C": "研究体操运动员在单杠上的转体动作",
+            "D": "研究车轮滚动时轮缘上一点的轨迹"
+          },
+          "answer": "A",
+          "explanation": "判断能否视为质点，关键看物体的大小和形状对所研究问题的影响能否忽略。地球直径约 $1.3\\times10^4\\ \\mathrm{km}$，而公转轨道半径约 $1.5\\times10^8\\ \\mathrm{km}$，两者尺度相差四个数量级，地球形状对轨道周期的影响可忽略，故 A 可视为质点。B、C、D 研究的都是物体上不同点的运动差异，形状和大小正是问题本身的核心，不能忽略，故不能视为质点。易错点：误以为「体积小就能当质点」，忽略了判断依据是尺度与研究问题的关系。",
+          "knowledge_point": "质点模型",
+          "difficulty": "medium",
+          "rubric_criteria": [
+            {
+              "id": "c1",
+              "description": "选出 A 且未多选",
+              "weight": 1.0,
+              "critical": true
+            },
+            {
+              "id": "c2",
+              "description": "能指出判断依据是物体尺度与研究问题涉及尺度的比较，而非物体绝对大小",
+              "weight": 1.0,
+              "critical": false
+            }
+          ],
+          "equivalent_solutions": [],
+          "illustration": null,
+          "bloom_level": "analyze",
+          "verification": {
+            "status": "passed",
+            "illustration_check": "not_required",
+            "answer_check": "重解：质点判据为研究对象自身尺度对所研究问题的影响可否忽略。A 研究公转轨道周期，地球直径远小于轨道尺度，可视为质点；B 研究自转时地表各点线速度，必须区分各点位置，不可；C 研究转体动作，需考虑身体各部位姿态，不可；D 研究轮缘上一点的轨迹，需考虑轮上各点位置差异，不可。故唯一正确项为 A，答案键与选项一致。",
+            "alignment": "考查质点模型适用条件，属第1章质点运动学核心概念；四个选项分别对应公转、自转、转体、轮缘轨迹，难度中等，与目标一致。",
+            "actual_required_processes": []
+          },
+          "rubric": {
+            "rubric_id": "q_21f76862_1",
+            "version": 1,
+            "criteria": [
+              {
+                "id": "c1",
+                "description": "选出 A 且未多选",
+                "weight": 1.0,
+                "critical": true
+              },
+              {
+                "id": "c2",
+                "description": "能指出判断依据是物体尺度与研究问题涉及尺度的比较，而非物体绝对大小",
+                "weight": 1.0,
+                "critical": false
+              }
+            ],
+            "equivalent_solutions": [],
+            "frozen_at": 1789646992.7319336
+          },
+          "source_refs": [
+            {
+              "file_id": "2a6bc063cc7f",
+              "chunk_id": "2a6bc063cc7f#240",
+              "filename": "大学物理学（第4版）力学、热学（张三慧）.pdf",
+              "source_scope": "workspace_textbook",
+              "page": 29,
+              "printed_page": null,
+              "section_path": [
+                "第1章 质点运动学"
+              ],
+              "excerpt": "……第1章\n质点运动学 经典力学是研究物体的机械运动的规律的。 为了研究,首先描述。 力学中描述物体运动的内容叫做运动学。 实际的物体结构复杂,大小各异,为了从最简单的研究开始,引进质点模型,即以具有一定质量的点来代表物体。 本章讲解质点运动学。 相当一部分概念和公式在中学物理课程中已学习过了,本章将对它们进行更严格、更全面也更系统化的讲解。 例如强调了参考系的概念,速度、加速度的定义都用了导数这一数学运算,还普遍加强了矢量概念。 又例如圆周运动介绍了切向加速度和法向加速度两个分加速度。 最后还介绍了同一物体运动的描述在不同参考系中的变换关系——伽利略变换。\n1.1 参考系……",
+              "context_hash": "464d58bda57e9c3d3b4794f573b4436eed96710760023b7480755e738f61a3c2",
+              "confidence": 0.393
+            },
+            {
+              "file_id": "2a6bc063cc7f",
+              "chunk_id": "2a6bc063cc7f#663",
+              "filename": "大学物理学（第4版）力学、热学（张三慧）.pdf",
+              "source_scope": "workspace_textbook",
+              "page": 104,
+              "printed_page": 88,
+              "section_path": [
+                "第2章 运动与力"
+              ],
+              "excerpt": "因此系统的动量守恒定律也可以说成是:当一质点系所受的合外力等于零时,其质心速度保持不变。 需要指出的是,在这以前我们常常用“物体”一词来代替“质点”。 在某些问题中,物体并不太小,因而不能当成质点看待,但我们还是用了牛顿定律来分析研究它们的运动。 严格地说,我们是对物体用了式(3. 18)那样的质心运动定理,而所分析的运动实际上是物体的质心的运动。 在物体作平动的条件下,因为物体中各质点的运动相同,所以完全可以用质心的运动来代表整个物体的运动而加以研究。 * 质心参考系 由于质心的特殊性,在分析力学问题时,利用质心参考系常常带来方便。 质心参考系就是物体系的质心在其中静止的平动参考系。 在很多情况下,就把质心选作质心参考系的原点。 既然在此参考系中, $\\boldsymbol{v}_C=0$,",
+              "context_hash": "57cdec10163051b7b7538be7250c7a1ba3b8052e0daf20131cba4fbf0dc80028",
+              "confidence": 0.39
+            }
+          ],
+          "grounding_mode": "textbook",
+          "grounding_tier": "found",
+          "question_id": "q_3c4ee431f21587f483497013",
+          "question_revision": 1,
+          "result": {
+            "status": "ok",
+            "attempt_id": "att_5cf058c3eb9b46a5",
+            "source_id": "src_87dbac6374a340ca",
+            "job_id": "job_42265f4f325e46ee",
+            "task_result": {
+              "question_ref": {
+                "question_id": "q_3c4ee431f21587f483497013",
+                "question_revision": 1
+              },
+              "grading_status": "graded",
+              "verdict": "correct",
+              "task_score": 1.0,
+              "criterion_results": [],
+              "first_error": null,
+              "hypotheses": [],
+              "feedback": null,
+              "answer_fingerprint": "af_559aead08264d5795d3909718cdd05ab",
+              "computed_at": "2026-09-17T12:10:01Z",
+              "rubric_hash": "rh_9653eeda16c8f89c0e510ed0bc02f5b19f05c573"
+            },
+            "evaluation": {
+              "status": "pending",
+              "interpretation_id": ""
+            },
+            "feedback": "",
+            "continuation": null,
+            "duplicate": false,
+            "question_id": "q_3c4ee431f21587f483497013",
+            "question_revision": 1,
+            "student_answer": "A",
+            "verdict": "correct",
+            "pending": true,
+            "revealed": {
+              "answer": "A",
+              "explanation": "判断能否视为质点，关键看物体的大小和形状对所研究问题的影响能否忽略。地球直径约 $1.3\\times10^4\\ \\mathrm{km}$，而公转轨道半径约 $1.5\\times10^8\\ \\mathrm{km}$，两者尺度相差四个数量级，地球形状对轨道周期的影响可忽略，故 A 可视为质点。B、C、D 研究的都是物体上不同点的运动差异，形状和大小正是问题本身的核心，不能忽略，故不能视为质点。易错点：误以为「体积小就能当质点」，忽略了判断依据是尺度与研究问题的关系。"
+            }
+          }
+        }
+      ],
+      "answer_verified": true,
+      "verification": {
+        "mode": "critic",
+        "attempts": 1,
+        "critic": "ok",
+        "dropped_ill_formed": 0,
+        "dropped_by_critic": 1,
+        "dropped_rejected": 0,
+        "dropped_revision_required": 1,
+        "unreviewed_count": 0,
+        "critic_flags": [
+          {
+            "id": 3,
+            "verdict": "revision_required",
+            "reason": "在题干中补充第二问的观测条件（如“观测时间内的均方位移约为若干 μm”或“容器/观测尺度为若干 mm”），使 10 μm 相对观测尺度是否可忽略可判定；或将该问改为“若观测尺度与颗粒尺度可比，结论如何变化”，并相应修改拟定答案与评分要点。"
+          }
+        ],
+        "raw": "",
+        "answer_verified": true,
+        "generation_calls": 3,
+        "illustration_repairs": 0,
+        "completion_tokens": 3754,
+        "generation_elapsed_ms": 21678,
+        "design": "fallback",
+        "grounding_verification": "content_checked",
+        "illustration_policy": "auto"
+      },
+      "grounding": {
+        "mode": "textbook",
+        "tier": "found",
+        "required": false,
+        "reason": "none",
+        "query": "质点模型 能否将实际物体视为质点的判断（判断依据与研究问题的尺度关系）",
+        "source_count": 6,
+        "omitted_count": 42
+      },
+      "quiz_set_id": "qs_d419ca6491ad41a1bced9700"
+    }
+  ],
+  "trace_ids": [
+    "8ac253ce7204",
+    "e4cd581bd45a"
+  ],
+  "pending_material_file_ids": [],
+  "title": "去学质点模型",
+  "created_at": 1789646917.6744032,
+  "updated_at": 1789647001.9561775,
+  "knowledge_files": []
+}

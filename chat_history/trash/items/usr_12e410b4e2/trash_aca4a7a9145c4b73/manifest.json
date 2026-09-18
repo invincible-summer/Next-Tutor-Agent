@@ -1,0 +1,18 @@
+{
+  "id": "trash_aca4a7a9145c4b73",
+  "owner_id": "usr_12e410b4e2",
+  "resource_type": "session",
+  "original_id": "chat_20260916_013600_老师我能背导数定义但想真正理解它从",
+  "title": "老师，我能背导数定义，但想真正理解它。从",
+  "deleted_at": 1789493915.858362,
+  "deleted_at_iso": "2026-09-15T17:38:35.858370+00:00",
+  "expires_at": 1790098715.858362,
+  "retention_days": 7,
+  "metadata": {
+    "workspace_id": "ws_20260916_012038_高等数学",
+    "round_count": 2,
+    "forget_prompt_memory": false,
+    "memory_forget_status": "recent"
+  },
+  "version": 1
+}

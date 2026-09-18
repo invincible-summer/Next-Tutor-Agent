@@ -1,0 +1,2139 @@
+{
+  "session_id": "chat_20260916_145405_给出一个电偶极子_p_处于均匀外电场_E",
+  "grade": "本科",
+  "output_language": null,
+  "workspace_id": "ws_20260916_012039_大学物理学",
+  "student_id": "usr_12e410b4e2",
+  "compaction": null,
+  "supervisor_state": {
+    "current_goal": "生成材料电偶极子在均匀外电场中的电势能",
+    "task_type": "generate",
+    "plan": {
+      "steps": [
+        {
+          "agent_role": "knowledge",
+          "task": "先检索当前工作区/会话授权资料，再将证据交给教学步骤。",
+          "suggested_tools": [
+            "knowledge_search"
+          ],
+          "skill_ids": [
+            "agent.skill.knowledge.search_materials"
+          ],
+          "optional": false,
+          "tool_args": {},
+          "auto_invoke": true
+        },
+        {
+          "agent_role": "teaching",
+          "task": "简要回顾电偶极子在均匀外电场中的电势能公式 U=-p·E 及其物理含义",
+          "suggested_tools": [],
+          "skill_ids": [
+            "agent.skill.teaching.direct_explain"
+          ],
+          "optional": false,
+          "tool_args": {},
+          "auto_invoke": false
+        },
+        {
+          "agent_role": "assessment",
+          "task": "生成2-3道关于电偶极子在不同取向与场强下电势能计算及能量变化的基础练习题，供学生作答",
+          "suggested_tools": [],
+          "skill_ids": [
+            "agent.skill.assessment.generate_practice"
+          ],
+          "optional": false,
+          "tool_args": {},
+          "auto_invoke": false
+        }
+      ],
+      "source": "skill_gated:llm",
+      "validated": true,
+      "created_at": 1789541751.4617028
+    },
+    "completed": [
+      "knowledge:先检索当前工作区/会话授权资料，再将证据交给教学步骤。",
+      "teaching:简要回顾电偶极子在均匀外电场中的电势能公式 U=-p·E 及其物理含义"
+    ],
+    "remaining": [
+      "assessment:生成2-3道关于电偶极子在不同取向与场强下电势能计算及能量变化的基础练习题，供学生作答"
+    ],
+    "execution_history": [
+      {
+        "ts": 1789541723.375555,
+        "goal": "生成材料电偶极子在均匀外电场中的电势能",
+        "intent": "generate",
+        "tool_calls": [
+          "knowledge_search"
+        ],
+        "plan_source": "skill_gated_clarify"
+      },
+      {
+        "ts": 1789541798.6412723,
+        "goal": "生成材料电偶极子在均匀外电场中的电势能",
+        "intent": "generate",
+        "tool_calls": [
+          "knowledge_search"
+        ],
+        "plan_source": "skill_gated:llm"
+      }
+    ],
+    "updated_at": 1789541798.6412776
+  },
+  "context_card": {
+    "version": "1.0",
+    "session_goal": "生成材料电偶极子在均匀外电场中的电势能",
+    "current_subject": "物理",
+    "active_concepts": [
+      "电偶极子在均匀外电场中的电势能"
+    ],
+    "current_mode": "introduction",
+    "explanation_depth": "adaptive",
+    "recent_mistakes": [],
+    "misconceptions": [],
+    "completed_steps": [
+      "knowledge:先检索当前工作区/会话授权资料，再将证据交给教学步骤。",
+      "teaching:简要回顾电偶极子在均匀外电场中的电势能公式 U=-p·E 及其物理含义"
+    ],
+    "remaining_steps": [
+      "assessment:生成2-3道关于电偶极子在不同取向与场强下电势能计算及能量变化的基础练习题，供学生作答"
+    ],
+    "active_skill_ids": [
+      "agent.skill.knowledge.search_materials",
+      "agent.skill.teaching.direct_explain",
+      "agent.skill.assessment.generate_practice"
+    ],
+    "pending_assessment": false,
+    "unanswered_question_ids": [],
+    "latest_verdicts": [],
+    "open_loops": [
+      {
+        "id": "assessment:电偶极子在均匀外电场中的电势能",
+        "kind": "student_response",
+        "description": "等待学生完成「电偶极子在均匀外电场中的电势能」检测题并提交作答",
+        "status": "resolved",
+        "source_ref": "",
+        "created_turn": 1
+      }
+    ],
+    "source_refs": [],
+    "updated_at": 1789541798.641401
+  },
+  "learning_summary": {
+    "schema": "session_summary.v1",
+    "built_at": 1789541798.668454,
+    "concepts": [
+      "电偶极子在均匀外电场中的电势能"
+    ],
+    "demonstrated": [],
+    "open_items": [],
+    "pending_questions": 0,
+    "coverage_note": "已讲解，待验证",
+    "resume_anchor": {
+      "concept": "电偶极子在均匀外电场中的电势能",
+      "pending": 0,
+      "hint": ""
+    },
+    "polished": false,
+    "summary_line": "电偶极子在均匀外电场中的电势能：已讲解，待验证",
+    "resume_line": "从「电偶极子在均匀外电场中的电势能」继续，或告诉我今天想学什么。"
+  },
+  "task_binding": null,
+  "messages": [
+    {
+      "role": "user",
+      "content": "给出一个电偶极子 p 处于均匀外电场 E 中的情境，请学生写出电势能表达式并解释负号的来源；再给一个 p 与 E 垂直的变式，要求判断电势能是否为零。",
+      "message_id": "m_4e26cf117e67",
+      "created_at": 1789541723.3760219
+    },
+    {
+      "role": "assistant",
+      "content": "好的，我们首先基于教材（张三慧《大学物理学》第4版，电磁部分）的内容，来完整地讲解电偶极子在均匀外电场中的电势能，并按照你的要求设计教学情境。\n\n根据教材第37-38页（chunk 436, 437）的推导，电势能的计算如下：\n\n### **1. 基础情境：写出表达式与解释负号**\n\n**情境描述：**\n一个电偶极子，由相距为 $l$ 的两个点电荷 $+q$ 和 $-q$ 构成，其电偶极矩矢量 $\\mathbf{p} = q\\mathbf{l}$（方向由 $-q$ 指向 $+q$），置于一个均匀外电场 $\\mathbf{E}$ 中。设 $\\mathbf{p}$ 与 $\\mathbf{E}$ 之间的夹角为 $\\theta$（如教材图13.11所示）。\n\n**教学引导（请学生思考）：**\n根据教材，一个点电荷 $q_0$ 在电势为 $\\varphi$ 的点的电势能为 $W = q_0 \\varphi$（公式13.19）。那么，对于电偶极子这个由两个电荷构成的系统，其总电势能应该是两个电荷电势能的代数和。请你写出电偶极子的电势能表达式，并解释表达式中负号的物理来源。\n\n---\n\n**讲解与推导（基于教材原文）：**\n\n电偶极子在均匀外电场中的电势能表达式为：\n$$ \\boxed{W = -\\mathbf{p} \\cdot \\mathbf{E} = -pE \\cos\\theta} $$\n\n**推导过程与负号来源解释：**\n推导的核心思路是 **“叠加原理”与“能量可加性”**，即系统总电势能等于各部分电势能之和。\n\n1.  **定位参考点与电势：** 在均匀电场 $\\mathbf{E}$ 中，电势 $\\varphi$ 不是唯一确定的，但电势差是确定的。计算电势能时，关键在于两个电荷所在位置的电势**差**。\n2.  **计算各电荷的电势能：** 设正电荷 $+q$ 位于 $A$ 点，负电荷 $-q$ 位于 $B$ 点。根据教材公式 (13.19)，它们的电势能分别为：\n    $$\n    W_+ = q\\varphi_A, \\quad W_- = (-q)\\varphi_B\n    $$\n    **注意：** 这里的 $\\varphi_A$ 和 $\\varphi_B$ 是由**外电场** $\\mathbf{E}$ 在 $A$、$B$ 两点产生的电势，与电偶极子自身的电场无关。\n3.  **求和得总电势能：**\n    $$\n    W = W_+ + W_- = q\\varphi_A - q\\varphi_B = q(\\varphi_A - \\varphi_B)\n    $$\n4.  **引入均匀电场中的电势差：** 在均匀电场中，沿电场线方向距离为 $d$ 的两点间的电势差为 $\\varphi_1 - \\varphi_2 = E d$（方向为从高电势指向低电势）。从 $B$ 到 $A$ 的位移矢量为 $\\mathbf{l}$，其在电场方向（$\\mathbf{E}$ 方向）的投影长度为 $l \\cos\\theta$。因此，$A$、$B$ 两点的电势差为：\n    $$\n    \\varphi_A - \\varphi_B = -E (l \\cos\\theta)\n    $$\n    **（为什么有个负号？）** 因为若 $A$ 点在 $B$ 点的“下游”（沿 $\\mathbf{E}$ 方向），则 $\\varphi_A < \\varphi_B$，电势差 $\\varphi_A - \\varphi_B$ 应为负值。位移矢量 $\\mathbf{l}$ 在 $\\mathbf{E}$ 方向的分量为 $l \\cos\\theta$，所以从 $B$ 到 $A$ 的电势降落为 $E \\cdot (l \\cos\\theta)$，故 $\\varphi_A = \\varphi_B - E l \\cos\\theta$，即 $\\varphi_A - \\varphi_B = -E l \\cos\\theta$。\n5.  **得到最终表达式：**\n    $$\n    W = q \\cdot (-E l \\cos\\theta) = -q l E \\cos\\theta = -p E \\cos\\theta\n    $$\n    写成矢量形式即为：\n    $$\n    W = -\\mathbf{p} \\cdot \\mathbf{E}\n    $$\n\n**负号的物理意义：**\n负号来源于电势差的定义方式以及能量可加性。它不是偶然出现的符号，而是反映了以下核心物理：\n*   **能量最低原理：** 当电偶极子的电矩 $\\mathbf{p}$ 与外电场 $\\mathbf{E}$ **同向** ($\\theta=0$) 时，$\\cos\\theta = 1$，此时 $W = -pE$ 为**最小值**（最负），系统最稳定。这就像重力场中物体在最低点势能最小。\n*   **能量最高点：** 当 $\\mathbf{p}$ 与 $\\mathbf{E}$ **反向** ($\\theta=\\pi$) 时，$\\cos\\theta = -1$，此时 $W = +pE$ 为**最大值**，系统最不稳定，有自发转动到 $\\theta=0$ 方向的趋势。\n*   **零点的含义：** 公式本身已经设定了一个**零势能参考点**。当 $\\mathbf{p} \\perp \\mathbf{E}$ ($\\theta=\\pi/2$) 时，$W=0$。这并不代表此时没有相互作用能，而是我们**人为地将**电偶极子取向与电场垂直时的状态定义为电势能零点。系统的能量变化只与相对取向有关，零点选择不影响物理本质。\n\n### **2. 变式情境：垂直情况**\n\n**情境描述：**\n现在，将上述电偶极子在电场中转动，使其电偶极矩 $\\mathbf{p}$ 与均匀外电场 $\\mathbf{E}$ 的方向**垂直**（即 $\\theta = 90^\\circ$）。请判断此时电偶极子的电势能是否为零，并解释你的判断。\n\n**教学引导与判断：**\n根据表达式 $W = -pE \\cos\\theta$，当 $\\theta = 90^\\circ$ 时，$\\cos 90^\\circ = 0$，因此 $W = 0$。\n\n**所以，电势能为零。**\n\n**深入理解：**\n这里的“为零”并非意味着电偶极子与外电场之间没有相互作用。事实上，在此位置电偶极子仍会受到一个**力矩** $\\mathbf{\\tau} = \\mathbf{p} \\times \\mathbf{E}$，其大小为 $\\tau = pE$，力矩的方向会驱使电偶极子转动，使其 $\\mathbf{p}$ 趋向于与 $\\mathbf{E}$ 对齐（$\\theta=0$ 的方向）。电势能为零仅仅表明，根据我们选定的零点（$\\theta=90^\\circ$），从该位置出发进行转动时，力矩做功与电势能变化的关系是明确的。例如，从 $\\theta=90^\\circ$ 转动到 $\\theta=0^\\circ$，电场力做正功 $pE$，电势能由 $0$ 下降到 $-pE$，与公式计算结果完全一致。\n\n---\n\n### **3. 知识小结与检测**\n\n**核心要点：**\n1.  **表达式：** 电偶极子在均匀外电场中的电势能为 $W = -\\mathbf{p} \\cdot \\mathbf{E}$。\n2.  **推导基础：** 利用电荷电势能的可加性 $W = q\\varphi$，结合均匀电场中电势差与场强的关系导出。\n3.  **物理图像：** 负号确保了 $\\mathbf{p}$ 与 $\\mathbf{E}$ 同向时能量最低（稳定取向），反向时能量最高（不稳定取向），垂直时能量为零（选定的参考点）。\n4.  **常见误区：** 电势能零点是人为选择的，能量为零不代表无相互作用；不要忽略电偶极子在任意位置（除 $\\theta=0,\\pi$ 外）都可能受到力矩。\n\n根据你的教学计划，现在我们来检测一下对这个概念的理解。\n\n下面是一道针对本知识点的检测题，请你先尝试作答。",
+      "thinking": "我正在确认「电偶极子在均匀外电场中的电势能」的目标、必要信息和最合适的完成方式。\n\n接下来的路线是：按当前学段分层讲解。 当前采用 introduction 教学策略，我会据此调整例子、推导深度和检查难度。",
+      "toolCalls": [
+        {
+          "name": "knowledge_search",
+          "result": {
+            "tool": "knowledge_search",
+            "status": "success",
+            "data": {
+              "query": "电偶极子",
+              "results": [
+                {
+                  "source": "大学物理学（第4版）电磁、光学、量子物理（张三慧）.pdf",
+                  "filename": "大学物理学（第4版）电磁、光学、量子物理（张三慧）.pdf",
+                  "file_id": "5b8d11cc8f4f",
+                  "chunk_id": "5b8d11cc8f4f#437",
+                  "index": 437,
+                  "score": 0.0466,
+                  "page": 55,
+                  "printed_page": 38,
+                  "noise_flags": [],
+                  "block_types": [
+                    "formula"
+                  ],
+                  "section_path": [
+                    "1 在直角坐标系中 $\\nabla$ 算符定义为",
+                    "A_{12}=W_1-W_2",
+                    "解 由式(13.19)可知,在均匀外电场中电偶极子中正、负电荷(分别位于 $A$、$B$ 两点)的电势能分"
+                  ],
+                  "lesson": null,
+                  "is_lesson": false,
+                  "bm25_score": 40.346,
+                  "variant_hits": [
+                    "电偶极子",
+                    "均匀外电场",
+                    "电势能"
+                  ],
+                  "retrieval_strategy": "multi_query_rrf",
+                  "section": "",
+                  "chapter": "第13章 电势",
+                  "source_scope": "workspace_textbook",
+                  "source_visibility": "public",
+                  "location_type": "printed_page",
+                  "location_label": "教材第 38 页（PDF 第 55 页）",
+                  "block_type": "formula",
+                  "matched_terms": [
+                    "电偶",
+                    "偶极",
+                    "极子"
+                  ],
+                  "matched_bigrams": [
+                    "偶极",
+                    "极子",
+                    "电偶"
+                  ],
+                  "matched_phrases": [
+                    "电偶极子"
+                  ],
+                  "primary_phrase_coverage": 1.0,
+                  "title_match": 1.0,
+                  "confidence": 1.0,
+                  "signals": {
+                    "lexical": 1.0,
+                    "exact_term_coverage": 1.0,
+                    "primary_phrase_coverage": 1.0,
+                    "title_match": 1.0,
+                    "bm25_raw": 40.346,
+                    "bm25_normalized": 0.9758,
+                    "bm25_relative": 0.9619,
+                    "vector_distance": null,
+                    "vector_calibrated": false,
+                    "variant_hits": [
+                      "电偶极子",
+                      "均匀外电场",
+                      "电势能"
+                    ],
+                    "concept_bonus": 0
+                  },
+                  "query_intent": "content",
+                  "selection_reason": "lesson_title_match+mmr",
+                  "evidence_excerpt": "……解 由式(13.19)可知,在均匀外电场中电偶极子中正、负电荷(分别位于 $A$、$B$ 两点)的电势能分\n别为 W_+=q\\varphi_A,\\qquad W_-=-q\\varphi_B 电偶极子在外电场中的电势能为 W=W_++W_-=q(\\varphi_A-\\varphi_B)=-qlE\\cos\\theta=-pE\\cos\\theta 式中 $\\theta$ 是 $\\boldsymbol{p}$ 与 $\\boldsymbol{E}$ 的夹角。 将上式写成矢量形式,则有 W=-\\boldsymbol{p}\\cdot\\boldsymbol{E}\\tag{13.20} 上式表明,当电偶极子取向与外电场一致时,电势能最低;取向相反时,电势能最高;当电偶极子取向与外电场方向垂直时,电势能为零。 式(13.20)与习题12.31的结果是符合功能关系的。\n[图13.11|电偶极子在外电场中的电势能计算] 图述:图中水平方向有多条彼此平行且向右的电场线,表示方向向右的匀强电场 $\\boldsymbol{E}$。斜向线段连接下方的负电荷 $-q$(标为 $B$)和上方的正电荷 $+q$(标为 $A$),构成电偶极子。线段与电场方向之间的夹角标为 $\\theta$,偶极矩方向由负电荷指向正电荷。……",
+                  "evidence_id": "ev_a88a0c02302a6217",
+                  "context_hash": "ee3f4be266fcf3cde4df4e5b86d10adf22e6ea6b2351142ca6ea155cc63e623b",
+                  "neighbor_expanded": true,
+                  "raw_text_sha256": "ff7073d2719af1b06bfefe25b86a9d5baad6b52b7d55552c9ad994d6edb1a8a5",
+                  "raw_audit_ref": {
+                    "file_id": "5b8d11cc8f4f",
+                    "chunk_id": "5b8d11cc8f4f#437"
+                  }
+                },
+                {
+                  "source": "大学物理学（第4版）电磁、光学、量子物理（张三慧）.pdf",
+                  "filename": "大学物理学（第4版）电磁、光学、量子物理（张三慧）.pdf",
+                  "file_id": "5b8d11cc8f4f",
+                  "chunk_id": "5b8d11cc8f4f#436",
+                  "index": 436,
+                  "score": 0.0454,
+                  "page": 54,
+                  "printed_page": 37,
+                  "noise_flags": [],
+                  "block_types": [
+                    "heading"
+                  ],
+                  "section_path": [
+                    "1 在直角坐标系中 $\\nabla$ 算符定义为",
+                    "A_{12}=W_1-W_2",
+                    "解 由式(13.19)可知,在均匀外电场中电偶极子中正、负电荷(分别位于 $A$、$B$ 两点)的电势能分"
+                  ],
+                  "lesson": null,
+                  "is_lesson": false,
+                  "bm25_score": 39.454,
+                  "variant_hits": [
+                    "电偶极子",
+                    "均匀外电场",
+                    "电势能"
+                  ],
+                  "retrieval_strategy": "multi_query_rrf",
+                  "section": "",
+                  "chapter": "第13章 电势",
+                  "source_scope": "workspace_textbook",
+                  "source_visibility": "public",
+                  "location_type": "printed_page",
+                  "location_label": "教材第 37 页（PDF 第 54 页）",
+                  "block_type": "heading",
+                  "matched_terms": [
+                    "电偶",
+                    "偶极",
+                    "极子"
+                  ],
+                  "matched_bigrams": [
+                    "偶极",
+                    "极子",
+                    "电偶"
+                  ],
+                  "matched_phrases": [
+                    "电偶极子"
+                  ],
+                  "primary_phrase_coverage": 1.0,
+                  "title_match": 1.0,
+                  "confidence": 1.0,
+                  "signals": {
+                    "lexical": 1.0,
+                    "exact_term_coverage": 1.0,
+                    "primary_phrase_coverage": 1.0,
+                    "title_match": 1.0,
+                    "bm25_raw": 39.454,
+                    "bm25_normalized": 0.9753,
+                    "bm25_relative": 0.9406,
+                    "vector_distance": null,
+                    "vector_calibrated": false,
+                    "variant_hits": [
+                      "电偶极子",
+                      "均匀外电场",
+                      "电势能"
+                    ],
+                    "concept_bonus": 0
+                  },
+                  "query_intent": "content",
+                  "selection_reason": "lesson_title_match+mmr",
+                  "evidence_excerpt": "……将此式和式(13.8) A_{12}=q_0(\\varphi_1-\\varphi_2)=q_0\\varphi_1-q_0\\varphi_2 对比,可取 $W_1=q_0\\varphi_1$,$W_2=q_0\\varphi_2$,或者,一般地取 W=q_0\\varphi \\qquad(13.19) 这就是说,一个电荷在电场中某点的电势能等于它的电量与电场中该点电势的乘积。\n解 由式(13.19)可知,在均匀外电场中电偶极子中正、负电荷(分别位于 $A$、$B$ 两点)的电势能分\n别为 W_+=q\\varphi_A,\\qquad W_-=-q\\varphi_B 电偶极子在外电场中的电势能为 W=W_++W_-=q(\\varphi_A-\\varphi_B)=-qlE\\cos\\theta=-pE\\cos\\theta 式中 $\\theta$ 是 $\\boldsymbol{p}$ 与 $\\boldsymbol{E}$ 的夹角。……",
+                  "evidence_id": "ev_43aad73b782a031e",
+                  "context_hash": "82c7beb88c3218663a0855fcd9e468544ae9ad9378c3a7b93fa2ccb213ddda5d",
+                  "neighbor_expanded": true,
+                  "raw_text_sha256": "09ca03a436db628c62c1aea4f76f11afeff2817ba2dfab3c378c4869235a3a7c",
+                  "raw_audit_ref": {
+                    "file_id": "5b8d11cc8f4f",
+                    "chunk_id": "5b8d11cc8f4f#436"
+                  }
+                },
+                {
+                  "source": "大学物理学（第4版）电磁、光学、量子物理（张三慧）.pdf",
+                  "filename": "大学物理学（第4版）电磁、光学、量子物理（张三慧）.pdf",
+                  "file_id": "5b8d11cc8f4f",
+                  "chunk_id": "5b8d11cc8f4f#265",
+                  "index": 265,
+                  "score": 0.0182,
+                  "page": 28,
+                  "printed_page": 11,
+                  "noise_flags": [],
+                  "block_types": [
+                    "paragraph"
+                  ],
+                  "section_path": [
+                    "1 单位 $\\mathrm{C^2/(N\\cdot m^2)}$ 就是 $\\mathrm{F/m}$,$\\mathrm{F}$(法)是电容的单位,见第 15 章。"
+                  ],
+                  "lesson": null,
+                  "is_lesson": false,
+                  "bm25_score": 41.4,
+                  "variant_hits": [
+                    "电偶极子",
+                    "均匀外电场"
+                  ],
+                  "retrieval_strategy": "multi_query_rrf",
+                  "section": "",
+                  "chapter": "第12章 静电场",
+                  "source_scope": "workspace_textbook",
+                  "source_visibility": "public",
+                  "location_type": "printed_page",
+                  "location_label": "教材第 11 页（PDF 第 28 页）",
+                  "block_type": "paragraph",
+                  "matched_terms": [
+                    "电偶",
+                    "偶极",
+                    "极子"
+                  ],
+                  "matched_bigrams": [
+                    "偶极",
+                    "极子",
+                    "电偶"
+                  ],
+                  "matched_phrases": [
+                    "电偶极子"
+                  ],
+                  "primary_phrase_coverage": 1.0,
+                  "title_match": 0.0,
+                  "confidence": 0.737,
+                  "signals": {
+                    "lexical": 1.0,
+                    "exact_term_coverage": 1.0,
+                    "primary_phrase_coverage": 1.0,
+                    "title_match": 0.0,
+                    "bm25_raw": 41.4,
+                    "bm25_normalized": 0.9764,
+                    "bm25_relative": 0.987,
+                    "vector_distance": null,
+                    "vector_calibrated": false,
+                    "variant_hits": [
+                      "电偶极子",
+                      "均匀外电场"
+                    ],
+                    "concept_bonus": 0
+                  },
+                  "query_intent": "content",
+                  "selection_reason": "exact_term+mmr",
+                  "evidence_excerpt": "\\frac{q}{4\\pi\\varepsilon_0r^3}(\\mathbf r_+-\\mathbf r_-) 由于 $\\mathbf r_+-\\mathbf r_-=-\\mathbf l$,所以上式化为 \\mathbf E=-\\frac{q\\mathbf l}{4\\pi\\varepsilon_0r^3} 式中,$ql$ 反映电偶极子本身的特征,叫做电偶极子的电矩(或电偶极矩)。 以 $\\mathbf p$ 表示电矩,则 $\\mathbf p=q\\mathbf l$。 这样上述结果又可写成 \\mathbf E=-\\frac{\\mathbf p}{4\\pi\\varepsilon_0r^3} \\tag{12. 12} 此结果表明,电偶极子中垂线上距离电偶极子中心较远处,各点的电场强度与电偶极子的电矩成正比,与该点离电偶极子中心的距离的三次方成反比,方向与电矩的方向相反。 例 12. 4 一根带电直棒,如果我们限于考虑离棒的距离比棒的截面尺寸大得多的地方的电场,则该带电直棒就可以看作一条带电直线。",
+                  "evidence_id": "ev_2ebac416a1909389",
+                  "context_hash": "846c5b35ded888ea9ceae60f65f2e3c60eb880c4b8040fdd32df9b9e0acc666e",
+                  "raw_text_sha256": "aae516fd083a4f1b988ba1b16a492e0d9c991638e804e5e5cf8ac265731076d4",
+                  "raw_audit_ref": {
+                    "file_id": "5b8d11cc8f4f",
+                    "chunk_id": "5b8d11cc8f4f#265"
+                  }
+                },
+                {
+                  "source": "大学物理学（第4版）电磁、光学、量子物理（张三慧）.pdf",
+                  "filename": "大学物理学（第4版）电磁、光学、量子物理（张三慧）.pdf",
+                  "file_id": "5b8d11cc8f4f",
+                  "chunk_id": "5b8d11cc8f4f#930",
+                  "index": 930,
+                  "score": 0.0159,
+                  "page": 128,
+                  "printed_page": 111,
+                  "noise_flags": [],
+                  "block_types": [
+                    "paragraph"
+                  ],
+                  "section_path": [
+                    "1 此单位 $\\mathrm{N/A^2}$ 就是 $\\mathrm{H/m}$,H(亨)是电感的单位,见19.4节。"
+                  ],
+                  "lesson": null,
+                  "is_lesson": false,
+                  "bm25_score": 41.945,
+                  "variant_hits": [
+                    "电偶极子"
+                  ],
+                  "retrieval_strategy": "multi_query_rrf",
+                  "section": "",
+                  "chapter": "第17章 磁场和它的源",
+                  "source_scope": "workspace_textbook",
+                  "source_visibility": "public",
+                  "location_type": "printed_page",
+                  "location_label": "教材第 111 页（PDF 第 128 页）",
+                  "block_type": "paragraph",
+                  "matched_terms": [
+                    "电偶",
+                    "偶极",
+                    "极子"
+                  ],
+                  "matched_bigrams": [
+                    "偶极",
+                    "极子",
+                    "电偶"
+                  ],
+                  "matched_phrases": [
+                    "电偶极子"
+                  ],
+                  "primary_phrase_coverage": 1.0,
+                  "title_match": 0.0,
+                  "confidence": 0.74,
+                  "signals": {
+                    "lexical": 1.0,
+                    "exact_term_coverage": 1.0,
+                    "primary_phrase_coverage": 1.0,
+                    "title_match": 0.0,
+                    "bm25_raw": 41.945,
+                    "bm25_normalized": 0.9767,
+                    "bm25_relative": 1.0,
+                    "vector_distance": null,
+                    "vector_calibrated": false,
+                    "variant_hits": [
+                      "电偶极子"
+                    ],
+                    "concept_bonus": 0
+                  },
+                  "query_intent": "content",
+                  "selection_reason": "exact_term+mmr",
+                  "evidence_excerpt": "……在圆电流中心处,$r=R$,式(17. 11)给出 B=\\frac{\\mu_0 I}{2R} \\tag{17. 15} 式(17. 14)给出了磁矩为 $m$ 的线圈在其轴线上产生的磁场。 这一公式与习题 12. 6 给出的电偶极子在其轴线上产生的电场的公式形式相同,只是将其中 $\\mu_0$ 换成 $1/\\varepsilon_0$。\n这一公式和电偶极子的电场的一般公式(13.18)的形式也相同。 由式(17.16)给出的磁感线图形如图17.12所示。 它和图17.7(b)中电偶极子的电场线图形是类似的(电偶极子所在处除外)。\n[图|图17.12 磁矩的磁感线图] 图述:图中中央为一个水平放置的椭圆形电流回路,标注磁矩方向为竖直向上。蓝色磁感线关于竖直轴和水平轴近似对称,箭头表示磁场线方向。磁感线在电流回路附近分布密集,向外延伸后逐渐稀疏并形成闭合曲线。……",
+                  "evidence_id": "ev_1ec92c7569226451",
+                  "context_hash": "c0453519fed78c5661fafaa3b1e838021f1251e7d267f61a7dc4458a7d1e34a1",
+                  "neighbor_expanded": true,
+                  "raw_text_sha256": "1ec92c75692264511868fccccc67b5f463cf8750aa7c46c5f4735b5976449948",
+                  "raw_audit_ref": {
+                    "file_id": "5b8d11cc8f4f",
+                    "chunk_id": "5b8d11cc8f4f#930"
+                  }
+                },
+                {
+                  "source": "大学物理学（第4版）电磁、光学、量子物理（张三慧）.pdf",
+                  "filename": "大学物理学（第4版）电磁、光学、量子物理（张三慧）.pdf",
+                  "file_id": "5b8d11cc8f4f",
+                  "chunk_id": "5b8d11cc8f4f#412",
+                  "index": 412,
+                  "score": 0.0221,
+                  "page": 50,
+                  "printed_page": 33,
+                  "noise_flags": [],
+                  "block_types": [
+                    "figure"
+                  ],
+                  "section_path": [
+                    "第13章",
+                    "13.2 电势差和电势",
+                    "根据电势叠加原理,$P$ 点的电势为"
+                  ],
+                  "lesson": null,
+                  "is_lesson": false,
+                  "bm25_score": 40.612,
+                  "variant_hits": [
+                    "电偶极子",
+                    "电势能"
+                  ],
+                  "retrieval_strategy": "multi_query_rrf",
+                  "section": "",
+                  "chapter": "第13章 电势",
+                  "source_scope": "workspace_textbook",
+                  "source_visibility": "public",
+                  "location_type": "printed_page",
+                  "location_label": "教材第 33 页（PDF 第 50 页）",
+                  "block_type": "figure",
+                  "matched_terms": [
+                    "电偶",
+                    "偶极",
+                    "极子"
+                  ],
+                  "matched_bigrams": [
+                    "偶极",
+                    "极子",
+                    "电偶"
+                  ],
+                  "matched_phrases": [
+                    "电偶极子"
+                  ],
+                  "primary_phrase_coverage": 1.0,
+                  "title_match": 0.0,
+                  "confidence": 0.734,
+                  "signals": {
+                    "lexical": 1.0,
+                    "exact_term_coverage": 1.0,
+                    "primary_phrase_coverage": 1.0,
+                    "title_match": 0.0,
+                    "bm25_raw": 40.612,
+                    "bm25_normalized": 0.976,
+                    "bm25_relative": 0.9682,
+                    "vector_distance": null,
+                    "vector_calibrated": false,
+                    "variant_hits": [
+                      "电偶极子",
+                      "电势能"
+                    ],
+                    "concept_bonus": 0
+                  },
+                  "query_intent": "content",
+                  "selection_reason": "exact_term+mmr",
+                  "evidence_excerpt": "……\\varphi=\\varphi_++\\varphi_-=\\frac{q}{4\\pi\\varepsilon_0r_+}+\\frac{-q}{4\\pi\\varepsilon_0r_-} =\\frac{q(r_--r_+)}{4\\pi\\varepsilon_0r_+r_-} 对于离电偶极子比较远的点,即 $r\\gg l$ 时,应有 r_+r_-\\approx r^2,\\qquad r_--r_+\\app\n[图|图13.5 计算电偶极子的电势用图] 图述:图中左侧为带负电荷 $-q$ 和右侧为带正电荷 $+q$ 的电偶极子,两电荷相距 $l$。 右上方为场点 $P$,从两电荷分别连接到 $P$ 的距离标为 $r_-$ 和 $r_+$,从偶极子中心 $O$ 到 $P$ 的距离标为 $r$。 线段 $OP$ 与偶极矩方向之间的夹角为 $\\theta$。\n[图|图13.6 例13.4用图] 图述:图中为半径为 $R$、总电荷均匀分布的带电圆环,圆心为 $O$,环上任一电荷元标为 $dq$。圆环轴线上右侧有场点 $P$,其到圆心的距离为 $x$,到电荷元的距离为 $r=\\sqrt{R^2+x^2}$。下方坐标图表示电势 $\\varphi$ 随轴向坐标 $x$ 变化,在 $x=0$ 处达到最大值,向两侧逐渐减小。……",
+                  "evidence_id": "ev_d69de2d752949f9f",
+                  "context_hash": "abb593fc449e30111d168c5b677d2f4fa17fcae05915233c14d1968869c357a1",
+                  "neighbor_expanded": true,
+                  "raw_text_sha256": "08b8a6fc6670e4a6ee652aa599b1355d58bfed6ee3665c6a7a0f270c98a39731",
+                  "raw_audit_ref": {
+                    "file_id": "5b8d11cc8f4f",
+                    "chunk_id": "5b8d11cc8f4f#412"
+                  }
+                },
+                {
+                  "source": "大学物理学（第4版）电磁、光学、量子物理（张三慧）.pdf",
+                  "filename": "大学物理学（第4版）电磁、光学、量子物理（张三慧）.pdf",
+                  "file_id": "5b8d11cc8f4f",
+                  "chunk_id": "5b8d11cc8f4f#286",
+                  "index": 286,
+                  "score": 0.0201,
+                  "page": 32,
+                  "printed_page": 15,
+                  "noise_flags": [],
+                  "block_types": [
+                    "paragraph"
+                  ],
+                  "section_path": [
+                    "第12章 静电场",
+                    "12.5 电场线和电通量"
+                  ],
+                  "lesson": null,
+                  "is_lesson": false,
+                  "bm25_score": 34.11,
+                  "variant_hits": [
+                    "电偶极子",
+                    "均匀外电场"
+                  ],
+                  "retrieval_strategy": "multi_query_rrf",
+                  "section": "",
+                  "chapter": "第12章 静电场",
+                  "source_scope": "workspace_textbook",
+                  "source_visibility": "public",
+                  "location_type": "printed_page",
+                  "location_label": "教材第 15 页（PDF 第 32 页）",
+                  "block_type": "paragraph",
+                  "matched_terms": [
+                    "电偶",
+                    "偶极",
+                    "极子"
+                  ],
+                  "matched_bigrams": [
+                    "偶极",
+                    "极子",
+                    "电偶"
+                  ],
+                  "matched_phrases": [
+                    "电偶极子"
+                  ],
+                  "primary_phrase_coverage": 1.0,
+                  "title_match": 0.0,
+                  "confidence": 0.703,
+                  "signals": {
+                    "lexical": 1.0,
+                    "exact_term_coverage": 1.0,
+                    "primary_phrase_coverage": 1.0,
+                    "title_match": 0.0,
+                    "bm25_raw": 34.11,
+                    "bm25_normalized": 0.9715,
+                    "bm25_relative": 0.8132,
+                    "vector_distance": null,
+                    "vector_calibrated": false,
+                    "variant_hits": [
+                      "电偶极子",
+                      "均匀外电场"
+                    ],
+                    "concept_bonus": 0
+                  },
+                  "query_intent": "content",
+                  "selection_reason": "exact_term+mmr",
+                  "evidence_excerpt": "……[图|图12.11 几种静止的电荷的电场线图] 图述:图中分为三部分:(a) 中心点电荷的电场线呈径向分布,箭头由中心向外;(b) 一对等量异号点电荷之间及周围的电场线由正电荷指向负电荷;(c) 两块带异号电荷的平行金属板之间电场线大致平行且垂直于极板,极板外侧有弯曲的边缘电场线。\n(a) 点电荷;(b) 电偶极子;(c) 带电平行板 电场线图形也可以通过实验显示出来。 将一些针状晶体碎屑撒到绝缘油中使之悬浮起来,加以外电场后,这些小晶体会因感应而成为小的电偶极子。 它们在电场力的作用下就会转到电场方向排列起来,于是就显示出了电场线的图形(图 12.12)。\n[图|图12.12 电场线的显示] 图述:图中展示了三种通过悬浮晶体排列显示出的电场线图样。(a) 中心有两个等量异号电荷,晶体沿两电荷间的电场线排列;(b) 两个平行金属板之间形成近似平行的电场线;(c) 尖端异形带电导体周围的电场线在尖端处明显密集。……",
+                  "evidence_id": "ev_59f0c42bb9967c04",
+                  "context_hash": "b1cb32b2c5346b7fd2f22c25b4a5db67cea3a543818e23db435e3c86c6f6b2ca",
+                  "neighbor_expanded": true,
+                  "raw_text_sha256": "1b7a968d856db396f010032c88b230bc5509c369c5f8f50efebaca67fa28604f",
+                  "raw_audit_ref": {
+                    "file_id": "5b8d11cc8f4f",
+                    "chunk_id": "5b8d11cc8f4f#286"
+                  }
+                }
+              ],
+              "count": 6,
+              "omitted_count": 42,
+              "partial": false,
+              "evidence_bundle": {
+                "query": "电偶极子",
+                "selected": [
+                  {
+                    "source": "大学物理学（第4版）电磁、光学、量子物理（张三慧）.pdf",
+                    "filename": "大学物理学（第4版）电磁、光学、量子物理（张三慧）.pdf",
+                    "file_id": "5b8d11cc8f4f",
+                    "chunk_id": "5b8d11cc8f4f#437",
+                    "index": 437,
+                    "score": 0.0466,
+                    "page": 55,
+                    "printed_page": 38,
+                    "noise_flags": [],
+                    "block_types": [
+                      "formula"
+                    ],
+                    "section_path": [
+                      "1 在直角坐标系中 $\\nabla$ 算符定义为",
+                      "A_{12}=W_1-W_2",
+                      "解 由式(13.19)可知,在均匀外电场中电偶极子中正、负电荷(分别位于 $A$、$B$ 两点)的电势能分"
+                    ],
+                    "lesson": null,
+                    "is_lesson": false,
+                    "bm25_score": 40.346,
+                    "variant_hits": [
+                      "电偶极子",
+                      "均匀外电场",
+                      "电势能"
+                    ],
+                    "retrieval_strategy": "multi_query_rrf",
+                    "section": "",
+                    "chapter": "第13章 电势",
+                    "source_scope": "workspace_textbook",
+                    "source_visibility": "public",
+                    "location_type": "printed_page",
+                    "location_label": "教材第 38 页（PDF 第 55 页）",
+                    "block_type": "formula",
+                    "matched_terms": [
+                      "电偶",
+                      "偶极",
+                      "极子"
+                    ],
+                    "matched_bigrams": [
+                      "偶极",
+                      "极子",
+                      "电偶"
+                    ],
+                    "matched_phrases": [
+                      "电偶极子"
+                    ],
+                    "primary_phrase_coverage": 1.0,
+                    "title_match": 1.0,
+                    "confidence": 1.0,
+                    "signals": {
+                      "lexical": 1.0,
+                      "exact_term_coverage": 1.0,
+                      "primary_phrase_coverage": 1.0,
+                      "title_match": 1.0,
+                      "bm25_raw": 40.346,
+                      "bm25_normalized": 0.9758,
+                      "bm25_relative": 0.9619,
+                      "vector_distance": null,
+                      "vector_calibrated": false,
+                      "variant_hits": [
+                        "电偶极子",
+                        "均匀外电场",
+                        "电势能"
+                      ],
+                      "concept_bonus": 0
+                    },
+                    "query_intent": "content",
+                    "selection_reason": "lesson_title_match+mmr",
+                    "evidence_excerpt": "……解 由式(13.19)可知,在均匀外电场中电偶极子中正、负电荷(分别位于 $A$、$B$ 两点)的电势能分\n别为 W_+=q\\varphi_A,\\qquad W_-=-q\\varphi_B 电偶极子在外电场中的电势能为 W=W_++W_-=q(\\varphi_A-\\varphi_B)=-qlE\\cos\\theta=-pE\\cos\\theta 式中 $\\theta$ 是 $\\boldsymbol{p}$ 与 $\\boldsymbol{E}$ 的夹角。 将上式写成矢量形式,则有 W=-\\boldsymbol{p}\\cdot\\boldsymbol{E}\\tag{13.20} 上式表明,当电偶极子取向与外电场一致时,电势能最低;取向相反时,电势能最高;当电偶极子取向与外电场方向垂直时,电势能为零。 式(13.20)与习题12.31的结果是符合功能关系的。\n[图13.11|电偶极子在外电场中的电势能计算] 图述:图中水平方向有多条彼此平行且向右的电场线,表示方向向右的匀强电场 $\\boldsymbol{E}$。斜向线段连接下方的负电荷 $-q$(标为 $B$)和上方的正电荷 $+q$(标为 $A$),构成电偶极子。线段与电场方向之间的夹角标为 $\\theta$,偶极矩方向由负电荷指向正电荷。……",
+                    "evidence_id": "ev_a88a0c02302a6217",
+                    "context_hash": "ee3f4be266fcf3cde4df4e5b86d10adf22e6ea6b2351142ca6ea155cc63e623b",
+                    "neighbor_expanded": true,
+                    "raw_text_sha256": "ff7073d2719af1b06bfefe25b86a9d5baad6b52b7d55552c9ad994d6edb1a8a5",
+                    "raw_audit_ref": {
+                      "file_id": "5b8d11cc8f4f",
+                      "chunk_id": "5b8d11cc8f4f#437"
+                    }
+                  },
+                  {
+                    "source": "大学物理学（第4版）电磁、光学、量子物理（张三慧）.pdf",
+                    "filename": "大学物理学（第4版）电磁、光学、量子物理（张三慧）.pdf",
+                    "file_id": "5b8d11cc8f4f",
+                    "chunk_id": "5b8d11cc8f4f#436",
+                    "index": 436,
+                    "score": 0.0454,
+                    "page": 54,
+                    "printed_page": 37,
+                    "noise_flags": [],
+                    "block_types": [
+                      "heading"
+                    ],
+                    "section_path": [
+                      "1 在直角坐标系中 $\\nabla$ 算符定义为",
+                      "A_{12}=W_1-W_2",
+                      "解 由式(13.19)可知,在均匀外电场中电偶极子中正、负电荷(分别位于 $A$、$B$ 两点)的电势能分"
+                    ],
+                    "lesson": null,
+                    "is_lesson": false,
+                    "bm25_score": 39.454,
+                    "variant_hits": [
+                      "电偶极子",
+                      "均匀外电场",
+                      "电势能"
+                    ],
+                    "retrieval_strategy": "multi_query_rrf",
+                    "section": "",
+                    "chapter": "第13章 电势",
+                    "source_scope": "workspace_textbook",
+                    "source_visibility": "public",
+                    "location_type": "printed_page",
+                    "location_label": "教材第 37 页（PDF 第 54 页）",
+                    "block_type": "heading",
+                    "matched_terms": [
+                      "电偶",
+                      "偶极",
+                      "极子"
+                    ],
+                    "matched_bigrams": [
+                      "偶极",
+                      "极子",
+                      "电偶"
+                    ],
+                    "matched_phrases": [
+                      "电偶极子"
+                    ],
+                    "primary_phrase_coverage": 1.0,
+                    "title_match": 1.0,
+                    "confidence": 1.0,
+                    "signals": {
+                      "lexical": 1.0,
+                      "exact_term_coverage": 1.0,
+                      "primary_phrase_coverage": 1.0,
+                      "title_match": 1.0,
+                      "bm25_raw": 39.454,
+                      "bm25_normalized": 0.9753,
+                      "bm25_relative": 0.9406,
+                      "vector_distance": null,
+                      "vector_calibrated": false,
+                      "variant_hits": [
+                        "电偶极子",
+                        "均匀外电场",
+                        "电势能"
+                      ],
+                      "concept_bonus": 0
+                    },
+                    "query_intent": "content",
+                    "selection_reason": "lesson_title_match+mmr",
+                    "evidence_excerpt": "……将此式和式(13.8) A_{12}=q_0(\\varphi_1-\\varphi_2)=q_0\\varphi_1-q_0\\varphi_2 对比,可取 $W_1=q_0\\varphi_1$,$W_2=q_0\\varphi_2$,或者,一般地取 W=q_0\\varphi \\qquad(13.19) 这就是说,一个电荷在电场中某点的电势能等于它的电量与电场中该点电势的乘积。\n解 由式(13.19)可知,在均匀外电场中电偶极子中正、负电荷(分别位于 $A$、$B$ 两点)的电势能分\n别为 W_+=q\\varphi_A,\\qquad W_-=-q\\varphi_B 电偶极子在外电场中的电势能为 W=W_++W_-=q(\\varphi_A-\\varphi_B)=-qlE\\cos\\theta=-pE\\cos\\theta 式中 $\\theta$ 是 $\\boldsymbol{p}$ 与 $\\boldsymbol{E}$ 的夹角。……",
+                    "evidence_id": "ev_43aad73b782a031e",
+                    "context_hash": "82c7beb88c3218663a0855fcd9e468544ae9ad9378c3a7b93fa2ccb213ddda5d",
+                    "neighbor_expanded": true,
+                    "raw_text_sha256": "09ca03a436db628c62c1aea4f76f11afeff2817ba2dfab3c378c4869235a3a7c",
+                    "raw_audit_ref": {
+                      "file_id": "5b8d11cc8f4f",
+                      "chunk_id": "5b8d11cc8f4f#436"
+                    }
+                  },
+                  {
+                    "source": "大学物理学（第4版）电磁、光学、量子物理（张三慧）.pdf",
+                    "filename": "大学物理学（第4版）电磁、光学、量子物理（张三慧）.pdf",
+                    "file_id": "5b8d11cc8f4f",
+                    "chunk_id": "5b8d11cc8f4f#265",
+                    "index": 265,
+                    "score": 0.0182,
+                    "page": 28,
+                    "printed_page": 11,
+                    "noise_flags": [],
+                    "block_types": [
+                      "paragraph"
+                    ],
+                    "section_path": [
+                      "1 单位 $\\mathrm{C^2/(N\\cdot m^2)}$ 就是 $\\mathrm{F/m}$,$\\mathrm{F}$(法)是电容的单位,见第 15 章。"
+                    ],
+                    "lesson": null,
+                    "is_lesson": false,
+                    "bm25_score": 41.4,
+                    "variant_hits": [
+                      "电偶极子",
+                      "均匀外电场"
+                    ],
+                    "retrieval_strategy": "multi_query_rrf",
+                    "section": "",
+                    "chapter": "第12章 静电场",
+                    "source_scope": "workspace_textbook",
+                    "source_visibility": "public",
+                    "location_type": "printed_page",
+                    "location_label": "教材第 11 页（PDF 第 28 页）",
+                    "block_type": "paragraph",
+                    "matched_terms": [
+                      "电偶",
+                      "偶极",
+                      "极子"
+                    ],
+                    "matched_bigrams": [
+                      "偶极",
+                      "极子",
+                      "电偶"
+                    ],
+                    "matched_phrases": [
+                      "电偶极子"
+                    ],
+                    "primary_phrase_coverage": 1.0,
+                    "title_match": 0.0,
+                    "confidence": 0.737,
+                    "signals": {
+                      "lexical": 1.0,
+                      "exact_term_coverage": 1.0,
+                      "primary_phrase_coverage": 1.0,
+                      "title_match": 0.0,
+                      "bm25_raw": 41.4,
+                      "bm25_normalized": 0.9764,
+                      "bm25_relative": 0.987,
+                      "vector_distance": null,
+                      "vector_calibrated": false,
+                      "variant_hits": [
+                        "电偶极子",
+                        "均匀外电场"
+                      ],
+                      "concept_bonus": 0
+                    },
+                    "query_intent": "content",
+                    "selection_reason": "exact_term+mmr",
+                    "evidence_excerpt": "\\frac{q}{4\\pi\\varepsilon_0r^3}(\\mathbf r_+-\\mathbf r_-) 由于 $\\mathbf r_+-\\mathbf r_-=-\\mathbf l$,所以上式化为 \\mathbf E=-\\frac{q\\mathbf l}{4\\pi\\varepsilon_0r^3} 式中,$ql$ 反映电偶极子本身的特征,叫做电偶极子的电矩(或电偶极矩)。 以 $\\mathbf p$ 表示电矩,则 $\\mathbf p=q\\mathbf l$。 这样上述结果又可写成 \\mathbf E=-\\frac{\\mathbf p}{4\\pi\\varepsilon_0r^3} \\tag{12. 12} 此结果表明,电偶极子中垂线上距离电偶极子中心较远处,各点的电场强度与电偶极子的电矩成正比,与该点离电偶极子中心的距离的三次方成反比,方向与电矩的方向相反。 例 12. 4 一根带电直棒,如果我们限于考虑离棒的距离比棒的截面尺寸大得多的地方的电场,则该带电直棒就可以看作一条带电直线。",
+                    "evidence_id": "ev_2ebac416a1909389",
+                    "context_hash": "846c5b35ded888ea9ceae60f65f2e3c60eb880c4b8040fdd32df9b9e0acc666e",
+                    "raw_text_sha256": "aae516fd083a4f1b988ba1b16a492e0d9c991638e804e5e5cf8ac265731076d4",
+                    "raw_audit_ref": {
+                      "file_id": "5b8d11cc8f4f",
+                      "chunk_id": "5b8d11cc8f4f#265"
+                    }
+                  },
+                  {
+                    "source": "大学物理学（第4版）电磁、光学、量子物理（张三慧）.pdf",
+                    "filename": "大学物理学（第4版）电磁、光学、量子物理（张三慧）.pdf",
+                    "file_id": "5b8d11cc8f4f",
+                    "chunk_id": "5b8d11cc8f4f#930",
+                    "index": 930,
+                    "score": 0.0159,
+                    "page": 128,
+                    "printed_page": 111,
+                    "noise_flags": [],
+                    "block_types": [
+                      "paragraph"
+                    ],
+                    "section_path": [
+                      "1 此单位 $\\mathrm{N/A^2}$ 就是 $\\mathrm{H/m}$,H(亨)是电感的单位,见19.4节。"
+                    ],
+                    "lesson": null,
+                    "is_lesson": false,
+                    "bm25_score": 41.945,
+                    "variant_hits": [
+                      "电偶极子"
+                    ],
+                    "retrieval_strategy": "multi_query_rrf",
+                    "section": "",
+                    "chapter": "第17章 磁场和它的源",
+                    "source_scope": "workspace_textbook",
+                    "source_visibility": "public",
+                    "location_type": "printed_page",
+                    "location_label": "教材第 111 页（PDF 第 128 页）",
+                    "block_type": "paragraph",
+                    "matched_terms": [
+                      "电偶",
+                      "偶极",
+                      "极子"
+                    ],
+                    "matched_bigrams": [
+                      "偶极",
+                      "极子",
+                      "电偶"
+                    ],
+                    "matched_phrases": [
+                      "电偶极子"
+                    ],
+                    "primary_phrase_coverage": 1.0,
+                    "title_match": 0.0,
+                    "confidence": 0.74,
+                    "signals": {
+                      "lexical": 1.0,
+                      "exact_term_coverage": 1.0,
+                      "primary_phrase_coverage": 1.0,
+                      "title_match": 0.0,
+                      "bm25_raw": 41.945,
+                      "bm25_normalized": 0.9767,
+                      "bm25_relative": 1.0,
+                      "vector_distance": null,
+                      "vector_calibrated": false,
+                      "variant_hits": [
+                        "电偶极子"
+                      ],
+                      "concept_bonus": 0
+                    },
+                    "query_intent": "content",
+                    "selection_reason": "exact_term+mmr",
+                    "evidence_excerpt": "……在圆电流中心处,$r=R$,式(17. 11)给出 B=\\frac{\\mu_0 I}{2R} \\tag{17. 15} 式(17. 14)给出了磁矩为 $m$ 的线圈在其轴线上产生的磁场。 这一公式与习题 12. 6 给出的电偶极子在其轴线上产生的电场的公式形式相同,只是将其中 $\\mu_0$ 换成 $1/\\varepsilon_0$。\n这一公式和电偶极子的电场的一般公式(13.18)的形式也相同。 由式(17.16)给出的磁感线图形如图17.12所示。 它和图17.7(b)中电偶极子的电场线图形是类似的(电偶极子所在处除外)。\n[图|图17.12 磁矩的磁感线图] 图述:图中中央为一个水平放置的椭圆形电流回路,标注磁矩方向为竖直向上。蓝色磁感线关于竖直轴和水平轴近似对称,箭头表示磁场线方向。磁感线在电流回路附近分布密集,向外延伸后逐渐稀疏并形成闭合曲线。……",
+                    "evidence_id": "ev_1ec92c7569226451",
+                    "context_hash": "c0453519fed78c5661fafaa3b1e838021f1251e7d267f61a7dc4458a7d1e34a1",
+                    "neighbor_expanded": true,
+                    "raw_text_sha256": "1ec92c75692264511868fccccc67b5f463cf8750aa7c46c5f4735b5976449948",
+                    "raw_audit_ref": {
+                      "file_id": "5b8d11cc8f4f",
+                      "chunk_id": "5b8d11cc8f4f#930"
+                    }
+                  },
+                  {
+                    "source": "大学物理学（第4版）电磁、光学、量子物理（张三慧）.pdf",
+                    "filename": "大学物理学（第4版）电磁、光学、量子物理（张三慧）.pdf",
+                    "file_id": "5b8d11cc8f4f",
+                    "chunk_id": "5b8d11cc8f4f#412",
+                    "index": 412,
+                    "score": 0.0221,
+                    "page": 50,
+                    "printed_page": 33,
+                    "noise_flags": [],
+                    "block_types": [
+                      "figure"
+                    ],
+                    "section_path": [
+                      "第13章",
+                      "13.2 电势差和电势",
+                      "根据电势叠加原理,$P$ 点的电势为"
+                    ],
+                    "lesson": null,
+                    "is_lesson": false,
+                    "bm25_score": 40.612,
+                    "variant_hits": [
+                      "电偶极子",
+                      "电势能"
+                    ],
+                    "retrieval_strategy": "multi_query_rrf",
+                    "section": "",
+                    "chapter": "第13章 电势",
+                    "source_scope": "workspace_textbook",
+                    "source_visibility": "public",
+                    "location_type": "printed_page",
+                    "location_label": "教材第 33 页（PDF 第 50 页）",
+                    "block_type": "figure",
+                    "matched_terms": [
+                      "电偶",
+                      "偶极",
+                      "极子"
+                    ],
+                    "matched_bigrams": [
+                      "偶极",
+                      "极子",
+                      "电偶"
+                    ],
+                    "matched_phrases": [
+                      "电偶极子"
+                    ],
+                    "primary_phrase_coverage": 1.0,
+                    "title_match": 0.0,
+                    "confidence": 0.734,
+                    "signals": {
+                      "lexical": 1.0,
+                      "exact_term_coverage": 1.0,
+                      "primary_phrase_coverage": 1.0,
+                      "title_match": 0.0,
+                      "bm25_raw": 40.612,
+                      "bm25_normalized": 0.976,
+                      "bm25_relative": 0.9682,
+                      "vector_distance": null,
+                      "vector_calibrated": false,
+                      "variant_hits": [
+                        "电偶极子",
+                        "电势能"
+                      ],
+                      "concept_bonus": 0
+                    },
+                    "query_intent": "content",
+                    "selection_reason": "exact_term+mmr",
+                    "evidence_excerpt": "……\\varphi=\\varphi_++\\varphi_-=\\frac{q}{4\\pi\\varepsilon_0r_+}+\\frac{-q}{4\\pi\\varepsilon_0r_-} =\\frac{q(r_--r_+)}{4\\pi\\varepsilon_0r_+r_-} 对于离电偶极子比较远的点,即 $r\\gg l$ 时,应有 r_+r_-\\approx r^2,\\qquad r_--r_+\\app\n[图|图13.5 计算电偶极子的电势用图] 图述:图中左侧为带负电荷 $-q$ 和右侧为带正电荷 $+q$ 的电偶极子,两电荷相距 $l$。 右上方为场点 $P$,从两电荷分别连接到 $P$ 的距离标为 $r_-$ 和 $r_+$,从偶极子中心 $O$ 到 $P$ 的距离标为 $r$。 线段 $OP$ 与偶极矩方向之间的夹角为 $\\theta$。\n[图|图13.6 例13.4用图] 图述:图中为半径为 $R$、总电荷均匀分布的带电圆环,圆心为 $O$,环上任一电荷元标为 $dq$。圆环轴线上右侧有场点 $P$,其到圆心的距离为 $x$,到电荷元的距离为 $r=\\sqrt{R^2+x^2}$。下方坐标图表示电势 $\\varphi$ 随轴向坐标 $x$ 变化,在 $x=0$ 处达到最大值,向两侧逐渐减小。……",
+                    "evidence_id": "ev_d69de2d752949f9f",
+                    "context_hash": "abb593fc449e30111d168c5b677d2f4fa17fcae05915233c14d1968869c357a1",
+                    "neighbor_expanded": true,
+                    "raw_text_sha256": "08b8a6fc6670e4a6ee652aa599b1355d58bfed6ee3665c6a7a0f270c98a39731",
+                    "raw_audit_ref": {
+                      "file_id": "5b8d11cc8f4f",
+                      "chunk_id": "5b8d11cc8f4f#412"
+                    }
+                  },
+                  {
+                    "source": "大学物理学（第4版）电磁、光学、量子物理（张三慧）.pdf",
+                    "filename": "大学物理学（第4版）电磁、光学、量子物理（张三慧）.pdf",
+                    "file_id": "5b8d11cc8f4f",
+                    "chunk_id": "5b8d11cc8f4f#286",
+                    "index": 286,
+                    "score": 0.0201,
+                    "page": 32,
+                    "printed_page": 15,
+                    "noise_flags": [],
+                    "block_types": [
+                      "paragraph"
+                    ],
+                    "section_path": [
+                      "第12章 静电场",
+                      "12.5 电场线和电通量"
+                    ],
+                    "lesson": null,
+                    "is_lesson": false,
+                    "bm25_score": 34.11,
+                    "variant_hits": [
+                      "电偶极子",
+                      "均匀外电场"
+                    ],
+                    "retrieval_strategy": "multi_query_rrf",
+                    "section": "",
+                    "chapter": "第12章 静电场",
+                    "source_scope": "workspace_textbook",
+                    "source_visibility": "public",
+                    "location_type": "printed_page",
+                    "location_label": "教材第 15 页（PDF 第 32 页）",
+                    "block_type": "paragraph",
+                    "matched_terms": [
+                      "电偶",
+                      "偶极",
+                      "极子"
+                    ],
+                    "matched_bigrams": [
+                      "偶极",
+                      "极子",
+                      "电偶"
+                    ],
+                    "matched_phrases": [
+                      "电偶极子"
+                    ],
+                    "primary_phrase_coverage": 1.0,
+                    "title_match": 0.0,
+                    "confidence": 0.703,
+                    "signals": {
+                      "lexical": 1.0,
+                      "exact_term_coverage": 1.0,
+                      "primary_phrase_coverage": 1.0,
+                      "title_match": 0.0,
+                      "bm25_raw": 34.11,
+                      "bm25_normalized": 0.9715,
+                      "bm25_relative": 0.8132,
+                      "vector_distance": null,
+                      "vector_calibrated": false,
+                      "variant_hits": [
+                        "电偶极子",
+                        "均匀外电场"
+                      ],
+                      "concept_bonus": 0
+                    },
+                    "query_intent": "content",
+                    "selection_reason": "exact_term+mmr",
+                    "evidence_excerpt": "……[图|图12.11 几种静止的电荷的电场线图] 图述:图中分为三部分:(a) 中心点电荷的电场线呈径向分布,箭头由中心向外;(b) 一对等量异号点电荷之间及周围的电场线由正电荷指向负电荷;(c) 两块带异号电荷的平行金属板之间电场线大致平行且垂直于极板,极板外侧有弯曲的边缘电场线。\n(a) 点电荷;(b) 电偶极子;(c) 带电平行板 电场线图形也可以通过实验显示出来。 将一些针状晶体碎屑撒到绝缘油中使之悬浮起来,加以外电场后,这些小晶体会因感应而成为小的电偶极子。 它们在电场力的作用下就会转到电场方向排列起来,于是就显示出了电场线的图形(图 12.12)。\n[图|图12.12 电场线的显示] 图述:图中展示了三种通过悬浮晶体排列显示出的电场线图样。(a) 中心有两个等量异号电荷,晶体沿两电荷间的电场线排列;(b) 两个平行金属板之间形成近似平行的电场线;(c) 尖端异形带电导体周围的电场线在尖端处明显密集。……",
+                    "evidence_id": "ev_59f0c42bb9967c04",
+                    "context_hash": "b1cb32b2c5346b7fd2f22c25b4a5db67cea3a543818e23db435e3c86c6f6b2ca",
+                    "neighbor_expanded": true,
+                    "raw_text_sha256": "1b7a968d856db396f010032c88b230bc5509c369c5f8f50efebaca67fa28604f",
+                    "raw_audit_ref": {
+                      "file_id": "5b8d11cc8f4f",
+                      "chunk_id": "5b8d11cc8f4f#286"
+                    }
+                  }
+                ],
+                "omitted_count": 42,
+                "no_hit": false,
+                "context_hashes": [
+                  "ee3f4be266fcf3cde4df4e5b86d10adf22e6ea6b2351142ca6ea155cc63e623b",
+                  "82c7beb88c3218663a0855fcd9e468544ae9ad9378c3a7b93fa2ccb213ddda5d",
+                  "846c5b35ded888ea9ceae60f65f2e3c60eb880c4b8040fdd32df9b9e0acc666e",
+                  "c0453519fed78c5661fafaa3b1e838021f1251e7d267f61a7dc4458a7d1e34a1",
+                  "abb593fc449e30111d168c5b677d2f4fa17fcae05915233c14d1968869c357a1",
+                  "b1cb32b2c5346b7fd2f22c25b4a5db67cea3a543818e23db435e3c86c6f6b2ca"
+                ]
+              },
+              "telemetry": {
+                "gate_mode": "on",
+                "candidate_count": 48,
+                "selected_count": 6,
+                "omitted_count": 42,
+                "no_hit": false,
+                "tier": "found",
+                "drop_reasons": {
+                  "no_absolute_evidence": 21,
+                  "no_professional_phrase": 5,
+                  "relative_gap": 2,
+                  "same_page_duplicate": 2
+                },
+                "latency_ms": 1097.88,
+                "shadow_selected_count": 6,
+                "shadow_no_hit": false,
+                "duplicate_drop_count": 2,
+                "duplicate_rate": 0.0417,
+                "candidate_ref_sha256": "00eea0b586ed8591f0fefaad7831f14297b05cf4b7151ccb34ddaf2585273d1d",
+                "selected_context_hashes": [
+                  "f5c1112e6e358b6983b2899cb5a6e16fb452824a5010c97b29489af9b7ceff29",
+                  "09ca03a436db628c62c1aea4f76f11afeff2817ba2dfab3c378c4869235a3a7c",
+                  "846c5b35ded888ea9ceae60f65f2e3c60eb880c4b8040fdd32df9b9e0acc666e",
+                  "cee9b575ef18af07bfd25ca4da47625ad5a4398d2cad6a7ea129fe1164be37bd",
+                  "4f9b31754675be0adca504eb5157b3d92ee22f7ab34a0e979edfcb0e5388c6dc",
+                  "b8f0c07e67ee259e195daea3d0343d5d9c3d28735477efbcc1b2df1c6c84a8ee"
+                ]
+              },
+              "file_ids": null
+            },
+            "text": "从课程资料中筛选出 6 条可靠证据（过滤 42 条）：\n\n[来源：大学物理学（第4版）电磁、光学、量子物理（张三慧）.pdf · 第13章 电势 · 教材第38页（PDF第55页） · chunk 437]\n(置信度 1.0·高)\n<material_excerpt>……解 由式(13.19)可知,在均匀外电场中电偶极子中正、负电荷(分别位于 $A$、$B$ 两点)的电势能分\n别为 W_+=q\\varphi_A,\\qquad W_-=-q\\varphi_B 电偶极子在外电场中的电势能为 W=W_++W_-=q(\\varphi_A-\\varphi_B)=-qlE\\cos\\theta=-pE\\cos\\theta 式中 $\\theta$ 是 $\\boldsymbol{p}$ 与 $\\boldsymbol{E}$ 的夹角。 将上式写成矢量形式,则有 W=-\\boldsymbol{p}\\cdot\\boldsymbol{E}\\tag{13.20} 上式表明,当电偶极子取向与外电场一致时,电势能最低;取向相反时,电势能最高;当电偶极子取向与外电场方向垂直时,电势能为零。 式(13.20)与习题12.31的结果是符合功能关系的。\n[图13.11|电偶极子在外电场中的电势能计算] 图述:图中水平方向有多条彼此平行且向右的电场线,表示方向向右的匀强电场 $\\boldsymbol{E}$。斜向线段连接下方的负电荷 $-q$(标为 $B$)和上方的正电荷 $+q$(标为 $A$),构成电偶极子。线段与电场方向之间的夹角标为 $\\theta$,偶极矩方向由负电荷指向正电荷。……</material_excerpt>\n\n[来源：大学物理学（第4版）电磁、光学、量子物理（张三慧）.pdf · 第13章 电势 · 教材第37页（PDF第54页） · chunk 436]\n(置信度 1.0·高)\n<material_excerpt>……将此式和式(13.8) A_{12}=q_0(\\varphi_1-\\varphi_2)=q_0\\varphi_1-q_0\\varphi_2 对比,可取 $W_1=q_0\\varphi_1$,$W_2=q_0\\varphi_2$,或者,一般地取 W=q_0\\varphi \\qquad(13.19) 这就是说,一个电荷在电场中某点的电势能等于它的电量与电场中该点电势的乘积。\n解 由式(13.19)可知,在均匀外电场中电偶极子中正、负电荷(分别位于 $A$、$B$ 两点)的电势能分\n别为 W_+=q\\varphi_A,\\qquad W_-=-q\\varphi_B 电偶极子在外电场中的电势能为 W=W_++W_-=q(\\varphi_A-\\varphi_B)=-qlE\\cos\\theta=-pE\\cos\\theta 式中 $\\theta$ 是 $\\boldsymbol{p}$ 与 $\\boldsymbol{E}$ 的夹角。……</material_excerpt>\n\n[来源：大学物理学（第4版）电磁、光学、量子物理（张三慧）.pdf · 第12章 静电场 · 教材第11页（PDF第28页） · chunk 265]\n(置信度 0.737·中)\n<material_excerpt>\\frac{q}{4\\pi\\varepsilon_0r^3}(\\mathbf r_+-\\mathbf r_-) 由于 $\\mathbf r_+-\\mathbf r_-=-\\mathbf l$,所以上式化为 \\mathbf E=-\\frac{q\\mathbf l}{4\\pi\\varepsilon_0r^3} 式中,$ql$ 反映电偶极子本身的特征,叫做电偶极子的电矩(或电偶极矩)。 以 $\\mathbf p$ 表示电矩,则 $\\mathbf p=q\\mathbf l$。 这样上述结果又可写成 \\mathbf E=-\\frac{\\mathbf p}{4\\pi\\varepsilon_0r^3} \\tag{12. 12} 此结果表明,电偶极子中垂线上距离电偶极子中心较远处,各点的电场强度与电偶极子的电矩成正比,与该点离电偶极子中心的距离的三次方成反比,方向与电矩的方向相反。 例 12. 4 一根带电直棒,如果我们限于考虑离棒的距离比棒的截面尺寸大得多的地方的电场,则该带电直棒就可以看作一条带电直线。</material_excerpt>\n\n[来源：大学物理学（第4版）电磁、光学、量子物理（张三慧）.pdf · 第17章 磁场和它的源 · 教材第111页（PDF第128页） · chunk 930]\n(置信度 0.74·中)\n<material_excerpt>……在圆电流中心处,$r=R$,式(17. 11)给出 B=\\frac{\\mu_0 I}{2R} \\tag{17. 15} 式(17. 14)给出了磁矩为 $m$ 的线圈在其轴线上产生的磁场。 这一公式与习题 12. 6 给出的电偶极子在其轴线上产生的电场的公式形式相同,只是将其中 $\\mu_0$ 换成 $1/\\varepsilon_0$。\n这一公式和电偶极子的电场的一般公式(13.18)的形式也相同。 由式(17.16)给出的磁感线图形如图17.12所示。 它和图17.7(b)中电偶极子的电场线图形是类似的(电偶极子所在处除外)。\n[图|图17.12 磁矩的磁感线图] 图述:图中中央为一个水平放置的椭圆形电流回路,标注磁矩方向为竖直向上。蓝色磁感线关于竖直轴和水平轴近似对称,箭头表示磁场线方向。磁感线在电流回路附近分布密集,向外延伸后逐渐稀疏并形成闭合曲线。……</material_excerpt>\n\n[来源：大学物理学（第4版）电磁、光学、量子物理（张三慧）.pdf · 第13章 电势 · 教材第33页（PDF第50页） · [图] · chunk 412]\n(置信度 0.734·中)\n<material_excerpt>……\\varphi=\\varphi_++\\varphi_-=\\frac{q}{4\\pi\\varepsilon_0r_+}+\\frac{-q}{4\\pi\\varepsilon_0r_-} =\\frac{q(r_--r_+)}{4\\pi\\varepsilon_0r_+r_-} 对于离电偶极子比较远的点,即 $r\\gg l$ 时,应有 r_+r_-\\approx r^2,\\qquad r_--r_+\\app\n[图|图13.5 计算电偶极子的电势用图] 图述:图中左侧为带负电荷 $-q$ 和右侧为带正电荷 $+q$ 的电偶极子,两电荷相距 $l$。 右上方为场点 $P$,从两电荷分别连接到 $P$ 的距离标为 $r_-$ 和 $r_+$,从偶极子中心 $O$ 到 $P$ 的距离标为 $r$。 线段 $OP$ 与偶极矩方向之间的夹角为 $\\theta$。\n[图|图13.6 例13.4用图] 图述:图中为半径为 $R$、总电荷均匀分布的带电圆环,圆心为 $O$,环上任一电荷元标为 $dq$。圆环轴线上右侧有场点 $P$,其到圆心的距离为 $x$,到电荷元的距离为 $r=\\sqrt{R^2+x^2}$。下方坐标图表示电势 $\\varphi$ 随轴向坐标 $x$ 变化,在 $x=0$ 处达到最大值,向两侧逐渐减小。……</material_excerpt>\n\n[来源：大学物理学（第4版）电磁、光学、量子物理（张三慧）.pdf · 第12章 静电场 · 教材第15页（PDF第32页） · chunk 286]\n(置信度 0.703·中)\n<material_excerpt>……[图|图12.11 几种静止的电荷的电场线图] 图述:图中分为三部分:(a) 中心点电荷的电场线呈径向分布,箭头由中心向外;(b) 一对等量异号点电荷之间及周围的电场线由正电荷指向负电荷;(c) 两块带异号电荷的平行金属板之间电场线大致平行且垂直于极板,极板外侧有弯曲的边缘电场线。\n(a) 点电荷;(b) 电偶极子;(c) 带电平行板 电场线图形也可以通过实验显示出来。 将一些针状晶体碎屑撒到绝缘油中使之悬浮起来,加以外电场后,这些小晶体会因感应而成为小的电偶极子。 它们在电场力的作用下就会转到电场方向排列起来,于是就显示出了电场线的图形(图 12.12)。\n[图|图12.12 电场线的显示] 图述:图中展示了三种通过悬浮晶体排列显示出的电场线图样。(a) 中心有两个等量异号电荷,晶体沿两电荷间的电场线排列;(b) 两个平行金属板之间形成近似平行的电场线;(c) 尖端异形带电导体周围的电场线在尖端处明显密集。……</material_excerpt>\n（需要更多上下文时，可用 knowledge_read 按上面的 chunk 指针读取完整原文及相邻片段。）",
+            "error": null,
+            "error_code": null
+          }
+        }
+      ],
+      "message_id": "m_34f7789fbabd",
+      "created_at": 1789541723.3760219
+    },
+    {
+      "role": "user",
+      "content": "检测题生成一道，需要示意图",
+      "message_id": "m_184568fbba7d",
+      "created_at": 1789541798.6424432
+    },
+    {
+      "role": "assistant",
+      "content": "根据教学计划，现在进入第 3 步：生成练习题。我将为你生成一道结合概念理解、能量计算与物理图像分析的检测题，难度为 3（对应考研/竞赛级综合题），并包含必要的示意图。\n\n---\n\n### **检测题（电偶极子在均匀外电场中的电势能）**\n\n**请阅读以下题目，并在答题区作答。**\n\n**题目：**\n如图所示，一个电偶极矩为 $\\mathbf{p}$（大小为 $p$，方向由 $-q$ 指向 $+q$）的电偶极子，置于一个沿 $x$ 轴正方向的均匀外电场 $\\mathbf{E}$ 中。初始时刻，电偶极子与外电场方向平行（$\\theta = 0$）。现缓慢（准静态地）将电偶极子从 $\\theta = 0$ 的位置转动到 $\\theta = 180^\\circ$ 的位置。\n\n1.  **能量计算：** 计算此过程中外电场所做的功 $W_{\\text{ext}}$ 以及电势能的变化 $\\Delta U$。请给出计算过程。\n2.  **概念辨析：** 在 $\\theta = 90^\\circ$ 的位置（电偶极子与电场垂直），电势能 $U = 0$。此时电偶极子是否受到力矩作用？若在此位置释放电偶极子，它的运动状态将如何变化？请简要分析。\n3.  **拓展思考（选做）：** 如果外电场不是均匀的（例如，一个点电荷产生的电场），电偶极子在该电场中的电势能表达式是否仍为 $U = -\\mathbf{p} \\cdot \\mathbf{E}$？为什么？\n\n**示意图说明：**\n（系统会生成一张图，显示均匀电场 $\\mathbf{E}$ 沿 $x$ 轴向右，电偶极子位于其中，其偶极矩 $\\mathbf{p}$ 与 $x$ 轴夹角 $\\theta$。图中标出正负电荷位置及转动方向。）\n\n---\n\n**请先在答题区写下你的解答（包括第 1、2 问的完整分析），完成后我将进行批改和讲解。**",
+      "thinking": "我正在确认「电偶极子在均匀外电场中的电势能」的目标、必要信息和最合适的完成方式。\n\n接下来的路线是：核对已授权资料中的依据；按当前学段分层讲解；安排结构化检测题并让你先作答。 当前采用 introduction 教学策略，我会据此调整例子、推导深度和检查难度。",
+      "toolCalls": [
+        {
+          "name": "knowledge_search",
+          "result": {
+            "tool": "knowledge_search",
+            "status": "success",
+            "data": {
+              "query": "电偶极子",
+              "results": [
+                {
+                  "source": "大学物理学（第4版）电磁、光学、量子物理（张三慧）.pdf",
+                  "filename": "大学物理学（第4版）电磁、光学、量子物理（张三慧）.pdf",
+                  "file_id": "5b8d11cc8f4f",
+                  "chunk_id": "5b8d11cc8f4f#437",
+                  "index": 437,
+                  "score": 0.0466,
+                  "page": 55,
+                  "printed_page": 38,
+                  "noise_flags": [],
+                  "block_types": [
+                    "formula"
+                  ],
+                  "section_path": [
+                    "1 在直角坐标系中 $\\nabla$ 算符定义为",
+                    "A_{12}=W_1-W_2",
+                    "解 由式(13.19)可知,在均匀外电场中电偶极子中正、负电荷(分别位于 $A$、$B$ 两点)的电势能分"
+                  ],
+                  "lesson": null,
+                  "is_lesson": false,
+                  "bm25_score": 40.346,
+                  "variant_hits": [
+                    "电偶极子",
+                    "均匀外电场",
+                    "电势能"
+                  ],
+                  "retrieval_strategy": "multi_query_rrf",
+                  "section": "",
+                  "chapter": "第13章 电势",
+                  "source_scope": "workspace_textbook",
+                  "source_visibility": "public",
+                  "location_type": "printed_page",
+                  "location_label": "教材第 38 页（PDF 第 55 页）",
+                  "block_type": "formula",
+                  "matched_terms": [
+                    "电偶",
+                    "偶极",
+                    "极子"
+                  ],
+                  "matched_bigrams": [
+                    "偶极",
+                    "极子",
+                    "电偶"
+                  ],
+                  "matched_phrases": [
+                    "电偶极子"
+                  ],
+                  "primary_phrase_coverage": 1.0,
+                  "title_match": 1.0,
+                  "confidence": 1.0,
+                  "signals": {
+                    "lexical": 1.0,
+                    "exact_term_coverage": 1.0,
+                    "primary_phrase_coverage": 1.0,
+                    "title_match": 1.0,
+                    "bm25_raw": 40.346,
+                    "bm25_normalized": 0.9758,
+                    "bm25_relative": 0.9619,
+                    "vector_distance": null,
+                    "vector_calibrated": false,
+                    "variant_hits": [
+                      "电偶极子",
+                      "均匀外电场",
+                      "电势能"
+                    ],
+                    "concept_bonus": 0
+                  },
+                  "query_intent": "content",
+                  "selection_reason": "lesson_title_match+mmr",
+                  "evidence_excerpt": "……解 由式(13.19)可知,在均匀外电场中电偶极子中正、负电荷(分别位于 $A$、$B$ 两点)的电势能分\n别为 W_+=q\\varphi_A,\\qquad W_-=-q\\varphi_B 电偶极子在外电场中的电势能为 W=W_++W_-=q(\\varphi_A-\\varphi_B)=-qlE\\cos\\theta=-pE\\cos\\theta 式中 $\\theta$ 是 $\\boldsymbol{p}$ 与 $\\boldsymbol{E}$ 的夹角。 将上式写成矢量形式,则有 W=-\\boldsymbol{p}\\cdot\\boldsymbol{E}\\tag{13.20} 上式表明,当电偶极子取向与外电场一致时,电势能最低;取向相反时,电势能最高;当电偶极子取向与外电场方向垂直时,电势能为零。 式(13.20)与习题12.31的结果是符合功能关系的。\n[图13.11|电偶极子在外电场中的电势能计算] 图述:图中水平方向有多条彼此平行且向右的电场线,表示方向向右的匀强电场 $\\boldsymbol{E}$。斜向线段连接下方的负电荷 $-q$(标为 $B$)和上方的正电荷 $+q$(标为 $A$),构成电偶极子。线段与电场方向之间的夹角标为 $\\theta$,偶极矩方向由负电荷指向正电荷。……",
+                  "evidence_id": "ev_a88a0c02302a6217",
+                  "context_hash": "ee3f4be266fcf3cde4df4e5b86d10adf22e6ea6b2351142ca6ea155cc63e623b",
+                  "neighbor_expanded": true,
+                  "raw_text_sha256": "ff7073d2719af1b06bfefe25b86a9d5baad6b52b7d55552c9ad994d6edb1a8a5",
+                  "raw_audit_ref": {
+                    "file_id": "5b8d11cc8f4f",
+                    "chunk_id": "5b8d11cc8f4f#437"
+                  }
+                },
+                {
+                  "source": "大学物理学（第4版）电磁、光学、量子物理（张三慧）.pdf",
+                  "filename": "大学物理学（第4版）电磁、光学、量子物理（张三慧）.pdf",
+                  "file_id": "5b8d11cc8f4f",
+                  "chunk_id": "5b8d11cc8f4f#436",
+                  "index": 436,
+                  "score": 0.0454,
+                  "page": 54,
+                  "printed_page": 37,
+                  "noise_flags": [],
+                  "block_types": [
+                    "heading"
+                  ],
+                  "section_path": [
+                    "1 在直角坐标系中 $\\nabla$ 算符定义为",
+                    "A_{12}=W_1-W_2",
+                    "解 由式(13.19)可知,在均匀外电场中电偶极子中正、负电荷(分别位于 $A$、$B$ 两点)的电势能分"
+                  ],
+                  "lesson": null,
+                  "is_lesson": false,
+                  "bm25_score": 39.454,
+                  "variant_hits": [
+                    "电偶极子",
+                    "均匀外电场",
+                    "电势能"
+                  ],
+                  "retrieval_strategy": "multi_query_rrf",
+                  "section": "",
+                  "chapter": "第13章 电势",
+                  "source_scope": "workspace_textbook",
+                  "source_visibility": "public",
+                  "location_type": "printed_page",
+                  "location_label": "教材第 37 页（PDF 第 54 页）",
+                  "block_type": "heading",
+                  "matched_terms": [
+                    "电偶",
+                    "偶极",
+                    "极子"
+                  ],
+                  "matched_bigrams": [
+                    "偶极",
+                    "极子",
+                    "电偶"
+                  ],
+                  "matched_phrases": [
+                    "电偶极子"
+                  ],
+                  "primary_phrase_coverage": 1.0,
+                  "title_match": 1.0,
+                  "confidence": 1.0,
+                  "signals": {
+                    "lexical": 1.0,
+                    "exact_term_coverage": 1.0,
+                    "primary_phrase_coverage": 1.0,
+                    "title_match": 1.0,
+                    "bm25_raw": 39.454,
+                    "bm25_normalized": 0.9753,
+                    "bm25_relative": 0.9406,
+                    "vector_distance": null,
+                    "vector_calibrated": false,
+                    "variant_hits": [
+                      "电偶极子",
+                      "均匀外电场",
+                      "电势能"
+                    ],
+                    "concept_bonus": 0
+                  },
+                  "query_intent": "content",
+                  "selection_reason": "lesson_title_match+mmr",
+                  "evidence_excerpt": "……将此式和式(13.8) A_{12}=q_0(\\varphi_1-\\varphi_2)=q_0\\varphi_1-q_0\\varphi_2 对比,可取 $W_1=q_0\\varphi_1$,$W_2=q_0\\varphi_2$,或者,一般地取 W=q_0\\varphi \\qquad(13.19) 这就是说,一个电荷在电场中某点的电势能等于它的电量与电场中该点电势的乘积。\n解 由式(13.19)可知,在均匀外电场中电偶极子中正、负电荷(分别位于 $A$、$B$ 两点)的电势能分\n别为 W_+=q\\varphi_A,\\qquad W_-=-q\\varphi_B 电偶极子在外电场中的电势能为 W=W_++W_-=q(\\varphi_A-\\varphi_B)=-qlE\\cos\\theta=-pE\\cos\\theta 式中 $\\theta$ 是 $\\boldsymbol{p}$ 与 $\\boldsymbol{E}$ 的夹角。……",
+                  "evidence_id": "ev_43aad73b782a031e",
+                  "context_hash": "82c7beb88c3218663a0855fcd9e468544ae9ad9378c3a7b93fa2ccb213ddda5d",
+                  "neighbor_expanded": true,
+                  "raw_text_sha256": "09ca03a436db628c62c1aea4f76f11afeff2817ba2dfab3c378c4869235a3a7c",
+                  "raw_audit_ref": {
+                    "file_id": "5b8d11cc8f4f",
+                    "chunk_id": "5b8d11cc8f4f#436"
+                  }
+                },
+                {
+                  "source": "大学物理学（第4版）电磁、光学、量子物理（张三慧）.pdf",
+                  "filename": "大学物理学（第4版）电磁、光学、量子物理（张三慧）.pdf",
+                  "file_id": "5b8d11cc8f4f",
+                  "chunk_id": "5b8d11cc8f4f#265",
+                  "index": 265,
+                  "score": 0.0182,
+                  "page": 28,
+                  "printed_page": 11,
+                  "noise_flags": [],
+                  "block_types": [
+                    "paragraph"
+                  ],
+                  "section_path": [
+                    "1 单位 $\\mathrm{C^2/(N\\cdot m^2)}$ 就是 $\\mathrm{F/m}$,$\\mathrm{F}$(法)是电容的单位,见第 15 章。"
+                  ],
+                  "lesson": null,
+                  "is_lesson": false,
+                  "bm25_score": 41.4,
+                  "variant_hits": [
+                    "电偶极子",
+                    "均匀外电场"
+                  ],
+                  "retrieval_strategy": "multi_query_rrf",
+                  "section": "",
+                  "chapter": "第12章 静电场",
+                  "source_scope": "workspace_textbook",
+                  "source_visibility": "public",
+                  "location_type": "printed_page",
+                  "location_label": "教材第 11 页（PDF 第 28 页）",
+                  "block_type": "paragraph",
+                  "matched_terms": [
+                    "电偶",
+                    "偶极",
+                    "极子"
+                  ],
+                  "matched_bigrams": [
+                    "偶极",
+                    "极子",
+                    "电偶"
+                  ],
+                  "matched_phrases": [
+                    "电偶极子"
+                  ],
+                  "primary_phrase_coverage": 1.0,
+                  "title_match": 0.0,
+                  "confidence": 0.737,
+                  "signals": {
+                    "lexical": 1.0,
+                    "exact_term_coverage": 1.0,
+                    "primary_phrase_coverage": 1.0,
+                    "title_match": 0.0,
+                    "bm25_raw": 41.4,
+                    "bm25_normalized": 0.9764,
+                    "bm25_relative": 0.987,
+                    "vector_distance": null,
+                    "vector_calibrated": false,
+                    "variant_hits": [
+                      "电偶极子",
+                      "均匀外电场"
+                    ],
+                    "concept_bonus": 0
+                  },
+                  "query_intent": "content",
+                  "selection_reason": "exact_term+mmr",
+                  "evidence_excerpt": "\\frac{q}{4\\pi\\varepsilon_0r^3}(\\mathbf r_+-\\mathbf r_-) 由于 $\\mathbf r_+-\\mathbf r_-=-\\mathbf l$,所以上式化为 \\mathbf E=-\\frac{q\\mathbf l}{4\\pi\\varepsilon_0r^3} 式中,$ql$ 反映电偶极子本身的特征,叫做电偶极子的电矩(或电偶极矩)。 以 $\\mathbf p$ 表示电矩,则 $\\mathbf p=q\\mathbf l$。 这样上述结果又可写成 \\mathbf E=-\\frac{\\mathbf p}{4\\pi\\varepsilon_0r^3} \\tag{12. 12} 此结果表明,电偶极子中垂线上距离电偶极子中心较远处,各点的电场强度与电偶极子的电矩成正比,与该点离电偶极子中心的距离的三次方成反比,方向与电矩的方向相反。 例 12. 4 一根带电直棒,如果我们限于考虑离棒的距离比棒的截面尺寸大得多的地方的电场,则该带电直棒就可以看作一条带电直线。",
+                  "evidence_id": "ev_2ebac416a1909389",
+                  "context_hash": "846c5b35ded888ea9ceae60f65f2e3c60eb880c4b8040fdd32df9b9e0acc666e",
+                  "raw_text_sha256": "aae516fd083a4f1b988ba1b16a492e0d9c991638e804e5e5cf8ac265731076d4",
+                  "raw_audit_ref": {
+                    "file_id": "5b8d11cc8f4f",
+                    "chunk_id": "5b8d11cc8f4f#265"
+                  }
+                },
+                {
+                  "source": "大学物理学（第4版）电磁、光学、量子物理（张三慧）.pdf",
+                  "filename": "大学物理学（第4版）电磁、光学、量子物理（张三慧）.pdf",
+                  "file_id": "5b8d11cc8f4f",
+                  "chunk_id": "5b8d11cc8f4f#930",
+                  "index": 930,
+                  "score": 0.0159,
+                  "page": 128,
+                  "printed_page": 111,
+                  "noise_flags": [],
+                  "block_types": [
+                    "paragraph"
+                  ],
+                  "section_path": [
+                    "1 此单位 $\\mathrm{N/A^2}$ 就是 $\\mathrm{H/m}$,H(亨)是电感的单位,见19.4节。"
+                  ],
+                  "lesson": null,
+                  "is_lesson": false,
+                  "bm25_score": 41.945,
+                  "variant_hits": [
+                    "电偶极子"
+                  ],
+                  "retrieval_strategy": "multi_query_rrf",
+                  "section": "",
+                  "chapter": "第17章 磁场和它的源",
+                  "source_scope": "workspace_textbook",
+                  "source_visibility": "public",
+                  "location_type": "printed_page",
+                  "location_label": "教材第 111 页（PDF 第 128 页）",
+                  "block_type": "paragraph",
+                  "matched_terms": [
+                    "电偶",
+                    "偶极",
+                    "极子"
+                  ],
+                  "matched_bigrams": [
+                    "偶极",
+                    "极子",
+                    "电偶"
+                  ],
+                  "matched_phrases": [
+                    "电偶极子"
+                  ],
+                  "primary_phrase_coverage": 1.0,
+                  "title_match": 0.0,
+                  "confidence": 0.74,
+                  "signals": {
+                    "lexical": 1.0,
+                    "exact_term_coverage": 1.0,
+                    "primary_phrase_coverage": 1.0,
+                    "title_match": 0.0,
+                    "bm25_raw": 41.945,
+                    "bm25_normalized": 0.9767,
+                    "bm25_relative": 1.0,
+                    "vector_distance": null,
+                    "vector_calibrated": false,
+                    "variant_hits": [
+                      "电偶极子"
+                    ],
+                    "concept_bonus": 0
+                  },
+                  "query_intent": "content",
+                  "selection_reason": "exact_term+mmr",
+                  "evidence_excerpt": "……在圆电流中心处,$r=R$,式(17. 11)给出 B=\\frac{\\mu_0 I}{2R} \\tag{17. 15} 式(17. 14)给出了磁矩为 $m$ 的线圈在其轴线上产生的磁场。 这一公式与习题 12. 6 给出的电偶极子在其轴线上产生的电场的公式形式相同,只是将其中 $\\mu_0$ 换成 $1/\\varepsilon_0$。\n这一公式和电偶极子的电场的一般公式(13.18)的形式也相同。 由式(17.16)给出的磁感线图形如图17.12所示。 它和图17.7(b)中电偶极子的电场线图形是类似的(电偶极子所在处除外)。\n[图|图17.12 磁矩的磁感线图] 图述:图中中央为一个水平放置的椭圆形电流回路,标注磁矩方向为竖直向上。蓝色磁感线关于竖直轴和水平轴近似对称,箭头表示磁场线方向。磁感线在电流回路附近分布密集,向外延伸后逐渐稀疏并形成闭合曲线。……",
+                  "evidence_id": "ev_1ec92c7569226451",
+                  "context_hash": "c0453519fed78c5661fafaa3b1e838021f1251e7d267f61a7dc4458a7d1e34a1",
+                  "neighbor_expanded": true,
+                  "raw_text_sha256": "1ec92c75692264511868fccccc67b5f463cf8750aa7c46c5f4735b5976449948",
+                  "raw_audit_ref": {
+                    "file_id": "5b8d11cc8f4f",
+                    "chunk_id": "5b8d11cc8f4f#930"
+                  }
+                },
+                {
+                  "source": "大学物理学（第4版）电磁、光学、量子物理（张三慧）.pdf",
+                  "filename": "大学物理学（第4版）电磁、光学、量子物理（张三慧）.pdf",
+                  "file_id": "5b8d11cc8f4f",
+                  "chunk_id": "5b8d11cc8f4f#412",
+                  "index": 412,
+                  "score": 0.0221,
+                  "page": 50,
+                  "printed_page": 33,
+                  "noise_flags": [],
+                  "block_types": [
+                    "figure"
+                  ],
+                  "section_path": [
+                    "第13章",
+                    "13.2 电势差和电势",
+                    "根据电势叠加原理,$P$ 点的电势为"
+                  ],
+                  "lesson": null,
+                  "is_lesson": false,
+                  "bm25_score": 40.612,
+                  "variant_hits": [
+                    "电偶极子",
+                    "电势能"
+                  ],
+                  "retrieval_strategy": "multi_query_rrf",
+                  "section": "",
+                  "chapter": "第13章 电势",
+                  "source_scope": "workspace_textbook",
+                  "source_visibility": "public",
+                  "location_type": "printed_page",
+                  "location_label": "教材第 33 页（PDF 第 50 页）",
+                  "block_type": "figure",
+                  "matched_terms": [
+                    "电偶",
+                    "偶极",
+                    "极子"
+                  ],
+                  "matched_bigrams": [
+                    "偶极",
+                    "极子",
+                    "电偶"
+                  ],
+                  "matched_phrases": [
+                    "电偶极子"
+                  ],
+                  "primary_phrase_coverage": 1.0,
+                  "title_match": 0.0,
+                  "confidence": 0.734,
+                  "signals": {
+                    "lexical": 1.0,
+                    "exact_term_coverage": 1.0,
+                    "primary_phrase_coverage": 1.0,
+                    "title_match": 0.0,
+                    "bm25_raw": 40.612,
+                    "bm25_normalized": 0.976,
+                    "bm25_relative": 0.9682,
+                    "vector_distance": null,
+                    "vector_calibrated": false,
+                    "variant_hits": [
+                      "电偶极子",
+                      "电势能"
+                    ],
+                    "concept_bonus": 0
+                  },
+                  "query_intent": "content",
+                  "selection_reason": "exact_term+mmr",
+                  "evidence_excerpt": "……\\varphi=\\varphi_++\\varphi_-=\\frac{q}{4\\pi\\varepsilon_0r_+}+\\frac{-q}{4\\pi\\varepsilon_0r_-} =\\frac{q(r_--r_+)}{4\\pi\\varepsilon_0r_+r_-} 对于离电偶极子比较远的点,即 $r\\gg l$ 时,应有 r_+r_-\\approx r^2,\\qquad r_--r_+\\app\n[图|图13.5 计算电偶极子的电势用图] 图述:图中左侧为带负电荷 $-q$ 和右侧为带正电荷 $+q$ 的电偶极子,两电荷相距 $l$。 右上方为场点 $P$,从两电荷分别连接到 $P$ 的距离标为 $r_-$ 和 $r_+$,从偶极子中心 $O$ 到 $P$ 的距离标为 $r$。 线段 $OP$ 与偶极矩方向之间的夹角为 $\\theta$。\n[图|图13.6 例13.4用图] 图述:图中为半径为 $R$、总电荷均匀分布的带电圆环,圆心为 $O$,环上任一电荷元标为 $dq$。圆环轴线上右侧有场点 $P$,其到圆心的距离为 $x$,到电荷元的距离为 $r=\\sqrt{R^2+x^2}$。下方坐标图表示电势 $\\varphi$ 随轴向坐标 $x$ 变化,在 $x=0$ 处达到最大值,向两侧逐渐减小。……",
+                  "evidence_id": "ev_d69de2d752949f9f",
+                  "context_hash": "abb593fc449e30111d168c5b677d2f4fa17fcae05915233c14d1968869c357a1",
+                  "neighbor_expanded": true,
+                  "raw_text_sha256": "08b8a6fc6670e4a6ee652aa599b1355d58bfed6ee3665c6a7a0f270c98a39731",
+                  "raw_audit_ref": {
+                    "file_id": "5b8d11cc8f4f",
+                    "chunk_id": "5b8d11cc8f4f#412"
+                  }
+                },
+                {
+                  "source": "大学物理学（第4版）电磁、光学、量子物理（张三慧）.pdf",
+                  "filename": "大学物理学（第4版）电磁、光学、量子物理（张三慧）.pdf",
+                  "file_id": "5b8d11cc8f4f",
+                  "chunk_id": "5b8d11cc8f4f#286",
+                  "index": 286,
+                  "score": 0.0201,
+                  "page": 32,
+                  "printed_page": 15,
+                  "noise_flags": [],
+                  "block_types": [
+                    "paragraph"
+                  ],
+                  "section_path": [
+                    "第12章 静电场",
+                    "12.5 电场线和电通量"
+                  ],
+                  "lesson": null,
+                  "is_lesson": false,
+                  "bm25_score": 34.11,
+                  "variant_hits": [
+                    "电偶极子",
+                    "均匀外电场"
+                  ],
+                  "retrieval_strategy": "multi_query_rrf",
+                  "section": "",
+                  "chapter": "第12章 静电场",
+                  "source_scope": "workspace_textbook",
+                  "source_visibility": "public",
+                  "location_type": "printed_page",
+                  "location_label": "教材第 15 页（PDF 第 32 页）",
+                  "block_type": "paragraph",
+                  "matched_terms": [
+                    "电偶",
+                    "偶极",
+                    "极子"
+                  ],
+                  "matched_bigrams": [
+                    "偶极",
+                    "极子",
+                    "电偶"
+                  ],
+                  "matched_phrases": [
+                    "电偶极子"
+                  ],
+                  "primary_phrase_coverage": 1.0,
+                  "title_match": 0.0,
+                  "confidence": 0.703,
+                  "signals": {
+                    "lexical": 1.0,
+                    "exact_term_coverage": 1.0,
+                    "primary_phrase_coverage": 1.0,
+                    "title_match": 0.0,
+                    "bm25_raw": 34.11,
+                    "bm25_normalized": 0.9715,
+                    "bm25_relative": 0.8132,
+                    "vector_distance": null,
+                    "vector_calibrated": false,
+                    "variant_hits": [
+                      "电偶极子",
+                      "均匀外电场"
+                    ],
+                    "concept_bonus": 0
+                  },
+                  "query_intent": "content",
+                  "selection_reason": "exact_term+mmr",
+                  "evidence_excerpt": "……[图|图12.11 几种静止的电荷的电场线图] 图述:图中分为三部分:(a) 中心点电荷的电场线呈径向分布,箭头由中心向外;(b) 一对等量异号点电荷之间及周围的电场线由正电荷指向负电荷;(c) 两块带异号电荷的平行金属板之间电场线大致平行且垂直于极板,极板外侧有弯曲的边缘电场线。\n(a) 点电荷;(b) 电偶极子;(c) 带电平行板 电场线图形也可以通过实验显示出来。 将一些针状晶体碎屑撒到绝缘油中使之悬浮起来,加以外电场后,这些小晶体会因感应而成为小的电偶极子。 它们在电场力的作用下就会转到电场方向排列起来,于是就显示出了电场线的图形(图 12.12)。\n[图|图12.12 电场线的显示] 图述:图中展示了三种通过悬浮晶体排列显示出的电场线图样。(a) 中心有两个等量异号电荷,晶体沿两电荷间的电场线排列;(b) 两个平行金属板之间形成近似平行的电场线;(c) 尖端异形带电导体周围的电场线在尖端处明显密集。……",
+                  "evidence_id": "ev_59f0c42bb9967c04",
+                  "context_hash": "b1cb32b2c5346b7fd2f22c25b4a5db67cea3a543818e23db435e3c86c6f6b2ca",
+                  "neighbor_expanded": true,
+                  "raw_text_sha256": "1b7a968d856db396f010032c88b230bc5509c369c5f8f50efebaca67fa28604f",
+                  "raw_audit_ref": {
+                    "file_id": "5b8d11cc8f4f",
+                    "chunk_id": "5b8d11cc8f4f#286"
+                  }
+                }
+              ],
+              "count": 6,
+              "omitted_count": 42,
+              "partial": false,
+              "evidence_bundle": {
+                "query": "电偶极子",
+                "selected": [
+                  {
+                    "source": "大学物理学（第4版）电磁、光学、量子物理（张三慧）.pdf",
+                    "filename": "大学物理学（第4版）电磁、光学、量子物理（张三慧）.pdf",
+                    "file_id": "5b8d11cc8f4f",
+                    "chunk_id": "5b8d11cc8f4f#437",
+                    "index": 437,
+                    "score": 0.0466,
+                    "page": 55,
+                    "printed_page": 38,
+                    "noise_flags": [],
+                    "block_types": [
+                      "formula"
+                    ],
+                    "section_path": [
+                      "1 在直角坐标系中 $\\nabla$ 算符定义为",
+                      "A_{12}=W_1-W_2",
+                      "解 由式(13.19)可知,在均匀外电场中电偶极子中正、负电荷(分别位于 $A$、$B$ 两点)的电势能分"
+                    ],
+                    "lesson": null,
+                    "is_lesson": false,
+                    "bm25_score": 40.346,
+                    "variant_hits": [
+                      "电偶极子",
+                      "均匀外电场",
+                      "电势能"
+                    ],
+                    "retrieval_strategy": "multi_query_rrf",
+                    "section": "",
+                    "chapter": "第13章 电势",
+                    "source_scope": "workspace_textbook",
+                    "source_visibility": "public",
+                    "location_type": "printed_page",
+                    "location_label": "教材第 38 页（PDF 第 55 页）",
+                    "block_type": "formula",
+                    "matched_terms": [
+                      "电偶",
+                      "偶极",
+                      "极子"
+                    ],
+                    "matched_bigrams": [
+                      "偶极",
+                      "极子",
+                      "电偶"
+                    ],
+                    "matched_phrases": [
+                      "电偶极子"
+                    ],
+                    "primary_phrase_coverage": 1.0,
+                    "title_match": 1.0,
+                    "confidence": 1.0,
+                    "signals": {
+                      "lexical": 1.0,
+                      "exact_term_coverage": 1.0,
+                      "primary_phrase_coverage": 1.0,
+                      "title_match": 1.0,
+                      "bm25_raw": 40.346,
+                      "bm25_normalized": 0.9758,
+                      "bm25_relative": 0.9619,
+                      "vector_distance": null,
+                      "vector_calibrated": false,
+                      "variant_hits": [
+                        "电偶极子",
+                        "均匀外电场",
+                        "电势能"
+                      ],
+                      "concept_bonus": 0
+                    },
+                    "query_intent": "content",
+                    "selection_reason": "lesson_title_match+mmr",
+                    "evidence_excerpt": "……解 由式(13.19)可知,在均匀外电场中电偶极子中正、负电荷(分别位于 $A$、$B$ 两点)的电势能分\n别为 W_+=q\\varphi_A,\\qquad W_-=-q\\varphi_B 电偶极子在外电场中的电势能为 W=W_++W_-=q(\\varphi_A-\\varphi_B)=-qlE\\cos\\theta=-pE\\cos\\theta 式中 $\\theta$ 是 $\\boldsymbol{p}$ 与 $\\boldsymbol{E}$ 的夹角。 将上式写成矢量形式,则有 W=-\\boldsymbol{p}\\cdot\\boldsymbol{E}\\tag{13.20} 上式表明,当电偶极子取向与外电场一致时,电势能最低;取向相反时,电势能最高;当电偶极子取向与外电场方向垂直时,电势能为零。 式(13.20)与习题12.31的结果是符合功能关系的。\n[图13.11|电偶极子在外电场中的电势能计算] 图述:图中水平方向有多条彼此平行且向右的电场线,表示方向向右的匀强电场 $\\boldsymbol{E}$。斜向线段连接下方的负电荷 $-q$(标为 $B$)和上方的正电荷 $+q$(标为 $A$),构成电偶极子。线段与电场方向之间的夹角标为 $\\theta$,偶极矩方向由负电荷指向正电荷。……",
+                    "evidence_id": "ev_a88a0c02302a6217",
+                    "context_hash": "ee3f4be266fcf3cde4df4e5b86d10adf22e6ea6b2351142ca6ea155cc63e623b",
+                    "neighbor_expanded": true,
+                    "raw_text_sha256": "ff7073d2719af1b06bfefe25b86a9d5baad6b52b7d55552c9ad994d6edb1a8a5",
+                    "raw_audit_ref": {
+                      "file_id": "5b8d11cc8f4f",
+                      "chunk_id": "5b8d11cc8f4f#437"
+                    }
+                  },
+                  {
+                    "source": "大学物理学（第4版）电磁、光学、量子物理（张三慧）.pdf",
+                    "filename": "大学物理学（第4版）电磁、光学、量子物理（张三慧）.pdf",
+                    "file_id": "5b8d11cc8f4f",
+                    "chunk_id": "5b8d11cc8f4f#436",
+                    "index": 436,
+                    "score": 0.0454,
+                    "page": 54,
+                    "printed_page": 37,
+                    "noise_flags": [],
+                    "block_types": [
+                      "heading"
+                    ],
+                    "section_path": [
+                      "1 在直角坐标系中 $\\nabla$ 算符定义为",
+                      "A_{12}=W_1-W_2",
+                      "解 由式(13.19)可知,在均匀外电场中电偶极子中正、负电荷(分别位于 $A$、$B$ 两点)的电势能分"
+                    ],
+                    "lesson": null,
+                    "is_lesson": false,
+                    "bm25_score": 39.454,
+                    "variant_hits": [
+                      "电偶极子",
+                      "均匀外电场",
+                      "电势能"
+                    ],
+                    "retrieval_strategy": "multi_query_rrf",
+                    "section": "",
+                    "chapter": "第13章 电势",
+                    "source_scope": "workspace_textbook",
+                    "source_visibility": "public",
+                    "location_type": "printed_page",
+                    "location_label": "教材第 37 页（PDF 第 54 页）",
+                    "block_type": "heading",
+                    "matched_terms": [
+                      "电偶",
+                      "偶极",
+                      "极子"
+                    ],
+                    "matched_bigrams": [
+                      "偶极",
+                      "极子",
+                      "电偶"
+                    ],
+                    "matched_phrases": [
+                      "电偶极子"
+                    ],
+                    "primary_phrase_coverage": 1.0,
+                    "title_match": 1.0,
+                    "confidence": 1.0,
+                    "signals": {
+                      "lexical": 1.0,
+                      "exact_term_coverage": 1.0,
+                      "primary_phrase_coverage": 1.0,
+                      "title_match": 1.0,
+                      "bm25_raw": 39.454,
+                      "bm25_normalized": 0.9753,
+                      "bm25_relative": 0.9406,
+                      "vector_distance": null,
+                      "vector_calibrated": false,
+                      "variant_hits": [
+                        "电偶极子",
+                        "均匀外电场",
+                        "电势能"
+                      ],
+                      "concept_bonus": 0
+                    },
+                    "query_intent": "content",
+                    "selection_reason": "lesson_title_match+mmr",
+                    "evidence_excerpt": "……将此式和式(13.8) A_{12}=q_0(\\varphi_1-\\varphi_2)=q_0\\varphi_1-q_0\\varphi_2 对比,可取 $W_1=q_0\\varphi_1$,$W_2=q_0\\varphi_2$,或者,一般地取 W=q_0\\varphi \\qquad(13.19) 这就是说,一个电荷在电场中某点的电势能等于它的电量与电场中该点电势的乘积。\n解 由式(13.19)可知,在均匀外电场中电偶极子中正、负电荷(分别位于 $A$、$B$ 两点)的电势能分\n别为 W_+=q\\varphi_A,\\qquad W_-=-q\\varphi_B 电偶极子在外电场中的电势能为 W=W_++W_-=q(\\varphi_A-\\varphi_B)=-qlE\\cos\\theta=-pE\\cos\\theta 式中 $\\theta$ 是 $\\boldsymbol{p}$ 与 $\\boldsymbol{E}$ 的夹角。……",
+                    "evidence_id": "ev_43aad73b782a031e",
+                    "context_hash": "82c7beb88c3218663a0855fcd9e468544ae9ad9378c3a7b93fa2ccb213ddda5d",
+                    "neighbor_expanded": true,
+                    "raw_text_sha256": "09ca03a436db628c62c1aea4f76f11afeff2817ba2dfab3c378c4869235a3a7c",
+                    "raw_audit_ref": {
+                      "file_id": "5b8d11cc8f4f",
+                      "chunk_id": "5b8d11cc8f4f#436"
+                    }
+                  },
+                  {
+                    "source": "大学物理学（第4版）电磁、光学、量子物理（张三慧）.pdf",
+                    "filename": "大学物理学（第4版）电磁、光学、量子物理（张三慧）.pdf",
+                    "file_id": "5b8d11cc8f4f",
+                    "chunk_id": "5b8d11cc8f4f#265",
+                    "index": 265,
+                    "score": 0.0182,
+                    "page": 28,
+                    "printed_page": 11,
+                    "noise_flags": [],
+                    "block_types": [
+                      "paragraph"
+                    ],
+                    "section_path": [
+                      "1 单位 $\\mathrm{C^2/(N\\cdot m^2)}$ 就是 $\\mathrm{F/m}$,$\\mathrm{F}$(法)是电容的单位,见第 15 章。"
+                    ],
+                    "lesson": null,
+                    "is_lesson": false,
+                    "bm25_score": 41.4,
+                    "variant_hits": [
+                      "电偶极子",
+                      "均匀外电场"
+                    ],
+                    "retrieval_strategy": "multi_query_rrf",
+                    "section": "",
+                    "chapter": "第12章 静电场",
+                    "source_scope": "workspace_textbook",
+                    "source_visibility": "public",
+                    "location_type": "printed_page",
+                    "location_label": "教材第 11 页（PDF 第 28 页）",
+                    "block_type": "paragraph",
+                    "matched_terms": [
+                      "电偶",
+                      "偶极",
+                      "极子"
+                    ],
+                    "matched_bigrams": [
+                      "偶极",
+                      "极子",
+                      "电偶"
+                    ],
+                    "matched_phrases": [
+                      "电偶极子"
+                    ],
+                    "primary_phrase_coverage": 1.0,
+                    "title_match": 0.0,
+                    "confidence": 0.737,
+                    "signals": {
+                      "lexical": 1.0,
+                      "exact_term_coverage": 1.0,
+                      "primary_phrase_coverage": 1.0,
+                      "title_match": 0.0,
+                      "bm25_raw": 41.4,
+                      "bm25_normalized": 0.9764,
+                      "bm25_relative": 0.987,
+                      "vector_distance": null,
+                      "vector_calibrated": false,
+                      "variant_hits": [
+                        "电偶极子",
+                        "均匀外电场"
+                      ],
+                      "concept_bonus": 0
+                    },
+                    "query_intent": "content",
+                    "selection_reason": "exact_term+mmr",
+                    "evidence_excerpt": "\\frac{q}{4\\pi\\varepsilon_0r^3}(\\mathbf r_+-\\mathbf r_-) 由于 $\\mathbf r_+-\\mathbf r_-=-\\mathbf l$,所以上式化为 \\mathbf E=-\\frac{q\\mathbf l}{4\\pi\\varepsilon_0r^3} 式中,$ql$ 反映电偶极子本身的特征,叫做电偶极子的电矩(或电偶极矩)。 以 $\\mathbf p$ 表示电矩,则 $\\mathbf p=q\\mathbf l$。 这样上述结果又可写成 \\mathbf E=-\\frac{\\mathbf p}{4\\pi\\varepsilon_0r^3} \\tag{12. 12} 此结果表明,电偶极子中垂线上距离电偶极子中心较远处,各点的电场强度与电偶极子的电矩成正比,与该点离电偶极子中心的距离的三次方成反比,方向与电矩的方向相反。 例 12. 4 一根带电直棒,如果我们限于考虑离棒的距离比棒的截面尺寸大得多的地方的电场,则该带电直棒就可以看作一条带电直线。",
+                    "evidence_id": "ev_2ebac416a1909389",
+                    "context_hash": "846c5b35ded888ea9ceae60f65f2e3c60eb880c4b8040fdd32df9b9e0acc666e",
+                    "raw_text_sha256": "aae516fd083a4f1b988ba1b16a492e0d9c991638e804e5e5cf8ac265731076d4",
+                    "raw_audit_ref": {
+                      "file_id": "5b8d11cc8f4f",
+                      "chunk_id": "5b8d11cc8f4f#265"
+                    }
+                  },
+                  {
+                    "source": "大学物理学（第4版）电磁、光学、量子物理（张三慧）.pdf",
+                    "filename": "大学物理学（第4版）电磁、光学、量子物理（张三慧）.pdf",
+                    "file_id": "5b8d11cc8f4f",
+                    "chunk_id": "5b8d11cc8f4f#930",
+                    "index": 930,
+                    "score": 0.0159,
+                    "page": 128,
+                    "printed_page": 111,
+                    "noise_flags": [],
+                    "block_types": [
+                      "paragraph"
+                    ],
+                    "section_path": [
+                      "1 此单位 $\\mathrm{N/A^2}$ 就是 $\\mathrm{H/m}$,H(亨)是电感的单位,见19.4节。"
+                    ],
+                    "lesson": null,
+                    "is_lesson": false,
+                    "bm25_score": 41.945,
+                    "variant_hits": [
+                      "电偶极子"
+                    ],
+                    "retrieval_strategy": "multi_query_rrf",
+                    "section": "",
+                    "chapter": "第17章 磁场和它的源",
+                    "source_scope": "workspace_textbook",
+                    "source_visibility": "public",
+                    "location_type": "printed_page",
+                    "location_label": "教材第 111 页（PDF 第 128 页）",
+                    "block_type": "paragraph",
+                    "matched_terms": [
+                      "电偶",
+                      "偶极",
+                      "极子"
+                    ],
+                    "matched_bigrams": [
+                      "偶极",
+                      "极子",
+                      "电偶"
+                    ],
+                    "matched_phrases": [
+                      "电偶极子"
+                    ],
+                    "primary_phrase_coverage": 1.0,
+                    "title_match": 0.0,
+                    "confidence": 0.74,
+                    "signals": {
+                      "lexical": 1.0,
+                      "exact_term_coverage": 1.0,
+                      "primary_phrase_coverage": 1.0,
+                      "title_match": 0.0,
+                      "bm25_raw": 41.945,
+                      "bm25_normalized": 0.9767,
+                      "bm25_relative": 1.0,
+                      "vector_distance": null,
+                      "vector_calibrated": false,
+                      "variant_hits": [
+                        "电偶极子"
+                      ],
+                      "concept_bonus": 0
+                    },
+                    "query_intent": "content",
+                    "selection_reason": "exact_term+mmr",
+                    "evidence_excerpt": "……在圆电流中心处,$r=R$,式(17. 11)给出 B=\\frac{\\mu_0 I}{2R} \\tag{17. 15} 式(17. 14)给出了磁矩为 $m$ 的线圈在其轴线上产生的磁场。 这一公式与习题 12. 6 给出的电偶极子在其轴线上产生的电场的公式形式相同,只是将其中 $\\mu_0$ 换成 $1/\\varepsilon_0$。\n这一公式和电偶极子的电场的一般公式(13.18)的形式也相同。 由式(17.16)给出的磁感线图形如图17.12所示。 它和图17.7(b)中电偶极子的电场线图形是类似的(电偶极子所在处除外)。\n[图|图17.12 磁矩的磁感线图] 图述:图中中央为一个水平放置的椭圆形电流回路,标注磁矩方向为竖直向上。蓝色磁感线关于竖直轴和水平轴近似对称,箭头表示磁场线方向。磁感线在电流回路附近分布密集,向外延伸后逐渐稀疏并形成闭合曲线。……",
+                    "evidence_id": "ev_1ec92c7569226451",
+                    "context_hash": "c0453519fed78c5661fafaa3b1e838021f1251e7d267f61a7dc4458a7d1e34a1",
+                    "neighbor_expanded": true,
+                    "raw_text_sha256": "1ec92c75692264511868fccccc67b5f463cf8750aa7c46c5f4735b5976449948",
+                    "raw_audit_ref": {
+                      "file_id": "5b8d11cc8f4f",
+                      "chunk_id": "5b8d11cc8f4f#930"
+                    }
+                  },
+                  {
+                    "source": "大学物理学（第4版）电磁、光学、量子物理（张三慧）.pdf",
+                    "filename": "大学物理学（第4版）电磁、光学、量子物理（张三慧）.pdf",
+                    "file_id": "5b8d11cc8f4f",
+                    "chunk_id": "5b8d11cc8f4f#412",
+                    "index": 412,
+                    "score": 0.0221,
+                    "page": 50,
+                    "printed_page": 33,
+                    "noise_flags": [],
+                    "block_types": [
+                      "figure"
+                    ],
+                    "section_path": [
+                      "第13章",
+                      "13.2 电势差和电势",
+                      "根据电势叠加原理,$P$ 点的电势为"
+                    ],
+                    "lesson": null,
+                    "is_lesson": false,
+                    "bm25_score": 40.612,
+                    "variant_hits": [
+                      "电偶极子",
+                      "电势能"
+                    ],
+                    "retrieval_strategy": "multi_query_rrf",
+                    "section": "",
+                    "chapter": "第13章 电势",
+                    "source_scope": "workspace_textbook",
+                    "source_visibility": "public",
+                    "location_type": "printed_page",
+                    "location_label": "教材第 33 页（PDF 第 50 页）",
+                    "block_type": "figure",
+                    "matched_terms": [
+                      "电偶",
+                      "偶极",
+                      "极子"
+                    ],
+                    "matched_bigrams": [
+                      "偶极",
+                      "极子",
+                      "电偶"
+                    ],
+                    "matched_phrases": [
+                      "电偶极子"
+                    ],
+                    "primary_phrase_coverage": 1.0,
+                    "title_match": 0.0,
+                    "confidence": 0.734,
+                    "signals": {
+                      "lexical": 1.0,
+                      "exact_term_coverage": 1.0,
+                      "primary_phrase_coverage": 1.0,
+                      "title_match": 0.0,
+                      "bm25_raw": 40.612,
+                      "bm25_normalized": 0.976,
+                      "bm25_relative": 0.9682,
+                      "vector_distance": null,
+                      "vector_calibrated": false,
+                      "variant_hits": [
+                        "电偶极子",
+                        "电势能"
+                      ],
+                      "concept_bonus": 0
+                    },
+                    "query_intent": "content",
+                    "selection_reason": "exact_term+mmr",
+                    "evidence_excerpt": "……\\varphi=\\varphi_++\\varphi_-=\\frac{q}{4\\pi\\varepsilon_0r_+}+\\frac{-q}{4\\pi\\varepsilon_0r_-} =\\frac{q(r_--r_+)}{4\\pi\\varepsilon_0r_+r_-} 对于离电偶极子比较远的点,即 $r\\gg l$ 时,应有 r_+r_-\\approx r^2,\\qquad r_--r_+\\app\n[图|图13.5 计算电偶极子的电势用图] 图述:图中左侧为带负电荷 $-q$ 和右侧为带正电荷 $+q$ 的电偶极子,两电荷相距 $l$。 右上方为场点 $P$,从两电荷分别连接到 $P$ 的距离标为 $r_-$ 和 $r_+$,从偶极子中心 $O$ 到 $P$ 的距离标为 $r$。 线段 $OP$ 与偶极矩方向之间的夹角为 $\\theta$。\n[图|图13.6 例13.4用图] 图述:图中为半径为 $R$、总电荷均匀分布的带电圆环,圆心为 $O$,环上任一电荷元标为 $dq$。圆环轴线上右侧有场点 $P$,其到圆心的距离为 $x$,到电荷元的距离为 $r=\\sqrt{R^2+x^2}$。下方坐标图表示电势 $\\varphi$ 随轴向坐标 $x$ 变化,在 $x=0$ 处达到最大值,向两侧逐渐减小。……",
+                    "evidence_id": "ev_d69de2d752949f9f",
+                    "context_hash": "abb593fc449e30111d168c5b677d2f4fa17fcae05915233c14d1968869c357a1",
+                    "neighbor_expanded": true,
+                    "raw_text_sha256": "08b8a6fc6670e4a6ee652aa599b1355d58bfed6ee3665c6a7a0f270c98a39731",
+                    "raw_audit_ref": {
+                      "file_id": "5b8d11cc8f4f",
+                      "chunk_id": "5b8d11cc8f4f#412"
+                    }
+                  },
+                  {
+                    "source": "大学物理学（第4版）电磁、光学、量子物理（张三慧）.pdf",
+                    "filename": "大学物理学（第4版）电磁、光学、量子物理（张三慧）.pdf",
+                    "file_id": "5b8d11cc8f4f",
+                    "chunk_id": "5b8d11cc8f4f#286",
+                    "index": 286,
+                    "score": 0.0201,
+                    "page": 32,
+                    "printed_page": 15,
+                    "noise_flags": [],
+                    "block_types": [
+                      "paragraph"
+                    ],
+                    "section_path": [
+                      "第12章 静电场",
+                      "12.5 电场线和电通量"
+                    ],
+                    "lesson": null,
+                    "is_lesson": false,
+                    "bm25_score": 34.11,
+                    "variant_hits": [
+                      "电偶极子",
+                      "均匀外电场"
+                    ],
+                    "retrieval_strategy": "multi_query_rrf",
+                    "section": "",
+                    "chapter": "第12章 静电场",
+                    "source_scope": "workspace_textbook",
+                    "source_visibility": "public",
+                    "location_type": "printed_page",
+                    "location_label": "教材第 15 页（PDF 第 32 页）",
+                    "block_type": "paragraph",
+                    "matched_terms": [
+                      "电偶",
+                      "偶极",
+                      "极子"
+                    ],
+                    "matched_bigrams": [
+                      "偶极",
+                      "极子",
+                      "电偶"
+                    ],
+                    "matched_phrases": [
+                      "电偶极子"
+                    ],
+                    "primary_phrase_coverage": 1.0,
+                    "title_match": 0.0,
+                    "confidence": 0.703,
+                    "signals": {
+                      "lexical": 1.0,
+                      "exact_term_coverage": 1.0,
+                      "primary_phrase_coverage": 1.0,
+                      "title_match": 0.0,
+                      "bm25_raw": 34.11,
+                      "bm25_normalized": 0.9715,
+                      "bm25_relative": 0.8132,
+                      "vector_distance": null,
+                      "vector_calibrated": false,
+                      "variant_hits": [
+                        "电偶极子",
+                        "均匀外电场"
+                      ],
+                      "concept_bonus": 0
+                    },
+                    "query_intent": "content",
+                    "selection_reason": "exact_term+mmr",
+                    "evidence_excerpt": "……[图|图12.11 几种静止的电荷的电场线图] 图述:图中分为三部分:(a) 中心点电荷的电场线呈径向分布,箭头由中心向外;(b) 一对等量异号点电荷之间及周围的电场线由正电荷指向负电荷;(c) 两块带异号电荷的平行金属板之间电场线大致平行且垂直于极板,极板外侧有弯曲的边缘电场线。\n(a) 点电荷;(b) 电偶极子;(c) 带电平行板 电场线图形也可以通过实验显示出来。 将一些针状晶体碎屑撒到绝缘油中使之悬浮起来,加以外电场后,这些小晶体会因感应而成为小的电偶极子。 它们在电场力的作用下就会转到电场方向排列起来,于是就显示出了电场线的图形(图 12.12)。\n[图|图12.12 电场线的显示] 图述:图中展示了三种通过悬浮晶体排列显示出的电场线图样。(a) 中心有两个等量异号电荷,晶体沿两电荷间的电场线排列;(b) 两个平行金属板之间形成近似平行的电场线;(c) 尖端异形带电导体周围的电场线在尖端处明显密集。……",
+                    "evidence_id": "ev_59f0c42bb9967c04",
+                    "context_hash": "b1cb32b2c5346b7fd2f22c25b4a5db67cea3a543818e23db435e3c86c6f6b2ca",
+                    "neighbor_expanded": true,
+                    "raw_text_sha256": "1b7a968d856db396f010032c88b230bc5509c369c5f8f50efebaca67fa28604f",
+                    "raw_audit_ref": {
+                      "file_id": "5b8d11cc8f4f",
+                      "chunk_id": "5b8d11cc8f4f#286"
+                    }
+                  }
+                ],
+                "omitted_count": 42,
+                "no_hit": false,
+                "context_hashes": [
+                  "ee3f4be266fcf3cde4df4e5b86d10adf22e6ea6b2351142ca6ea155cc63e623b",
+                  "82c7beb88c3218663a0855fcd9e468544ae9ad9378c3a7b93fa2ccb213ddda5d",
+                  "846c5b35ded888ea9ceae60f65f2e3c60eb880c4b8040fdd32df9b9e0acc666e",
+                  "c0453519fed78c5661fafaa3b1e838021f1251e7d267f61a7dc4458a7d1e34a1",
+                  "abb593fc449e30111d168c5b677d2f4fa17fcae05915233c14d1968869c357a1",
+                  "b1cb32b2c5346b7fd2f22c25b4a5db67cea3a543818e23db435e3c86c6f6b2ca"
+                ]
+              },
+              "telemetry": {
+                "gate_mode": "on",
+                "candidate_count": 48,
+                "selected_count": 6,
+                "omitted_count": 42,
+                "no_hit": false,
+                "tier": "found",
+                "drop_reasons": {
+                  "no_absolute_evidence": 21,
+                  "no_professional_phrase": 5,
+                  "relative_gap": 2,
+                  "same_page_duplicate": 2
+                },
+                "latency_ms": 457.91,
+                "shadow_selected_count": 6,
+                "shadow_no_hit": false,
+                "duplicate_drop_count": 2,
+                "duplicate_rate": 0.0417,
+                "candidate_ref_sha256": "00eea0b586ed8591f0fefaad7831f14297b05cf4b7151ccb34ddaf2585273d1d",
+                "selected_context_hashes": [
+                  "f5c1112e6e358b6983b2899cb5a6e16fb452824a5010c97b29489af9b7ceff29",
+                  "09ca03a436db628c62c1aea4f76f11afeff2817ba2dfab3c378c4869235a3a7c",
+                  "846c5b35ded888ea9ceae60f65f2e3c60eb880c4b8040fdd32df9b9e0acc666e",
+                  "cee9b575ef18af07bfd25ca4da47625ad5a4398d2cad6a7ea129fe1164be37bd",
+                  "4f9b31754675be0adca504eb5157b3d92ee22f7ab34a0e979edfcb0e5388c6dc",
+                  "b8f0c07e67ee259e195daea3d0343d5d9c3d28735477efbcc1b2df1c6c84a8ee"
+                ]
+              },
+              "file_ids": null
+            },
+            "text": "从课程资料中筛选出 6 条可靠证据（过滤 42 条）：\n\n[来源：大学物理学（第4版）电磁、光学、量子物理（张三慧）.pdf · 第13章 电势 · 教材第38页（PDF第55页） · chunk 437]\n(置信度 1.0·高)\n<material_excerpt>……解 由式(13.19)可知,在均匀外电场中电偶极子中正、负电荷(分别位于 $A$、$B$ 两点)的电势能分\n别为 W_+=q\\varphi_A,\\qquad W_-=-q\\varphi_B 电偶极子在外电场中的电势能为 W=W_++W_-=q(\\varphi_A-\\varphi_B)=-qlE\\cos\\theta=-pE\\cos\\theta 式中 $\\theta$ 是 $\\boldsymbol{p}$ 与 $\\boldsymbol{E}$ 的夹角。 将上式写成矢量形式,则有 W=-\\boldsymbol{p}\\cdot\\boldsymbol{E}\\tag{13.20} 上式表明,当电偶极子取向与外电场一致时,电势能最低;取向相反时,电势能最高;当电偶极子取向与外电场方向垂直时,电势能为零。 式(13.20)与习题12.31的结果是符合功能关系的。\n[图13.11|电偶极子在外电场中的电势能计算] 图述:图中水平方向有多条彼此平行且向右的电场线,表示方向向右的匀强电场 $\\boldsymbol{E}$。斜向线段连接下方的负电荷 $-q$(标为 $B$)和上方的正电荷 $+q$(标为 $A$),构成电偶极子。线段与电场方向之间的夹角标为 $\\theta$,偶极矩方向由负电荷指向正电荷。……</material_excerpt>\n\n[来源：大学物理学（第4版）电磁、光学、量子物理（张三慧）.pdf · 第13章 电势 · 教材第37页（PDF第54页） · chunk 436]\n(置信度 1.0·高)\n<material_excerpt>……将此式和式(13.8) A_{12}=q_0(\\varphi_1-\\varphi_2)=q_0\\varphi_1-q_0\\varphi_2 对比,可取 $W_1=q_0\\varphi_1$,$W_2=q_0\\varphi_2$,或者,一般地取 W=q_0\\varphi \\qquad(13.19) 这就是说,一个电荷在电场中某点的电势能等于它的电量与电场中该点电势的乘积。\n解 由式(13.19)可知,在均匀外电场中电偶极子中正、负电荷(分别位于 $A$、$B$ 两点)的电势能分\n别为 W_+=q\\varphi_A,\\qquad W_-=-q\\varphi_B 电偶极子在外电场中的电势能为 W=W_++W_-=q(\\varphi_A-\\varphi_B)=-qlE\\cos\\theta=-pE\\cos\\theta 式中 $\\theta$ 是 $\\boldsymbol{p}$ 与 $\\boldsymbol{E}$ 的夹角。……</material_excerpt>\n\n[来源：大学物理学（第4版）电磁、光学、量子物理（张三慧）.pdf · 第12章 静电场 · 教材第11页（PDF第28页） · chunk 265]\n(置信度 0.737·中)\n<material_excerpt>\\frac{q}{4\\pi\\varepsilon_0r^3}(\\mathbf r_+-\\mathbf r_-) 由于 $\\mathbf r_+-\\mathbf r_-=-\\mathbf l$,所以上式化为 \\mathbf E=-\\frac{q\\mathbf l}{4\\pi\\varepsilon_0r^3} 式中,$ql$ 反映电偶极子本身的特征,叫做电偶极子的电矩(或电偶极矩)。 以 $\\mathbf p$ 表示电矩,则 $\\mathbf p=q\\mathbf l$。 这样上述结果又可写成 \\mathbf E=-\\frac{\\mathbf p}{4\\pi\\varepsilon_0r^3} \\tag{12. 12} 此结果表明,电偶极子中垂线上距离电偶极子中心较远处,各点的电场强度与电偶极子的电矩成正比,与该点离电偶极子中心的距离的三次方成反比,方向与电矩的方向相反。 例 12. 4 一根带电直棒,如果我们限于考虑离棒的距离比棒的截面尺寸大得多的地方的电场,则该带电直棒就可以看作一条带电直线。</material_excerpt>\n\n[来源：大学物理学（第4版）电磁、光学、量子物理（张三慧）.pdf · 第17章 磁场和它的源 · 教材第111页（PDF第128页） · chunk 930]\n(置信度 0.74·中)\n<material_excerpt>……在圆电流中心处,$r=R$,式(17. 11)给出 B=\\frac{\\mu_0 I}{2R} \\tag{17. 15} 式(17. 14)给出了磁矩为 $m$ 的线圈在其轴线上产生的磁场。 这一公式与习题 12. 6 给出的电偶极子在其轴线上产生的电场的公式形式相同,只是将其中 $\\mu_0$ 换成 $1/\\varepsilon_0$。\n这一公式和电偶极子的电场的一般公式(13.18)的形式也相同。 由式(17.16)给出的磁感线图形如图17.12所示。 它和图17.7(b)中电偶极子的电场线图形是类似的(电偶极子所在处除外)。\n[图|图17.12 磁矩的磁感线图] 图述:图中中央为一个水平放置的椭圆形电流回路,标注磁矩方向为竖直向上。蓝色磁感线关于竖直轴和水平轴近似对称,箭头表示磁场线方向。磁感线在电流回路附近分布密集,向外延伸后逐渐稀疏并形成闭合曲线。……</material_excerpt>\n\n[来源：大学物理学（第4版）电磁、光学、量子物理（张三慧）.pdf · 第13章 电势 · 教材第33页（PDF第50页） · [图] · chunk 412]\n(置信度 0.734·中)\n<material_excerpt>……\\varphi=\\varphi_++\\varphi_-=\\frac{q}{4\\pi\\varepsilon_0r_+}+\\frac{-q}{4\\pi\\varepsilon_0r_-} =\\frac{q(r_--r_+)}{4\\pi\\varepsilon_0r_+r_-} 对于离电偶极子比较远的点,即 $r\\gg l$ 时,应有 r_+r_-\\approx r^2,\\qquad r_--r_+\\app\n[图|图13.5 计算电偶极子的电势用图] 图述:图中左侧为带负电荷 $-q$ 和右侧为带正电荷 $+q$ 的电偶极子,两电荷相距 $l$。 右上方为场点 $P$,从两电荷分别连接到 $P$ 的距离标为 $r_-$ 和 $r_+$,从偶极子中心 $O$ 到 $P$ 的距离标为 $r$。 线段 $OP$ 与偶极矩方向之间的夹角为 $\\theta$。\n[图|图13.6 例13.4用图] 图述:图中为半径为 $R$、总电荷均匀分布的带电圆环,圆心为 $O$,环上任一电荷元标为 $dq$。圆环轴线上右侧有场点 $P$,其到圆心的距离为 $x$,到电荷元的距离为 $r=\\sqrt{R^2+x^2}$。下方坐标图表示电势 $\\varphi$ 随轴向坐标 $x$ 变化,在 $x=0$ 处达到最大值,向两侧逐渐减小。……</material_excerpt>\n\n[来源：大学物理学（第4版）电磁、光学、量子物理（张三慧）.pdf · 第12章 静电场 · 教材第15页（PDF第32页） · chunk 286]\n(置信度 0.703·中)\n<material_excerpt>……[图|图12.11 几种静止的电荷的电场线图] 图述:图中分为三部分:(a) 中心点电荷的电场线呈径向分布,箭头由中心向外;(b) 一对等量异号点电荷之间及周围的电场线由正电荷指向负电荷;(c) 两块带异号电荷的平行金属板之间电场线大致平行且垂直于极板,极板外侧有弯曲的边缘电场线。\n(a) 点电荷;(b) 电偶极子;(c) 带电平行板 电场线图形也可以通过实验显示出来。 将一些针状晶体碎屑撒到绝缘油中使之悬浮起来,加以外电场后,这些小晶体会因感应而成为小的电偶极子。 它们在电场力的作用下就会转到电场方向排列起来,于是就显示出了电场线的图形(图 12.12)。\n[图|图12.12 电场线的显示] 图述:图中展示了三种通过悬浮晶体排列显示出的电场线图样。(a) 中心有两个等量异号电荷,晶体沿两电荷间的电场线排列;(b) 两个平行金属板之间形成近似平行的电场线;(c) 尖端异形带电导体周围的电场线在尖端处明显密集。……</material_excerpt>\n（需要更多上下文时，可用 knowledge_read 按上面的 chunk 指针读取完整原文及相邻片段。）",
+            "error": null,
+            "error_code": null
+          }
+        }
+      ],
+      "message_id": "m_909c812780bb",
+      "created_at": 1789541798.6424432
+    }
+  ],
+  "quiz_history": [],
+  "trace_ids": [
+    "07ec97381a9c",
+    "395ad8a5f2eb"
+  ],
+  "pending_material_file_ids": [],
+  "title": "给出一个电偶极子 p 处于均匀外电场 E",
+  "created_at": 1789541645.8213105,
+  "updated_at": 1789541798.669714,
+  "knowledge_files": []
+}

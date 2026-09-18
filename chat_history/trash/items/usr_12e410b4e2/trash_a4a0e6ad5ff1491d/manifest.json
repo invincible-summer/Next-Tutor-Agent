@@ -1,0 +1,19 @@
+{
+  "id": "trash_a4a0e6ad5ff1491d",
+  "owner_id": "usr_12e410b4e2",
+  "resource_type": "session",
+  "original_id": "chat_20260917_150038_学习质点模型",
+  "title": "学习质点模型",
+  "deleted_at": 1789628697.075597,
+  "deleted_at_iso": "2026-09-17T07:04:57.075610+00:00",
+  "expires_at": 1790233497.075597,
+  "retention_days": 7,
+  "metadata": {
+    "workspace_id": "ws_20260916_012039_大学物理学",
+    "round_count": 1,
+    "forget_prompt_memory": true,
+    "memory_forget_status": "recent",
+    "memory_forget_result": "forgotten"
+  },
+  "version": 1
+}

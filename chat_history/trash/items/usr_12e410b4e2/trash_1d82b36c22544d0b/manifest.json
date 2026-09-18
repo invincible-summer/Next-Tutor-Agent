@@ -1,0 +1,18 @@
+{
+  "id": "trash_1d82b36c22544d0b",
+  "owner_id": "usr_12e410b4e2",
+  "resource_type": "session",
+  "original_id": "chat_20260916_015113_老师洛必达法则什么时候能用我只记得",
+  "title": "老师，洛必达法则什么时候能用？我只记得「",
+  "deleted_at": 1789494851.9514306,
+  "deleted_at_iso": "2026-09-15T17:54:11.951437+00:00",
+  "expires_at": 1790099651.9514306,
+  "retention_days": 7,
+  "metadata": {
+    "workspace_id": "ws_20260916_012038_高等数学",
+    "round_count": 2,
+    "forget_prompt_memory": false,
+    "memory_forget_status": "recent"
+  },
+  "version": 1
+}

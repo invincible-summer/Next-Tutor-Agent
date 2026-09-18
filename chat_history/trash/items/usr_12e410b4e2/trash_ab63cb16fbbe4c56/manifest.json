@@ -1,0 +1,19 @@
+{
+  "id": "trash_ab63cb16fbbe4c56",
+  "owner_id": "usr_12e410b4e2",
+  "resource_type": "session",
+  "original_id": "chat_20260916_145405_给出一个电偶极子_p_处于均匀外电场_E",
+  "title": "给出一个电偶极子 p 处于均匀外电场 E",
+  "deleted_at": 1789541813.9519315,
+  "deleted_at_iso": "2026-09-16T06:56:53.951942+00:00",
+  "expires_at": 1790146613.9519315,
+  "retention_days": 7,
+  "metadata": {
+    "workspace_id": "ws_20260916_012039_大学物理学",
+    "round_count": 2,
+    "forget_prompt_memory": true,
+    "memory_forget_status": "recent",
+    "memory_forget_result": "forgotten"
+  },
+  "version": 1
+}

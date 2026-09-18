@@ -1,0 +1,18 @@
+{
+  "id": "trash_b38bb51af6d84edb",
+  "owner_id": "usr_12e410b4e2",
+  "resource_type": "session",
+  "original_id": "chat_20260916_020913_老师正项级数有好多判别法比较判别法",
+  "title": "老师，正项级数有好多判别法：比较判别法、",
+  "deleted_at": 1789495859.9663606,
+  "deleted_at_iso": "2026-09-15T18:10:59.966369+00:00",
+  "expires_at": 1790100659.9663606,
+  "retention_days": 7,
+  "metadata": {
+    "workspace_id": "ws_20260916_012038_高等数学",
+    "round_count": 2,
+    "forget_prompt_memory": false,
+    "memory_forget_status": "recent"
+  },
+  "version": 1
+}

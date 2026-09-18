@@ -1,0 +1,18 @@
+{
+  "id": "trash_23b5d99b33594e63",
+  "owner_id": "usr_12e410b4e2",
+  "resource_type": "session",
+  "original_id": "chat_20260916_013228_老师导数的定义我会背但总觉得是在套公",
+  "title": "老师，导数的定义我会背，但总觉得是在套公",
+  "deleted_at": 1789493751.9092047,
+  "deleted_at_iso": "2026-09-15T17:35:51.909212+00:00",
+  "expires_at": 1790098551.9092047,
+  "retention_days": 7,
+  "metadata": {
+    "workspace_id": "ws_20260916_012038_高等数学",
+    "round_count": 2,
+    "forget_prompt_memory": false,
+    "memory_forget_status": "recent"
+  },
+  "version": 1
+}

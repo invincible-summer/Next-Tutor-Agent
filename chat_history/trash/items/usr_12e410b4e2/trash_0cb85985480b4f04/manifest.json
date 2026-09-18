@@ -1,0 +1,19 @@
+{
+  "id": "trash_0cb85985480b4f04",
+  "owner_id": "usr_12e410b4e2",
+  "resource_type": "session",
+  "original_id": "chat_20260917_145948_去学质点模型",
+  "title": "去学质点模型",
+  "deleted_at": 1789628423.9725823,
+  "deleted_at_iso": "2026-09-17T07:00:23.972595+00:00",
+  "expires_at": 1790233223.9725823,
+  "retention_days": 7,
+  "metadata": {
+    "workspace_id": "ws_20260916_012039_大学物理学",
+    "round_count": 3,
+    "forget_prompt_memory": true,
+    "memory_forget_status": "recent",
+    "memory_forget_result": "forgotten"
+  },
+  "version": 1
+}

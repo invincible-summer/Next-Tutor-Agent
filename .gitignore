@@ -126,38 +126,40 @@ out/
 !chat_history/library/data/usr_12e410b4e2/**
 !chat_history/workspaces/
 chat_history/workspaces/*
-!chat_history/workspaces/ws_20260829_134755_高等数学.json
-!chat_history/workspaces/ws_20260829_134755_大学物理.json
-!chat_history/chat_20260829_134755_老师你好我想问一下什么数列叫做收敛数.json
-!chat_history/chat_20260829_135740_老师教材上极限的_ε-δ_定义我看了三.json
-!chat_history/chat_20260829_135748_导数的定义_fx₀_lim.json
-!chat_history/chat_20260829_135749_求_x0_时_eˣ_1_x.json
-!chat_history/chat_20260829_140246_罗尔定理三个条件连续可导端点函数.json
-!chat_history/chat_20260829_140254_判断单调性就是看导数符号吗那_fx.json
-!chat_history/chat_20260829_140345_不定积分结果为什么后面要写_C这个.json
-!chat_history/chat_20260829_140757_定积分_₀¹_x²_dx_13.json
-!chat_history/chat_20260829_140819_Φx_ₐˣ_ft_dt_这.json
-!chat_history/chat_20260829_141009_反常积分_₁_1x²_dx.json
-!chat_history/chat_20260829_141304_等比级数_Σ_12ⁿ_收敛到_2_我能.json
-!chat_history/chat_20260829_141431_幂级数_Σ_xⁿn_为什么恰好收敛到.json
-!chat_history/chat_20260829_141459_泰勒公式到底想干什么为什么用一个多项式.json
-!chat_history/chat_20260829_141913_偏导数_fx_的偏字是什么意思.json
-!chat_history/chat_20260829_142001_老师大学物理的运动学和高中有什么不一样.json
-!chat_history/chat_20260829_142208_牛顿第二定律_Fma_里_F_是合外.json
-!chat_history/chat_20260829_142322_功的定义_W_Fdr为什么要用.json
-!chat_history/chat_20260829_142521_动量定理_F_dpdt_和牛顿第二.json
-!chat_history/chat_20260829_142751_刚体转动里的转动惯量_J_和质点的质量.json
-!chat_history/chat_20260829_142833_角动量_L_rp这里的叉乘物理意.json
-!chat_history/chat_20260829_143044_什么样的运动叫简谐振动回复力_F.json
-!chat_history/chat_20260829_143101_波动方程_y_A_cosωt.json
-!chat_history/chat_20260829_143128_内能热量功三个概念什么关系热量.json
-!chat_history/chat_20260829_143318_电场强度_E_和电势_V_是什么关系为.json
-!chat_history/chat_20260829_143341_电势_V_Wq_里试探电荷是什.json
-!chat_history/chat_20260829_143605_法拉第定律_ε_dΦdt_的负号.json
-!chat_history/chat_20260829_143607_杨氏双缝干涉条纹间距_Δy_λDd.json
-!chat_history/chat_20260829_143901_老师我这学期同时在上微积分和大学物理.json
-!chat_history/chat_20260829_144000_老师微积分和大学物理期末考都快到了我.json
-!chat_history/chat_20260829_144021_老师我一道错题想不通质量_m_的子弹以.json
+# 2026-09 showcase set: learning_evidence.jsonl references workspaces
+# ws_20260916_012038/012039 and the Sep-16/17 sessions below; without them the
+# /memory concept views and /assessment scope resolution break on fresh clones.
+# The recycle-bin block keeps the demo account's soft-deleted sessions (path
+# carries the account id) while every other account's trash stays ignored.
+!chat_history/workspaces/ws_20260916_012038_高等数学.json
+!chat_history/workspaces/ws_20260916_012039_大学物理学.json
+!chat_history/chat_20260916_012125_老师你好我是大一新生正在学微积分能.json
+!chat_history/chat_20260916_014346_老师我能背导数定义但想真正理解它从.json
+!chat_history/chat_20260916_014808_老师罗尔定理和拉格朗日中值定理分别是什.json
+!chat_history/chat_20260916_015417_老师洛必达法则的使用条件是什么除了.json
+!chat_history/chat_20260916_020121_老师第一类换元法和第二类换元法到底怎么.json
+!chat_history/chat_20260916_020523_老师定积分的定义为什么要搞分割取点.json
+!chat_history/chat_20260916_021105_老师正项级数的判别法比较比值根值.json
+!chat_history/chat_20260916_021512_老师幂级数的收敛半径怎么求x-a.json
+!chat_history/chat_20260916_022035_老师偏导数的几何意义是什么zx.json
+!chat_history/chat_20260916_022329_老师二重积分化累次积分时怎么定限什么.json
+!chat_history/chat_20260916_022949_老师位移和路程有什么区别平均速度和平.json
+!chat_history/chat_20260916_023549_老师牛顿三定律里我最容易混淆的是第二定.json
+!chat_history/chat_20260916_023850_老师动量守恒的条件到底是什么合外力.json
+!chat_history/chat_20260916_024605_老师功能原理和机械能守恒定律的区别是什.json
+!chat_history/chat_20260916_025029_老师刚体转动里转动惯量怎么算平行轴定.json
+!chat_history/chat_20260916_025730_老师简谐振动的动力学特征是什么x.json
+!chat_history/chat_20260916_030145_老师波动方程_yA_cosωt.json
+!chat_history/chat_20260916_030609_老师热力学第一定律_ΔU_Q.json
+!chat_history/chat_20260916_031153_老师高斯定理的物理意义是什么Ed.json
+!chat_history/chat_20260916_031428_老师法拉第电磁感应定律_ε_dΦ.json
+!chat_history/chat_20260917_200837_去学质点模型.json
+!chat_history/trash/
+chat_history/trash/*
+!chat_history/trash/items/
+chat_history/trash/items/*
+!chat_history/trash/items/usr_12e410b4e2/
+!chat_history/trash/items/usr_12e410b4e2/**
 
 docs/The_Website_deployment_plan.md
 # Playwright E2E artifacts
