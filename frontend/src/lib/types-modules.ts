@@ -622,6 +622,10 @@ export interface DocsContentResp {
   markdown: string;
   updated_at: number;
   updated_by: string;
+  /** 渲染版 PDF 手册是否已构建（GET /docs/show）。 */
+  show_manual?: boolean;
+  /** 覆盖演示手册地址（静态演示模式下指向导出的单文件 HTML）。 */
+  show_manual_url?: string;
 }
 
 // --- M7 评估（既有端点的类型补全） ---

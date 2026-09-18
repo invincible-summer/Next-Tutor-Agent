@@ -19,6 +19,9 @@ export const STRINGS = {
     "docs.updatedBy": "由",
     "docs.empty": "（文档为空）",
     "docs.ph": "在此输入 Markdown 文档内容…",
+    "docs.tabManual": "使用手册",
+    "docs.tabShow": "演示手册",
+    "docs.showTitle": "Next Tutor Agent 项目展示",
   },
   en: {
     "docs.title": "Usage Docs",
@@ -37,5 +40,8 @@ export const STRINGS = {
     "docs.updatedBy": "by",
     "docs.empty": "(empty document)",
     "docs.ph": "Type the Markdown document here…",
+    "docs.tabManual": "Manual",
+    "docs.tabShow": "Show Deck",
+    "docs.showTitle": "Next Tutor Agent show deck",
   },
 } satisfies PageStrings;
