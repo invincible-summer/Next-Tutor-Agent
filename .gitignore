@@ -112,8 +112,10 @@ out/
 # CANNOT be wildcarded: their filenames carry only timestamp+title (the
 # account id lives inside the JSON), so a glob there would also commit other
 # users' private sessions -- they stay exact-file negations.
-# Transcript sidecars (*.transcript.jsonl) and backend traces stay ignored
-# for every other account -- no chain-of-thought goes into VCS.
+# Transcript sidecars of the showcase sessions below are tracked as exact
+# negations too (plain message turns, same format as the tracked trash
+# payloads); every other account's transcripts stay ignored, and backend
+# traces (raw chain-of-thought) stay ignored for ALL accounts.
 # G6 migration (plan §16): legacy evaluation inputs (learning_records /
 # quiz_recent / events) were migrated into the learning-evidence journal and
 # deleted; students/usr_12e410b4e2.learning_evidence.jsonl is the tracked
@@ -154,6 +156,32 @@ chat_history/workspaces/*
 !chat_history/chat_20260916_031153_老师高斯定理的物理意义是什么Ed.json
 !chat_history/chat_20260916_031428_老师法拉第电磁感应定律_ε_dΦ.json
 !chat_history/chat_20260917_200837_去学质点模型.json
+# Transcript sidecars of the SAME showcase sessions: they carry the plain
+# user/assistant turns (same format as the tracked trash payloads) so the
+# demo chats replay with full fidelity on fresh clones. Every other
+# account's transcripts stay ignored, and backend traces (raw
+# chain-of-thought) stay ignored for ALL accounts including this one.
+!chat_history/chat_20260916_012125_老师你好我是大一新生正在学微积分能.transcript.jsonl
+!chat_history/chat_20260916_014346_老师我能背导数定义但想真正理解它从.transcript.jsonl
+!chat_history/chat_20260916_014808_老师罗尔定理和拉格朗日中值定理分别是什.transcript.jsonl
+!chat_history/chat_20260916_015417_老师洛必达法则的使用条件是什么除了.transcript.jsonl
+!chat_history/chat_20260916_020121_老师第一类换元法和第二类换元法到底怎么.transcript.jsonl
+!chat_history/chat_20260916_020523_老师定积分的定义为什么要搞分割取点.transcript.jsonl
+!chat_history/chat_20260916_021105_老师正项级数的判别法比较比值根值.transcript.jsonl
+!chat_history/chat_20260916_021512_老师幂级数的收敛半径怎么求x-a.transcript.jsonl
+!chat_history/chat_20260916_022035_老师偏导数的几何意义是什么zx.transcript.jsonl
+!chat_history/chat_20260916_022329_老师二重积分化累次积分时怎么定限什么.transcript.jsonl
+!chat_history/chat_20260916_022949_老师位移和路程有什么区别平均速度和平.transcript.jsonl
+!chat_history/chat_20260916_023549_老师牛顿三定律里我最容易混淆的是第二定.transcript.jsonl
+!chat_history/chat_20260916_023850_老师动量守恒的条件到底是什么合外力.transcript.jsonl
+!chat_history/chat_20260916_024605_老师功能原理和机械能守恒定律的区别是什.transcript.jsonl
+!chat_history/chat_20260916_025029_老师刚体转动里转动惯量怎么算平行轴定.transcript.jsonl
+!chat_history/chat_20260916_025730_老师简谐振动的动力学特征是什么x.transcript.jsonl
+!chat_history/chat_20260916_030145_老师波动方程_yA_cosωt.transcript.jsonl
+!chat_history/chat_20260916_030609_老师热力学第一定律_ΔU_Q.transcript.jsonl
+!chat_history/chat_20260916_031153_老师高斯定理的物理意义是什么Ed.transcript.jsonl
+!chat_history/chat_20260916_031428_老师法拉第电磁感应定律_ε_dΦ.transcript.jsonl
+!chat_history/chat_20260917_200837_去学质点模型.transcript.jsonl
 !chat_history/trash/
 chat_history/trash/*
 !chat_history/trash/items/
