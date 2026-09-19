@@ -1,4 +1,4 @@
-# Next Tutor Agent · Edu_Agent
+# Next Tutor Agent
 
 > **以教材为事实源、以学生真实表现为证据、以任务设计驱动学习闭环的教育智能体。**
 >
