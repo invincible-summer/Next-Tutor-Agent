@@ -5,6 +5,7 @@ A 阶段落地：课程创建（幂等+配额+占位 job）、列表读取（只
 """
 from __future__ import annotations
 
+import json
 from typing import Any
 
 from ..core import classroom_store as store
@@ -76,6 +77,12 @@ def create_lesson(student_id: str, workspace_id: str,
             request.brief.model_dump(mode="json", by_alias=True)),
         start_mode=request.start_mode, created_at=now, updated_at=now)
     store.save_job(job)
+    # Brief 完整落盘：job/lesson 实体只存 hash，worker 生成从这里读
+    store.stage_file(
+        store.job_root(student_id, workspace_id, lesson_id, job_id),
+        "brief.json",
+        json.dumps(request.brief.model_dump(mode="json", by_alias=True),
+                   ensure_ascii=False, indent=1))
     store.index_upsert_lesson(student_id, workspace_id, lesson, job=job)
     idempotency.consume_generation_quota(student_id)
 

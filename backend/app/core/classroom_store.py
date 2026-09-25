@@ -196,6 +196,18 @@ def job_staging_dir(owner_id: str, workspace_id: str, lesson_id: str,
     return job_root(owner_id, workspace_id, lesson_id, job_id) / "staging"
 
 
+def job_brief_path(owner_id: str, workspace_id: str, lesson_id: str,
+                   job_id: str) -> Path:
+    """job 的完整 Brief 落盘位置（Lesson/Job 实体只存 hash）。"""
+    return job_root(owner_id, workspace_id, lesson_id, job_id) / "brief.json"
+
+
+def stages_dir(owner_id: str, workspace_id: str, lesson_id: str,
+               job_id: str) -> Path:
+    """§15.2 各阶段 checked artifact 目录（stages/<phase>.json）。"""
+    return job_root(owner_id, workspace_id, lesson_id, job_id) / "stages"
+
+
 def asset_file_path(owner_id: str, workspace_id: str, lesson_id: str,
                     asset_id: str, ext: str) -> Path:
     validate_new_id("ast", asset_id)
