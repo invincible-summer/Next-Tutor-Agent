@@ -287,6 +287,62 @@ class Settings:
     api_host: str = os.getenv("API_HOST", "127.0.0.1")
     api_port: int = int(os.getenv("API_PORT", "8000"))
 
+    # ------------------------------------------------------------------
+    # 课堂模式（plan.md §20.1；默认值为开发阶段值，验收后发布模板设 1）
+    # ------------------------------------------------------------------
+    classroom_enabled: bool = _env_bool("CLASSROOM_ENABLED", False)
+    # 默认仅认证用户可生成/播放私有课堂；测试可显式放行游客
+    classroom_allow_guest: bool = _env_bool("CLASSROOM_ALLOW_GUEST", False)
+    # 灰度 allowlist：空为不限制（在 enabled 之上再收窄）
+    classroom_allowed_users: str = os.getenv("CLASSROOM_ALLOWED_USERS", "").strip()
+    # get_llm("classroom") 模型覆盖；空用主模型，凭证/base URL 不另建
+    classroom_model: str = os.getenv("CLASSROOM_MODEL", "").strip()
+    # 联网检索：provider 无 key 即不可用，不伪联网
+    classroom_web_provider: str = os.getenv("CLASSROOM_WEB_PROVIDER", "tavily").strip().lower()
+    tavily_api_key: str = os.getenv("TAVILY_API_KEY", "").strip()
+    # 图片：顺序固定，可配置禁某个 provider
+    classroom_image_providers: str = os.getenv(
+        "CLASSROOM_IMAGE_PROVIDERS", "pexels,pixabay").strip().lower()
+    pexels_api_key: str = os.getenv("PEXELS_API_KEY", "").strip()
+    pixabay_api_key: str = os.getenv("PIXABAY_API_KEY", "").strip()
+    # 课堂语音策略：auto | cloud | local | silent；云端首发 azure
+    classroom_tts_policy: str = _resolve_mode(
+        "CLASSROOM_TTS_POLICY", {"auto", "cloud", "local", "silent"}, "auto")
+    classroom_tts_cloud_provider: str = os.getenv(
+        "CLASSROOM_TTS_CLOUD_PROVIDER", "azure").strip().lower()
+    azure_speech_key: str = os.getenv("AZURE_SPEECH_KEY", "").strip()
+    azure_speech_region: str = os.getenv("AZURE_SPEECH_REGION", "").strip()
+    # 可选官方资源域；不能由普通用户配置
+    azure_speech_endpoint: str = os.getenv("AZURE_SPEECH_ENDPOINT", "").strip()
+    classroom_tts_voice_zh: str = os.getenv(
+        "CLASSROOM_TTS_VOICE_ZH", "zh-CN-XiaoxiaoNeural").strip()
+    classroom_tts_voice_en: str = os.getenv(
+        "CLASSROOM_TTS_VOICE_EN", "en-US-JennyNeural").strip()
+    # None = 继承 VOICE_TTS_PROVIDER 是否为 melo；显式 1 才独立启用课堂本地回退
+    classroom_local_tts_enabled: bool | None = (
+        None if os.getenv("CLASSROOM_LOCAL_TTS_ENABLED") is None
+        else _env_bool("CLASSROOM_LOCAL_TTS_ENABLED", False))
+    classroom_tts_local_fallback: bool = _env_bool(
+        "CLASSROOM_TTS_LOCAL_FALLBACK", True)
+    # 受限作业调度（plan.md §15.3/§15.4）
+    classroom_job_concurrency: int = max(1, int(os.getenv("CLASSROOM_JOB_CONCURRENCY", "2")))
+    classroom_owner_concurrency: int = max(1, int(os.getenv("CLASSROOM_OWNER_CONCURRENCY", "1")))
+    classroom_llm_concurrency: int = max(1, int(os.getenv("CLASSROOM_LLM_CONCURRENCY", "3")))
+    classroom_tts_cloud_concurrency: int = max(1, int(os.getenv("CLASSROOM_TTS_CLOUD_CONCURRENCY", "2")))
+    classroom_job_timeout_seconds: int = max(60, int(os.getenv("CLASSROOM_JOB_TIMEOUT_SECONDS", "900")))
+    classroom_max_pages: int = max(1, int(os.getenv("CLASSROOM_MAX_PAGES", "24")))
+    classroom_max_revisions: int = max(1, int(os.getenv("CLASSROOM_MAX_REVISIONS", "20")))
+    classroom_audio_cache_mb: int = max(50, int(os.getenv("CLASSROOM_AUDIO_CACHE_MB", "500")))
+    classroom_audio_ttl_days: int = max(1, int(os.getenv("CLASSROOM_AUDIO_TTL_DAYS", "7")))
+    classroom_export_ttl_hours: int = max(1, int(os.getenv("CLASSROOM_EXPORT_TTL_HOURS", "24")))
+    classroom_render_timeout_seconds: int = max(5, int(os.getenv("CLASSROOM_RENDER_TIMEOUT_SECONDS", "45")))
+    # 部署级可信可执行文件与固定脚本路径；客户端/模型不可改写
+    classroom_node_bin: str = os.getenv("CLASSROOM_NODE_BIN", "node").strip()
+    classroom_render_script: str = os.getenv(
+        "CLASSROOM_RENDER_SCRIPT",
+        str(_PROJECT_ROOT / "frontend" / "scripts" / "check-classroom-render.mjs")).strip()
+    classroom_api_daily_tts_chars: int = max(1000, int(os.getenv("CLASSROOM_API_DAILY_TTS_CHARS", "100000")))
+
 
 settings = Settings()
 

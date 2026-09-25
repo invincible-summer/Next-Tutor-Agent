@@ -228,6 +228,10 @@ def create_app() -> FastAPI:
     )
     from app.api.v1.router import api_router
     app.include_router(api_router)
+    # 课堂域统一错误 envelope（plan.md §14.3）
+    from app.api.v1.classroom import classroom_exception_handler
+    from app.classroom.errors import ClassroomError
+    app.add_exception_handler(ClassroomError, classroom_exception_handler)
     return app
 
 

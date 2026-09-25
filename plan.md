@@ -1197,8 +1197,8 @@ exports 24h 过期；搜索缓存按 24h TTL；失败/取消 job staging 保留 
 - [x] A01 将 §10/§14 的字段、枚举、限制落为 Pydantic；从 schema 生成一份 `frontend/src/lib/types-classroom.generated.ts`，手写前端行为类型置 types-classroom.ts，不维护两份漂移 DTO。用项目内小型生成脚本输出确定性类型，CI 比较生成结果。
 - [x] A02 实现课堂 root、ID 校验、文件锁/CAS、atomic_write_bytes、lesson/job/run 读写、manifest hash 和可重建 index。
 - [x] A03 为新增 root 同时修改 storage_sandbox、orphan_cleanup、account_data/trash 的入口和 tombstone 防晚写逻辑；添加 fixtures 用已隔离临时目录。
-- [ ] A04 注册 feature flag/capabilities/templates/router；功能关闭时能力端点仍可读，生成端点返回明确 disabled。
-- [ ] A05 实现幂等键/body hash、owner 生命周期、配额计数与错误 envelope，测试多账户访问。
+- [x] A04 注册 feature flag/capabilities/templates/router；功能关闭时能力端点仍可读，生成端点返回明确 disabled。
+- [x] A05 实现幂等键/body hash、owner 生命周期、配额计数与错误 envelope，测试多账户访问。
 
 退出门：空课程 CRUD/归档恢复在 sandbox 下可重复执行；重启能读；未知字段拒绝；没有任何生产目录写入；GET 列表不 mkdir。
 
