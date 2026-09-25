@@ -1,7 +1,11 @@
 """Async streaming LLM client (OpenAI-compatible).
 
-Streams content (answer channel) and reasoning_content (thinking channel,
-for reasoning models like glm-5.2 / DeepSeek-R1) as async generators.
+Streams content (answer channel) and reasoning_content (thinking channel) as
+async generators.  Native OpenAI-compatible tool calls are normalized together
+with a fail-closed DeepSeek V4/V4.1 DSML fallback for gateways that surface the
+model's internal tool markup through ``delta.content`` instead of
+``delta.tool_calls``.
+
 Network transport is direct by default. Shell proxy environment variables are
 not trusted, so deployments do not accidentally route through a local proxy.
 """
@@ -10,12 +14,18 @@ from __future__ import annotations
 from typing import Any, AsyncGenerator
 
 import asyncio
+import json
 
 import httpx
 from openai import AsyncOpenAI
 from openai import RateLimitError, APITimeoutError, APIConnectionError, APIStatusError
 
 from .config import settings
+from .tool_call_compat import (
+    DeepSeekDSMLStreamParser,
+    normalize_tool_calls,
+    remember_tool_reasoning,
+)
 
 
 class AsyncLLMClient:
@@ -28,23 +38,31 @@ class AsyncLLMClient:
         temperature: float | None = None,
         timeout: float = 180.0,
         concurrency: int = 1,
+        sdk_max_retries: int | None = None,
+        retry_max: int | None = None,
+        retry_base_delay: float | None = None,
     ):
         self.model = model or settings.llm_model
         self.max_tokens = max_tokens if max_tokens is not None else settings.llm_max_tokens
         self.temperature = temperature if temperature is not None else settings.llm_temperature
         effective_url = base_url or settings.llm_base_url
+        self.base_url = effective_url
         # Direct network policy: never inherit HTTP(S)_PROXY/ALL_PROXY.
         trust_env = False
         self.client = AsyncOpenAI(
             api_key=api_key or settings.llm_api_key,
             base_url=effective_url,
             timeout=timeout,
-            max_retries=3,
+            max_retries=3 if sdk_max_retries is None else int(sdk_max_retries),
             http_client=httpx.AsyncClient(trust_env=trust_env, timeout=timeout),
         )
-        # R15: transient error retry config
-        self._retry_max = 4
-        self._retry_base_delay = 2.0
+        # R15: transient error retry config.
+        # sdk_max_retries / retry_max / retry_base_delay 是可选覆盖（评价
+        # runner 专用：SDK 重试关闭、transport 重试由 runner 统一管理，
+        # §10.2.4）；不传时保持全部既有调用方默认行为。
+        self._retry_max = 4 if retry_max is None else int(retry_max)
+        self._retry_base_delay = 2.0 if retry_base_delay is None \
+            else float(retry_base_delay)
         # R16: concurrency limiter — prevents 429 by capping concurrent calls.
         # 默认 1 保持全部既有调用方行为不变；教材构建传入更高值并在调用点
         # 由 textbook_pipeline.llm_gate() 统一动态限流。
@@ -61,10 +79,16 @@ class AsyncLLMClient:
         reasoning_budget_tokens: int = 0,
     ) -> AsyncGenerator[dict[str, Any], None]:
         """Stream a completion. Yields deltas as dicts:
-        {"kind": "thinking", "delta": "..."}  -- reasoning_content
-        {"kind": "answer", "delta": "..."}    -- content
-        {"kind": "tool_calls", "calls": [...]} -- complete tool_calls (once, at end)
-        {"kind": "done", "finish_reason": "...", "usage": {...}}
+
+        ``{"kind": "thinking", "delta": "..."}`` -- reasoning_content
+        ``{"kind": "answer", "delta": "..."}`` -- user-visible content only
+        ``{"kind": "tool_calls", "calls": [...]}`` -- normalized complete calls
+        ``{"kind": "done", "finish_reason": "...", "usage": {...}}``
+
+        DeepSeek V4.1 normally returns OpenAI-compatible ``delta.tool_calls``.
+        If a compatible gateway leaks its DSML control block into ``content``,
+        that block is withheld from the answer stream and converted into the
+        same internal tool-call event instead of reaching chat/history/TTS.
         """
         kwargs: dict[str, Any] = dict(
             model=self.model,
@@ -90,16 +114,24 @@ class AsyncLLMClient:
         if reasoning_effort:
             kwargs["reasoning_effort"] = reasoning_effort
 
-        tc_by_index: dict[int, dict] = {}
-        tc_order: list[int] = []
         finish_reason: str | None = None
         usage: dict[str, Any] | None = None
+        successful_tc_by_index: dict[int, dict[str, Any]] = {}
+        successful_tc_order: list[int] = []
+        successful_dsml_calls: list[dict[str, Any]] = []
+        successful_dsml_protocol = ""
+        successful_reasoning = ""
+
         # R15: retry-with-backoff for transient errors (429/timeout/connection).
-        # Retries wrap stream creation + all chunk iteration. On retry, the
-        # partial token buffers are reset (no replay of already-yielded deltas).
+        # Native/DSML tool buffers are attempt-local so a failed partial stream
+        # cannot corrupt the structured call emitted by the successful retry.
         attempt = 0
         while True:
             attempt += 1
+            tc_by_index: dict[int, dict[str, Any]] = {}
+            tc_order: list[int] = []
+            reasoning_parts: list[str] = []
+            dsml_parser = DeepSeekDSMLStreamParser() if tools else None
             try:
                 # R16: acquire semaphore to limit concurrent LLM calls
                 async with self._semaphore:
@@ -123,10 +155,16 @@ class AsyncLLMClient:
                             finish_reason = choice.finish_reason
                         rc = getattr(delta, "reasoning_content", None)
                         if rc:
+                            reasoning_parts.append(str(rc))
                             yield {"kind": "thinking", "delta": rc}
-                        if delta.content:
-                            yield {"kind": "answer", "delta": delta.content}
-                        for piece in (delta.tool_calls or []):
+                        content = getattr(delta, "content", None)
+                        if content:
+                            text = str(content)
+                            if dsml_parser is not None:
+                                text = dsml_parser.feed(text)
+                            if text:
+                                yield {"kind": "answer", "delta": text}
+                        for piece in (getattr(delta, "tool_calls", None) or []):
                             idx = piece.index
                             if idx not in tc_by_index:
                                 tc_by_index[idx] = {"id": piece.id or "", "name": "",
@@ -140,6 +178,15 @@ class AsyncLLMClient:
                                     cell["name"] = piece.function.name
                                 if piece.function.arguments:
                                     cell["arguments_json"] += piece.function.arguments
+                if dsml_parser is not None:
+                    safe_tail = dsml_parser.flush()
+                    if safe_tail:
+                        yield {"kind": "answer", "delta": safe_tail}
+                    successful_dsml_calls = dsml_parser.calls
+                    successful_dsml_protocol = dsml_parser.protocol
+                successful_tc_by_index = tc_by_index
+                successful_tc_order = tc_order
+                successful_reasoning = "".join(reasoning_parts)
                 break  # stream completed successfully
             except (RateLimitError, APITimeoutError, APIConnectionError) as e:
                 if attempt >= self._retry_max:
@@ -171,23 +218,43 @@ class AsyncLLMClient:
                 else:
                     raise
 
-        calls: list[dict[str, Any]] = []
-        for idx in tc_order:
-            cell = tc_by_index[idx]
+        native_calls: list[dict[str, Any]] = []
+        for idx in successful_tc_order:
+            cell = successful_tc_by_index[idx]
             args: dict[str, Any] = {}
             if cell["arguments_json"]:
-                import json
                 try:
                     args = json.loads(cell["arguments_json"])
                 except json.JSONDecodeError:
                     args = {"_raw": cell["arguments_json"]}
-            calls.append({"id": cell["id"], "name": cell["name"], "args": args})
+            native_calls.append({"id": cell["id"], "name": cell["name"], "args": args})
+
+        # A compatibility gateway can emit both a native projection and the raw
+        # DSML text. Normalize and deduplicate the two representations by
+        # function+arguments so the Executor never executes the same call twice.
+        calls = normalize_tool_calls(
+            [*native_calls, *successful_dsml_calls], tools)
         if calls:
-            yield {"kind": "tool_calls", "calls": calls}
-        yield {"kind": "done", "finish_reason": finish_reason or "stop", "usage": usage}
+            remember_tool_reasoning(
+                [str(call.get("id") or "") for call in calls],
+                successful_reasoning,
+                model=self.model,
+                base_url=self.base_url,
+            )
+            protocol = (
+                "native+" + successful_dsml_protocol
+                if native_calls and successful_dsml_calls
+                else successful_dsml_protocol or "native"
+            )
+            yield {"kind": "tool_calls", "calls": calls, "protocol": protocol}
 
-
-
+        effective_finish = finish_reason or "stop"
+        if calls and successful_dsml_calls and effective_finish == "stop":
+            # Raw DSML gateways commonly report stop instead of tool_calls.
+            # Internally expose the semantic finish reason after successful
+            # normalization; Executor behavior already keys off the calls list.
+            effective_finish = "tool_calls"
+        yield {"kind": "done", "finish_reason": effective_finish, "usage": usage}
 
     async def complete(
         self,
@@ -195,7 +262,8 @@ class AsyncLLMClient:
         temperature: float | None = None,
         max_tokens: int | None = None,
         disable_thinking: bool = False,
-    ) -> tuple[str, dict[str, Any] | None]:
+        return_finish_reason: bool = False,
+    ) -> tuple[str, dict[str, Any] | None] | tuple[str, dict[str, Any] | None, str | None]:
         """Non-streaming completion (for compaction/summarization, not the chat
         loop). Returns (content, usage). Shares the same retry/semaphore policy.
 
@@ -205,6 +273,9 @@ class AsyncLLMClient:
         whole max_tokens budget gets eaten by reasoning_content and content
         comes back empty. If the provider rejects the field (400), the call
         transparently retries once without it (provider-portable).
+
+        return_finish_reason=True（评价 runner 用，§10.2.6）追加第三个返回值
+        finish_reason；其余调用方默认二元组不变。
         """
         kwargs: dict[str, Any] = dict(
             model=self.model,
@@ -221,14 +292,19 @@ class AsyncLLMClient:
                 async with self._semaphore:
                     resp = await self.client.chat.completions.create(**kwargs)
                 content = (resp.choices[0].message.content or "") if resp.choices else ""
+                finish_reason = (resp.choices[0].finish_reason or "") if resp.choices else ""
                 usage = None
                 if resp.usage:
                     usage = {"prompt_tokens": resp.usage.prompt_tokens,
                              "completion_tokens": resp.usage.completion_tokens,
                              "total_tokens": resp.usage.total_tokens}
+                if return_finish_reason:
+                    return content, usage, finish_reason
                 return content, usage
             except (RateLimitError, APITimeoutError, APIConnectionError) as e:
                 if attempt >= self._retry_max:
+                    if return_finish_reason:
+                        return "", None, type(e).__name__
                     return "", None
                 await asyncio.sleep(self._retry_base_delay * (2 ** (attempt - 1)))
             except APIStatusError as e:
@@ -239,12 +315,24 @@ class AsyncLLMClient:
                 if e.status_code == 429 and attempt < self._retry_max:
                     await asyncio.sleep(self._retry_base_delay * (2 ** (attempt - 1)))
                     continue
+                if return_finish_reason:
+                    return "", None, f"status_{e.status_code}"
                 return "", None
 
-def get_llm() -> AsyncLLMClient:
+
+def get_llm(purpose: str = "") -> AsyncLLMClient:
+    """Return the shared client, with a bounded fast lane for quiz calls.
+
+    The normal tutor client keeps its historical model and retry behavior.
+    CAT/structured-question generation is short JSON work: using the light
+    model and disabling SDK-level retries avoids multiplying a single failed
+    request by both the SDK and the application's own bounded fallback.
+    """
+    if purpose == "quiz":
+        return AsyncLLMClient(
+            model=settings.quiz_model,
+            sdk_max_retries=settings.quiz_sdk_max_retries,
+            retry_max=settings.quiz_retry_max,
+            retry_base_delay=settings.quiz_retry_base_delay,
+        )
     return AsyncLLMClient()
-
-
-
-
-

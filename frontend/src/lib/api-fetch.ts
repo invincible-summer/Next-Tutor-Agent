@@ -1,13 +1,5 @@
-/**
- * Shared fetch wrapper that injects the Authorization header from the stored
- * JWT token. ALL backend calls (REST, SSE streams, FormData uploads) go
- * through this instead of bare fetch, so AUTH_MODE=1 works everywhere.
- *
- * SSE works because chatStream uses fetch + ReadableStream (not EventSource),
- * so the Authorization header is attached like any other request; the backend
- * only accepts the header, never a query-param token.
- */
 const TOKEN_KEY = "edu-agent-token";
+const pendingRequests = new Map<string, Promise<Response>>();
 
 export function getToken(): string | null {
   if (typeof window === "undefined") return null;
@@ -15,22 +7,67 @@ export function getToken(): string | null {
 }
 
 export function authHeaders(extra?: Record<string, string>): Record<string, string> {
+  const headers = { ...(extra || {}) };
   const token = getToken();
-  const headers: Record<string, string> = { ...(extra || {}) };
-  if (token) headers["Authorization"] = `Bearer ${token}`;
+  if (token) headers.Authorization = `Bearer ${token}`;
   return headers;
 }
 
+function pause(milliseconds: number, signal?: AbortSignal | null): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (signal?.aborted) {
+      reject(signal.reason);
+      return;
+    }
+    const abort = () => {
+      clearTimeout(timer);
+      signal?.removeEventListener("abort", abort);
+      reject(signal?.reason);
+    };
+    const timer = setTimeout(() => {
+      signal?.removeEventListener("abort", abort);
+      resolve();
+    }, milliseconds);
+    signal?.addEventListener("abort", abort, { once: true });
+  });
+}
+
+async function request(input: string, init: RequestInit, waitForEvaluation: boolean): Promise<Response> {
+  const deadline = Date.now() + 20_000;
+  let retries = 0;
+  while (true) {
+    const response = await fetch(input, init);
+    if (!waitForEvaluation || response.status !== 409 || Date.now() >= deadline) return response;
+    const payload = await response.clone().json().catch(() => null);
+    const code = payload?.detail?.error?.code ?? payload?.error?.code;
+    if (code !== "evaluation_pending") return response;
+    const remaining = deadline - Date.now();
+    if (remaining <= 0 || retries >= 10) return response;
+    retries += 1;
+    await pause(Math.min(remaining, 1000 + retries * 200), init.signal);
+    if (Date.now() >= deadline) return response;
+  }
+}
+
 export function apiFetch(input: string, init?: RequestInit): Promise<Response> {
-  const headers = authHeaders(
-    (init?.headers as Record<string, string>) || undefined,
-  );
-  // GET 护栏：30s 超时——单个挂死的列表请求不再无限占用浏览器同源连接池
-  // （HTTP/1.1 每源 ~6 连接，被占满时页面所有请求冻结）。仅限幂等 GET：
-  // SSE 流（POST + ReadableStream）与上传绝不能被超时打断。
+  const headers = new Headers(init?.headers);
+  const token = getToken();
+  if (token) headers.set("Authorization", `Bearer ${token}`);
   const method = (init?.method || "GET").toUpperCase();
-  const isIdempotentGet = (method === "GET" || method === "HEAD") && !init?.signal;
-  const timeoutSignal = isIdempotentGet ? AbortSignal.timeout(30_000) : undefined;
-  const signal = timeoutSignal ?? init?.signal;
-  return fetch(input, { ...init, headers, signal });
+  const read = method === "GET" || method === "HEAD";
+  const signal = read && !init?.signal ? AbortSignal.timeout(30_000) : init?.signal;
+  const options = { ...init, headers, signal };
+  const pathname = input.split("?")[0].replace(/\/$/, "");
+  const start = method === "POST" && pathname.endsWith("/assessment/start");
+  const next = method === "POST" && pathname.endsWith("/assessment/next");
+  if ((!start && !next) || init?.signal || typeof init?.body !== "string") {
+    return request(input, options, next);
+  }
+  const key = JSON.stringify([input, Array.from(headers.entries()), init.body]);
+  let pending = pendingRequests.get(key);
+  if (!pending) {
+    pending = request(input, options, next).finally(() => pendingRequests.delete(key));
+    pendingRequests.set(key, pending);
+  }
+  return pending.then((response) => response.clone());
 }

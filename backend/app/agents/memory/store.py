@@ -129,7 +129,7 @@ def remove_episodes_for_session(student_id: str, session_id: str) -> int:
     """Permanently remove attributable prompt-adjacent episodes for a chat.
 
     Legacy rows without ``session_id`` cannot be guessed and are left intact;
-    independent learning results live in ``learning_records.json`` instead.
+    independent learning results live in the learning-evidence journal instead (G4).
     """
     removed = 0
     for ext in (".episodes.jsonl", ".episodes_archive.jsonl"):

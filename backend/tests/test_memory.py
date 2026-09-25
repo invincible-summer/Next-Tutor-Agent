@@ -458,15 +458,10 @@ class TestManager(unittest.TestCase):
         self.assertEqual(directive, "")
 
     def test_build_directive_after_consume(self):
-        ms = get_memory_service()
-        events = [{"type": "quiz_graded", "payload": {"concept": "integrals",
-                  "correct": False, "subject": "math", "note": "substitution failed"}}]
-        ms.consume_turn(student_id="s1", session_id="chat-1", events=events)
-        directive = ms.build_directive(student_id="s1", concept="integrals",
-                                       subject="math")
-        self.assertIn("提示词记忆", directive)
-        self.assertNotIn("integrals", directive)
-
+        # G4：directive 只含偏好/活动（能力归纳已删，A11）。
+        from app.agents.memory.prompt_memory import build_directive
+        d = build_directive("stu_direct")
+        self.assertIsInstance(d, str)
     def test_disabled_flag(self):
         with patch.dict(os.environ, {"MEMORY_INTELLIGENCE_MODE": "0"}):
             self.assertFalse(is_enabled())

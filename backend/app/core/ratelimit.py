@@ -17,6 +17,7 @@ workers scale out).
 """
 from __future__ import annotations
 
+import os
 import threading
 import time
 
@@ -25,6 +26,14 @@ from fastapi import HTTPException, Request
 _LOCK = threading.Lock()
 # (rule, ip) -> (window_start_monotonic, request_count)
 _BUCKETS: dict[tuple[str, str], tuple[float, int]] = {}
+
+
+def _disabled() -> bool:
+    """RATE_LIMIT_DISABLE=1 turns every rule into a pass-through.
+
+    E2E/CI environments fire many registrations from one IP intentionally;
+    production never sets this variable."""
+    return os.getenv("RATE_LIMIT_DISABLE", "") in ("1", "true", "True")
 
 
 def client_ip(request: Request) -> str:
@@ -41,6 +50,8 @@ def rate_limit(name: str, max_requests: int, window_seconds: int = 60):
     """Dependency factory: allow max_requests per window per IP, else 429."""
 
     def _check(request: Request) -> None:
+        if _disabled():
+            return
         key = (name, client_ip(request))
         now = time.monotonic()
         with _LOCK:

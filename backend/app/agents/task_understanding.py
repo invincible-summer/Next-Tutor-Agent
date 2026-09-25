@@ -9,9 +9,12 @@ Three paths, tried in order (Hybrid Understanding):
      tokens + latency, preserves V1's "don't loop on '你好'" behavior).
   2. LLM structured output -- for substantive questions, a low-budget
      non-streaming call returns a JSON task object; the bounded session
-     context (pending question / active concepts) rides along (D02).
-  3. Rule-based fallback -- if the LLM fails/returns junk, coarse-classify by
-     keyword triggers into a best-guess task type.
+     context (pending question / active concepts) rides along (D02). The
+     response_mode field explicitly decides whether this is a new structured
+     quiz request.
+  3. Semantic guard + rule fallback -- if the LLM fails or contradicts a clear
+     new-question request, a bounded phrase/verb/object scorer repairs the
+     decision; existing-question markers and explicit no-practice wording win.
 
 Every path returns a TaskUnderstanding; `source` records which path won so the
 trace can explain the resulting plan.
@@ -25,6 +28,7 @@ from typing import Any
 from ..core.llm_async import AsyncLLMClient
 from ..core.session import TutorSession
 from .state import TaskType, TaskUnderstanding
+from ..core.quiz_illustration_policy import explicit_illustration_request
 
 # --- rule layer (mirrors + extends V1 chat_agent._classify_intent) ------------
 
@@ -39,7 +43,7 @@ _GREETINGS = {
 # These cover the V1 _TOOL_TRIGGERS plus a few diagnostic/review signals.
 _KW_RULES: list[tuple[tuple[str, ...], TaskType]] = [
     (("出题", "练习", "测验", "测一测", "巩固", "考考", "做题", "刷题",
-      "几道题", "道题", "出几道"), TaskType.PRACTICE),
+      "出几道"), TaskType.PRACTICE),
     (("错题", "分析错", "为什么总错", "为什么老错", "薄弱", "哪里不懂",
       "诊断", "为什么做错"), TaskType.DIAGNOSE),
     (("复习", "总结", "回顾", "梳理", "归纳"), TaskType.REVIEW),
@@ -57,8 +61,84 @@ _ONE_SENTENCE_RE = re.compile(r"一句话|一两句话|one\s+sentence", re.I)
 _CONCISE_RE = re.compile(r"简短|简洁|简单说|只要结论|不要展开|不要详细", re.I)
 _TABLE_RE = re.compile(r"表格|对比表", re.I)
 _STEPS_RE = re.compile(r"分步骤|按步骤|逐步", re.I)
-_NO_ASSESS_RE = re.compile(r"不要(?:出题|测验|练习)|不需要(?:出题|测验|练习)|只(?:要|需)讲解|只回答", re.I)
+_NO_ASSESS_RE = re.compile(r"(?:不要|别|无需|不用|不必|不需要|不想|先不)(?:再)?(?:出题|测验|练习|做题)|只(?:要|需)讲解|只回答", re.I)
 _ASSESS_RE = re.compile(r"出.{0,5}题|练习|测验|测一测|考考|检测题|诊断题|做题", re.I)
+
+# A new-question request is a semantic combination, not a single keyword.
+# The LLM understanding prompt is the primary decision-maker; this bounded
+# scorer is the fail-safe used when the provider is unavailable or returns an
+# invalid/contradictory intent. It intentionally distinguishes generating a
+# fresh problem from asking how to solve an already-mentioned problem.
+_NEW_QUESTION_PHRASES = (
+    "给我一道", "给我一题", "给我个题", "给我一个题", "给我几道",
+    "来一道", "来一题", "来个题", "来几个题", "出个题", "出个例题",
+    "安排一道", "安排个题", "随机一道", "随机来题", "随便来道",
+    "考我", "考我一下", "考考我", "测试我", "测试一下", "测测我", "测一下",
+    "挑战我", "问我一道", "给个问题", "来个问题", "出一题", "出一道",
+    "出几题", "出点题", "出些题", "给我几题",
+    "让我做一道", "让我练一道", "想练练", "练一练", "练练看",
+    "做点题", "做几道", "刷几道", "给点练习", "来点练习",
+    # Space-free forms are included because the scorer normalizes whitespace.
+    "give me a question", "givemeaquestion", "give me a problem", "givemeaproblem",
+    "quiz me", "quizme", "test me", "testme",
+    "make an exercise", "makeanexercise", "practice problem", "practiceproblem",
+    "practice question", "practicequestion",
+)
+_QUESTION_NOUNS = (
+    "题", "题目", "例题", "习题", "练习", "问题", "测验", "quiz",
+    "exercise", "problem", "question",
+)
+_QUESTION_GENERATION_VERBS = (
+    "出", "给", "来", "编", "设计", "生成", "提供", "安排", "准备",
+    "考", "测试", "挑战", "练", "刷", "做",
+)
+_EXISTING_QUESTION_MARKERS = (
+    "这道题", "这题", "上面这题", "刚才这题", "该题", "题目怎么做",
+    "怎么解", "求解", "答案是什么", "为什么错", "解析一下", "如何做题",
+    "怎么做题", "做题方法", "做题思路",
+)
+
+
+def new_question_request_score(message: str) -> int:
+    """Score whether ``message`` asks for a fresh interactive question.
+
+    This is a conservative semantic fallback, not the source of truth: it
+    combines request phrases, an action verb + question noun, and explicit
+    practice language, then subtracts strong existing-question/solve signals.
+    The score is exposed for tests and trace diagnostics without retaining the
+    raw message.
+    """
+    text = re.sub(r"\s+", "", str(message or "").strip().lower())
+    if not text:
+        return 0
+    if _NO_ASSESS_RE.search(text):
+        return -5
+    score = 0
+    if any(phrase in text for phrase in _NEW_QUESTION_PHRASES):
+        score += 4
+    has_noun = any(noun in text for noun in _QUESTION_NOUNS)
+    has_generation_verb = any(verb in text for verb in _QUESTION_GENERATION_VERBS)
+    if has_noun and has_generation_verb:
+        score += 3
+    # Practice verbs can omit the noun ("我想练练" / "考我一下").
+    if any(phrase in text for phrase in ("练习", "练练", "练一练", "考我", "测试我",
+                                         "测试一下", "测一下", "挑战我", "quizme",
+                                         "testme", "practice")):
+        score += 2
+    if any(marker in text for marker in _EXISTING_QUESTION_MARKERS):
+        score -= 4
+    return score
+
+
+def is_new_question_request(message: str) -> bool:
+    """Return the lexical fallback decision for a fresh quiz request."""
+    return new_question_request_score(message) >= 3
+
+
+def is_existing_question_request(message: str) -> bool:
+    """Whether the wording points at an already-present question."""
+    text = re.sub(r"\s+", "", str(message or "").strip().lower())
+    return bool(text) and any(marker in text for marker in _EXISTING_QUESTION_MARKERS)
 
 
 def detect_response_constraints(msg: str) -> tuple[str, bool]:
@@ -109,6 +189,8 @@ _SUBJECT_KW: list[tuple[tuple[str, ...], str]] = [
 
 def _is_greeting(msg: str) -> bool:
     msg = msg.strip().lower()
+    if is_new_question_request(msg):
+        return False
     if msg in _GREETINGS:
         return True
     # very short (<5 chars) no punctuation -> treat as greeting/ack ONLY if it
@@ -266,12 +348,22 @@ def _context_block(ctx: dict[str, Any]) -> str:
 
 def _rule_classify(msg: str) -> TaskType:
     """Best-guess TaskType from keywords (no LLM). Falls back to EXPLAIN."""
+    suppress_practice = bool(_NO_ASSESS_RE.search(msg))
+    # Handle natural phrasing before the legacy keyword table. Examples:
+    # 「给我来个题」「考我一下」「想练练函数」 contain no literal “出题” but
+    # unambiguously request a new question.
+    if not suppress_practice and is_new_question_request(msg):
+        return TaskType.PRACTICE
     for kws, ttype in _KW_RULES:
+        if suppress_practice and ttype == TaskType.PRACTICE:
+            continue
         if any(kw in msg for kw in kws):
             return ttype
     # Looser path: regex patterns catch split-up spoken variants that exact
     # substrings miss (e.g. "出5道...题" -> PRACTICE, "总...做错" -> DIAGNOSE).
     for pat, ttype in _RULE_PATTERNS:
+        if suppress_practice and ttype == TaskType.PRACTICE:
+            continue
         if pat.search(msg):
             return ttype
     if any(kw in msg for kw in _EXPLAIN_KW):
@@ -315,6 +407,8 @@ def rule_understand(msg: str) -> TaskUnderstanding:
         requires_tools=ttype in (TaskType.PRACTICE, TaskType.DIAGNOSE),
         confidence=0.5,
         source="rule",
+        illustration_request=explicit_illustration_request(msg),
+        structured_quiz_request=(ttype == TaskType.PRACTICE),
         response_format=response_format,
         allow_followup_assessment=allow_assessment,
     )
@@ -326,6 +420,11 @@ from ..prompts.registry import get as _prompt
 
 # 阶段D：prompt 文本统一由注册表管理（含版本号），此处薄 re-export 兼容。
 _UNDERSTAND_SYSTEM = _prompt("understand_system").text
+# Keep the historical understand_system@1.3.0 stable for replayed traces and
+# add a focused, versioned classifier contract to the same LLM call. This
+# prevents fuzzy quiz language from being treated as ordinary explanation
+# while avoiding an extra provider round trip on every turn.
+_QUIZ_INTENT_SYSTEM = _prompt("quiz_intent_system").text
 
 
 def _extract_json(text: str) -> dict[str, Any] | None:
@@ -393,7 +492,7 @@ async def llm_understand(msg: str, llm: AsyncLLMClient,
             user_content = msg + block
     try:
         content, usage = await llm.complete(
-            [{"role": "system", "content": _UNDERSTAND_SYSTEM},
+            [{"role": "system", "content": _UNDERSTAND_SYSTEM + "\n\n" + _QUIZ_INTENT_SYSTEM},
              {"role": "user", "content": user_content}],
             temperature=0.1,
             max_tokens=400,
@@ -413,15 +512,33 @@ async def llm_understand(msg: str, llm: AsyncLLMClient,
     if not isinstance(requires, bool):
         # infer from intent if the model omitted/typed it wrong
         requires = intent in (TaskType.PRACTICE, TaskType.DIAGNOSE)
+    goal = str(obj.get("goal", "") or "")
+    response_mode = str(obj.get("response_mode", "") or "").strip().lower()
+    structured_quiz = response_mode == "structured_quiz"
+    # Backward-compatible model payloads often only return intent/goal. Treat
+    # a practice intent or explicit practice goal as the same structured mode.
+    structured_quiz = structured_quiz or intent == TaskType.PRACTICE \
+        or str(obj.get("goal", "") or "").lower() in {
+            "practice", "quiz", "test", "exercise", "new_question",
+        }
+    if structured_quiz and intent != TaskType.PRACTICE:
+        intent = TaskType.PRACTICE
+        requires = True
+    if structured_quiz:
+        # Keep the control-plane fields internally consistent even when a
+        # provider returns response_mode without changing its coarse goal.
+        goal = "practice"
     return TaskUnderstanding(
         intent=intent,
         subject=str(obj.get("subject", "") or ""),
         concept=str(obj.get("concept", "") or ""),
-        goal=str(obj.get("goal", "") or ""),
+        goal=goal,
         difficulty=obj.get("difficulty") if isinstance(obj.get("difficulty"), str) else None,
         requires_tools=requires,
         response_format=str(obj.get("response_format", "") or ""),
         allow_followup_assessment=bool(obj.get("allow_followup_assessment", True)),
+        illustration_request=obj.get("illustration_request") if isinstance(obj.get("illustration_request"), str) and obj.get("illustration_request") in {"auto", "none", "required"} else "auto",
+        structured_quiz_request=structured_quiz,
         search_queries=_clean_search_queries(obj.get("search_queries")),
         confidence=0.8,
         source="llm",
@@ -473,6 +590,30 @@ async def understand(msg: str, session: TutorSession, llm: AsyncLLMClient | None
 
     llm_result = await llm_understand(msg, llm, ctx)
     if llm_result is not None:
+        # The LLM is authoritative for natural language intent, with the
+        # bounded semantic scorer as a safety net. If the wording clearly asks
+        # for a fresh exercise but the model answered “explain/solve”, force
+        # the structured quiz path before planning; this is the exact failure
+        # mode that used to leak plain-text questions into Chat.
+        if (not llm_result.structured_quiz_request
+                and is_new_question_request(msg)
+                and not _NO_ASSESS_RE.search(msg)):
+            llm_result.intent = TaskType.PRACTICE
+            llm_result.goal = "practice"
+            llm_result.requires_tools = True
+            llm_result.structured_quiz_request = True
+            llm_result.source = "llm_semantic_guard"
+        # Conversely, do not let a generic model answer turn an existing-
+        # question request ("这道题怎么做") into a newly generated card.
+        # A fresh-generation phrase such as "再来一道类似题" wins via the
+        # positive score and is intentionally exempt from this correction.
+        if (llm_result.structured_quiz_request
+                and is_existing_question_request(msg)
+                and not is_new_question_request(msg)):
+            llm_result.intent = TaskType.SOLVE
+            llm_result.goal = "solve_problem"
+            llm_result.requires_tools = False
+            llm_result.structured_quiz_request = False
         # Deterministic lexical constraints override an LLM style guess. The
         # student should not lose “一句话/不要出题” because the classifier
         # chose a remediation mode.
@@ -481,6 +622,9 @@ async def understand(msg: str, session: TutorSession, llm: AsyncLLMClient | None
             llm_result.response_format = response_format
         if not allow_assessment:
             llm_result.allow_followup_assessment = False
+        explicit = explicit_illustration_request(msg)
+        if explicit != "auto":
+            llm_result.illustration_request = explicit
         return llm_result
 
     # LLM failed -> degrade to the rule result, tagged as fallback
@@ -489,5 +633,7 @@ async def understand(msg: str, session: TutorSession, llm: AsyncLLMClient | None
         goal=ruled.goal, requires_tools=ruled.requires_tools,
         response_format=ruled.response_format,
         allow_followup_assessment=ruled.allow_followup_assessment,
+        illustration_request=ruled.illustration_request,
+        structured_quiz_request=ruled.structured_quiz_request,
         confidence=0.4, source="fallback",
     )

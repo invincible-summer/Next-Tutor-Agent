@@ -166,6 +166,9 @@ class TestReapStaleBuilds(unittest.TestCase):
         self._tmp.cleanup()
 
     def test_reap_building_marks_graph_failed(self):
+        # P1-B（plan.md §13）：无 build_job 且源文件缺失的 building 记录
+        # 仍判失败，但结构化原因是 source_missing（不再是笼统的"重启中断"）；
+        # 源文件在的中断构建由 test_textbook_build_recovery 覆盖自动恢复。
         tb = self._tb
         rec1 = tb.create_textbook("stu1", file_id="f1", title="构建中的书")
         rec2 = tb.create_textbook("stu1", file_id="f2", title="已完成的书")
@@ -175,7 +178,9 @@ class TestReapStaleBuilds(unittest.TestCase):
         self.assertEqual(reaped, 1)
         out1 = tb.find_textbook("stu1", rec1["id"])
         self.assertEqual(out1["status"], "graph_failed")
-        self.assertIn("重启", out1["error"])
+        self.assertIn("缺失", out1["error"])
+        job1 = out1.get("build_job") or {}
+        self.assertEqual(job1.get("last_error"), "source_missing")
         out2 = tb.find_textbook("stu1", rec2["id"])
         self.assertEqual(out2["status"], "ready")  # ready 不受影响
 

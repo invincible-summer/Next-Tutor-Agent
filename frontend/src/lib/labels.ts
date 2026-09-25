@@ -1,5 +1,5 @@
-// 全站共享的领域标签：掌握度状态、教学模式、边的类型、反馈信号等。
-// 双语内置，避免每个页面重复定义。
+// 全站共享的领域标签：教学模式、边的类型、反馈信号等。
+// 双语内置，避免每个页面重复定义。评价状态标签见 evaluation-labels.ts。
 import type { Lang } from "./i18n";
 import type { BadgeTone } from "@/components/ui/Badge";
 
@@ -11,11 +11,6 @@ type Dict = Record<string, string>;
 export const KNOWLEDGE_LEVEL_ORDER: string[] = ["小学", "初中", "高中", "本科", "其他"];
 
 const ZH: Dict = {
-  "state.understood": "已掌握",
-  "state.partial": "部分理解",
-  "state.misconception": "存在误解",
-  "state.introduced": "已接触",
-  "state.unknown": "未评估",
   "mode.introduction": "新知引入",
   "mode.explanation": "概念讲解",
   "mode.remediation": "纠错巩固",
@@ -36,11 +31,6 @@ const ZH: Dict = {
 };
 
 const EN: Dict = {
-  "state.understood": "Mastered",
-  "state.partial": "Partial",
-  "state.misconception": "Misconception",
-  "state.introduced": "Introduced",
-  "state.unknown": "Unassessed",
   "mode.introduction": "Introduction",
   "mode.explanation": "Explanation",
   "mode.remediation": "Remediation",
@@ -63,44 +53,6 @@ const EN: Dict = {
 /** 领域标签翻译：state.* / mode.* / edge.* / event.* / verdict.* */
 export function dt(lang: Lang, key: string, fallback?: string): string {
   return (lang === "en" ? EN : ZH)[key] ?? fallback ?? key;
-}
-
-/** 掌握度状态 → Badge 色调。 */
-export function stateTone(state: string): BadgeTone {
-  switch (state) {
-    case "understood":
-      return "success";
-    case "partial":
-      return "warning";
-    case "misconception":
-      return "danger";
-    case "introduced":
-      return "info";
-    default:
-      return "muted";
-  }
-}
-
-/** 掌握度状态 → CSS 颜色变量（图表/图谱节点用）。 */
-export function stateColor(state: string): string {
-  switch (state) {
-    case "understood":
-      return "rgb(var(--m-mastered))";
-    case "partial":
-      return "rgb(var(--m-learning))";
-    case "misconception":
-      return "rgb(var(--m-weak))";
-    default:
-      return "rgb(var(--m-todo))";
-  }
-}
-
-/** p_known → 四态颜色（无 state 时按数值推断）。 */
-export function masteryColor(p: number | null | undefined): string {
-  if (p == null) return "rgb(var(--m-todo))";
-  if (p >= 0.8) return "rgb(var(--m-mastered))";
-  if (p >= 0.5) return "rgb(var(--m-learning))";
-  return "rgb(var(--m-weak))";
 }
 
 /** 教学模式 → Badge 色调（六模式一组柔和区分色）。 */

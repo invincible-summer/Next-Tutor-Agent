@@ -63,15 +63,30 @@ class TeachingContext:
     subject: str = ""                # 物理/数学/...
     task_type: str = "explain"       # TaskType value (explain/practice/...)
     grade: str = "本科"
-    # --- student-state projection (read-only) ---
-    mastery: float = 0.0             # P(know) for the target concept
-    unmet_prereqs: list[Any] = field(default_factory=list)  # SkillNode-like objs, weakest-first
+    # --- student-state projection（G4：掌握度已删；评价只读注入）---
+    evaluation_context: dict = field(default_factory=dict)
+    # 当前 workspace 统一评价的有界投影（claims/judgment 摘要）。
+    unmet_prereqs: list[Any] = field(default_factory=list)
     unmet_prereq_names: list[str] = field(default_factory=list)
     mistakes: list[str] = field(default_factory=list)       # recent short error notes
     misconceptions: list[str] = field(default_factory=list)  # confirmed wrong ideas
     mistake_types: list[str] = field(default_factory=list)  # MistakeType values (concept/procedure/...)
     learning_style: dict[str, str] = field(default_factory=dict)
     goals: list[str] = field(default_factory=list)
+    # --- G4：状态带（由统一评价状态派生，非掌握度数值，§13.3）---
+    @property
+    def band_hint(self) -> str:
+        """novice|progressing|solid|strong——由统一评价状态派生（§13.3）：
+        not_observed→novice；emerging/fragile/conflicting→progressing；
+        supported_in_scope→solid（evaluation_context.strong=True 时 strong）。
+        非掌握度数值。"""
+        state = str((self.evaluation_context or {}).get("state") or "")
+        if state == "supported_in_scope":
+            return "strong" if (self.evaluation_context or {}).get("strong")                 else "solid"
+        if state in ("emerging", "fragile", "conflicting"):
+            return "progressing"
+        return "novice"
+
     # --- cross-turn memory (from teaching_log) ---
     concept_key: str = ""            # normalized teaching_log key (graph node id);
                                      # empty -> callers fall back to `concept`.

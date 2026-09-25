@@ -143,14 +143,16 @@ async def upload_files(folder_id: str = "",
     results = []
     uploaded: list[tuple[str, str, str, str]] = []  # (file_id, filename, text, scope)
     for f in files:
-        raw = await f.read()
         fname = f.filename or "upload"
         lower = fname.lower()
         ext = next((e for e in SUPPORTED_EXTS if lower.endswith(e)), "")
         if not ext:
             results.append({"filename": fname, "error": "不支持的格式（仅 PDF/DOCX/PPTX/TXT/MD）"})
             continue
-        if len(raw) > MAX_UPLOAD_BYTES:
+        from app.core.uploads import UploadTooLarge, read_upload_limited
+        try:
+            raw = await read_upload_limited(f, MAX_UPLOAD_BYTES)
+        except UploadTooLarge:
             results.append({"filename": fname, "error": f"文件过大（>{MAX_UPLOAD_BYTES // (1024 * 1024)}MB）"})
             continue
         text = await asyncio.to_thread(extract_text, fname, raw)

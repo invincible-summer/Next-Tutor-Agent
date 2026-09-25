@@ -44,6 +44,8 @@ def record_generated_quiz(session_id: str, quiz: dict[str, Any]) -> None:
             seg = f"{i}. {stem}｜答案:{answer}"
             if kp:
                 seg += f"｜考点:{kp}"
+            if isinstance(q.get("illustration"), dict):
+                seg += "｜图示:" + str(q["illustration"].get("alt") or "")[:160]
             parts.append(seg)
         content = (f"【出题记录】围绕「{topic}」出了 {len(parts)} 题：\n"
                    + "\n".join(parts))
@@ -59,7 +61,8 @@ def merge_quiz_results_from_disk(session: Any) -> bool:
     Card answers are recorded via /quiz/* endpoints (load-modify-save) while a
     chat turn may still be streaming; the turn's own save would otherwise
     overwrite those results with its stale in-memory quiz_history.  Matching
-    uses the same stem-prefix key as _write_back_answer.  Never raises.
+    uses question_id + revision, with an unambiguous full-stem fallback for
+    legacy records without identity. Never raises.
     """
     try:
         sid = getattr(session, "session_id", "")
@@ -70,27 +73,27 @@ def merge_quiz_results_from_disk(session: Any) -> bool:
         if disk is None:
             return False
 
-        def _key(q: dict) -> str:
-            return str(q.get("stem", "")).strip()[:60]
+        def questions_of(value):
+            return [q for entry in (getattr(value, "quiz_history", None) or [])
+                    if isinstance(entry, dict) for q in (entry.get("questions") or [])
+                    if isinstance(q, dict)]
 
+        disk_questions, memory_questions = questions_of(disk), questions_of(session)
+        def identity(q):
+            return (q["question_id"], int(q.get("question_revision") or 1)) if q.get("question_id") else None
         changed = False
-        for dqh in (getattr(disk, "quiz_history", None) or []):
-            if not isinstance(dqh, dict):
+        for dq in disk_questions:
+            if not isinstance(dq.get("result"), dict):
                 continue
-            for dq in (dqh.get("questions") or []):
-                if not isinstance(dq, dict) or not isinstance(dq.get("result"), dict):
-                    continue
-                dk = _key(dq)
-                if not dk:
-                    continue
-                for mqh in (getattr(session, "quiz_history", None) or []):
-                    if not isinstance(mqh, dict):
-                        continue
-                    for mq in (mqh.get("questions") or []):
-                        if (isinstance(mq, dict) and _key(mq) == dk
-                                and not isinstance(mq.get("result"), dict)):
-                            mq["result"] = dq["result"]
-                            changed = True
+            key = identity(dq)
+            matches = [q for q in memory_questions if identity(q) == key] if key else [
+                q for q in memory_questions if not identity(q) and q.get("stem") == dq.get("stem")]
+            if not key and (len(matches) != 1 or sum(q.get("stem") == dq.get("stem") for q in disk_questions) != 1):
+                continue
+            for mq in matches:
+                if not isinstance(mq.get("result"), dict) or not mq["result"].get("attempt_id"):
+                    mq["result"] = dict(dq["result"])
+                    changed = True
         if changed:
             from .session_learning_card import (SessionLearningCard,
                                                 reconcile_quiz_history)
@@ -139,6 +142,8 @@ def latest_quiz_digest(session: Any, *, max_questions: int = 3) -> str:
                     seg += f"｜学生答「{ans}」判{zh}"
                 else:
                     seg += "｜未作答"
+                if isinstance(q.get("illustration"), dict):
+                    seg += "｜图示:" + str(q["illustration"].get("alt") or "")[:160]
                 segs.append(seg)
             head = f"最近答题卡（{topic}，可逐题讲解/点评）：" if topic else "最近答题卡（可逐题讲解/点评）："
             return head + "；".join(segs)
@@ -188,7 +193,8 @@ def record_quiz_attempt(session_id: str, *, stem: str, verdict: str,
                         correct: bool | None = None, note: str = "",
                         attempt_id: str = "",
                         task_binding: dict | None = None) -> None:
-    """Persist one graded answer to transcript + M6 episodic + M3 teaching_log.
+    """Persist one graded answer to transcript + M6 episodic (G4：评价侧
+    由统一受理链写 journal，M3/M9 各自读新投影 / 消费 outbox)。
 
     ``unknown`` verdicts (grading could not run, e.g. malformed request) are
     skipped entirely — they carry no signal and must not pollute the
@@ -199,14 +205,8 @@ def record_quiz_attempt(session_id: str, *, stem: str, verdict: str,
     attribute to exactly that task."""
     if verdict == "unknown":
         return
-    try:
-        from .learning_records import record_verdict
-        record_verdict(student_id, session_id, stem=stem, verdict=verdict,
-                       student_answer=student_answer, concept=concept,
-                       subject=subject, attempt_id=attempt_id,
-                       score={"correct": 1.0, "partial": 0.5, "wrong": 0.0}.get(verdict))
-    except Exception:
-        pass
+    # G4：作答结论由统一受理链（assessment.evaluate_submission）写入
+    # learning-evidence journal；本函数只做聊天流 UX 持久化（转写/M6）。
     # 1. transcript record (recall_history JIT retrieval + compaction material)
     try:
         if session_id and verdict:
@@ -235,53 +235,14 @@ def record_quiz_attempt(session_id: str, *, stem: str, verdict: str,
                     subject=subject)
     except Exception:
         pass
-    # 3. M3 teaching_log: the difficulty dial's only assessed-outcome source.
-    # Card grading happens on /quiz/* endpoints, outside any chat turn, so the
-    # supervisor's inline peek never saw these verdicts — every concept stayed
-    # at seed difficulty ("engaged" only). Normalize to the graph node id so
-    # the read side (TeachingContext.concept_key) finds them.
+    # 3. M9（G4 §6.6）：不再按端点推送判分；M9 以 journal outbox 消费者的
+    # 身份幂等领取已提交的可观察召回（consumer_ack 落盘）。fail-open。
     try:
-        if not verdict or not concept:
-            return
-        from ..agents.teaching_engine import (TeachingMode, TeachingOutcome,
-                                              get_teaching_manager,
-                                              is_enabled as te_enabled)
-        if not te_enabled():
-            return
-        from ..agents.student_model.store import DEFAULT_STUDENT_ID
-        sid = student_id or DEFAULT_STUDENT_ID
-        ckey = str(concept)
-        try:
-            from ..agents.student_model import (get_student_model,
-                                                is_enabled as sm_enabled)
-            if sm_enabled():
-                node = get_student_model(sid).load().graph.match_concept(ckey)
-                if node is not None:
-                    ckey = node.id
-        except Exception:
-            pass
-        outcome = {"correct": TeachingOutcome.CORRECT,
-                   "wrong": TeachingOutcome.WRONG}.get(
-                       verdict, TeachingOutcome.PARTIAL)
-        get_teaching_manager().record_turn(
-            sid, ckey, mode=TeachingMode.PRACTICE, outcome=outcome,
-            note=str(concept)[:40])
-    except Exception:
-        pass
-    # 4. M9: committed recall evidence for SRS + task attribution (W4/A08).
-    # Card grading happens on /quiz/* endpoints, outside any chat turn — the
-    # supervisor's same-turn peek never saw these verdicts, so until now the
-    # main grading path fed M9 nothing (no SRS quality update, no task
-    # progress). record_quiz_evidence is attempt-idempotent; fail-open.
-    try:
-        if student_id and verdict and concept:
+        if student_id:
             from ..agents.learning_orchestration import (
                 get_orchestration_service,
                 is_enabled as orch_enabled)
             if orch_enabled():
-                get_orchestration_service().record_quiz_evidence(
-                    student_id=student_id, concept=concept, verdict=verdict,
-                    attempt_id=attempt_id, session_id=session_id,
-                    subject=subject, task_binding=task_binding)
+                get_orchestration_service().consume_evaluation_outbox(student_id)
     except Exception:
         pass

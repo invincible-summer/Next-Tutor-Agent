@@ -93,6 +93,76 @@ BUILD_STALL_SECONDS = 1800.0
 _TERMINAL_STATUSES = {"ready", "partial", "graph_failed", "failed", "ocr_paused"}
 
 
+# build intent 的合法 kwargs（与 run_textbook_build 签名对齐；plan.md §10）。
+_BUILD_INTENT_KEYS = ("ocr_parallel", "force_reextract", "use_llm", "skip_ocr",
+                      "skip_harvest", "force_full_ocr")
+
+
+def _persist_build_intent(student_id: str, tb_id: str,
+                          build_kwargs: dict[str, Any]) -> None:
+    """入队前持久化 build intent（plan.md §11.2）：进程死掉后都知道用户
+    最后一次要求做什么。不改变任何书级状态；永不抛出。"""
+    try:
+        rec = tb_store.find_textbook(student_id, tb_id)
+        if rec is None:
+            return
+        prev = rec.get("build_job") or {}
+        try:
+            attempt = int(prev.get("attempt") or 0)
+        except (TypeError, ValueError):
+            attempt = 0
+        intent = {k: bool(v) for k, v in build_kwargs.items()
+                  if k in _BUILD_INTENT_KEYS}
+        tb_store.set_build_job(
+            student_id, tb_id, state="queued", phase="prepare",
+            mode=str(build_kwargs.get("_mode") or "auto"),
+            attempt=attempt, requested_at=time.time(), intent=intent)
+    except Exception:
+        return
+
+
+def _mark_build_running(student_id: str, tb_id: str) -> None:
+    """worker 真正取得执行权时置 running + attempt+=1（plan.md §11.2）。"""
+    try:
+        rec = tb_store.find_textbook(student_id, tb_id)
+        if rec is None:
+            return
+        job = rec.get("build_job") or {}
+        try:
+            attempt = int(job.get("attempt") or 0)
+        except (TypeError, ValueError):
+            attempt = 0
+        tb_store.set_build_job(student_id, tb_id, state="running",
+                               phase="prepare", attempt=attempt + 1,
+                               started_at=time.time(), last_error="")
+    except Exception:
+        return
+
+
+def _settle_build_job_terminal(student_id: str, tb_id: str) -> None:
+    """队列项结束后的 build_job 终态收口（plan.md §11.2）：
+    ready -> ready；graph_failed/failed -> failed(+last_error)；ocr_waiting/
+    ocr_paused -> waiting_ocr；其它非终态保持 running 交给 reconcile。"""
+    try:
+        rec = tb_store.find_textbook(student_id, tb_id)
+        if rec is None:
+            return
+        job = rec.get("build_job") or {}
+        if not job or job.get("state") in {"ready", "failed", "cancelled"}:
+            return
+        status = str(rec.get("status") or "")
+        if status == "ready":
+            tb_store.set_build_job(student_id, tb_id, state="ready",
+                                   phase="finalize", last_error="")
+        elif status in ("graph_failed", "failed"):
+            tb_store.set_build_job(student_id, tb_id, state="failed",
+                                   last_error=str(rec.get("error") or "")[:120])
+        elif status in ("ocr_waiting", "ocr_paused"):
+            tb_store.set_build_job(student_id, tb_id, state="waiting_ocr")
+    except Exception:
+        return
+
+
 async def run_textbook_build(student_id: str, tb_id: str, *,
                              ocr_parallel: bool = False,
                              force_reextract: bool = False,
@@ -117,7 +187,11 @@ async def run_textbook_build(student_id: str, tb_id: str, *,
         if rec.get("parse_cancel_requested"):
             tb_store.settle_cancelled_parse(student_id, tb_id)
             tb_store.update_textbook(student_id, tb_id, parse_cancel_requested=False)
+            tb_store.set_build_job(student_id, tb_id, state="cancelled",
+                                   last_error="cancelled")
             return
+        # P1-B（plan.md §11.2）：worker 真正取得执行权 -> running + attempt+=1。
+        _mark_build_running(student_id, tb_id)
         if rec.get("kind") == "group":
             await build_group_graph(
                 student_id, tb_id, _get_llm_cached() if use_llm else None,
@@ -135,9 +209,13 @@ async def run_textbook_build(student_id: str, tb_id: str, *,
         try:
             if isinstance(exc, TextbookParseCancelled):
                 tb_store.settle_cancelled_parse(student_id, tb_id)
+                tb_store.set_build_job(student_id, tb_id, state="cancelled",
+                                       last_error="cancelled")
             else:
                 tb_store.update_textbook(student_id, tb_id, status="graph_failed",
                                          error="后台构建异常")
+                tb_store.set_build_job(student_id, tb_id, state="failed",
+                                       last_error="crashed")
         except Exception:
             pass
 
@@ -165,6 +243,10 @@ def enqueue_textbook_build(student_id: str, tb_id: str, **build_kwargs) \
         loop = asyncio.get_running_loop()
     except RuntimeError:
         return None
+    # P1-B（plan.md §11.2）：入队前持久化 build intent——无论任务来自首次
+    # 上传、失败重试、管理员 rebuild 还是 full OCR，进程死掉后都知道用户
+    # 最后一次要求做什么。
+    _persist_build_intent(student_id, tb_id, build_kwargs)
     queue = _BUILD_QUEUES.setdefault(student_id, {"items": deque(), "worker": None})
     future: asyncio.Future = loop.create_future()
     queue["items"].append({"textbook_id": tb_id, "kwargs": build_kwargs,
@@ -173,6 +255,34 @@ def enqueue_textbook_build(student_id: str, tb_id: str, **build_kwargs) \
     if worker is None or worker.done():
         queue["worker"] = loop.create_task(_queue_worker(student_id, queue))
     return future
+
+
+async def resume_interrupted_textbook_builds() -> int:
+    """P1-B 启动恢复（plan.md §11.3）：把 reconcile 置为 queued 的中断 build
+    intent 重新入现有 per-owner 队列。
+
+    必须在事件循环内调用（FastAPI lifespan），不能在 import/init 阶段。
+    恢复是幂等重执行整个 intent（auto_retry=True：记录已删除/已终态则跳过），
+    不是从函数中间续跑。同一 owner 仍由现有队列串行化。返回入队条数。
+    """
+    resumed = 0
+    try:
+        items = tb_store.interrupted_build_jobs()
+    except Exception:
+        return 0
+    for sid, tb_id, record in items:
+        job = record.get("build_job") or {}
+        intent = job.get("intent") if isinstance(job.get("intent"), dict) else {}
+        kwargs = {k: bool(v) for k, v in intent.items() if k in _BUILD_INTENT_KEYS}
+        try:
+            future = enqueue_textbook_build(sid, tb_id, auto_retry=True, **kwargs)
+        except Exception:
+            future = None
+        if future is not None:
+            resumed += 1
+            logger.info("textbook build resumed after restart: %s/%s (attempt %s)",
+                        sid, tb_id, job.get("attempt"))
+    return resumed
 
 
 def _settle_deferred_book_status(student_id: str, tb_id: str, exc_status: str,
@@ -207,6 +317,7 @@ def _settle_deferred_book_status(student_id: str, tb_id: str, exc_status: str,
             student_id, tb_id, status="ocr_waiting",
             progress={"stage": "ocr_waiting", **_pages(waiting)},
             error=str(waiting[0].get("last_error_summary") or "等待多模态 OCR 重试"))
+        tb_store.set_build_job(student_id, tb_id, state="waiting_ocr")
         logger.warning("textbook %s/%s OCR deferred (%s) -> ocr_waiting",
                        student_id, tb_id, exc_status)
         return
@@ -215,6 +326,7 @@ def _settle_deferred_book_status(student_id: str, tb_id: str, exc_status: str,
             student_id, tb_id, status="ocr_paused",
             progress={"stage": "ocr_paused", **_pages(paused)},
             error=str(paused[0].get("last_error_summary") or "部分页面 OCR 已暂停"))
+        tb_store.set_build_job(student_id, tb_id, state="waiting_ocr")
         logger.warning("textbook %s/%s OCR deferred (%s) -> ocr_paused",
                        student_id, tb_id, exc_status)
         return
@@ -242,6 +354,8 @@ async def _run_queued_item(student_id: str, item: dict[str, Any]) -> None:
     except Exception:
         pass  # run_textbook_build 自带异常网；门控自身永不抛
     finally:
+        # P1-B：build_job 终态收口（ready/failed/waiting_ocr；plan.md §11.2）。
+        _settle_build_job_terminal(student_id, tb_id)
         # Future 必须结算（含异常路径），否则等待方（手动刷新）悬挂。
         if future is not None and not future.done():
             future.set_result(None)

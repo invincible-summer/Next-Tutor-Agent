@@ -1,35 +1,33 @@
-import { cn } from "@/lib/cn";
 import type { InputHTMLAttributes, ReactNode, TextareaHTMLAttributes } from "react";
+import { cn } from "@/lib/cn";
 
-/**
- * 全站表单控件统一样式。聚焦光环由 globals.css 的 input:focus 全局规则
- * 提供，这里补齐 hover 边色、占位色与禁用态。
- */
 export const INPUT_CLS =
   "w-full rounded-[8px] border border-border bg-surface px-3 py-2.5 text-sm text-fg outline-none transition-colors placeholder:text-muted hover:border-muted/70 focus:border-accent disabled:cursor-not-allowed disabled:opacity-60";
-
-/** 紧凑控件（h-9，下拉/行内输入用），SubjectSelect 等共用。 */
 export const FIELD_CLS =
   "h-9 w-full rounded-[8px] border border-border bg-surface px-2.5 text-sm text-fg outline-none transition-colors placeholder:text-muted hover:border-muted/70 focus:border-accent disabled:cursor-not-allowed disabled:opacity-60";
-
 export const LABEL_CLS = "mb-1.5 block text-xs font-medium text-fg-secondary";
 
-/** 文本输入框。 */
-export function Input({ className, ...rest }: InputHTMLAttributes<HTMLInputElement>) {
-  return <input className={cn(INPUT_CLS, className)} {...rest} />;
+export function Input({ type, className, ...props }: InputHTMLAttributes<HTMLInputElement>) {
+  const selection = type === "checkbox" || type === "radio";
+  return (
+    <input
+      {...props}
+      type={type}
+      className={cn(
+        selection
+          ? "size-4 shrink-0 cursor-pointer accent-accent disabled:cursor-not-allowed disabled:opacity-60"
+          : INPUT_CLS,
+        className,
+      )}
+    />
+  );
 }
 
-/** 多行输入框。 */
-export function Textarea({ className, ...rest }: TextareaHTMLAttributes<HTMLTextAreaElement>) {
-  return <textarea className={cn(INPUT_CLS, className)} {...rest} />;
+export function Textarea({ className, ...props }: TextareaHTMLAttributes<HTMLTextAreaElement>) {
+  return <textarea {...props} className={cn(INPUT_CLS, className)} />;
 }
 
-/** 标签 + 控件的字段容器。 */
-export function Field({
-  label,
-  children,
-  className,
-}: {
+export function Field({ label, children, className }: {
   label: ReactNode;
   children: ReactNode;
   className?: string;

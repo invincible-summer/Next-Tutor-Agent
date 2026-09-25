@@ -1,6 +1,7 @@
 "use client";
 import { create } from "zustand";
 import { API_BASE } from "./api";
+import { useEvaluationCacheStore } from "./store";
 
 // --- types ------------------------------------------------------------------
 
@@ -18,7 +19,7 @@ export interface AuthUser {
     subjects: string[];
     avatar: string;
     /** 通用每用户偏好（ocr_parallel OCR 并行、tts_speed 朗读语速）。 */
-    prefs?: { ocr_parallel?: boolean; tts_speed?: number };
+    prefs?: { ocr_parallel?: boolean; tts_speed?: number; quiz_svg_enabled?: boolean };
   };
 }
 
@@ -83,10 +84,13 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   loading: false,
   error: null,
   setAuth: (token, user) => {
+    // 换账号登录：清空上一账号的评价查询缓存并 abort 在途请求（§15.3）。
+    useEvaluationCacheStore.getState().clearAll();
     setToken(token);
     set({ token, user, error: null });
   },
   clearAuth: () => {
+    useEvaluationCacheStore.getState().clearAll();
     clearToken();
     set({ token: null, user: null });
   },

@@ -71,44 +71,6 @@ class DailyTaskStatus(str, Enum):
            return cls(str(v))
        except (ValueError, TypeError):
            return cls.PENDING
-
-class GoalAnalysisLevel(str, Enum):
-    """Coarse current-vs-target proficiency bucket, used by GoalAnalyzer.
-
-    Maps a student's measured mastery of a subject's skill graph into one of
-    five coarse levels so the gap analysis can be computed deterministically
-    (zero LLM) before planning. The mapping is read-only over M2 mastery.
-    """
-    NOVICE = "novice"        # <20% of subject skills mastered
-    BEGINNER = "beginner"    # 20-40%
-    INTERMEDIATE = "intermediate"  # 40-65%
-    ADVANCED = "advanced"    # 65-85%
-    PROFICIENT = "proficient"  # >85%
-
-    @classmethod
-    def from_value(cls, v: Any) -> "GoalAnalysisLevel":
-        if isinstance(v, GoalAnalysisLevel):
-            return v
-        try:
-            return cls(str(v))
-        except (ValueError, TypeError):
-            return cls.NOVICE
-
-    @classmethod
-    def from_mastery_ratio(cls, ratio: float) -> "GoalAnalysisLevel":
-        """Map a 0..1 mastered-skills ratio to a coarse level."""
-        r = max(0.0, min(1.0, float(ratio)))
-        if r < 0.20:
-            return cls.NOVICE
-        if r < 0.40:
-            return cls.BEGINNER
-        if r < 0.65:
-            return cls.INTERMEDIATE
-        if r < 0.85:
-            return cls.ADVANCED
-        return cls.PROFICIENT
-
-
 class MilestoneStatus(str, Enum):
     NOT_STARTED = "not_started"
     IN_PROGRESS = "in_progress"
@@ -168,6 +130,8 @@ class LearningGoal:
     goal_type: GoalType = GoalType.ABILITY
     subjects: list[str] = field(default_factory=list)
     target_concept_ids: list[str] = field(default_factory=list)
+    # G4 §13.8：目标归属工作区（空 = unassigned 非评价任务，不自动归属）。
+    workspace_id: str = ""
     deadline: float = 0.0
     created_at: float = field(default_factory=time.time)
     updated_at: float = field(default_factory=time.time)
@@ -177,6 +141,7 @@ class LearningGoal:
             "description": self.description,
             "goal_type": self.goal_type.value, "subjects": list(self.subjects),
             "target_concept_ids": list(self.target_concept_ids),
+            "workspace_id": self.workspace_id,
             "deadline": self.deadline, "created_at": self.created_at,
             "updated_at": self.updated_at}
 
@@ -188,6 +153,7 @@ class LearningGoal:
             goal_type=GoalType.from_value(d.get("goal_type")),
             subjects=list(d.get("subjects", []) or []),
             target_concept_ids=list(d.get("target_concept_ids", []) or []),
+            workspace_id=str(d.get("workspace_id", "") or ""),
             deadline=float(d.get("deadline", 0.0)),
             created_at=float(d.get("created_at", time.time())),
             updated_at=float(d.get("updated_at", time.time())))
@@ -195,21 +161,19 @@ class LearningGoal:
 
 @dataclass
 class GapItem:
-    """One identified knowledge gap between the goal and current mastery.
+    """One identified gap toward the goal（G4 §13.8：语义分组，无数值掌握）.
 
-    Produced by GoalAnalyzer. W4/A13: 'unknown' skills have NO observation
-    yet (未测——不宣称缺口，也不等于不会); 'weak' skills are observed below
-    target mastery (确认的薄弱). Legacy persisted rows may still read
-    'missing' (pre-W4 wording for unknown) and round-trip unchanged. All
-    mastery values are read-only projections from M2.
+    Produced by GoalAnalyzer. 'unknown' = 未观察（无证据，不宣称缺口，也不
+    等于不会）; 'weak' = 已观察待解决（fragile/conflicting/emerging）。
+    Legacy persisted rows may still read 'missing' (pre-W4 wording for
+    unknown) and round-trip unchanged; 旧数值字段（current/target mastery）
+    已随统一评价删除，不再读取。
     """
     skill_id: str = ""
     name: str = ""
     subject: str = ""
     difficulty: int = 3
     status: str = "unknown"  # "unknown" | "weak" (legacy rows: "missing")
-    current_mastery: float = 0.0
-    target_mastery: float = 0.75
     # 拓扑层级（1 = 无未掌握前置，现在就能学；2 = 需先完成某层-1 概念…）。
     # 由 goal_analyzer 按前置链最长路径计算，0 = 未分层（无 prereq 数据）。
     layer: int = 0
@@ -217,8 +181,7 @@ class GapItem:
     def to_dict(self) -> dict[str, Any]:
         return {"skill_id": self.skill_id, "name": self.name,
             "subject": self.subject, "difficulty": self.difficulty,
-            "status": self.status, "current_mastery": round(self.current_mastery, 3),
-            "target_mastery": self.target_mastery, "layer": self.layer}
+            "status": self.status, "layer": self.layer}
 
     @classmethod
     def from_dict(cls, d: dict[str, Any] | None) -> "GapItem":
@@ -226,8 +189,6 @@ class GapItem:
         return cls(skill_id=str(d.get("skill_id", "")), name=str(d.get("name", "")),
             subject=str(d.get("subject", "")), difficulty=int(d.get("difficulty", 3)),
             status=str(d.get("status", "unknown")),
-            current_mastery=float(d.get("current_mastery", 0.0)),
-            target_mastery=float(d.get("target_mastery", 0.75)),
             layer=int(d.get("layer", 0)))
 
 
@@ -248,11 +209,11 @@ class GoalState:
     goal_type: GoalType = GoalType.ABILITY
     subject: str = ""
     deadline: float = 0.0
-    current_level: GoalAnalysisLevel = GoalAnalysisLevel.NOVICE
-    target_level: GoalAnalysisLevel = GoalAnalysisLevel.PROFICIENT
-    mastered_ratio: float = 0.0
+    # R18：支持占比只是本目标范围内的**覆盖计数比值**（supported/total），
+    # 不映射能力等级、不跨目标/跨用户聚合。
+    supported_ratio: float = 0.0
     total_skills: int = 0
-    mastered_skills: int = 0
+    supported_skills: int = 0
     gaps: list[GapItem] = field(default_factory=list)
     required_skills: list[str] = field(default_factory=list)
     recommended_strategy: str = ""
@@ -272,11 +233,9 @@ class GoalState:
         return {"goal_id": self.goal_id, "goal_title": self.goal_title,
             "goal_type": self.goal_type.value, "subject": self.subject,
             "deadline": self.deadline,
-            "current_level": self.current_level.value,
-            "target_level": self.target_level.value,
-            "mastered_ratio": round(self.mastered_ratio, 3),
+            "supported_ratio": round(self.supported_ratio, 3),
             "total_skills": self.total_skills,
-            "mastered_skills": self.mastered_skills,
+            "supported_skills": self.supported_skills,
             "gaps": [g.to_dict() for g in self.gaps],
             "required_skills": list(self.required_skills),
             "recommended_strategy": self.recommended_strategy,
@@ -294,11 +253,9 @@ class GoalState:
             goal_type=GoalType.from_value(d.get("goal_type")),
             subject=str(d.get("subject", "")),
             deadline=float(d.get("deadline", 0.0)),
-            current_level=GoalAnalysisLevel.from_value(d.get("current_level")),
-            target_level=GoalAnalysisLevel.from_value(d.get("target_level", "proficient")),
-            mastered_ratio=float(d.get("mastered_ratio", 0.0)),
+            supported_ratio=float(d.get("supported_ratio", 0.0)),
             total_skills=int(d.get("total_skills", 0)),
-            mastered_skills=int(d.get("mastered_skills", 0)),
+            supported_skills=int(d.get("supported_skills", 0)),
             gaps=[GapItem.from_dict(g) for g in (d.get("gaps") or [])][:_MAX_GAPS],
             required_skills=list(d.get("required_skills") or []),
             recommended_strategy=str(d.get("recommended_strategy", "")),
@@ -321,12 +278,11 @@ class Milestone:
     concept_ids: list[str] = field(default_factory=list)
     status: MilestoneStatus = MilestoneStatus.NOT_STARTED
     order: int = 0
-    target_mastery: float = 0.75
 
     def to_dict(self) -> dict[str, Any]:
         return {"id": self.id, "title": self.title,
             "concept_ids": list(self.concept_ids), "status": self.status.value,
-            "order": self.order, "target_mastery": self.target_mastery}
+            "order": self.order}
 
     @classmethod
     def from_dict(cls, d: dict[str, Any] | None) -> "Milestone":
@@ -334,36 +290,30 @@ class Milestone:
         return cls(id=str(d.get("id", "")), title=str(d.get("title", "")),
             concept_ids=list(d.get("concept_ids", []) or []),
             status=MilestoneStatus.from_value(d.get("status")),
-            order=int(d.get("order", 0)),
-            target_mastery=float(d.get("target_mastery", 0.75)))
+            order=int(d.get("order", 0)))
 
 
 @dataclass
 class PlanConcept:
-    """A concept scheduled into a weekly plan.
-
-    planned_mastery is an M9-owned target for the week; actual mastery lives
-    in M2 (read-only). The gap drives re-planning.
-    """
+    """A concept scheduled into a weekly plan（G4：无数值目标；是否已支持
+    读统一评价投影，重规划信号由 learning_planner.needs_replan 计算）."""
     concept_id: str = ""
     name: str = ""
     milestone_id: str = ""
     week_index: int = 0
     difficulty: int = 3
-    planned_mastery: float = 0.75
 
     def to_dict(self) -> dict[str, Any]:
         return {"concept_id": self.concept_id, "name": self.name,
             "milestone_id": self.milestone_id, "week_index": self.week_index,
-            "difficulty": self.difficulty, "planned_mastery": self.planned_mastery}
+            "difficulty": self.difficulty}
 
     @classmethod
     def from_dict(cls, d: dict[str, Any] | None) -> "PlanConcept":
         d = d or {}
         return cls(concept_id=str(d.get("concept_id", "")),
             name=str(d.get("name", "")), milestone_id=str(d.get("milestone_id", "")),
-            week_index=int(d.get("week_index", 0)), difficulty=int(d.get("difficulty", 3)),
-            planned_mastery=float(d.get("planned_mastery", 0.75)))
+            week_index=int(d.get("week_index", 0)), difficulty=int(d.get("difficulty", 3)))
 
 
 @dataclass
@@ -413,6 +363,7 @@ class WeekTask:
     source: str = "auto"          # auto | user — user tasks survive regen
     subtasks: list[SubTask] = field(default_factory=list)
     done: bool = False
+    workspace_id: str = ""        # G4 §13.8：继承 goal 的工作区归属
 
     @property
     def effective_done(self) -> bool:
@@ -423,6 +374,7 @@ class WeekTask:
         return {"id": self.id, "title": self.title,
             "concept_ids": list(self.concept_ids), "kind": self.kind,
             "source": self.source, "done": self.effective_done,
+            "workspace_id": self.workspace_id,
             "subtasks": [s.to_dict() for s in self.subtasks]}
 
     @classmethod
@@ -482,6 +434,7 @@ class DailyTask:
     milestone_id: str = ""
     week_task_id: str = ""    # source WeekTask this task materialised from
     subtask_id: str = ""      # source SubTask (completion writes back to it)
+    workspace_id: str = ""    # G4 §13.8：继承 goal 的 workspace 归属
     title: str = ""           # user-facing custom title (optional)
     phase: str = ""           # one of TASK_PHASES ("" = unlabelled)
     custom: bool = False      # True = user-created; pipelines never touch it
@@ -500,6 +453,7 @@ class DailyTask:
             "status": self.status.value, "priority": self.priority,
             "estimate_minutes": self.estimate_minutes, "milestone_id": self.milestone_id,
             "week_task_id": self.week_task_id, "subtask_id": self.subtask_id,
+            "workspace_id": self.workspace_id,
             "title": self.title, "phase": self.phase, "custom": self.custom,
             "reason": self.reason,
             "episode_id": self.episode_id, "session_id": self.session_id,
@@ -520,6 +474,7 @@ class DailyTask:
             milestone_id=str(d.get("milestone_id", "")),
             week_task_id=str(d.get("week_task_id", "")),
             subtask_id=str(d.get("subtask_id", "")),
+            workspace_id=str(d.get("workspace_id", "") or ""),
             title=str(d.get("title", "")), phase=str(d.get("phase", "")),
             custom=bool(d.get("custom", False)),
             reason=str(d.get("reason", "")),
@@ -625,6 +580,7 @@ class ReviewItem:
     """
     concept_id: str = ""
     concept_name: str = ""
+    workspace_id: str = ""       # G4 §13.8：卡片键 (workspace_id, concept_key)
     easiness: float = 2.5
     interval: int = 0
     repetitions: int = 0
@@ -636,6 +592,7 @@ class ReviewItem:
 
     def to_dict(self) -> dict[str, Any]:
         return {"concept_id": self.concept_id, "concept_name": self.concept_name,
+            "workspace_id": self.workspace_id,
             "easiness": round(self.easiness, 3), "interval": self.interval,
             "repetitions": self.repetitions, "next_review": self.next_review,
             "last_quality": self.last_quality, "created_at": self.created_at}
@@ -646,6 +603,7 @@ class ReviewItem:
         lq = d.get("last_quality", None)
         return cls(concept_id=str(d.get("concept_id", "")),
             concept_name=str(d.get("concept_name", "")),
+            workspace_id=str(d.get("workspace_id", "") or ""),
             easiness=float(d.get("easiness", 2.5)),
             interval=int(d.get("interval", 0)),
             repetitions=int(d.get("repetitions", 0)),
@@ -781,7 +739,7 @@ class OrchestrationEvent:
 ORCHESTRATION_EVENT_TYPES = frozenset({
     "milestone_completed",   # a milestone reached target mastery
     "habit_milestone",       # streak/consistency achievement (e.g. 7-day streak)
-    "goal_progress",         # mastered_ratio crossed a threshold
+    "goal_progress",         # supported_ratio crossed a threshold
     "plan_regenerated",      # the weekly plan was rebuilt
     "task_batch_completed",  # all of today's tasks done
 })

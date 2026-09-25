@@ -72,7 +72,7 @@ class EdgeType(str, Enum):
 class KnowledgeNode:
     """One concept in the knowledge ontology.
 
-    `id` shares the dotted-path scheme with student_model/skill_graph_seed
+    `id` uses the shared dotted-path scheme (<subject>.<area>.<skill>)
     (<subject>.<area>.<skill>), and overlapping ids carry the SAME name and
     PREREQUISITE edges, so this graph is a strict superset of the skill seed.
     `aliases` widen the fuzzy-match surface for the ConceptRetriever; they do
@@ -216,7 +216,7 @@ class KnowledgeContext:
     the student's mastery view + content + uploaded materials, then rendered
     into a [知识智能·...] soft-directive block. It is a flat plain-data
     projection so the Context Builder stays import-clean of student_model
-    types (mastery arrives as plain {id: p_known} dicts).
+    types (evaluation arrives as plain {id: state} dicts).
     """
     concept: str = ""
     node_id: str = ""

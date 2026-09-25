@@ -375,15 +375,15 @@ def _delete_session_active(owner_id: str, session_id: str, data: dict[str, Any])
         ws.session_ids = [x for x in ws.session_ids if x != session_id]
         save_workspace(ws)
     try:
-        from .quiz_recent import mark_session_source_deleted
-        mark_session_source_deleted(owner_id, session_id)
+        # G4/R07：评价来源随会话归档（availability=archived，投影排除）
+        from ..agents.student_model.evaluation.lifecycle import (
+            archive_session_sources)
+        archive_session_sources(owner_id, session_id)
     except Exception:
-        pass
-    try:
-        from .learning_records import mark_source_deleted
-        mark_source_deleted(owner_id, session_id)
-    except Exception:
-        pass
+        import logging
+        logging.getLogger(__name__).warning(
+            "archive_session_sources failed for %s", session_id,
+            exc_info=True)
 
 
 def _restore_session_payload(owner_id: str, payload: Path,
@@ -422,15 +422,14 @@ def _restore_session_payload(owner_id: str, payload: Path,
     for src in (payload / "traces").glob("trace_*.jsonl") if (payload / "traces").exists() else []:
         _restore_file(src, trace_dir_path() / src.name)
     try:
-        from .quiz_recent import mark_session_source_active
-        mark_session_source_active(owner_id, sid)
+        # G4/R07：评价来源恢复（availability=available，投影重新纳入）
+        from ..agents.student_model.evaluation.lifecycle import (
+            restore_session_sources)
+        restore_session_sources(owner_id, sid)
     except Exception:
-        pass
-    try:
-        from .learning_records import mark_source_active
-        mark_source_active(owner_id, sid)
-    except Exception:
-        pass
+        import logging
+        logging.getLogger(__name__).warning(
+            "restore_session_sources failed for %s", sid, exc_info=True)
     return sid
 
 
@@ -1091,17 +1090,15 @@ def _purge_session_memory(owner_id: str, session_ids: list[str]) -> dict[str, in
 
 
 def _detach_learning_source_ids(owner_id: str, session_ids: list[str]) -> dict[str, int]:
-    """Remove erased chat identifiers while retaining independent outcomes."""
-    counts = {"learning_records": 0, "quiz_recent": 0}
+    """G4：learning_records/quiz_recent 已删。永久清除 journal 中该会话的
+    dialogue 来源（§5.3：物理去除原文/引用副本并撤销依赖结论；独立
+    assessment 档案保留、去掉对话定位）。"""
+    counts = {"journal_sessions": 0}
     for sid in session_ids:
         try:
-            from .learning_records import detach_source_session
-            counts["learning_records"] += detach_source_session(owner_id, sid)
-        except Exception:
-            pass
-        try:
-            from .quiz_recent import detach_session_source
-            counts["quiz_recent"] += detach_session_source(owner_id, sid)
+            from app.agents.student_model.evaluation import lifecycle as ev_lifecycle
+            ev_lifecycle.delete_session_sources(owner_id, sid)
+            counts["journal_sessions"] += 1
         except Exception:
             pass
     return counts

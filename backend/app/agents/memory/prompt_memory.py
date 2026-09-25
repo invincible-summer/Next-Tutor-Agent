@@ -99,7 +99,7 @@ def _empty_state(student_id: str) -> dict[str, Any]:
         "student_id": _safe(student_id),
         "window_size": get_user_window(student_id),
         "core_profile": {
-            "learning_summary": "", "current_level": "",
+            "learning_summary": "", "current_level_retired": "",
             "tone_preference": "", "explanation_preference": "",
         },
         "recent_sessions": [],
@@ -121,7 +121,7 @@ def load_state(student_id: str) -> dict[str, Any]:
     base = _empty_state(student_id)
     base.update(data)
     profile = dict(base["core_profile"] or {})
-    for key in ("learning_summary", "current_level", "tone_preference", "explanation_preference"):
+    for key in ("learning_summary", "current_level_retired", "tone_preference", "explanation_preference"):
         profile[key] = str(profile.get(key) or "")
     base["core_profile"] = profile
     base["recent_sessions"] = [x for x in (base.get("recent_sessions") or [])
@@ -141,27 +141,13 @@ def save_state(student_id: str, state: dict[str, Any]) -> None:
     _write(_path(student_id), state)
 
 
-def _generic_summary(contribution: dict[str, Any]) -> str:
-    stats = contribution.get("outcomes") or {}
-    correct, wrong = int(stats.get("correct", 0)), int(stats.get("wrong", 0))
-    engaged = int(stats.get("engaged", 0))
-    if correct + wrong:
-        if wrong > correct:
-            return "近期学习中仍需要更多基础巩固与分步反馈。"
-        if correct >= wrong * 2 and correct >= 2:
-            return "近期学习表现较稳定，可在保持反馈的同时逐步提高挑战。"
-    if engaged:
-        return "近期保持学习参与，适合持续提供清晰反馈。"
+def _generic_summary(contribution: dict) -> str:
+    """G4/A11：由正误次数产生的水平归纳已删除；恒空。"""
     return ""
 
 
-def _level_from(contribution: dict[str, Any]) -> str:
-    stats = contribution.get("outcomes") or {}
-    correct, wrong = int(stats.get("correct", 0)), int(stats.get("wrong", 0))
-    if wrong > correct:
-        return "当前整体水平偏基础，关键步骤需要更充分的支架。"
-    if correct >= 2 and correct > wrong:
-        return "当前整体水平处于稳步发展阶段，可适度增加综合性。"
+def _level_from(contribution: dict) -> str:
+    """G4/A11：全用户能力归纳已删除；恒空。"""
     return ""
 
 
@@ -195,8 +181,8 @@ def _fold_into_core(state: dict[str, Any], contribution: dict[str, Any]) -> None
     profile = state["core_profile"]
     profile["learning_summary"] = _merge_text(
         profile.get("learning_summary", ""), _generic_summary(contribution))
-    profile["current_level"] = _merge_text(
-        profile.get("current_level", ""), _level_from(contribution))
+    profile["current_level_retired"] = _merge_text(
+        profile.get("current_level_retired", ""), _level_from(contribution))
     profile["tone_preference"] = _merge_text(
         profile.get("tone_preference", ""), contribution.get("tone_preference", ""))
     profile["explanation_preference"] = _merge_text(
@@ -338,7 +324,7 @@ def _render_profile(profile: dict[str, Any], recent: list[dict[str, Any]]) -> st
         explanation = _merge_text(explanation, item.get("explanation_preference", ""), 500)
     fields = [
         ("总体学习情况", _merge_text(str(profile.get("learning_summary") or ""), latest_learning, 800)),
-        ("当前水平", _merge_text(str(profile.get("current_level") or ""), latest_level, 600)),
+        ("当前水平", _merge_text(str(profile.get("current_level_retired") or ""), latest_level, 600)),
         ("语气偏好", tone),
         ("讲解偏好", explanation),
     ]
@@ -376,7 +362,7 @@ async def maybe_compact_core(student_id: str, llm: Any | None) -> dict[str, Any]
     if not latest.get("core_needs_llm"):
         return {"status": "already_compacted"}
     profile = latest["core_profile"]
-    allowed = ("learning_summary", "current_level", "tone_preference", "explanation_preference")
+    allowed = ("learning_summary", "current_level_retired", "tone_preference", "explanation_preference")
     for key in allowed:
         profile[key] = str(parsed.get(key) or profile.get(key) or "")[:700]
     # Hard cap is enforced after parsing, independent of model compliance.

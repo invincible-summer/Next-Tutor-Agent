@@ -458,7 +458,7 @@ export function WeeklyPlanCard({
                     return (
                       <span
                         key={c.concept_id || c.name}
-                        title={`${tr("goal.progress")}: ${Math.round(c.planned_mastery * 100)}%`}
+                        title={c.name}
                         className="flex items-center gap-1.5 rounded-[7px] border border-border-light bg-bg px-2 py-1 text-[0.7rem] text-fg-secondary"
                       >
                         <span className="flex gap-0.5">

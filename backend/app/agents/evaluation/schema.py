@@ -3,7 +3,6 @@
 Plain dataclasses with to_dict/from_dict round-trips, mirroring
 student_model/state.py, knowledge/schema.py, and memory/schema.py. No behaviour
 here beyond serialization; the logic lives in sibling modules
-(trace_analyzer, learning_gain, strategy_analyzer, advisor, experiment).
 
 This layer owns ONLY evaluation artifacts -- never any business state. Mastery
 is M2's, teaching mode history is M3's, narrative memories are M6's. M7 reads
@@ -58,7 +57,7 @@ class TurnTrace:
     Append-only, uncapped (the jsonl is a black box like the chat transcript
     and the M6 episodes log). Captures WHAT happened (mode/outcome/tools),
     HOW MUCH it cost (tokens/steps/duration), and WHETHER it worked
-    (before/after mastery + learning gain + failure diagnosis).
+    (outcome + failure diagnosis; no student mastery numerics).
 
     This is the atomic unit M7 analyzes: strategy_analyzer aggregates over
     traces, the advisor reads accumulated traces to propose improvements, and
@@ -79,9 +78,6 @@ class TurnTrace:
     steps: int = 0                   # ReAct loop iterations
     tokens_used: int = 0             # prompt + completion total
     duration_sec: float = 0.0
-    before_mastery: float | None = None
-    after_mastery: float | None = None
-    learning_gain: float | None = None
     failure_type: str = FailureType.NONE.value
     failure_cause: str = ""
     recommendation: str = ""
@@ -103,9 +99,6 @@ class TurnTrace:
             "steps": self.steps,
             "tokens_used": self.tokens_used,
             "duration_sec": round(self.duration_sec, 3),
-            "before_mastery": self.before_mastery,
-            "after_mastery": self.after_mastery,
-            "learning_gain": self.learning_gain,
             "failure_type": self.failure_type,
             "failure_cause": self.failure_cause,
             "recommendation": self.recommendation,
@@ -130,9 +123,6 @@ class TurnTrace:
             steps=int(d.get("steps", 0)),
             tokens_used=int(d.get("tokens_used", 0)),
             duration_sec=float(d.get("duration_sec", 0.0)),
-            before_mastery=d.get("before_mastery"),
-            after_mastery=d.get("after_mastery"),
-            learning_gain=d.get("learning_gain"),
             failure_type=FailureType.from_value(d.get("failure_type")).value,
             failure_cause=str(d.get("failure_cause", "")),
             recommendation=str(d.get("recommendation", "")),
@@ -145,43 +135,9 @@ class TurnTrace:
 
 
 # ---------------------------------------------------------------------------
-# LearningGain: per-concept teaching effectiveness
+# 旧 M2 BKT P(know) 增量数据类（before/after/gain）已随旧能力链删除
+# （plan §16.5/§19.1：不能以历史档案为名保留旧算法可调用接口）。
 # ---------------------------------------------------------------------------
-
-@dataclass
-class LearningGain:
-    """The mastery delta produced by teaching a concept.
-
-    before/after are P(know) from M2 BKT. gain = after - before (clamped to
-    [-1, 1]). n_questions is how many were assessed (gain is only meaningful
-    when assessment actually happened).
-    """
-    concept: str = ""
-    subject: str = ""
-    before: float = 0.0
-    after: float = 0.0
-    gain: float = 0.0
-    n_questions: int = 0
-    ts: float = field(default_factory=time.time)
-    trace_id: str = ""
-
-    def to_dict(self) -> dict[str, Any]:
-        return {
-            "concept": self.concept, "subject": self.subject,
-            "before": round(self.before, 4), "after": round(self.after, 4),
-            "gain": round(self.gain, 4), "n_questions": self.n_questions,
-            "ts": self.ts, "trace_id": self.trace_id,
-        }
-
-    @classmethod
-    def from_dict(cls, d: dict[str, Any]) -> "LearningGain":
-        d = d or {}
-        return cls(
-            concept=str(d.get("concept", "")), subject=str(d.get("subject", "")),
-            before=float(d.get("before", 0.0)), after=float(d.get("after", 0.0)),
-            gain=float(d.get("gain", 0.0)), n_questions=int(d.get("n_questions", 0)),
-            ts=float(d.get("ts", 0.0)), trace_id=str(d.get("trace_id", "")),
-        )
 
 
 # ---------------------------------------------------------------------------
@@ -193,13 +149,12 @@ class StrategyEffectiveness:
     """Aggregated effectiveness of a teaching mode, computed by strategy_analyzer.
 
     This is the M7 contribution ON TOP of M6 procedural: M6 tracks per-student
-    success_rate; M7 aggregates avg learning_gain across turns to compare
-    strategies against each other. Reads M3 teaching_log + M6 procedural +
-    M7's own traces -- does NOT duplicate their raw data.
+    strategy success, M7 aggregates the same question across turns. Reads only
+    M7's own traces -- does NOT duplicate M3/M6 raw data. Success rate measures
+    teaching-system quality, not student mastery.
     """
     strategy: str = ""              # TeachingMode value
     subject: str = ""
-    avg_gain: float = 0.0          # mean learning_gain across turns
     avg_success_rate: float = 0.0  # mean of per-turn correct/engaged ratio
     sample_size: int = 0          # how many turns contributed
     last_updated: float = field(default_factory=time.time)
@@ -207,7 +162,6 @@ class StrategyEffectiveness:
     def to_dict(self) -> dict[str, Any]:
         return {
             "strategy": self.strategy, "subject": self.subject,
-            "avg_gain": round(self.avg_gain, 4),
             "avg_success_rate": round(self.avg_success_rate, 4),
             "sample_size": self.sample_size, "last_updated": self.last_updated,
         }
@@ -218,7 +172,6 @@ class StrategyEffectiveness:
         return cls(
             strategy=str(d.get("strategy", "")),
             subject=str(d.get("subject", "")),
-            avg_gain=float(d.get("avg_gain", 0.0)),
             avg_success_rate=float(d.get("avg_success_rate", 0.0)),
             sample_size=int(d.get("sample_size", 0)),
             last_updated=float(d.get("last_updated", 0.0)),
@@ -324,7 +277,6 @@ class MetricSnapshot:
     ts: float = field(default_factory=time.time)
     total_turns: int = 0
     total_evaluated: int = 0        # turns with a measurable outcome
-    avg_learning_gain: float = 0.0
     failure_distribution: dict[str, int] = field(default_factory=dict)
     top_strategies: list[dict[str, Any]] = field(default_factory=list)
     pending_proposals: int = 0
@@ -334,7 +286,6 @@ class MetricSnapshot:
         return {
             "ts": self.ts, "total_turns": self.total_turns,
             "total_evaluated": self.total_evaluated,
-            "avg_learning_gain": round(self.avg_learning_gain, 4),
             "failure_distribution": dict(self.failure_distribution),
             "top_strategies": list(self.top_strategies),
             "pending_proposals": self.pending_proposals,

@@ -100,11 +100,14 @@ export function Sidebar() {
   const [selected, setSelected] = useState<Set<string>>(new Set());
 
   // Hydrate persisted expand state AFTER mount (SSR-safe, cf. store.hydrateClient).
-  // Deferred via rAF: setState runs in a callback, not synchronously in the
-  // effect body (react-hooks/set-state-in-effect), and the first client
-  // render still matches SSR (all expanded).
+  // Deferred via microtask: setState runs in a callback, not synchronously in
+  // the effect body (react-hooks/set-state-in-effect), and the first client
+  // render still matches SSR (all expanded). rAF 不可用：不绘制帧的
+  // 后台标签页/webview 里 rAF 永不触发。
   useEffect(() => {
-    const id = requestAnimationFrame(() => {
+    let cancelled = false;
+    void Promise.resolve().then(() => {
+      if (cancelled) return;
       try {
         const raw = localStorage.getItem(EXPAND_KEY);
         if (raw) {
@@ -117,7 +120,9 @@ export function Sidebar() {
         setExpandedMap({});
       }
     });
-    return () => cancelAnimationFrame(id);
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   // First run (nothing persisted): default all expanded. Once the user has
@@ -143,12 +148,16 @@ export function Sidebar() {
   useEffect(() => {
     mountedRef.current = true;
     // Cached route remounts render the complete snapshot immediately and do
-    // not refetch. The first ever load is deferred one frame so it is an
-    // external async subscription, not a cascading setState in the effect.
-    const id = sidebarCache ? 0 : requestAnimationFrame(() => { void refresh(false); });
+    // not refetch. The first ever load is deferred a microtask so it is an
+    // external async subscription, not a cascading setState in the effect
+    // （微任务而非 rAF：后台标签页不绘制帧时 rAF 永不触发）.
+    if (!sidebarCache) {
+      void Promise.resolve().then(() => {
+        if (mountedRef.current) void refresh(false);
+      });
+    }
     return () => {
       mountedRef.current = false;
-      if (id) cancelAnimationFrame(id);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

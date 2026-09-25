@@ -19,6 +19,7 @@ Design (B-scheme = explicit orchestration on top of the V1 single agent):
 from __future__ import annotations
 
 import asyncio
+import re
 import time
 from typing import Any, AsyncGenerator, Callable
 
@@ -52,8 +53,9 @@ def derive_snapshot(session: TutorSession) -> StudentSnapshot:
 
     V2 base (always): grade / materials / quiz count / topic hint from V1
     signals. V3 extension (when the Student Model module is enabled): fuse in
-    goals / weak_skills / strong_skills / mastery_map / learning_style /
-    recent_mistakes / unfinished_prereqs from the Student Model. The Student
+    goals / learning_style / recent_weak_points (quiz wrong/partial in this
+    session) / topic hint. G4：数值能力字段已删，评价语义经
+    understanding.evaluation_context 注入。The Student
     Model path is fully guarded -- any failure leaves the V2 base untouched.
     """
     # Merge workspace shared files so the snapshot (and thus the planner)
@@ -104,12 +106,7 @@ def derive_snapshot(session: TutorSession) -> StudentSnapshot:
                 recent_quiz_count=snap.recent_quiz_count,
             )
             snap.goals = sm_snap.get("goals", [])
-            snap.weak_skills = sm_snap.get("weak_skills", [])
-            snap.strong_skills = sm_snap.get("strong_skills", [])
-            snap.mastery_map = sm_snap.get("mastery_map", {})
             snap.learning_style = sm_snap.get("learning_style", {})
-            snap.recent_mistakes = sm_snap.get("recent_mistakes", [])
-            snap.unfinished_prereqs = sm_snap.get("unfinished_prereqs", [])
     except Exception:
         pass
     return snap
@@ -133,23 +130,8 @@ def _plan_learning_path(understanding, session, trace) -> str:
         _sid = getattr(session, 'student_id', '') or DEFAULT_STUDENT_ID
         sm = get_student_model(_sid)
         subject = understanding.subject or ""
-        mview = sm.mastery_view()
-        # next learnable from the graph (prereqs met, not yet mastered)
-        nxt: list[dict] = []
-        try:
-            for n in sm.graph.next_learnable(subject or None, mview, limit=4):
-                nxt.append({"name": n.name, "skill_id": n.id, "difficulty": n.difficulty})
-        except Exception:
-            pass
-        # review candidates: seen concepts with middling mastery
+        nxt: list[dict] = []     # G4：掌握度候选已删（路径非个性化）
         revs: list[dict] = []
-        for sid, m in sm.mastery.records.items():
-            if m.attempts > 0 and 0.3 <= m.p_known < 0.8:
-                node = sm.graph.get(sid)
-                revs.append({"name": node.name if node else sid,
-                             "skill_id": sid, "mastery": m.p_known,
-                             "last_review": m.last_review,
-                             "difficulty": node.difficulty if node else 3})
         lp = get_teaching_manager().plan_curriculum(
             current_name=understanding.concept or subject or "",
             current_skill_id="", next_learnable=nxt, review_candidates=revs)
@@ -216,6 +198,21 @@ class _GatedSearchStore:
             return []
 
 
+def _journal_evaluation_view(student_id: str, workspace_id: str = "") -> dict | None:
+    """G4/R18：journal 统一评价投影 {concept_id: {"state": ...}}。
+
+    R18：只读**当前会话工作区**的有效投影（经 readers 统一入口 + scope
+    求交）；无 workspace → None（M5 降级为非个性化建议，不继承任何区的
+    能力结论）。"""
+    if not workspace_id:
+        return None
+    try:
+        from .student_model.evaluation.readers import scoped_concept_states
+        return scoped_concept_states(student_id, workspace_id)
+    except Exception:
+        return None
+
+
 async def _knowledge_directive_for_turn(understanding, session, trace) -> str:
     """M5: build the [知识智能·...] soft-directive block for this turn's concept.
 
@@ -234,15 +231,12 @@ async def _knowledge_directive_for_turn(understanding, session, trace) -> str:
                            and understanding.intent.value == "chitchat"):
             return ""
         ks = get_knowledge_service()
-        # mastery view from the Student Model (plain {id: p_known}); guarded so
-        # M5 still works (graph-only) when the Student Model is disabled.
-        mastery_view = None
-        try:
-            from .student_model import get_student_model, is_enabled as sm_enabled
-            if sm_enabled():
-                mastery_view = get_student_model().mastery_view()
-        except Exception:
-            mastery_view = None
+        # G4/R18：M5 前置补缺读**当前工作区**统一评价投影（fragile/
+        # conflicting/emerging 的前置才提示补缺；未观察 ≠ 未掌握）。无
+        # workspace → None（图-only 非个性化降级，不跨区继承能力）。
+        evaluation_view = _journal_evaluation_view(
+            getattr(session, "student_id", ""),
+            getattr(session, "workspace_id", "") or "")
         # duck-typed material store for content grounding. Prefer hybrid
         # retrieval (BM25 + vector RRF) over the scoped session/workspace
         # stores when the embedding track is configured; otherwise reuse the
@@ -275,7 +269,8 @@ async def _knowledge_directive_for_turn(understanding, session, trace) -> str:
                 store = _GatedSearchStore(merged_knowledge_store(session))
             except Exception:
                 store = None
-        directive = ks.build_directive(concept=concept, mastery_view=mastery_view,
+        directive = ks.build_directive(concept=concept,
+                                        evaluation_view=evaluation_view,
                                         knowledge_store=store, grade=session.grade,
                                         student_id=(getattr(session, "student_id", "") or ""))
         if directive:
@@ -316,6 +311,42 @@ def _memory_directive_for_turn(understanding, session, trace) -> str:
         return directive
     except Exception as e:
         trace.log("memory_directive_error", message=str(e))
+        return ""
+
+
+def _teaching_evidence_directive_for_turn(understanding, session,
+                                          trace) -> str:
+    """R20（update_plan §4）：P7 teaching_evidence_directive 的使用入口。
+
+    当前工作区对理解层识别的概念存在有效统一评价投影（supported/
+    fragile/conflicting/emerging）时，输出 [证据智能·教学呈现] 软指令
+    块：已有独立表现 → 撤冗余示范；fragile → 定位验证。not_observed
+    不触发（无证据 ≠ 不会，不给负向呈现）。纯读 journal 投影，不写。
+    """
+    try:
+        view = getattr(understanding, "evaluation_context", None) or {}
+        concept = (understanding.concept or "").strip()
+        if not view or not concept:
+            return ""
+        hit = None
+        for key, entry in view.items():
+            names = [str(key), str((entry or {}).get("display_name") or "")]
+            if any(n and (concept in n or n in concept) for n in names):
+                hit = entry
+                break
+        if hit is None:
+            return ""
+        state = str((hit or {}).get("state") or "")
+        if state in ("", "not_observed"):
+            return ""
+        from app.prompts.registry import get as get_prompt
+        text = get_prompt("teaching_evidence_directive").text
+        trace.log("teaching_evidence_directive", concept=concept,
+                  eval_state=state)
+        return ("[证据智能·教学呈现|当前区:" + concept +
+                "|评价:" + state + "]" + chr(10) + text)
+    except Exception as e:
+        trace.log("teaching_evidence_directive_error", message=str(e))
         return ""
 
 
@@ -395,7 +426,9 @@ async def _adapt_for_turn(understanding, snapshot, session, trace, llm=None):
                                             session.grade, understanding,
                                             trace, sid=_sid, llm=llm)
         else:
-            strat = sm.adapt(concept, subject, intent=intent, grade=session.grade)
+            from .teaching_engine.state import TeachingStrategy
+            strat = TeachingStrategy(target_concept=concept,
+                                     rationale="适配降级")
 
         lines = _render_strategy(strat, concept, subject)
         trace.log("supervisor_adaptation",
@@ -481,6 +514,92 @@ def _apply_response_constraints_to_plan(plan: TaskPlan,
     return constrained
 
 
+_ZH_QUIZ_COUNTS = {"一": 1, "两": 2, "二": 2, "三": 3, "四": 4, "五": 5}
+
+
+def _explicit_quiz_count(message: str) -> int:
+    """显式题量 1–5；未指定时与习题中心统一默认 1 道。"""
+    match = re.search(r"([1-5])\s*道", message)
+    if match:
+        return int(match.group(1))
+    match = re.search(r"([一两二三四五])\s*道", message)
+    if match:
+        return _ZH_QUIZ_COUNTS[match.group(1)]
+    return 1
+
+
+def _explicit_quiz_type(message: str) -> str:
+    """Return the question type explicitly requested by the learner."""
+    if re.search(r"选择题|单选题|多选题", message):
+        return "multiple_choice"
+    if re.search(r"填空题?", message):
+        return "fill_blank"
+    if re.search(r"简答题|问答题", message):
+        return "short_answer"
+    return ""
+
+
+def _enforce_explicit_practice_plan(plan: TaskPlan,
+                                    understanding: TaskUnderstanding,
+                                    message: str, grade: str,
+                                    trace: Trace) -> TaskPlan:
+    """把学生明确练习意图变成必须完成的结构化题卡调用。
+
+    Prompt 仍可让模型主动调用；模型只在正文里出题时，executor 根据
+    auto_invoke 补执行这个已授权调用，杜绝“有文字题、无题卡”。
+    """
+    structured_request = bool(
+        getattr(understanding, "structured_quiz_request", False))
+    if (understanding.intent != TaskType.PRACTICE and not structured_request) \
+            or understanding.goal == "answer_pending" \
+            or not getattr(understanding, "allow_followup_assessment", True):
+        return plan
+    # A hand-built understanding or an older persisted state may carry the
+    # explicit response-mode bit while retaining intent=explain. Normalize it
+    # at this boundary so planner, strategy and executor all agree.
+    if structured_request and understanding.intent != TaskType.PRACTICE:
+        understanding.intent = TaskType.PRACTICE
+        understanding.goal = "practice"
+        understanding.requires_tools = True
+    count = _explicit_quiz_count(message)
+    q_type = _explicit_quiz_type(message)
+    difficulty = str(understanding.difficulty or "medium").lower()
+    if difficulty not in {"easy", "medium", "hard"}:
+        difficulty = "medium"
+    reference_intent = bool(re.search(r"仿照|变式|类似(?:这|上面|该)?题", message))
+    has_reference_body = (len(message.strip()) >= 20 and
+                          bool(re.search(r"题目\s*[:：]|已知|求(?:解|证|出)|多少|计算", message)))
+    if reference_intent and has_reference_body:
+        tool_name = "fit_quiz"
+        skill_ids = ["agent.skill.assessment.fit_variants"]
+        args = {"reference": message.strip()[:4000],
+                "difficulty": difficulty, "count": count}
+        task = "根据学生给出的完整参考题生成结构化变式题卡"
+    else:
+        tool_name = "generate_quiz"
+        skill_ids = ["agent.skill.assessment.generate_practice"]
+        topic = (understanding.concept or understanding.subject or
+                 message).strip()[:120]
+        args = {"topic": topic, "difficulty": difficulty, "count": count}
+        if q_type:
+            args["q_type"] = q_type
+        task = "围绕学生指定知识点生成结构化练习题卡"
+    if grade in {"小学", "初中", "高中", "本科"}:
+        args["grade"] = grade
+    args["illustration_request"] = understanding.illustration_request
+    step = PlanStep(
+        agent_role="assessment", task=task,
+        suggested_tools=[tool_name], skill_ids=skill_ids,
+        tool_args={tool_name: args}, auto_invoke=True)
+    enforced = TaskPlan(steps=[step], source=f"practice_enforced:{plan.source}",
+                        validated=plan.validated)
+    trace.log("explicit_practice_plan_enforced", tool=tool_name,
+              count=count, difficulty=difficulty, q_type=q_type,
+              source=getattr(understanding, "source", ""),
+              semantic_guard=structured_request)
+    return enforced
+
+
 def _enrich_plan_with_strategy_check(plan: TaskPlan, strategy: Any,
                                      understanding: TaskUnderstanding,
                                      tools: list[Any], trace: Trace,
@@ -556,75 +675,32 @@ def _enrich_plan_with_strategy_check(plan: TaskPlan, strategy: Any,
     return enriched
 
 
-async def _adapt_via_engine(sm, concept, subject, intent, grade, understanding, trace,
-                            sid: str, llm=None):
-    """M3 path: assemble a TeachingContext from live student state + the
-    cross-turn teaching_log, then let the TeachingEngine pick a mode.
-
-    PURE-READ over student_model: we only call graph/mastery/memory getters,
-    never mutators. The context is a flat plain-data projection so the engine
-    itself stays import-clean (teaching_engine never imports student_model).
-    """
+async def _adapt_via_engine(sm, concept, subject, intent, grade,
+                            understanding, trace, sid: str, llm=None):
+    """G4（plan §13.3）：TeachingContext 不携带掌握度；评价上下文经
+    understanding.evaluation_context 只读注入。"""
     from .teaching_engine import (TeachingContext, get_teaching_manager,
                                   is_enabled as te_enabled,
                                   previous_mode_for)
     if not te_enabled():
-        return sm.adapt(concept, subject, intent=intent, grade=grade)
-    target = sm.graph.match_concept(concept) if concept else None
-    mastery_view = sm.mastery_view()
-    mastery_p = 0.0
-    unmet_nodes = []
-    unmet_names: list[str] = []
-    if target is not None:
-        mrec = sm.mastery.get(target.id)
-        mastery_p = mrec.p_known if mrec else 0.0
-        try:
-            unmet_nodes = sm.graph.unmet_prerequisites(target.id, mastery_view)
-            unmet_nodes.sort(key=lambda n: float((mastery_view.get(n.id) or {}).get("p_known", 0)))
-            unmet_names = [n.name for n in unmet_nodes[:3]]
-        except Exception:
-            unmet_nodes, unmet_names = [], []
-    misconceptions: list[str] = []
-    mistake_types: list[str] = []
-    mistakes: list[str] = []
-    rec = sm.memory.get(target.id) if target else None
-    if rec:
-        misconceptions = list(rec.misconceptions[-2:])
-        mistake_types = list(getattr(rec, "mistake_types", [])[-2:])
-    mrec = sm.mastery.get(target.id) if target else None
-    if mrec:
-        mistakes = list(mrec.mistakes[-3:])
-    concept_key = target.id if target else (concept or "")
+        from .teaching_engine.state import TeachingStrategy
+        return TeachingStrategy(target_concept=concept, rationale="适配降级")
+    concept_key = concept or ""
     prev_mode, prev_outcome, turns = previous_mode_for(sid, concept_key)
     ctx = TeachingContext(
         concept=concept, subject=subject, task_type=intent, grade=grade,
-        mastery=mastery_p,
-        unmet_prereqs=unmet_nodes, unmet_prereq_names=unmet_names,
-        mistakes=mistakes, misconceptions=misconceptions,
-        mistake_types=mistake_types,
         learning_style=sm.profile.learning_style.to_dict(),
         concept_key=concept_key,
         previous_mode=prev_mode, previous_outcome=prev_outcome,
         turns_on_concept=turns,
-    )
-    trace.log("teaching_engine_context",
-              concept=ctx.concept, mastery=round(ctx.mastery, 3),
+        evaluation_context=getattr(understanding, "evaluation_context",
+                                   None) or {})
+    trace.log("teaching_engine_context", concept=ctx.concept,
               previous_mode=ctx.previous_mode,
-              previous_outcome=ctx.previous_outcome.value,
-              turns_on_concept=ctx.turns_on_concept,
-              unmet_prereq_names=ctx.unmet_prereq_names)
+              turns_on_concept=ctx.turns_on_concept)
     strat = get_teaching_manager().adapt(ctx, student_id=sid)
-    # Close the teaching_log read/write key loop: the engine is import-clean
-    # from student_model, so it cannot name the graph node itself. Without
-    # this the record_turn site falls back to the raw concept string while
-    # reads use the node id — the log fragmented ("切线放缩" vs
-    # "math.geometry_advanced.tangent") and previous_mode/difficulty history
-    # was never found.
-    try:
-        if target is not None and getattr(strat, "target_skill_id", "") == "":
-            strat.target_skill_id = target.id
-    except Exception:
-        pass
+    if getattr(strat, "target_skill_id", "") == "":
+        strat.target_skill_id = concept_key
     # P4: 情绪弱信号进难度——学生最近明确说过「太难了/看不懂」（M8 规则分类
     # 的显式反馈）时，把收尾检测难度降一档。这是 supervisor 合成层的输入
     # 叠加（不是 M8 改教学计划，M3/M8 边界不动）；学业信号（quiz verdict
@@ -741,52 +817,6 @@ def _render_strategy(strat, concept, subject) -> list[str]:
 
 
 
-def _collect_turn_events(understanding, user_message, final_answer, trace):
-    """V3: derive LearningEvents for this turn (rule-based, no LLM).
-
-    A teaching turn that produced a real answer records CONCEPT_TAUGHT for the
-    understood concept; a user message containing a goal phrase records GOAL_SET.
-    Returns a list of LearningEvents (possibly empty). Never raises.
-    """
-    events = []
-    try:
-        from .student_model import EventCollector
-        col = EventCollector()
-        if final_answer and understanding.intent and understanding.intent.value not in ("chitchat",):
-            concept = understanding.concept or ""
-            if concept:
-                col.concept_taught(concept, subject=understanding.subject or "",
-                                   brief=user_message[:40])
-        # goal detection: cheap keyword scan (the LLM understanding may also flag this)
-        msg = user_message or ""
-        goal_markers = ("高考", "考研", "期末", "期中", "想考", "目标", "想拿", "想上", "准备")
-        if any(k in msg for k in goal_markers) and len(msg) <= 60:
-            col.goal(msg[:50], subject=understanding.subject or "")
-        events = col.drain()
-        if events:
-            trace.log("supervisor_events_collected",
-                      count=len(events), types=[e.type.value for e in events])
-    except Exception as e:
-        trace.log("supervisor_events_error", message=str(e))
-    return events
-
-
-def _read_mastery_for(understanding, session, student_id: str = "") -> float | None:
-    try:
-        from .student_model import get_student_model, is_enabled as sm_enabled
-        if not sm_enabled():
-            return None
-        sm = get_student_model()
-        concept = understanding.concept or ""
-        if not concept:
-            return None
-        node = sm.graph.match_concept(concept) if concept else None
-        if node is None:
-            return None
-        rec = sm.mastery.get(node.id)
-        return rec.p_known if rec else None
-    except Exception:
-        return None
 
 
 def _evaluation_directive_for_turn(understanding, session, trace) -> str:
@@ -811,7 +841,7 @@ def _evaluation_directive_for_turn(understanding, session, trace) -> str:
         return ""
 
 
-def _evaluation_record_turn(student_id, understanding, user_message, session, strategy, final_tool_calls, final_answer, before_mastery, trace) -> None:
+def _evaluation_record_turn(student_id, understanding, user_message, session, strategy, final_tool_calls, final_answer, trace) -> None:
     try:
         from .evaluation import get_evaluation_service, is_enabled as ev_enabled
         if not ev_enabled():
@@ -834,10 +864,9 @@ def _evaluation_record_turn(student_id, understanding, user_message, session, st
                     v = str(res.get("verdict")).lower()
                     outcome = ("correct" if "correct" in v or v == "\u5bf9" else "wrong" if "wrong" in v or v == "\u9519" else "partial")
                     break
-        after_mastery = _read_mastery_for(understanding, session, student_id)
-        stats = es.evaluate_turn(student_id=student_id, session_id=session.session_id, concept=concept, subject=subject, intent=intent, grade=session.grade, mode=mode, outcome=outcome, tool_calls=[tc.get("name") for tc in final_tool_calls], steps=len(final_tool_calls), tokens_used=0, before_mastery=before_mastery, after_mastery=after_mastery, n_questions=n_questions, had_assessment=had_assessment)
+        stats = es.evaluate_turn(student_id=student_id, session_id=session.session_id, concept=concept, subject=subject, intent=intent, grade=session.grade, mode=mode, outcome=outcome, tool_calls=[tc.get("name") for tc in final_tool_calls], steps=len(final_tool_calls), tokens_used=0, n_questions=n_questions, had_assessment=had_assessment)
         if stats is not None:
-            trace.log("evaluation_record", concept=concept, mode=mode, outcome=outcome, failure_type=stats.failure_type, learning_gain=stats.learning_gain)
+            trace.log("evaluation_record", concept=concept, mode=mode, outcome=outcome, failure_type=stats.failure_type)
     except Exception as e:
         trace.log("evaluation_record_error", message=str(e))
 
@@ -1374,9 +1403,25 @@ async def run(
         understanding = await understand(user_message, session, llm)
     except Exception as e:
         trace.log("supervisor_understand_error", message=str(e))
-        understanding = TaskUnderstanding(intent=TaskType.EXPLAIN,
-                                          concept=user_message[:30],
-                                          requires_tools=False, source="fallback")
+        # Keep the semantic quiz fallback available even if an unexpected
+        # understanding-layer exception occurs. The old hard-coded EXPLAIN
+        # fallback was another route by which “考我一下” could become plain
+        # text instead of a structured card.
+        from .task_understanding import rule_understand
+        understanding = rule_understand(user_message)
+        understanding.source = "fallback"
+    # R20（update_plan §4）：composition root 注入 scoped 评价投影——
+    # M3/M5 教学输入读到当前工作区有效判断（此前 evaluation_context
+    # 无赋值路径，恒空）。无 workspace → 空 dict（非个性化降级）。
+    try:
+        understanding.evaluation_context = _journal_evaluation_view(
+            sid, getattr(session, "workspace_id", "") or "") or {}
+    except Exception:
+        understanding.evaluation_context = {}
+    for tool in tools:
+        provider = getattr(tool, "_illustration_policy_provider", None)
+        if provider is not None:
+            provider.bind_understanding(understanding.illustration_request)
     trace.log("supervisor_understanding", **understanding.to_dict())
 
     # --- 2. student snapshot ---
@@ -1419,6 +1464,10 @@ async def run(
     trace.log("supervisor_plan", source=plan.source, steps=[s.to_dict() for s in plan.steps],
               goal=goal)
 
+    # 明确练习请求必须落到可交互题卡；不能把工具调用完全交给模型自由选择。
+    plan = _enforce_explicit_practice_plan(
+        plan, understanding, user_message, session.grade, trace)
+
     # --- 3b. V3 student-aware adaptation (soft strategy) ---
     strategy, adaptation_recap = await _adapt_for_turn(
         understanding, snapshot, session, trace, llm)
@@ -1445,12 +1494,6 @@ async def run(
     # Explicit response constraints are user contracts and remain active even
     # when the Skill runtime is off or a planner proposed extra assessment.
     plan = _apply_response_constraints_to_plan(plan, understanding, trace)
-
-    # Capture the student's mastery BEFORE the turn executes, so M7 can compute
-    # learning gain (after - before) at step 6e. Read-only; None when the
-    # Student Model is off or the concept is unknown.
-   # M0: use the resolved student id for mastery reads
-    before_mastery = _read_mastery_for(understanding, session, sid)
 
     # --- 3c. Phase 3: learning-path planning (intent=plan only) ---
     if understanding.intent and understanding.intent.value == "plan":
@@ -1485,6 +1528,14 @@ async def run(
     # PURE-READ: builds the "[交互智能·...]" block from the UX profile + the
     # most recent feedback + a once-per-milestone motivation nudge. Advisory
     # only; never alters content correctness. Mirrors 3d/3e/3f.
+    # --- 3f2. R20（update_plan §4）：P7 教学证据指令 —— 当前工作区对
+    # 本轮概念已有有效评价投影时，把 registry 的 P7 文本作为讲解呈现
+    # 约束并入本轮软指令（此前 P7 注册后零使用）。纯读、不改评价。
+    p7_recap = _teaching_evidence_directive_for_turn(understanding, session,
+                                                     trace)
+    if p7_recap:
+        adaptation_recap = (adaptation_recap + chr(10) + p7_recap).strip()
+
     ux_recap = _ux_directive_for_turn(understanding, session, trace)
     if ux_recap:
         adaptation_recap = (adaptation_recap + "\n" + ux_recap).strip()
@@ -1661,17 +1712,7 @@ async def run(
     safe_user_message = memory_safe_text(user_message)
     safe_final_answer = memory_safe_text(final_answer)
 
-    # --- 6b. V3: record learning events (student intelligence update) ---
-    evs: list = []
-    try:
-        from .student_model import get_student_model, is_enabled
-        if is_enabled():
-            evs = _collect_turn_events(understanding, safe_user_message,
-                                       safe_final_answer, trace)
-            if evs:
-                get_student_model(sid).record_events(evs)
-    except Exception as e:
-        trace.log("supervisor_events_record_error", message=str(e))
+    # G4：M2 学生事件链已删除（评价经 journal 受理；教学日志在 6c）。
 
     # --- 6c. M3: record teaching_log turn (cross-turn strategy memory) ---
     # Closes the loop for the teaching engine: persists (mode, outcome) so the
@@ -1738,6 +1779,7 @@ async def run(
     # Appends episodic memories immediately (zero LLM), folds procedural
     # strategy outcomes. Consumes the SAME events list as 6b (no recompute).
     # The periodic LLM consolidation runs separately (frequency-gated).
+    evs: list = []      # G4：学生事件链已删；M6 只收作答事件（compat 空）
     try:
         _memory_consolidate_turn(
             sid, session.session_id, session.workspace_id,
@@ -1755,7 +1797,7 @@ async def run(
     try:
         _evaluation_record_turn(
             sid, understanding, safe_user_message, session,
-            strategy, final_tool_calls, safe_final_answer, before_mastery, trace)
+            strategy, final_tool_calls, safe_final_answer, trace)
     except Exception as e:
         trace.log("evaluation_hook_error", message=str(e))
     # periodic LLM advisory (async, frequency-gated). Runs after the trace

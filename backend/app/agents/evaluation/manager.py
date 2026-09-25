@@ -29,7 +29,6 @@ from typing import Any
 
 from . import (store, strategy_analyzer, trace_analyzer, advisor,
                context_builder)
-from .learning_gain import compute_gain
 from .schema import (MetricSnapshot, ImprovementProposal, TurnTrace,
                      FailureType)
 
@@ -70,8 +69,6 @@ class EvaluationService:
                       tool_calls: list[str] | None = None,
                       steps: int = 0, tokens_used: int = 0,
                       duration_sec: float = 0.0,
-                      before_mastery: float | None = None,
-                      after_mastery: float | None = None,
                       n_questions: int = 0,
                       unmet_prereqs: list[str] | None = None,
                       misconceptions: list[str] | None = None,
@@ -86,18 +83,12 @@ class EvaluationService:
         """
         try:
             tool_list = [str(t) for t in (tool_calls or [])]
-            # learning gain
-            gain = compute_gain(before_mastery, after_mastery,
-                                concept=concept, subject=subject,
-                                n_questions=n_questions)
             trace = TurnTrace(
                 session_id=session_id, student_id=student_id,
                 concept=concept, subject=subject, intent=intent, grade=grade,
                 mode=mode, outcome=outcome, tool_calls=tool_list,
                 tool_count=len(tool_list), steps=steps,
                 tokens_used=tokens_used, duration_sec=duration_sec,
-                before_mastery=before_mastery, after_mastery=after_mastery,
-                learning_gain=gain.gain if gain else None,
             )
             # rule-based failure diagnosis (mutates trace in place)
             trace_analyzer.apply_diagnosis(
@@ -131,23 +122,11 @@ class EvaluationService:
         try:
             traces = store.read_traces(student_id)
             metrics = strategy_analyzer.summarize(traces)
-            gains = [t.learning_gain for t in traces
-                     if t.learning_gain is not None and t.after_mastery is not None]
-            measured = [t for t in traces if t.after_mastery is not None]
-            avg_gain = (sum(gains) / len(gains)) if gains else 0.0
-            # refresh strategy effectiveness from traces
-            strats = strategy_analyzer.refresh_effectiveness(student_id)
-            proposals = store.load_proposals(student_id)
-            pending = sum(1 for p in proposals if p.status == "proposed")
             return MetricSnapshot(
                 total_turns=len(traces),
-                total_evaluated=len(measured),
-                avg_learning_gain=round(avg_gain, 4),
                 failure_distribution=metrics.get("failure_distribution", {}),
-                top_strategies=[s.to_dict() for s in strats[:5]],
-                pending_proposals=pending,
-                tokens_per_turn=metrics.get("avg_tokens", 0.0),
-            )
+                top_strategies=metrics.get("top_strategies", []),
+                tokens_per_turn=metrics.get("tokens_per_turn", 0.0))
         except Exception:
             return MetricSnapshot()
 

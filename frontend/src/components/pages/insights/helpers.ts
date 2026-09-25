@@ -54,9 +54,3 @@ export function proposalStatusTone(status: string): BadgeTone {
       return "muted";
   }
 }
-
-/** 学习增益：+0.00 格式，null 显示 —。 */
-export function fmtGain(g: number | null | undefined): string {
-  if (g == null) return "—";
-  return `${g >= 0 ? "+" : ""}${g.toFixed(2)}`;
-}

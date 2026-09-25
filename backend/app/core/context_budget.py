@@ -16,12 +16,13 @@ def _compact_json(value: Any) -> str:
 def estimate_message_tokens(message: dict[str, Any]) -> int:
     """Estimate the whole protocol message, not only its visible content.
 
-    Native tool-call arguments and ``tool_call_id`` are part of the Provider
-    prompt and must count toward the window.  A small fixed envelope covers
-    role/name framing that the rough CJK/Latin estimator cannot see directly.
+    Native tool-call arguments, ``tool_call_id``, and provider-required
+    ``reasoning_content`` replay are all part of the actual prompt and must
+    count toward the context window.  A small fixed envelope covers role/name
+    framing that the rough CJK/Latin estimator cannot see directly.
     """
     projected = {k: message[k] for k in (
-        "role", "content", "name", "tool_call_id", "tool_calls"
+        "role", "content", "reasoning_content", "name", "tool_call_id", "tool_calls"
     ) if k in message and message[k] is not None}
     return estimate_tokens(_compact_json(projected)) + 4
 

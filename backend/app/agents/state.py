@@ -65,6 +65,13 @@ class TaskUnderstanding:
     source: str = "rule"       # "rule" | "llm" | "fallback"
     # Explicit output constraints extracted from the student's wording. These
     # are control-plane facts, not a second teaching strategy.
+    illustration_request: str = "auto"
+    # Whether this turn asks the learner to receive one or more *new*
+    # interactive questions. This is deliberately separate from intent:
+    # ``solve``/``explain`` may mention a question while still being a direct
+    # answer, whereas a fuzzy request such as "考我一下" must enter the
+    # structured quiz-card path even when the model's coarse intent is wrong.
+    structured_quiz_request: bool = False
     response_format: str = ""  # one_sentence | concise | table | steps | ""
     allow_followup_assessment: bool = True
     # LLM-refined retrieval terms for the turn (concept/lesson/chapter names).
@@ -72,6 +79,10 @@ class TaskUnderstanding:
     # Bounded to 3 by task_understanding; each entry is a short search term,
     # never the full sentence (see preresearch R10 contract).
     search_queries: list[str] = field(default_factory=list)
+    # R20（update_plan §4）：composition root 注入的当前工作区统一评价
+    # 投影（readers 只读；concept_id → {state,...}）。理解层自身不读
+    # journal——默认空 = 非个性化降级，不继承任何区的能力结论。
+    evaluation_context: dict = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -83,6 +94,8 @@ class TaskUnderstanding:
             "requires_tools": self.requires_tools,
             "confidence": self.confidence,
             "source": self.source,
+            "illustration_request": self.illustration_request,
+            "structured_quiz_request": self.structured_quiz_request,
             "response_format": self.response_format,
             "allow_followup_assessment": self.allow_followup_assessment,
             "search_queries": list(self.search_queries),
@@ -99,6 +112,8 @@ class TaskUnderstanding:
             requires_tools=bool(d.get("requires_tools", False)),
             confidence=float(d.get("confidence", 1.0)),
             source=d.get("source", "rule") or "rule",
+            illustration_request=d.get("illustration_request") if isinstance(d.get("illustration_request"), str) and d.get("illustration_request") in {"auto", "none", "required"} else "auto",
+            structured_quiz_request=bool(d.get("structured_quiz_request", False)),
             response_format=str(d.get("response_format", "") or ""),
             allow_followup_assessment=bool(d.get("allow_followup_assessment", True)),
             search_queries=[str(q).strip() for q in (d.get("search_queries") or [])
@@ -214,11 +229,9 @@ class StudentSnapshot:
     recent_weak_points: list[str] = field(default_factory=list)
     conversation_topic_hint: str | None = None
     # --- V3 Student Model additions (all optional, default empty) ---
+    # G4：weak/strong/数值能力映射字段已删（统一评价语义化）。
     goals: list[str] = field(default_factory=list)
     current_subject: str = ""
-    weak_skills: list[str] = field(default_factory=list)        # skill_ids
-    strong_skills: list[str] = field(default_factory=list)
-    mastery_map: dict[str, float] = field(default_factory=dict)  # skill_id -> p_known
     learning_style: dict[str, str] = field(default_factory=dict)
     recent_mistakes: list[str] = field(default_factory=list)
     unfinished_prereqs: list[str] = field(default_factory=list)
@@ -234,9 +247,6 @@ class StudentSnapshot:
             "conversation_topic_hint": self.conversation_topic_hint,
             "goals": list(self.goals),
             "current_subject": self.current_subject,
-            "weak_skills": list(self.weak_skills),
-            "strong_skills": list(self.strong_skills),
-            "mastery_map": dict(self.mastery_map),
             "learning_style": dict(self.learning_style),
             "recent_mistakes": list(self.recent_mistakes),
             "unfinished_prereqs": list(self.unfinished_prereqs),
@@ -254,9 +264,6 @@ class StudentSnapshot:
             conversation_topic_hint=d.get("conversation_topic_hint"),
             goals=list(d.get("goals", []) or []),
             current_subject=d.get("current_subject", "") or "",
-            weak_skills=list(d.get("weak_skills", []) or []),
-            strong_skills=list(d.get("strong_skills", []) or []),
-            mastery_map={k: float(v) for k, v in (d.get("mastery_map", {}) or {}).items()},
             learning_style=dict(d.get("learning_style", {}) or {}),
             recent_mistakes=list(d.get("recent_mistakes", []) or []),
             unfinished_prereqs=list(d.get("unfinished_prereqs", []) or []),

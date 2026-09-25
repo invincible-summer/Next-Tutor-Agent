@@ -5,7 +5,7 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { Pager, paged, pageCount } from "@/components/ui/Pager";
 import { Bars, type BarItem } from "@/components/charts/Bars";
 import type { Lang } from "@/lib/i18n";
-import { dt, masteryColor } from "@/lib/labels";
+import { dt } from "@/lib/labels";
 import type { ProceduralStrategy } from "@/lib/types-modules";
 
 type Tr = (key: string, fallback?: string) => string;
@@ -33,7 +33,6 @@ export function StrategyBars({
           value: s.success_rate,
           display: `${Math.round(s.success_rate * 100)}%`,
           hint: `${s.subject} · ${s.scope} · ${s.trials} ${tr("mem.trials")}`,
-          color: masteryColor(s.success_rate),
         })),
     [strategies, lang, tr],
   );

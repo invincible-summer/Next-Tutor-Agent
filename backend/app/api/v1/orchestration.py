@@ -33,6 +33,7 @@ class GoalBody(BaseModel):
     goal_type: str = "ability"
     subjects: list[str] = []
     target_concept_ids: list[str] = []
+    workspace_id: str = ""   # G4 §13.8：目标工作区归属（空 = unassigned）
     deadline: float = 0.0
 
 
@@ -40,6 +41,7 @@ class GoalPatchBody(BaseModel):
     title: str | None = None
     description: str | None = None
     goal_type: str | None = None
+    workspace_id: str | None = None
     subjects: list[str] | None = None
     target_concept_ids: list[str] | None = None
     deadline: float | None = None
@@ -147,6 +149,7 @@ async def orchestration_add_goal(body: GoalBody,
             student_id, title=body.title, description=body.description,
             goal_type=body.goal_type, subjects=body.subjects,
             target_concept_ids=body.target_concept_ids,
+            workspace_id=body.workspace_id,
             deadline=body.deadline)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -169,6 +172,7 @@ async def orchestration_patch_goal(goal_id: str, body: GoalPatchBody,
         student_id, goal_id, title=body.title, description=body.description,
         goal_type=body.goal_type, subjects=body.subjects,
         target_concept_ids=body.target_concept_ids,
+        workspace_id=body.workspace_id,
         deadline=body.deadline)
     if not ok:
         raise HTTPException(status_code=404, detail="goal not found")

@@ -6,7 +6,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { RotateCcw } from "lucide-react";
 import type { KnowledgeEdge, KnowledgeNode } from "@/lib/types-modules";
-import { dt, stateColor } from "@/lib/labels";
+import { dt } from "@/lib/labels";
+import { et, evalStateVisual } from "@/lib/evaluation-labels";
 import type { Lang } from "@/lib/i18n";
 import { NODE_H, edgePath, edgeStyle, layoutDag, nodeWidth, splitLabel } from "./graph-layout";
 // 两行标签所需节点盒高（单行 28 / 章节卡 40 之上按需加高）
@@ -62,6 +63,7 @@ export function KnowledgeGraphView({
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const [view, setView] = useState<View>({ k: 1, x: 0, y: 0 });
+  const [focusedId, setFocusedId] = useState("");
   const [dragging, setDragging] = useState(false);
   const drag = useRef<{ px: number; py: number; moved: boolean } | null>(null);
   // 任一名超宽 → 该节点两行渲染，整图节点盒统一加高（分层间距同步增大）。
@@ -205,7 +207,22 @@ export function KnowledgeGraphView({
             const hit = matched.has(n.id);
             const dim = hasQuery && !hit;
             const selected = selectedId === n.id;
-            const fill = stateColor(n.mastery?.state ?? "");
+            const focused = focusedId === n.id;
+            const evalState = n.evaluation?.state ?? null;
+            const vis = evalStateVisual(evalState);
+            const onDark = vis.ring === "supported";
+            const fill =
+              vis.ring === "none" ? "rgb(var(--surface-sunken))"
+              : vis.ring === "emerging" ? "rgb(var(--accent-soft))"
+              : vis.ring === "supported" ? "rgb(var(--success))"
+              : "rgb(var(--surface-sunken))";
+            const fillOpacity = vis.ring === "attention" ? 0.16 : 1;
+            const stroke =
+              vis.ring === "none" ? "rgb(var(--muted))"
+              : vis.ring === "emerging" ? "rgb(var(--accent))"
+              : vis.ring === "supported" ? "rgb(var(--success))"
+              : evalState === "conflicting" ? "rgb(var(--accent2))" : "rgb(var(--warning))";
+            const dash = vis.ring === "none" ? "4 3" : undefined;
             const diff = Math.min(5, Math.max(1, Math.round(n.difficulty || 1)));
             const sub = subtitle?.(n);
             const lines = splitLabel(n.name, Math.max(60, it.w - 26));
@@ -215,18 +232,46 @@ export function KnowledgeGraphView({
                 key={n.id}
                 transform={`translate(${it.cx - it.w / 2} ${it.cy - effNodeH / 2})`}
                 opacity={dim ? 0.28 : 1}
-                className="cursor-pointer"
+                className="cursor-pointer focus:outline-none"
+                tabIndex={0}
+                role="button"
+                aria-label={`${n.name} · ${n.subject} · ${et(lang, `eval.state.${evalState ?? "not_observed"}`)}`}
+                onFocus={() => setFocusedId(n.id)}
+                onBlur={() => setFocusedId((f) => (f === n.id ? "" : f))}
+                onKeyDown={(e) => {
+                  // R24：键盘可达——Enter/Space 打开概念抽屉（同指针点击）
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    onSelect(n);
+                  }
+                }}
               >
-                <title>{`${n.name} · ${n.subject} · ${dt(lang, `state.${n.mastery?.state ?? "unknown"}`)}`}</title>
-                {selected && (
-                  <rect x={-3} y={-3} width={it.w + 6} height={effNodeH + 6} rx={9} fill="none" stroke="rgb(var(--accent))" strokeWidth={2.4} />
+                <title>{`${n.name} · ${n.subject} · ${et(lang, `eval.state.${evalState ?? "not_observed"}`)}`}</title>
+                {(selected || focused) && (
+                  <rect x={-3} y={-3} width={it.w + 6} height={effNodeH + 6} rx={9} fill="none" stroke="rgb(var(--accent))" strokeWidth={selected ? 2.4 : 1.6} strokeDasharray={selected ? undefined : "3 2"} />
                 )}
                 {!selected && hit && hasQuery && (
                   <rect x={-3} y={-3} width={it.w + 6} height={effNodeH + 6} rx={9} fill="none" stroke="rgb(var(--accent2))" strokeWidth={2} />
                 )}
-                <rect width={it.w} height={effNodeH} rx={6} fill={fill} />
-                {/* 难度：左侧白色刻度条，越难越粗 */}
-                <rect x={2.5} y={4} width={1.5 + diff * 1.3} height={effNodeH - 8} rx={1.5} fill="rgb(255 255 255)" fillOpacity={0.38} />
+                <rect width={it.w} height={effNodeH} rx={6} fill={fill} fillOpacity={fillOpacity} stroke={stroke} strokeWidth={1.1} strokeDasharray={dash} />
+                {/* 难度：左侧刻度条，越难越粗（深底白条/浅底灰条） */}
+                <rect x={2.5} y={4} width={1.5 + diff * 1.3} height={effNodeH - 8} rx={1.5}
+                  fill={onDark ? "rgb(255 255 255)" : "rgb(var(--muted))"} fillOpacity={onDark ? 0.38 : 0.45} />
+                {/* §14.4：颜色之外另有图标/线型/文字——支持✓、待解决!、待核对? */}
+                {vis.icon && (
+                  <text
+                    x={it.w - 8}
+                    y={9}
+                    textAnchor="middle"
+                    dominantBaseline="central"
+                    fontSize={10}
+                    fontWeight={700}
+                    fill={onDark ? "rgb(255 255 255)" : stroke}
+                    style={{ pointerEvents: "none" }}
+                  >
+                    {vis.icon === "check" ? "✓" : vis.icon === "alert" ? "!" : "?"}
+                  </text>
+                )}
                 {(() => {
                   if (!twoLine) {
                     return (
@@ -236,7 +281,7 @@ export function KnowledgeGraphView({
                         textAnchor="middle"
                         dominantBaseline="central"
                         fontSize={11}
-                        className="fill-white font-medium"
+                        fill={onDark ? "rgb(255 255 255)" : "rgb(var(--fg))"} className="font-medium"
                         style={{ pointerEvents: "none" }}
                       >
                         {lines[0]}
@@ -251,7 +296,7 @@ export function KnowledgeGraphView({
                         textAnchor="middle"
                         dominantBaseline="central"
                         fontSize={11}
-                        className="fill-white font-medium"
+                        fill={onDark ? "rgb(255 255 255)" : "rgb(var(--fg))"} className="font-medium"
                         style={{ pointerEvents: "none" }}
                       >
                         {lines[0]}
@@ -262,7 +307,7 @@ export function KnowledgeGraphView({
                         textAnchor="middle"
                         dominantBaseline="central"
                         fontSize={11}
-                        className="fill-white font-medium"
+                        fill={onDark ? "rgb(255 255 255)" : "rgb(var(--fg))"} className="font-medium"
                         style={{ pointerEvents: "none" }}
                       >
                         {lines[1]}
@@ -277,8 +322,8 @@ export function KnowledgeGraphView({
                     textAnchor="middle"
                     dominantBaseline="central"
                     fontSize={9.5}
-                    className="fill-white"
-                    fillOpacity={0.85}
+                    fill={onDark ? "rgb(255 255 255)" : "rgb(var(--fg-secondary))"}
+                    fillOpacity={0.9}
                     style={{ pointerEvents: "none" }}
                   >
                     {sub}

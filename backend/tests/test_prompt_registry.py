@@ -57,8 +57,9 @@ class TestPromptRegistry(unittest.TestCase):
         # understand_system 增补 search_queries 字段（预检索查询精炼）→ 1.2.0；
         # W3/D02 增【会话上下文】块使用规则 → 1.3.0（1.2.0 保留非 active）。
         self.assertEqual(av["understand_system"], "1.3.0")
-        # 出题两轮化：蓝图 prompt 已注册（第一轮设计，第二轮生成见 tools/quiz.py）
-        self.assertEqual(av["quiz_blueprint"], "1.0.0")
+        # 出题两轮化：蓝图 prompt 已注册（第一轮设计，第二轮生成见 tools/quiz.py）；
+        # 统一学习评价 P1 升级 ECDL+RBT 蓝图 → 2.0.0（plan §9.1/§9.3）。
+        self.assertEqual(av["quiz_blueprint"], "2.0.0")
         self.assertIn("quiz_blueprint_anchor", av)
         self.assertIn("quiz_blueprint_anchor_auto", av)
         # W3/D04：M4 出题/批改 prompt 迁入注册表（含量规契约）。
@@ -66,6 +67,19 @@ class TestPromptRegistry(unittest.TestCase):
         self.assertEqual(av["assessment_generate_auto"], "1.0.0")
         self.assertEqual(av["assessment_grade"], "1.0.0")
         self.assertEqual(av["assessment_analyze"], "1.0.0")
+        # 统一学习评价 P0–P10（plan §9）：全部注册且为 active。
+        for pid, version in (
+                ("learning_evidence_contract", "1.0.0"),
+                ("question_evidence_audit", "1.0.0"),
+                ("assessment_learner_evaluation", "1.0.0"),
+                ("dialogue_learner_evaluation", "1.0.0"),
+                ("learner_evaluation_review", "1.0.0"),
+                ("teaching_decision", "2.0.0"),
+                ("teaching_evidence_directive", "1.0.0"),
+                ("teaching_clt_review", "1.0.0"),
+                ("learning_scope_synthesis", "1.0.0"),
+                ("learning_evidence_format_repair", "1.0.0")):
+            self.assertEqual(av[pid], version)
 
     def test_get_unknown_raises(self):
         with self.assertRaises(KeyError):
@@ -171,49 +185,3 @@ class TestInjectionDefense(StorageSandboxTestCase):
         self.assertIn("</workspace_memory>", block)
 
 
-class TestRecordQuizResultIdentity(unittest.TestCase):
-    """manager.record_quiz_result 的 student_id 必须路由到对应命名空间。"""
-
-    def setUp(self) -> None:
-        # 隔离 students/ 持久化目录，避免读到真实的 student_default 数据
-        import tempfile
-        from unittest.mock import patch
-        self._tmp = tempfile.TemporaryDirectory()
-        self._patches = [
-            patch("app.agents.student_model.store._STUDENTS_DIR",
-                  Path(self._tmp.name)),
-        ]
-        for p in self._patches:
-            p.start()
-
-    def tearDown(self):
-        from app.agents.student_model import manager as smgr
-        smgr._CACHE.clear()
-        for p in reversed(self._patches):
-            p.stop()
-        self._tmp.cleanup()
-
-    def test_student_id_routes_to_own_namespace(self):
-        from app.agents.student_model import record_quiz_result, get_student_model
-        from app.agents.student_model.store import DEFAULT_STUDENT_ID
-        sid = "student_quiz_id_test"
-        record_quiz_result(concept="摩擦力", correct=False,
-                           knowledge_point="摩擦力", subject="物理",
-                           student_id=sid)
-        own = get_student_model(sid).mastery_view()
-        guest = get_student_model(DEFAULT_STUDENT_ID).mastery_view()
-        node = "physics.dynamics.friction"
-        self.assertIn(node, own)
-        self.assertNotIn(node, guest)
-
-    def test_default_falls_back_to_guest(self):
-        from app.agents.student_model import record_quiz_result, get_student_model
-        from app.agents.student_model.store import DEFAULT_STUDENT_ID
-        record_quiz_result(concept="摩擦力", correct=False,
-                           knowledge_point="摩擦力", subject="物理")
-        guest = get_student_model(DEFAULT_STUDENT_ID).mastery_view()
-        self.assertIn("physics.dynamics.friction", guest)
-
-
-if __name__ == "__main__":
-    unittest.main()

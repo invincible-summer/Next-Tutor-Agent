@@ -48,3 +48,36 @@ def file_lock(key: PathLike) -> Iterator[None]:
         lock = _locks.setdefault(k, threading.RLock())
     with lock:
         yield
+
+
+def fsync_dir(path: PathLike) -> None:
+    """同步父目录条目（创建/替换文件的崩溃恢复承诺，§6.5）。"""
+    fd = os.open(str(path), os.O_RDONLY)
+    try:
+        os.fsync(fd)
+    except OSError:
+        pass  # 某些文件系统不支持目录 fsync
+    finally:
+        os.close(fd)
+
+
+def append_line_sync(path: PathLike, line: str, encoding: str = "utf-8") -> bool:
+    """受测的 journal append 原语（plan §6.5/§15.1）。
+
+    在调用方持有的 file_lock 内：追加完整一行（含换行）、flush、fsync 文件；
+    文件本次新建时同步父目录。短临界区、无 await；写失败向上抛 OSError，
+    由 service 报可见错误（禁止 except-pass，§17.1）。
+    """
+    path = Path(path)
+    created = not path.exists()
+    if created:
+        path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("a", encoding=encoding, newline="") as f:
+        f.write(line)
+        if not line.endswith("\n"):
+            f.write("\n")
+        f.flush()
+        os.fsync(f.fileno())
+    if created:
+        fsync_dir(path.parent)
+    return created

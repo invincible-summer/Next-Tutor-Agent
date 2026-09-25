@@ -19,7 +19,15 @@ class TestChatUploadPipeline(unittest.IsolatedAsyncioTestCase):
         class _Upload:
             filename = "question.png"
 
-            async def read(self):
+            def __init__(self):
+                self._served = False
+
+            # 对齐 FastAPI UploadFile.read(size=-1) 签名（read_upload_limited
+            # 分块限流读取按 size 参数取块，读到空即 EOF）。
+            async def read(self, size: int = -1):
+                if self._served:
+                    return b""
+                self._served = True
                 return b"image-bytes"
 
         with tempfile.TemporaryDirectory(prefix="chat_upload_") as td:

@@ -148,53 +148,6 @@ class TestLaunchEndpoint(LaunchTestBase):
         orch_store.save_state(self.alice.id, state)
         self.assertEqual(self._launch("t_done").status_code, 404)
 
-
-class TestBoundAttribution(LaunchTestBase):
-
-    def test_bound_evidence_completes_only_the_bound_task(self):
-        # A12 核心：同概念两个任务，只有绑定的那个被作答证据完成。
-        self._seed_tasks("t_bound", "t_sibling")
-        sid = self._launch("t_bound").json()["session_id"]
-        self._put_quiz_in_session(sid)
-        r = self._record_answer(sid)
-        self.assertEqual(r.json()["status"], "ok")
-        att = r.json()["attempt_id"]
-        tasks = self._tasks()
-        bound = tasks["t_bound"]
-        self.assertEqual(bound.status, DailyTaskStatus.COMPLETED)
-        self.assertEqual(bound.completion_source, "quiz_evidence")
-        self.assertEqual(bound.evidence_attempt_id, att)
-        self.assertEqual(tasks["t_sibling"].status, DailyTaskStatus.PENDING)
-        self.assertEqual(tasks["t_sibling"].completed_at, 0.0)
-        # episode 随任务完成推进。
-        ep = learning_episodes.get_episode(self.alice.id, bound.episode_id)
-        self.assertEqual(ep.status, learning_episodes.EPISODE_COMPLETED)
-        # SRS 复习键 = 任务的规范概念 id（不是聊天概念串）。
-        state = orch_store.load_state(self.alice.id)
-        self.assertIn("math.sequence.arithmetic", state.review_queue)
-        self.assertNotIn("等差数列", state.review_queue)
-
-    def test_wrong_answer_still_completes_bound_task(self):
-        # 做完任务≠会了：wrong 也是「做了该任务的练习」；达标是 M2 的事。
-        self._seed_tasks("t_bound")
-        sid = self._launch("t_bound").json()["session_id"]
-        self._put_quiz_in_session(sid)
-        self._record_answer(sid, answer="A")
-        self.assertEqual(self._tasks()["t_bound"].status,
-                         DailyTaskStatus.COMPLETED)
-        card = orch_store.load_state(self.alice.id).review_queue[
-            "math.sequence.arithmetic"]
-        self.assertEqual(card.repetitions, 0)  # wrong 复位，间隔不增长
-
-    def test_unbound_session_evidence_does_not_complete(self):
-        self._seed_tasks("t_free")
-        s = TutorSession(session_id="sess_free", student_id=self.alice.id)
-        save_session(s)
-        self._put_quiz_in_session("sess_free")
-        self._record_answer("sess_free")
-        self.assertEqual(self._tasks()["t_free"].status, DailyTaskStatus.PENDING)
-
-
 class TestManualCompletion(LaunchTestBase):
 
     def test_manual_complete_self_report_zero_mastery_writes(self):

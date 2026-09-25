@@ -111,10 +111,32 @@ def update_user(user: User) -> None:
 
 def touch_login(user_id: str) -> None:
     """Update last_login_at without reloading the full object."""
-    user = get_by_id(user_id)
-    if user:
-        user.last_login_at = time.time()
+    with file_lock(_ACCOUNTS_FILE):
+        user = get_by_id(user_id)
+        if user:
+            user.last_login_at = time.time()
+            update_user(user)
+
+
+def account_record_lock():
+    """Share the preference-update lock with the final question registration."""
+    return file_lock(_ACCOUNTS_FILE)
+
+
+def update_profile_fields(user_id: str, fields: dict[str, Any],
+                          prefs: dict[str, Any] | None = None) -> User:
+    """Merge into the latest account while holding the account-file lock."""
+    with file_lock(_ACCOUNTS_FILE):
+        user = get_by_id(user_id)
+        if user is None:
+            raise ValueError("account_not_found")
+        for name, value in fields.items():
+            if name in {"name", "grade", "school", "subjects", "avatar"}:
+                setattr(user.profile, name, value)
+        if prefs is not None:
+            user.profile.prefs.update(prefs)
         update_user(user)
+        return user
 
 
 def delete_user(user_id: str) -> bool:

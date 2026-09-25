@@ -71,7 +71,6 @@ def _build_advice_prompt(metrics: dict[str, Any], *,
         for mode, stats in by_mode.items():
             lines.append(
                 f"  {mode}: 次数={stats.get('count',0)}, "
-                f"平均增益={stats.get('avg_gain',0):+.2f}, "
                 f"成功率={stats.get('success_rate',0):.0%}")
     lines.append("")
     lines.append("要求：指导要针对证据中最突出的问题；表述为可执行的教学做法，"

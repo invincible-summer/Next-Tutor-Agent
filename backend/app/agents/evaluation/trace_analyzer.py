@@ -28,9 +28,6 @@ from .schema import FailureType
 
 def diagnose(*, mode: str = "", outcome: str = "unknown",
              tool_calls: list[str] | None = None,
-             before_mastery: float | None = None,
-             after_mastery: float | None = None,
-             learning_gain: float | None = None,
              unmet_prereqs: list[str] | None = None,
              misconceptions: list[str] | None = None,
              quiz_difficulty: str = "",
@@ -74,19 +71,7 @@ def diagnose(*, mode: str = "", outcome: str = "unknown",
             "re-explaining the target concept.",
         )
 
-    # 3. teaching depth mismatch: wrong outcome, low mastery, not in remediation
-    bm = before_mastery if before_mastery is not None else 0.0
-    if is_wrong and before_mastery is not None and bm < 0.3 and mode \
-           and mode.lower() not in ("remediation", "practice", "review"):
-       return (
-            FailureType.TEACHING_DEPTH_MISMATCH,
-            f"explanation level too high for current mastery ({bm:.2f}); "
-            "the student was at novice level but received a full explanation.",
-            "Drop to INTRODUCTION mode: start with intuition and analogies, "
-            "defer formal derivation until mastery rises above 0.3.",
-        )
-
-    # 4. strategy mismatch: wrong outcome with remediation already used (a
+    # 3. strategy mismatch: wrong outcome with remediation already used (a
     #    repeated failure even after error correction signals the mode itself
     #    doesn't fit this student)
     if is_wrong and mode and mode.lower() == "remediation" and miscon:
@@ -150,9 +135,6 @@ def apply_diagnosis(trace, *, unmet_prereqs: list[str] | None = None,
         ft, cause, rec = diagnose(
             mode=trace.mode, outcome=trace.outcome,
             tool_calls=trace.tool_calls,
-            before_mastery=trace.before_mastery,
-            after_mastery=trace.after_mastery,
-            learning_gain=trace.learning_gain,
             unmet_prereqs=unmet_prereqs,
             misconceptions=misconceptions,
             quiz_difficulty=quiz_difficulty,

@@ -398,7 +398,7 @@ class _VoiceCall:
 
         from app.agents.chat_agent import run_turn
         from app.api.v1.chat import _build_tools
-        tools = _build_tools(session)
+        tools = _build_tools(session, user_message=text)
         pending = ""
         tts_ok = True
         tts_failures = 0

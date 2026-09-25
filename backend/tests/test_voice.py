@@ -499,6 +499,15 @@ class TestVoiceWebSocket(StorageSandboxTestCase):
         patcher = patch.object(settings, "voice_tts_provider", "stub")
         patcher.start()
         self._patches.append(patcher)
+        # Keyless hermeticity: CI checkouts carry no root .env, so the real
+        # _build_tools -> get_llm() raises OpenAI "Missing credentials" and
+        # kills the turn task before the patched run_turn can stream. These
+        # tests exercise the voice transport only; chat tools are never
+        # consulted by the canned turns.
+        tools_patcher = patch("app.api.v1.chat._build_tools",
+                              lambda *args, **kwargs: [])
+        tools_patcher.start()
+        self._patches.append(tools_patcher)
 
         from app.main import create_app
         from fastapi.testclient import TestClient

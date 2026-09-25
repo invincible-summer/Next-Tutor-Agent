@@ -34,7 +34,7 @@ class AccountDataFixture(unittest.TestCase):
         from app.agents.memory import prompt_memory
         from app.agents.memory import store as memory_store
         from app.agents.student_model import store as sm_store
-        from app.core import context, learning_records, library, notes, quiz_recent
+        from app.core import context, library, notes
         from app.core import session, textbook, trash, workspace
         from app.core.config import settings
         from app.identity import config as id_config
@@ -59,8 +59,6 @@ class AccountDataFixture(unittest.TestCase):
             patch.object(prompt_memory, "_STUDENTS_DIR", self.root / "students"),
             patch.object(prompt_memory, "_POLICY_PATH", self.root / "students" / "prompt_policy.json"),
             patch.object(memory_store, "_STUDENTS_DIR", self.root / "students"),
-            patch.object(learning_records, "_STUDENTS_DIR", self.root / "students"),
-            patch.object(quiz_recent, "_STUDENTS_DIR", self.root / "students"),
             patch.object(sm_store, "_STUDENTS_DIR", self.root / "students"),
             patch.object(notes, "_NOTES_DIR", self.root / "notes"),
             patch.object(id_config, "AUTH_JWT_SECRET", "test-secret-not-default"),

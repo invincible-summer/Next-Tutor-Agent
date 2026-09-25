@@ -22,6 +22,19 @@ if str(_BACKEND) not in sys.path:
     sys.path.insert(0, str(_BACKEND))
 
 
+class _PolicyCacheReset:
+    """策略缓存随沙箱生命周期重置（start/stop 与 patcher 同接口）。"""
+
+    def __init__(self, module) -> None:
+        self._module = module
+
+    def start(self) -> None:
+        self._module.reset_policy_cache()
+
+    def stop(self) -> None:
+        self._module.reset_policy_cache()
+
+
 def patch_all_storage_roots(root: Path) -> list:
     """把全部存储根常量 patch 到 <root>/ 标准布局并启动，返回 patch 列表。
 
@@ -29,7 +42,6 @@ def patch_all_storage_roots(root: Path) -> list:
     调用方负责在 tearDown 里逆序 stop。同时重置 vector_store 与
     StudentModel 缓存——它们持有旧路径，不重置会把沙箱写穿到生产目录。
     """
-    from app.agents.assessment import session_store as assess_store
     from app.agents.evaluation import store as eval_store
     from app.agents.knowledge import store as graph_store
     from app.agents.learning_orchestration import store as orch_store
@@ -37,14 +49,21 @@ def patch_all_storage_roots(root: Path) -> list:
     from app.agents.memory import store as memory_store
     from app.agents.student_model import manager as sm_manager
     from app.agents.student_model import store as sm_store
+    from app.agents.student_model.evaluation import store as eval_journal_store
     from app.agents.teaching_engine import guidance_store, teaching_log
     from app.agents.ux_intelligence import store as ux_store
-    from app.core import context, learning_episodes, learning_records, library, notes
-    from app.core import quiz_recent, session, textbook, trash, usage_docs, workspace
+    from app.core import context, learning_episodes, library, notes
+    from app.core import learner_evaluation_policy
+    from app.core import session, textbook, trash, usage_docs, workspace
     from app.core import vector_store
     from app.core.config import settings
     patches = [
         patch.object(trash, "_TRASH_DIR", root / "chat_history" / "trash"),
+        # 阶段C：策略文件是全局设置（不入账号清理），但测试必须落沙箱
+        patch.object(learner_evaluation_policy, "POLICY_FILE",
+                     root / "chat_history" / "settings" /
+                     "learner_evaluation_policy.json"),
+        _PolicyCacheReset(learner_evaluation_policy),
         patch.object(trash, "_GLOBAL_POLICY",
                      root / "chat_history" / "trash" / "policy.json"),
         patch.object(session, "_SESSIONS_DIR", root / "chat_history"),
@@ -62,16 +81,14 @@ def patch_all_storage_roots(root: Path) -> list:
         patch.object(prompt_memory, "_POLICY_PATH",
                      root / "students" / "prompt_memory_policy.json"),
         patch.object(memory_store, "_STUDENTS_DIR", root / "students"),
-        patch.object(learning_records, "_STUDENTS_DIR", root / "students"),
         patch.object(learning_episodes, "_STUDENTS_DIR", root / "students"),
-        patch.object(quiz_recent, "_STUDENTS_DIR", root / "students"),
         patch.object(sm_store, "_STUDENTS_DIR", root / "students"),
         patch.object(teaching_log, "_STUDENTS_DIR", root / "students"),
         patch.object(guidance_store, "_STUDENTS_DIR", root / "students"),
         patch.object(eval_store, "_STUDENTS_DIR", root / "students"),
-        patch.object(ux_store, "_STUDENTS_DIR", root / "students"),
+        patch.object(eval_journal_store, "STUDENTS_DIR", root / "students"),
         patch.object(orch_store, "_STUDENTS_DIR", root / "students"),
-        patch.object(assess_store, "_STUDENTS_DIR", root / "students"),
+        patch.object(ux_store, "_STUDENTS_DIR", root / "students"),
         patch.object(notes, "_NOTES_DIR", root / "notes"),
         patch.object(usage_docs, "_DOCS_FILE",
                      root / "chat_history" / "settings" / "usage_docs.json"),
@@ -88,9 +105,13 @@ def patch_all_storage_roots(root: Path) -> list:
 def reset_shared_caches() -> None:
     """tearDown 用：清掉可能指向已删除临时目录的进程级缓存。"""
     from app.agents.student_model import manager as sm_manager
+    from app.agents.student_model.evaluation import store as eval_journal_store
     from app.core import vector_store
+    from app.core import learner_runtime
     sm_manager._CACHE.clear()
     vector_store._reset()
+    eval_journal_store.reset_journal_cache()
+    learner_runtime.reset_learner_runtime()
 
 
 class StorageSandboxTestCase(unittest.TestCase):

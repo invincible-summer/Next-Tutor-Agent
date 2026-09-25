@@ -28,14 +28,18 @@ export function Badge({
   tone = "muted",
   className,
   dot = false,
+  testId,
 }: {
   children: ReactNode;
   tone?: BadgeTone;
   className?: string;
   dot?: boolean;
+  /** E2E 稳定选择器（plan.md §27：只给关键交互边界加，不铺满 DOM） */
+  testId?: string;
 }) {
   return (
     <span
+      data-testid={testId}
       className={cn(
         "inline-flex items-center gap-1 whitespace-nowrap rounded-full border px-2 py-0.5 text-[11px] font-medium leading-4",
         TONES[tone],

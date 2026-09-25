@@ -1,62 +1,36 @@
-"""Constraint-driven question generator (M4 Phase 2).
-
-This is NOT a replacement for the generate_quiz / fit_quiz tools. Those answer
-"give me 3 problems on buoyancy" (student-initiated, topic-driven). This
-generator answers a different question the Teaching Engine asks internally:
-
-    "I just taught opening direction at difficulty 3; give me ONE question that
-     probes vertex identification and forbids calculus -- to close the turn."
-
-That is constraint-driven single-question generation, and it is what turns M3's
-advisory next_check ("test this at this difficulty") into an actionable probe.
-
-Design (same shape as the quiz tool, but single-question + constraint-aware):
-  - Constraint injection: the prompt encodes WHAT to probe (assesses), HOW HARD
-    (difficulty), and what to FORBID (forbidden methods), so the generated
-    question is targeted rather than generic.
-  - LLM only: question generation is inherently generative, so unlike the
-    rule-based evaluator/CAT rules this module calls the LLM.
-  - Reuses Question.from_quiz_dict to lift the JSON output, and the quiz tool's
-    JSON-extraction pattern. Never raises; failures return None so the
-    supervisor simply skips the closing check (M3 behavior).
-"""
 from __future__ import annotations
 
-import json
-import re
+import copy
+import logging
+import time
 import uuid
 from typing import Any
 
 from ...core.config import settings
-from ...core.llm_async import AsyncLLMClient
-from ...core.quiz_verify import freeze_rubric, is_well_formed, verify_questions
+from ...core.quiz_generation_budget import BudgetedLLM, GenerationBudget
+from ...core.quiz_illustration_policy import (
+    IllustrationDisabled,
+    effective_quiz_verify_mode,
+    resolve_illustration_policy,
+)
+from ...core.quiz_verify import freeze_rubric, generate_verified_questions, is_well_formed, verify_questions
 from ...prompts.registry import get as _prompt
 from .question import Question, QuestionType
 from .state import AssessmentContext, AssessmentGoal
 
-# 1..5 internal difficulty -> human label for the prompt
+logger = logging.getLogger(__name__)
 _DIFFICULTY_ZH = {1: "入门", 2: "基础", 3: "中等", 4: "进阶", 5: "挑战"}
-
-# W3/D04: prompt 文本统一入注册表（assessment_generate@1.0.0 / _auto），
-# 文本含追加的量规契约；此处薄 re-export 兼容旧引用。
 _GEN_PROMPT = _prompt("assessment_generate").text
 _GEN_PROMPT_AUTO = _prompt("assessment_generate_auto").text
+CAT_TEXT_DEADLINE_SECONDS = 27.0
 
 
-def _difficulty_label(d: int) -> str:
-    """Map the 1..5 internal scale to the quiz tool's easy/medium/hard triple so
-    the generated question round-trips through Question.from_quiz_dict cleanly."""
-    if d <= 2:
-        return "easy"
-    if d <= 3:
-        return "medium"
-    return "hard"
+def _difficulty_label(difficulty: int) -> str:
+    return "easy" if difficulty <= 2 else "medium" if difficulty == 3 else "hard"
 
 
 def _constraint_block(goal: AssessmentGoal, *, bloom_context: str = "") -> str:
-    """Render the assesses/forbidden constraints + Bloom guidance as prompt
-    directives. The Bloom block asks the LLM to pick the cognitive level in
-    context (free, no ladder) and tag the question with bloom_level."""
+    from ...core.bloom import guidance_block
     lines = []
     if goal.assesses:
         lines.append("本题必须检测以下子能力：" + "、".join(goal.assesses) + "。")
@@ -64,157 +38,294 @@ def _constraint_block(goal: AssessmentGoal, *, bloom_context: str = "") -> str:
         lines.append("禁止使用以下方法/知识：" + "、".join(goal.forbidden) + "。")
     if not lines:
         lines.append("自由命题，覆盖该知识点的核心考查点。")
-    from ...core.bloom import guidance_block
-    lines.append(guidance_block(focus=goal.bloom_focus,
-                                context_line=bloom_context))
+    lines.append(guidance_block(focus=goal.bloom_focus, context_line=bloom_context))
     return "\n".join(lines)
 
 
+def _ctx_grounding_context(ctx: AssessmentContext) -> tuple[str, dict[str, dict[str, Any]]]:
+    from ...core.quiz_grounding import QuizGroundingBundle, QuizSourceRef, render_grounding_context
+    sources = [source for source in (ctx.grounding_sources or [])
+               if isinstance(source, dict)][:6]
+    if not sources:
+        return "", {}
+    refs = [QuizSourceRef(
+        file_id=str(source.get("file_id") or ""),
+        chunk_id=str(source.get("chunk_id") or ""),
+        filename=str(source.get("filename") or ""),
+        page=source.get("page"), printed_page=source.get("printed_page"),
+        section_path=list(source.get("section_path") or []),
+        excerpt=str(source.get("excerpt") or ""),
+        context_hash=str(source.get("context_hash") or ""),
+        confidence=source.get("confidence"),
+    ) for source in sources]
+    bundle = QuizGroundingBundle(
+        query=ctx.grounding_query, mode=ctx.grounding_mode or "textbook",
+        tier=ctx.grounding_tier or "not_found", required=ctx.grounding_required,
+        reason="", source_refs=refs)
+    return render_grounding_context(bundle), {
+        f"src_{index}": dict(source) for index, source in enumerate(sources, 1)}
+
+
 def _pick_q_type(goal: AssessmentGoal) -> str:
-    """Auto-select question type: MC for fast checks/diagnosis, short_answer
-    for deeper practice. An explicit goal.q_type always wins."""
     if goal.q_type:
         return goal.q_type
-    if goal.purpose in ("check", "diagnose"):
-        return QuestionType.MULTIPLE_CHOICE
-    return QuestionType.SHORT_ANSWER
+    return (QuestionType.MULTIPLE_CHOICE
+            if goal.purpose in {"check", "diagnose", "adaptive"}
+            else QuestionType.SHORT_ANSWER)
 
 
-def _parse_dict(raw: str) -> "dict[str, Any] | None":
-    """Extract the first question JSON dict (pre-lift), or None."""
-    m = re.search(r"\{.*\}", raw, re.DOTALL)
-    candidate = m.group(0) if m else raw
-    try:
-        data = json.loads(candidate)
-    except json.JSONDecodeError:
+def _parse_dict(raw: str) -> dict[str, Any] | None:
+    from ...core.json_utils import extract_json_object
+    data = extract_json_object(raw)
+    if not isinstance(data, dict):
         return None
-    qs = data.get("questions", []) if isinstance(data, dict) else []
-    if not qs or not isinstance(qs[0], dict):
-        return None
-    return qs[0]
+    if isinstance(data.get("stem"), str):
+        return data
+    questions = data.get("questions")
+    if isinstance(questions, list):
+        return next((item for item in questions if isinstance(item, dict)), None)
+    return None
 
 
-def _parse(raw: str, *, concept: str, difficulty: int) -> "Question | None":
-    """Extract the first question JSON and lift it via Question.from_quiz_dict.
-    Mirrors the quiz tool's extraction but returns a single Question."""
-    raw_q = _parse_dict(raw)
-    if raw_q is None:
+def _parse(raw: str, *, concept: str, difficulty: int) -> Question | None:
+    candidate = _parse_dict(raw)
+    if candidate is None:
         return None
-    q = Question.from_quiz_dict(raw_q, concept=concept, difficulty=difficulty)
-    if not q.stem or not q.answer:
-        return None
-    return q
+    question = Question.from_quiz_dict(candidate, concept=concept, difficulty=difficulty)
+    return question if question.stem and question.answer else None
 
 
-async def generate_question(goal: AssessmentGoal, ctx: AssessmentContext,
-                            *, llm: "AsyncLLMClient",
-                            student_id: str = "") -> "Question | None":
-    """Generate one constraint-driven question. Returns None on any failure.
+async def _revise_question(llm, raw_q: dict[str, Any], *, fixes: list[str],
+                           grounding_context: str = "") -> dict[str, Any] | None:
+    from ...core.quiz_verify import _revise_dropped
+    revised = await _revise_dropped(
+        llm, [{**raw_q, "_drop_reason": "\n".join(fixes)}],
+        topic=str(raw_q.get("knowledge_point") or ""), grade="",
+        difficulty=str(raw_q.get("difficulty") or ""),
+        grounding_context=grounding_context, illustration_policy="off",
+        max_tokens=3500)
+    return revised[0] if revised else None
 
-    The difficulty comes from the AssessmentContext (which the supervisor
-    assembles from teaching_engine's difficulty engine), so the generated
-    question lands in the zone of proximal development. The Bloom cognitive
-    level is decided by the generating LLM itself, grounded in the student's
-    cognitive-profile snapshot (student_id -> bloom_profile.context_line);
-    no data / no LLM tag simply leaves the question untagged. Never raises.
-    """
-    concept = goal.concept or ctx.concept
-    if not concept:
-        return None
-    difficulty = max(1, min(5, int(goal.difficulty or ctx.base_difficulty or 3)))
-    q_type = _pick_q_type(goal)
-    from ..teaching_engine.stage_profile import is_auto, normalize_grade
-    grade = normalize_grade(ctx.grade or "")
-    bloom_context = ""
-    if student_id:
-        try:
-            from ...core.bloom_profile import context_line as bloom_ctx
-            bloom_context = bloom_ctx(student_id, concept)
-        except Exception:
-            bloom_context = ""
-    # 两轮出题（QUIZ_DESIGN_MODE=two_pass）：先跑蓝图设计轮（单题的设计要点：
-    # 深层考点、陷阱、如何体现约束），失败自动回退单轮。focus 用约束子能力。
-    from ...core.quiz_design import design_blueprint
-    blueprint, _design_status = await design_blueprint(
-        llm, topic=concept, grade=grade,
-        difficulty=_difficulty_label(difficulty), count=1,
-        focus="、".join(goal.assesses) if goal.assesses else "")
-    prompt = _build_gen_prompt(grade=grade, concept=concept, difficulty=difficulty,
-                               goal=goal, q_type=q_type,
-                               bloom_context=bloom_context, blueprint=blueprint)
-    try:
-        # Non-streaming call with thinking disabled (same hardening as the
-        # quiz tools, DESIGN §21.1): a reasoning model can otherwise burn the
-        # whole budget on reasoning_content and return an empty answer.
-        full, _usage = await llm.complete(
-            messages=[{"role": "user", "content": prompt}],
-            temperature=0.4, max_tokens=1500, disable_thinking=True)
-        raw_q = _parse_dict(full)
-        if raw_q is None:
-            return None
-        # Shared quality gate: structural check + independent critic re-solve.
-        # A failed/dropped question returns None so the supervisor simply
-        # skips the closing check instead of quizzing with a broken key.
-        verification: dict[str, Any] = {
-            "mode": settings.quiz_verify_mode, "critic": "skipped",
-            "answer_verified": False}
-        if settings.quiz_verify_mode != "off" and not is_well_formed(raw_q):
-            return None
-        if settings.quiz_verify_mode == "critic":
-            kept, _bad, critic_ok = await verify_questions(
-                llm, [raw_q], topic=concept, grade=grade,
-                difficulty=_difficulty_label(difficulty))
-            verification["critic"] = "ok" if critic_ok else "error"
-            if critic_ok and not kept:
-                return None
-        verification["answer_verified"] = (
-            settings.quiz_verify_mode == "critic"
-            and verification["critic"] == "ok")
-        # W3/D04（承接 W2/A14）：CAT 单题路径此前沿用 LLM 的裸 "id": 1，
-        # 跨会话/跨题套不唯一；稳定 id 后在其上冻结量规。
-        raw_q["id"] = f"q_{uuid.uuid4().hex[:8]}_1"
-        rubric = freeze_rubric(raw_q, raw_q["id"])
-        q = Question.from_quiz_dict(raw_q, concept=concept, difficulty=difficulty)
-        if not q.stem or not q.answer:
-            return None
-        q.assesses = list(goal.assesses)
-        q.forbidden = list(goal.forbidden)
-        # W2/A05: the verification audit rides WITH the question (into the
-        # session file) so the evidence gate can weigh it at grading time.
-        q.verification = verification
-        if rubric is not None:
-            q.rubric = rubric
-        return q
-    except Exception:
-        return None
+
+async def _revise_after_critic(llm, raw_q: dict[str, Any], *, bad: list[dict[str, Any]],
+                               topic: str, grade: str, difficulty_label: str,
+                               grounding_context: str = ""):
+    from ...core.quiz_verify import prepare_illustrations
+    revised = await _revise_question(
+        llm, raw_q, fixes=[str(item.get("_drop_reason") or "") for item in bad],
+        grounding_context=grounding_context)
+    safe, _ = prepare_illustrations([revised], "off") if revised else ([], [])
+    if not safe or not is_well_formed(safe[0]):
+        return None, []
+    kept, _, critic_ok = await verify_questions(
+        llm, safe, topic=topic, grade=grade,
+        difficulty=difficulty_label, grounding_context=grounding_context)
+    return (kept[0], kept) if critic_ok and kept else (None, [])
 
 
 def _build_gen_prompt(*, grade: str, concept: str, difficulty: int,
-                      goal: "AssessmentGoal", q_type: str,
+                      goal: AssessmentGoal, q_type: str,
                       bloom_context: str = "", blueprint: str = "") -> str:
-    """Render the single-question gen prompt, auto-aware (P1).
-
-    ``grade`` already normalized ("") = auto; the prompt then drops the
-    stage anchor line and frames difficulty relative to the concept itself.
-    ``blueprint`` is the round-1 design block from core.quiz_design ("" when
-    the design pass is off or fell back).
-    """
-    from ..teaching_engine.stage_profile import is_auto
-    if is_auto(grade):
-        return _GEN_PROMPT_AUTO.format(
-            concept=concept, difficulty=difficulty,
-            difficulty_zh=_DIFFICULTY_ZH.get(difficulty, "中等"),
-            difficulty_label=_difficulty_label(difficulty),
-            constraints=_constraint_block(goal, bloom_context=bloom_context),
-            blueprint=blueprint,
-            q_type=q_type)
-    from ..teaching_engine.stage_profile import difficulty_anchor
-    return _GEN_PROMPT.format(
-        grade=grade or "本科", concept=concept,
-        difficulty=difficulty, difficulty_zh=_DIFFICULTY_ZH.get(difficulty, "中等"),
+    from ..teaching_engine.stage_profile import difficulty_anchor, is_auto
+    fields = dict(
+        concept=concept, difficulty=difficulty,
+        difficulty_zh=_DIFFICULTY_ZH.get(difficulty, "中等"),
         difficulty_label=_difficulty_label(difficulty),
         constraints=_constraint_block(goal, bloom_context=bloom_context),
-        blueprint=blueprint,
-        q_type=q_type,
-        anchor=difficulty_anchor(grade or "本科"),
+        blueprint=blueprint, q_type=q_type)
+    if is_auto(grade):
+        return _GEN_PROMPT_AUTO.format(**fields)
+    return _GEN_PROMPT.format(
+        **fields, grade=grade or "本科", anchor=difficulty_anchor(grade or "本科"))
+
+
+def _lift(candidate: dict[str, Any], meta: dict[str, Any], *,
+          goal: AssessmentGoal, ctx: AssessmentContext, concept: str,
+          difficulty: int, ref_map: dict[str, dict[str, Any]],
+          budget: GenerationBudget) -> Question | None:
+    raw = copy.deepcopy(candidate)
+    if not is_well_formed(raw):
+        return None
+    if any(len(str(raw.get(key) or "")) > maximum for key, maximum in (
+            ("stem", 3600), ("answer", 4000), ("explanation", 6000))):
+        return None
+    raw_ids = raw.pop("source_ref_ids", [])
+    refs = [dict(ref_map[key]) for key in raw_ids
+            if isinstance(key, str) and key in ref_map] if isinstance(raw_ids, list) else []
+    if ctx.grounding_required and not refs:
+        return None
+    verification = {**meta, **(raw.get("verification") or {}), **budget.summary()}
+    verified = meta.get("critic") == "ok" and verification.get("status") == "passed"
+    verification["answer_verified"] = verified
+    if not verified:
+        # A06: unreviewed ≠ rejected.  A structurally valid question that the
+        # critic could not confirm (critic error, skipped item, or an
+        # intentionally disabled critic lane) is still delivered as a normal
+        # answerable question, honestly marked unreviewed.  The dead-end
+        # q_draft_ marker is reserved for the local self-check fallback.
+        verification["status"] = "unreviewed"
+    raw["id"] = "q_" + uuid.uuid4().hex[:24]
+    result = Question.from_quiz_dict(raw, concept=concept, difficulty=difficulty)
+    result.assesses = list(goal.assesses)
+    result.forbidden = list(goal.forbidden)
+    result.verification = verification
+    result.rubric = freeze_rubric(raw, result.id) or {}
+    result.knowledge_points = [str(point)[:55] for point in result.knowledge_points[:3]]
+    if refs:
+        result.grounding_mode = "textbook"
+        result.grounding_tier = ctx.grounding_tier or "partial"
+        result.source_refs = refs[:6]
+        result.verification["grounding_verification"] = "content_checked" if verified else "unavailable"
+    return result
+
+
+def _self_check(concept: str, budget: GenerationBudget) -> Question:
+    label = concept[:160]
+    return Question(
+        id="q_draft_" + uuid.uuid4().hex[:24], concept=concept,
+        knowledge_points=[label[:55]], q_type=QuestionType.SHORT_ANSWER,
+        difficulty=1,
+        stem=("【保底自检草稿：不是已审核测评题，不自动评分】\n\n"
+              f"请围绕「{label}」完成以下自检：\n\n"
+              "1. 用自己的话写出核心定义，并列出适用条件。\n"
+              "2. 给出一个例子，解释它为什么满足上述定义或条件。\n"
+              "3. 写出一个容易混淆的情形，并说明需要查证的地方。\n\n"
+              "请结合你选定的教材自行核对；本草稿不声称引用了已检索到的教材。"),
+        answer="本草稿没有经核验的标准答案，不用于自动判分。",
+        explanation="这是生成链路不可用时的本地自检任务，不是模型生成或审核通过的答案。",
+        verification={"status": "unreviewed", "answer_verified": False,
+                      "critic": "unavailable", "fallback": "self_check",
+                      **budget.summary()},
+        rubric={"criteria": [{"id": "self_check", "description": "仅供自检，不用于自动评分",
+                               "weight": 1.0, "critical": False}]},
     )
+
+
+async def generate_question(goal: AssessmentGoal, ctx: AssessmentContext, *,
+                            llm, student_id: str = "",
+                            budget: GenerationBudget | None = None,
+                            use_blueprint: bool = True) -> Question | None:
+    concept = str(goal.concept or ctx.concept or "").strip()
+    if not concept:
+        return None
+    policy = resolve_illustration_policy(student_id, goal.illustration_request)
+    verify_mode = effective_quiz_verify_mode(student_id)
+    if isinstance(llm, BudgetedLLM):
+        budget = llm.budget
+        llm = llm.llm
+    cat_mode = not use_blueprint
+    budget = budget or (GenerationBudget(max_calls=settings.assessment_generation_max_calls)
+                        if cat_mode else GenerationBudget())
+    if cat_mode:
+        # CAT is text-first.  The same shared budget is capped here so outer
+        # retry loops cannot silently turn a 27s text phase into multiple 27s
+        # attempts.  SVG enrichment has its own independent 18s budget.
+        budget.deadline = min(budget.deadline,
+                              time.monotonic() + CAT_TEXT_DEADLINE_SECONDS)
+    difficulty = max(1, min(5, int(goal.difficulty or ctx.base_difficulty or 3)))
+    q_type = _pick_q_type(goal)
+    if q_type not in {"multiple_choice", "fill_blank", "short_answer"}:
+        return None
+    best = None
+    baseline = None
+    try:
+        from ..teaching_engine.stage_profile import normalize_grade
+        grade = normalize_grade(ctx.grade or "")
+        grounding, ref_map = _ctx_grounding_context(ctx)
+        if ctx.grounding_required and not ref_map:
+            return None
+        blueprint = ""
+        if use_blueprint:
+            from ...core.quiz_design import design_blueprint
+            blueprint, _ = await design_blueprint(
+                BudgetedLLM(llm, budget),
+                topic=concept, grade=grade, difficulty=_difficulty_label(difficulty),
+                count=1, focus="、".join(goal.assesses),
+                grounding_context=grounding, illustration_policy=policy)
+        prompt = _build_gen_prompt(
+            grade=grade, concept=concept, difficulty=difficulty,
+            goal=goal, q_type=q_type, blueprint=blueprint)
+        if goal.avoid_stems:
+            prompt += "\n本次已出题干，避免重复：\n" + "\n".join(
+                str(stem)[:200] for stem in goal.avoid_stems[-6:])
+        if grounding:
+            prompt += "\n\n[命题事实边界]\n" + grounding
+        # The JSON example alone does not stop models (fast lanes especially)
+        # from swapping in their preferred question type; an explicit contract
+        # line keeps strict requests strict and makes auto selection honest.
+        strict_type = bool(goal.q_type)
+        if strict_type:
+            prompt += (f"\n\n[题型硬性要求] 本题 \"type\" 必须等于 {q_type}，"
+                       "不得改用其他题型；" + ("选择题必须给出字母键 options。"
+                       if q_type == "multiple_choice"
+                       else "非选择题不得输出 options 字段。"))
+        else:
+            prompt += ("\n\n[题型] \"type\" 从 multiple_choice / fill_blank / "
+                       "short_answer 中选择最适合本题考查目标的一种，"
+                       "选定后整题结构必须与该题型一致。")
+
+        last_meta: dict[str, Any] = {}
+
+        async def attempt(phase_policy: str, phase_deadline: float):
+            def parse(raw: str):
+                candidate = _parse_dict(raw)
+                if not candidate:
+                    return []
+                actual = str(candidate.get("type") or "")
+                if strict_type:
+                    return [candidate] if actual == q_type else []
+                # Auto-picked types are a server-side suggestion, not a student
+                # requirement — a well-formed question of any supported type is
+                # accepted instead of wasting the single CAT sampling attempt.
+                return [candidate] if actual in {
+                    "multiple_choice", "fill_blank", "short_answer"} else []
+            candidates, meta = await generate_verified_questions(
+                BudgetedLLM(llm, budget, call_timeout=12 if cat_mode else None,
+                            phase_deadline=phase_deadline),
+                make_prompt=lambda: prompt, parse=parse,
+                topic=concept, grade=grade, difficulty=_difficulty_label(difficulty),
+                temperature=0.3, max_tokens=4500 if phase_policy != "off" else 3500,
+                grounding_context=grounding, illustration_policy=phase_policy,
+                max_attempts=1, repair_max_tokens=4500 if phase_policy != "off" else 3500,
+                required_type=q_type if strict_type else "",
+                verify_mode=verify_mode)
+            last_meta.clear()
+            last_meta.update(meta)
+            for candidate in candidates:
+                try:
+                    result = _lift(candidate, meta, goal=goal, ctx=ctx, concept=concept,
+                                   difficulty=difficulty, ref_map=ref_map, budget=budget)
+                    if result is not None:
+                        return result
+                except (TypeError, ValueError):
+                    continue
+            return None
+
+        if cat_mode:
+            # Never regenerate a second complete question merely to obtain an
+            # SVG.  The accepted text question is frozen first; the assessment
+            # illustration endpoint enriches that exact question afterwards.
+            best = await attempt("off", budget.deadline)
+            baseline = best
+            if best is None:
+                # A dropped/self-check CAT is a real degradation; the critic
+                # flags and budget summary are the only way to tell a provider
+                # hiccup from a contract problem, so surface them in logs.
+                logger.warning("assessment text phase empty student=%s concept=%s meta=%s",
+                               student_id, concept, last_meta)
+        else:
+            best = await attempt(policy, budget.deadline)
+    except IllustrationDisabled:
+        raise
+    except Exception:
+        logger.exception("assessment generation failed")
+    current_policy = resolve_illustration_policy(student_id, goal.illustration_request)
+    if best is not None and best.illustration is not None and current_policy == "off":
+        best = baseline
+    if best is None and cat_mode and not ctx.grounding_required:
+        best = _self_check(concept, budget)
+    if best is not None:
+        best.verification.update(budget.summary())
+        logger.info("assessment generation result=%s metrics=%s",
+                    "draft" if best.id.startswith("q_draft_") else "verified", budget.summary())
+    return best

@@ -22,7 +22,6 @@ from ..core.llm_async import AsyncLLMClient, get_llm
 from ..core.quiz_attempts import (merge_quiz_results_from_disk,
                                   quiz_digest_for_session,
                                   record_generated_quiz)
-from ..core.quiz_recent import record_recent_quiz
 from ..core.session import TutorSession, save_session
 from ..core.tool_base import Tool
 from ..core.tool_protocol import ErrorCode, ToolResult, err, ok
@@ -222,6 +221,18 @@ def _classify_intent(message: str, session: TutorSession) -> str:
     msg = message.strip()
     msg_lower = msg.lower()
 
+    # Keep the legacy compatibility path aligned with Supervisor's semantic
+    # quiz gate. This is a cheap fallback signal only; the legacy turn then
+    # asks the shared task-understanding LLM before deciding exact arguments.
+    # Without it, phrases such as “考我一下” could take the direct branch and
+    # never produce a structured QuizCard.
+    try:
+        from .task_understanding import is_new_question_request
+        if is_new_question_request(msg):
+            return "react"
+    except Exception:
+        pass
+
     # tool-trigger keywords — force ReAct even for short messages
     if any(kw in msg for kw in _TOOL_TRIGGERS):
         return "react"
@@ -393,6 +404,49 @@ async def chat_turn(
     session._turn_material_cache_enabled = True
     session.__dict__.pop("_turn_merged_knowledge_cache", None)
     intent = _classify_intent(user_message, session)
+    # The V2 supervisor is the normal path, but deployments can explicitly
+    # select legacy mode. Run the same shared understanding contract there so
+    # fuzzy new-question requests still receive a structured card. The call is
+    # skipped for exact greetings/direct fragments to preserve the cheap path.
+    structured_quiz_plan = None
+    structured_understanding = None
+    if intent == "react":
+        try:
+            from .task_understanding import understand as understand_task
+            from .state import TaskPlan
+            structured_understanding = await understand_task(
+                user_message, session, llm)
+            for provider in tools:
+                provider_policy = getattr(provider, "_illustration_policy_provider", None)
+                if provider_policy is not None:
+                    provider_policy.bind_understanding(
+                        structured_understanding.illustration_request)
+            if (structured_understanding.structured_quiz_request
+                    or structured_understanding.intent.value == "practice") \
+                    and structured_understanding.allow_followup_assessment:
+                from .supervisor import _enforce_explicit_practice_plan
+                structured_quiz_plan = _enforce_explicit_practice_plan(
+                    TaskPlan(steps=[], source="legacy"),
+                    structured_understanding, user_message, session.grade, trace)
+                intent = "react"
+        except Exception as exc:
+            trace.log("legacy_quiz_understanding_error", message=str(exc)[:200])
+            # If the shared LLM adapter itself is unavailable, retain the
+            # deterministic semantic fallback instead of losing the card
+            # guarantee for legacy mode.
+            try:
+                from .task_understanding import rule_understand
+                from .state import TaskPlan
+                structured_understanding = rule_understand(user_message)
+                if (structured_understanding.structured_quiz_request
+                        and structured_understanding.allow_followup_assessment):
+                    from .supervisor import _enforce_explicit_practice_plan
+                    structured_quiz_plan = _enforce_explicit_practice_plan(
+                        TaskPlan(steps=[], source="legacy_fallback"),
+                        structured_understanding, user_message, session.grade, trace)
+            except Exception as fallback_exc:
+                trace.log("legacy_quiz_rule_fallback_error",
+                          message=str(fallback_exc)[:200])
     # Language policy (simplified — no input auto-detection, which was fragile
     # with bare math/code blocks that aren't always $$-delimited):
     #   - explicit output_language zh|en (from settings or session) -> forced;
@@ -611,6 +665,14 @@ async def chat_turn(
         pseudo_guard: PseudoToolGuard | None = None
         tool_calls_raw: list[dict[str, Any]] = []
         finish_reason = "stop"
+        forced_quiz_call = None
+        if structured_quiz_plan is not None:
+            try:
+                from .executor import _enforced_plan_call
+                forced_quiz_call = _enforced_plan_call(
+                    structured_quiz_plan, tool_map, all_tool_calls)
+            except Exception:
+                forced_quiz_call = None
         try:
             # context already assembled+compacted once above; refresh the
             # tail todo_recap for the current step only (cheap).
@@ -632,7 +694,11 @@ async def chat_turn(
                     if pseudo_guard is None:
                         pseudo_guard = PseudoToolGuard()
                     safe = pseudo_guard.feed(ev["delta"])
-                    if safe:
+                    # A model may start writing a question before issuing the
+                    # tool call. Suppress that provisional text whenever this
+                    # turn has a pending deterministic quiz call; the card is
+                    # the sole source of truth for the question body.
+                    if safe and forced_quiz_call is None:
                         yield {"type": "answer", "content": safe, "is_delta": True}
                 elif ev["kind"] == "tool_calls":
                     tool_calls_raw = ev["calls"]
@@ -659,13 +725,23 @@ async def chat_turn(
                         tool_calls_raw[0]["name"] if tool_calls_raw else None,
                         bool(tool_calls_raw), finish_reason)
 
+        # If the model omitted a required quiz call, convert the provisional
+        # text-only completion into the validated call before the normal
+        # no-tool finalization branch. This keeps the card as the sole source
+        # of truth for the question body.
+        if not tool_calls_raw and forced_quiz_call is not None:
+            tool_calls_raw = [forced_quiz_call]
+            answer_buf = ""
+            pseudo_guard = None
+
         # no tool call -> finished
         if not tool_calls_raw:
             if pseudo_guard is not None and not pseudo_guard.detected:
                 tail = pseudo_guard.flush()
-                if tail:
+                if tail and forced_quiz_call is None:
                     yield {"type": "answer", "content": tail, "is_delta": True}
             if (pseudo_guard is not None and pseudo_guard.detected
+                    and forced_quiz_call is None
                     and not pseudo_guard_used and step < MAX_STEPS):
                 ks_live = tool_map.get("knowledge_search")
                 if ks_live is not None:
@@ -762,6 +838,19 @@ async def chat_turn(
                     result = err(tool_name, ErrorCode.BAD_ARGS, f"参数错误: {e}")
                 except Exception as e:
                     result = err(tool_name, ErrorCode.TOOL_ERROR, str(e))
+        if tool_name in ("generate_quiz", "fit_quiz") and not result.is_error:
+            from .executor import _register_quiz_tasks
+            try:
+                _register_quiz_tasks(session, result.data)
+            except Exception as exc:
+                result = err(tool_name, getattr(exc, "code", "question_registration_failed"),
+                             "题目未能保存，可能插图生成已关闭，请重新出题。")
+            else:
+                session.quiz_history.append(result.data)
+                record_generated_quiz(session.session_id, result.data)
+                from ..core.quiz_illustration import illustration_telemetry
+                trace.log("quiz_illustration", **illustration_telemetry(result.data))
+
         # R3: record result for circuit breaker
         _circuit_record(tool_name, result)
         trace.log("tool_result", step=step, tool=tool_name, status=result.status,
@@ -775,15 +864,6 @@ async def chat_turn(
         if warning:
             trace.log("warning", step=step, tool=tool_name, message=warning, source="reflector")
             yield {"type": "tool_warning", "warning": warning, "tool": tool_name}
-
-        # stash quiz results into session quiz_history
-        if tool_name in ("generate_quiz", "fit_quiz") and not result.is_error:
-            session.quiz_history.append(result.data)
-            record_generated_quiz(session.session_id, result.data)
-            # 跨会话「最近习题」库（测评中心列表，每学生上限 100 道）
-            record_recent_quiz(session.session_id,
-                               getattr(session, "student_id", "") or "",
-                               result.data)
 
         # feed result back to LLM for the next iteration
         messages.append({"role": "assistant", "content": (
@@ -825,10 +905,60 @@ def _lite_tool_calls(calls: list[dict[str, Any]]) -> list[dict[str, Any]]:
 
 # ---------------------------------------------------------------------------
 # V2 dispatch: SUPERVISOR_MODE=v2 (default) -> Supervisor orchestrator; =legacy
-# -> this V1 chat_turn. V2 failures fall back to legacy automatically.
-# the Supervisor orchestrator. Any supervisor import/runtime failure degrades
-# back to legacy so the SSE stream never breaks.
+# -> this V1 chat_turn. V2 failures are surfaced by default; operators may
+# explicitly set SUPERVISOR_LEGACY_FALLBACK=1 as an emergency compatibility
+# switch to fall back to V1 without breaking the SSE stream.
+# P2-A（plan.md §29）：fallback 有显式开关（SUPERVISOR_LEGACY_FALLBACK，
+# 默认 0）与结构化观测（异常分类/stage/会话/任务类型）。默认暴露 V2
+# 回归；只有显式开启开关时才回落 V1。
 # ---------------------------------------------------------------------------
+
+def _classify_supervisor_error(exc: BaseException) -> str:
+    """Coarse V2 failure category from the traceback path（plan.md §29）。
+
+    只看代码路径（traceback 文本），不落入用户消息/教材正文/JWT——
+    分类输入是异常类型与模块名，不是对话内容。
+    """
+    import traceback
+    tb = traceback.format_exception(type(exc), exc, exc.__traceback__)
+    path = "\n".join(tb).lower()
+    if any(k in path for k in ("agents/planner", "make_plan", "taskplan")):
+        return "planner_error"
+    if any(k in path for k in ("agents/context", "compact", "preresearch",
+                               "material_signals")):
+        return "context_error"
+    if any(k in path for k in ("agents/executor", "tool_base", "tools/")):
+        return "executor_internal_error"
+    if any(k in path for k in ("core/atomic", "core/session", "core/store",
+                               "session_store", "_save", "persist")):
+        return "persistence_error"
+    return "unknown"
+
+
+def _legacy_fallback_enabled() -> bool:
+    import os
+    return os.getenv("SUPERVISOR_LEGACY_FALLBACK", "0").strip().lower() \
+        not in ("0", "false", "off")
+
+
+def _after_turn_dialogue_receipt(session: TutorSession,
+                                  student_id: str) -> None:
+    """G3 统一 turn hook（plan §13.1/§7.2）：回合结束后对已可靠落盘的学生
+    消息受理 dialogue 来源。用磁盘会话核对（保存与受理之间的故障窗口不
+    受理未保存内容）；任何失败不影响对话流。"""
+    try:
+        from ..core.session import load_session
+        sid = student_id or getattr(session, "student_id", "")             or "student_default"
+        fresh = load_session(getattr(session, "session_id", ""))
+        if fresh is None:
+            return
+        from ..agents.student_model.evaluation.dialogue import (
+            after_turn_hook)
+        after_turn_hook(sid, fresh)
+    except Exception:
+        pass
+
+
 async def run_turn(
     user_message: str,
     session: TutorSession,
@@ -841,7 +971,37 @@ async def run_turn(
     student_id: str = "",
 ) -> AsyncGenerator[dict[str, Any], None]:
     """Entry point chosen by chat.py. Dispatches to V1 chat_turn or V2
-    supervisor.run based on SUPERVISOR_MODE (default v2). V2 failures fall back to legacy."""
+    supervisor.run based on SUPERVISOR_MODE (default v2).
+
+    G3：无论 supervisor/legacy/回退/错误路径，本生成器收尾时统一执行
+    dialogue 来源受理 hook（§13.1 单一受理点）。"""
+    try:
+        async for ev in _run_turn_dispatch(
+                user_message, session, tools, llm, progress_cb, lang,
+                output_language, attachments, student_id=student_id):
+            yield ev
+    finally:
+        _after_turn_dialogue_receipt(session, student_id)
+
+
+async def _run_turn_dispatch(
+    user_message: str,
+    session: TutorSession,
+    tools: list[Tool],
+    llm: AsyncLLMClient | None = None,
+    progress_cb: Callable[[str], Any] | None = None,
+    lang: str = "zh",
+    output_language: str | None = None,
+    attachments: list[dict] | None = None,
+    student_id: str = "",
+) -> AsyncGenerator[dict[str, Any], None]:
+    """Entry point chosen by chat.py. Dispatches to V1 chat_turn or V2
+    supervisor.run based on SUPERVISOR_MODE (default v2).
+
+    V2 failure semantics（plan.md §29）：
+    - SUPERVISOR_LEGACY_FALLBACK 未设置或 =0：yield error 事件并结束本轮，
+      V2 回归不会被 legacy 成功掩盖；
+    - =1：结构化 trace 后显式回落 V1，仅作为紧急兼容开关。"""
     import os
     mode = os.getenv("SUPERVISOR_MODE", "v2").lower()
     if mode in ("v2", "supervisor"):
@@ -852,12 +1012,27 @@ async def run_turn(
                                             student_id=student_id):
                 yield ev
             return
-        except Exception as e:  # never break the stream; fall back to V1
-            # log to a fresh trace so the failure is observable
+        except Exception as e:  # never break the stream; observe, then decide
+            fallback_enabled = _legacy_fallback_enabled()
             try:
-                Trace().log("supervisor_fallback_to_legacy", message=str(e))
+                # 结构化观测：异常类型/分类/会话/任务类型/开关状态。
+                # 只记异常与代码路径，不记 raw 用户消息/教材正文/JWT。
+                Trace().log(
+                    "supervisor_fallback_to_legacy",
+                    exception_type=type(e).__name__,
+                    category=_classify_supervisor_error(e),
+                    stage="v2_run",
+                    session_id=getattr(session, "session_id", ""),
+                    task_kind=mode,
+                    fallback_enabled=fallback_enabled,
+                    message=str(e)[:200],
+                )
             except Exception:
                 pass
+            if not fallback_enabled:
+                yield {"type": "error",
+                       "message": "对话编排服务暂时不可用，请稍后重试。"}
+                return
     async for ev in chat_turn(user_message, session, tools, llm,
                               progress_cb=progress_cb, lang=lang,
                               output_language=output_language, attachments=attachments):

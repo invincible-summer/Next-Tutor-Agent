@@ -15,6 +15,7 @@ from __future__ import annotations
 import json
 import time
 import uuid
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
@@ -169,6 +170,10 @@ def _sanitize_record(raw: dict[str, Any]) -> dict[str, Any] | None:
         "parse_cancel_requested": bool(raw.get("parse_cancel_requested", False)),
         "rag_index": dict(raw.get("rag_index") or {})
                      if isinstance(raw.get("rag_index"), dict) else {},
+        # P1-B 持久化 build intent（plan.md §10）：textbook record 本身就是
+        # 最接近资源生命周期的事实源，不另建 jobs.json。
+        "build_job": dict(raw.get("build_job") or {})
+                     if isinstance(raw.get("build_job"), dict) else {},
         "warnings": [str(w) for w in (raw.get("warnings") or [])][:_MAX_WARNINGS],
         "error": str(raw.get("error") or "")[:300],
         "created_at": float(raw.get("created_at") or _now()),
@@ -456,51 +461,280 @@ def remove_textbook(student_id: str, tb_id: str) -> bool:
     return True
 
 
-def reap_stale_builds() -> int:
-    """启动收割（P5a-A4）：把残留的 building 记录置为 graph_failed。
+# --- P1-B: 持久化 build_job 与重启恢复（plan.md §10-§13） --------------------
 
-    图谱构建是**进程内** asyncio 任务，随进程死亡——进程启动时不存在任何合法的
-    building 状态，残留的必是上次崩溃/重启的孤儿。收割后用户可经 rebuild_graph
-    重试。返回收割的记录条数。永不抛出（启动路径不容失败）。
+BUILD_JOB_STATES = ("queued", "running", "waiting_ocr", "ready", "failed",
+                    "cancelled")
+BUILD_JOB_PHASES = ("prepare", "ocr", "harvest", "chapter_extract",
+                    "concept_extract", "graph_merge", "rag_refresh", "finalize")
+# 同一 build intent 的自动恢复上限（plan.md §13 失败语义）。
+BUILD_JOB_MAX_AUTO_ATTEMPTS = 3
+# 结构化短原因（内部 build_job.last_error；用户可见 error 仍用友好中文）。
+_BUILD_FAIL_REASONS = ("source_missing", "invalid_record", "schema_incompatible",
+                       "retry_exhausted", "cancelled")
+
+
+@dataclass
+class TextbookRecoveryReport:
+    """reconcile_stale_builds 的结果：queued 项供 lifespan 重入现有队列。"""
+    recovered: list[tuple[str, str, dict[str, Any]]] = field(default_factory=list)
+    ocr_waiting: list[tuple[str, str]] = field(default_factory=list)
+    failed: list[tuple[str, str, str]] = field(default_factory=list)  # (sid, tb_id, reason)
+    untouched: int = 0
+
+
+def set_build_job(student_id: str, tb_id: str, **fields) -> dict[str, Any] | None:
+    """Upsert the textbook's persisted build_job (plan.md §10).
+
+    Only whitelisted keys are written (state must be a legal state, phase a
+    legal phase); attempt stays int>=0; intent is a plain dict. Returns the
+    updated record or None when the textbook is missing. Never raises.
     """
-    reaped = 0
+    try:
+        records = _load_raw(student_id)
+        updated: dict[str, Any] | None = None
+        for r in records:
+            if r.get("id") != tb_id:
+                continue
+            job = dict(r.get("build_job") or {})
+            job.setdefault("schema_version", 1)
+            job.setdefault("state", "queued")
+            job.setdefault("phase", "prepare")
+            job.setdefault("mode", "auto")
+            job.setdefault("attempt", 0)
+            job.setdefault("requested_at", _now())
+            job.setdefault("started_at", 0)
+            job.setdefault("updated_at", _now())
+            job.setdefault("last_error", "")
+            job.setdefault("intent", {})
+            for k, v in fields.items():
+                if k == "state" and v in BUILD_JOB_STATES:
+                    job["state"] = v
+                elif k == "phase" and v in BUILD_JOB_PHASES:
+                    job["phase"] = v
+                elif k == "attempt":
+                    try:
+                        job["attempt"] = max(0, int(v))
+                    except (TypeError, ValueError):
+                        pass
+                elif k == "intent":
+                    if isinstance(v, dict):
+                        job["intent"] = {str(ik): iv for ik, iv in v.items()
+                                         if ik in _BUILD_INTENT_KEYS}
+                elif k == "last_error":
+                    job["last_error"] = str(v or "")[:120]
+                elif k in ("mode", "requested_at", "started_at"):
+                    job[k] = v
+            job["updated_at"] = _now()
+            r["build_job"] = job
+            r["updated_at"] = _now()
+            updated = r
+            break
+        if updated is not None:
+            _save(student_id, records)
+        return updated
+    except Exception:
+        return None
+
+
+# enqueue_textbook_build 支持的 intent 参数（plan.md §10 intent 形状）。
+_BUILD_INTENT_KEYS = ("ocr_parallel", "force_reextract", "use_llm", "skip_ocr",
+                      "skip_harvest", "force_full_ocr")
+
+
+def clear_build_job(student_id: str, tb_id: str) -> None:
+    """Drop the persisted build_job (terminal cleanup). Never raises."""
+    try:
+        records = _load_raw(student_id)
+        changed = False
+        for r in records:
+            if r.get("id") == tb_id and r.get("build_job"):
+                r["build_job"] = {}
+                r["updated_at"] = _now()
+                changed = True
+                break
+        if changed:
+            _save(student_id, records)
+    except Exception:
+        return
+
+
+def _source_files_exist(student_id: str, record: dict[str, Any]) -> bool:
+    """Any volume's extracted text still on disk (>50 bytes, 与 cancel 结算同阈)。"""
+    try:
+        from .library import library_data_dir
+        data = library_data_dir(student_id)
+        for fid in list(record.get("file_ids") or []) + [record.get("file_id") or ""]:
+            if not fid:
+                continue
+            p = data / f"{fid}.txt"
+            if p.exists() and p.stat().st_size > 50:
+                return True
+        return False
+    except Exception:
+        return True  # 无法判定时保守按可用处理，避免误标失败
+
+
+def _synthesize_intent(record: dict[str, Any]) -> dict[str, Any]:
+    """Legacy building 记录（无 build_job）的默认 intent（plan.md §11.1）。"""
+    policy = record.get("graph_policy") if isinstance(record.get("graph_policy"), dict) else {}
+    return {
+        "ocr_parallel": False,
+        "force_reextract": False,
+        "use_llm": True,
+        "skip_ocr": False,
+        "skip_harvest": False,
+        "force_full_ocr": False,
+        **{k: v for k, v in (policy or {}).items()
+           if k in _BUILD_INTENT_KEYS and isinstance(v, bool)},
+    }
+
+
+def reconcile_stale_builds() -> TextbookRecoveryReport:
+    """重启对账（plan.md §11.1）：普通进程重启不是失败。
+
+    - building + 可恢复 OCR pending -> ocr_waiting（现有 OCR resume 接手）；
+    - building + build_job（或 legacy 有源文件）-> build_job.state=queued，
+      留待 lifespan 把 intent 重入现有 per-owner 队列；
+    - source 文件缺失 -> graph_failed + last_error=source_missing；
+    - 自动恢复次数耗尽 -> graph_failed + last_error=retry_exhausted；
+    - 终态记录不动。幂等：queued 的 job 不会被二次恢复。
+    """
+    report = TextbookRecoveryReport()
     try:
         files = list(_LIBRARY_DIR.glob("*.textbooks.json"))
     except Exception:
-        return 0
+        return report
     for fp in files:
         try:
             key = fp.name[: -len(".textbooks.json")]
             records = load_textbooks(key)
             changed = False
             for r in records:
-                if r["status"] == "building":
-                    volume_states = ((r.get("ocr_state") or {}).get("volumes") or {})
-                    resumable = [v for v in volume_states.values()
-                                 if isinstance(v, dict) and v.get("status") in {"ocr", "waiting"}
-                                 and (v.get("pending_pages") or [])]
-                    if resumable:
-                        r["status"] = "ocr_waiting"
-                        r["progress"] = {
-                            "stage": "ocr_waiting",
-                            "done": sum(len(v.get("successful_pages") or []) for v in resumable),
-                            "total": sum(len(v.get("target_pages") or []) for v in resumable),
-                        }
-                        r["error"] = str(resumable[0].get("last_error_summary") or
-                                         "服务重启后等待继续多模态 OCR")[:300]
-                        r["updated_at"] = _now()
-                        changed = True
-                        continue
-                    r["status"] = "graph_failed"
-                    r["error"] = "服务重启导致图谱构建中断，可点击「重建图谱」重试"
+                if r.get("status") != "building":
+                    report.untouched += 1
+                    continue
+                volume_states = ((r.get("ocr_state") or {}).get("volumes") or {})
+                resumable = [v for v in volume_states.values()
+                             if isinstance(v, dict) and v.get("status") in {"ocr", "waiting"}
+                             and (v.get("pending_pages") or [])]
+                if resumable:
+                    # OCR 可恢复：交给现有 resume_pending_textbook_ocr，
+                    # 不走 graph recovery（plan.md §9.1）。
+                    r["status"] = "ocr_waiting"
+                    r["progress"] = {
+                        "stage": "ocr_waiting",
+                        "done": sum(len(v.get("successful_pages") or []) for v in resumable),
+                        "total": sum(len(v.get("target_pages") or []) for v in resumable),
+                    }
+                    r["error"] = str(resumable[0].get("last_error_summary") or
+                                     "服务重启后等待继续多模态 OCR")[:300]
                     r["updated_at"] = _now()
-                    reaped += 1
+                    job = dict(r.get("build_job") or {})
+                    if job:
+                        job["state"] = "waiting_ocr"
+                        job["updated_at"] = _now()
+                        r["build_job"] = job
                     changed = True
+                    report.ocr_waiting.append((key, r["id"]))
+                    continue
+                job = dict(r.get("build_job") or {})
+                intent = job.get("intent") if isinstance(job.get("intent"), dict) else {}
+                if not job or not intent:
+                    # Legacy building 记录：有源文件则合成默认 intent 恢复。
+                    if not _source_files_exist(key, r):
+                        r["status"] = "graph_failed"
+                        r["error"] = "教材源文件已缺失，无法恢复构建，请重新上传"
+                        r["updated_at"] = _now()
+                        r["build_job"] = {**job, "schema_version": 1,
+                                          "state": "failed", "phase": "prepare",
+                                          "mode": "auto",
+                                          "last_error": "source_missing",
+                                          "updated_at": _now()}
+                        changed = True
+                        report.failed.append((key, r["id"], "source_missing"))
+                        continue
+                    job = {"schema_version": 1, "state": "queued",
+                           "phase": "prepare", "mode": "auto", "attempt": 0,
+                           "requested_at": _now(), "started_at": 0,
+                           "updated_at": _now(), "last_error": "",
+                           "intent": _synthesize_intent(r)}
+                    r["build_job"] = job
+                    r["updated_at"] = _now()
+                    changed = True
+                    report.recovered.append((key, r["id"], r))
+                    continue
+                # 有 intent 的中断 job：幂等（已 queued 不重复恢复）。
+                if job.get("state") == "queued":
+                    report.untouched += 1
+                    continue
+                try:
+                    attempt = int(job.get("attempt") or 0)
+                except (TypeError, ValueError):
+                    attempt = 0
+                if attempt >= BUILD_JOB_MAX_AUTO_ATTEMPTS:
+                    r["status"] = "graph_failed"
+                    r["error"] = "自动恢复次数已用尽，可点击「重建图谱」手动重试"
+                    r["updated_at"] = _now()
+                    job.update({"state": "failed", "last_error": "retry_exhausted",
+                                "updated_at": _now()})
+                    r["build_job"] = job
+                    changed = True
+                    report.failed.append((key, r["id"], "retry_exhausted"))
+                    continue
+                if not _source_files_exist(key, r):
+                    r["status"] = "graph_failed"
+                    r["error"] = "教材源文件已缺失，无法恢复构建，请重新上传"
+                    r["updated_at"] = _now()
+                    job.update({"state": "failed", "last_error": "source_missing",
+                                "updated_at": _now()})
+                    r["build_job"] = job
+                    changed = True
+                    report.failed.append((key, r["id"], "source_missing"))
+                    continue
+                # 幂等重入现有队列：state=queued，status 保持 building 展示。
+                job.update({"state": "queued", "updated_at": _now()})
+                r["build_job"] = job
+                r["updated_at"] = _now()
+                changed = True
+                report.recovered.append((key, r["id"], r))
             if changed:
                 _save(key, records)
         except Exception:
             continue  # 单个文件损坏不影响其它账号
-    return reaped
+    return report
+
+
+def interrupted_build_jobs() -> list[tuple[str, str, dict[str, Any]]]:
+    """All (sid, tb_id, record) with build_job.state == "queued"（reconcile 后
+    待重入队的恢复项）。"""
+    out: list[tuple[str, str, dict[str, Any]]] = []
+    try:
+        files = list(_LIBRARY_DIR.glob("*.textbooks.json"))
+    except Exception:
+        return out
+    for fp in files:
+        try:
+            key = fp.name[: -len(".textbooks.json")]
+            for r in load_textbooks(key):
+                job = r.get("build_job") or {}
+                if (r.get("status") == "building"
+                        and job.get("state") == "queued"
+                        and job.get("intent")):
+                    out.append((key, r["id"], r))
+        except Exception:
+            continue
+    return out
+
+
+def reap_stale_builds() -> int:
+    """兼容 wrapper（plan.md §11.1）：内部改走 reconcile_stale_builds。
+
+    返回置为终态失败的记录数（历史上返回收割数）；OCR 可恢复项进入
+    ocr_waiting，非 OCR 中断项现在会自动恢复而非直接判 graph_failed。
+    """
+    report = reconcile_stale_builds()
+    return len(report.failed)
 
 
 def migrate_legacy_single_to_groups() -> int:

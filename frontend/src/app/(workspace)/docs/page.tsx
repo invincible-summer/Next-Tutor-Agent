@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/Button";
 import { Card, CardHeader } from "@/components/ui/Card";
 import { ErrorNote, PageSkeleton } from "@/components/ui/EmptyState";
 import { getDocsContent, putDocsContent } from "@/lib/api-modules";
+import { API_BASE } from "@/lib/api";
 import { relTime } from "@/lib/format";
 import { extractToc } from "@/lib/markdown-toc";
 import { makePageT } from "@/lib/i18n-page";
@@ -24,9 +25,12 @@ export default function DocsPage() {
   const tr = makePageT(lang, STRINGS);
   const isAdmin = user?.role === "admin";
 
-  const [doc, setDoc] = useState<{ markdown: string; updated_at: number; updated_by: string } | null>(null);
+  const [doc, setDoc] = useState<{ markdown: string; updated_at: number; updated_by: string; show_manual?: boolean; show_manual_url?: string } | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+
+  // 「使用手册 / 演示手册」双视图：演示手册是渲染版 PDF（iframe /docs/show）。
+  const [view, setView] = useState<"manual" | "show">("manual");
 
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState("");
@@ -141,7 +145,8 @@ export default function DocsPage() {
     }
   };
 
-  const showToc = !loading && !error && !editing && toc.length > 0;
+  const hasShow = !loading && !error && !!doc?.show_manual;
+  const showToc = !loading && !error && !editing && view === "manual" && toc.length > 0;
 
   return (
     <div ref={scrollRef} onScroll={onScroll} className="h-full overflow-y-auto p-6 page-in">
@@ -154,9 +159,34 @@ export default function DocsPage() {
             <header className="flex items-end justify-between gap-3">
               <div>
                 <h1 className="font-serif text-xl font-semibold text-fg">{tr("docs.title")}</h1>
-                <p className="mt-0.5 text-xs text-muted">{tr("docs.desc")}</p>
+                {hasShow ? (
+                  <div
+                    role="tablist"
+                    aria-label={tr("docs.title")}
+                    className="mt-1.5 flex w-fit rounded-[8px] border border-border-light bg-surface p-0.5"
+                  >
+                    {(["manual", "show"] as const).map((v) => (
+                      <button
+                        key={v}
+                        type="button"
+                        role="tab"
+                        aria-selected={view === v}
+                        onClick={() => setView(v)}
+                        className={`rounded-[6px] px-3 py-1 text-xs font-medium transition-colors ${
+                          view === v
+                            ? "bg-accent/10 text-accent"
+                            : "text-fg-tertiary hover:text-fg-secondary"
+                        }`}
+                      >
+                        {tr(v === "manual" ? "docs.tabManual" : "docs.tabShow")}
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="mt-0.5 text-xs text-muted">{tr("docs.desc")}</p>
+                )}
               </div>
-              {isAdmin && !editing && (
+              {isAdmin && !editing && view === "manual" && (
                 <Button size="sm" variant="outline" icon={<Pencil size={13} />} onClick={startEdit}>
                   {tr("docs.edit")}
                 </Button>
@@ -244,7 +274,18 @@ export default function DocsPage() {
               </Card>
             )}
 
-            {!loading && !error && !editing && doc && (
+            {!loading && !error && !editing && doc && view === "show" && doc.show_manual && (
+              <Card pad={false} className="overflow-hidden">
+                <iframe
+                  src={doc.show_manual_url ?? `${API_BASE}/docs/show`}
+                  title={tr("docs.showTitle")}
+                  loading="lazy"
+                  className="h-[calc(100vh-180px)] min-h-[480px] w-full border-0 bg-[#101418]"
+                />
+              </Card>
+            )}
+
+            {!loading && !error && !editing && doc && view === "manual" && (
               <Card>
                 <CardHeader icon={<BookOpen size={16} />} title={tr("docs.title")} />
                 {doc.markdown ? (

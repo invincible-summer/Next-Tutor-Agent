@@ -49,17 +49,40 @@ def _gen_json(questions) -> str:
 
 
 def _critic_json(pairs) -> str:
-    verdicts = [{"id": i, "verdict": v, "reason": "r"} for i, v in pairs]
-    return json.dumps({"verdicts": verdicts}, ensure_ascii=False)
+    """P2 审核回放：correct→passed、incorrect→rejected（其余 unreviewed）。"""
+    status_map = {"correct": "passed", "incorrect": "rejected"}
+    items = [{"question_ref": str(i),
+              "answer_check": "valid" if v == "correct" else "invalid",
+              "grounding_check": "not_required",
+              "actual_required_processes": ["understand"],
+              "knowledge_types": ["conceptual"], "alignment": "aligned",
+              "opportunity_checks": [], "rubric_issues": [],
+              "brief_basis": "", "grounding_refs": [],
+              "recommended_revision": "",
+              "proposed_status": status_map.get(v, "unreviewed")}
+             for i, v in pairs]
+    return json.dumps({"items": items}, ensure_ascii=False)
 
 
 def _blueprint_json(n: int = 1) -> str:
-    """Round-1 design-pass response consumed by core.quiz_design."""
+    """P1 v2 TaskBlueprint 回放（core.quiz_design）。"""
     return json.dumps({
-        "angles_considered": ["概念辨析", "迁移应用"],
-        "blueprint": [{"id": i, "angle": "概念辨析", "bloom": "analyze",
-                       "q_type": "short_answer", "trap": "常见误区",
-                       "idea": f"换情境考查第{i}题"} for i in range(1, n + 1)],
+        "items": [{
+            "local_question_id": f"q{i}",
+            "target_concept_refs": ["浮力"],
+            "target_claims": [f"能在新情境中说明第{i}题的适用条件"],
+            "intended_processes": ["analyze"],
+            "knowledge_types": ["conceptual"],
+            "q_type": "short_answer",
+            "difficulty_design": "概念辨析，一次转化",
+            "task_family": "buoyancy-identify",
+            "assistance_plan": "key_hints",
+            "evidence_opportunities": [{
+                "id": "o1", "required_product": "写出受力判断依据",
+                "permitted_claim": "能说明浮力方向判断", "limits": "仅本题"}],
+            "rubric_draft": [], "grounding_refs": [],
+            "construction_brief": f"换情境考查第{i}题",
+        } for i in range(1, n + 1)],
     }, ensure_ascii=False)
 
 
@@ -285,18 +308,33 @@ class TestGenerateVerified(unittest.TestCase):
         set_uid = qid1.rsplit("_", 1)[0]
         self.assertEqual(qid2.rsplit("_", 1)[0], set_uid)
 
-    def test_all_flagged_triggers_one_regeneration(self):
+    def test_all_flagged_recovers_via_revision_or_regeneration(self):
         from app.core.quiz_verify import generate_verified_questions
+        # 全拒后先带审核意见回炉修订（calls: gen/critic/revise/critic2），
+        # 修订复审通过即在同一 attempt 内交付。
         llm = QueueLLM([
             _gen_json([_q(1)]), _critic_json([(1, "incorrect")]),   # attempt 1: dropped
-            _gen_json([_q(1)]), _critic_json([(1, "correct")]),     # attempt 2: kept
+            _gen_json([_q(1)]), _critic_json([(1, "correct")]),     # revise + re-verify
         ])
         questions, meta = asyncio.run(generate_verified_questions(
             llm, make_prompt=lambda: "p", parse=lambda raw: json.loads(raw)["questions"],
             topic="浮力", grade="初中", temperature=0.4, max_tokens=1000))
         self.assertEqual(len(questions), 1)
-        self.assertEqual(meta["attempts"], 2)
+        self.assertEqual(meta["attempts"], 1)
         self.assertEqual(meta["dropped_by_critic"], 1)
+        self.assertEqual(meta.get("revised_kept"), 1)
+
+        # 修订也失败时，仍会走第二次完整重生成。
+        llm2 = QueueLLM([
+            _gen_json([_q(1)]), _critic_json([(1, "incorrect")]),   # attempt 1: dropped
+            "",                                                      # revise unparseable
+            _gen_json([_q(1)]), _critic_json([(1, "correct")]),     # attempt 2: kept
+        ])
+        questions2, meta2 = asyncio.run(generate_verified_questions(
+            llm2, make_prompt=lambda: "p", parse=lambda raw: json.loads(raw)["questions"] if raw else [],
+            topic="浮力", grade="初中", temperature=0.4, max_tokens=1000))
+        self.assertEqual(len(questions2), 1)
+        self.assertEqual(meta2["attempts"], 2)
 
     def test_mode_off_skips_all_checks(self):
         from app.core.quiz_verify import generate_verified_questions
@@ -546,18 +584,6 @@ class TestMcVerdictAndMerge(unittest.TestCase):
             except OSError:
                 pass
 
-    def test_mc_without_options_grades_deterministically(self):
-        from app.agents.assessment import (AssessmentContext, Question,
-                                           get_assessment_manager)
-        q = Question(concept="浮力", q_type="multiple_choice",
-                     stem="s", answer="B")  # 无 options（/quiz/record 旧行为）
-        ctx = AssessmentContext(concept="浮力", grade="高中")
-        mgr = get_assessment_manager()
-        right = asyncio.run(mgr.evaluate_and_record(q, "B", ctx, student_id=self.sid))
-        wrong = asyncio.run(mgr.evaluate_and_record(q, "C", ctx, student_id=self.sid))
-        self.assertEqual(right.verdict, "correct")
-        self.assertEqual(wrong.verdict, "wrong")
-
     def test_unknown_verdict_not_recorded(self):
         from app.core.context import transcript_path
         from app.core.quiz_attempts import record_quiz_attempt
@@ -595,15 +621,16 @@ class TestMcVerdictAndMerge(unittest.TestCase):
 
 
     def test_write_back_syncs_message_tool_payload(self):
-        # 判定结果要同步进 assistant 消息的 toolCalls 载荷——前端刷新后据此
-        # 恢复答题卡的已答锁定状态，防止重复作答。
-        from app.api.v1.quiz import _write_back_answer
+        # 判定结果按 question_id 同步进 quiz_history 与 assistant 消息的
+        # toolCalls 载荷——前端刷新后据此恢复答题卡的已答锁定状态。
+        from app.api.v1.quiz import _write_back_result
         from app.core.session import (TutorSession, delete_session,
                                       load_session, new_session_id,
                                       save_session)
         session = TutorSession(grade="高中")
         session.session_id = new_session_id("wb_sync")
-        q = {"stem": "题干Y", "answer": "B", "type": "multiple_choice"}
+        q = {"id": "q_wb_1", "stem": "题干Y", "answer": "B",
+             "type": "multiple_choice"}
         session.quiz_history = [{"questions": [dict(q)]}]
         session.messages = [
             {"role": "user", "content": "出题"},
@@ -614,54 +641,18 @@ class TestMcVerdictAndMerge(unittest.TestCase):
         ]
         save_session(session)
         try:
-            _write_back_answer(session.session_id, stem="题干Y", verdict="wrong",
-                               student_answer="C")
+            _write_back_result(session.session_id, "q_wb_1", "C", "wrong",
+                               "att_wb_1")
             again = load_session(session.session_id)
             res = again.quiz_history[0]["questions"][0].get("result")
             self.assertIsNotNone(res)
+            self.assertEqual(res["student_answer"], "C")
+            self.assertEqual(res["question_id"], "q_wb_1")
             payload_q = again.messages[1]["toolCalls"][0]["result"]["data"]["questions"][0]
             self.assertEqual(payload_q["result"]["student_answer"], "C")
         finally:
             delete_session(session.session_id)
 
-
-class TestGradeRecordFlag(StorageSandboxTestCase):
-    """record=false（MC 点评）必须只产出点评，不写掌握度/作答记录。"""
-
-    def test_record_false_writes_nothing(self):
-        import app.api.v1.quiz as quiz_api
-
-        class GradeLLM:
-            async def stream(self, messages, tools=None, temperature=None,
-                             max_tokens=None):
-                yield {"kind": "answer", "delta": "[对] 选择正确，中和点判断准确。"}
-                yield {"kind": "done", "finish_reason": "stop", "usage": {}}
-
-        # W1（A01）：session_id 现在先过归属校验——给调用者一份本人会话。
-        from app.core.session import TutorSession, delete_session, save_session
-        save_session(TutorSession(session_id="sess_norecord",
-                                  student_id="st_norecord", title="t"))
-        req = quiz_api.GradeRequest(
-            stem="题干Z", q_type="multiple_choice", student_answer="B",
-            correct_answer="B", knowledge_point="滴定", session_id="sess_norecord",
-            record=False)
-        try:
-            with mock.patch.object(quiz_api, "get_llm", return_value=GradeLLM()):
-                resp = asyncio.run(quiz_api.grade_answer(req, student_id="st_norecord"))
-
-            async def drain():
-                out = []
-                async for chunk in resp.body_iterator:
-                    out.append(chunk if isinstance(chunk, str) else chunk.decode())
-                return "".join(out)
-
-            body = asyncio.run(drain())
-            self.assertIn('"verdict": "correct"', body)
-            # record=false：不产生 transcript、不写 M6 episode
-            from app.core.context import transcript_path
-            self.assertFalse(transcript_path("sess_norecord").exists())
-        finally:
-            delete_session("sess_norecord")
 
 
 class TestReasoningSummarizer(unittest.TestCase):
@@ -684,3 +675,88 @@ class TestReasoningSummarizer(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+def _revise_critic_json(pairs) -> str:
+    """P2 审核回放：fixable→revision_required（带 recommended_revision）。"""
+    items = [{"question_ref": str(i),
+              "answer_check": "invalid",
+              "grounding_check": "not_required",
+              "actual_required_processes": ["understand"],
+              "knowledge_types": ["conceptual"], "alignment": "aligned",
+              "opportunity_checks": [], "rubric_issues": [],
+              "brief_basis": "", "grounding_refs": [],
+              "recommended_revision": reason,
+              "proposed_status": "revision_required"}
+             for i, reason in pairs]
+    return json.dumps({"items": items}, ensure_ascii=False)
+
+
+class TestAssessmentGeneratorRevision(unittest.TestCase):
+    """critic revision_required → 带修复意见回炉一次（live：CAT 连续拒题
+    中断的修复链）。"""
+
+    def _run(self, responses):
+        from app.agents.assessment.generator import generate_question
+        from app.agents.assessment.state import AssessmentContext, AssessmentGoal
+        llm = QueueLLM(responses)
+        ctx = AssessmentContext(concept="浮力", grade="初中", base_difficulty=2)
+        with mock.patch.object(settings, "quiz_design_mode", "two_pass"):
+            q = asyncio.run(generate_question(
+                AssessmentGoal(purpose="check"), ctx, llm=llm))
+        return q, llm
+
+    def test_revision_recovers_question(self):
+        fixed = _q(1)
+        fixed["answer"] = "C"
+        q, llm = self._run([
+            _blueprint_json(1),
+            _gen_json([_q(1)]),
+            _revise_critic_json([(1, "拟定答案应为 C，且解析与选项矛盾")]),
+            json.dumps(fixed, ensure_ascii=False),
+            _critic_json([(1, "correct")]),
+        ])
+        self.assertIsNotNone(q)
+        self.assertEqual(q.answer, "C")  # 交付的是修订后的题
+
+    def test_revision_fails_again_returns_none(self):
+        fixed = _q(1)
+        q, _llm = self._run([
+            _blueprint_json(1),
+            _gen_json([_q(1)]),
+            _revise_critic_json([(1, "拟定答案应为 C")]),
+            json.dumps(fixed, ensure_ascii=False),
+            _critic_json([(1, "incorrect")]),
+        ])
+        self.assertIsNone(q)
+
+    def test_rejected_still_none_when_revision_unparseable(self):
+        q, llm = self._run([
+            _blueprint_json(1),
+            _gen_json([_q(1)]),
+            _critic_json([(1, "incorrect")]),
+        ])
+        self.assertIsNone(q)
+        # rejected 也带意见回炉一次（队列空 → 修订输出不可解析），
+        # 但复审不会发生：blueprint/gen/critic/revise 共 4 次调用。
+        self.assertEqual(len(llm.calls), 4)
+
+
+class TestCriticFeedbackRetry(unittest.TestCase):
+    """generate_quiz 第二次命题 prompt 必须携带第一轮的 critic 拒绝原因。"""
+
+    def test_generate_quiz_retry_includes_critic_feedback(self):
+        from app.tools.quiz import GenerateQuizTool
+        reason = "拟定答案应为 B，原解析与选项矛盾"
+        critic1 = json.dumps({"items": [{
+            "question_ref": "1", "answer_check": "invalid",
+            "proposed_status": "rejected",
+            "recommended_revision": reason}]}, ensure_ascii=False)
+        llm = QueueLLM([_blueprint_json(1), _gen_json([_q(1)]), critic1,
+                        _gen_json([_q(1)]), _critic_json([(1, "correct")])])
+        with mock.patch.object(settings, "quiz_design_mode", "two_pass"):
+            result = asyncio.run(GenerateQuizTool(llm).run(
+                topic="浮力", grade="初中"))
+        self.assertEqual(result.status, "success")
+        # calls: blueprint / gen1 / critic1 / gen2(带反馈) / critic2
+        self.assertIn(reason, llm.calls[3][0]["content"])

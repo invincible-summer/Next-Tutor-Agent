@@ -637,7 +637,6 @@ async def notes_upload(files: list[UploadFile] = File(...),
     image_exts = (".png", ".jpg", ".jpeg", ".webp", ".bmp", ".tiff", ".tif")
     results: list[dict[str, Any]] = []
     for f in files[:6]:
-        raw = await f.read()
         fname = f.filename or "upload"
         lower = fname.lower()
         ext = next((e for e in SUPPORTED_ASYNC_EXTS if lower.endswith(e)), "")
@@ -646,7 +645,10 @@ async def notes_upload(files: list[UploadFile] = File(...),
                             "error": "不支持的格式（仅 PDF/DOCX/PPTX/TXT/MD/常见图片）"})
             continue
         limit = MAX_IMAGE_BYTES if ext in image_exts else MAX_UPLOAD_BYTES
-        if len(raw) > limit:
+        from app.core.uploads import UploadTooLarge, read_upload_limited
+        try:
+            raw = await read_upload_limited(f, limit)
+        except UploadTooLarge:
             results.append({"filename": fname,
                             "error": f"文件过大（>{limit // (1024 * 1024)}MB）"})
             continue

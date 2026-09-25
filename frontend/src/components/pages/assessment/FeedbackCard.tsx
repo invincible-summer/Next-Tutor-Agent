@@ -1,24 +1,34 @@
 "use client";
-
-// feedback 阶段：即时判分反馈卡。
-import { ArrowRight, Flag, ListChecks } from "lucide-react";
+// feedback 阶段：两层反馈卡（§14.5）——本题结果 + 学习反馈走共用
+// SubmissionOutcome；提交身份由服务端记录（attempt_id），pending 可离开。
+import { ArrowRight, Flag, ListChecks, LoaderCircle } from "lucide-react";
 import { Card, CardHeader } from "@/components/ui/Card";
-import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
-import { dt, verdictTone } from "@/lib/labels";
+import { SubmissionOutcome } from "@/components/learning-evaluation/SubmissionOutcome";
 import type { Lang } from "@/lib/i18n";
+import type { AssessmentQuestion } from "@/lib/types-modules";
 import type { PageTr } from "./common";
+import { QuestionIllustration } from "@/components/quiz/QuestionIllustration";
+import { MiniMarkdown } from "@/components/chat/markdown";
+import { useIllustrationEnrichment } from "./useIllustrationEnrichment";
 
 export interface AnswerResult {
-  verdict?: string;
-  score?: number;
-  feedback?: string;
-  [key: string]: unknown;
+  taskResult: {
+    verdict?: string | null;
+    grading_status?: string;
+    criterion_results?: Array<{ criterion_id: string; result: string; comment?: string }>;
+    first_error?: { description?: string } | null;
+    hypotheses?: Array<{ statement?: string }>;
+    feedback?: { strengths?: string[]; improvement?: string; next_step?: string } | null;
+  } | null;
+  evaluationStatus: string;
+  learnerFeedback: string;
 }
 
 export function FeedbackCard({
   tr,
   lang,
+  question,
   result,
   stop,
   busy,
@@ -27,13 +37,14 @@ export function FeedbackCard({
 }: {
   tr: PageTr;
   lang: Lang;
+  question: AssessmentQuestion | null;
   result: AnswerResult;
   stop: boolean;
   busy: boolean;
   onNext: () => void;
   onAbandon: () => void;
 }) {
-  const verdict = result.verdict || "unknown";
+  const illustration = useIllustrationEnrichment(question);
   return (
     <Card>
       <CardHeader
@@ -45,23 +56,27 @@ export function FeedbackCard({
           </Button>
         }
       />
-      <div className="flex items-center gap-3">
-        <Badge tone={verdictTone(verdict)}>
-          {dt(lang, `verdict.${verdict}`, tr("verdict.unknown"))}
-        </Badge>
-        {typeof result.score === "number" && (
-          <span className="text-sm text-fg-secondary">
-            {tr("fb.score")}
-            <span className="tnum ml-1.5 font-semibold text-fg">{result.score}</span>
-            <span className="text-xs text-muted"> / 1</span>
-          </span>
-        )}
-      </div>
-      {result.feedback && (
-        <div className="chat-prose mt-3 whitespace-pre-wrap rounded-[8px] bg-surface-sunken px-3.5 py-3">
-          {result.feedback}
+      {question && (
+        <div className="mb-4 border-b border-border-light pb-4" data-testid="assessment-feedback-question">
+          <div className="chat-prose">
+            <MiniMarkdown>{question.stem}</MiniMarkdown>
+          </div>
+          {illustration.state === "generating" && <p role="status"
+            className="mt-2 flex items-center gap-2 text-xs leading-5 text-muted">
+            <LoaderCircle size={13} aria-hidden="true" className="animate-spin" />
+            {lang === "en" ? "Finishing the diagram…" : "正在完成配图…"}
+          </p>}
+          <QuestionIllustration illustration={illustration.illustration} />
         </div>
       )}
+      <SubmissionOutcome
+        lang={lang}
+        data={{
+          taskResult: result.taskResult,
+          evaluationStatus: result.evaluationStatus,
+          learnerFeedback: result.learnerFeedback,
+        }}
+      />
       <div className="mt-4 flex justify-end">
         <Button size="lg" icon={<ArrowRight size={15} />} disabled={busy} onClick={onNext}>
           {busy ? tr("fb.loading") : stop ? tr("fb.finish") : tr("fb.next")}

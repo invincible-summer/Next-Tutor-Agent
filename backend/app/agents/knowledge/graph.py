@@ -28,7 +28,7 @@ from typing import Any
 from .schema import EdgeType, KnowledgeEdge, KnowledgeNode
 
 # Match score below which a free-text concept is treated as "not in graph".
-# Matches student_model.skill_graph's 0.34 threshold so the bridge stays
+# Fuzzy-match scoring threshold kept stable so retrieval behavior stays
 # consistent with how SkillGraph already decides concept identity.
 _MATCH_THRESHOLD = 0.34
 
@@ -111,7 +111,7 @@ class KnowledgeGraph:
         decisions (BKT writeback, custom-graph anchors) where a loose
         token-overlap hit is worse than no match.
 
-        Scoring layers (best wins), matching student_model.skill_graph so the
+        Scoring layers (best wins), kept deterministic so the
         bridge and the SkillGraph agree on identity:
           exact name      -> the node (score 1.0)
           alias exact     -> 0.95

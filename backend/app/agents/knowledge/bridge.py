@@ -13,7 +13,7 @@ Design (mirrors how teaching_engine reuses, not rebuilds):
     merge in try/except, so a bridge failure cannot break a turn.
   - SUPERSET-CONSISTENT: for seeded node ids the bridge returns the SAME
     prerequisites SkillGraph's own seed already has (they are provably equal --
-    see test_seed_prereqs_equal_skill_graph_seed). So enabling M5 changes
+    pinned by the seed-prereq regression). So enabling M5 changes
     nothing for seeded skills; it only ADDS match accuracy (aliases) and fills
     in prereqs for previously-floating auto nodes.
 

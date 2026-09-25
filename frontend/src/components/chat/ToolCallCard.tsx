@@ -43,8 +43,8 @@ function StatusDot({ status }: { status: ToolStatus }) {
 /** 教具卡片：折叠式工具调用卡。头部 icon + 中文名 + 状态点，展开看结果；
  *  出题结果渲染为练习卡列表。 */
 export function ToolCallCard({ name, result }: { name: string; result: unknown }) {
-  const { lang, grade } = useUIStore();
-  // V3: session id lets graded answers feed the Student Model mastery loop.
+  const { lang } = useUIStore();
+  // 会话 id：提交时服务端把作答归属到本会话（source_session_ref）。
   const sessionId = useChatStore((s) => s.sessionId);
   const tr = (k: string, fb?: string) => t(lang, k, fb);
 
@@ -102,7 +102,7 @@ export function ToolCallCard({ name, result }: { name: string; result: unknown }
           ) : questions.length > 0 ? (
             <div className="space-y-2.5">
               {questions.map((q, i) => (
-                <QuizQuestionCard key={i} question={q} index={i} grade={grade} sessionId={sessionId ?? undefined} />
+                <QuizQuestionCard key={i} question={q} index={i} sessionId={sessionId ?? undefined} />
               ))}
             </div>
           ) : name === "knowledge_search" && knowledgeResults.length > 0 ? (

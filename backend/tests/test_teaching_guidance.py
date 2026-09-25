@@ -92,7 +92,7 @@ class TestComposeGuidance(StorageSandboxTestCase):
     """compose 的指导转化：进已渲染字段、适用范围过滤、归因、无指导零变化。"""
 
     def _ctx(self, **kw):
-        base = dict(concept="浮力", subject="物理", mastery=0.3)
+        base = dict(concept="浮力", subject="物理", evaluation_context={"state": "emerging"})
         base.update(kw)
         return TeachingContext(**base)
 
@@ -158,13 +158,13 @@ class TestAdaptConsumesGuidance(StorageSandboxTestCase):
         # 即便指导文件存在，无 student_id 也不读（保持纯函数路径）
         guidance_store.apply_guidance("s1", _entry())
         strat = get_teaching_manager().adapt(
-            TeachingContext(concept="浮力", subject="物理", mastery=0.3))
+            TeachingContext(concept="浮力", subject="物理", evaluation_context={"state": "emerging"}))
         self.assertFalse(any("教学指导" in f for f in strat.focus))
 
     def test_adapt_with_student_id_applies_guidance(self):
         guidance_store.apply_guidance("s1", _entry())
         strat = get_teaching_manager().adapt(
-            TeachingContext(concept="浮力", subject="物理", mastery=0.3),
+            TeachingContext(concept="浮力", subject="物理", evaluation_context={"state": "emerging"}),
             student_id="s1")
         self.assertTrue(any("教学指导" in f for f in strat.focus))
         self.assertIn("#op_1", strat.rationale)
@@ -172,12 +172,12 @@ class TestAdaptConsumesGuidance(StorageSandboxTestCase):
     def test_adapt_after_revoke_reverts(self):
         guidance_store.apply_guidance("s1", _entry())
         before = get_teaching_manager().adapt(
-            TeachingContext(concept="浮力", subject="物理", mastery=0.3),
+            TeachingContext(concept="浮力", subject="物理", evaluation_context={"state": "emerging"}),
             student_id="s1")
         self.assertTrue(any("教学指导" in f for f in before.focus))
         guidance_store.revoke_guidance("s1", "tg_1")
         after = get_teaching_manager().adapt(
-            TeachingContext(concept="浮力", subject="物理", mastery=0.3),
+            TeachingContext(concept="浮力", subject="物理", evaluation_context={"state": "emerging"}),
             student_id="s1")
         self.assertFalse(any("教学指导" in f for f in after.focus))
         self.assertNotIn("#op_1", after.rationale)

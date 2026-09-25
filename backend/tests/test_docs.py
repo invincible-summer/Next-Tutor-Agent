@@ -132,3 +132,61 @@ class TestUsageDocsStorage(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestShowManualAPI(unittest.TestCase):
+    """/docs/show 渲染手册：公开读、文件名白名单、未构建时优雅降级。"""
+
+    def setUp(self):
+        self._tmp = tempfile.TemporaryDirectory()
+        self._env_old = os.environ.get("AUTH_MODE")
+        os.environ["AUTH_MODE"] = "1"
+        self._patches = _setup(self._tmp.name)
+        from app.core import usage_docs
+        self.manual_dir = Path(self._tmp.name) / "show_html"
+        (self.manual_dir / "pages").mkdir(parents=True)
+        (self.manual_dir / "index.html").write_text("<html>show</html>", encoding="utf-8")
+        (self.manual_dir / "pages" / "p-01.png").write_bytes(b"\x89PNG-fake")
+        self._manual_patch = patch.object(usage_docs, "_SHOW_MANUAL_DIR", self.manual_dir)
+        self._manual_patch.start()
+        self.client = TestClient(create_app())
+
+    def tearDown(self):
+        self._manual_patch.stop()
+        for p in reversed(self._patches):
+            p.stop()
+        if self._env_old is None:
+            os.environ.pop("AUTH_MODE", None)
+        else:
+            os.environ["AUTH_MODE"] = self._env_old
+        from tests.storage_sandbox import reset_shared_caches
+        reset_shared_caches()
+        self._tmp.cleanup()
+
+    def test_content_advertises_show_manual(self):
+        r = self.client.get("/api/v1/docs/content")
+        self.assertEqual(r.status_code, 200)
+        self.assertTrue(r.json()["show_manual"])
+
+    def test_show_page_and_asset_are_public(self):
+        r = self.client.get("/api/v1/docs/show")
+        self.assertEqual(r.status_code, 200)
+        self.assertIn("text/html", r.headers["content-type"])
+        self.assertIn("show", r.text)
+        r2 = self.client.get("/api/v1/docs/show/pages/p-01.png")
+        self.assertEqual(r2.status_code, 200)
+        self.assertIn("image/png", r2.headers["content-type"])
+
+    def test_page_name_pattern_enforced(self):
+        for bad in ("index.html", "p-1.png", "p-00001.png", "p-01.png%00"):
+            r = self.client.get(f"/api/v1/docs/show/pages/{bad}")
+            self.assertEqual(r.status_code, 404, bad)
+
+    def test_unbuilt_manual_degrades(self):
+        from app.core import usage_docs
+        empty = Path(self._tmp.name) / "empty_html"
+        empty.mkdir()
+        with patch.object(usage_docs, "_SHOW_MANUAL_DIR", empty):
+            self.assertFalse(usage_docs.show_manual_available())
+            r = self.client.get("/api/v1/docs/show")
+            self.assertEqual(r.status_code, 404)

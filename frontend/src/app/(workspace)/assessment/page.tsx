@@ -6,14 +6,12 @@ import { useEffect, useMemo, useState } from "react";
 import { ModuleBadge } from "@/components/ui/Badge";
 import { EmptyState, ErrorNote, Skeleton } from "@/components/ui/EmptyState";
 import {
-  addOrchWeekConcept,
   assessmentAbandon,
   assessmentActive,
   assessmentAnswer,
   assessmentNext,
   assessmentStart,
   getErrorNotebook,
-  getOrchPlan,
   getRecentQuizQuestions,
 } from "@/lib/api-modules";
 import { listSessions } from "@/lib/api";
@@ -27,7 +25,7 @@ import type {
 } from "@/lib/types-modules";
 import type { SessionItem } from "@/lib/types";
 import { STRINGS } from "./strings";
-import { ConfigCard } from "@/components/pages/assessment/ConfigCard";
+import { ConfigCard, type AssessmentStartIntent } from "@/components/pages/assessment/ConfigCard";
 import { QuestionCard } from "@/components/pages/assessment/QuestionCard";
 import { FeedbackCard, type AnswerResult } from "@/components/pages/assessment/FeedbackCard";
 import { SummaryCard } from "@/components/pages/assessment/SummaryCard";
@@ -45,6 +43,7 @@ export default function AssessmentPage() {
 
   // --- CAT 流程状态 ---
   const [stage, setStage] = useState<Stage>("idle");
+  const [assessmentId, setAssessmentId] = useState("");
   const [question, setQuestion] = useState<AssessmentQuestion | null>(null);
   const [difficulty, setDifficulty] = useState(0);
   const [answered, setAnswered] = useState(0);
@@ -107,12 +106,41 @@ export default function AssessmentPage() {
           return;
         }
         if (res.status !== "ok") return; // none：无会话，停留 idle
-        if (res.session_status === "active" && res.question) {
-          setQuestion(res.question);
-          setDifficulty(difficultyOf(res.question));
+        if (res.session_status === "active") {
+          // 恢复进行中的 CAT（§11.5）：assessment_id 必须一起恢复，
+          // 否则恢复出的题目无法提交（handleSubmit 的守卫会静默 return）。
+          setAssessmentId(res.assessment_id || "");
           setAnswered(res.answered ?? 0);
           setQIndex(res.answered ?? 0);
-          setStage("asking");
+          if (res.question) {
+            setQuestion(res.question);
+            setDifficulty(difficultyOf(res.question));
+            setStage("asking");
+          } else if (res.assessment_id) {
+            // 上一题已提交但还没取下一题：刷新后自动续跑取下一题，
+            // 不能把进行中的实例渲染成"总结"（会误导用户已结束）。
+            try {
+              const nx = await assessmentNext(res.assessment_id);
+              if (cancelled) return;
+              if (nx.status === "ok" && nx.question && !nx.stop_reason) {
+                setQuestion(nx.question);
+                setDifficulty(nx.difficulty ?? difficultyOf(nx.question));
+                setStage("asking");
+              } else {
+                setSummary(nx.summary ?? res.summary ?? null);
+                setStopReason(nx.stop_reason || res.stop_reason || null);
+                setStage("done");
+              }
+            } catch (exc) {
+              if (cancelled) return;
+              // Keep the active assessment resumable after settings conflicts.
+              setSummary(res.summary ?? null);
+              setResult({ taskResult: null, evaluationStatus: "pending", learnerFeedback: "" });
+              setError(exc instanceof Error && exc.message === "illustration_disabled"
+                ? makePageT(lang, STRINGS)("illustration.disabled") : makePageT(lang, STRINGS)("err.next"));
+              setStage("feedback");
+            }
+          }
         } else if (res.summary) {
           setSummary(res.summary);
           setStopReason(res.stop_reason || null);
@@ -177,6 +205,7 @@ export default function AssessmentPage() {
 
   const resetFlow = () => {
     setStage("idle");
+    setAssessmentId("");
     setQuestion(null);
     setResult(null);
     setSummary(null);
@@ -185,74 +214,67 @@ export default function AssessmentPage() {
     setDifficulty(0);
     setError(null);
     setRetryFn(null);
-    setAddedConcept(false);
   };
 
-  const handleStart = async (concept: string, subject: string, level: string,
-                             bloomFocus = "") => {
+  const handleStart = async (intent: AssessmentStartIntent) => {
     setBusy(true);
     setError(null);
     try {
       const res = await assessmentStart({
-        concept,
-        grade: level || grade,
-        subject: subject || undefined,
-        bloom_focus: bloomFocus || undefined,
+        workspace_id: intent.workspaceId,
+        concept_keys: intent.conceptKeys,
+        goal: { purpose: intent.purpose },
+        count: intent.count,
+        illustration_request: intent.illustrationRequest,
+        grade,
       });
       if (res.status === "disabled") {
         setDisabled(true);
         return;
       }
-      if (res.status !== "ok") {
-        fail(res.message || tr("err.start"), () => handleStart(concept, subject, level, bloomFocus));
+      if (res.status !== "ok" || !res.question) {
+        fail(res.message || tr("err.start"), () => handleStart(intent));
         return;
       }
-      // start 只建会话；首题经 /next 生成（后端契约：start 返回 question=null）。
-      let q = res.question ?? null;
-      let diff = res.difficulty;
-      if (!q) {
-        const nx = await assessmentNext();
-        if (nx.status === "disabled") {
-          setDisabled(true);
-          return;
-        }
-        if (nx.status !== "ok" || !nx.question) {
-          fail(tr("err.start"), () => handleStart(concept, subject, level, bloomFocus));
-          return;
-        }
-        q = nx.question;
-        diff = nx.difficulty ?? diff;
-      }
-      setQuestion(q);
-      setDifficulty(diff ?? difficultyOf(q));
+      setAssessmentId(res.assessment_id || "");
+      setQuestion(res.question);
+      setDifficulty(res.difficulty ?? difficultyOf(res.question));
       setAnswered(0);
       setQIndex(0);
+      setStopReason(null);
+      setSummary(null);
       setStage("asking");
-    } catch {
-      fail(tr("err.start"), () => handleStart(concept, subject, level, bloomFocus));
+    } catch (exc) {
+      fail(exc instanceof Error && exc.message === "illustration_disabled" ? tr("illustration.disabled") : tr("err.start"), () => handleStart(intent));
     } finally {
       setBusy(false);
     }
   };
 
   const handleSubmit = async (studentAnswer: string) => {
+    if (!question || !assessmentId || busy) return;
     setBusy(true);
     setError(null);
     try {
-      const res = await assessmentAnswer({ student_answer: studentAnswer });
+      const res = await assessmentAnswer({
+        assessment_id: assessmentId,
+        question_id: question.question_id,
+        question_revision: question.question_revision || 1,
+        student_answer: studentAnswer,
+      });
       if (res.status === "disabled") {
         setDisabled(true);
         return;
       }
-      if (res.status === "no_active_question") {
-        fail(tr("err.noActive"), resetFlow);
-        return;
-      }
-      if (res.status !== "ok" || !res.result) {
+      if (res.status !== "ok") {
         fail(tr("err.answer"), () => handleSubmit(studentAnswer));
         return;
       }
-      setResult(res.result);
+      setResult({
+        taskResult: res.task_result ?? null,
+        evaluationStatus: res.evaluation?.status || "pending",
+        learnerFeedback: "",
+      });
       setAnswered((n) => n + 1);
       setStopReason(res.stop_reason || null);
       if (res.summary) setSummary(res.summary);
@@ -273,7 +295,7 @@ export default function AssessmentPage() {
     setBusy(true);
     setError(null);
     try {
-      const res = await assessmentNext();
+      const res = await assessmentNext(assessmentId);
       if (res.status === "disabled") {
         setDisabled(true);
         return;
@@ -302,8 +324,8 @@ export default function AssessmentPage() {
       setQIndex((i) => i + 1);
       setResult(null);
       setStage("asking");
-    } catch {
-      fail(tr("err.next"), handleNext);
+    } catch (exc) {
+      fail(exc instanceof Error && exc.message === "illustration_disabled" ? tr("illustration.disabled") : tr("err.next"), handleNext);
     } finally {
       setBusy(false);
     }
@@ -313,37 +335,12 @@ export default function AssessmentPage() {
     setBusy(true);
     setError(null);
     try {
-      await assessmentAbandon();
+      await assessmentAbandon(assessmentId);
       resetFlow();
     } catch {
       fail(tr("err.abandon"), handleAbandon);
     } finally {
       setBusy(false);
-    }
-  };
-
-  /** 总结卡「把薄弱概念加入周计划」：找当前周（无周计划/无目标则禁用）。 */
-  const [addingConcept, setAddingConcept] = useState(false);
-  const [addedConcept, setAddedConcept] = useState(false);
-  const addToPlan = async () => {
-    const concept = typeof summary?.concept === "string" ? summary.concept.trim() : "";
-    if (!concept || addingConcept) return;
-    setAddingConcept(true);
-    try {
-      const plan = await getOrchPlan();
-      const now = Date.now() / 1000;
-      const weeks = plan?.weekly_plan ?? [];
-      const cur = weeks.find((w) => w.week_start > 0 && now >= w.week_start
-        && now < w.week_start + 7 * 86400) ?? weeks[0];
-      if (!cur) return;
-      const r = await addOrchWeekConcept(cur.week_index, {
-        concept_id: "", name: concept,
-      });
-      if (r.ok) setAddedConcept(true);
-    } catch {
-      /* 失败静默：按钮可重试 */
-    } finally {
-      setAddingConcept(false);
     }
   };
 
@@ -378,7 +375,7 @@ export default function AssessmentPage() {
               />
             )}
             {stage === "idle" && (
-              <ConfigCard tr={tr} grade={grade} lang={lang} busy={busy} onStart={handleStart} />
+              <ConfigCard tr={tr} lang={lang} busy={busy} onStart={handleStart} />
             )}
             {stage === "asking" && question && (
               <QuestionCard
@@ -396,6 +393,7 @@ export default function AssessmentPage() {
               <FeedbackCard
                 tr={tr}
                 lang={lang}
+                question={question}
                 result={result}
                 stop={!!stopReason}
                 busy={busy}
@@ -405,9 +403,7 @@ export default function AssessmentPage() {
             )}
             {stage === "done" &&
               (summary ? (
-                <SummaryCard tr={tr} lang={lang} summary={summary} onAgain={resetFlow}
-                  onAddToPlan={addToPlan}
-                  addingToPlan={addingConcept} addedToPlan={addedConcept} />
+                <SummaryCard tr={tr} lang={lang} summary={summary} onAgain={resetFlow} />
               ) : (
                 <EmptyState
                   title={tr("sum.empty")}

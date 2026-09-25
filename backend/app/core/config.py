@@ -13,7 +13,10 @@ from dotenv import load_dotenv
 # Load .env from project root (parent of backend/) if present.
 _PROJECT_ROOT = Path(__file__).resolve().parents[3]
 _BACKEND_ROOT = _PROJECT_ROOT / "backend"
-load_dotenv(_PROJECT_ROOT / ".env")
+# Test runs force the keyless CI environment (tests/__init__.py sets the
+# flag and scrubs the variables); never load real credentials there.
+if os.environ.get("EDU_TEST_KEYLESS") != "1":
+    load_dotenv(_PROJECT_ROOT / ".env")
 
 
 def _resolve_skill_runtime_mode() -> str:
@@ -59,7 +62,28 @@ class Settings:
     # DEEPSEEK_* aliases for backward compat with older .env files.
     llm_base_url: str = os.getenv("LLM_BASE_URL") or os.getenv("DEEPSEEK_BASE_URL", "https://api.deepseek.com/v1")
     llm_api_key: str = os.getenv("LLM_API_KEY") or os.getenv("DEEPSEEK_API_KEY", "")
-    llm_model: str = os.getenv("LLM_MODEL") or os.getenv("DEEPSEEK_MODEL_REASONING", "deepseek-v4-flash")
+    # 2026-09 DeepSeek API 只接受 deepseek-flash / deepseek-v4-pro；
+    # 旧名（deepseek-v4-flash 等）会被 400 invalid_request_error 拒绝，
+    # 表现为出题/对话全部 generation_failed。
+    llm_model: str = os.getenv("LLM_MODEL") or os.getenv("DEEPSEEK_MODEL_REASONING", "deepseek-flash")
+    # Structured question generation is latency-sensitive and has its own
+    # model/retry lane.  Deployments that expose DEEPSEEK_MODEL_LIGHT get the
+    # fast model automatically; QUIZ_MODEL can override it explicitly.
+    quiz_model: str = (os.getenv("QUIZ_MODEL")
+                       or os.getenv("DEEPSEEK_MODEL_LIGHT")
+                       or llm_model)
+    quiz_sdk_max_retries: int = max(0, int(os.getenv("QUIZ_SDK_MAX_RETRIES", "0")))
+    quiz_retry_max: int = max(1, min(3, int(os.getenv("QUIZ_RETRY_MAX", "2"))))
+    quiz_retry_base_delay: float = max(0.1, float(os.getenv("QUIZ_RETRY_BASE_DELAY", "0.75")))
+    # CAT must not spend the 180-second generic budget on nested retries.  One
+    # initial attempt plus one bounded fallback is enough for transient model
+    # variance while keeping the endpoint responsive.
+    assessment_generation_max_attempts: int = max(
+        1, min(2, int(os.getenv("ASSESSMENT_GENERATION_MAX_ATTEMPTS", "2"))))
+    assessment_generation_max_calls: int = max(
+        2, min(8, int(os.getenv("ASSESSMENT_GENERATION_MAX_CALLS", "6"))))
+    assessment_generation_deadline_seconds: int = max(
+        30, min(180, int(os.getenv("ASSESSMENT_GENERATION_DEADLINE_SECONDS", "90"))))
     llm_max_tokens: int = int(os.getenv("LLM_MAX_TOKENS", "4000"))
     llm_context_window: int = int(os.getenv("LLM_CONTEXT_WINDOW", "65536"))
     llm_max_output_tokens: int = int(os.getenv("LLM_MAX_OUTPUT_TOKENS", "8000"))
@@ -90,6 +114,11 @@ class Settings:
     # Post-generation quiz verification: critic = 结构校验 + LLM 独立重解审题,
     # basic = 仅确定性结构校验, off = 旧行为（不校验）。
     quiz_verify_mode: str = os.getenv("QUIZ_VERIFY_MODE", "critic").strip().lower()
+    # Opt-in rollout; independent from semantic verification and user prefs.
+    # SVG question diagrams are available by default; the deployment-level
+    # switch remains an emergency/rollout kill switch, while each account can
+    # opt out from the assessment center.
+    quiz_svg_enabled: bool = os.getenv("QUIZ_SVG_ENABLED", "1").strip().lower() in {"1", "true", "yes", "on"}
     # 出题两轮化：two_pass = 生成前先做一轮命题蓝图设计（考查角度/认知层级/
     # 陷阱设计），第二轮按蓝图写题；single = 旧行为（单轮直出）。
     # 蓝图轮失败时自动回退 single（fail-open，同 quiz_verify 哲学）。
@@ -104,6 +133,23 @@ class Settings:
     # 受限方式调整策略（单一主要行动/枚举白名单/显式约束优先）。
     teaching_decision_mode: str = _resolve_mode(
         "TEACHING_DECISION_MODE", {"rules", "shadow", "active"}, "rules")
+    # 统一语义学习评价（plan §10.3 工程预算，非教育测量阈值）。
+    learner_evaluation_mode: str = _resolve_mode(
+        "LEARNER_EVALUATION_MODE", {"active", "off"}, "active")
+    learner_evaluation_concurrency: int = int(
+        os.getenv("LEARNER_EVALUATION_CONCURRENCY", "2"))
+    learner_eval_wall_deadline: int = int(
+        os.getenv("LEARNER_EVAL_WALL_DEADLINE", "45"))
+    learner_eval_transport_max: int = int(
+        os.getenv("LEARNER_EVAL_TRANSPORT_MAX", "4"))
+    learner_eval_job_budget: int = int(
+        os.getenv("LEARNER_EVAL_JOB_BUDGET", "120"))
+    learner_eval_lease_seconds: int = int(
+        os.getenv("LEARNER_EVAL_LEASE_SECONDS", "150"))
+    learner_eval_synthesis_merge_wait: int = int(
+        os.getenv("LEARNER_EVAL_SYNTHESIS_MERGE_WAIT", "15"))
+    learner_eval_clt_sample_ratio: float = float(
+        os.getenv("LEARNER_EVAL_CLT_SAMPLE_RATIO", "0.2"))
     # 工具步允许保留模型思考（LOW，不下发关闭指令）：预算充足时让推理发生，
     # real_summary 才有真实材料；预算被压缩时 executor 的 budget_forces_direct
     # 仍会强制关思考， starving 时走 incomplete_answer_recovery 兜底。

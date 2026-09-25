@@ -1,6 +1,8 @@
 """P9 R4：上下文重建（课文合并/邻块扩展）与注入投影溢出指针。"""
+import hashlib
 import unittest
 
+from app.agents.skill_runtime.runtime import SkillRuntime
 from app.core.evidence_context import reconstruct_evidence
 from app.core.tool_context import project_knowledge_evidence
 from app.core.tool_protocol import ToolResult
@@ -58,6 +60,31 @@ class NeighborExpansionTest(unittest.TestCase):
         self.assertTrue(out[0].get("neighbor_expanded"))
         self.assertIn("前一页结尾", out[0]["evidence_excerpt"])
         self.assertIn("后一页开始", out[0]["evidence_excerpt"])
+
+    def test_reconstructed_excerpt_rebinds_skill_context_hash(self):
+        chunks = {
+            "f1#5": {"text": "前文条件。", "metadata": {}},
+            "f1#6": {"text": "核心结论。", "metadata": {"prev_id": "f1#5"}},
+        }
+        item = _item(6, "核心结论。", chunk_id="f1#6")
+        item["source_visibility"] = "public"
+        item["context_hash"] = hashlib.sha256(
+            item["evidence_excerpt"].encode()).hexdigest()
+        out = reconstruct_evidence([item], chunks.get)
+        final_hash = hashlib.sha256(
+            out[0]["evidence_excerpt"].encode()).hexdigest()
+        self.assertEqual(out[0]["context_hash"], final_hash)
+
+        result = ToolResult(
+            tool="knowledge_search", status="success",
+            data={"count": 1, "evidence_bundle": {
+                "selected": out, "context_hashes": [final_hash],
+            }},
+            text=f"<material_excerpt>{out[0]['evidence_excerpt']}</material_excerpt>",
+        )
+        report = SkillRuntime([]).validate_result("knowledge_search", result)
+        self.assertIsNotNone(report)
+        self.assertTrue(report.valid)
 
     def test_rich_excerpt_not_expanded(self):
         chunks = {"f1#6": {"text": "x", "metadata": {}}}

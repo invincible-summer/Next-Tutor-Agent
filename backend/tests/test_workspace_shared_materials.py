@@ -93,7 +93,14 @@ class TestWorkspaceSharedMaterials(unittest.TestCase):
         class _Upload:
             filename = "shared.pdf"
 
-            async def read(self):
+            def __init__(self):
+                self._served = False
+
+            # 对齐 FastAPI UploadFile.read(size=-1)（read_upload_limited 分块读）。
+            async def read(self, size: int = -1):
+                if self._served:
+                    return b""
+                self._served = True
                 return b"pdf-bytes"
 
         ws = Workspace(name="route", student_id="student_default")

@@ -19,6 +19,19 @@ from .atomic import atomic_write_text, file_lock
 _PROJECT_ROOT = Path(__file__).resolve().parents[3]
 _DOCS_FILE = _PROJECT_ROOT / "chat_history" / "settings" / "usage_docs.json"
 
+# The rendered PDF manual (docs/show/html, produced by
+# scripts/build_show_html.py) rides along with the markdown doc on /docs.
+# Absent build output simply hides the manual tab; nothing else depends on it.
+_SHOW_MANUAL_DIR = _PROJECT_ROOT / "docs" / "show" / "html"
+
+
+def show_manual_available() -> bool:
+    return (_SHOW_MANUAL_DIR / "index.html").is_file()
+
+
+def show_manual_dir() -> Path:
+    return _SHOW_MANUAL_DIR
+
 # size cap: a usage doc well beyond this is almost certainly a paste error
 _MAX_MARKDOWN_CHARS = 200_000
 

@@ -1,5 +1,7 @@
 "use client";
-// 概念详情抽屉：getConceptDetail(id) 的五组邻边 / 掌握度 / 教学记录 / 记忆。
+// 概念详情抽屉：getConceptDetail(id) 的五组邻边 + 统一评价面板（§14.3：
+// 同一 SemanticEvaluationPanel 供 Memory/ConceptDrawer 复用；judgment_id
+// 与状态映射全站一致）/ 教学记录 / 记忆。
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AlertTriangle, ClipboardList, MessageSquare, Target } from "lucide-react";
@@ -7,10 +9,17 @@ import { Drawer } from "@/components/ui/Drawer";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Skeleton, ErrorNote, EmptyState } from "@/components/ui/EmptyState";
-import { MasteryRing } from "@/components/charts/MasteryRing";
-import { getConceptDetail, getEvidenceProfile } from "@/lib/api-modules";
-import type { ConceptDetailResp, Episode, EvidenceConcept, KnowledgeNode, TeachingLogEntry } from "@/lib/types-modules";
-import { dt, modeTone, stateTone } from "@/lib/labels";
+import { SemanticEvaluationPanel } from "@/components/learning-evaluation/SemanticEvaluationPanel";
+import { getConceptDetail, getEvalConceptDetail } from "@/lib/api-modules";
+import type {
+  ConceptDetailResp,
+  ConceptEvaluationView,
+  Episode,
+  KnowledgeNode,
+  TeachingLogEntry,
+} from "@/lib/types-modules";
+import { dt, modeTone } from "@/lib/labels";
+import { et, evalStateTone } from "@/lib/evaluation-labels";
 import { relTime } from "@/lib/format";
 import type { Lang } from "@/lib/i18n";
 
@@ -22,93 +31,6 @@ function Section({ title, children }: { title: string; children: React.ReactNode
       <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted">{title}</div>
       {children}
     </section>
-  );
-}
-
-const EVIDENCE_DIMENSIONS: { key: string; labelKey: string; fallback: string }[] = [
-  { key: "concept", labelKey: "evidence.dim.concept", fallback: "概念理解" },
-  { key: "procedure", labelKey: "evidence.dim.procedure", fallback: "过程操作" },
-  { key: "reasoning", labelKey: "evidence.dim.reasoning", fallback: "推理解释" },
-  { key: "transfer", labelKey: "evidence.dim.transfer", fallback: "迁移应用" },
-  { key: "retention", labelKey: "evidence.dim.retention", fallback: "延迟保持" },
-  { key: "self_check", labelKey: "evidence.dim.self_check", fallback: "自我检查" },
-];
-
-const EVIDENCE_STATUS_TONE: Record<string, "success" | "accent" | "warning" | "outline"> = {
-  demonstrated_in_scope: "success",
-  developing: "accent",
-  needs_recheck: "warning",
-  not_observed: "outline",
-};
-
-/** W3/F05 依据区：已能做什么 / 哪份作答支持 / 哪些条件未测（v2 证据投影，
- *  读时派生）。无证据的概念不渲染——没有证据不宣称会。 */
-function EvidenceSection({
-  conceptName,
-  lang,
-  tr,
-  onDispute,
-}: {
-  conceptName: string;
-  lang: Lang;
-  tr: Tr;
-  onDispute: () => void;
-}) {
-  // 一次异步装填；setState 只发生在 promise 回调里（不在 effect 体内同步调用）。
-  const [loaded, setLoaded] = useState<{ for: string; profile: EvidenceConcept | null } | null>(null);
-  const load = useCallback(() => {
-    if (!conceptName) return;
-    getEvidenceProfile(conceptName)
-      .then((res) => {
-        setLoaded({
-          for: conceptName,
-          profile: res.status === "ok" ? res.concepts[0] ?? null : null,
-        });
-      })
-      .catch(() => { /* 无证据/失败 → 不渲染 */ });
-  }, [conceptName]);
-  useEffect(() => {
-    load();
-  }, [load]);
-  const profile = loaded?.for === conceptName ? loaded.profile : null;
-  if (!profile) return null;
-  const dim = (k: string) => profile.dimensions?.[k];
-  return (
-    <Section title={dt(lang, "evidence.title", "依据（能力证据）")}>
-      <div className="flex flex-wrap gap-1.5">
-        {EVIDENCE_DIMENSIONS.map(({ key, labelKey, fallback }) => {
-          const d = dim(key);
-          if (!d || d.status === "not_observed") {
-            return (
-              <span key={key} className="rounded-full border border-dashed border-border px-2 py-0.5 text-[11px] text-muted/70">
-                {dt(lang, labelKey, fallback)} · {dt(lang, "evidence.status.not_observed", "未测")}
-              </span>
-            );
-          }
-          return (
-            <Badge key={key} tone={EVIDENCE_STATUS_TONE[d.status] ?? "outline"} dot>
-              {dt(lang, labelKey, fallback)} · {dt(lang, `evidence.status.${d.status}`, d.status)}
-            </Badge>
-          );
-        })}
-      </div>
-      <div className="mt-2 flex flex-col gap-1">
-        <div className="text-[11px] text-muted">
-          {tr("attemptsTxt")} {profile.evidence_count} · {dt(lang, "evidence.independent", "独立作答")} {profile.independent_count}
-        </div>
-        {profile.evidence.slice(0, 3).map((ev, i) => (
-          <div key={i} className="flex items-center gap-1.5 text-[11px] text-fg-secondary">
-            <Badge tone={ev.verdict === "correct" ? "success" : ev.verdict === "partial" ? "warning" : "danger"}>
-              {ev.verdict}
-            </Badge>
-            {ev.assistance && <span className="text-muted">（{dt(lang, "evidence.assisted", "求助后完成")}）</span>}
-          </div>
-        ))}
-        <button onClick={onDispute} className="mt-1 w-fit text-[11px] text-accent transition-colors hover:text-accent-strong">
-          {dt(lang, "evidence.dispute", "对判定有异议？到测评中心重练该题")}
-        </button>
-      </div>
-    </Section>
   );
 }
 
@@ -168,12 +90,15 @@ export function ConceptDrawer({
   lang,
   tr,
   goal,
+  workspaceId = "",
   onClose,
   onNavigate,
 }: {
   id: string | null;
   lang: Lang;
   tr: Tr;
+  /** 当前工作区（§11.6/§14.4）：空 = 仅浏览教材，无个人评价面板。 */
+  workspaceId?: string;
   /** L1 目标链归属（可空）：属于目标链/目标概念时展示归属行。 */
   goal?: {
     title: string;
@@ -186,6 +111,7 @@ export function ConceptDrawer({
 }) {
   const router = useRouter();
   const [data, setData] = useState<ConceptDetailResp | null>(null);
+  const [evalView, setEvalView] = useState<ConceptEvaluationView | null>(null);
   const [err, setErr] = useState(false);
   const [loadedId, setLoadedId] = useState<string | null>(null);
   const reqToken = useRef(0);
@@ -196,19 +122,31 @@ export function ConceptDrawer({
   const load = useCallback(() => {
     if (!id) return;
     const token = ++reqToken.current;
-    getConceptDetail(id)
+    getConceptDetail(id, "student_default", workspaceId)
       .then((r) => {
         if (reqToken.current !== token) return;
         setData(r);
         setErr(false);
         setLoadedId(id);
+        // 完整概念视图（主张/变化/next_probe）：有区 + 有 overlay key 时加载。
+        const key = r?.evaluation?.concept_key;
+        if (workspaceId && key) {
+          getEvalConceptDetail(workspaceId, key)
+            .then((v) => {
+              if (reqToken.current !== token) return;
+              setEvalView(v);
+            })
+            .catch(() => {});
+        } else {
+          setEvalView(null);
+        }
       })
       .catch(() => {
         if (reqToken.current !== token) return;
         setErr(true);
         setLoadedId(id);
       });
-  }, [id]);
+  }, [id, workspaceId]);
 
   useEffect(() => {
     load();
@@ -221,7 +159,7 @@ export function ConceptDrawer({
   }, [load]);
 
   const concept = data?.concept ?? null;
-  const mastery = data?.mastery ?? null;
+  const evaluation = data?.evaluation ?? null;
   const log: TeachingLogEntry[] = (data?.teaching_log ?? []).slice(-5).reverse();
   const memories: Episode[] = (data?.memories ?? []).slice(-5).reverse();
   const notFound = data != null && (data.status === "not_found" || !concept);
@@ -244,12 +182,13 @@ export function ConceptDrawer({
   );
   const learnMsg = useCallback(() => {
     if (!concept) return "";
+    const state = evaluation?.state;
     const meta =
       (concept.subject ? `${concept.subject}·` : "") +
       `${tr("difficulty")}${concept.difficulty}` +
-      (mastery ? tr("drawer.mastery.part").replace("%s", dt(lang, `state.${mastery.state}`)) : "");
+      (state ? ` · ${et(lang, `eval.state.${state}`)}` : "");
     return tr("drawer.learn.msg").replace("%c", concept.name).replace("%m", meta);
-  }, [concept, mastery, tr, lang]);
+  }, [concept, evaluation, tr, lang]);
   const quizMsg = useCallback(
     () => (concept ? tr("drawer.quiz.msg").replace("%c", concept.name) : ""),
     [concept, tr],
@@ -275,9 +214,9 @@ export function ConceptDrawer({
             <Badge tone="outline">
               {tr("difficulty")} <span className="tnum">{concept.difficulty}</span>
             </Badge>
-            {mastery && (
-              <Badge tone={stateTone(mastery.state)} dot>
-                {dt(lang, `state.${mastery.state}`)}
+            {evaluation?.state && evaluation.state !== "not_observed" && (
+              <Badge tone={evalStateTone(evaluation.state)} dot>
+                {et(lang, `eval.state.${evaluation.state}`)}
               </Badge>
             )}
           </div>
@@ -353,28 +292,26 @@ export function ConceptDrawer({
             </div>
           )}
 
-          {mastery && (
-            <Section title={tr("masteryTitle")}>
-              <div className="flex items-center gap-3">
-                <MasteryRing value={mastery.p_known} size={64} />
-                <div className="text-xs text-muted">
-                  {(mastery.attempts ?? 0) > 0 && (
-                    <div className="tnum">
-                      {mastery.attempts} {tr("attemptsTxt")} · {mastery.correct ?? 0} {tr("correctTxt")}
-                    </div>
-                  )}
-                </div>
-              </div>
-            </Section>
-          )}
-
-          {concept?.name && (
-            <EvidenceSection
-              conceptName={concept.name}
+          {/* 统一评价面板（§14.3）：有完整概念视图时展示主张/变化/证据；
+              仅有 overlay 时降级为类别徽标 + 结论文本；无区=不渲染。 */}
+          {evalView && workspaceId && (
+            <SemanticEvaluationPanel
+              view={evalView}
               lang={lang}
-              tr={tr}
-              onDispute={() => router.push("/assessment")}
+              workspaceId={workspaceId}
+              prerequisites={(data?.edges?.prerequisites ?? []).map((r) => ({
+                id: r.id,
+                name: r.name || r.id,
+              }))}
+              onExplain={() =>
+                router.push(`/chat?q=${encodeURIComponent(tr("drawer.learn.msg").replace("%c", concept?.name ?? "").replace("%m", ""))}&send=1`)
+              }
             />
+          )}
+          {!evalView && evaluation?.state && evaluation.statement && (
+            <Section title={lang === "en" ? "Evaluation" : "学习评价"}>
+              <p className="text-xs leading-relaxed text-fg-secondary">{evaluation.statement}</p>
+            </Section>
           )}
 
           {concept.common_errors && concept.common_errors.length > 0 && (

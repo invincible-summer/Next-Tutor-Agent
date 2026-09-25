@@ -1,11 +1,10 @@
 import { useEffect, useState } from "react";
-import { BookOpenCheck, Goal, Layers, Target } from "lucide-react";
+import { BookOpenCheck, Goal, Target } from "lucide-react";
 import Link from "next/link";
 import { Badge, ModuleBadge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Card, CardHeader } from "@/components/ui/Card";
-import { Progress } from "@/components/ui/Progress";
-import { getBloomProfile, getOrchPlan } from "@/lib/api-modules";
+import { getOrchPlan } from "@/lib/api-modules";
 import type { Lang } from "@/lib/i18n";
 import { relTime } from "@/lib/format";
 import type { StudentProfileData } from "@/lib/types-modules";
@@ -22,43 +21,6 @@ function SourceTag({ label }: { label: string }) {
   );
 }
 
-/** 布鲁姆认知档案弱项行（L1 共享档案 /student/bloom-profile 的轻量投影）。 */
-function BloomWeaknessRow({ tr }: { tr: Tr }) {
-  const [weak, setWeak] = useState<{ concept: string; level_zh: string; attempts: number; rate: number }[] | null>(null);
-  useEffect(() => {
-    let alive = true;
-    getBloomProfile()
-      .then((r) => {
-        if (alive && r.status === "ok") setWeak(r.weaknesses ?? []);
-      })
-      .catch(() => alive && setWeak([]));
-    return () => {
-      alive = false;
-    };
-  }, []);
-  if (weak === null || weak.length === 0) return null;
-  return (
-    <section>
-      <div className="mb-1.5 flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wide text-muted">
-        <Layers size={11} />
-        {tr("m2.bloom")}
-        <SourceTag label={tr("src.l1")} />
-      </div>
-      <div className="flex flex-wrap gap-1.5">
-        {weak.slice(0, 6).map((w, i) => (
-          <Badge key={i} tone="warning">
-            {w.concept} · {w.level_zh}
-            <span className="tnum opacity-70">
-              {" "}{Math.round(w.rate * 100)}%
-            </span>
-          </Badge>
-        ))}
-      </div>
-      <div className="mt-1 text-[11px] text-muted">{tr("m2.bloom.note")}</div>
-    </section>
-  );
-}
-
 /**
  * 学习目标区：镜像 M9 编排目标（单一真相源），替代旧 M2 profile.goals 展示。
  * M2 的 goal_set 写入仍在（对话链路冻结区），只是读侧不再展示双份数据。
@@ -70,7 +32,7 @@ function GoalMirrorSection({ tr, lang }: { tr: Tr; lang: Lang }) {
     title: string;
     goal_type: string;
     deadline: number;
-    mastered: number;
+    supported: number;
     total: number;
     ratio: number;
     gaps: number;
@@ -95,9 +57,9 @@ function GoalMirrorSection({ tr, lang }: { tr: Tr; lang: Lang }) {
                 title: g.title ?? "",
                 goal_type: g.goal_type ?? "",
                 deadline: g.deadline ?? 0,
-                mastered: gs.mastered_skills ?? 0,
+                supported: gs.supported_skills ?? 0,
                 total: gs.total_skills ?? 0,
-                ratio: gs.mastered_ratio ?? 0,
+                ratio: gs.supported_ratio ?? 0,
                 gaps: (gs.gaps ?? []).length,
                 chain: gs.chain_mode === "concept_chain",
               };
@@ -145,12 +107,8 @@ function GoalMirrorSection({ tr, lang }: { tr: Tr; lang: Lang }) {
               </div>
               {goal.total > 0 && (
                 <div className="flex items-center gap-2.5">
-                  <Progress value={goal.ratio} tone="accent" className="max-w-[180px]" />
                   <span className="tnum text-xs text-fg-secondary">
-                    {goal.mastered}/{goal.total}
-                  </span>
-                  <span className="tnum text-xs text-muted">
-                    {Math.round(goal.ratio * 100)}%
+                    {tr("m2.goal.supported", "已支持")} {goal.supported}/{goal.total}
                   </span>
                   {goal.gaps > 0 && (
                     <span className="tnum text-xs text-muted">
@@ -225,47 +183,25 @@ export function AcademicCard({ profile, lang, tr }: { profile: StudentProfileDat
           </div>
         </section>
 
-        <BloomWeaknessRow tr={tr} />
-
         <GoalMirrorSection tr={tr} lang={lang} />
 
-        {/* 优势 / 待加强 */}
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <section>
-            <div className="mb-1.5 flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wide text-muted">
-              {tr("m2.strong")}
-              <SourceTag label={tr("src.m2")} />
-            </div>
-            <div className="flex flex-wrap gap-1.5">
-              {profile.strong_points.length > 0 ? (
-                profile.strong_points.map((s) => (
-                  <Badge key={s} tone="success">
-                    {s}
-                  </Badge>
-                ))
-              ) : (
-                <span className="text-xs text-muted">—</span>
-              )}
-            </div>
-          </section>
-          <section>
-            <div className="mb-1.5 flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wide text-muted">
-              {tr("m2.weak")}
-              <SourceTag label={tr("src.m2")} />
-            </div>
-            <div className="flex flex-wrap gap-1.5">
-              {profile.weak_points.length > 0 ? (
-                profile.weak_points.map((s) => (
-                  <Badge key={s} tone="danger">
-                    {s}
-                  </Badge>
-                ))
-              ) : (
-                <span className="text-xs text-muted">—</span>
-              )}
-            </div>
-          </section>
-        </div>
+        {/* 学习评价入口（§11.6：画像不再自带强弱项；跳当前工作区档案） */}
+        <section>
+          <div className="mb-1.5 flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wide text-muted">
+            <BookOpenCheck size={11} />
+            {tr("m2.evaluation", "学习评价")}
+          </div>
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-xs leading-relaxed text-muted">
+              {tr("m2.evaluation.desc", "有条件的学习主张与证据在「记忆中心 · 学习档案」按学习区展示。")}
+            </span>
+            <Link href="/memory">
+              <Button size="sm" variant="outline">
+                {tr("m2.evaluation.open", "查看学习档案")}
+              </Button>
+            </Link>
+          </div>
+        </section>
 
         <div className="border-t border-border-light pt-2 text-[11px] text-muted">
           <div>

@@ -32,7 +32,7 @@ from __future__ import annotations
 import time
 from typing import Any
 
-from .schema import (GapItem, GoalAnalysisLevel, GoalState, GoalType,
+from .schema import (GapItem, GoalState, GoalType,
                      LearningGoal)
 
 # --- keyword tables for rule-based goal parsing (zero LLM) ------------------
@@ -170,20 +170,21 @@ def estimate_schedule(required_count: int, deadline: float,
 
 def compute_gap_analysis(goal: LearningGoal, *,
                          subject_skills: list[dict[str, Any]],
-                         mastery_view: dict[str, Any],
+                         evaluation_view: dict[str, Any],
                          prereq_map: dict[str, list[str]] | None = None,
-                         target_mastery: float = 0.75,
                          now: float | None = None,
                          chain_mode: str = "subject",
                          weekly_pace: int = 5,
                          daily_minutes: int = 45,
                          available_days: int = 7) -> GoalState:
-    """Compute a GoalState from one goal + a read-only mastery/graph projection.
+    """Compute a GoalState from one goal + a read-only evaluation/graph
+    projection (G4 §13.8：语义分组，无数值掌握).
 
     subject_skills: [{skill_id, name, subject, difficulty}] from the M5 graph.
         The caller decides the口径: with a concept-level goal binding this is
         the goal's prerequisite closure; otherwise it is the whole subject.
-    mastery_view: {skill_id: {p_known: float}} from M2 (read-only).
+    evaluation_view: {skill_id: {"state": ...}} 统一评价只读投影
+        （supported_in_scope/emerging/fragile/conflicting/not_observed）。
     prereq_map: {skill_id: [prerequisite_id]} from M5 (read-only), for the
         backward-plan topo-sort. Optional -- without it, gaps are unordered.
     chain_mode: "concept_chain" | "subject" -- echoed into the GoalState so
@@ -191,10 +192,10 @@ def compute_gap_analysis(goal: LearningGoal, *,
     daily_minutes/available_days: the student's schedule (W4/A13 estimate
         range input), forwarded to estimate_schedule.
 
-    W4/A13 gap status: "unknown" = no observation yet (未测，不宣称缺口——
-    未测可能被当缺口是 A13 的缺陷); "weak" = observed below target
-    (确认的薄弱). Planning still covers unknown concepts — a plan teaches
-    what has not been tested; the status only labels the evidence state.
+    G4 gap status: "unknown" = 未观察（无证据，不宣称缺口，也不等于不会）;
+    "weak" = 已观察待解决（fragile/conflicting/emerging）。Planning still
+    covers unknown concepts — a plan teaches what has not been tested; the
+    status only labels the evidence state.
 
     Never raises; returns a best-effort GoalState on any failure.
     """
@@ -204,29 +205,25 @@ def compute_gap_analysis(goal: LearningGoal, *,
                    else parse_goal_text(goal.title).get("subject", ""))
 
         total = len(subject_skills)
-        mastered = 0
+        supported = 0
         gaps: list[GapItem] = []
         for s in subject_skills:
             sid = str(s.get("skill_id", ""))
-            rec = mastery_view.get(sid) or {}
-            p = float(rec.get("p_known", 0)) if isinstance(rec, dict) else 0.0
-            attempts = int(rec.get("attempts", 0)) if isinstance(rec, dict) else 0
-            if p >= target_mastery:
-                mastered += 1
+            rec = evaluation_view.get(sid) or {}
+            st = str(rec.get("state", "")) if isinstance(rec, dict) else ""
+            if st == "supported_in_scope":
+                supported += 1
                 continue
-            status = "weak" if attempts > 0 else "unknown"
+            status = "weak" if st in ("emerging", "fragile",
+                                      "conflicting") else "unknown"
             gaps.append(GapItem(
                 skill_id=sid, name=str(s.get("name", "")),
                 subject=str(s.get("subject", "")),
                 difficulty=int(s.get("difficulty", 3)),
-                status=status, current_mastery=p,
-                target_mastery=target_mastery))
+                status=status))
 
-        mastered_ratio = (mastered / total) if total > 0 else 0.0
-        current_level = GoalAnalysisLevel.from_mastery_ratio(mastered_ratio)
-        target_level = GoalAnalysisLevel.PROFICIENT
-        if goal.goal_type == GoalType.INTEREST:
-            target_level = GoalAnalysisLevel.INTERMEDIATE
+        # R18：只保留覆盖计数比值，不映射能力等级档位
+        supported_ratio = (supported / total) if total > 0 else 0.0
 
         # backward plan: topo-sort the gap skills by prerequisites so the
         # planner receives a dependency-respecting order
@@ -242,11 +239,11 @@ def compute_gap_analysis(goal: LearningGoal, *,
         return GoalState(
             goal_id=goal.id, goal_title=goal.title,
             goal_type=goal.goal_type, subject=subject,
-            deadline=goal.deadline, current_level=current_level,
-            target_level=target_level, mastered_ratio=mastered_ratio,
-            total_skills=total, mastered_skills=mastered,
+            deadline=goal.deadline, supported_ratio=supported_ratio,
+            total_skills=total, supported_skills=supported,
             gaps=gaps, required_skills=required,
-            recommended_strategy=_recommend_strategy(current_level, urgency),
+            recommended_strategy=_recommend_strategy(
+                supported_ratio, urgency, goal.goal_type == GoalType.INTEREST),
             urgency=urgency, analyzed_at=now,
             chain_mode=chain_mode,
             target_concept_ids=list(goal.target_concept_ids or []),
@@ -323,18 +320,14 @@ def _deadline_urgency(deadline: float, now: float) -> float:
     return round(1.0 - days_left / 365.0, 3)
 
 
-def _recommend_strategy(current: GoalAnalysisLevel,
-                        urgency: float) -> str:
-    """A one-line strategy hint derived from the gap analysis (deterministic).
-
-    Combines the student's current level with deadline pressure to suggest
-    whether to front-load foundations, accelerate, or review-first. Pure
-    function; the planner may override it.
-    """
-    if current == GoalAnalysisLevel.NOVICE:
+def _recommend_strategy(coverage: float, urgency: float,
+                        interest_goal: bool = False) -> str:
+    """R18：策略提示由**目标范围内覆盖计数**与截止压力决定，不经过能力
+    等级档位（覆盖低 ≠ "novice"，只是本目标链上已支持概念还少）。"""
+    if coverage < 0.2 and not interest_goal:
         return "foundation_first"
     if urgency > 0.7:
         return "intensive_review"
-    if current in (GoalAnalysisLevel.BEGINNER, GoalAnalysisLevel.INTERMEDIATE):
+    if coverage < 0.65:
         return "mixed_progress"
-    return "advanced_refinement"
+    return "consolidate_and_extend"

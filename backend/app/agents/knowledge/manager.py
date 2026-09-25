@@ -220,20 +220,21 @@ class KnowledgeService:
         except Exception:
             return 0.0
 
-    def build_context(self, *, concept: str, mastery_view: dict[str, Any] | None = None,
+    def build_context(self, *, concept: str,
+                      evaluation_view: dict[str, Any] | None = None,
                       knowledge_store: Any | None = None,
                       grade: str = "", student_id: str = "") -> KnowledgeContext:
         """Assemble a KnowledgeContext (content + materials resolved)."""
         try:
             return _build_ctx(concept=concept, graph=self.graph_for(student_id),
                               retriever=self.retriever_for(student_id),
-                              mastery_view=mastery_view,
+                              evaluation_view=evaluation_view,
                               knowledge_store=knowledge_store, grade=grade)
         except Exception:
             return KnowledgeContext(concept=concept)
 
     def build_directive(self, *, concept: str,
-                        mastery_view: dict[str, Any] | None = None,
+                        evaluation_view: dict[str, Any] | None = None,
                         knowledge_store: Any | None = None,
                         grade: str = "", student_id: str = "") -> str:
         """Render the [知识智能·...] soft-directive block for one concept.
@@ -243,7 +244,8 @@ class KnowledgeService:
         Supervisor makes per turn. Never raises.
         """
         try:
-            ctx = self.build_context(concept=concept, mastery_view=mastery_view,
+            ctx = self.build_context(concept=concept,
+                                     evaluation_view=evaluation_view,
                                      knowledge_store=knowledge_store,
                                      grade=grade, student_id=student_id)
             return _render(ctx)

@@ -51,7 +51,7 @@ def build_evaluation_directive(*, student_id: str, concept: str = "",
                 w = worst[0]
                 lines.append(
                     f"[评估智能·策略反思] 统计显示「{w.strategy}」模式效果欠佳"
-                    f"（平均提升{w.avg_gain:+.2f}，{w.sample_size}轮），"
+                    f"（成功率{w.avg_success_rate:.0%}，{w.sample_size}轮），"
                     "若本轮教学效果不佳，考虑切换教学方式。")
 
         return "\n".join(lines) if lines else ""
