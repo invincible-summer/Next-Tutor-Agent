@@ -56,6 +56,8 @@ def create_lesson(student_id: str, workspace_id: str,
     if replayed:
         return replayed
 
+    from .worker import assert_queue_capacity
+    assert_queue_capacity(student_id)
     idempotency.check_generation_quota(student_id)
 
     lesson_id = store.new_id("les")

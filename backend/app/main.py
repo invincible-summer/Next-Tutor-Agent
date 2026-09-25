@@ -118,6 +118,29 @@ async def _lifespan(app: FastAPI):
 
     # 回收站过期清扫不依赖浏览器打开：启动时先扫一次，之后进程内定时扫。
     cleanup_task = None
+    # 课堂生成 worker（plan.md §15.3）：恢复未终结 job + 受限调度。
+    # classroom 关闭时不启动（无新 job；旧 job 留在磁盘等下次开启）。
+    classroom_worker = None
+    try:
+        from app.core.config import settings
+        if settings.classroom_enabled:
+            from app.classroom import service as classroom_service
+            from app.classroom.worker import get_worker
+
+            async def _start_classroom_worker() -> None:
+                worker = get_worker()
+                await worker.start()
+                classroom_service.enqueue_job = worker.enqueue
+
+            async def _stop_classroom_worker() -> None:
+                await get_worker().stop()
+                classroom_service.enqueue_job = None
+
+            await run_bootstrap_step(report, "classroom_worker",
+                                     _start_classroom_worker)
+            classroom_worker = _stop_classroom_worker
+    except Exception:
+        log.warning("classroom worker not started", exc_info=True)
     try:
         from app.core.trash import get_global_policy
 
@@ -139,6 +162,13 @@ async def _lifespan(app: FastAPI):
         yield
     finally:
         # shutdown 类失败只 warning（plan.md §19），不再无痕。
+        # 课堂 worker：先停调度（≤10s 检查点宽限），再走其余清理
+        if classroom_worker is not None:
+            try:
+                await classroom_worker()
+            except Exception:
+                log.warning("shutdown: classroom worker stop failed",
+                            exc_info=True)
         # R01：先停评价 worker（停止认领、等待在途租约、关闭共享 LLM 客户端）
         try:
             from app.agents.student_model.evaluation.worker import (
