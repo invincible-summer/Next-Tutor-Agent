@@ -40,6 +40,17 @@ def atomic_write_text(path: PathLike, text: str, encoding: str = "utf-8") -> Non
     os.replace(tmp, path)
 
 
+def atomic_write_bytes(path: PathLike, data: bytes) -> None:
+    """原子写二进制（音频/ZIP 等，plan.md §16.2）：同目录 tmp + fsync + replace。"""
+    path = Path(path)
+    tmp = path.with_name(path.name + ".tmp")
+    with tmp.open("wb") as f:
+        f.write(data)
+        f.flush()
+        os.fsync(f.fileno())
+    os.replace(tmp, path)
+
+
 @contextmanager
 def file_lock(key: PathLike) -> Iterator[None]:
     """按路径字符串分键的进程内锁，保护 load-modify-write / append 临界区。"""

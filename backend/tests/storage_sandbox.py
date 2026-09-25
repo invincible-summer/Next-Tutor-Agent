@@ -52,6 +52,7 @@ def patch_all_storage_roots(root: Path) -> list:
     from app.agents.student_model.evaluation import store as eval_journal_store
     from app.agents.teaching_engine import guidance_store, teaching_log
     from app.agents.ux_intelligence import store as ux_store
+    from app.core import classroom_store
     from app.core import context, learning_episodes, library, notes
     from app.core import learner_evaluation_policy
     from app.core import session, textbook, trash, usage_docs, workspace
@@ -59,6 +60,9 @@ def patch_all_storage_roots(root: Path) -> list:
     from app.core.config import settings
     patches = [
         patch.object(trash, "_TRASH_DIR", root / "chat_history" / "trash"),
+        # 课堂模式（plan.md §16.1）：唯一根常量在此重定向，防写穿生产
+        patch.object(classroom_store, "_CLASSROOM_DIR",
+                     root / "chat_history" / "classroom"),
         # 阶段C：策略文件是全局设置（不入账号清理），但测试必须落沙箱
         patch.object(learner_evaluation_policy, "POLICY_FILE",
                      root / "chat_history" / "settings" /
@@ -124,8 +128,8 @@ class StorageSandboxTestCase(unittest.TestCase):
         for sub in ("users", "students", "chat_history", "chat_history/library",
                     "chat_history/library/data", "chat_history/trash",
                     "chat_history/trash/items", "chat_history/workspaces",
-                    "notes", "knowledge", "knowledge/custom", "traces",
-                    "uploads"):
+                    "chat_history/classroom", "notes", "knowledge",
+                    "knowledge/custom", "traces", "uploads"):
             (root / sub).mkdir(parents=True, exist_ok=True)
 
         from app.identity import config as id_config
