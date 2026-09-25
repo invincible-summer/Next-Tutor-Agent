@@ -594,3 +594,7 @@ _register(PromptDef(id="quiz_blueprint_anchor_auto", version="1.0.0", text=_QUIZ
 from . import learner_evaluation as _learner_evaluation  # noqa: E402,F401
 from .quiz_illustration import register as _register_illustration_prompts
 _register_illustration_prompts()
+
+# 课堂模式七 prompt（plan §6.5，D01）——文本在 prompts/classroom.py
+from .classroom import register as _register_classroom_prompts
+_register_classroom_prompts()

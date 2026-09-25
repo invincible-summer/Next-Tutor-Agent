@@ -1230,7 +1230,7 @@ exports 24h 过期；搜索缓存按 24h TTL；失败/取消 job staging 保留 
 
 依赖：A、B、C。
 
-- [ ] D01 注册七个 prompt 与五个教学模板，统一调用 `get_llm("classroom")`（新增 purpose 路由，默认回现有主模型，不复制密钥配置）。
+- [x] D01 注册七个 prompt 与五个教学模板，统一调用 `get_llm("classroom")`（新增 purpose 路由，默认回现有主模型，不复制密钥配置）。
 - [ ] D02 按 §15 实现各阶段及 checked artifact；fake LLM 可从 Brief 生成完整教材课程。
 - [ ] D03 接入题目生成/审核并保留私有模板；内容生成和题模板不提前注册为学生作答。
 - [ ] D04 实现 checkpoint、恢复、epoch、取消、上限、provider retry 预算；发布前复查来源与版本。

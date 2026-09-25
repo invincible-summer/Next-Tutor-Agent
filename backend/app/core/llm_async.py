@@ -11,6 +11,7 @@ not trusted, so deployments do not accidentally route through a local proxy.
 """
 from __future__ import annotations
 
+import contextvars
 from typing import Any, AsyncGenerator
 
 import asyncio
@@ -26,6 +27,24 @@ from .tool_call_compat import (
     normalize_tool_calls,
     remember_tool_reasoning,
 )
+
+
+# ---------------------------------------------------------------------------
+# 课堂 LLM 预算钩子（plan.md §15.4，D01）
+# 只在课堂 worker 上下文 set；complete() 发 HTTP 前向钩子预留一次调用与
+# token 上限，返回后按 usage 结算。未设置（普通聊天/quiz 既有路径）时
+# 行为零变化。钩子协议见 app/classroom/llm_budget.py::LLMUsageBudget。
+# ---------------------------------------------------------------------------
+_llm_budget_hook: contextvars.ContextVar[Any] = contextvars.ContextVar(
+    "edu_llm_budget_hook", default=None)
+
+
+def set_llm_budget_hook(hook: Any) -> contextvars.Token:
+    return _llm_budget_hook.set(hook)
+
+
+def reset_llm_budget_hook(token: contextvars.Token) -> None:
+    _llm_budget_hook.reset(token)
 
 
 class AsyncLLMClient:
@@ -285,6 +304,12 @@ class AsyncLLMClient:
         )
         if disable_thinking:
             kwargs["extra_body"] = {"thinking": {"type": "disabled"}}
+        budget = _llm_budget_hook.get()
+        reservation: dict[str, int] | None = None
+        if budget is not None:
+            # 真正发 HTTP 前预留；budget_exceeded 异常直接向上传播
+            reservation = budget.reserve(
+                messages=messages, max_tokens=kwargs["max_tokens"])
         attempt = 0
         while True:
             attempt += 1
@@ -298,21 +323,38 @@ class AsyncLLMClient:
                     usage = {"prompt_tokens": resp.usage.prompt_tokens,
                              "completion_tokens": resp.usage.completion_tokens,
                              "total_tokens": resp.usage.total_tokens}
+                if budget is not None and reservation is not None:
+                    budget.settle(reservation, usage)
                 if return_finish_reason:
                     return content, usage, finish_reason
                 return content, usage
             except (RateLimitError, APITimeoutError, APIConnectionError) as e:
+                if budget is not None and reservation is not None:
+                    # 请求已可能到达 provider：按预留上限扣账（unknown outcome）
+                    budget.settle(reservation, None)
+                    reservation = budget.reserve(
+                        messages=messages, max_tokens=kwargs["max_tokens"]) \
+                        if attempt < self._retry_max else None
                 if attempt >= self._retry_max:
                     if return_finish_reason:
                         return "", None, type(e).__name__
                     return "", None
                 await asyncio.sleep(self._retry_base_delay * (2 ** (attempt - 1)))
             except APIStatusError as e:
+                if budget is not None and reservation is not None:
+                    budget.settle(reservation, None)
+                    reservation = None
                 if e.status_code == 400 and kwargs.get("extra_body"):
                     # provider doesn't support the thinking toggle: retry plain
                     kwargs.pop("extra_body")
+                    if budget is not None:
+                        reservation = budget.reserve(
+                            messages=messages, max_tokens=kwargs["max_tokens"])
                     continue
                 if e.status_code == 429 and attempt < self._retry_max:
+                    if budget is not None:
+                        reservation = budget.reserve(
+                            messages=messages, max_tokens=kwargs["max_tokens"])
                     await asyncio.sleep(self._retry_base_delay * (2 ** (attempt - 1)))
                     continue
                 if return_finish_reason:
@@ -327,6 +369,10 @@ def get_llm(purpose: str = "") -> AsyncLLMClient:
     CAT/structured-question generation is short JSON work: using the light
     model and disabling SDK-level retries avoids multiplying a single failed
     request by both the SDK and the application's own bounded fallback.
+
+    ``"classroom"``（plan §6.5/§15.4）：CLASSROOM_MODEL 为空回主模型，
+    凭证/base URL 不另建；单次 90s、SDK 隐式重试关闭，应用层有界重试；
+    token/调用预算经 contextvar 钩子由 worker 记账（见 set_llm_budget_hook）。
     """
     if purpose == "quiz":
         return AsyncLLMClient(
@@ -334,5 +380,15 @@ def get_llm(purpose: str = "") -> AsyncLLMClient:
             sdk_max_retries=settings.quiz_sdk_max_retries,
             retry_max=settings.quiz_retry_max,
             retry_base_delay=settings.quiz_retry_base_delay,
+        )
+    if purpose == "classroom":
+        from ..classroom.limits import SINGLE_LLM_TIMEOUT_SECONDS
+
+        return AsyncLLMClient(
+            model=settings.classroom_model or None,
+            sdk_max_retries=0,
+            timeout=float(SINGLE_LLM_TIMEOUT_SECONDS),
+            retry_max=2,
+            retry_base_delay=1.0,
         )
     return AsyncLLMClient()
