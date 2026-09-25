@@ -3,6 +3,7 @@ from __future__ import annotations
 from fastapi import APIRouter
 from fastapi.responses import JSONResponse
 
+from app import __version__
 from app.core.config import settings
 
 router = APIRouter(tags=["health"])
@@ -10,7 +11,7 @@ router = APIRouter(tags=["health"])
 
 @router.get("/health")
 def health():
-    return {"status": "ok", "model": settings.llm_model, "version": "0.2.0"}
+    return {"status": "ok", "model": settings.llm_model, "version": __version__}
 
 
 @router.get("/ready")

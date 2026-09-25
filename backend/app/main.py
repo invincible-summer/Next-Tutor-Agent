@@ -10,6 +10,8 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 
+from app import __version__
+
 log = logging.getLogger(__name__)
 
 # Dev-friendly default when CORS_ORIGINS is not set (local Next.js dev server).
@@ -213,7 +215,7 @@ def create_app() -> FastAPI:
     from app.identity.config import ensure_secret_safety
     ensure_secret_safety()
 
-    app = FastAPI(title="Next Tutor Agent API", version="0.2.0", lifespan=_lifespan)
+    app = FastAPI(title="Next Tutor Agent API", version=__version__, lifespan=_lifespan)
     app.middleware("http")(_process_time_header)
     origins = _cors_origins()
     app.add_middleware(
