@@ -116,3 +116,102 @@ SAMPLE_PUBLIC_URLS = [
 
 def host_of(url: str) -> str:
     return urlparse(url).hostname or ""
+
+
+# ---------------------------------------------------------------------------
+# Pexels —— 人工构造样例（结构与 api.pexels.com/v1/search 一致，虚构内容）
+# ---------------------------------------------------------------------------
+
+PEXELS_SEARCH_OK: dict[str, Any] = {
+    "page": 1,
+    "per_page": 8,
+    "photos": [
+        {
+            "id": 3140621,
+            "width": 4000,
+            "height": 2667,
+            "url": "https://www.pexels.com/photo/billiards-break-3140621/",
+            "photographer": "示例摄影师",
+            "photographer_url": "https://www.pexels.com/@sample",
+            "alt": "台球开球瞬间的示意照片（人工构造）",
+            "src": {
+                "original": "https://images.pexels.com/photos/3140621/pexels-photo-3140621.jpeg",
+                "large2x": "https://images.pexels.com/photos/3140621/pexels-photo-3140621.jpeg?auto=compress&cs=tinysrgb&w=1600",
+                "large": "https://images.pexels.com/photos/3140621/pexels-photo-3140621.jpeg?auto=compress&cs=tinysrgb&w=940",
+                "medium": "https://images.pexels.com/photos/3140621/pexels-photo-3140621.jpeg?auto=compress&cs=tinysrgb&h=350",
+            },
+        },
+        {
+            "id": 8637778,
+            "width": 5184,
+            "height": 3456,
+            "url": "https://www.pexels.com/photo/pendulum-motion-8637778/",
+            "photographer": "Sample Photographer",
+            "photographer_url": "https://www.pexels.com/@sample2",
+            "alt": "Pendulum swing motion photo (hand-crafted sample)",
+            "src": {
+                "large2x": "https://images.pexels.com/photos/8637778/pexels-photo-8637778.jpeg?auto=compress&cs=tinysrgb&w=1600",
+                "large": "https://images.pexels.com/photos/8637778/pexels-photo-8637778.jpeg?auto=compress&cs=tinysrgb&w=940",
+                "medium": "https://images.pexels.com/photos/8637778/pexels-photo-8637778.jpeg?auto=compress&cs=tinysrgb&h=350",
+            },
+        },
+    ],
+    "total_results": 2,
+}
+
+PEXELS_SEARCH_EMPTY: dict[str, Any] = {"page": 1, "per_page": 8,
+                                       "photos": [], "total_results": 0}
+
+
+# ---------------------------------------------------------------------------
+# Pixabay —— 人工构造样例（结构与 pixabay.com/api/ 一致，虚构内容）
+# ---------------------------------------------------------------------------
+
+PIXABAY_SEARCH_OK: dict[str, Any] = {
+    "total": 2,
+    "totalHits": 2,
+    "hits": [
+        {
+            "id": 8736128,
+            "pageURL": "https://pixabay.com/photos/collision-physics-momentum-8736128/",
+            "tags": "collision, physics, momentum",
+            "previewURL": "https://cdn.pixabay.com/photo/2024/05/01/12/34/collision-8736128_150.jpg",
+            "webformatURL": "https://cdn.pixabay.com/photo/2024/05/01/12/34/collision-8736128_640.jpg",
+            "largeImageURL": "https://cdn.pixabay.com/photo/2024/05/01/12/34/collision-8736128_1280.jpg",
+            "imageWidth": 1280,
+            "imageHeight": 853,
+            "user": "sample_user",
+            "user_id": 2345678,
+        },
+        {
+            "id": 1284422,
+            "pageURL": "https://pixabay.com/illustrations/newton-cradle-1284422/",
+            "tags": "newton, cradle, steel balls",
+            "previewURL": "https://cdn.pixabay.com/photo/2016/03/04/19/36/newton-1284422_150.png",
+            "webformatURL": "https://cdn.pixabay.com/photo/2016/03/04/19/36/newton-1284422_640.png",
+            "imageWidth": 640,
+            "imageHeight": 427,
+            "user": "another_user",
+            "user_id": 3456789,
+        },
+    ],
+}
+
+PIXABAY_SEARCH_EMPTY: dict[str, Any] = {"total": 0, "totalHits": 0,
+                                        "hits": []}
+
+
+# 供下载层测试用的最小合法图片字节（Pillow 生成，非真实素材）
+def make_png_bytes(width: int = 64, height: int = 48,
+                   mode: str = "RGB") -> bytes:
+    from io import BytesIO
+
+    from PIL import Image
+    img = Image.new(mode, (width, height))
+    if mode == "RGB":
+        for x in range(width):
+            for y in range(height):
+                img.putpixel((x, y), (x * 4 % 256, y * 4 % 256, 128))
+    out = BytesIO()
+    img.save(out, format="PNG")
+    return out.getvalue()
