@@ -1218,7 +1218,7 @@ exports 24h 过期；搜索缓存按 24h TTL；失败/取消 job staging 保留 
 
 依赖：A；不依赖 UI。
 
-- [ ] C01 将原工作区材料解析封装为 classroom.sources，支持教材组卷顺序、章节、source hash 和显式 session attachments。
+- [x] C01 将原工作区材料解析封装为 classroom.sources，支持教材组卷顺序、章节、source hash 和显式 session attachments。
 - [ ] C02 实现 Tavily search/extract adapter、结果部分失败、时效元数据、预算与缓存。
 - [ ] C03 实现 Pexels/Pixabay adapter、24h 缓存、署名数据、候选 ID、限流和无 key 降级。
 - [ ] C04 实现 CDN 下载、SSRF/IP 校验、每跳重验、Pillow 重编码、EXIF 清理、asset hash。
