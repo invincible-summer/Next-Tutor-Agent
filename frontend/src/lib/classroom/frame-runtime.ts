@@ -30,12 +30,12 @@
     return (window as unknown as { katex?: KatexGlobal }).katex;
   }
 
-  var mode = (document.documentElement.getAttribute("data-mode") || "online");
+  const mode = (document.documentElement.getAttribute("data-mode") || "online");
   // 脚本位于 <head>：DOM 查询必须延迟到 DOMContentLoaded 之后
-  var slides: HTMLElement[] = [];
-  var current = 0;
-  var nonce = "";
-  var port: MessagePort | null = null;
+  let slides: HTMLElement[] = [];
+  let current = 0;
+  let nonce = "";
+  let port: MessagePort | null = null;
 
   function queryDom(): void {
     slides = Array.prototype.slice.call(
@@ -43,10 +43,10 @@
   }
 
   function makeNonce(): string {
-    var out = "";
-    var i: number;
+    let out = "";
+    let i: number;
     if (window.crypto && typeof window.crypto.getRandomValues === "function") {
-      var bytes = new Uint8Array(16);
+      const bytes = new Uint8Array(16);
       window.crypto.getRandomValues(bytes);
       for (i = 0; i < bytes.length; i++) {
         out += ("0" + bytes[i].toString(16)).slice(-2);
@@ -70,19 +70,14 @@
     }
   }
 
-  function byId(id: string): HTMLElement | null {
-    return document.querySelector<HTMLElement>(
-      '[data-block-id="' + id + '"]');
-  }
-
   function renderMath(root: HTMLElement): void {
-    var nodes = root.querySelectorAll<HTMLElement>("[data-katex]");
-    for (var i = 0; i < nodes.length; i++) {
-      var el = nodes[i];
+    const nodes = root.querySelectorAll<HTMLElement>("[data-katex]");
+    for (let i = 0; i < nodes.length; i++) {
+      const el = nodes[i];
       if (el.getAttribute("data-rendered") === "1") continue;
-      var tex = el.getAttribute("data-katex") || "";
+      const tex = el.getAttribute("data-katex") || "";
       try {
-        var engine = getKatex();
+        const engine = getKatex();
         if (engine && tex) {
           engine.render(tex, el, {
             trust: false,
@@ -94,7 +89,7 @@
         } else if (tex) {
           el.textContent = tex;
         }
-      } catch (err) {
+      } catch {
         el.textContent = tex; // 公式渲染失败兜底为可读原文
       }
       el.setAttribute("data-rendered", "1");
@@ -102,29 +97,29 @@
   }
 
   function scaleStage(slide: HTMLElement): void {
-    var stage = slide.querySelector<HTMLElement>(".stage");
+    const stage = slide.querySelector<HTMLElement>(".stage");
     if (!stage) return;
-    var reading = document.documentElement.getAttribute("data-reading") === "1";
+    const reading = document.documentElement.getAttribute("data-reading") === "1";
     if (reading) {
       stage.style.transform = "";
       return;
     }
-    var vw = window.innerWidth || 1280;
-    var vh = window.innerHeight || 720;
+    const vw = window.innerWidth || 1280;
+    let vh = window.innerHeight || 720;
     // offline 模式底部有内置控制条：缩放预留其高度，避免遮挡页脚
     if (mode === "offline") vh -= 84;
-    var scale = Math.min(vw / 1280, vh / 720, 1.15);
+    const scale = Math.min(vw / 1280, vh / 720, 1.15);
     stage.style.transform = "scale(" + scale + ")";
   }
 
   function measure(slide: HTMLElement): void {
-    var blocks = slide.querySelectorAll<HTMLElement>("[data-block-id]");
-    var report: Array<Record<string, unknown>> = [];
-    var stage = slide.querySelector<HTMLElement>(".stage");
-    var stageRect = stage ? stage.getBoundingClientRect() : null;
-    for (var i = 0; i < blocks.length; i++) {
-      var el = blocks[i];
-      var rect = el.getBoundingClientRect();
+    const blocks = slide.querySelectorAll<HTMLElement>("[data-block-id]");
+    const report: Array<Record<string, unknown>> = [];
+    const stage = slide.querySelector<HTMLElement>(".stage");
+    const stageRect = stage ? stage.getBoundingClientRect() : null;
+    for (let i = 0; i < blocks.length; i++) {
+      const el = blocks[i];
+      const rect = el.getBoundingClientRect();
       report.push({
         id: el.getAttribute("data-block-id"),
         top: Math.round(rect.top),
@@ -141,16 +136,16 @@
 
   function show(order: number): void {
     if (!slides.length) return;
-    var index = order - 1;
+    let index = order - 1;
     if (index < 0 || index >= slides.length) index = 0;
-    for (var i = 0; i < slides.length; i++) {
+    for (let i = 0; i < slides.length; i++) {
       slides[i].classList.toggle("current", i === index);
     }
     current = index;
-    var slide = slides[index];
+    const slide = slides[index];
     renderMath(slide);
     scaleStage(slide);
-    var indicator = document.getElementById("page-indicator");
+    const indicator = document.getElementById("page-indicator");
     if (indicator) {
       indicator.textContent = (index + 1) + " / " + slides.length;
     }
@@ -166,17 +161,17 @@
   function prev(): void { show(Math.max(current, 1)); }
 
   function setBlockState(visible: string[], focus: string[]): void {
-    var slide = slides[current];
+    const slide = slides[current];
     if (!slide) return;
-    var visSet: Record<string, boolean> = {};
-    var focSet: Record<string, boolean> = {};
-    var i: number;
+    const visSet: Record<string, boolean> = {};
+    const focSet: Record<string, boolean> = {};
+    let i: number;
     for (i = 0; i < visible.length; i++) visSet[visible[i]] = true;
     for (i = 0; i < focus.length; i++) focSet[focus[i]] = true;
-    var blocks = slide.querySelectorAll<HTMLElement>("[data-block-id]");
+    const blocks = slide.querySelectorAll<HTMLElement>("[data-block-id]");
     for (i = 0; i < blocks.length; i++) {
-      var el = blocks[i];
-      var id = el.getAttribute("data-block-id") || "";
+      const el = blocks[i];
+      const id = el.getAttribute("data-block-id") || "";
       el.classList.toggle("pending", !visSet[id]);
       el.classList.toggle("focus", !!focSet[id]);
     }
@@ -184,16 +179,16 @@
 
   function setReading(on: boolean): void {
     document.documentElement.setAttribute("data-reading", on ? "1" : "0");
-    var slide = slides[current];
+    const slide = slides[current];
     if (slide) scaleStage(slide);
   }
 
   function offlineControls(): void {
-    var controls = document.getElementById("controls");
+    const controls = document.getElementById("controls");
     if (!controls) return;
     controls.addEventListener("click", function (ev: Event) {
-      var target = ev.target as HTMLElement;
-      var action = target.getAttribute("data-action");
+      const target = ev.target as HTMLElement;
+      const action = target.getAttribute("data-action");
       if (action === "next") next();
       else if (action === "prev") prev();
     });
@@ -204,15 +199,15 @@
   }
 
   window.addEventListener("message", function (ev: MessageEvent) {
-    var data = ev.data as InitMessage | null;
+    const data = ev.data as InitMessage | null;
     if (!data || typeof data !== "object") return;
     if (data.type === "classroom_init") {
       if (typeof data.nonce !== "string" || data.nonce !== nonce) return;
-      var ports = (ev as MessageEvent & { ports?: MessagePort[] }).ports;
+      const ports = (ev as MessageEvent & { ports?: MessagePort[] }).ports;
       if (!ports || !ports.length) return;
       port = ports[0];
       port.onmessage = function (msg: MessageEvent) {
-        var cmd = msg.data as PortMessage;
+        const cmd = msg.data as PortMessage;
         if (!cmd || typeof cmd !== "object") return;
         if (cmd.type === "goto_page" && typeof cmd.order === "number") {
           show(cmd.order);
@@ -225,7 +220,7 @@
         }
       };
       // 内置控件让位给父页面控制
-      var controls = document.getElementById("controls");
+      const controls = document.getElementById("controls");
       if (controls) controls.style.display = "none";
       send({ type: "initialized" });
       show(current + 1);
@@ -233,10 +228,10 @@
   });
 
   document.addEventListener("click", function (ev: Event) {
-    var target = ev.target as HTMLElement | null;
+    let target = ev.target as HTMLElement | null;
     while (target && target !== document.body) {
       if (target.classList && target.classList.contains("source-mark")) {
-        var sid = target.getAttribute("data-source-id");
+        const sid = target.getAttribute("data-source-id");
         if (sid) send({ type: "source_clicked", source_id: sid });
         return;
       }
@@ -245,7 +240,7 @@
   });
 
   window.addEventListener("resize", function () {
-    var slide = slides[current];
+    const slide = slides[current];
     if (slide) scaleStage(slide);
   });
 
