@@ -18,31 +18,52 @@ _LAYOUTS_WITH_BULLETS = {"key_points", "summary"}
 
 class FakeClassroomLLM:
     def __init__(self, *, bogus_source: bool = False,
-                 bad_json: bool = False) -> None:
+                 bad_json: bool = False,
+                 with_questions: bool = False) -> None:
         self.calls: list[str] = []
         self.bogus_source = bogus_source
         self.bad_json = bad_json
+        self.with_questions = with_questions
 
     async def complete(self, messages: list[dict], **_: Any):
         system = messages[0]["content"]
         user = messages[-1]["content"]
         if self.bad_json:
             return "这不是 JSON{", dict(_USAGE)
-        payload = _split_payload(user)
-        if "任务：课程大纲" in system:
-            out = self._outline(payload)
-        elif "任务：单页修复" in system:
-            out = self._repair(payload)
-        elif "任务：单页写作" in system:
-            out = self._slide(payload, user)
-        elif "任务：整课复核" in system:
-            out = {"issues": [], "summary": "复核通过（fake）"}
-        elif "任务：检索计划" in system:
-            out = {"queries": [], "skipped": []}
+        if self.with_questions and '"audit_task"' in user:
+            out = {"items": [{"question_ref": "1",
+                              "proposed_status": "passed",
+                              "answer_check": "合外力为零→总动量不变",
+                              "alignment": "一致", "brief_basis": "教材证据",
+                              "illustration_check": "not_required",
+                              "illustration_issues": []}]}
+        elif self.with_questions and "出题专家" in system:
+            out = {"questions": [{
+                "id": 1, "type": "multiple_choice",
+                "stem": "系统所受合外力为零时，系统总动量如何变化？",
+                "options": {"A": "保持不变", "B": "不断增大",
+                            "C": "不断减小", "D": "方向反转"},
+                "answer": "A",
+                "explanation": "合外力为零，由动量定理系统总动量保持不变。",
+                "knowledge_point": "动量守恒定律", "difficulty": "easy"}]}
         else:
-            out = {"issues": []}
+            out = self._dispatch(system, user)
         self.calls.append(system[:12])
         return json.dumps(out, ensure_ascii=False), dict(_USAGE)
+
+    def _dispatch(self, system: str, user: str) -> Any:
+        payload = _split_payload(user)
+        if "任务：课程大纲" in system:
+            return self._outline(payload)
+        if "任务：单页修复" in system:
+            return self._repair(payload)
+        if "任务：单页写作" in system:
+            return self._slide(payload, user)
+        if "任务：整课复核" in system:
+            return {"issues": [], "summary": "复核通过（fake）"}
+        if "任务：检索计划" in system:
+            return {"queries": [], "skipped": []}
+        return {"issues": []}
 
     # ------------------------------------------------------------------ 大纲
 

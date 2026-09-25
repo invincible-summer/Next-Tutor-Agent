@@ -598,16 +598,32 @@ class ClassroomPipeline:
 
     async def _stage_checkpoints(self, job: sc.GenerationJob,
                                  budgets: _Budgets) -> None:
-        """D02：把 reflect 检查点挂到 outline 产出的 checkpoint 布局页；
-        题模板作者由 D03 注入（checkpoint_author）。密度是上限不是配额：
-        outline 没有检查点页时降级为无检查点 + warning。"""
+        """检查点阶段（§13.1/§13.2）：密度映射 none→无 / light→reflect /
+        standard→正式题（复用既有出题质量门，失败降级 reflect 讲授模式）。
+        模板只进私有材料；CheckpointBlock 仅挂 checkpoint 布局页。"""
         slides = [sc.SlideSpec.model_validate(s["slide"]) for s in
                   self._read_stage(sc.JobPhase.author_slides)["slides"]]
         brief = self._load_brief()
+        records = [sc.SourceRecord.model_validate(r) for r in
+                   self._read_stage(sc.JobPhase.resolve_sources)
+                   .get("records", [])]
+        evidence_text = _evidence_pack(records, 6000)
+        density = sc.CheckpointDensity(brief.checkpoint_density)
+        templates: list[dict[str, Any]] = []
+        if density == sc.CheckpointDensity.none:
+            # 用户明确不要检查点：移除 checkpoint 占位页（该布局必须有
+            # checkpoint 块，无块无法编译），页序保持连续
+            slides = [s for s in slides
+                      if s.layout != sc.SlideLayout.checkpoint]
+            for index, slide in enumerate(slides, start=1):
+                slide.order = index
+            payload = {"templates": templates,
+                       "slides": [s.model_dump(mode="json", by_alias=True)
+                                  for s in slides]}
+            self._save_stage(sc.JobPhase.checkpoints, payload)
+            return
         low, high = limits.CHECKPOINT_DENSITY.get(brief.duration_minutes,
                                                   (1, 2))
-        templates: list[dict[str, Any]] = []
-        # CheckpointBlock 只允许出现在 checkpoint 布局（§9.2 slots）
         hosts = [s for s in slides if s.layout == sc.SlideLayout.checkpoint]
         wanted = min(max(low, 1), high, len(hosts))
         if wanted <= 0:
@@ -616,21 +632,48 @@ class ClassroomPipeline:
             checkpoint_id = store.new_id("ckp")
             slide.blocks.append(sc.CheckpointBlock(
                 id=store.new_id("blk"), checkpoint_id=checkpoint_id))
-            templates.append(_dump_json(sc.CheckpointTemplate(
+            kind = sc.CheckpointKind.reflect
+            template_obj = sc.CheckpointTemplate(
                 checkpoint_id=checkpoint_id, slide_id=slide.slide_id,
-                kind=sc.CheckpointKind.reflect,
+                kind=kind,
                 prompt="用一分钟回想：这一页的核心结论是什么？"
-                       "它依赖哪些前提条件？", reflection_seconds=45)))
-            if self.deps.checkpoint_author is not None:
-                authored = await self.deps.checkpoint_author(
-                    brief=brief, slide=slide)
-                for item in authored or []:
-                    templates.append(_dump_json(item))
+                       "它依赖哪些前提条件？", reflection_seconds=45)
+            if density == sc.CheckpointDensity.standard:
+                authored, status = await self._author_checkpoint_question(
+                    brief, slide, checkpoint_id, evidence_text)
+                if status == "question" and authored:
+                    template_obj = authored[0]
+            templates.append(_dump_json(template_obj))
         payload = {"templates": templates,
                    "slides": [s.model_dump(mode="json", by_alias=True)
                               for s in slides]}
         self._save_stage(sc.JobPhase.checkpoints, payload,
                          inputs={"checkpoints": store.canonical_hash(payload)})
+
+    async def _author_checkpoint_question(
+            self, brief: sc.LessonBrief, slide: sc.SlideSpec,
+            checkpoint_id: str, evidence_text: str,
+    ) -> tuple[list[sc.CheckpointTemplate], str]:
+        """标准密度的正式题；测试可经 deps.checkpoint_author 替换。
+
+        出题子系统崩溃（RuntimeError 等）按 §13.2.2 降级 reflect；
+        课堂域硬错误（预算耗尽）必须向上传播。"""
+        try:
+            author = self.deps.checkpoint_author
+            if author is not None:
+                return await author(brief=brief, slide=slide,
+                                    checkpoint_id=checkpoint_id,
+                                    evidence_text=evidence_text)
+            from .checkpoints import author_question_checkpoint
+            return await author_question_checkpoint(
+                llm=self.deps.llm, brief=brief, slide=slide,
+                checkpoint_id=checkpoint_id,
+                evidence_text=evidence_text)
+        except ClassroomError:
+            raise
+        except Exception:
+            self.warnings.append("随堂题准备失败，本课为讲授模式")
+            return [], "reflect_fallback"
 
     # ------------------------------------------------------------------ 阶段 7
 
