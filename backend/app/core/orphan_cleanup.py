@@ -29,7 +29,8 @@ SHARED_NAMESPACES = frozenset({"public", "student_default"})
 _PROTECTED_STUDENT_FILES = frozenset({"prompt_memory_policy.json"})
 
 CATEGORIES = ("students", "sessions", "transcripts", "traces", "uploads",
-              "workspaces", "library", "trash", "notes", "knowledge")
+              "workspaces", "library", "trash", "notes", "knowledge",
+              "classroom")
 
 _SAMPLE_LIMIT = 6
 
@@ -131,6 +132,7 @@ def _collect_orphans(protected_ids) -> dict[str, list[Path]]:
 
     # --- 会话上传：保留会话/工作区引用之外的文件（向量另做 best-effort）---
     uploads_dir = Path(settings.trace_dir).parent / "uploads"
+    active_workspace_ids: set[str] = set()
     if ws_mod._WORKSPACES_DIR.is_dir():
         for p in sorted(ws_mod._WORKSPACES_DIR.glob("*.json")):
             d = _read_json(p)
@@ -140,6 +142,8 @@ def _collect_orphans(protected_ids) -> dict[str, list[Path]]:
             if owner not in protected:
                 out["workspaces"].append(p)
             else:
+                active_workspace_ids.add(
+                    _safe(str(d.get("workspace_id") or p.stem)))
                 for meta in d.get("knowledge_files") or []:
                     fid = _safe(str((meta or {}).get("id", "")))
                     if fid:
@@ -208,6 +212,27 @@ def _collect_orphans(protected_ids) -> dict[str, list[Path]]:
         for p in sorted(prefs.glob("*.json")):
             if p.name[: -len(".json")] not in protected:
                 out["trash"].append(p)
+
+    # --- 课堂：孤儿 owner 根 + 失去工作区归属的活跃子树（§16.4）---
+    try:
+        from app.core import classroom_store as cs_mod
+    except Exception:
+        cs_mod = None
+    if cs_mod is not None and cs_mod._CLASSROOM_DIR.is_dir():
+        for owner_dir in sorted(cs_mod._CLASSROOM_DIR.iterdir()):
+            if not owner_dir.is_dir() or owner_dir.name.startswith("."):
+                continue
+            if owner_dir.name not in protected:
+                out["classroom"].append(owner_dir)
+                continue
+            workspaces_dir = owner_dir / "workspaces"
+            if not workspaces_dir.is_dir():
+                continue
+            for ws_dir in sorted(workspaces_dir.iterdir()):
+                # 活跃 workspace 文件不存在（归档时课堂子树应已随 bundle
+                # 删除）→ 该课堂子树为孤儿；回收站中的合法 trash 不在此根。
+                if ws_dir.is_dir() and ws_dir.name not in active_workspace_ids:
+                    out["classroom"].append(ws_dir)
 
     # --- 笔记 / 知识图谱：目录名不在保护集即为孤儿 ---
     if notes_mod._NOTES_DIR.is_dir():

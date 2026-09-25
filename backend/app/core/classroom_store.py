@@ -376,6 +376,14 @@ def write_bytes(path: Path, data: bytes) -> None:
 # owner 生命周期元数据（tombstone 防晚写，A03 接入 purge）
 # ---------------------------------------------------------------------------
 
+def _tombstone_path(owner_id: str) -> Path:
+    return _CLASSROOM_DIR / ".tombstones" / f"{_validate_seg(owner_id)}.json"
+
+
+def _validate_seg(value: str) -> str:
+    return validate_path_segment(value, field="owner_id")
+
+
 def owner_record(owner_id: str) -> dict:
     return read_json(owner_meta_path(owner_id)) or {
         "lifecycle": "active", "created_at": utcnow().isoformat(),
@@ -384,6 +392,9 @@ def owner_record(owner_id: str) -> dict:
 
 
 def owner_lifecycle(owner_id: str) -> str:
+    # tombstone 在根目录之外，purge 删除 owner 根后仍然生效
+    if read_json(_tombstone_path(owner_id)) is not None:
+        return "purged"
     if not owner_meta_path(owner_id).exists():
         return "unknown"
     record = read_json(owner_meta_path(owner_id)) or {}
@@ -391,11 +402,19 @@ def owner_lifecycle(owner_id: str) -> str:
 
 
 def mark_owner_purged(owner_id: str) -> None:
-    """账号清理最后一步之外的前置 tombstone：之后的课堂写入全部拒绝。"""
-    record = owner_record(owner_id)
-    record["lifecycle"] = "purged"
-    record["purged_at"] = utcnow().isoformat()
-    write_json(owner_meta_path(owner_id), record)
+    """写根外 tombstone：owner 根删除后的晚到课堂写入全部拒绝。"""
+    write_json(_tombstone_path(owner_id), {
+        "owner_id": owner_id, "lifecycle": "purged",
+        "purged_at": utcnow().isoformat(),
+    })
+
+
+def clear_owner_tombstone(owner_id: str) -> None:
+    """显式清除 tombstone（仅账号重建/管理员恢复场景）。"""
+    try:
+        _tombstone_path(owner_id).unlink(missing_ok=True)
+    except OSError:
+        pass
 
 
 def ensure_owner(owner_id: str) -> None:
