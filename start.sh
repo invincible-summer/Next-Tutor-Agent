@@ -184,9 +184,22 @@ frontend_build_needed() {
     return 1
 }
 
+build_classroom_assets() {
+    # 课堂渲染资产包（plan.md §9.4）：tsc frame-runtime + 固定 KaTeX 打成
+    # backend 可读包。必须在 next build 前显式执行（npm prebuild hook 不会
+    # 被 next build 触发）；缺包时课堂 capability 明确 renderer_unavailable。
+    if [ ! -f backend/app/classroom/static/generated/manifest.json ]; then
+        echo "[start.sh] building classroom renderer assets"
+        (cd frontend && pnpm run build:classroom) || {
+            echo "[start.sh] classroom assets build failed; classroom renderer will be unavailable"
+        }
+    fi
+}
+
 build_frontend() {
     local bport="$1"
     echo "[start.sh] building frontend (next build --webpack, backend :$bport baked in; first build ~1-2 min)"
+    build_classroom_assets
     # NEXT_PUBLIC_* 内联给客户端直连；BACKEND_URL 供 rewrites() 构建期求值——
     # 缺了会把同源回退代理固化到默认 8000，端口回退时 SSR/相对路径请求全断。
     if command -v pnpm &>/dev/null; then

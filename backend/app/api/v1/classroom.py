@@ -78,3 +78,18 @@ def create_lesson(workspace_id: str, request: CreateLessonRequest,
     key = require_idempotency_key(idempotency_key)
     return CreateLessonResponse(**classroom_service.create_lesson(
         student_id, workspace_id, request, idempotency_key=key))
+
+
+@router.get("/workspaces/{workspace_id}/classroom/lessons/{lesson_id}"
+            "/revisions/{revision}/frame")
+def get_revision_frame(workspace_id: str, lesson_id: str, revision: int,
+                       mode: str = "presentation",
+                       student_id: str = Depends(resolve_student_id)):
+    from fastapi.responses import HTMLResponse
+
+    html = classroom_service.get_revision_frame(
+        student_id, workspace_id, lesson_id, revision, mode=mode)
+    return HTMLResponse(
+        content=html,
+        headers={"Cache-Control": "private, no-store",
+                 "Content-Disposition": "inline"},)

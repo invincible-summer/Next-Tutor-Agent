@@ -1,0 +1,14 @@
+{
+  "compilerOptions": {
+    "module": "none",
+    "target": "ES2020",
+    "lib": ["ES2020", "DOM"],
+    "strict": true,
+    "noImplicitAny": true,
+    "noEmitOnError": true,
+    "types": [],
+    "outDir": "dist/classroom",
+    "rootDir": "src/lib/classroom"
+  },
+  "include": ["src/lib/classroom/frame-runtime.ts"]
+}

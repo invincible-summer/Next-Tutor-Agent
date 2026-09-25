@@ -194,3 +194,7 @@ docs/The_Website_deployment_plan.md
 frontend/test-results/
 frontend/playwright-report/
 frontend/.playwright/
+
+# 课堂渲染资产：源码与构建脚本版本化，产物按需生成（plan.md §9.4）
+backend/app/classroom/static/generated/
+frontend/dist/classroom/

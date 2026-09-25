@@ -167,3 +167,62 @@ def _summary_public(lesson: sc.Lesson, job: sc.GenerationJob | None,
         latest_job=job_public,
         extra=sc.LessonListStatusExtra(),
         updated_at=lesson.updated_at)
+
+
+# ---------------------------------------------------------------------------
+# frame 投影（§9.5/§14.1 GET L/revisions/{rev}/frame）
+# ---------------------------------------------------------------------------
+
+_EXT_BY_MIME = {"image/jpeg": "jpg", "image/png": "png", "image/webp": "webp"}
+
+
+def load_published_revision(student_id: str, workspace_id: str, lesson_id: str,
+                            revision: int) -> sc.LessonRevision:
+    """正式内容 API 只接受 published_revisions 中的版本（§15.1）。"""
+    lesson = store.load_lesson(student_id, workspace_id, lesson_id)
+    if lesson is None or lesson.owner_id != student_id or \
+            lesson.workspace_id != workspace_id:
+        raise ClassroomError("source_not_found", "课程不存在")
+    if revision not in lesson.published_revisions:
+        raise ClassroomError("source_not_found", "课程版本不存在")
+    spec = store.load_revision(student_id, workspace_id, lesson_id, revision)
+    if spec is None:
+        raise ClassroomError("source_not_found", "课程版本已损坏",
+                             retryable=False)
+    return spec
+
+
+def get_revision_frame(student_id: str, workspace_id: str, lesson_id: str,
+                       revision: int, *, mode: str = "presentation") -> str:
+    """受鉴权自包含 HTML（Cache-Control: private,no-store 由 route 设置）。
+
+    已发布 revision 的冻结 spec 确定性编译；读取不写盘。
+    """
+    if mode not in ("presentation", "reading"):
+        raise ClassroomError("content_invalid", "mode 必须是 presentation|reading")
+    spec = load_published_revision(student_id, workspace_id, lesson_id, revision)
+    asset_bytes: dict[str, bytes] = {}
+    for asset in spec.assets:
+        if asset.status.value != "ready":
+            continue
+        ext = _EXT_BY_MIME.get(asset.mime)
+        if ext is None:
+            continue
+        path = store.asset_file_path(student_id, workspace_id, lesson_id,
+                                     asset.asset_id, ext)
+        if path.is_file():
+            try:
+                asset_bytes[asset.asset_id] = path.read_bytes()
+            except OSError:
+                continue
+    try:
+        from .render.compiler import compile_html
+        html = compile_html(spec, mode="online", asset_bytes=asset_bytes)
+    except RuntimeError as exc:
+        raise ClassroomError("renderer_unavailable",
+                             "课件渲染器不可用", retryable=True) from exc
+    except ValueError as exc:
+        raise ClassroomError("content_invalid", str(exc)) from exc
+    if mode == "reading":
+        html = html.replace('<html lang=', '<html data-reading="1" lang=', 1)
+    return html

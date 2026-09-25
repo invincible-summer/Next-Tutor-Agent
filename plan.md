@@ -1206,11 +1206,11 @@ exports 24h 过期；搜索缓存按 24h TTL；失败/取消 job staging 保留 
 
 依赖：A。
 
-- [ ] B01 实现 5 主题×9 布局的 slots/token，制作项目内原创预览 fixture；先覆盖最长中文标题、英文长单词、公式、图表与无图情况。
-- [ ] B02 实现 Block/Diagram 编译、HTML escaping、KaTeX、显隐/高亮 runtime、CSP、MessagePort bridge。
-- [ ] B03 构建 generated assets，加入 dev/build/CI/deploy；实现静态 HTML 下载的认证与 srcdoc 展示。
-- [ ] B04 编写 Node layout worker，禁止网络；测量 3 尺寸并提供结构化 overflow report，确定性布局回退。
-- [ ] B05 实现阅读模式、credits、讲稿 Markdown、HTML ZIP 和 print CSS。
+- [x] B01 实现 5 主题×9 布局的 slots/token，制作项目内原创预览 fixture；先覆盖最长中文标题、英文长单词、公式、图表与无图情况。
+- [x] B02 实现 Block/Diagram 编译、HTML escaping、KaTeX、显隐/高亮 runtime、CSP、MessagePort bridge。
+- [x] B03 构建 generated assets，加入 dev/build/CI/deploy；实现静态 HTML 下载的认证与 srcdoc 展示。
+- [x] B04 编写 Node layout worker，禁止网络；测量 3 尺寸并提供结构化 overflow report，确定性布局回退。
+- [x] B05 实现阅读模式、credits、讲稿 Markdown、HTML ZIP 和 print CSS。
 
 退出门：手工构造的合法 LessonSpec 可在线/离线看；恶意 script/url/LaTeX/图形数据不能执行；有长内容时不会缩字到不可读；frame 无法请求外网或读取父页面。
 
