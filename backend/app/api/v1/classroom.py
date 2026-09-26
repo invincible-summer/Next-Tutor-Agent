@@ -601,6 +601,17 @@ def get_checkpoint_submission(workspace_id: str, lesson_id: str, run_id: str,
         student_id, run, checkpoint_id)}
 
 
+@router.get("/workspaces/{workspace_id}/classroom/lessons/{lesson_id}"
+            "/runs/{run_id}/summary")
+def get_run_summary(workspace_id: str, lesson_id: str, run_id: str,
+                    student_id: str = Depends(resolve_student_id)):
+    """GET R/summary：确定性课堂回顾（§13.5/§14.2）。"""
+    from app.classroom import runs as runs_mod
+
+    require_enabled(student_id)
+    return runs_mod.run_summary(student_id, workspace_id, lesson_id, run_id)
+
+
 @router.post("/workspaces/{workspace_id}/classroom/lessons/{lesson_id}"
              "/runs/{run_id}/qa-audio", status_code=202,
              response_model=sc.QaAudioResponse)

@@ -75,6 +75,10 @@ const PLAYER_STR = {
     "cls.ckp.question": "随堂练习",
     "cls.ckp.skip": "跳过此题",
     "cls.ckp.skipped": "已跳过",
+    "cls.sum.slides": "看过 %n / %t 页",
+    "cls.sum.segments": "听过 %n / %t 段",
+    "cls.sum.asked": "课堂提问 %n 次",
+    "cls.sum.checkpoints": "随堂题已答 %n 道",
     "cls.play.suspended": "本课堂正在其他设备播放",
     "cls.play.suspended.takeover": "在这里继续",
     "cls.play.ended": "本节课已完成",
@@ -123,6 +127,10 @@ const PLAYER_STR = {
     "cls.ckp.question": "Check your understanding",
     "cls.ckp.skip": "Skip this question",
     "cls.ckp.skipped": "Skipped",
+    "cls.sum.slides": "Viewed %n of %t pages",
+    "cls.sum.segments": "Listened %n of %t segments",
+    "cls.sum.asked": "Asked %n questions",
+    "cls.sum.checkpoints": "Answered %n checkpoints",
     "cls.play.suspended": "This lesson is playing on another device",
     "cls.play.suspended.takeover": "Continue here",
     "cls.play.ended": "Lesson completed",
@@ -155,6 +163,13 @@ export default function LearnRunPage() {
   const [fatal, setFatal] = useState<string | null>(null);
   const [askOpen, setAskOpen] = useState(false);
   const [dismissedCkps, setDismissedCkps] = useState<string[]>([]);
+  const [summary, setSummary] = useState<{
+    slides?: { visited: number; total: number };
+    segments?: { listened: number; total: number };
+    questions_asked?: { count: number };
+    checkpoints?: { items: { state: string }[] };
+    mastery?: { note: string };
+  } | null>(null);
   const frameRef = useRef<SlideFrameHandle | null>(null);
   const shellRef = useRef<HTMLDivElement | null>(null);
 
@@ -289,6 +304,26 @@ export default function LearnRunPage() {
     document.addEventListener("fullscreenchange", onFs);
     return () => document.removeEventListener("fullscreenchange", onFs);
   }, [player]);
+
+  // 课后回顾（§13.5）：确定性 summary，完成层展示
+  const playStatus = player.state.status;
+  useEffect(() => {
+    if (playStatus !== "ended" || summary) return;
+    let alive = true;
+    void (async () => {
+      try {
+        const { apiFetch } = await import("@/lib/api-fetch");
+        const { API_BASE } = await import("@/lib/api");
+        const res = await apiFetch(
+          API_BASE +
+          "/workspaces/" + encodeURIComponent(workspaceId) +
+          "/classroom/lessons/" + encodeURIComponent(lessonId) +
+          "/runs/" + encodeURIComponent(runId) + "/summary");
+        if (alive && res.ok) setSummary(await res.json());
+      } catch { /* 回顾可选 */ }
+    })();
+    return () => { alive = false; };
+  }, [playStatus, summary, workspaceId, lessonId, runId]);
 
   // 键盘 Space/←/→/C/F：输入框聚焦时不响应（§5.3）
   useEffect(() => {
@@ -434,15 +469,41 @@ export default function LearnRunPage() {
               </div>
             )}
             {ended && (
-              <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-bg/80 backdrop-blur-sm">
+              <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-bg/80 px-6 backdrop-blur-sm">
                 <p className="text-base font-medium text-fg">
                   {ps("cls.play.ended")}
                 </p>
-                <Link href={lessonHref}>
-                  <Button variant="outline" size="sm">
-                    {ps("cls.play.back.course")}
-                  </Button>
-                </Link>
+                {summary && (
+                  <div className="max-w-md rounded-[12px] border border-border bg-surface px-4 py-3 text-[0.78rem] text-fg-secondary">
+                    <p className="tnum">
+                      {ps("cls.sum.slides")
+                        .replace("%n", String(summary.slides?.visited ?? 0))
+                        .replace("%t", String(summary.slides?.total ?? 0))}
+                      {" · "}
+                      {ps("cls.sum.segments")
+                        .replace("%n", String(summary.segments?.listened ?? 0))
+                        .replace("%t", String(summary.segments?.total ?? 0))}
+                    </p>
+                    <p className="tnum mt-1">
+                      {ps("cls.sum.asked")
+                        .replace("%n", String(summary.questions_asked?.count ?? 0))}
+                      {" · "}
+                      {ps("cls.sum.checkpoints")
+                        .replace("%n", String((summary.checkpoints?.items ?? [])
+                          .filter((c) => c.state === "answered").length))}
+                    </p>
+                    <p className="mt-1 text-muted">
+                      {summary.mastery?.note}
+                    </p>
+                  </div>
+                )}
+                <div className="flex items-center gap-2">
+                  <Link href={lessonHref}>
+                    <Button variant="outline" size="sm">
+                      {ps("cls.play.back.course")}
+                    </Button>
+                  </Link>
+                </div>
               </div>
             )}
             {player.state.error === "click_to_resume"

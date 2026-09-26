@@ -529,6 +529,52 @@ def save_run_note(student_id: str, workspace_id: str, lesson_id: str,
     return str(meta["id"]), True
 
 
+def run_summary(student_id: str, workspace_id: str, lesson_id: str,
+                run_id: str) -> dict:
+    """GET R/summary：确定性课堂回顾（§13.5）。
+
+    只汇总可观察事实（看过页/听过段/提问/检查点/批注），逐项标明数据
+    来源；未作答显示 pending 状态而非掌握百分比——播放行为不产生掌握
+    结论（§13.5），评价仍由统一 outbox 投影消费。
+    """
+    run = load_owned_run(student_id, workspace_id, lesson_id, run_id)
+    spec = load_run_spec(student_id, workspace_id, lesson_id,
+                         run.lesson_revision)
+    total_slides = len(spec.slides)
+    total_segments = sum(len(s.segments) for s in spec.slides)
+    listened = len(set(run.listened_segments))
+    visited = len(set(run.visited_slides))
+    checkpoints = [
+        {"checkpoint_id": ref.checkpoint_id, "slide_id": ref.slide_id,
+         "kind": ref.kind.value, "state": ref.state.value}
+        for ref in run.checkpoint_refs]
+    asked = 0
+    if run.qa_session_id:
+        from ..core.session import load_session
+        qa = load_session(run.qa_session_id)
+        if qa is not None:
+            asked = sum(1 for m in qa.messages if m.get("role") == "user")
+    return {
+        "run_id": run.run_id,
+        "lesson_revision": run.lesson_revision,
+        "status": run.status.value,
+        "completed_kind": run.completed_kind,
+        "slides": {"visited": visited, "total": total_slides,
+                    "source": "playback_progress"},
+        "segments": {"listened": listened, "total": total_segments,
+                      "source": "playback_progress"},
+        "questions_asked": {"count": asked, "source": "qa_session"},
+        "checkpoints": {"items": checkpoints,
+                         "source": "run_checkpoint_refs"},
+        "annotations": {"count": len(run.annotations),
+                         "source": "run_annotations"},
+        "mastery": {"verdict": None,
+                     "note": "尚未通过作答确认理解" if not any(
+                         c["state"] == "answered" for c in checkpoints)
+                     else "以受理作答的评价投影为准"},
+    }
+
+
 # ---------------------------------------------------------------------------
 # audio profile（PUT R/audio-profile：暂停/段边界生效，进度不变）
 # ---------------------------------------------------------------------------
