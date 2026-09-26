@@ -7,6 +7,7 @@ import type {
   CancelJobRequest, ClassroomCapabilities, ClassroomTemplates,
   ContinueJobRequest, CreateLessonRequest, CreateLessonResponse,
   CreateRevisionRequest, CreateRevisionResponse, BriefPatchRequest,
+  JobPreviewResponse,
   JobPublic, JobSnapshotEvent, LessonDetailPublic, LessonListResponse,
   OutlinePatchRequest, RetryJobRequest,
 } from "./types-classroom.generated";
@@ -103,6 +104,17 @@ export async function getJob(
   return jsonOf(await apiFetch(
     `${BASE}${W(workspaceId)}/lessons/${encodeURIComponent(lessonId)}` +
     `/jobs/${encodeURIComponent(jobId)}`));
+}
+
+/** GET J/preview：只读草稿 DTO（slides/outline；html 可空）。 */
+export async function getJobPreview(
+  workspaceId: string, lessonId: string, jobId: string,
+  slideId?: string,
+): Promise<JobPreviewResponse> {
+  const q = slideId ? `?slide_id=${encodeURIComponent(slideId)}` : "";
+  return jsonOf(await apiFetch(
+    `${BASE}${W(workspaceId)}/lessons/${encodeURIComponent(lessonId)}` +
+    `/jobs/${encodeURIComponent(jobId)}/preview${q}`));
 }
 
 export async function cancelJob(

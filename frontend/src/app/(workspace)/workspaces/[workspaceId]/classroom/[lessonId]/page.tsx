@@ -4,7 +4,7 @@
  * 不触发 TTS。E01 展示已发布 revision 的首帧预览与生成中的任务状态；
  * 左缩略图/右侧讲稿栏与单页操作在 E04 落地。
  */
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams, useSearchParams } from "next/navigation";
 import { Suspense } from "react";
@@ -13,25 +13,14 @@ import {
 } from "lucide-react";
 import { useUIStore } from "@/lib/store";
 import { makePageT } from "@/lib/i18n-page";
-import { ClassroomApiError, getLesson, getRevisionFrame } from "@/lib/api-classroom";
-import type { LessonDetailPublic } from "@/lib/types-classroom.generated";
+import { ClassroomApiError, getJobPreview, getLesson, getRevisionFrame } from "@/lib/api-classroom";
+import type { JobPreviewResponse, LessonDetailPublic } from "@/lib/types-classroom.generated";
 import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { WorkspaceModeBar } from "@/components/classroom/WorkspaceModeBar";
+import { GenerationProgress } from "@/components/classroom/GenerationProgress";
 import SlideFrame from "@/components/classroom/SlideFrame";
 import { STRINGS } from "../strings";
-
-const PHASE_LABELS_ZH: Record<string, string> = {
-  resolve_sources: "读取教材",
-  research: "查找补充资料",
-  outline: "组织课程",
-  visual_assets: "配图",
-  author_slides: "编写课件与讲稿",
-  checkpoints: "随堂检查",
-  review: "整体校验",
-  render: "检查排版",
-  publish: "准备开课",
-};
 
 function LessonDetailInner() {
   const { lang } = useUIStore();
@@ -48,6 +37,8 @@ function LessonDetailInner() {
 
   const [detail, setDetail] = useState<LessonDetailPublic | null>(null);
   const [frameHtml, setFrameHtml] = useState<string | null>(null);
+  const [draft, setDraft] = useState<JobPreviewResponse | null>(null);
+  const [draftOpen, setDraftOpen] = useState(false);
   const [missing, setMissing] = useState(false);
   const [loading, setLoading] = useState(true);
 
@@ -82,12 +73,6 @@ function LessonDetailInner() {
     const id = setTimeout(() => load(), 0);
     return () => clearTimeout(id);
   }, [load]);
-
-  const phaseLabel = useMemo(() => {
-    const phase = detail?.latest_job?.phase ?? detail?.pending?.phase ?? null;
-    if (!phase) return "";
-    return PHASE_LABELS_ZH[phase] ?? phase;
-  }, [detail]);
 
   const backHref = `/workspaces/${encodeURIComponent(workspaceId)}/classroom`;
 
@@ -133,22 +118,74 @@ function LessonDetailInner() {
 
       <div className="min-h-0 flex-1 overflow-y-auto p-5">
         {generating ? (
-          <div className="mx-auto max-w-2xl">
-            <EmptyState
-              icon={detail.latest_job?.state === "failed"
-                ? <FileQuestion size={28} /> : <Loader2 size={28} className="animate-spin" />}
-              title={tr("cls.detail.noready.title")}
-              desc={phaseLabel
-                ? `${tr("cls.detail.noready.desc")}`
-                : tr("cls.detail.noready.desc")}
-            />
-            {phaseLabel && (
-              <p className="mt-2 text-center text-[0.75rem] text-muted">
-                {tr("cls.detail.phase")}：{phaseLabel}
-                {detail.pending?.progress?.total_slides
-                  ? ` · ${detail.pending.progress.completed_slides ?? 0}/${detail.pending.progress.total_slides}`
-                  : ""}
-              </p>
+          <div className="mx-auto flex max-w-2xl flex-col gap-4">
+            <h2 className="text-[0.95rem] font-semibold text-fg">
+              {tr("cls.detail.noready.title")}
+            </h2>
+            {detail.latest_job && (
+              <GenerationProgress
+                workspaceId={workspaceId}
+                lessonId={lessonId}
+                job={detail.latest_job}
+                onUpdated={(job) => {
+                  // 终态（成功/失败/取消）后重载课程详情：发布版本或草稿状态
+                  if (["succeeded", "failed", "cancelled"].includes(job.state)) {
+                    setDraft(null);
+                    setDraftOpen(false);
+                    load();
+                  }
+                }}
+              />
+            )}
+            {!detail.latest_job && (
+              <p className="text-[0.78rem] text-muted">{tr("cls.detail.noready.desc")}</p>
+            )}
+            {/* 失败/取消后：已生成草稿页的只读预览（§4.2 草稿水印） */}
+            {(detail.latest_job?.state === "failed"
+              || detail.latest_job?.state === "cancelled") &&
+              (detail.latest_job.progress.completed_slides ?? 0) > 0 && (
+              <div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const next = !draftOpen;
+                    setDraftOpen(next);
+                    if (next && !draft) {
+                      getJobPreview(workspaceId, lessonId,
+                        detail.latest_job!.job_id)
+                        .then(setDraft)
+                        .catch(() => setDraft(null));
+                    }
+                  }}
+                  className="cursor-pointer text-[0.75rem] font-medium text-accent-strong hover:underline"
+                  aria-expanded={draftOpen}
+                >
+                  {tr("cls.detail.draft.open")}
+                </button>
+                {draftOpen && (
+                  draft?.html ? (
+                    <SlideFrame
+                      html={draft.html}
+                      title={detail.title}
+                      className="mt-3 aspect-video w-full overflow-hidden rounded-[12px] border border-border bg-white shadow-md"
+                    />
+                  ) : draft ? (
+                    <ol className="mt-3 flex flex-col gap-1 rounded-[10px] border border-border bg-surface p-3">
+                      {(draft.slides ?? []).map((sl) => (
+                        <li key={sl.slide_id} className="flex items-baseline gap-2 text-[0.75rem] text-fg-secondary">
+                          <span className="tnum w-5 shrink-0 text-muted">{sl.order}</span>
+                          <span className="truncate">{sl.title}</span>
+                          <span className="ml-auto shrink-0 text-[0.65rem] text-muted/70">{sl.layout}</span>
+                        </li>
+                      ))}
+                    </ol>
+                  ) : (
+                    <p className="mt-2 flex items-center gap-1.5 text-[0.72rem] text-muted">
+                      <Loader2 size={12} className="animate-spin" />
+                    </p>
+                  )
+                )}
+              </div>
             )}
           </div>
         ) : frameHtml ? (

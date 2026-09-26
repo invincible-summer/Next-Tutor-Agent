@@ -521,6 +521,125 @@ def job_snapshot(student_id: str, workspace_id: str, lesson_id: str,
     return public.model_dump(mode="json", by_alias=True)
 
 
+_DRAFT_WATERMARK = (
+    '<style>.cc-draft-mark{position:fixed;right:26px;bottom:22px;z-index:9999;'
+    "padding:7px 16px;border-radius:999px;background:rgba(0,0,0,.5);"
+    "color:#fff;font:600 13px/1 system-ui,-apple-system,'PingFang SC',"
+    "'Microsoft YaHei',sans-serif;letter-spacing:.22em;pointer-events:none;"
+    'opacity:.92}</style>'
+    '<div class="cc-draft-mark">草稿 · DRAFT</div>')
+
+
+def _draft_asset_bytes(student_id: str, workspace_id: str, lesson_id: str,
+                       assets: list[sc.AssetRecord]) -> dict[str, bytes]:
+    out: dict[str, bytes] = {}
+    for asset in assets:
+        if asset.status.value != "ready":
+            continue
+        ext = _EXT_BY_MIME.get(asset.mime)
+        if ext is None:
+            continue
+        path = store.asset_file_path(student_id, workspace_id, lesson_id,
+                                     asset.asset_id, ext)
+        if path.is_file():
+            try:
+                out[asset.asset_id] = path.read_bytes()
+            except OSError:
+                continue
+    return out
+
+
+def job_preview(student_id: str, workspace_id: str, lesson_id: str,
+                job_id: str, *, slide_id: str | None = None) -> dict[str, Any]:
+    """GET J/preview：只读草稿预览（§4.2/§14.1）。
+
+    slides 来自已落盘的阶段产物（author_slides 优先，review 兜底），
+    不含答案；outline 供 awaiting_outline 审核；html 仅在 review 阶段
+    产物完整（可安全编译整课）时按需编译并注入「草稿」水印，任何失败
+    都降级为结构化预览。只读，不写盘。
+    """
+    allowed, _ = caps.user_allowed(student_id)
+    if not allowed:
+        raise ClassroomError("classroom_disabled", "课堂功能未开放")
+    _lesson, job = _load_owned_job(student_id, workspace_id, lesson_id,
+                                   job_id)
+    stages = store.stages_dir(student_id, workspace_id, lesson_id, job.job_id)
+
+    def _stage(name: str) -> dict[str, Any] | None:
+        path = stages / f"{name}.json"
+        if not path.is_file():
+            return None
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+            return data if isinstance(data, dict) else None
+        except (OSError, ValueError):
+            return None
+
+    author = _stage("author_slides")
+    review = _stage("review")
+    outline_raw = _stage("outline")
+    outline = None
+    if outline_raw is not None:
+        try:
+            outline = sc.OutlinePlan.model_validate(outline_raw["plan"])
+        except (KeyError, ValueError):
+            outline = None
+
+    raw_slides = (author or {}).get("slides") or (review or {}).get("slides") or []
+    # author_slides 阶段载荷是 {slide: {...}} 包装；review 阶段是直接 SlideSpec。
+    if author is not None:
+        raw_slides = [s.get("slide", s) for s in raw_slides]
+    slides = [sc.SlideSpec.model_validate(s) for s in raw_slides]
+    if slide_id is not None:
+        slides = [s for s in slides if s.slide_id == slide_id]
+
+    html: str | None = None
+    if review is not None and review.get("slides"):
+        try:
+            brief_path = store.job_brief_path(student_id, workspace_id,
+                                              lesson_id, job.job_id)
+            brief = sc.LessonBrief.model_validate(
+                json.loads(brief_path.read_text(encoding="utf-8")))
+            records = [sc.SourceRecord.model_validate(r) for r in
+                       (_stage("resolve_sources") or {}).get("records", [])
+                       + (_stage("research") or {}).get("records", [])]
+            assets = [sc.AssetRecord.model_validate(a) for a in
+                      (_stage("visual_assets") or {}).get("records", [])]
+            from .render import assets as render_assets
+            draft = sc.LessonRevision(
+                revision=job.target_revision, brief=brief,
+                source_snapshot=records,
+                slides=[sc.SlideSpec.model_validate(s)
+                        for s in review["slides"]],
+                # compile_html 只取模板的 prompt/kind 渲染检查点占位，
+                # verified_question_template（含答案）绝不进入 HTML。
+                checkpoint_templates=[
+                    sc.CheckpointTemplate.model_validate(t)
+                    for t in review.get("templates", [])],
+                objectives=[sc.Objective.model_validate(o) for o in
+                            review.get("objectives", [])],
+                glossary=[sc.GlossaryEntry.model_validate(g) for g in
+                          (author or {}).get("glossary", [])],
+                assets=assets,
+                renderer_version=render_assets.RUNTIME_VERSION,
+                content_hash="0" * 64,  # 草稿占位：预览不参与 CAS/发布
+                created_at=store.utcnow())
+            from .render.compiler import compile_html
+            compiled = compile_html(
+                draft, mode="presentation",
+                asset_bytes=_draft_asset_bytes(
+                    student_id, workspace_id, lesson_id, assets))
+            if "</body>" in compiled:
+                html = compiled.replace(
+                    "</body>", f"{_DRAFT_WATERMARK}</body>", 1)
+        except (OSError, ValueError, RuntimeError, KeyError):
+            html = None  # 渲染器缺失/数据不完整 → 结构化预览
+
+    return sc.JobPreviewResponse(
+        state=job.state, phase=job.phase, slides=slides, outline=outline,
+        html=html).model_dump(mode="json", by_alias=True)
+
+
 def _cas_job(student_id: str, workspace_id: str, lesson_id: str,
              job_id: str, expected_state_revision: int,
              mutate) -> sc.GenerationJob:

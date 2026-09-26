@@ -498,6 +498,14 @@ export interface GenerationJob {
   updated_at: string;
 }
 
+export interface JobPreviewResponse {
+  state: JobState;
+  phase: JobPhase | null;
+  slides?: Array<SlideSpec>;
+  outline?: OutlinePlan | null;
+  html?: string | null;
+}
+
 export interface Cursor {
   slide_id: string;
   segment_id: string;

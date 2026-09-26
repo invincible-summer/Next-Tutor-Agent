@@ -341,6 +341,41 @@ class LessonDetailTests(PipelineTestBase):
                          self._brief().topic)
         self.assertEqual(detail["pending"]["state"], "queued")
 
+    def test_preview_draft_watermark_and_no_answers(self) -> None:
+        from app.classroom import service as svc
+        lesson_id, _ = self._make_job()
+        job_id = store.load_lesson(OWNER, WS, lesson_id).latest_job_id
+        asyncio.run(ClassroomPipeline(
+            OWNER, WS, lesson_id, job_id, _deps()).run())
+        preview = svc.job_preview(OWNER, WS, lesson_id, job_id)
+        self.assertEqual(preview["state"], "succeeded")
+        self.assertGreater(len(preview["slides"]), 0)
+        self.assertIsNotNone(preview["html"])
+        self.assertIn("草稿 · DRAFT", preview["html"])
+        # 题模板答案绝不进入投影
+        lesson = store.load_lesson(OWNER, WS, lesson_id)
+        spec = store.load_revision(OWNER, WS, lesson_id,
+                                   lesson.latest_ready_revision)
+        if spec.checkpoint_templates:
+            blob = str(preview["slides"]) + str(preview["html"])
+            for tmpl in spec.checkpoint_templates:
+                answer_blob = str(
+                    (tmpl.verified_question_template or {}).get("answer", ""))
+                if answer_blob:
+                    self.assertNotIn(answer_blob, blob)
+        # slide_id 过滤
+        one = svc.job_preview(OWNER, WS, lesson_id, job_id,
+                              slide_id=preview["slides"][0]["slide_id"])
+        self.assertEqual(len(one["slides"]), 1)
+
+    def test_preview_without_stages_is_structured_only(self) -> None:
+        from app.classroom import service as svc
+        lesson_id, job_id = self._make_job()
+        preview = svc.job_preview(OWNER, WS, lesson_id, job_id)
+        self.assertEqual(preview["slides"], [])
+        self.assertIsNone(preview["html"])
+        self.assertIsNone(preview["outline"])
+
     def test_foreign_or_missing_lesson_404(self) -> None:
         with self.assertRaises(ClassroomError) as ctx:
             classroom_service.lesson_detail("usr_other_user", WS,

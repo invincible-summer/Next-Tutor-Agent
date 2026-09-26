@@ -116,6 +116,15 @@ def get_job(workspace_id: str, lesson_id: str, job_id: str,
 
 
 @router.get("/workspaces/{workspace_id}/classroom/lessons/{lesson_id}"
+            "/jobs/{job_id}/preview", response_model=sc.JobPreviewResponse)
+def get_job_preview(workspace_id: str, lesson_id: str, job_id: str,
+                    slide_id: str | None = None,
+                    student_id: str = Depends(resolve_student_id)):
+    return sc.JobPreviewResponse(**classroom_service.job_preview(
+        student_id, workspace_id, lesson_id, job_id, slide_id=slide_id))
+
+
+@router.get("/workspaces/{workspace_id}/classroom/lessons/{lesson_id}"
             "/jobs/{job_id}/events")
 async def job_events(workspace_id: str, lesson_id: str, job_id: str,
                      after_revision: int = 0,

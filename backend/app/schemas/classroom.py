@@ -1457,6 +1457,21 @@ class CancelJobRequest(_StrictModel):
     expected_state_revision: int = Field(..., ge=1)
 
 
+class JobPreviewResponse(_StrictModel):
+    """GET J/preview：只读草稿（§4.2/§14.1）。
+
+    slides 为已生成页的结构化 DTO（不含答案；题模板绝不进入本投影）；
+    html 是可安全编译完成时的草稿整课 HTML（含「草稿」水印），否则 None
+    由前端展示结构化预览。
+    """
+
+    state: JobState
+    phase: JobPhase | None
+    slides: list[SlideSpec] = Field(default_factory=list)
+    outline: OutlinePlan | None = None
+    html: str | None = Field(None, max_length=4_000_000)
+
+
 class RetryJobRequest(_StrictModel):
     expected_state_revision: int = Field(..., ge=1)
 
@@ -1709,7 +1724,7 @@ PUBLIC_TYPE_MODELS: list[str] = [
     "ChapterSelection", "SourceFileSelection", "ExtraSessionSelection",
     "SourceSelection", "ResearchBrief", "VoicePreferences", "LessonBrief",
     "ReviewIssue", "ReviewReport", "LessonRevision", "Lesson", "JobBudget",
-    "GenerationJob", "Cursor", "LeaseInfo", "RunCheckpointRef",
+    "GenerationJob", "JobPreviewResponse", "Cursor", "LeaseInfo", "RunCheckpointRef",
     "AudioProfile", "RunAnnotation", "ClassroomRun", "AudioClip", "ExportJob",
     "ReplaceSlideChange", "DeleteSlideChange", "ReorderSlidesChange",
     "EditContentOperation", "ChangeThemeOperation",
