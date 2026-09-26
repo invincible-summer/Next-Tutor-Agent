@@ -181,7 +181,8 @@ def list_lessons(student_id: str, workspace_id: str, *, page: int = 1,
         lesson_status = _lesson_list_status(lesson, job)
         if status and status != lesson_status.value:
             continue
-        items.append(_summary_public(lesson, job, lesson_status))
+        items.append(_summary_public(student_id, workspace_id, lesson, job,
+                                     lesson_status))
     items.sort(key=lambda s: s.updated_at, reverse=True)
     total = len(items)
     start = (page - 1) * page_size
@@ -192,23 +193,53 @@ def list_lessons(student_id: str, workspace_id: str, *, page: int = 1,
     }
 
 
-def _summary_public(lesson: sc.Lesson, job: sc.GenerationJob | None,
+def _summary_public(owner_id: str, workspace_id: str, lesson: sc.Lesson,
+                    job: sc.GenerationJob | None,
                     lesson_status: sc.LessonListStatus) -> sc.LessonSummaryPublic:
+    """列表卡投影（§3.3）：主题/章节/时长/风格/页数/状态/更新时间。
+
+    brief 从 job 的 brief.json 读取（小文件）；页数来自阶段产物计数，
+    不解析讲稿正文。缺失字段静默降级（旧课程可能没有 brief 落盘）。
+    """
     job_public = None
+    progress = sc.JobProgress()
+    warnings: list[str] = []
     if job is not None:
+        progress = _job_progress(owner_id, workspace_id, lesson.lesson_id, job)
+        warnings = _job_warnings(owner_id, workspace_id, lesson.lesson_id, job)
         job_public = sc.JobPublic(
             job_id=job.job_id, lesson_id=job.lesson_id, state=job.state,
             phase=job.phase, state_revision=job.state_revision,
-            progress=sc.JobProgress(), warnings=[],
+            progress=progress, warnings=warnings[:8],
             last_error=job.last_error, cancel_requested=job.cancel_requested,
             start_mode=job.start_mode, created_at=job.created_at,
             updated_at=job.updated_at)
+
+    brief_public = None
+    chapter_label = ""
+    if job is not None:
+        brief_path = store.job_brief_path(owner_id, workspace_id,
+                                          lesson.lesson_id, job.job_id)
+        if brief_path.is_file():
+            try:
+                brief = sc.LessonBrief.model_validate(
+                    json.loads(brief_path.read_text(encoding="utf-8")))
+                brief_public = _brief_public(brief)
+                chapters: list[str] = []
+                for fsel in brief.source_selection.files:
+                    chapters.extend(c.title for c in fsel.chapters)
+                chapter_label = " / ".join(chapters)[:120]
+            except (OSError, ValueError):
+                brief_public = None
+
     return sc.LessonSummaryPublic(
         lesson_id=lesson.lesson_id, workspace_id=lesson.workspace_id,
         title=lesson.title, status=lesson_status,
         latest_ready_revision=lesson.latest_ready_revision,
-        latest_job=job_public,
-        extra=sc.LessonListStatusExtra(),
+        latest_job=job_public, brief=brief_public,
+        extra=sc.LessonListStatusExtra(
+            chapter_label=chapter_label,
+            slide_count=progress.total_slides),
         updated_at=lesson.updated_at)
 
 

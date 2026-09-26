@@ -311,6 +311,27 @@ class LessonDetailTests(PipelineTestBase):
         self.assertEqual(again["revision"]["revision"],
                          lesson.latest_ready_revision)
 
+    def test_list_summary_carries_brief_and_progress(self) -> None:
+        lesson_id, _ = self._make_job()
+        job_id = store.load_lesson(OWNER, WS, lesson_id).latest_job_id
+        asyncio.run(ClassroomPipeline(
+            OWNER, WS, lesson_id, job_id, _deps()).run())
+        res = classroom_service.list_lessons(OWNER, WS)
+        item = next(i for i in res["items"]
+                    if i["lesson_id"] == lesson_id)
+        self.assertEqual(item["status"], "ready")
+        self.assertIsNotNone(item["brief"])
+        self.assertEqual(item["brief"]["duration_minutes"], 15)
+        self.assertGreaterEqual(item["extra"]["slide_count"], 1)
+        self.assertEqual(item["latest_job"]["progress"]["total_slides"],
+                         item["extra"]["slide_count"])
+        # 状态筛选：生成中/可上课
+        ready = classroom_service.list_lessons(OWNER, WS, status="ready")
+        self.assertTrue(all(i["status"] == "ready" for i in ready["items"]))
+        gen = classroom_service.list_lessons(OWNER, WS, status="generating")
+        self.assertFalse(any(i["lesson_id"] == lesson_id
+                             for i in gen["items"]))
+
     def test_unfinished_detail_returns_pending_brief_only(self) -> None:
         lesson_id, _ = self._make_job()
         detail = classroom_service.lesson_detail(OWNER, WS, lesson_id)
