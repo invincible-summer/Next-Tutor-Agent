@@ -5,6 +5,7 @@ Never read API keys anywhere except here. Everything else imports `settings`.
 from __future__ import annotations
 
 import os
+import sys
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -13,9 +14,19 @@ from dotenv import load_dotenv
 # Load .env from project root (parent of backend/) if present.
 _PROJECT_ROOT = Path(__file__).resolve().parents[3]
 _BACKEND_ROOT = _PROJECT_ROOT / "backend"
-# Test runs force the keyless CI environment (tests/__init__.py sets the
-# flag and scrubs the variables); never load real credentials there.
-if os.environ.get("EDU_TEST_KEYLESS") != "1":
+
+
+def _under_test_runner() -> bool:
+    # Test runs force the keyless CI environment (tests/__init__.py sets the
+    # flag and scrubs the variables); never load real credentials there.
+    # `unittest in sys.modules` covers `discover` imports where a test module
+    # reaches `app.*` before the tests package scrub runs (order-dependent
+    # hermeticity hole); the runner package is always imported first by
+    # `python -m unittest`, and never present in production processes.
+    return os.environ.get("EDU_TEST_KEYLESS") == "1" or "unittest" in sys.modules
+
+
+if not _under_test_runner():
     load_dotenv(_PROJECT_ROOT / ".env")
 
 

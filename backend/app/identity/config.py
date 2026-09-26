@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import logging
 import os
+import sys
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -16,7 +17,9 @@ log = logging.getLogger(__name__)
 _PROJECT_ROOT = Path(__file__).resolve().parents[3]
 # Test runs force the keyless CI environment (tests/__init__.py sets the
 # flag and scrubs the variables); never load real credentials there.
-if os.environ.get("EDU_TEST_KEYLESS") != "1":
+# `unittest in sys.modules` 与 core/config.py 同理：覆盖 discover 导入顺序
+# 下 app 先于 tests 包清洗被导入的场景。
+if os.environ.get("EDU_TEST_KEYLESS") != "1" and "unittest" not in sys.modules:
     load_dotenv(_PROJECT_ROOT / ".env")
 
 _DEFAULT_SECRET = "edu-agent-dev-secret-change-me-in-production-please"
