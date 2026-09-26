@@ -135,3 +135,7 @@ JOB_FAILURE_MIN_SAMPLES = 5           # 少于 N 个终态样本不告警
 QUEUE_STALL_SECONDS = 300             # queued 超过 300s 未被调度
 CLOUD_AUTH_FAIL_ALERT = 5             # 云 TTS 鉴权/配置连续失败 5 次
 RENDERER_FAIL_ALERT = 3               # renderer 连续启动失败 3 次
+
+# 质量门按页修复轮数（§15.2 修复语义的推广）：每轮只重生成仍带
+# blocker 的单页，不是整课重试；无 blocker 或无可定位页即提前收敛。
+QUALITY_REPAIR_ROUNDS = 2

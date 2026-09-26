@@ -145,8 +145,17 @@ def _block_texts_multi(slide: sc.SlideSpec) -> list[str]:
 def _answer_leak_gate(slides: list[sc.SlideSpec],
                       templates: list[sc.CheckpointTemplate],
                       ) -> list[sc.ReviewIssue]:
-    """正式题答案不得出现在页面/讲稿/预取文本（§15.5 结构门一部分）。"""
+    """正式题答案不得出现在页面/讲稿/预取文本（§15.5 结构门一部分）。
+
+    issue 带 slide_id（经 checkpoint 块反查所属页），按页修复才能定位
+    到泄露页只重修该页，而不是整课重试。"""
     issues: list[sc.ReviewIssue] = []
+    checkpoint_slide: dict[str, str] = {}
+    for slide in slides:
+        for block in slide.blocks:
+            cid = getattr(block, "checkpoint_id", None)
+            if cid:
+                checkpoint_slide[cid] = slide.slide_id
     corpus: list[str] = []
     for slide in slides:
         corpus.append(slide.title)
@@ -160,7 +169,10 @@ def _answer_leak_gate(slides: list[sc.SlideSpec],
         if answer and len(answer) >= 2 and answer in joined:
             issues.append(_issue(
                 "answer_leak", "blocker",
-                f"checkpoint {template.checkpoint_id} 的答案出现在课件文本"))
+                f"checkpoint {template.checkpoint_id} 的答案出现在课件文本："
+                f"请重写该页讲稿，移除答案内容（{answer[:60]}），把解释"
+                f"留到学生作答之后",
+                slide_id=checkpoint_slide.get(template.checkpoint_id)))
     return issues
 
 

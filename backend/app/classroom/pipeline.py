@@ -749,16 +749,25 @@ class ClassroomPipeline:
                                      reason=i.reason[:600])
                       for i in report.issues]
         combined = validation.combine_reports(issues, llm_issues)
-        # 修复：只针对 blocker/major 页，一次修复后仍严重则失败（§15.2）
-        repair_targets = {i.slide_id for i in combined.issues
-                          if i.severity != sc.Severity.minor and i.slide_id}
-        if repair_targets:
+        # 有界按页修复循环（§15.2）：只重生成带 issue 的单页（不是整课
+        # 重试，控制成本）；每轮修复后重跑确定性门，后续轮只修仍带
+        # blocker 的页；无 blocker 或无可定位页即收敛。
+        targets = {i.slide_id for i in combined.issues
+                   if i.severity != sc.Severity.minor and i.slide_id}
+        for _round in range(limits.QUALITY_REPAIR_ROUNDS):
+            if not targets or not validation.has_blocker(combined.issues):
+                break
             slides = await self._repair_slides(slides, combined,
-                                               repair_targets, records)
+                                               targets, records, templates)
             issues = validation.structural_gate(slides, templates)
             issues += validation.evidence_gate(brief, objectives, slides,
                                                records)
+            duration_issues, estimated = validation.duration_gate(
+                brief.duration_minutes, slides, brief.language)
+            issues += duration_issues
             combined = validation.combine_reports(issues, llm_issues)
+            targets = {i.slide_id for i in combined.issues
+                       if i.severity == sc.Severity.blocker and i.slide_id}
         if validation.has_blocker(combined.issues):
             worst = next(i for i in combined.issues
                          if i.severity == sc.Severity.blocker)
@@ -780,6 +789,7 @@ class ClassroomPipeline:
                              report: sc.ReviewReport,
                              targets: set[str],
                              records: list[sc.SourceRecord],
+                             templates: list[sc.CheckpointTemplate] | None = None,
                              ) -> list[sc.SlideSpec]:
         from .render.compiler import validate_layout_slots
 
@@ -796,7 +806,8 @@ class ClassroomPipeline:
                     "errors": [_dump_json(i) for i in errors],
                     "slide_schema": _SLIDE_SCHEMA_HINT,
                 }, ensure_ascii=False) + "\n\n" + evidence,
-                model_cls=_SlideModel)
+                model_cls=_SlideModel,
+                pre_validate=normalize_slide_spans)
             fixed = result.slide
             fixed.order = slide.order
             # 修复页必须仍满足布局 slot 约束；否则保留原页（修复尽力而为）
@@ -804,11 +815,16 @@ class ClassroomPipeline:
                 revision=1, brief=sc.LessonBrief(topic="probe"),
                 source_snapshot=[], slides=[fixed], objectives=[
                     sc.Objective(objective_id="objective_1", text="probe")],
+                checkpoint_templates=templates or [],
                 content_hash="0" * 64, created_at=store.utcnow())
             try:
                 validate_layout_slots(probe)
                 out[index] = fixed
             except ValueError:
+                # 修复页违反布局 slot：保留原页并记录（下一轮仍带 blocker
+                # 会再修一次；静默吞掉会让"为何没修"不可观察）
+                self.warnings.append(
+                    f"修复页 {slide.slide_id} 未通过布局约束，本轮保留原页")
                 continue
         return out
 
@@ -849,8 +865,10 @@ class ClassroomPipeline:
                                reason="该页在 1280×720 或窄屏视口溢出，"
                                       "请减少/缩短块与文字")
                 for sid in targets])
-            slides = await self._repair_slides(slides, synthetic, targets,
-                                               records)
+            slides = await self._repair_slides(
+                slides, synthetic, targets, records,
+                [sc.CheckpointTemplate.model_validate(t)
+                 for t in review_payload.get("templates", [])])
             review_payload["slides"] = [
                 s.model_dump(mode="json", by_alias=True) for s in slides]
             self._save_stage(sc.JobPhase.review, review_payload)

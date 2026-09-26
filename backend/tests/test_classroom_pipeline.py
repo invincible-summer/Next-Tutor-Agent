@@ -385,5 +385,112 @@ class SpanNormalizationTests(unittest.TestCase):
         self.assertLessEqual(len(out2), 8)
 
 
+class LeakThenRepairLLM(FakeClassroomLLM):
+    """checkpoint 页讲稿泄露答案；第一次单页修复仍泄露，第二次干净。"""
+
+    LEAK = "合外力为零时系统总动量保持不变，这就是标准答案。"
+    CLEAN = "先别翻页，回想一下刚才的推导，下一页再对答案。"
+
+    def __init__(self, **kw) -> None:
+        super().__init__(**kw)
+        self.repair_calls = 0
+
+    async def complete(self, messages, **_):
+        system = messages[0]["content"]
+        out_json, usage = await super().complete(messages, **_)
+        if "任务：单页写作" in system:
+            data = json.loads(out_json)
+            if (data.get("slide") or {}).get("layout") == "checkpoint":
+                for seg in data["slide"]["segments"]:
+                    seg["spoken_text"] = self.LEAK
+                    seg["display_text"] = self.LEAK
+            return json.dumps(data, ensure_ascii=False), usage
+        return out_json, usage
+
+    def _repair(self, payload: dict) -> dict:
+        # 只改讲稿文本、不动块（保住 checkpoint 布局必需块）：第一次仍泄露，
+        # 第二次换干净讲稿——驱动有界修复循环的两轮收敛。
+        self.repair_calls += 1
+        original = (payload.get("original") or {}).get("slide")             or payload.get("original") or {}
+        fixed = json.loads(json.dumps(original))
+        text = self.LEAK if self.repair_calls == 1 else self.CLEAN
+        for seg in fixed.get("segments", []):
+            seg["spoken_text"] = text
+            seg["display_text"] = text
+        return {"slide": fixed, "claims": []}
+
+
+async def _leaky_question_author(*, brief, slide, checkpoint_id,
+                                 evidence_text):
+    """注入正式题模板（答案=LEAK），使泄漏门可命中讲稿。"""
+    template = sc.CheckpointTemplate(
+        checkpoint_id=checkpoint_id, slide_id=slide.slide_id,
+        kind=sc.CheckpointKind.question,
+        prompt="系统所受合外力为零时，系统总动量如何变化？",
+        verified_question_template={
+            "type": "multiple_choice",
+            "stem": "系统所受合外力为零时，系统总动量如何变化？",
+            "options": {"A": "保持不变", "B": "不断增大"},
+            "answer": LeakThenRepairLLM.LEAK,
+            "explanation": "由动量定理，合外力为零则总动量不变。",
+            "knowledge_point": "动量守恒", "difficulty": "easy"})
+    return [template], "question"
+
+
+class AnswerLeakRepairLoopTests(PipelineTestBase):
+    """answer_leak blocker：按页定位 + 有界修复循环自动收敛（不整课重试）。"""
+
+    def test_leaky_checkpoint_narration_auto_repaired_per_slide(self):
+        lesson_id, job_id = self._make_job()
+        fake = LeakThenRepairLLM()
+        job = asyncio.run(self._pipeline(lesson_id, job_id, self._deps(
+            fake, checkpoint_author=_leaky_question_author)).run())
+        self.assertEqual(job.state, sc.JobState.succeeded,
+                         msg=str(job.last_error))
+        lesson = store.load_lesson(OWNER, WS, lesson_id)
+        self.assertEqual(lesson.latest_ready_revision, 1)
+        # 两轮单页修复：第一次仍泄露，第二次干净——循环生效而非硬失败
+        self.assertEqual(fake.repair_calls, 2)
+        revision = store.load_revision(OWNER, WS, lesson_id, 1)
+        for slide in revision.slides:
+            for seg in slide.segments:
+                self.assertNotIn(LeakThenRepairLLM.LEAK[:12], seg.spoken_text)
+        # checkpoint 页讲稿已是干净文本
+        template = revision.checkpoint_templates[0]
+        host = next(s for s in revision.slides
+                    if s.slide_id == template.slide_id)
+        self.assertIn(LeakThenRepairLLM.CLEAN[:8],
+                      host.segments[0].spoken_text)
+
+    def test_answer_leak_issue_carries_slide_id(self):
+        # 定位基础：gate 产出的 issue 挂在 checkpoint 页上（按页修复的前提）
+        from app.classroom import validation
+        slide = sc.SlideSpec(
+            slide_id="s_%012x" % 7, order=7, title="检查",
+            layout=sc.SlideLayout.checkpoint,
+            learning_objective_ids=[],
+            blocks=[sc.ParagraphBlock(
+                id="blk_%024x" % 1,
+                spans=[sc.SpanText(text="答案是保持不变")])],
+            segments=[sc.NarrationSegment(
+                segment_id="seg_%024x" % 1, role=sc.SegmentRole.explain,
+                display_text="答案是保持不变", spoken_text="答案是保持不变",
+                show_block_ids=["blk_%024x" % 1], focus_block_ids=[],
+                pause_after_ms=0, source_ids=[], estimated_ms=1000)],
+            claims=[], source_ids=[], transition=sc.TransitionKind.auto,
+            estimated_seconds=1)
+        slide.blocks.append(sc.CheckpointBlock(
+            id="blk_%024x" % 2, checkpoint_id="ckp_%024x" % 1))
+        template = sc.CheckpointTemplate(
+            checkpoint_id="ckp_%024x" % 1, slide_id=slide.slide_id,
+            kind=sc.CheckpointKind.question,
+            prompt="动量如何变化？",
+            verified_question_template={"answer": "保持不变"})
+        issues = validation._answer_leak_gate([slide], [template])
+        self.assertEqual(len(issues), 1)
+        self.assertEqual(issues[0].code, "answer_leak")
+        self.assertEqual(issues[0].slide_id, slide.slide_id)
+
+
 if __name__ == "__main__":
     unittest.main()
