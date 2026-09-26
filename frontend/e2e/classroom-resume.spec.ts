@@ -2,7 +2,9 @@
  *
  * - 刷新恢复：paused run 游标即上次位置；恢复播放必须用户手势
  *   （进入页面不发音频合成请求）；
- * - lease 过期/接管：POST lease 成功后可播放；
+ * - lease 过期/接管：POST lease 成功后可播放；他端持有时显示接管遮罩
+ *   （含说明文案与「在这里继续」），同标签页刷新沿用同一 client_id；
+ * - run 加载失败：显示重试提示，不误报“其他设备播放”；
  * - 进度上报失败（网络断开）：本地播放不受影响，字幕照常推进；
  * - pagehide：进度立即 flush（keepalive PUT）。
  */
@@ -44,11 +46,13 @@ interface ResumeHooks {
   progressCalls: { action: string; keepalive: boolean }[];
   progressFailures: number;
   progressOk: number;
+  leaseAcquires: { client_id: string; takeover: boolean }[];
 }
 
 async function routeResume(
   page: Page, hooks: ResumeHooks,
-  opts: { cursorSeg?: number } = {},
+  opts: { cursorSeg?: number; heldLease?: string;
+          acquireConflict?: boolean; runGetError?: boolean } = {},
 ): Promise<void> {
   const wav = tinyWav();
   const cursorSeg = opts.cursorSeg ?? 1;
@@ -105,6 +109,11 @@ async function routeResume(
         body: "<!doctype html><html><body><div id='v'></div></body></html>" });
     }
     if (path.endsWith(`/runs/${RUN}`) && method === "GET") {
+      if (opts.runGetError) {
+        return json({ error: { code: "storage_unavailable",
+          message: "temp", retryable: true, request_id: "r" } }, 500);
+      }
+      const heldBy = opts.heldLease ?? null;
       return json({
         run_id: RUN, lesson_id: LESSON, lesson_revision: 1,
         status: "paused", state_revision: 3,
@@ -119,13 +128,25 @@ async function routeResume(
         completed_kind: "",
         created_at: "2026-09-26T00:00:00Z",
         updated_at: "2026-09-26T00:00:00Z",
-        lease: { held: false, expired: true, client_id: null,
-                 lease_epoch: 0, expires_at: null },
+        lease: heldBy
+          ? { held: true, expired: false, client_id: heldBy,
+              lease_epoch: 5, expires_at: "2026-09-26T12:00:00Z" }
+          : { held: false, expired: true, client_id: null,
+              lease_epoch: 0, expires_at: null },
         cursor_index: cursorSeg - 1, segment_total: SEGS.length,
         tts_local_locked: false, tts_fallback_notified: false,
       });
     }
     if (path.endsWith(`/runs/${RUN}/lease`) && method === "POST") {
+      const body = route.request().postDataJSON() as {
+        client_id?: string; takeover?: boolean };
+      hooks.leaseAcquires.push({ client_id: String(body.client_id ?? ""),
+        takeover: Boolean(body.takeover) });
+      if (opts.acquireConflict) {
+        return json({ error: { code: "lease_conflict",
+          message: "另一设备正在播放本课堂", retryable: false,
+          request_id: "r" } }, 409);
+      }
       return json({ lease_epoch: 9,
                     expires_at: "2026-09-26T12:00:00Z" });
     }
@@ -173,7 +194,8 @@ test.beforeEach(async ({ page }) => {
 
 test("刷新恢复到上次游标且不自动发声", async ({ page }) => {
   const hooks: ResumeHooks = { audioRequests: 0, progressCalls: [],
-                               progressFailures: 0, progressOk: 0 };
+                               progressFailures: 0, progressOk: 0,
+                               leaseAcquires: [] };
   await routeResume(page, hooks, { cursorSeg: 2 });
   await page.goto(`/workspaces/${WS}/classroom/${LESSON}/learn/${RUN}`);
 
@@ -196,7 +218,8 @@ test("刷新恢复到上次游标且不自动发声", async ({ page }) => {
 
 test("进度上报失败不崩溃且重试收敛", async ({ page }) => {
   const hooks: ResumeHooks = { audioRequests: 0, progressCalls: [],
-                               progressFailures: 2, progressOk: 0 };
+                               progressFailures: 2, progressOk: 0,
+                               leaseAcquires: [] };
   await routeResume(page, hooks, { cursorSeg: 1 });
   await page.goto(`/workspaces/${WS}/classroom/${LESSON}/learn/${RUN}`);
   const caption = page.locator(
@@ -216,7 +239,8 @@ test("进度上报失败不崩溃且重试收敛", async ({ page }) => {
 
 test("pagehide 立即 flush 进度", async ({ page }) => {
   const hooks: ResumeHooks = { audioRequests: 0, progressCalls: [],
-                               progressFailures: 0, progressOk: 0 };
+                               progressFailures: 0, progressOk: 0,
+                               leaseAcquires: [] };
   await routeResume(page, hooks, { cursorSeg: 1 });
   await page.goto(`/workspaces/${WS}/classroom/${LESSON}/learn/${RUN}`);
   await page.click("button[aria-label='播放']");
@@ -229,4 +253,50 @@ test("pagehide 立即 flush 进度", async ({ page }) => {
   const flushed = hooks.progressCalls.filter((p) => p.keepalive
     || p.action === "pause" || p.action === "progress");
   expect(flushed.length).toBeGreaterThan(0);
+});
+
+test("lease 被他端持有时显示接管说明而非报错观感", async ({ page }) => {
+  const hooks: ResumeHooks = { audioRequests: 0, progressCalls: [],
+                               progressFailures: 0, progressOk: 0,
+                               leaseAcquires: [] };
+  await routeResume(page, hooks, { cursorSeg: 1,
+    heldLease: "cl-other-device-0001", acquireConflict: true });
+  await page.goto(`/workspaces/${WS}/classroom/${LESSON}/learn/${RUN}`);
+
+  // 接管遮罩：说明是“其他设备或标签页”+ 一键接管，而不是含糊的故障
+  await expect(page.getByText("本课正在你的其他设备或标签页播放"))
+    .toBeVisible({ timeout: 10_000 });
+  await expect(page.getByText("只有一个播放控制者")).toBeVisible();
+  await expect(page.getByRole("button", { name: "在这里继续" }))
+    .toBeVisible();
+  await expect(page.getByText("课堂加载失败")).toHaveCount(0);
+
+  // 初始化按“他端持有”自动请求接管，client_id 是规范随机 id
+  expect(hooks.leaseAcquires.length).toBeGreaterThan(0);
+  expect(hooks.leaseAcquires[0].takeover).toBe(true);
+  expect(hooks.leaseAcquires[0].client_id)
+    .toMatch(/^cl-[A-Za-z0-9-]{6,61}$/);
+
+  // 刷新（=「在这里继续」的行为）：同一标签页沿用同一 client_id 再接管
+  await page.reload();
+  await expect(page.getByText("本课正在你的其他设备或标签页播放"))
+    .toBeVisible({ timeout: 10_000 });
+  expect(hooks.leaseAcquires.length).toBeGreaterThan(1);
+  expect(hooks.leaseAcquires[1].client_id)
+    .toBe(hooks.leaseAcquires[0].client_id);
+  expect(hooks.leaseAcquires[1].takeover).toBe(true);
+});
+
+test("run 加载失败显示重试而非误报其他设备", async ({ page }) => {
+  const hooks: ResumeHooks = { audioRequests: 0, progressCalls: [],
+                               progressFailures: 0, progressOk: 0,
+                               leaseAcquires: [] };
+  await routeResume(page, hooks, { cursorSeg: 1, runGetError: true });
+  await page.goto(`/workspaces/${WS}/classroom/${LESSON}/learn/${RUN}`);
+
+  await expect(page.getByText("课堂加载失败，请重试"))
+    .toBeVisible({ timeout: 10_000 });
+  await expect(page.getByRole("button", { name: "重试" })).toBeVisible();
+  await expect(page.getByText("本课正在你的其他设备或标签页播放"))
+    .toHaveCount(0);
 });

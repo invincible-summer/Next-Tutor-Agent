@@ -79,8 +79,11 @@ const PLAYER_STR = {
     "cls.sum.segments": "听过 %n / %t 段",
     "cls.sum.asked": "课堂提问 %n 次",
     "cls.sum.checkpoints": "随堂题已答 %n 道",
-    "cls.play.suspended": "本课堂正在其他设备播放",
+    "cls.play.suspended": "本课正在你的其他设备或标签页播放",
+    "cls.play.suspended.hint": "同一节课同一时间只有一个播放控制者；点击接管后，另一端会在数秒内自动暂停。",
     "cls.play.suspended.takeover": "在这里继续",
+    "cls.play.suspended.error": "课堂加载失败，请重试",
+    "cls.play.suspended.retry": "重试",
     "cls.play.ended": "本节课已完成",
     "cls.play.back.course": "返回课程",
     "cls.play.exit": "退出课堂", "cls.play.loading": "正在装载课堂…",
@@ -131,8 +134,11 @@ const PLAYER_STR = {
     "cls.sum.segments": "Listened %n of %t segments",
     "cls.sum.asked": "Asked %n questions",
     "cls.sum.checkpoints": "Answered %n checkpoints",
-    "cls.play.suspended": "This lesson is playing on another device",
+    "cls.play.suspended": "This lesson is playing on another device or tab",
+    "cls.play.suspended.hint": "Only one controller plays a lesson at a time; after you take over, the other side pauses within seconds.",
     "cls.play.suspended.takeover": "Continue here",
+    "cls.play.suspended.error": "Couldn't load this lesson, please retry",
+    "cls.play.suspended.retry": "Retry",
     "cls.play.ended": "Lesson completed",
     "cls.play.back.course": "Back to lesson",
     "cls.play.exit": "Exit lesson", "cls.play.loading": "Loading lesson…",
@@ -460,11 +466,22 @@ export default function LearnRunPage() {
             )}
 
             {suspended && (
-              <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-bg/80 backdrop-blur-sm">
-                <p className="text-sm text-fg">{ps("cls.play.suspended")}</p>
+              <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-bg/80 px-6 backdrop-blur-sm">
+                <p className="text-sm text-fg">
+                  {player.state.error
+                    ? ps("cls.play.suspended.error")
+                    : ps("cls.play.suspended")}
+                </p>
+                {!player.state.error && (
+                  <p className="max-w-sm text-center text-xs text-fg-secondary">
+                    {ps("cls.play.suspended.hint")}
+                  </p>
+                )}
                 <Button variant="primary" size="sm"
                         onClick={() => window.location.reload()}>
-                  {ps("cls.play.suspended.takeover")}
+                  {player.state.error
+                    ? ps("cls.play.suspended.retry")
+                    : ps("cls.play.suspended.takeover")}
                 </Button>
               </div>
             )}

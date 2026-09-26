@@ -11,7 +11,7 @@
  */
 "use client";
 
-import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   acquireLease, ClassroomApiError, fetchClipBlobUrl, getRun,
   requestRunAudio, renewLease, releaseLease, updateProgress,
@@ -34,6 +34,34 @@ const PROGRESS_TICK_MS = 5_000;
 const POLL_BACKOFF_MS = [500, 1000, 2000];
 const POLL_MAX_MS = 60_000;
 const AUDIO_WINDOW = 3;   // 当前段+后2（§11.4）
+const CLIENT_ID_KEY = "edu-agent-classroom-client-id";
+const CLIENT_ID_RE = /^cl-[A-Za-z0-9-]{6,61}$/;  // 全长 9–64（后端约束）
+let fallbackClientId = "";
+
+/** 播放控制者标识（§5.4）：每个标签页一个、刷新后保持不变的随机 id。
+ * sessionStorage 按标签页隔离且关闭即弃——同标签页刷新沿用同一 id 无缝
+ * 续约，新标签页/其他设备得到不同 id，“接管判定 client_id 是否相同”由
+ * 此可靠。clientId 只在 effects 里进入请求，SSR 期间返回占位值不参与
+ * 水合。存储不可用（隐私模式）时退化为本次页面加载内的随机值。 */
+function playbackClientId(): string {
+  if (typeof window === "undefined") return "cl-ssr";
+  try {
+    let id = window.sessionStorage.getItem(CLIENT_ID_KEY) ?? "";
+    if (!CLIENT_ID_RE.test(id)) {
+      const uuid = typeof crypto !== "undefined" && crypto.randomUUID
+        ? crypto.randomUUID()
+        : `${Math.random().toString(36).slice(2, 12)}${Date.now().toString(36)}`;
+      id = `cl-${uuid}`;
+      window.sessionStorage.setItem(CLIENT_ID_KEY, id);
+    }
+    return id;
+  } catch {
+    if (!fallbackClientId) {
+      fallbackClientId = `cl-${Math.random().toString(36).slice(2, 14)}`;
+    }
+    return fallbackClientId;
+  }
+}
 
 export interface FlatSegment {
   seq: number;              // 全课 0-based
@@ -105,7 +133,7 @@ export function useClassroomPlayer(
   const [state, dispatch] = useState<PlayerState | null>(null);
   const [run, setRun] = useState<RunPublicExtra | null>(null);
   const [textMode, setTextMode] = useState(false);
-  const clientId = `cl-${useId().replace(/[^a-zA-Z0-9]/g, "")}`;
+  const clientId = useMemo(() => playbackClientId(), []);
 
   const runRef = useRef<RunPublicExtra | null>(null);
   const stateRef = useRef<PlayerState | null>(null);

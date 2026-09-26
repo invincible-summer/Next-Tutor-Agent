@@ -42,7 +42,10 @@ p.onmessage=(m)=>{if(m.data&&m.data.type==="goto_page")
 </body></html>`;
 }
 
-async function routeVisual(page: Page, theme: string): Promise<void> {
+async function routeVisual(
+  page: Page, theme: string,
+  opts: { heldLease?: string; acquireConflict?: boolean } = {},
+): Promise<void> {
   const t = THEMES.find((x) => x.id === theme) ?? THEMES[0];
   await page.route("**/api/v1/**", async (route: Route) => {
     const path = new URL(route.request().url()).pathname;
@@ -104,11 +107,29 @@ async function routeVisual(page: Page, theme: string): Promise<void> {
         qa_session_id: null, visited_slide_count: 1, completed_kind: "",
         created_at: "2026-09-26T00:00:00Z",
         updated_at: "2026-09-26T00:00:00Z",
-        lease: { held: false, expired: true, client_id: null,
-                 lease_epoch: 0, expires_at: null },
+        lease: opts.heldLease
+          ? { held: true, expired: false, client_id: opts.heldLease,
+              lease_epoch: 5, expires_at: "2026-09-26T12:00:00Z" }
+          : { held: false, expired: true, client_id: null,
+              lease_epoch: 0, expires_at: null },
         cursor_index: 0, segment_total: 1,
         tts_local_locked: false, tts_fallback_notified: false,
       });
+    }
+    // 不 mock lease 会让初始化打到真实隔离后端 404，落入 catch-all
+    // 变成 suspended 遮罩（K01 主题截图曾被它挡住），必须显式成功。
+    if (path.endsWith(`/runs/${RUN}/lease`) && method === "POST") {
+      if (opts.acquireConflict) {
+        return json({ error: { code: "lease_conflict",
+          message: "另一设备正在播放本课堂", retryable: false,
+          request_id: "r" } }, 409);
+      }
+      return json({ lease_epoch: 9,
+                    expires_at: "2026-09-26T12:00:00Z" });
+    }
+    if (path.endsWith(`/runs/${RUN}/lease`) && method === "PUT") {
+      return json({ lease_epoch: 9,
+                    expires_at: "2026-09-26T12:00:00Z" });
     }
     if (path.endsWith(`/runs/${RUN}/progress`)) {
       return json({ state_revision: 4 });
@@ -131,6 +152,11 @@ async function openPlayer(page: Page, theme: string,
   await expect(page.locator(
     "section[aria-label='字幕'] p[aria-live='polite']"))
     .toContainText(SEG_TEXT, { timeout: 10_000 });
+  // lease 成功后不得出现接管遮罩（曾因缺 lease mock，主题截图全程被
+  // suspended 遮罩挡住而未被察觉）
+  await expect(page.getByText("本课正在你的其他设备或标签页播放"))
+    .toHaveCount(0);
+  await expect(page.getByText("课堂加载失败")).toHaveCount(0);
 }
 
 /** 控件条与课件舞台 bbox 不相交（±2px 容差）。 */
@@ -232,5 +258,40 @@ test.describe("课堂播放器视觉矩阵", () => {
         `theme ${THEMES[i].name} frame must differ from base theme`)
         .toBe(false);
     }
+  });
+});
+
+test.describe("播放接管遮罩视觉", () => {
+  fs.mkdirSync(SHOT_DIR, { recursive: true });
+
+  async function openSuspended(page: Page, dark: boolean): Promise<void> {
+    await loginViaStorage(page, "e2e-fake-token");
+    await page.addInitScript((isDark) => {
+      localStorage.setItem("edu-agent-theme", isDark ? "dark" : "light");
+    }, dark);
+    await routeVisual(page, "academic_clear",
+      { heldLease: "cl-other-device-0001", acquireConflict: true });
+    await page.goto(`/workspaces/${WS}/classroom/${LESSON}/learn/${RUN}`);
+    await expect(page.getByText("本课正在你的其他设备或标签页播放"))
+      .toBeVisible({ timeout: 10_000 });
+    await expect(page.getByRole("button", { name: "在这里继续" }))
+      .toBeVisible();
+  }
+
+  for (const dark of [false, true]) {
+    test(`接管遮罩 ${dark ? "深色" : "浅色"} 1440×900`, async ({ page }) => {
+      await page.setViewportSize({ width: 1440, height: 900 });
+      await openSuspended(page, dark);
+      await page.screenshot({
+        path: path.join(SHOT_DIR, `suspended-${dark ? "dark" : "light"}.png`) });
+    });
+  }
+
+  test("接管遮罩窄屏 390×844 说明与按钮完整可见", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await openSuspended(page, false);
+    await expect(page.getByText("只有一个播放控制者")).toBeVisible();
+    await page.screenshot({
+      path: path.join(SHOT_DIR, "suspended-390-light.png") });
   });
 });
