@@ -232,6 +232,48 @@ class QualityGateTests(PipelineTestBase):
         self.assertIsNone(
             store.load_lesson(OWNER, WS, lesson_id).latest_ready_revision)
 
+    def test_budget_accounting_stays_within_wall_time(self) -> None:
+        """预阶段 persist 只落计数：active_seconds_used 不得累计开机时长
+        （曾因传 0.0 把 monotonic() 当差值累计，秒数高达机器 uptime）。"""
+        lesson_id, job_id = self._make_job()
+        asyncio.run(ClassroomPipeline(
+            OWNER, WS, lesson_id, job_id, self._deps()).run())
+        job = store.load_job(OWNER, WS, lesson_id, job_id)
+        self.assertLess(job.budget.active_seconds_used, 3600)
+
+    def test_outline_parser_accepts_locked_prompt_contract(self) -> None:
+        """提示词原文（§6.5）输出 page_plan/working_title/must_show 等字段名，
+        解析器必须直接吃下（真实模型回归；fake LLM 输出内部名曾掩盖此契约）。"""
+        raw = {
+            "objectives": [{"objective_id": "obj_1", "text": "会判断动量守恒",
+                            "evidence_status": "supported", "bloom": "understand"}],
+            "prerequisites": [{"concept": "矢量", "status": "confirmed"}],
+            "page_plan": [{
+                "page": 1, "layout": "title", "working_title": "动量守恒",
+                "objective_ids": ["obj_1"], "needs_evidence": [],
+                "visual_intent": {"role": "scene", "purpose": "碰撞示意",
+                                  "must_show": ["两个滑块"],
+                                  "must_not_show": ["真实人物"],
+                                  "aspect": "landscape",
+                                  "query_hint": "physics collision diagram",
+                                  "alt_hint": "两个滑块碰撞示意"},
+                "estimated_minutes": 1.5}],
+            "glossary": [{"term": "系统", "definition": "研究对象整体"}],
+            "budget_note": "导入 1 分钟",
+        }
+        model = pl._OutlineModel.model_validate(raw)
+        page = model.pages[0]
+        self.assertEqual(page.title, "动量守恒")
+        self.assertEqual(page.order, 1)
+        self.assertEqual(page.budget_seconds, 90)
+        self.assertEqual(page.visual_intent.required_objects, ["两个滑块"])
+        self.assertEqual(page.visual_intent.exclude, ["真实人物"])
+        self.assertEqual(page.visual_intent.orientation, "landscape")
+        self.assertEqual(page.visual_intent.query_terms,
+                         ["physics collision diagram"])
+        self.assertEqual(page.visual_intent.alt, "两个滑块碰撞示意")
+        self.assertEqual(model.scope_note, "导入 1 分钟")
+
     def test_strict_without_sources_needs_input(self) -> None:
         brief = self._brief(
             source_policy="strict_textbook",

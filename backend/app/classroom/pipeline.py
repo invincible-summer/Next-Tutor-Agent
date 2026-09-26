@@ -176,7 +176,9 @@ class ClassroomPipeline:
         return json.loads(
             self._artifact_path(phase.value).read_text(encoding="utf-8"))
 
-    def _persist_budgets(self, budgets: _Budgets, started: float) -> None:
+    def _persist_budgets(self, budgets: _Budgets, elapsed: float) -> None:
+        """elapsed = 本段已经历的秒数（阶段开始前落计数传 0）。参数是差值
+        而非时间戳：monotonic 基数（开机时长）绝不能进入 deadline 累计。"""
         def _apply(job: sc.GenerationJob) -> None:
             job.budget.llm_calls_used = budgets.llm.calls_used
             job.budget.llm_input_tokens_used = budgets.llm.input_used
@@ -185,8 +187,7 @@ class ClassroomPipeline:
             job.budget.extract_calls_used = budgets.research.extract_urls
             job.budget.image_searches_used = budgets.image.calls
             job.budget.active_seconds_used = round(
-                job.budget.active_seconds_used + (time.monotonic() - started),
-                1)
+                job.budget.active_seconds_used + max(0.0, elapsed), 1)
         self._mutate(_apply)
         budgets.llm.remaining_seconds = max(
             0.0, limits.JOB_DEADLINE_SECONDS
@@ -418,12 +419,26 @@ class ClassroomPipeline:
         clamped = clamp_pages(len(plan.pages), brief.duration_minutes,
                               int(str(brief.page_plan))
                               if str(brief.page_plan).isdigit() else None)
+        # 目标 id/状态规范化：模型可用 obj_1 等任意 id 与提示词的状态词
+        # （gap/unverified），最终 OutlinePlan 一律落 schema 枚举。
+        id_map = {o.objective_id: f"objective_{i}"
+                  for i, o in enumerate(plan.objectives[:12], start=1)}
+        status_map = {"supported": "supported", "partial": "partial",
+                      "uncovered": "uncovered", "gap": "uncovered",
+                      "unverified": "partial"}
+        pages_payload = []
+        for p in plan.pages[:clamped]:
+            dump = p.model_dump()
+            dump["objective_ids"] = [id_map[x] for x in p.objective_ids
+                                     if x in id_map]
+            pages_payload.append(dump)
         normalized = sc.OutlinePlan.model_validate({
             "objectives": [
-                {"objective_id": o.objective_id, "text": o.text,
-                 "evidence_status": o.evidence_status}
+                {"objective_id": id_map[o.objective_id], "text": o.text,
+                 "evidence_status": status_map.get(
+                     (o.evidence_status or "").lower(), "uncovered")}
                 for o in plan.objectives[:12]],
-            "pages": [p.model_dump() for p in plan.pages[:clamped]],
+            "pages": pages_payload,
             "glossary": [g.model_dump() for g in plan.glossary],
             "scope_note": plan.scope_note,
             "uncovered_note": plan.uncovered_note,
@@ -567,6 +582,9 @@ class ClassroomPipeline:
                             "caption": a.caption, "width": a.width,
                             "height": a.height} for a in page_assets],
                 "allowed_actions": ["reveal", "highlight", "advance"],
+                # SlideSpec 输出契约（§10）：系统提示词锁定原文未展开块语法，
+                # 由输入数据携带，模型不得自创 block kind / 字段。
+                "slide_schema": _SLIDE_SCHEMA_HINT,
             }, ensure_ascii=False) + "\n\n" + evidence
             async with llm_gate:
                 result, _ = await generate_json(
@@ -774,6 +792,7 @@ class ClassroomPipeline:
                 user_text=json.dumps({
                     "original": slide.model_dump(mode="json", by_alias=True),
                     "errors": [_dump_json(i) for i in errors],
+                    "slide_schema": _SLIDE_SCHEMA_HINT,
                 }, ensure_ascii=False) + "\n\n" + evidence,
                 model_cls=_SlideModel)
             fixed = result.slide
@@ -1207,6 +1226,7 @@ class ClassroomPipeline:
                         "caption": a.caption, "width": a.width,
                         "height": a.height} for a in page_assets],
             "allowed_actions": ["reveal", "highlight", "advance"],
+            "slide_schema": _SLIDE_SCHEMA_HINT,
         }, ensure_ascii=False) + "\n\n" + evidence
         result, _ = await generate_json(
             self.deps.llm, prompt_id="classroom_slide",
@@ -1309,7 +1329,60 @@ def _pick_candidate(candidates: list, orientation: str | None):
 # 规范化到 schema 模型的工作在阶段函数内完成。
 # ---------------------------------------------------------------------------
 
-from pydantic import BaseModel, ConfigDict, Field  # noqa: E402
+from pydantic import BaseModel, ConfigDict, Field, model_validator  # noqa: E402
+
+
+# 单页输出的最小契约提示（进入 user payload；与 §10 SlideSpec 同源，
+# 字段名/枚举与 schemas/classroom.py 保持一致，模型不得自创结构）。
+_SLIDE_SCHEMA_HINT = {
+    "slide": {
+        "slide_id": "输入预分配的 s_…，原样使用",
+        "order": "输入的 order",
+        "title": "≤36 中文字；每页一个主要目标",
+        "layout": "输入的 layout，不得更改",
+        "blocks": [
+            {"kind": "paragraph", "id": "blk_24hex", "spans": [
+                {"kind": "text", "text": "…"},
+                {"kind": "emphasis", "text": "重点词"},
+                {"kind": "math", "latex": "\\frac{dp}{dt}=F",
+                 "spoken": "动量对时间的导数等于合外力"}]},
+            {"kind": "bullets", "id": "blk_24hex", "items": [
+                [{"kind": "text", "text": "要点"}]]},
+            {"kind": "formula", "id": "blk_24hex", "latex": "…",
+             "spoken": "公式的口语读法（怎么念）", "label": "式(1)|null"},
+            {"kind": "image", "id": "blk_24hex",
+             "asset_id": "必须使用输入 assets 列出的 ast_…（无候选时不要输出 image 块）",
+             "alt": "替代文字", "caption": "图注", "fit": "contain|cover"},
+            {"kind": "table", "id": "blk_24hex", "headers": ["列1"],
+             "rows": [["单元格"]], "source_ids": []},
+            {"kind": "steps", "id": "blk_24hex", "steps": [
+                {"label": "第1步",
+                 "spans": [{"kind": "text", "text": "做什么"}]}]},
+            {"kind": "callout", "id": "blk_24hex", "tone": "note|warning|summary",
+             "spans": [{"kind": "text", "text": "…"}]},
+        ],
+        "segments": [{
+            "segment_id": "seg_24hex（自拟）", "role":
+            "motivation|explain|derive|example|misconception|transition|summary",
+            "display_text": "页面展示文字（可含 LaTeX 记法）",
+            "spoken_text": "口语讲稿，可直接朗读，不复述页面文字",
+            "show_block_ids": ["要显示的 blk_…"],
+            "focus_block_ids": ["要高亮的 blk_…"],
+            "pause_after_ms": 0, "source_ids": []}],
+        "source_ids": [],
+        "transition": "auto|manual",
+        "estimated_seconds": 90,
+    },
+    "important": "slide 对象内不要输出 claims / claim 字段——事实对照 claims "
+                 "按系统要求放在顶层输出；slide 内出现未知字段会被整体拒绝。",
+    "block_kinds_allowed": ["paragraph", "bullets", "formula", "image",
+                            "table", "steps", "diagram", "checkpoint",
+                            "callout"],
+    "note": "diagram/checkpoint 由服务端按需生成，模型一般不要输出；"
+            "标题不是独立 block（页面 title 字段就是标题）；"
+            "block id 形如 blk_ 加 24 位十六进制，页内唯一；"
+            "seg id 形如 seg_ 加 24 位十六进制，页内唯一。",
+}
 
 
 class _LLMModel(BaseModel):
@@ -1330,7 +1403,8 @@ class _SearchPlanModel(_LLMModel):
 
 
 class _OutlineObjectiveItem(_LLMModel):
-    objective_id: str = Field(..., pattern=r"^objective_[0-9a-z_-]{1,32}$")
+    # 提示词示例是 "obj_1" 等任意短 id；最终 OutlinePlan 前统一规范化
+    objective_id: str = Field(..., min_length=1, max_length=64)
     text: str = Field(..., min_length=1, max_length=200)
     evidence_status: str = "uncovered"
     bloom: str = ""
@@ -1343,6 +1417,9 @@ class _OutlineGlossaryItem(_LLMModel):
 
 
 class _OutlineIntentItem(_LLMModel):
+    """提示词（§6.5 锁定原文）的 visual_intent 字段名与内部不同：
+    before 校验器对齐字段名，模型原始输出可直接解析。"""
+
     role: str
     purpose: str = ""
     required_objects: list[str] = Field(default_factory=list, max_length=6)
@@ -1350,6 +1427,26 @@ class _OutlineIntentItem(_LLMModel):
     orientation: str | None = None
     query_terms: list[str] = Field(default_factory=list, max_length=5)
     alt: str = ""
+
+    @model_validator(mode="before")
+    @classmethod
+    def _rename(cls, data: Any) -> Any:
+        if not isinstance(data, dict):
+            return data
+        out = dict(data)
+        if "must_show" in out and "required_objects" not in out:
+            out["required_objects"] = out.pop("must_show")
+        if "must_not_show" in out and "exclude" not in out:
+            out["exclude"] = out.pop("must_not_show")
+        if "aspect" in out and "orientation" not in out:
+            out["orientation"] = out.pop("aspect")
+        if "query_hint" in out and "query_terms" not in out:
+            hint = out.pop("query_hint")
+            out["query_terms"] = [hint] if isinstance(hint, str) and hint \
+                else (hint if isinstance(hint, list) else [])
+        if "alt_hint" in out and "alt" not in out:
+            out["alt"] = out.pop("alt_hint")
+        return out
 
 
 class _OutlinePageItem(_LLMModel):
@@ -1361,6 +1458,24 @@ class _OutlinePageItem(_LLMModel):
     key_points: list[str] = Field(default_factory=list, max_length=6)
     visual_intent: _OutlineIntentItem | None = None
 
+    @model_validator(mode="before")
+    @classmethod
+    def _rename(cls, data: Any) -> Any:
+        if not isinstance(data, dict):
+            return data
+        out = dict(data)
+        if "working_title" in out and "title" not in out:
+            out["title"] = out.pop("working_title")
+        if "page" in out and "order" not in out:
+            out["order"] = out.pop("page")
+        if "estimated_minutes" in out and "budget_seconds" not in out:
+            try:
+                out["budget_seconds"] = int(
+                    float(out.pop("estimated_minutes")) * 60)
+            except (TypeError, ValueError):
+                out.pop("estimated_minutes", None)
+        return out
+
 
 class _OutlineModel(_LLMModel):
     objectives: list[_OutlineObjectiveItem] = Field(..., min_length=1)
@@ -1369,6 +1484,20 @@ class _OutlineModel(_LLMModel):
     scope_note: str = ""
     uncovered_note: str = ""
     total_budget_seconds: int = 0
+
+    @model_validator(mode="before")
+    @classmethod
+    def _rename(cls, data: Any) -> Any:
+        if not isinstance(data, dict):
+            return data
+        out = dict(data)
+        # 提示词原文的顶层键是 page_plan / budget_note / prerequisites
+        if "page_plan" in out and "pages" not in out:
+            out["pages"] = out.pop("page_plan")
+        if "budget_note" in out and "scope_note" not in out:
+            out["scope_note"] = str(out.pop("budget_note"))[:600]
+        out.pop("prerequisites", None)  # 提示性输出，管线不消费
+        return out
 
 
 class _ClaimItem(_LLMModel):
@@ -1381,6 +1510,32 @@ class _ClaimItem(_LLMModel):
 class _SlideModel(_LLMModel):
     slide: sc.SlideSpec
     claims: list[_ClaimItem] = Field(default_factory=list, max_length=12)
+
+    @model_validator(mode="before")
+    @classmethod
+    def _relocate_claims(cls, data: Any) -> Any:
+        """个别模型把顶层对照 claims 塞进 slide 内：只把“顶层形状”
+        （block_id/claim_kind、无 claim_id）的条目搬回顶层；已是服务端
+        TeachingClaim 形状（claim_id/block_ids）的原地保留——修复轮会
+        回显原页，绝不能把已签发 claims 洗掉（那会静默通过证据门）。"""
+        if not isinstance(data, dict):
+            return data
+        if "slide" not in data and "blocks" in data and "segments" in data:
+            # 修复提示词（§6.5 锁定）要求直接输出“完整替代页（结构同
+            # SlideSpec）”——裸 slide 对象；写作提示词则是 {slide,claims}。
+            data = {"slide": data}
+        slide = data.get("slide")
+        if not isinstance(slide, dict) or not isinstance(
+                slide.get("claims"), list):
+            return data
+        inner = slide["claims"]
+        movable = [c for c in inner if isinstance(c, dict)
+                   and "claim_id" not in c
+                   and ("block_id" in c or "claim_kind" in c)]
+        if movable:
+            slide["claims"] = [c for c in inner if c not in movable]
+            data["claims"] = list(data.get("claims") or []) + movable
+        return data
 
 
 class _ReviewIssueItem(_LLMModel):
