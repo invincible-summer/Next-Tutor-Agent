@@ -4,12 +4,15 @@
 import { apiFetch } from "./api-fetch";
 import { API_BASE } from "./api";
 import type {
+  AudioProfileRequest, AudioRequest, AudioResponse, ClipStatus,
   CancelJobRequest, ClassroomCapabilities, ClassroomTemplates,
   ContinueJobRequest, CreateLessonRequest, CreateLessonResponse,
   CreateRevisionRequest, CreateRevisionResponse, BriefPatchRequest,
   ImageSearchRequest, ImageSearchResponse, JobPreviewResponse,
   JobPublic, JobSnapshotEvent, LessonDetailPublic, LessonListResponse,
-  OutlinePatchRequest, RetryJobRequest,
+  CreateRunRequest, LeaseAcquireRequest, LeaseRenewRequest, LeaseResponse,
+  OutlinePatchRequest, ProgressRequest, ProgressResponse, RetryJobRequest,
+  RunCreateResponse, VoicePreviewRequest, VoicePreviewResponse,
 } from "./types-classroom.generated";
 
 const BASE = API_BASE;
@@ -280,4 +283,172 @@ export function subscribeJobEvents(
       handlers.onError?.(err);
     }
   })();
+}
+
+// ---------------------------------------------------------------------------
+// 课堂 run / lease / 进度 / 音频（plan.md §14.2，阶段 G）
+// ---------------------------------------------------------------------------
+
+const R = (ws: string, lesson: string) =>
+  BASE + W(ws) + "/lessons/" + encodeURIComponent(lesson);
+
+export interface RunPublicExtra {
+  run_id: string;
+  lesson_id: string;
+  lesson_revision: number;
+  status: "active" | "paused" | "completed" | "ended";
+  state_revision: number;
+  cursor: { slide_id: string; segment_id: string; chunk_index: number;
+            offset_ms: number; last_completed_segment_id: string | null };
+  resume_anchor: RunPublicExtra["cursor"] | null;
+  audio_profile: Record<string, unknown>;
+  qa_session_id: string | null;
+  visited_slide_count: number;
+  completed_kind: string;
+  created_at: string;
+  updated_at?: string;
+  lease: { held: boolean; expired: boolean; client_id: string | null;
+           lease_epoch: number; expires_at: string | null };
+  cursor_index: number;
+  segment_total: number;
+  tts_local_locked: boolean;
+  tts_fallback_notified: boolean;
+}
+
+export async function createRun(
+  workspaceId: string, lessonId: string, request: CreateRunRequest,
+  idempotencyKey: string,
+): Promise<RunCreateResponse> {
+  const res = await apiFetch(R(workspaceId, lessonId) + "/runs", {
+    method: "POST",
+    headers: { "Content-Type": "application/json",
+               "Idempotency-Key": idempotencyKey },
+    body: JSON.stringify(request) });
+  return jsonOf<RunCreateResponse>(res);
+}
+
+export async function getRun(
+  workspaceId: string, lessonId: string, runId: string,
+): Promise<RunPublicExtra> {
+  const res = await apiFetch(
+    R(workspaceId, lessonId) + "/runs/" + encodeURIComponent(runId));
+  return jsonOf<RunPublicExtra>(res);
+}
+
+export async function acquireLease(
+  workspaceId: string, lessonId: string, runId: string,
+  request: LeaseAcquireRequest,
+): Promise<LeaseResponse> {
+  const res = await apiFetch(
+    R(workspaceId, lessonId) + "/runs/" + encodeURIComponent(runId)
+    + "/lease",
+    { method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(request) });
+  return jsonOf<LeaseResponse>(res);
+}
+
+export async function renewLease(
+  workspaceId: string, lessonId: string, runId: string,
+  request: LeaseRenewRequest,
+): Promise<LeaseResponse> {
+  const res = await apiFetch(
+    R(workspaceId, lessonId) + "/runs/" + encodeURIComponent(runId)
+    + "/lease",
+    { method: "PUT", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(request) });
+  return jsonOf<LeaseResponse>(res);
+}
+
+export async function releaseLease(
+  workspaceId: string, lessonId: string, runId: string,
+  request: LeaseRenewRequest,
+): Promise<void> {
+  await apiFetch(
+    R(workspaceId, lessonId) + "/runs/" + encodeURIComponent(runId)
+    + "/lease",
+    { method: "DELETE", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(request) });
+}
+
+export async function updateProgress(
+  workspaceId: string, lessonId: string, runId: string,
+  request: ProgressRequest,
+): Promise<ProgressResponse> {
+  const res = await apiFetch(
+    R(workspaceId, lessonId) + "/runs/" + encodeURIComponent(runId)
+    + "/progress",
+    { method: "PUT", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(request) });
+  return jsonOf<ProgressResponse>(res);
+}
+
+export async function updateAudioProfile(
+  workspaceId: string, lessonId: string, runId: string,
+  request: AudioProfileRequest,
+): Promise<RunPublicExtra> {
+  const res = await apiFetch(
+    R(workspaceId, lessonId) + "/runs/" + encodeURIComponent(runId)
+    + "/audio-profile",
+    { method: "PUT", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(request) });
+  return jsonOf<RunPublicExtra>(res);
+}
+
+/** POST R/audio：请求当前+预取段（202），返回 clip 状态。 */
+export async function requestRunAudio(
+  workspaceId: string, lessonId: string, runId: string,
+  request: AudioRequest, idempotencyKey: string,
+): Promise<AudioResponse> {
+  const res = await apiFetch(
+    R(workspaceId, lessonId) + "/runs/" + encodeURIComponent(runId)
+    + "/audio",
+    { method: "POST",
+      headers: { "Content-Type": "application/json",
+                 "Idempotency-Key": idempotencyKey },
+      body: JSON.stringify(request) });
+  return jsonOf<AudioResponse>(res);
+}
+
+export async function getClipStatus(
+  workspaceId: string, lessonId: string, runId: string, clipId: string,
+): Promise<ClipStatus> {
+  const res = await apiFetch(
+    R(workspaceId, lessonId) + "/runs/" + encodeURIComponent(runId)
+    + "/audio/" + encodeURIComponent(clipId));
+  return jsonOf<ClipStatus>(res);
+}
+
+/** 认证拉取 WAV → Blob URL；调用方负责 revoke（§11.5）。 */
+export async function fetchClipBlobUrl(
+  workspaceId: string, lessonId: string, runId: string, clipId: string,
+): Promise<string> {
+  const res = await apiFetch(
+    R(workspaceId, lessonId) + "/runs/" + encodeURIComponent(runId)
+    + "/audio/" + encodeURIComponent(clipId) + "/content");
+  if (!res.ok) throw await readError(res);
+  const blob = await res.blob();
+  return URL.createObjectURL(blob);
+}
+
+export async function createVoicePreview(
+  workspaceId: string, request: VoicePreviewRequest,
+  idempotencyKey: string,
+): Promise<VoicePreviewResponse> {
+  const res = await apiFetch(BASE + W(workspaceId) + "/voice-preview", {
+    method: "POST",
+    headers: { "Content-Type": "application/json",
+               "Idempotency-Key": idempotencyKey },
+    body: JSON.stringify(request) });
+  return jsonOf<VoicePreviewResponse>(res);
+}
+
+export async function fetchVoicePreviewBlobUrl(
+  workspaceId: string, clipId: string,
+): Promise<string> {
+  const res = await apiFetch(
+    BASE + W(workspaceId) + "/voice-previews/"
+    + encodeURIComponent(clipId) + "/content");
+  if (!res.ok) throw await readError(res);
+  const blob = await res.blob();
+  return URL.createObjectURL(blob);
 }
