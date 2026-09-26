@@ -318,5 +318,105 @@ class RevisionJobContractTests(RevisionTestBase):
                          "重放不得重复烧版本号")
 
 
+class AssetExportTests(RevisionTestBase):
+    """E04：上传资产/换图引用/导出/版本列表回归。"""
+
+    def test_list_revisions(self) -> None:
+        from app.classroom import service as svc
+        lesson_id, _job, base = self._published_course()
+        res = svc.list_revisions(OWNER, WS, lesson_id)
+        self.assertEqual(res["total"], 1)
+        self.assertEqual(res["items"][0]["revision"], base.revision)
+        self.assertTrue(res["items"][0]["available"])
+
+    def test_upload_asset_then_replace_image(self) -> None:
+        from app.classroom import service as svc
+        from tests.classroom_provider_mocks import make_png_bytes
+        lesson_id, _job, base = self._published_course()
+
+        asset = svc.upload_asset(OWNER, WS, lesson_id, "自制图.png",
+                                 make_png_bytes())
+        self.assertEqual(asset["provider"], "upload")
+        data, mime = svc.asset_content(OWNER, WS, lesson_id,
+                                       asset["asset_id"])
+        self.assertEqual(mime, asset["mime"])
+        self.assertGreater(len(data), 0)
+
+        # fake 课程没有图片块：先用 edit_content 给一页加 image 块
+        # （key_points 布局允许 1 个 image block），再对这个块换图。
+        slide = next(s for s in base.slides if s.layout.value == "key_points")
+        slide2 = slide.model_copy(deep=True)
+        slide2.blocks.append(sc.ImageBlock.model_validate({
+            "kind": "image", "id": "blk_0123456789abcdef01234567",
+            "asset_id": asset["asset_id"], "alt": "示意", "caption": "示意"}))
+        job1 = self._run_operation(lesson_id, self._request(
+            base.revision, sc.EditContentOperation(changes=[
+                sc.ReplaceSlideChange(slide_id=slide.slide_id, slide=slide2)])))
+        self.assertEqual(job1.state.value, "succeeded")
+
+        asset2 = svc.upload_asset(OWNER, WS, lesson_id, "换图.png",
+                                  make_png_bytes(width=80, height=60))
+        job = self._run_operation(lesson_id, self._request(
+            job1.target_revision, sc.ReplaceImageOperation(
+                slide_id=slide.slide_id, block_id="blk_0123456789abcdef01234567",
+                asset_id=asset2["asset_id"])))
+        self.assertEqual(job.state.value, "succeeded")
+        new_spec = store.load_revision(OWNER, WS, lesson_id, job.target_revision)
+        self.assertIn(asset2["asset_id"],
+                      {a.asset_id for a in new_spec.assets})
+        blk = next(b for s2 in new_spec.slides if s2.slide_id == slide.slide_id
+                   for b in s2.blocks if b.id == "blk_0123456789abcdef01234567")
+        self.assertEqual(blk.asset_id, asset2["asset_id"])
+
+    def test_upload_rejects_svg_and_garbage(self) -> None:
+        from app.classroom import service as svc
+        lesson_id, _job, _base = self._published_course()
+        with self.assertRaises(ClassroomError) as ctx:
+            svc.upload_asset(OWNER, WS, lesson_id, "x.svg", b"<svg/>")
+        self.assertEqual(ctx.exception.code, "content_invalid")
+        with self.assertRaises(ClassroomError):
+            svc.upload_asset(OWNER, WS, lesson_id, "x.png", b"not-an-image")
+
+    def test_export_zip_and_notes_and_expiry(self) -> None:
+        from app.classroom import service as svc
+        lesson_id, _job, base = self._published_course()
+        res = svc.create_export(OWNER, WS, lesson_id, base.revision,
+                                "html_zip", idempotency_key="exp-1")
+        data, meta = svc.export_content(OWNER, WS, lesson_id,
+                                        res["export_id"])
+        self.assertEqual(meta["format"], "html_zip")
+        self.assertEqual(data[:2], b"PK")
+        notes = svc.create_export(OWNER, WS, lesson_id, base.revision,
+                                  "notes_md", idempotency_key="exp-2")
+        ndata, _nmeta = svc.export_content(OWNER, WS, lesson_id,
+                                           notes["export_id"])
+        self.assertTrue(ndata.startswith(b"#"))
+
+        # 过期 → export_expired（可重建）
+        from app.core import classroom_store as st
+        meta_path = st.export_meta_path(OWNER, WS, lesson_id,
+                                        notes["export_id"])
+        import json as _json
+        stale = _json.loads(meta_path.read_text(encoding="utf-8"))
+        stale["expires_at"] = 0
+        meta_path.write_text(_json.dumps(stale), encoding="utf-8")
+        with self.assertRaises(ClassroomError) as ctx:
+            svc.export_content(OWNER, WS, lesson_id, notes["export_id"])
+        self.assertEqual(ctx.exception.code, "export_expired")
+
+    def test_image_search_without_providers(self) -> None:
+        from app.classroom import service as svc
+        import asyncio as _aio
+        lesson_id, _job, _base = self._published_course()
+        with self.assertRaises(ClassroomError) as ctx:
+            _aio.run(svc.image_search(OWNER, WS, sc.ImageSearchRequest(
+                lesson_id=lesson_id,
+                visual_intent=sc.VisualIntent(
+                    role="scene", purpose="碰撞示意",
+                    query_terms=["physics collision"])),
+                idempotency_key="img-1"))
+        self.assertEqual(ctx.exception.code, "image_unavailable")
+
+
 if __name__ == "__main__":
     unittest.main()

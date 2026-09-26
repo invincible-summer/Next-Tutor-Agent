@@ -1067,6 +1067,12 @@ class ClassroomPipeline:
             found = next((a for a in base.assets
                           if a.asset_id == op.asset_id), None)
             if found is None:
+                # 上传资产（POST L/assets 落盘，§14.1）
+                from . import service as classroom_service
+                found = classroom_service.load_asset_record(
+                    self.owner, self.workspace_id, self.lesson_id,
+                    op.asset_id)
+            if found is None:
                 raise ClassroomError("content_invalid", "指定资产不存在")
             return found
         from .media import service as media_service

@@ -1246,7 +1246,7 @@ exports 24h 过期；搜索缓存按 24h TTL；失败/取消 job staging 保留 
 - [x] E01 增路由和 WorkspaceModeBar、工作区菜单/固定课堂入口、Sidebar 批量摘要。
 - [x] E02 列表三态、Pager、CreateLessonModal、模板预览、默认值和能力不足提示。
 - [x] E03 生成阶段、关闭后恢复、取消/重试、可选大纲审核、失败草稿预览。
-- [ ] E04 实现 LessonPreview/Editor、单页操作、来源右栏、图片选择、修订冲突、下载。
+- [x] E04 实现 LessonPreview/Editor、单页操作、来源右栏、图片选择、修订冲突、下载。
 - [ ] E05 添加全部 zh/en 文案；截图核验浅/深色和窄屏，chat URL/侧边栏旧操作回归。
 
 退出门：用户能从现有工作区完成一键备课、看讲稿、换风格、新版发布；返回聊天后会话和草稿不串区。

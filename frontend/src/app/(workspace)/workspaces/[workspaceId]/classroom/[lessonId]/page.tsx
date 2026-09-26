@@ -19,6 +19,7 @@ import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { WorkspaceModeBar } from "@/components/classroom/WorkspaceModeBar";
 import { GenerationProgress } from "@/components/classroom/GenerationProgress";
+import { LessonEditor, ExportButtons } from "@/components/classroom/LessonEditor";
 import SlideFrame from "@/components/classroom/SlideFrame";
 import { STRINGS } from "../strings";
 
@@ -42,10 +43,10 @@ function LessonDetailInner() {
   const [missing, setMissing] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  const load = useCallback(() => {
+  const load = useCallback((explicitRevision?: number) => {
     setLoading(true);
     setMissing(false);
-    getLesson(workspaceId, lessonId, fixedRevision)
+    getLesson(workspaceId, lessonId, explicitRevision ?? fixedRevision)
       .then((d) => {
         setDetail(d);
         const rev = d.revision?.revision;
@@ -112,6 +113,19 @@ function LessonDetailInner() {
           {detail.title}
         </h1>
         <div className="ml-auto flex items-center gap-2">
+          {!generating && detail.revision && (
+            <span className="tnum hidden rounded-full border border-border px-2 py-0.5 text-[0.65rem] text-muted sm:inline">
+              {tr("cls.card.revision").replace("%n", String(detail.revision.revision))}
+            </span>
+          )}
+          {!generating && detail.revision && (
+            <ExportButtons
+              workspaceId={workspaceId}
+              lessonId={lessonId}
+              revision={detail.revision.revision}
+              tr={tr}
+            />
+          )}
           <WorkspaceModeBar workspaceId={workspaceId} mode="classroom" />
         </div>
       </header>
@@ -189,22 +203,19 @@ function LessonDetailInner() {
             )}
           </div>
         ) : frameHtml ? (
-          <div className="mx-auto max-w-5xl">
-            <p className="mb-2 text-[0.7rem] font-medium uppercase tracking-[0.14em] text-muted/70">
-              {tr("cls.detail.preview")}
-            </p>
-            <SlideFrame
-              html={frameHtml}
-              title={detail.title}
-              className="aspect-video w-full overflow-hidden rounded-[12px] border border-border bg-white shadow-md"
-            />
-          </div>
+          <LessonEditor
+            workspaceId={workspaceId}
+            lessonId={lessonId}
+            detail={detail}
+            frameHtml={frameHtml}
+            onReload={(rev) => load(rev)}
+          />
         ) : (
           <EmptyState
             icon={<Presentation size={28} />}
             title={tr("cls.detail.preview")}
             desc={tr("cls.error.load")}
-            action={<Button variant="outline" size="sm" onClick={load}>{tr("cls.retry")}</Button>}
+            action={<Button variant="outline" size="sm" onClick={() => load()}>{tr("cls.retry")}</Button>}
           />
         )}
       </div>

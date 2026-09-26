@@ -6,7 +6,7 @@ route 只做身份、schema、状态码投影；复杂工作由 app.classroom.se
 """
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, Header, Request
+from fastapi import APIRouter, Depends, Header, Request, UploadFile
 from fastapi.responses import JSONResponse
 
 from app.identity.deps import resolve_student_id
@@ -202,3 +202,79 @@ def get_revision_frame(workspace_id: str, lesson_id: str, revision: int,
         content=html,
         headers={"Cache-Control": "private, no-store",
                  "Content-Disposition": "inline"},)
+
+
+@router.get("/workspaces/{workspace_id}/classroom/lessons/{lesson_id}"
+            "/revisions", response_model=sc.RevisionListResponse)
+def list_revisions(workspace_id: str, lesson_id: str, page: int = 1,
+                   page_size: int = 20,
+                   student_id: str = Depends(resolve_student_id)):
+    return sc.RevisionListResponse(**classroom_service.list_revisions(
+        student_id, workspace_id, lesson_id, page=page, page_size=page_size))
+
+
+@router.post("/workspaces/{workspace_id}/classroom/image-search",
+             response_model=sc.ImageSearchResponse, status_code=202)
+async def image_search(workspace_id: str, request: sc.ImageSearchRequest,
+                       idempotency_key: str | None = Header(
+                           default=None, alias="Idempotency-Key"),
+                       student_id: str = Depends(resolve_student_id)):
+    from app.classroom.errors import require_idempotency_key
+
+    key = require_idempotency_key(idempotency_key)
+    return sc.ImageSearchResponse(**await classroom_service.image_search(
+        student_id, workspace_id, request, idempotency_key=key))
+
+
+@router.post("/workspaces/{workspace_id}/classroom/lessons/{lesson_id}"
+             "/assets", response_model=sc.AssetUploadResponse)
+async def upload_asset(workspace_id: str, lesson_id: str, file: UploadFile,
+                       student_id: str = Depends(resolve_student_id)):
+    raw = await file.read()
+    asset = classroom_service.upload_asset(
+        student_id, workspace_id, lesson_id, file.filename or "upload", raw)
+    return sc.AssetUploadResponse(asset=asset)
+
+
+@router.get("/workspaces/{workspace_id}/classroom/lessons/{lesson_id}"
+            "/assets/{asset_id}/content")
+def asset_content(workspace_id: str, lesson_id: str, asset_id: str,
+                  student_id: str = Depends(resolve_student_id)):
+    from fastapi.responses import Response
+
+    data, mime = classroom_service.asset_content(
+        student_id, workspace_id, lesson_id, asset_id)
+    return Response(content=data, media_type=mime,
+                    headers={"Cache-Control": "private, max-age=3600"})
+
+
+@router.post("/workspaces/{workspace_id}/classroom/lessons/{lesson_id}"
+             "/exports", status_code=202)
+def create_export(workspace_id: str, lesson_id: str,
+                  request: sc.ExportCreateRequest,
+                  idempotency_key: str | None = Header(
+                      default=None, alias="Idempotency-Key"),
+                  student_id: str = Depends(resolve_student_id)):
+    from app.classroom.errors import require_idempotency_key
+
+    key = require_idempotency_key(idempotency_key)
+    return classroom_service.create_export(
+        student_id, workspace_id, lesson_id, request.revision,
+        request.format, idempotency_key=key)
+
+
+@router.get("/workspaces/{workspace_id}/classroom/lessons/{lesson_id}"
+            "/exports/{export_id}/content")
+def export_content(workspace_id: str, lesson_id: str, export_id: str,
+                   student_id: str = Depends(resolve_student_id)):
+    from fastapi.responses import Response
+
+    data, meta = classroom_service.export_content(
+        student_id, workspace_id, lesson_id, export_id)
+    filename = (f"lesson-{lesson_id}-r{meta.get('revision')}.zip"
+                if meta.get("format") == "html_zip"
+                else f"lesson-{lesson_id}-r{meta.get('revision')}-notes.md")
+    return Response(
+        content=data, media_type=str(meta.get("media_type") or "application/zip"),
+        headers={"Content-Disposition": f'attachment; filename="{filename}"',
+                 "Cache-Control": "private, no-store"})

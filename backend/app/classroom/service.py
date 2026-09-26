@@ -12,6 +12,7 @@ from ..core import classroom_store as store
 from ..core.workspace import _owner_of, load_workspace
 from ..schemas import classroom as sc
 from . import capabilities as caps
+from . import exports
 from . import idempotency
 from .errors import ClassroomError
 
@@ -870,3 +871,262 @@ async def job_events(student_id: str, workspace_id: str, lesson_id: str,
         if quiet >= heartbeat_seconds:
             yield ": heartbeat\n\n"
             quiet = 0.0
+
+
+# ---------------------------------------------------------------------------
+# E04：版本列表 / 换图搜索 / 自有图片 / 导出（§14.1）
+# ---------------------------------------------------------------------------
+
+def _load_owned_lesson(student_id: str, workspace_id: str,
+                       lesson_id: str) -> sc.Lesson:
+    load_owned_workspace(workspace_id, student_id)
+    lesson = store.load_lesson(student_id, workspace_id, lesson_id)
+    if lesson is None or lesson.owner_id != student_id or \
+            lesson.workspace_id != workspace_id or \
+            lesson.lifecycle != sc.LessonLifecycle.active:
+        raise ClassroomError("source_not_found", "课程不存在")
+    return lesson
+
+
+def list_revisions(student_id: str, workspace_id: str, lesson_id: str,
+                   *, page: int = 1, page_size: int = 20) -> dict[str, Any]:
+    """GET L/revisions：版本号 + 时间 + 可用性；不附全量 HTML。"""
+    allowed, _ = caps.user_allowed(student_id)
+    if not allowed:
+        raise ClassroomError("classroom_disabled", "课堂功能未开放")
+    lesson = _load_owned_lesson(student_id, workspace_id, lesson_id)
+    page = max(1, page)
+    page_size = min(max(1, page_size), 50)
+    items: list[sc.RevisionListItem] = []
+    for rev in sorted(lesson.published_revisions, reverse=True):
+        spec = store.load_revision(student_id, workspace_id, lesson_id, rev)
+        items.append(sc.RevisionListItem(
+            revision=rev,
+            created_at=spec.created_at if spec else store.utcnow(),
+            available=spec is not None))
+    total = len(items)
+    start = (page - 1) * page_size
+    payload = sc.RevisionListResponse(
+        items=items[start:start + page_size], total=total, page=page,
+        page_size=page_size)
+    return payload.model_dump(mode="json", by_alias=True)
+
+
+async def image_search(student_id: str, workspace_id: str,
+                       request: sc.ImageSearchRequest,
+                       *, idempotency_key: str) -> dict[str, Any]:
+    """POST W/image-search：只服务换图，候选经短期登记后一次性消费。"""
+    allowed, _ = caps.user_allowed(student_id)
+    if not allowed:
+        raise ClassroomError("classroom_disabled", "课堂功能未开放")
+    _load_owned_lesson(student_id, workspace_id, request.lesson_id)
+
+    from .media.service import build_image_providers, register_candidates
+    providers = build_image_providers()
+    if not providers:
+        raise ClassroomError("image_unavailable",
+                             "未配置可用图库服务（需管理员凭证）")
+    intent = request.visual_intent
+    queries = list(intent.query_terms)
+    if not queries:
+        # 兜底：用意图描述词（≤5 个）构造查询，保持与管线同源语义。
+        queries = [w for w in intent.purpose.replace("，", " ").split()
+                   if len(w) >= 2][:5]
+    if not queries:
+        raise ClassroomError("content_invalid", "visual_intent 缺少可用查询词")
+
+    from .media.base import ImageSearchBudget
+    budget = ImageSearchBudget()
+    from .media.service import ImageSearchService
+    service = ImageSearchService(providers)
+    provider_filter = request.provider.value if request.provider else None
+    if provider_filter:
+        service = ImageSearchService(
+            [p for p in providers if p.provider == provider_filter]
+            or providers)
+    candidates = await service.search(
+        queries, owner=student_id,
+        orientation=intent.orientation or "landscape",
+        locale="zh-CN", budget=budget)
+    ids = register_candidates(student_id, candidates)
+    return {"candidates": [
+        {"candidate_id": cid,
+         "provider": c.provider,
+         "provider_asset_id": c.provider_asset_id,
+         "thumbnail_url": c.thumb_url,
+         "width": c.width, "height": c.height,
+         "creator": c.creator, "source_url": c.page_url,
+         "license_url": c.license_url}
+        for cid, c in zip(ids, candidates)]}
+
+
+def _asset_public(record: sc.AssetRecord) -> sc.AssetPublic:
+    return sc.AssetPublic(
+        asset_id=record.asset_id, mime=record.mime, width=record.width,
+        height=record.height, alt=record.alt, caption=record.caption,
+        role=record.role, status=record.status,
+        provider=record.provenance.provider,
+        creator=record.provenance.creator,
+        source_url=record.provenance.source_url,
+        license_url=record.provenance.license_url)
+
+
+def upload_asset(student_id: str, workspace_id: str, lesson_id: str,
+                 filename: str, raw: bytes) -> dict[str, Any]:
+    """POST L/assets：自有图片清洗后入库（AssetRecord 落盘，供
+    replace_image{asset_id} 引用）；不接受 SVG/HTML。"""
+    allowed, _ = caps.user_allowed(student_id)
+    if not allowed:
+        raise ClassroomError("classroom_disabled", "课堂功能未开放")
+    _load_owned_lesson(student_id, workspace_id, lesson_id)
+    if len(raw) > 12 * 1024 * 1024:
+        raise ClassroomError("content_invalid", "图片过大（≤12MB）")
+    lowered = filename.lower()
+    if lowered.endswith((".svg", ".html", ".htm")):
+        raise ClassroomError("content_invalid", "不支持 SVG/HTML 图片")
+
+    from .media.download import sanitize_image
+    try:
+        processed = sanitize_image(raw)
+    except ClassroomError as exc:
+        raise ClassroomError("image_unavailable",
+                             f"图片清洗失败：{exc.message}") from exc
+
+    asset_id = store.new_id("ast")
+    ext = "png" if processed.mime == "image/png" else "webp"
+    path = store.asset_file_path(student_id, workspace_id, lesson_id,
+                                 asset_id, ext)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    store.write_bytes(path, processed.data)
+    record = sc.AssetRecord(
+        asset_id=asset_id, sha256=processed.sha256, mime=processed.mime,
+        width=processed.width, height=processed.height,
+        provenance=sc.AssetProvenance(
+            provider=sc.AssetProvider.upload,
+            provider_asset_id="",
+            source_url="", creator=filename[:120], creator_url="",
+            license_url="", fetched_at=store.utcnow()),
+        alt=filename[:120] or "用户上传图片", caption="", role=sc.AssetRole.scene,
+        bytes=len(processed.data), status=sc.AssetStatus.ready)
+    store.write_json(store.asset_meta_path(student_id, workspace_id,
+                                           lesson_id, asset_id),
+                     record.model_dump(mode="json", by_alias=True))
+    asset = _asset_public(record)
+    return asset.model_dump(mode="json", by_alias=True)
+
+
+def load_asset_record(student_id: str, workspace_id: str, lesson_id: str,
+                      asset_id: str) -> sc.AssetRecord | None:
+    """上传资产读取（owner 作用域内路径已隔离）。"""
+    data = store.read_json(store.asset_meta_path(student_id, workspace_id,
+                                                 lesson_id, asset_id))
+    if data is None:
+        return None
+    try:
+        return sc.AssetRecord.model_validate(data)
+    except ValueError:
+        return None
+
+
+def asset_content(student_id: str, workspace_id: str, lesson_id: str,
+                  asset_id: str) -> tuple[bytes, str]:
+    """GET L/assets/{id}/content：图片 bytes（归属链校验）。"""
+    allowed, _ = caps.user_allowed(student_id)
+    if not allowed:
+        raise ClassroomError("classroom_disabled", "课堂功能未开放")
+    lesson = _load_owned_lesson(student_id, workspace_id, lesson_id)
+    record = load_asset_record(student_id, workspace_id, lesson_id, asset_id)
+    if record is None:
+        # 生成管线下载的图直接挂在已发布 revision 的资产表里
+        for rev in lesson.published_revisions:
+            spec = store.load_revision(student_id, workspace_id, lesson_id,
+                                       rev)
+            if spec and asset_id in {a.asset_id for a in spec.assets}:
+                record = next(a for a in spec.assets
+                              if a.asset_id == asset_id)
+                break
+    if record is None:
+        raise ClassroomError("source_not_found", "图片不存在")
+    ext = _EXT_BY_MIME.get(record.mime, "webp")
+    path = store.asset_file_path(student_id, workspace_id, lesson_id,
+                                 asset_id, ext)
+    if not path.is_file():
+        raise ClassroomError("source_not_found", "图片文件缺失",
+                             retryable=False)
+    return path.read_bytes(), record.mime
+
+
+_EXPORT_TTL_SECONDS = 24 * 3600
+
+
+def create_export(student_id: str, workspace_id: str, lesson_id: str,
+                  revision: int, fmt: str, *, idempotency_key: str) -> dict[str, Any]:
+    """POST L/exports：同步构建（HTML ZIP / 讲稿 Markdown），24h 过期。"""
+    allowed, _ = caps.user_allowed(student_id)
+    if not allowed:
+        raise ClassroomError("classroom_disabled", "课堂功能未开放")
+    if fmt not in ("html_zip", "notes_md"):
+        raise ClassroomError("content_invalid", "不支持的导出格式")
+    spec = load_published_revision(student_id, workspace_id, lesson_id,
+                                   revision)
+    try:
+        if fmt == "html_zip":
+            data = exports.build_export_zip(
+                spec,
+                read_bytes=lambda aid, ext: _read_asset_bytes(
+                    student_id, workspace_id, lesson_id, aid, ext))
+            media_type = "application/zip"
+        else:
+            data = exports.build_notes_markdown(spec)
+            media_type = "text/markdown; charset=utf-8"
+    except RuntimeError as exc:
+        raise ClassroomError("renderer_unavailable",
+                             "课件渲染器不可用") from exc
+
+    export_id = store.new_id("job")
+    zip_path = store.export_zip_path(student_id, workspace_id, lesson_id,
+                                     export_id)
+    zip_path.parent.mkdir(parents=True, exist_ok=True)
+    store.write_bytes(zip_path, data)
+    meta = {"export_id": export_id, "format": fmt, "revision": revision,
+            "media_type": media_type, "bytes": len(data),
+            "expires_at": (store.utcnow().timestamp()
+                           + _EXPORT_TTL_SECONDS)}
+    store.write_json(store.export_meta_path(student_id, workspace_id,
+                                            lesson_id, export_id), meta)
+    return {"export_id": export_id, "format": fmt, "revision": revision,
+            "content_url": f"/api/v1/workspaces/{workspace_id}/classroom/"
+                           f"lessons/{lesson_id}/exports/{export_id}/content",
+            "expires_at": meta["expires_at"]}
+
+
+def _read_asset_bytes(student_id: str, workspace_id: str, lesson_id: str,
+                      asset_id: str, ext: str) -> bytes | None:
+    path = store.asset_file_path(student_id, workspace_id, lesson_id,
+                                 asset_id, ext)
+    try:
+        return path.read_bytes() if path.is_file() else None
+    except OSError:
+        return None
+
+
+def export_content(student_id: str, workspace_id: str, lesson_id: str,
+                   export_id: str) -> tuple[bytes, dict[str, Any]]:
+    """GET L/exports/{id}/content：过期 410（可重建）。"""
+    allowed, _ = caps.user_allowed(student_id)
+    if not allowed:
+        raise ClassroomError("classroom_disabled", "课堂功能未开放")
+    _load_owned_lesson(student_id, workspace_id, lesson_id)
+    meta = store.read_json(store.export_meta_path(student_id, workspace_id,
+                                                  lesson_id, export_id))
+    if meta is None:
+        raise ClassroomError("source_not_found", "导出不存在")
+    if float(meta.get("expires_at", 0)) < store.utcnow().timestamp():
+        raise ClassroomError("export_expired", "导出已过期，请重新生成",
+                             retryable=True)
+    path = store.export_zip_path(student_id, workspace_id, lesson_id,
+                                 export_id)
+    if not path.is_file():
+        raise ClassroomError("source_not_found", "导出文件缺失",
+                             retryable=False)
+    return path.read_bytes(), meta

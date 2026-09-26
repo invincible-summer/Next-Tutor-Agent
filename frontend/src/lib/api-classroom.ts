@@ -7,7 +7,7 @@ import type {
   CancelJobRequest, ClassroomCapabilities, ClassroomTemplates,
   ContinueJobRequest, CreateLessonRequest, CreateLessonResponse,
   CreateRevisionRequest, CreateRevisionResponse, BriefPatchRequest,
-  JobPreviewResponse,
+  ImageSearchRequest, ImageSearchResponse, JobPreviewResponse,
   JobPublic, JobSnapshotEvent, LessonDetailPublic, LessonListResponse,
   OutlinePatchRequest, RetryJobRequest,
 } from "./types-classroom.generated";
@@ -104,6 +104,20 @@ export async function getJob(
   return jsonOf(await apiFetch(
     `${BASE}${W(workspaceId)}/lessons/${encodeURIComponent(lessonId)}` +
     `/jobs/${encodeURIComponent(jobId)}`));
+}
+
+/** POST W/image-search：换图候选（服务端短期签发 candidate_id）。 */
+export async function imageSearch(
+  workspaceId: string, request: ImageSearchRequest, idempotencyKey: string,
+): Promise<ImageSearchResponse> {
+  const res = await apiFetch(
+    `${BASE}${W(workspaceId)}/image-search`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Idempotency-Key": idempotencyKey },
+      body: JSON.stringify(request),
+    });
+  if (!res.ok) throw await readError(res);
+  return res.json() as Promise<ImageSearchResponse>;
 }
 
 /** GET J/preview：只读草稿 DTO（slides/outline；html 可空）。 */

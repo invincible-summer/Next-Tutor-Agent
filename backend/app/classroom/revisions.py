@@ -44,8 +44,9 @@ def _load_base(student_id: str, workspace_id: str, lesson_id: str,
     return revision
 
 
-def validate_operation(base: sc.LessonRevision,
-                       operation: Any) -> None:
+def validate_operation(base: sc.LessonRevision, operation: Any, *,
+                       student_id: str = "", workspace_id: str = "",
+                       lesson_id: str = "") -> None:
     """受理时校验目标完整性（slide/block/资产/主题存在、重排是排列）。"""
     slides = {s.slide_id: s for s in base.slides}
     op_name = operation.op
@@ -98,7 +99,15 @@ def validate_operation(base: sc.LessonRevision,
                                  "candidate_id 与 asset_id 必须二选一")
         if operation.asset_id and operation.asset_id not in \
                 {a.asset_id for a in base.assets}:
-            raise ClassroomError("content_invalid", "指定资产不存在")
+            # 上传资产（POST L/assets 落盘）也可引用（§14.1）
+            from . import service as classroom_service
+            if student_id and classroom_service.load_asset_record(
+                    student_id, workspace_id, lesson_id,
+                    operation.asset_id) is None:
+                raise ClassroomError("content_invalid", "指定资产不存在")
+            if not student_id and operation.asset_id not in \
+                    {a.asset_id for a in base.assets}:
+                raise ClassroomError("content_invalid", "指定资产不存在")
     elif op_name == "refresh_research":
         pass  # scope 已由枚举闭合
     else:  # pragma: no cover - 判别联合保证
@@ -120,7 +129,10 @@ def create_revision_job(student_id: str, workspace_id: str, lesson_id: str,
 
     base = _load_base(student_id, workspace_id, lesson_id,
                       request.base_revision)
-    validate_operation(base, request.operation)
+    validate_operation(base, request.operation,
+                       student_id=student_id,
+                       workspace_id=workspace_id,
+                       lesson_id=lesson_id)
 
     scope = "create_revision"
     body = {"lesson_id": lesson_id,
