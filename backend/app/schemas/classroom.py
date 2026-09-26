@@ -982,6 +982,9 @@ class ClassroomRun(_StrictModel):
     status: RunStatus = RunStatus.active
     state_revision: int = Field(1, ge=1)
     cursor: Cursor
+    # 服务端维护的游标页序（1-based，取自固定 revision 的 spec）：
+    # 列表页“继续上课：第 n/t 页”直接读取，不需要逐课解析讲稿（§3.2.7）
+    cursor_slide_order: int = Field(1, ge=1)
     resume_anchor: Cursor | None = None
     checkpoint_refs: list[RunCheckpointRef] = Field(default_factory=list,
                                                     max_length=3)
@@ -1270,6 +1273,7 @@ class RunPublic(_StrictModel):
     status: RunStatus
     state_revision: int
     cursor: Cursor
+    cursor_slide_order: int = 1
     resume_anchor: Cursor | None = None
     audio_profile: AudioProfile
     qa_session_id: str | None = None
@@ -1284,6 +1288,15 @@ class LessonListStatusExtra(_StrictModel):
     slide_count: int = 0
     active_job_count: int = 0
     last_run: RunPublic | None = None
+
+
+class ResumeCardPublic(_StrictModel):
+    """列表页置顶“继续上课”卡（§3.3）：工作区内最新未完成 run。"""
+    lesson_id: LessonId
+    workspace_id: str
+    title: str
+    slide_count: int = 0
+    run: RunPublic
 
 
 class LessonSummaryPublic(_StrictModel):
@@ -1330,6 +1343,7 @@ class LessonListResponse(_StrictModel):
     total: int
     page: int
     page_size: int
+    resume: ResumeCardPublic | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -1743,6 +1757,7 @@ PUBLIC_TYPE_MODELS: list[str] = [
     "SourcePublic", "AssetPublic", "CheckpointPublic", "BriefPublic",
     "RevisionPublic", "JobProgress", "JobPublic", "LessonBriefProgress",
     "RunPublic", "LessonListStatusExtra", "LessonSummaryPublic",
+    "ResumeCardPublic",
     "LessonDetailPublic", "RevisionListItem", "RevisionListResponse",
     "LessonListResponse",
     "RendererCapability", "ServiceCapability", "VoiceInfo", "TtsCapability",

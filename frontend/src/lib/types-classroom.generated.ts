@@ -559,6 +559,7 @@ export interface ClassroomRun {
   status?: RunStatus;
   state_revision?: number;
   cursor: Cursor;
+  cursor_slide_order?: number;
   resume_anchor?: Cursor | null;
   checkpoint_refs?: Array<RunCheckpointRef>;
   audio_profile?: AudioProfile;
@@ -780,6 +781,7 @@ export interface RunPublic {
   status: RunStatus;
   state_revision: number;
   cursor: Cursor;
+  cursor_slide_order?: number;
   resume_anchor?: Cursor | null;
   audio_profile: AudioProfile;
   qa_session_id?: string | null;
@@ -806,6 +808,14 @@ export interface LessonSummaryPublic {
   brief?: BriefPublic | null;
   extra?: LessonListStatusExtra;
   updated_at: string;
+}
+
+export interface ResumeCardPublic {
+  lesson_id: string;
+  workspace_id: string;
+  title: string;
+  slide_count?: number;
+  run: RunPublic;
 }
 
 export interface LessonDetailPublic {
@@ -840,6 +850,7 @@ export interface LessonListResponse {
   total: number;
   page: number;
   page_size: number;
+  resume?: ResumeCardPublic | null;
 }
 
 export interface RendererCapability {

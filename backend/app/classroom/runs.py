@@ -133,6 +133,7 @@ def create_run(student_id: str, workspace_id: str, lesson_id: str,
         status=sc.RunStatus.paused,
         cursor=sc.Cursor(slide_id=first_slide.slide_id,
                          segment_id=first_segment.segment_id),
+        cursor_slide_order=first_slide.order,
         checkpoint_refs=_checkpoint_refs_from_spec(spec),
         audio_profile=sc.AudioProfile(
             policy=sc.VoicePolicy(profile.policy),
@@ -190,6 +191,7 @@ def run_public(student_id: str, workspace_id: str, lesson_id: str,
         run_id=run.run_id, lesson_id=run.lesson_id,
         lesson_revision=run.lesson_revision, status=status,
         state_revision=run.state_revision, cursor=run.cursor,
+        cursor_slide_order=slide_order_of(spec, run.cursor.slide_id),
         resume_anchor=run.resume_anchor, audio_profile=run.audio_profile,
         qa_session_id=run.qa_session_id, visited_slide_count=visited,
         completed_kind=run.completed_kind, created_at=run.created_at,
@@ -220,6 +222,14 @@ def _segment_index(spec: sc.LessonRevision, segment_id: str) -> int:
                 return order
             order += 1
     return 0
+
+
+def slide_order_of(spec: sc.LessonRevision, slide_id: str) -> int:
+    """游标页序（1-based）；找不到时保守返回 1（游标校验已挡坏 ID）。"""
+    for slide in spec.slides:
+        if slide.slide_id == slide_id:
+            return slide.order
+    return 1
 
 
 # ---------------------------------------------------------------------------
@@ -345,6 +355,7 @@ def update_progress(student_id: str, workspace_id: str, lesson_id: str,
         if len(r.progress_event_ids) > _EVENT_DEDUP_MAX:
             del r.progress_event_ids[:-_EVENT_DEDUP_MAX]
         r.cursor = cursor
+        r.cursor_slide_order = slide_order_of(spec, cursor.slide_id)
         if request.action == sc.ProgressAction.progress:
             r.status = sc.RunStatus.active
         elif request.action == sc.ProgressAction.pause:

@@ -29,6 +29,8 @@ export interface PlayerStrings {
   focusMode: string;
   fullscreen: string;
   exitFullscreen: string;
+  readingMode: string;
+  exitReadingMode: string;
   pageOf: (n: number, total: number) => string;
   segmentOf: (n: number, total: number) => string;
   textMode: string;
@@ -150,7 +152,7 @@ const SPEED_STEPS = [0.5, 0.75, 0.9, 1.0, 1.25, 1.5];
 
 export function PlayerControls(
   { state, current, totalPages, textMode, onToggle, onPrev, onNext,
-    onReplay, onSpeed, onVolume, onFullscreen, s }:
+    onReplay, onSpeed, onVolume, onReading, onFullscreen, s }:
   {
     state: PlayerState;
     current: FlatSegment | null;
@@ -162,6 +164,7 @@ export function PlayerControls(
     onReplay: () => void;
     onSpeed: (rate: number) => void;
     onVolume: (volume: number) => void;
+    onReading: (on: boolean) => void;
     onFullscreen: () => void;
     s: PlayerStrings;
   },
@@ -197,7 +200,7 @@ export function PlayerControls(
         </span>
       )}
       <div className="ml-auto flex items-center gap-2">
-        <CtlButton label={`${s.speed} ${state.playbackRate}`}
+        <CtlButton label={s.speed + " " + state.playbackRate}
                    onClick={() => onSpeed(nextSpeed)}>
           <span className="text-xs font-medium tabular-nums">
             {state.playbackRate.toFixed(2).replace(/0$/, "")}×
@@ -207,7 +210,12 @@ export function PlayerControls(
                    onClick={() => onVolume(state.volume === 0 ? 1 : 0)}>
           {state.volume === 0 ? <VolumeX size={17} /> : <Volume2 size={17} />}
         </CtlButton>
-        <CtlButton label={state.readingMode ? s.focusMode : s.focusMode}
+        <CtlButton label={state.readingMode ? s.exitReadingMode : s.readingMode}
+                   onClick={() => onReading(!state.readingMode)}
+                   active={state.readingMode}>
+          <BookOpenText size={17} />
+        </CtlButton>
+        <CtlButton label={state.fullscreen ? s.exitFullscreen : s.fullscreen}
                    onClick={onFullscreen}>
           {state.fullscreen ? <Minimize2 size={17} /> : <Maximize2 size={17} />}
         </CtlButton>
@@ -217,12 +225,13 @@ export function PlayerControls(
 }
 
 function CtlButton(
-  { label, onClick, disabled, primary, children }:
+  { label, onClick, disabled, primary, active, children }:
   {
     label: string;
     onClick: () => void;
     disabled?: boolean;
     primary?: boolean;
+    active?: boolean;
     children: React.ReactNode;
   },
 ) {
@@ -231,12 +240,15 @@ function CtlButton(
       type="button"
       title={label}
       aria-label={label}
+      aria-pressed={active}
       onClick={onClick}
       disabled={disabled}
       className={`inline-flex h-11 w-11 items-center justify-center rounded-[10px] transition-colors disabled:opacity-40 disabled:hover:bg-transparent ${
         primary
           ? "bg-accent text-on-accent hover:bg-accent/85"
-          : "text-muted hover:bg-surface-hover hover:text-fg"}`}
+          : active
+            ? "bg-accent-soft text-fg"
+            : "text-muted hover:bg-surface-hover hover:text-fg"}`}
     >
       {children}
     </button>

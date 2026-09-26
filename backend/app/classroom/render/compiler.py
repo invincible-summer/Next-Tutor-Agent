@@ -174,6 +174,8 @@ html[data-reading="1"] .cols-2 .body-area{{grid-template-columns:1fr}}
 html[data-reading="1"] .stage h1{{font-size:calc(var(--cc-fs-title) * .82)}}
 html[data-reading="1"] .block{{font-size:30px}}
 html[data-reading="1"] .block.image img{{max-height:56vh}}
+html[data-reading="1"] .block.pending{{visibility:visible;opacity:1}}
+html[data-reading="1"] .block.focus{{outline:none;box-shadow:none}}
 @media (prefers-reduced-motion: reduce){{.block{{transition:none}}}}
 @media print{{
  body{{background:#fff}}

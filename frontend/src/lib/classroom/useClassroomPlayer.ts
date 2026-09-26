@@ -596,13 +596,17 @@ export function useClassroomPlayer(
   return api;
 }
 
-/** 供“开始上课”按钮：创建/复用 run 并跳转播放页。 */
-export async function startLessonRun(workspaceId: string,
-                                     lessonId: string): Promise<string> {
+/** 供“开始/继续上课”按钮：创建/复用 run 并跳转播放页。
+ *
+ * resume_or_create 服务端天然幂等（复用未结束 run）；restart 每次点击
+ * 都是明确的新 run，双击由调用方 UI 状态防抖。 */
+export async function startLessonRun(
+  workspaceId: string, lessonId: string,
+  mode: "resume_or_create" | "restart" = "resume_or_create",
+): Promise<string> {
   const { createRun: create } = await import("@/lib/api-classroom");
   const resp = await create(workspaceId, lessonId,
-    { mode: "resume_or_create", lesson_revision: null,
-      voice_preferences: null },
+    { mode, lesson_revision: null, voice_preferences: null },
     `run-${lessonId}-${Date.now().toString(36)}`);
   return resp.run_id;
 }

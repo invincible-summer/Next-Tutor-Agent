@@ -6,10 +6,10 @@
  */
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { useParams, useSearchParams } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { Suspense } from "react";
 import {
-  ArrowLeft, FileQuestion, Loader2, Presentation,
+  ArrowLeft, FileQuestion, Loader2, Play, Presentation,
 } from "lucide-react";
 import { useUIStore } from "@/lib/store";
 import { makePageT } from "@/lib/i18n-page";
@@ -21,11 +21,13 @@ import { WorkspaceModeBar } from "@/components/classroom/WorkspaceModeBar";
 import { GenerationProgress } from "@/components/classroom/GenerationProgress";
 import { LessonEditor, ExportButtons } from "@/components/classroom/LessonEditor";
 import SlideFrame from "@/components/classroom/SlideFrame";
+import { startLessonRun } from "@/lib/classroom/useClassroomPlayer";
 import { STRINGS } from "../strings";
 
 function LessonDetailInner() {
   const { lang } = useUIStore();
   const tr = makePageT(lang, STRINGS);
+  const router = useRouter();
   const params = useParams<{ workspaceId: string; lessonId: string }>();
   const searchParams = useSearchParams();
   const safeDecode = (s: string) => {
@@ -42,6 +44,25 @@ function LessonDetailInner() {
   const [draftOpen, setDraftOpen] = useState(false);
   const [missing, setMissing] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [starting, setStarting] = useState(false);
+
+  const learnHref = useCallback((runId: string) =>
+    `/workspaces/${encodeURIComponent(workspaceId)}` +
+    `/classroom/${encodeURIComponent(lessonId)}` +
+    `/learn/${encodeURIComponent(runId)}`,
+  [workspaceId, lessonId]);
+
+  // 开始/继续上课（§21.1）：预览本身不建 run（§3.1），点击才是用户手势
+  const onStart = useCallback(async () => {
+    if (starting) return;
+    setStarting(true);
+    try {
+      const run = await startLessonRun(workspaceId, lessonId);
+      router.push(learnHref(run));
+    } catch {
+      setStarting(false);
+    }
+  }, [starting, workspaceId, lessonId, learnHref, router]);
 
   const load = useCallback((explicitRevision?: number) => {
     setLoading(true);
@@ -98,6 +119,11 @@ function LessonDetailInner() {
   }
 
   const generating = detail.revision == null;
+  // 未结束 run（§12.1 active/paused）直接续播；结束后“开始上课”开新 run
+  const resumable = detail.recent_run != null
+    && (detail.recent_run.status === "active"
+        || detail.recent_run.status === "paused")
+    ? detail.recent_run : null;
 
   return (
     <div className="flex h-full flex-col">
@@ -113,6 +139,24 @@ function LessonDetailInner() {
           {detail.title}
         </h1>
         <div className="ml-auto flex items-center gap-2">
+          {!generating && detail.revision && (
+            <Button
+              size="sm"
+              icon={starting
+                ? <Loader2 size={14} className="animate-spin" />
+                : <Play size={14} />}
+              disabled={starting}
+              onClick={() => {
+                if (resumable) router.push(learnHref(resumable.run_id));
+                else void onStart();
+              }}
+              title={starting ? tr("cls.detail.starting") : undefined}
+            >
+              {resumable
+                ? tr("cls.detail.continue")
+                : tr("cls.detail.start")}
+            </Button>
+          )}
           {!generating && detail.revision && (
             <span className="tnum hidden rounded-full border border-border px-2 py-0.5 text-[0.65rem] text-muted sm:inline">
               {tr("cls.card.revision").replace("%n", String(detail.revision.revision))}

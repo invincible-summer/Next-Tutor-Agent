@@ -34,6 +34,7 @@ const PLAYER_STR = {
     "cls.play.outline": "章节目录", "cls.play.volume": "音量",
     "cls.play.mute": "静音", "cls.play.speed": "语速",
     "cls.play.fullscreen": "全屏", "cls.play.exit.fullscreen": "退出全屏",
+    "cls.play.reading": "阅读模式", "cls.play.exit.reading": "退出阅读模式",
     "cls.play.textmode": "文字课堂", "cls.play.click.resume": "点击继续播放",
     "cls.play.suspended": "本课堂正在其他设备播放",
     "cls.play.suspended.takeover": "在这里继续",
@@ -52,6 +53,8 @@ const PLAYER_STR = {
     "cls.play.mute": "Mute", "cls.play.speed": "Speed",
     "cls.play.fullscreen": "Fullscreen",
     "cls.play.exit.fullscreen": "Exit fullscreen",
+    "cls.play.reading": "Reading mode",
+    "cls.play.exit.reading": "Exit reading mode",
     "cls.play.textmode": "Text-only lesson",
     "cls.play.click.resume": "Click to resume playback",
     "cls.play.suspended": "This lesson is playing on another device",
@@ -133,6 +136,19 @@ export default function LearnRunPage() {
     frameRef.current?.setBlockState(show.length ? show : ["*"], focus);
   }, [currentSeg, slideOrder]);
 
+  // 阅读模式（§5.2.4）：进入即暂停讲授、课件重排为可读版；退出后由用户
+  // 点击播放恢复，不自动续播（§5.2.6）
+  const toggleReading = useCallback((on: boolean) => {
+    if (on) {
+      if (player.state.status === "playing"
+          || player.state.status === "buffering") {
+        player.togglePlay();
+      }
+    }
+    player.setSettings({ type: "settings", readingMode: on });
+    frameRef.current?.setReading(on);
+  }, [player]);
+
   const toggleFullscreen = useCallback(() => {
     const el = shellRef.current;
     if (!el) return;
@@ -199,6 +215,8 @@ export default function LearnRunPage() {
     focusMode: ps("cls.play.fullscreen"),
     fullscreen: ps("cls.play.fullscreen"),
     exitFullscreen: ps("cls.play.exit.fullscreen"),
+    readingMode: ps("cls.play.reading"),
+    exitReadingMode: ps("cls.play.exit.reading"),
     pageOf: (n, t) => ps("cls.play.pageof").replace("%n", String(n))
       .replace("%t", String(t)),
     segmentOf: (n, t) => ps("cls.play.segmentof").replace("%n", String(n))
@@ -344,6 +362,7 @@ export default function LearnRunPage() {
         onSpeed={(rate) => player.setSettings(
           { type: "settings", playbackRate: rate })}
         onVolume={(v) => player.setSettings({ type: "settings", volume: v })}
+        onReading={toggleReading}
         onFullscreen={toggleFullscreen}
         s={playerStrings} />
     </div>

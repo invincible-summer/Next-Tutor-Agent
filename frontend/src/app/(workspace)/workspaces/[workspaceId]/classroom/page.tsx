@@ -9,8 +9,8 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { Suspense } from "react";
 import {
-  ArrowLeft, BookOpen, ChevronRight, FileWarning, Loader2, Presentation,
-  RefreshCw, RotateCcw, Sparkles,
+  ArrowLeft, BookOpen, ChevronRight, FileWarning, Loader2, Play,
+  Presentation, RefreshCw, RotateCcw, Sparkles,
 } from "lucide-react";
 import { useUIStore } from "@/lib/store";
 import { makePageT } from "@/lib/i18n-page";
@@ -19,7 +19,10 @@ import { getWorkspace } from "@/lib/api";
 import {
   ClassroomApiError, listLessons, retryJob,
 } from "@/lib/api-classroom";
-import type { LessonSummaryPublic } from "@/lib/types-classroom.generated";
+import type {
+  LessonSummaryPublic, ResumeCardPublic,
+} from "@/lib/types-classroom.generated";
+import { startLessonRun } from "@/lib/classroom/useClassroomPlayer";
 import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Pager } from "@/components/ui/Pager";
@@ -216,6 +219,8 @@ function ClassroomListInner() {
   const [createTopic, setCreateTopic] = useState<string | undefined>(undefined);
   const [retryingId, setRetryingId] = useState<string | null>(null);
   const [classroomDisabled, setClassroomDisabled] = useState(false);
+  const [resume, setResume] = useState<ResumeCardPublic | null>(null);
+  const [restarting, setRestarting] = useState(false);
 
   const refresh = useCallback(() => {
     setLoading(true);
@@ -227,6 +232,7 @@ function ClassroomListInner() {
       .then((res) => {
         setLessons(res.items ?? []);
         setTotal(res.total ?? 0);
+        setResume(res.resume ?? null);
         setClassroomDisabled(false);
       })
       .catch((err) => {
@@ -283,6 +289,24 @@ function ClassroomListInner() {
 
   const onCreated = (lessonId: string) => {
     router.push(lessonHref(workspaceId, lessonId));
+  };
+
+  const learnHrefOf = (lessonId: string, runId: string) =>
+    `/workspaces/${encodeURIComponent(workspaceId)}` +
+    `/classroom/${encodeURIComponent(lessonId)}` +
+    `/learn/${encodeURIComponent(runId)}`;
+
+  // 从头开始：显式 restart 开新 run（旧 run 标 ended，复用课件内容）
+  const onRestart = async () => {
+    if (!resume || restarting) return;
+    setRestarting(true);
+    try {
+      const runId = await startLessonRun(workspaceId, resume.lesson_id,
+                                         "restart");
+      router.push(learnHrefOf(resume.lesson_id, runId));
+    } catch {
+      setRestarting(false);
+    }
   };
 
   if (wsMissing) {
@@ -401,6 +425,41 @@ function ClassroomListInner() {
           </div>
         ) : (
           <div className="mx-auto flex max-w-3xl flex-col gap-2.5">
+            {/* §3.3 置顶“继续上课”卡（未完成 run；从头开始开新 run） */}
+            {resume && (
+              <div className="flex flex-wrap items-center gap-3 rounded-[12px] border border-accent/35 bg-accent-soft/30 p-4 shadow-sm">
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] bg-accent text-on-accent">
+                  <Play size={16} />
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-[0.9rem] font-semibold text-fg">
+                    {tr("cls.list.resume")} · {resume.title}
+                  </p>
+                  {resume.slide_count ? (
+                    <p className="tnum mt-0.5 text-[0.7rem] text-muted">
+                      {tr("cls.list.resume.page")
+                        .replace("%n", String(resume.run.cursor_slide_order ?? 1))
+                        .replace("%t", String(resume.slide_count))}
+                    </p>
+                  ) : null}
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button size="sm"
+                          onClick={() =>
+                            router.push(learnHrefOf(resume.lesson_id,
+                                                    resume.run.run_id))}>
+                    {tr("cls.list.resume")}
+                  </Button>
+                  <Button size="sm" variant="outline" disabled={restarting}
+                          icon={restarting
+                            ? <Loader2 size={13} className="animate-spin" />
+                            : <RotateCcw size={13} />}
+                          onClick={() => void onRestart()}>
+                    {tr("cls.list.resume.restart")}
+                  </Button>
+                </div>
+              </div>
+            )}
             {lessons.map((lesson) => (
               <LessonCard
                 key={lesson.lesson_id}

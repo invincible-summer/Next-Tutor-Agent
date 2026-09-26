@@ -269,6 +269,41 @@ class RunFlowTests(RevisionTestBase):
             runs_mod.acquire_lease(OWNER, WS, self.lesson_id, run_id2,
                                    _acquire("client-cccc-0003"))
 
+    def test_cursor_slide_order_and_resume_card(self):
+        # §3.3 置顶“继续上课”卡：cursor_slide_order 由服务端在进度写入时
+        # 维护；列表响应携带最新未完成 run；run 结束后卡消失。
+        from app.classroom import service as svc
+        created = self._create()
+        run_id = created["run_id"]
+        run = store.load_run(OWNER, WS, self.lesson_id, run_id)
+        self.assertEqual(run.cursor_slide_order, self.first_slide.order)
+        lease = runs_mod.acquire_lease(OWNER, WS, self.lesson_id, run_id,
+                                       _acquire("client-aaaa-0001"))
+        second = sorted(self.spec.slides, key=lambda s: s.order)[1]
+        cursor2 = sc.Cursor(slide_id=second.slide_id,
+                            segment_id=second.segments[0].segment_id)
+        runs_mod.update_progress(OWNER, WS, self.lesson_id, run_id,
+                                 _progress(lease.lease_epoch,
+                                           run.state_revision,
+                                           "evt-0009-51515151", cursor2))
+        stored = store.load_run(OWNER, WS, self.lesson_id, run_id)
+        self.assertEqual(stored.cursor_slide_order, second.order)
+        public = runs_mod.run_public(OWNER, WS, self.lesson_id, run_id)
+        self.assertEqual(public["cursor_slide_order"], second.order)
+        listing = svc.list_lessons(OWNER, WS)
+        self.assertIsNotNone(listing["resume"])
+        self.assertEqual(listing["resume"]["run"]["run_id"], run_id)
+        self.assertEqual(listing["resume"]["lesson_id"], self.lesson_id)
+        # 结束（end）后不再出现在置顶卡
+        reloaded = store.load_run(OWNER, WS, self.lesson_id, run_id)
+        runs_mod.update_progress(
+            OWNER, WS, self.lesson_id, run_id,
+            _progress(lease.lease_epoch, reloaded.state_revision,
+                      "evt-0010-62626262", cursor2,
+                      action=sc.ProgressAction.end))
+        listing2 = svc.list_lessons(OWNER, WS)
+        self.assertIsNone(listing2["resume"])
+
     def test_audio_profile_switch_resets_fallback_lock(self):
         created = self._create()
         run_id = created["run_id"]

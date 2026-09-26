@@ -6,6 +6,7 @@ A 阶段落地：课程创建（幂等+配额+占位 job）、列表读取（只
 from __future__ import annotations
 
 import json
+from datetime import datetime
 from typing import Any
 
 from ..core import classroom_store as store
@@ -191,7 +192,56 @@ def list_lessons(student_id: str, workspace_id: str, *, page: int = 1,
         "items": [s.model_dump(mode="json", by_alias=True)
                   for s in items[start:start + page_size]],
         "total": total, "page": page, "page_size": page_size,
+        "resume": _resume_card(student_id, workspace_id, items),
     }
+
+
+def _run_public_of(run: sc.ClassroomRun, *, projected_status: sc.RunStatus
+                   | None = None) -> sc.RunPublic:
+    """run → RunPublic（无 spec 上下文：页序读服务端维护的游标页序）。"""
+    status = projected_status if projected_status is not None else run.status
+    return sc.RunPublic(
+        run_id=run.run_id, lesson_id=run.lesson_id,
+        lesson_revision=run.lesson_revision, status=status,
+        state_revision=run.state_revision, cursor=run.cursor,
+        cursor_slide_order=run.cursor_slide_order,
+        resume_anchor=run.resume_anchor, audio_profile=run.audio_profile,
+        qa_session_id=run.qa_session_id,
+        visited_slide_count=len(set(run.visited_slides)),
+        completed_kind=run.completed_kind, created_at=run.created_at,
+        updated_at=run.updated_at)
+
+
+def _resume_card(owner_id: str, workspace_id: str,
+                 summaries: list[sc.LessonSummaryPublic]) -> dict | None:
+    """§3.3 置顶“继续上课”卡：本区最新未完成 run（active/paused）。
+
+    只读 run JSON 小文件（不解析讲稿/音频）；过期 active lease 投影为
+    paused（§12.1），仍可续播。返回已序列化的 dict，无未完成 run 时 None。
+    """
+    from .runs import _lease_expired
+    best: tuple[datetime, sc.ResumeCardPublic] | None = None
+    for summary in summaries:
+        newest: tuple[datetime, sc.ClassroomRun, sc.RunStatus] | None = None
+        for run in store.list_runs(owner_id, workspace_id, summary.lesson_id):
+            if run.status not in (sc.RunStatus.active, sc.RunStatus.paused):
+                continue
+            status = run.status
+            if status == sc.RunStatus.active and _lease_expired(run):
+                status = sc.RunStatus.paused
+            if newest is None or run.updated_at > newest[0]:
+                newest = (run.updated_at, run, status)
+        if newest is None:
+            continue
+        card = sc.ResumeCardPublic(
+            lesson_id=summary.lesson_id, workspace_id=workspace_id,
+            title=summary.title, slide_count=summary.extra.slide_count,
+            run=_run_public_of(newest[1], projected_status=newest[2]))
+        if best is None or newest[0] > best[0]:
+            best = (newest[0], card)
+    if best is None:
+        return None
+    return best[1].model_dump(mode="json", by_alias=True)
 
 
 def _summary_public(owner_id: str, workspace_id: str, lesson: sc.Lesson,
@@ -368,16 +418,7 @@ def lesson_detail(student_id: str, workspace_id: str, lesson_id: str,
             status = run.status
             if status == sc.RunStatus.active and _lease_expired(run):
                 status = sc.RunStatus.paused
-            recent_run = sc.RunPublic(
-                run_id=run.run_id, lesson_id=run.lesson_id,
-                lesson_revision=run.lesson_revision, status=status,
-                state_revision=run.state_revision, cursor=run.cursor,
-                resume_anchor=run.resume_anchor,
-                audio_profile=run.audio_profile,
-                qa_session_id=run.qa_session_id,
-                visited_slide_count=len(set(run.visited_slides)),
-                completed_kind=run.completed_kind, created_at=run.created_at,
-                updated_at=run.updated_at)
+            recent_run = _run_public_of(run, projected_status=status)
             break
 
     detail = sc.LessonDetailPublic(
