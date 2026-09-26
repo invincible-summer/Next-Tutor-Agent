@@ -334,7 +334,7 @@ export default function LearnRunPage() {
         {/* 讲稿侧栏（默认展开为可滚动全稿；来源/提问/笔记在 H 阶段接入） */}
         <aside className="hidden w-[320px] shrink-0 flex-col border-l border-border bg-surface xl:flex">
           <div className="border-b border-border px-4 py-2.5 text-sm font-medium text-fg">
-            {tr("cls.editor.tabs.script")}
+            {tr("cls.learn.script")}
           </div>
           <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
             <ol className="space-y-3 text-[15px] leading-relaxed">

@@ -1268,10 +1268,10 @@ exports 24h 过期；搜索缓存按 24h TTL；失败/取消 job staging 保留 
 依赖：E、F。
 
 - [x] G01 实现 reducer、audio controller、共享 audio focus、media clock、epoch 丢弃机制。
-- [ ] G02 将段动作绑定 frame MessagePort；实现字幕、目录、页/段切换、语速/音量、阅读模式。
+- [x] G02 将段动作绑定 frame MessagePort；实现字幕、目录、页/段切换、语速/音量、阅读模式。
 - [x] G03 实现 run 创建/恢复、进度 CAS/节流、lease 心跳/接管、refresh/background/offline 行为。
 - [x] G04 实现专注/全屏/键盘/触控/reduced-motion；播放器之外不挂全局快捷键。
-- [ ] G05 完成真实音频与 fake audio clock 两套验证，确保 ended 才进入下一段。
+- [x] G05 完成真实音频与 fake audio clock 两套验证，确保 ended 才进入下一段。
 
 退出门：一整节课程可无问答播放完成；任意跳页/暂停/刷新不出现旧声音；双标签接管停止旧控制器；无 TTS 也能读讲稿完成。
 

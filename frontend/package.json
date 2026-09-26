@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "test:e2e": "playwright test",
+    "test:player": "node scripts/test-classroom-player.mjs",
     "test:e2e:headed": "playwright test --headed",
     "test:e2e:ci": "playwright test --reporter=line,html",
     "test:e2e:live-llm": "playwright test --config=playwright.live.config.ts",
