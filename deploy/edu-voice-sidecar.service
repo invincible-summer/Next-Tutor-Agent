@@ -1,13 +1,27 @@
-# MeloTTS-Chinese sidecar（P10 语音，可选生产部署）。
+# MeloTTS-Chinese sidecar（电话语音 + 课堂本地回退，可选生产部署）。
 # 与 edu-backend.service 分离：独立 venv（含 CPU torch），崩溃不拖垮主服务。
+#
+# 何时需要本 unit（plan.md §11.6，与 start.sh::start_voice_sidecar 同判定）：
+#   1) VOICE_TTS_PROVIDER=melo（旧电话本地语音）；
+#   2) VOICE_TTS_PROVIDER=auto 且未配置 AZURE_SPEECH_KEY（melo 兜底）；
+#   3) CLASSROOM_ENABLED=1 且课堂本地语音启用（CLASSROOM_LOCAL_TTS_ENABLED=1，
+#      或未设置且 VOICE_TTS_PROVIDER=melo），且 CLASSROOM_TTS_POLICY 为
+#      local/auto，或 policy=cloud 且 CLASSROOM_TTS_LOCAL_FALLBACK=1。
+# 其余部署可不启用本 unit（后端按"语音不可用"降级，聊天/文字课堂不受影响）。
+#
 # 安装：cp deploy/edu-voice-sidecar.service /etc/systemd/system/ && \
 #       systemctl daemon-reload && systemctl enable --now edu-voice-sidecar
+# 后端需能看到 sidecar：.env 设 VOICE_TTS_BASE_URL=http://127.0.0.1:8130
+# 模型钉住 revision 与许可证清单：deploy/install_voice.sh、docs/VOICE_LICENSES.md
 [Unit]
 Description=Edu Agent MeloTTS voice sidecar (Chinese TTS, CPU)
 After=network.target
 
 [Service]
 Type=simple
+User=edu-agent
+Group=edu-agent
+UMask=0077
 WorkingDirectory=/opt/edu-agent/backend/voice_sidecar
 Environment=HF_HUB_OFFLINE=1
 Environment=TRANSFORMERS_OFFLINE=1
@@ -17,6 +31,12 @@ Environment=MKL_NUM_THREADS=2
 ExecStart=/opt/edu-agent/backend/voice_sidecar/.venv/bin/python -m uvicorn app:app --host 127.0.0.1 --port 8130
 Restart=on-failure
 RestartSec=5
+TimeoutStopSec=30
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/edu-agent/backend/models/voice
 
 [Install]
 WantedBy=multi-user.target

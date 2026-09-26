@@ -6,6 +6,8 @@ StudentModel profile so M1-M9 see the correct grade band going forward.
 """
 from __future__ import annotations
 
+import re
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field, field_validator
 from typing import Any
@@ -17,6 +19,21 @@ from app.identity.security import verify_password
 from app.identity.store import update_profile_fields
 
 router = APIRouter(prefix="/user", tags=["user"])
+
+# 个人课堂偏好白名单（plan.md §20.1）：只接受有类型的字段；tts_speed 沿用
+# 既有顶层值。任何未知键/URL 形值一律 422——个人偏好绝不能借道携带供应商
+# endpoint/base URL 之类的任意配置。
+_CLASSROOM_PREF_BOOL_FIELDS = (
+    "allow_local_fallback", "captions", "auto_advance", "low_stimulus",
+    "pause_on_hidden",
+)
+_CLASSROOM_PREF_ID_FIELDS = ("theme_id", "pedagogy_id", "voice_id")
+_CLASSROOM_PREF_KEYS = frozenset(
+    _CLASSROOM_PREF_BOOL_FIELDS + _CLASSROOM_PREF_ID_FIELDS
+    + ("voice_policy",))
+_CLASSROOM_VOICE_POLICIES = frozenset(("auto", "cloud", "local", "silent"))
+_URLISH = re.compile(r"[:/\s]")
+_ID_TOKEN = re.compile(r"^[A-Za-z0-9_@.\-]{1,64}$")
 
 
 class UpdateProfileRequest(BaseModel):
@@ -34,7 +51,40 @@ class UpdateProfileRequest(BaseModel):
                     "quiz_illustration_review_enabled"):
             if prefs is not None and key in prefs and type(prefs[key]) is not bool:
                 raise ValueError(f"{key} must be a boolean")
+        if prefs is not None and "classroom" in prefs:
+            prefs["classroom"] = _validate_classroom_prefs(prefs["classroom"])
         return prefs
+
+
+def _validate_classroom_prefs(raw: Any) -> dict[str, Any]:
+    """classroom 偏好严格校验：白名单键 + 显式类型 + 拒绝 URL 形值。"""
+    if raw is None:
+        return {}
+    if not isinstance(raw, dict):
+        raise ValueError("classroom 偏好必须是对象")
+    unknown = sorted(set(raw) - _CLASSROOM_PREF_KEYS)
+    if unknown:
+        raise ValueError(f"classroom 偏好包含未知字段: {', '.join(unknown)}")
+    cleaned: dict[str, Any] = {}
+    for key, value in raw.items():
+        if key in _CLASSROOM_PREF_BOOL_FIELDS:
+            if type(value) is not bool:
+                raise ValueError(f"classroom.{key} 必须是布尔值")
+            cleaned[key] = value
+        elif key == "voice_policy":
+            if value not in _CLASSROOM_VOICE_POLICIES:
+                raise ValueError("classroom.voice_policy 必须是 "
+                                 "auto/cloud/local/silent")
+            cleaned[key] = value
+        else:   # _CLASSROOM_PREF_ID_FIELDS
+            if not isinstance(value, str) or not value:
+                raise ValueError(f"classroom.{key} 必须是非空字符串")
+            if len(value) > 64 or "://" in value or _URLISH.search(value):
+                raise ValueError(f"classroom.{key} 含非法字符（不接受 URL）")
+            if not _ID_TOKEN.match(value):
+                raise ValueError(f"classroom.{key} 只允许字母数字与 _@.-")
+            cleaned[key] = value
+    return cleaned
 
 
 @router.get("/profile")

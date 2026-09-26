@@ -1255,11 +1255,11 @@ exports 24h 过期；搜索缓存按 24h TTL；失败/取消 job staging 保留 
 
 依赖：A、D；可先用已发布 fixture 开发。
 
-- [ ] F01 扩展兼容 TTS contract/service，Azure REST adapter，voices list 及音色 allowlist。
-- [ ] F02 原电话 factory 保持无参调用；Melo/stub 参数兼容，云端/本地共享 semaphore 和错误分类。
-- [ ] F03 实现段 audio key、single-flight、WAV 原子写、usage/cost counters、LRU、认证 content。
-- [ ] F04 实现有界预取、取消、provider 切换边界、pure GET、local/silent 回退。
-- [ ] F05 更新 start.sh/systemd/.env.example/VOICE_LICENSES；加入个人课堂 voice prefs 严格校验，不能浅合并任意供应商 URL。
+- [x] F01 扩展兼容 TTS contract/service，Azure REST adapter，voices list 及音色 allowlist。
+- [x] F02 原电话 factory 保持无参调用；Melo/stub 参数兼容，云端/本地共享 semaphore 和错误分类。
+- [x] F03 实现段 audio key、single-flight、WAV 原子写、usage/cost counters、LRU、认证 content。
+- [x] F04 实现有界预取、取消、provider 切换边界、pure GET、local/silent 回退。
+- [x] F05 更新 start.sh/systemd/.env.example/VOICE_LICENSES；加入个人课堂 voice prefs 严格校验，不能浅合并任意供应商 URL。
 
 退出门：旧 test_voice 全绿；云端 stub 失败转本地只提示一次；同一文本/音色重放命中缓存；不同用户/音色不串；单个 Melo 模型同时最多 1 请求。
 
