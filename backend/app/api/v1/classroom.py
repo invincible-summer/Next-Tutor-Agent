@@ -460,6 +460,128 @@ def save_run_note(workspace_id: str, lesson_id: str, run_id: str,
             mode="json", by_alias=True))
 
 
+# ---------------------------------------------------------------------------
+# 检查点（§14.2：GET/submit/hint/reveal/skip/submission，阶段 I）
+# ---------------------------------------------------------------------------
+
+def _run_for_checkpoint(student_id: str, workspace_id: str, lesson_id: str,
+                        run_id: str) -> tuple[sc.ClassroomRun, Any]:
+    from app.classroom import assessment_bridge
+
+    run, _spec = _load_run_and_spec(student_id, workspace_id, lesson_id,
+                                    run_id)
+    # 幂等实例化（§13.2.6）：崩溃后重入收敛；只读 GET 也先确保注册
+    run = assessment_bridge.ensure_run_questions(
+        student_id, workspace_id, lesson_id, run_id)
+    return run, assessment_bridge
+
+
+@router.get("/workspaces/{workspace_id}/classroom/lessons/{lesson_id}"
+            "/runs/{run_id}/checkpoints/{checkpoint_id}",
+            response_model=sc.CheckpointPublic)
+def get_checkpoint(workspace_id: str, lesson_id: str, run_id: str,
+                   checkpoint_id: str,
+                   student_id: str = Depends(resolve_student_id)):
+    """GET R/checkpoints/{cid}：QuestionPublic（未揭晓无答案）+ run 状态。"""
+    from app.classroom import assessment_bridge
+
+    require_enabled(student_id)
+    run, _spec = _load_run_and_spec(student_id, workspace_id, lesson_id,
+                                    run_id)
+    run = assessment_bridge.ensure_run_questions(
+        student_id, workspace_id, lesson_id, run_id)
+    return assessment_bridge.checkpoint_public(
+        student_id, workspace_id, lesson_id, run, checkpoint_id)
+
+
+@router.post("/workspaces/{workspace_id}/classroom/lessons/{lesson_id}"
+             "/runs/{run_id}/checkpoints/{checkpoint_id}/submit")
+async def submit_checkpoint(workspace_id: str, lesson_id: str, run_id: str,
+                            checkpoint_id: str,
+                            request: sc.CheckpointSubmitRequest,
+                            student_id: str = Depends(resolve_student_id)):
+    """POST submit：唯一受理链（202）；不改变播放进度。"""
+    from app.classroom import assessment_bridge
+
+    require_enabled(student_id)
+    run, _bridge = _run_for_checkpoint(student_id, workspace_id, lesson_id,
+                                       run_id)
+    payload = await assessment_bridge.submit_checkpoint(
+        student_id, workspace_id, lesson_id, run, checkpoint_id, request)
+    return JSONResponse(payload, status_code=202)
+
+
+@router.post("/workspaces/{workspace_id}/classroom/lessons/{lesson_id}"
+             "/runs/{run_id}/checkpoints/{checkpoint_id}/hint")
+def hint_checkpoint(workspace_id: str, lesson_id: str, run_id: str,
+                    checkpoint_id: str,
+                    idempotency_key: str | None = Header(
+                        default=None, alias="Idempotency-Key"),
+                    student_id: str = Depends(resolve_student_id)):
+    """POST hint：先持久化帮助事件，再返回提示（§13.3）。"""
+    from app.classroom import assessment_bridge
+    from app.classroom.errors import require_idempotency_key
+
+    require_enabled(student_id)
+    require_idempotency_key(idempotency_key)
+    run, _bridge = _run_for_checkpoint(student_id, workspace_id, lesson_id,
+                                       run_id)
+    return assessment_bridge.hint_checkpoint(
+        student_id, workspace_id, lesson_id, run, checkpoint_id)
+
+
+@router.post("/workspaces/{workspace_id}/classroom/lessons/{lesson_id}"
+             "/runs/{run_id}/checkpoints/{checkpoint_id}/reveal")
+def reveal_checkpoint(workspace_id: str, lesson_id: str, run_id: str,
+                      checkpoint_id: str,
+                      idempotency_key: str | None = Header(
+                          default=None, alias="Idempotency-Key"),
+                      student_id: str = Depends(resolve_student_id)):
+    """POST reveal：先记 answer_revealed，再返回答案/解析（§13.3）。"""
+    from app.classroom import assessment_bridge
+    from app.classroom.errors import require_idempotency_key
+
+    require_enabled(student_id)
+    require_idempotency_key(idempotency_key)
+    run, _bridge = _run_for_checkpoint(student_id, workspace_id, lesson_id,
+                                       run_id)
+    return assessment_bridge.reveal_checkpoint(
+        student_id, workspace_id, lesson_id, run, checkpoint_id)
+
+
+@router.post("/workspaces/{workspace_id}/classroom/lessons/{lesson_id}"
+             "/runs/{run_id}/checkpoints/{checkpoint_id}/skip")
+def skip_checkpoint(workspace_id: str, lesson_id: str, run_id: str,
+                    checkpoint_id: str,
+                    request: sc.CheckpointSkipRequest,
+                    student_id: str = Depends(resolve_student_id)):
+    """POST skip：不伪称作答、不触发评价（§13.3）。"""
+    from app.classroom import assessment_bridge
+
+    require_enabled(student_id)
+    run, _bridge = _run_for_checkpoint(student_id, workspace_id, lesson_id,
+                                       run_id)
+    assessment_bridge.skip_checkpoint(
+        student_id, workspace_id, lesson_id, run, checkpoint_id,
+        request.expected_state_revision)
+    return {"status": "skipped"}
+
+
+@router.get("/workspaces/{workspace_id}/classroom/lessons/{lesson_id}"
+            "/runs/{run_id}/checkpoints/{checkpoint_id}/submission")
+def get_checkpoint_submission(workspace_id: str, lesson_id: str, run_id: str,
+                              checkpoint_id: str,
+                              student_id: str = Depends(resolve_student_id)):
+    """GET submission：只读已受理结果；未提交返回 null（§14.2）。"""
+    from app.classroom import assessment_bridge
+
+    require_enabled(student_id)
+    run, _bridge = _run_for_checkpoint(student_id, workspace_id, lesson_id,
+                                       run_id)
+    return {"submission": assessment_bridge.submission_of(
+        student_id, run, checkpoint_id)}
+
+
 @router.post("/workspaces/{workspace_id}/classroom/lessons/{lesson_id}"
              "/runs/{run_id}/qa-audio", status_code=202,
              response_model=sc.QaAudioResponse)

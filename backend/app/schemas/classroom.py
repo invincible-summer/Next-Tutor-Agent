@@ -1648,6 +1648,10 @@ class SaveNoteResponse(_StrictModel):
     note_id: str
 
 
+class CheckpointSkipRequest(_StrictModel):
+    expected_state_revision: int | None = Field(None, ge=1)
+
+
 class ClassroomSummaryCheckpoint(_StrictModel):
     checkpoint_id: CheckpointId
     slide_id: SlideId

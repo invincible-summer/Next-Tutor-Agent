@@ -55,13 +55,17 @@ def load_run_spec(owner_id: str, workspace_id: str,
 
 def _checkpoint_refs_from_spec(spec: sc.LessonRevision) \
         -> list[sc.RunCheckpointRef]:
+    templates = {t.checkpoint_id: t for t in spec.checkpoint_templates}
     refs: list[sc.RunCheckpointRef] = []
     for slide in sorted(spec.slides, key=lambda s: s.order):
         for block in slide.blocks:
             if getattr(block, "kind", "") == "checkpoint":
+                template = templates.get(block.checkpoint_id)
                 refs.append(sc.RunCheckpointRef(
                     checkpoint_id=block.checkpoint_id,
-                    slide_id=slide.slide_id, kind=sc.CheckpointKind.reflect))
+                    slide_id=slide.slide_id,
+                    kind=template.kind if template is not None
+                    else sc.CheckpointKind.reflect))
     # RunCheckpointRef 上限 3（schema max_length）；超出按页序保留前 3
     return refs[:3]
 
