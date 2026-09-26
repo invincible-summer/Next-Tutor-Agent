@@ -993,6 +993,11 @@ class ClassroomRun(_StrictModel):
     listened_segments: list[SegmentId] = Field(default_factory=list, max_length=576)
     skipped_slides: list[SlideId] = Field(default_factory=list, max_length=MAX_SLIDES)
     audio_refs: dict[str, str] = Field(default_factory=dict)
+    # 阶段 F（§11.5）：云端失败后该 run 后续音色锁本地，只提示一次；
+    # run 级云合成字符计数（TTS_CHARS_PER_RUN 预算）。
+    tts_local_locked: bool = False
+    tts_fallback_notified: bool = False
+    tts_chars_used: int = Field(0, ge=0)
     annotations: list[RunAnnotation] = Field(default_factory=list, max_length=100)
     completed_kind: Literal["listened", "browsed", ""] = ""
     created_at: datetime
@@ -1130,6 +1135,7 @@ class ClassroomErrorCode(str, Enum):
     voice_unavailable = "voice_unavailable"
     export_expired = "export_expired"
     storage_unavailable = "storage_unavailable"
+    damaged = "damaged"
     idempotency_conflict = "idempotency_conflict"
 
 

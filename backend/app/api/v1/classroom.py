@@ -278,3 +278,30 @@ def export_content(workspace_id: str, lesson_id: str, export_id: str,
         content=data, media_type=str(meta.get("media_type") or "application/zip"),
         headers={"Content-Disposition": f'attachment; filename="{filename}"',
                  "Cache-Control": "private, no-store"})
+
+
+@router.post("/workspaces/{workspace_id}/classroom/voice-preview",
+             response_model=sc.VoicePreviewResponse)
+async def voice_preview(workspace_id: str,
+                        request: sc.VoicePreviewRequest,
+                        idempotency_key: str | None = Header(
+                            default=None, alias="Idempotency-Key"),
+                        student_id: str = Depends(resolve_student_id)):
+    """固定试听句 WAV（§14.1）：不接任意 text；幂等重放不重复合成。"""
+    from app.classroom.errors import require_idempotency_key
+
+    key = require_idempotency_key(idempotency_key)
+    return sc.VoicePreviewResponse(**await classroom_service.voice_preview(
+        student_id, workspace_id, request, idempotency_key=key))
+
+
+@router.get("/workspaces/{workspace_id}/classroom/voice-previews"
+            "/{clip_id}/content")
+def voice_preview_content(workspace_id: str, clip_id: str,
+                          student_id: str = Depends(resolve_student_id)):
+    from fastapi.responses import Response
+
+    data = classroom_service.voice_preview_content(
+        student_id, workspace_id, clip_id)
+    return Response(content=data, media_type="audio/wav",
+                    headers={"Cache-Control": "private, max-age=3600"})

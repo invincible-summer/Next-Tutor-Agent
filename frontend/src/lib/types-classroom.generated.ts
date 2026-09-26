@@ -3,7 +3,7 @@
 // Regenerate with: python scripts/generate_classroom_types.py
 
 
-export type ClassroomErrorCode = "classroom_disabled" | "source_not_ready" | "source_not_found" | "source_changed" | "research_unavailable" | "freshness_unverified" | "image_unavailable" | "content_invalid" | "layout_overflow" | "renderer_unavailable" | "budget_exceeded" | "quota_exceeded" | "generation_failed" | "job_cancelled" | "revision_conflict" | "lease_conflict" | "scope_changed" | "audio_busy" | "tts_unavailable" | "voice_unavailable" | "export_expired" | "storage_unavailable" | "idempotency_conflict";
+export type ClassroomErrorCode = "classroom_disabled" | "source_not_ready" | "source_not_found" | "source_changed" | "research_unavailable" | "freshness_unverified" | "image_unavailable" | "content_invalid" | "layout_overflow" | "renderer_unavailable" | "budget_exceeded" | "quota_exceeded" | "generation_failed" | "job_cancelled" | "revision_conflict" | "lease_conflict" | "scope_changed" | "audio_busy" | "tts_unavailable" | "voice_unavailable" | "export_expired" | "storage_unavailable" | "damaged" | "idempotency_conflict";
 
 export type SourcePolicy = "strict_textbook" | "textbook_plus" | "web_topic";
 
@@ -569,6 +569,9 @@ export interface ClassroomRun {
   listened_segments?: Array<string>;
   skipped_slides?: Array<string>;
   audio_refs?: Record<string, string>;
+  tts_local_locked?: boolean;
+  tts_fallback_notified?: boolean;
+  tts_chars_used?: number;
   annotations?: Array<RunAnnotation>;
   completed_kind?: "listened" | "browsed" | "";
   created_at: string;

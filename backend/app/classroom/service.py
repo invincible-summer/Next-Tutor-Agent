@@ -1130,3 +1130,94 @@ def export_content(student_id: str, workspace_id: str, lesson_id: str,
         raise ClassroomError("source_not_found", "导出文件缺失",
                              retryable=False)
     return path.read_bytes(), meta
+
+
+# ---------------------------------------------------------------------------
+# 语音试听（plan.md §14.1 POST W/voice-preview；阶段 F）
+# ---------------------------------------------------------------------------
+
+def _preview_rate_allow(student_id: str) -> bool:
+    """TTS_PREVIEW_PER_HOUR 滑窗限频（owner.json quota.tts.preview_times）。"""
+    import time as _time
+
+    from . import limits
+    now = _time.time()
+    record = store.read_json(store.owner_meta_path(student_id)) or {}
+    tts = (record.get("quota") or {}).get("tts")
+    times = tts.get("preview_times") if isinstance(tts, dict) else None
+    times = [t for t in (times or []) if isinstance(t, (int, float))]
+    window = [t for t in times if now - t < 3600]
+    if len(window) >= limits.TTS_PREVIEW_PER_HOUR:
+        return False
+
+    def mutate(entry: dict) -> None:
+        kept = [t for t in entry.get("preview_times") or []
+                if isinstance(t, (int, float)) and now - t < 3600]
+        kept.append(now)
+        entry["preview_times"] = kept[-limits.TTS_PREVIEW_PER_HOUR * 2:]
+
+    with store.file_lock(store.owner_meta_path(student_id)):
+        record2 = store.read_json(store.owner_meta_path(student_id)) or {}
+        record2.setdefault("quota", {})
+        tts2 = record2["quota"].get("tts")
+        tts2 = tts2 if isinstance(tts2, dict) else {}
+        mutate(tts2)
+        record2["quota"]["tts"] = tts2
+        store.write_json(store.owner_meta_path(student_id), record2)
+    return True
+
+
+async def voice_preview(student_id: str, workspace_id: str,
+                        request: sc.VoicePreviewRequest,
+                        *, idempotency_key: str) -> dict[str, Any]:
+    """固定试听句的 WAV（非用户私有文本）；幂等重放不重复合成。"""
+    import asyncio
+
+    from . import limits
+    allowed, _ = caps.user_allowed(student_id)
+    if not allowed:
+        raise ClassroomError("classroom_disabled", "课堂功能未开放")
+    load_owned_workspace(workspace_id, student_id)
+    _ensure_classroom_writable(student_id)
+
+    scope = "voice_preview"
+    body = {"workspace_id": workspace_id,
+            "language": str(getattr(request.language, "value",
+                                    request.language)),
+            "voice_preferences": request.voice_preferences.model_dump(
+                mode="json", by_alias=True)}
+    body_hash = idempotency.body_hash_of(body)
+    replayed = idempotency.lookup(student_id, scope, idempotency_key,
+                                  body_hash)
+    if replayed:
+        return replayed
+    if not _preview_rate_allow(student_id):
+        raise ClassroomError("quota_exceeded", "试听次数过多，请稍后再试")
+
+    from . import audio as classroom_audio
+    engine = classroom_audio.get_audio_engine()
+    try:
+        result = await asyncio.wait_for(
+            engine.voice_preview(student_id, request.language,
+                                 request.voice_preferences),
+            timeout=limits.VOICE_PREVIEW_DEADLINE_SECONDS + 5.0)
+    except asyncio.TimeoutError:
+        raise ClassroomError("tts_unavailable", "试听超时，请稍后重试",
+                             retryable=True)
+    payload = {
+        "clip_id": result["clip_id"],
+        "content_url": (f"/api/v1/workspaces/{workspace_id}/classroom/"
+                        f"voice-previews/{result[clip_id]}/content"),
+    }
+    idempotency.remember(student_id, scope, idempotency_key, body_hash,
+                         payload)
+    return payload
+
+
+def voice_preview_content(student_id: str, workspace_id: str,
+                          clip_id: str) -> bytes:
+    """试听 WAV 内容（owner 隔离；GET 不合成）。"""
+    load_owned_workspace(workspace_id, student_id)
+    from . import audio as classroom_audio
+    return classroom_audio.get_audio_engine().voice_preview_content(
+        student_id, clip_id)
