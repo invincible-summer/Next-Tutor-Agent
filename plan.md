@@ -1301,10 +1301,10 @@ exports 24h 过期；搜索缓存按 24h TTL；失败/取消 job staging 保留 
 
 依赖：A–I。
 
-- [ ] J01 用完整音频/图片/run/QA 课程回归 archive/restore/purge_account/orphan scan/管理员清理，不留空 owner 目录。
-- [ ] J02 逐个注入 crash：发布、笔记写入、QA 绑定、题目注册、归档 bundle commit、删除后晚到 TTS。
-- [ ] J03 加配额/磁盘满/并发/进程重启/供应商限流/JSON 损坏的告警与恢复动作。
-- [ ] J04 核查 .gitignore、systemd 可写路径、Chromium sandbox/依赖、SSE nginx、构建产物缺失行为。
+- [x] J01 用完整音频/图片/run/QA 课程回归 archive/restore/purge_account/orphan scan/管理员清理，不留空 owner 目录。
+- [x] J02 逐个注入 crash：发布、笔记写入、QA 绑定、题目注册、归档 bundle commit、删除后晚到 TTS。
+- [x] J03 加配额/磁盘满/并发/进程重启/供应商限流/JSON 损坏的告警与恢复动作。
+- [x] J04 核查 .gitignore、systemd 可写路径、Chromium sandbox/依赖、SSE nginx、构建产物缺失行为。
 
 退出门：所有持久化与权限故障都是可观察状态，重试收敛；生产根没有合成测试数据；无 secrets/raw CoT 落盘。
 
