@@ -390,6 +390,36 @@ def update_progress(workspace_id: str, lesson_id: str, run_id: str,
                                     run_id, request)
 
 
+@router.post("/workspaces/{workspace_id}/classroom/lessons/{lesson_id}"
+             "/runs/{run_id}/qa-session")
+def create_qa_session(workspace_id: str, lesson_id: str, run_id: str,
+                      idempotency_key: str | None = Header(
+                          default=None, alias="Idempotency-Key"),
+                      student_id: str = Depends(resolve_student_id)):
+    """POST R/qa-session：幂等创建/返回答疑 session（§14.2；§12.4）。
+
+    只在首条课堂提问时调用；结束的 run 拒绝（scope_changed）。
+    """
+    from app.classroom import runs as runs_mod
+    from app.classroom import idempotency
+    from app.classroom.errors import require_idempotency_key
+
+    require_enabled(student_id)
+    key = require_idempotency_key(idempotency_key)
+    scope = "qa_session"
+    body = {"workspace_id": workspace_id, "lesson_id": lesson_id,
+            "run_id": run_id}
+    body_hash = idempotency.body_hash_of(body)
+    replayed = idempotency.lookup(student_id, scope, key, body_hash)
+    if replayed:
+        return JSONResponse(status_code=200, content=replayed)
+    session_id, created = runs_mod.ensure_run_qa_session(
+        student_id, workspace_id, lesson_id, run_id)
+    payload = {"session_id": session_id}
+    idempotency.remember(student_id, scope, key, body_hash, payload)
+    return JSONResponse(status_code=201 if created else 200, content=payload)
+
+
 @router.put("/workspaces/{workspace_id}/classroom/lessons/{lesson_id}"
             "/runs/{run_id}/audio-profile")
 def update_audio_profile(workspace_id: str, lesson_id: str, run_id: str,

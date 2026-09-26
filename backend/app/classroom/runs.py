@@ -414,6 +414,28 @@ def _complete_kind(spec: sc.LessonRevision,
 
 
 # ---------------------------------------------------------------------------
+# qa session（POST R/qa-session：首条提问前幂等创建，§14.2/§12.4）
+# ---------------------------------------------------------------------------
+
+def ensure_run_qa_session(student_id: str, workspace_id: str, lesson_id: str,
+                          run_id: str) -> tuple[str, bool]:
+    """返回 (session_id, created)；创建逻辑见 chat_context.ensure_qa_session。"""
+    from .chat_context import ensure_qa_session
+
+    run = load_owned_run(student_id, workspace_id, lesson_id, run_id)
+    if run.status not in (sc.RunStatus.active, sc.RunStatus.paused):
+        raise ClassroomError("scope_changed", "课堂已结束")
+    spec = load_run_spec(student_id, workspace_id, lesson_id,
+                         run.lesson_revision)
+    lesson = store.load_lesson(student_id, workspace_id, lesson_id)
+    before = run.qa_session_id
+    session = ensure_qa_session(student_id, run,
+                                lesson.title if lesson else spec.brief.topic,
+                                spec.brief.grade, spec.brief.language)
+    return session.session_id, not before
+
+
+# ---------------------------------------------------------------------------
 # audio profile（PUT R/audio-profile：暂停/段边界生效，进度不变）
 # ---------------------------------------------------------------------------
 
