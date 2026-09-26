@@ -119,11 +119,28 @@ def snapshot_lesson_into(owner_id: str, workspace_id: str, lesson_id: str,
     }
 
 
+def _prune_empty_parents(path: Path, stop_at: Path) -> None:
+    """删除 path 起向上到 stop_at（不含）之间新出现的空目录。
+
+    归档/删除后 lessons/、workspaces/ 可能变空；owner.json 恒在 owner 根，
+    空目录只可能是中间层。rmdir 非空即失败，与并发新建课程天然互斥。
+    """
+    current = path
+    stop_resolved = stop_at.resolve()
+    while current.resolve() != stop_resolved:
+        try:
+            current.rmdir()
+        except OSError:
+            return
+        current = current.parent
+
+
 def delete_lesson_active(owner_id: str, workspace_id: str,
                          lesson_id: str) -> None:
-    shutil.rmtree(store.lesson_root(owner_id, workspace_id, lesson_id),
-                  ignore_errors=True)
+    root = store.lesson_root(owner_id, workspace_id, lesson_id)
+    shutil.rmtree(root, ignore_errors=True)
     store.index_remove_lesson(owner_id, workspace_id, lesson_id)
+    _prune_empty_parents(root.parent, store.owner_root(owner_id))
 
 
 def _adjust_restored_tree(owner_id: str, workspace_id: str,
@@ -204,8 +221,9 @@ def snapshot_workspace_into(owner_id: str, workspace_id: str,
 
 def delete_workspace_active(owner_id: str, workspace_id: str) -> None:
     """trash bundle commit 之后删除活跃课堂子树（§16.4）。"""
-    shutil.rmtree(store.workspace_root(owner_id, workspace_id),
-                  ignore_errors=True)
+    root = store.workspace_root(owner_id, workspace_id)
+    shutil.rmtree(root, ignore_errors=True)
+    _prune_empty_parents(root.parent, store.owner_root(owner_id))
 
 
 def restore_workspace_from(owner_id: str, workspace_id: str,
