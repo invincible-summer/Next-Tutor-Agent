@@ -1,6 +1,7 @@
 "use client";
 import { create } from "zustand";
 import { API_BASE } from "./api";
+import { clearAllDrafts } from "./chat-drafts";
 import { useEvaluationCacheStore } from "./store";
 
 // --- types ------------------------------------------------------------------
@@ -91,6 +92,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
   clearAuth: () => {
     useEvaluationCacheStore.getState().clearAll();
+    // 登出清除聊天草稿仓（§3.2：含 sessionStorage 正文，不留给下一账号）。
+    clearAllDrafts();
     clearToken();
     set({ token: null, user: null });
   },

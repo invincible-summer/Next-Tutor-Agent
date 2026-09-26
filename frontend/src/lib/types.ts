@@ -97,6 +97,14 @@ export interface WorkspaceDetail {
   updated_at: number;
 }
 
+// --- 课堂模式（classroom）：Sidebar 批量摘要（plan.md §3.2.7）---
+
+export interface ClassroomSummary {
+  lesson_count: number;
+  active_job_count: number;
+  last_lesson_id: string | null;
+}
+
 // --- M7 资料库（Library）：文件夹 + 文件两级，按用户隔离 ---
 
 export interface LibraryFolder {

@@ -491,6 +491,7 @@ def update_job(owner_id: str, workspace_id: str, lesson_id: str, job_id: str,
         if expected_state_revision is not None and \
                 job.state_revision != expected_state_revision:
             raise CasConflictError("job state revision 冲突")
+        state_before = job.state
         mutate(job)
         job.state_revision += 1
         job.updated_at = utcnow()
@@ -499,6 +500,19 @@ def update_job(owner_id: str, workspace_id: str, lesson_id: str, job_id: str,
             os.chmod(path, _FILE_MODE)
         except OSError:
             pass
+        # 状态迁移同步进可重建索引（供 sidebar 摘要等索引-only 读取）；
+        # 仅 state 实际变化时写，普通进度 bump 不产生索引写放大。
+        if job.state != state_before:
+            def _sync(data: dict) -> None:
+                data["jobs"][job.job_id] = {
+                    "lesson_id": job.lesson_id,
+                    "state": job.state.value,
+                    "updated_at": job.updated_at.isoformat(),
+                }
+            try:
+                update_index(owner_id, workspace_id, _sync)
+            except Exception:
+                pass  # job.json 是事实源；索引可重建，失败不阻塞任务
         return job
 
 

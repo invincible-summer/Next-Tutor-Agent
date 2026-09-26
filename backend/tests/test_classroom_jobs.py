@@ -271,5 +271,64 @@ class JobEventsSSETests(PipelineTestBase):
         self.assertIn("succeeded", states)
 
 
+class LessonDetailTests(PipelineTestBase):
+    """GET L 投影（E01）：已发布给 revision；未完成给 pending brief；答案不泄漏。"""
+
+    def setUp(self) -> None:
+        super().setUp()
+        from app.core.config import settings
+        patcher = mock.patch.object(settings, "classroom_enabled", True)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
+    def test_published_detail_projection(self) -> None:
+        lesson_id, _job_id = self._make_job()
+        job_id = store.load_lesson(OWNER, WS, lesson_id).latest_job_id
+        asyncio.run(ClassroomPipeline(
+            OWNER, WS, lesson_id, job_id, _deps()).run())
+        detail = classroom_service.lesson_detail(OWNER, WS, lesson_id)
+        self.assertEqual(detail["lifecycle"], "active")
+        self.assertIsNotNone(detail["revision"])
+        rev = detail["revision"]
+        self.assertGreater(len(rev["slides"]), 0)
+        self.assertGreaterEqual(len(rev["source_records"]), 1)
+        self.assertEqual(rev["brief"]["topic"], self._brief().topic)
+        self.assertIn("render", json.dumps(rev))  # 投影可序列化
+        # 题模板（含答案）绝不进入 public 投影（§4.3/I03）
+        lesson = store.load_lesson(OWNER, WS, lesson_id)
+        spec = store.load_revision(OWNER, WS, lesson_id,
+                                   lesson.latest_ready_revision)
+        has_templates = len(spec.checkpoint_templates) > 0
+        for ckpt in rev["checkpoints"]:
+            self.assertNotIn("verified_question_template", ckpt)
+        if has_templates:
+            for ckpt in rev["checkpoints"]:
+                self.assertIsNone(ckpt.get("question"))
+        # 指定 revision 同样可取
+        again = classroom_service.lesson_detail(
+            OWNER, WS, lesson_id,
+            revision=lesson.latest_ready_revision)
+        self.assertEqual(again["revision"]["revision"],
+                         lesson.latest_ready_revision)
+
+    def test_unfinished_detail_returns_pending_brief_only(self) -> None:
+        lesson_id, _ = self._make_job()
+        detail = classroom_service.lesson_detail(OWNER, WS, lesson_id)
+        self.assertIsNone(detail["revision"])
+        self.assertIsNotNone(detail["pending"])
+        self.assertEqual(detail["pending"]["brief"]["topic"],
+                         self._brief().topic)
+        self.assertEqual(detail["pending"]["state"], "queued")
+
+    def test_foreign_or_missing_lesson_404(self) -> None:
+        with self.assertRaises(ClassroomError) as ctx:
+            classroom_service.lesson_detail("usr_other_user", WS,
+                                            "les_doesnotexist")
+        self.assertEqual(ctx.exception.code, "source_not_found")
+        lesson_id, _ = self._make_job()
+        with self.assertRaises(ClassroomError):
+            classroom_service.lesson_detail("usr_other_user", WS, lesson_id)
+
+
 if __name__ == "__main__":
     unittest.main()

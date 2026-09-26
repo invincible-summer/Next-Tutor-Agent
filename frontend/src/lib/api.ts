@@ -120,11 +120,13 @@ export const loadSession = (id: string, tail?: number): Promise<SessionDetail> =
   });
 
 /** P2 组合快照：一次返回侧边栏所需的会话摘要 + 工作区列表 + 各工作区详情
- *  （带 ETag，数据未变 304 由浏览器缓存复用）。替代原来的三级 N+1 瀑布。 */
+ *  （带 ETag，数据未变 304 由浏览器缓存复用）。替代原来的三级 N+1 瀑布。
+ *  课堂开启时附带 classroom_summaries（E01，§3.2.7 索引批量摘要）。 */
 export const getSidebarSnapshot = (): Promise<{
   sessions: SessionItem[];
   workspaces: WorkspaceItem[];
   details: Record<string, WorkspaceDetail>;
+  classroom_summaries?: Record<string, import("./types").ClassroomSummary>;
 }> =>
   apiFetch(`${BASE}/sidebar`).then((r) => {
     if (!r.ok) throw new Error(`sidebar failed: ${r.status}`);

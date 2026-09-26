@@ -107,6 +107,40 @@ def create_lesson(student_id: str, workspace_id: str,
     return result
 
 
+def workspace_summary(student_id: str, workspace_id: str) -> dict[str, Any]:
+    """Sidebar 批量摘要（§3.2.7）：只读可重建索引，绝不逐课解析。
+
+    返回 {lesson_count, active_job_count, last_lesson_id}；索引缺失/空一律
+    返回零值（读路径不 mkdir）。active_job_count 统计所有未完结 job
+    （queued/running/awaiting_outline/needs_input），供侧栏提示"生成中"。
+    """
+    try:
+        index = store.read_index(student_id, workspace_id)
+    except Exception:
+        index = {"lessons": {}, "jobs": {}}
+    lessons = index.get("lessons") or {}
+    active_ids = {lid for lid, e in lessons.items()
+                  if (e or {}).get("lifecycle", "active") == "active"}
+    last_lesson_id: str | None = None
+    last_updated = ""
+    for lid, entry in lessons.items():
+        if lid not in active_ids:
+            continue
+        updated = str((entry or {}).get("updated_at") or "")
+        if updated >= last_updated:
+            last_updated = updated
+            last_lesson_id = lid
+    active_states = {"queued", "running", "awaiting_outline", "needs_input"}
+    active_jobs = 0
+    for job in (index.get("jobs") or {}).values():
+        if (job or {}).get("lesson_id") in active_ids and \
+                (job or {}).get("state") in active_states:
+            active_jobs += 1
+    return {"lesson_count": len(active_ids),
+            "active_job_count": active_jobs,
+            "last_lesson_id": last_lesson_id}
+
+
 def _lesson_list_status(lesson: sc.Lesson,
                         job: sc.GenerationJob | None) -> sc.LessonListStatus:
     if lesson.lifecycle != sc.LessonLifecycle.active:
@@ -176,6 +210,133 @@ def _summary_public(lesson: sc.Lesson, job: sc.GenerationJob | None,
         latest_job=job_public,
         extra=sc.LessonListStatusExtra(),
         updated_at=lesson.updated_at)
+
+
+# ---------------------------------------------------------------------------
+# GET L：课程详情（§14.1；未完成时只给 brief/progress，不伪造 slides）
+# ---------------------------------------------------------------------------
+
+def _brief_public(brief: sc.LessonBrief) -> sc.BriefPublic:
+    return sc.BriefPublic(
+        topic=brief.topic, goals=list(brief.goals),
+        source_policy=brief.source_policy,
+        duration_minutes=brief.duration_minutes, language=brief.language,
+        grade=brief.grade, pedagogy_id=brief.pedagogy_id,
+        theme_id=brief.theme_id, image_density=brief.image_density,
+        checkpoint_density=brief.checkpoint_density,
+        research_enabled=brief.research.enabled,
+        research_timeliness=brief.research.timeliness,
+        custom_requirements=brief.custom_requirements)
+
+
+def _source_public(record: sc.SourceRecord) -> sc.SourcePublic:
+    loc = record.locator
+    namespace = url = domain = publisher = None
+    section_path: list[str] = []
+    page = printed_page = None
+    if isinstance(loc, sc.FileLocator):
+        namespace, section_path = loc.namespace, list(loc.section_path)
+        page, printed_page = loc.page, loc.printed_page
+    else:
+        url, domain, publisher = loc.url, loc.domain, loc.publisher
+    return sc.SourcePublic(
+        source_id=record.source_id, kind=record.kind, title=record.title,
+        status="available", namespace=namespace or "",
+        section_path=section_path, page=page, printed_page=printed_page,
+        url=url, domain=domain, publisher=publisher,
+        published_at=record.published_at, as_of=record.as_of,
+        retrieved_at=record.retrieved_at)
+
+
+def lesson_detail(student_id: str, workspace_id: str, lesson_id: str,
+                  *, revision: int | None = None) -> dict[str, Any]:
+    """GET L：已发布 revision 投影 + 任务摘要；未完成给 pending brief。
+
+    verified_question_template 绝不进入投影（CheckpointPublic.question=None），
+    预览/编辑器不提供答案（§4.3、I03）。
+    """
+    allowed, _ = caps.user_allowed(student_id)
+    if not allowed:
+        raise ClassroomError("classroom_disabled", "课堂功能未开放")
+    load_owned_workspace(workspace_id, student_id)
+    lesson = store.load_lesson(student_id, workspace_id, lesson_id)
+    if lesson is None or lesson.owner_id != student_id or \
+            lesson.workspace_id != workspace_id or \
+            lesson.lifecycle != sc.LessonLifecycle.active:
+        raise ClassroomError("source_not_found", "课程不存在")
+
+    job = None
+    if lesson.latest_job_id:
+        job = store.load_job(student_id, workspace_id, lesson_id,
+                             lesson.latest_job_id)
+    latest_job_public = None
+    if job is not None:
+        latest_job_public = sc.JobPublic(
+            job_id=job.job_id, lesson_id=job.lesson_id, state=job.state,
+            phase=job.phase, state_revision=job.state_revision,
+            progress=_job_progress(student_id, workspace_id, lesson_id, job),
+            warnings=_job_warnings(student_id, workspace_id, lesson_id, job),
+            last_error=job.last_error, cancel_requested=job.cancel_requested,
+            start_mode=job.start_mode, created_at=job.created_at,
+            updated_at=job.updated_at, next_actions=_next_actions(job))
+
+    rev_no = revision if revision is not None else lesson.latest_ready_revision
+    revision_public = None
+    if rev_no is not None:
+        if rev_no not in lesson.published_revisions:
+            raise ClassroomError("source_not_found", "课程版本不存在")
+        spec = store.load_revision(student_id, workspace_id, lesson_id, rev_no)
+        if spec is None:
+            raise ClassroomError("source_not_found", "课程版本已损坏",
+                                 retryable=False)
+        revision_public = sc.RevisionPublic(
+            revision=spec.revision, schema_version=spec.schema_version,
+            brief=_brief_public(spec.brief), slides=list(spec.slides),
+            objectives=list(spec.objectives),
+            glossary=list(spec.glossary),
+            source_records=[_source_public(r) for r in spec.source_snapshot],
+            assets=[sc.AssetPublic(
+                asset_id=a.asset_id, mime=a.mime, width=a.width,
+                height=a.height, alt=a.alt, caption=a.caption, role=a.role,
+                status=a.status, provider=a.provenance.provider,
+                creator=a.provenance.creator,
+                source_url=a.provenance.source_url,
+                license_url=a.provenance.license_url)
+                for a in spec.assets],
+            checkpoints=[sc.CheckpointPublic(
+                checkpoint_id=c.checkpoint_id, slide_id=c.slide_id,
+                kind=c.kind, prompt=c.prompt,
+                reflection_seconds=c.reflection_seconds, optional=c.optional)
+                for c in spec.checkpoint_templates],
+            renderer_version=spec.renderer_version,
+            content_hash=spec.content_hash, created_at=spec.created_at)
+
+    pending = None
+    if revision_public is None and job is not None:
+        brief = None
+        brief_path = store.job_brief_path(student_id, workspace_id,
+                                          lesson_id, job.job_id)
+        if brief_path.is_file():
+            try:
+                brief = sc.LessonBrief.model_validate(
+                    json.loads(brief_path.read_text(encoding="utf-8")))
+            except (OSError, ValueError):
+                brief = None
+        if brief is not None:
+            pending = sc.LessonBriefProgress(
+                brief=_brief_public(brief),
+                progress=_job_progress(student_id, workspace_id,
+                                       lesson_id, job),
+                phase=job.phase, state=job.state)
+
+    detail = sc.LessonDetailPublic(
+        lesson_id=lesson.lesson_id, workspace_id=lesson.workspace_id,
+        title=lesson.title, lifecycle=lesson.lifecycle,
+        latest_ready_revision=lesson.latest_ready_revision,
+        published_revisions=list(lesson.published_revisions),
+        latest_job=latest_job_public, revision=revision_public,
+        pending=pending, recent_run=None)  # run 投影在 G 阶段接入
+    return detail.model_dump(mode="json", by_alias=True)
 
 
 # ---------------------------------------------------------------------------

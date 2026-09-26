@@ -1,5 +1,5 @@
 "use client";
-import { Suspense, useCallback, useEffect, useRef, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { Menu, ArrowRight, Search, BookOpen, GraduationCap, ClipboardList, Target, MessageSquareOff, Plus, PanelRight, Phone } from "lucide-react";
 import { useUIStore, useChatStore } from "@/lib/store";
@@ -9,6 +9,7 @@ import { ChatMessage, StreamingMessage } from "@/components/chat/ChatMessage";
 import { ChatInput } from "@/components/chat/ChatInput";
 import { VoiceCallLayer, type VoiceTextController } from "@/components/chat/VoiceCallLayer";
 import { ChatMaterialsPanel } from "@/components/chat/ChatMaterialsPanel";
+import { WorkspaceModeBar } from "@/components/classroom/WorkspaceModeBar";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -38,6 +39,10 @@ function ChatWorkspace() {
   const [greeting, setGreeting] = useState("");
   const [workspaceSources, setWorkspaceSources] = useState<MaterialSource[]>([]);
   const [materialsOpen, setMaterialsOpen] = useState(true);
+  // E01 模式条：当前聊天所属学习区（有归属才显示 对话|课堂，§3.2.2）。
+  // 事实源 = 当前会话的 workspace_id；新对话（尚无会话）用待绑定 active-ws。
+  const [pendingWsId, setPendingWsId] = useState<string | null>(null);
+  const [wsNames, setWsNames] = useState<Record<string, string>>({});
   // P10 语音通话：后端 /voice/status 决定入口显隐（provider off 时整条链路
   // 不存在，不渲染按钮，保持与禁用智能层「无痕降级」的仓库惯例一致）。
   const [voiceEnabled, setVoiceEnabled] = useState(false);
@@ -112,6 +117,7 @@ function ChatWorkspace() {
   useEffect(() => {
     const refresh = () => {
       const wsId = sessionStorage.getItem("edu-agent-active-ws");
+      setPendingWsId(wsId);
       if (!wsId) {
         if (!urlSession) setWorkspaceSources([]);
         return;
@@ -460,6 +466,23 @@ function ChatWorkspace() {
   }, [handleSend]);
 
   const isEmpty = chat.messages.length === 0 && !chat.streaming;
+
+  // 模式条目标学习区：当前会话归属优先，其次新对话的待绑定学习区。
+  const sessionWsId = useMemo(() => {
+    const sid = urlSession ?? chat.sessionId;
+    if (!sid) return null;
+    return chat.sessions.find((x) => x.session_id === sid)?.workspace_id ?? null;
+  }, [urlSession, chat.sessionId, chat.sessions]);
+  const barWsId = sessionWsId ?? pendingWsId;
+  useEffect(() => {
+    if (!barWsId || wsNames[barWsId]) return;
+    let cancelled = false;
+    getWorkspace(barWsId).then((ws) => {
+      if (!cancelled) setWsNames((m) => ({ ...m, [barWsId]: ws.name }));
+    }).catch(() => undefined);
+    return () => { cancelled = true; };
+  }, [barWsId, wsNames]);
+
   const materialSources: MaterialSource[] = [
     ...workspaceSources,
     ...chat.files.map((file) => ({
@@ -505,6 +528,17 @@ function ChatWorkspace() {
         >
           <Menu size={16} />
         </button>
+        {/* 当前聊天属于学习区时：学习区名 · 对话 | 课堂（真实链接，§3.2.2） */}
+        {barWsId && (
+          <div className="absolute left-11 top-2 z-10">
+            <WorkspaceModeBar
+              workspaceId={barWsId}
+              workspaceName={wsNames[barWsId]}
+              mode="chat"
+              sessions={chat.sessions}
+            />
+          </div>
+        )}
         {/* 右上角工具组：资料栏开关 + 电话（语音通话）。电话占最右侧；
             通话中入口隐藏，由本角落（按钮行正下方）放大的手机模拟指示
             通话状态，黑板不再与其同行。 */}

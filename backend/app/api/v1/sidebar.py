@@ -16,6 +16,7 @@ from fastapi import APIRouter, Depends, Header, Response
 from fastapi.responses import JSONResponse
 
 from app.agents.student_model.store import DEFAULT_STUDENT_ID
+from app.core.config import settings
 from app.core.session import list_sessions
 from app.core.workspace import ensure_library_folder, load_workspace
 from app.identity.deps import resolve_student_id
@@ -48,6 +49,19 @@ def sidebar_snapshot(student_id: str = Depends(resolve_student_id),
         except Exception:
             continue  # 单个工作区详情失败不拖垮整个快照（前端按缺失处理）
     payload = {"sessions": sessions, "workspaces": workspaces, "details": details}
+    # 课堂批量摘要（§3.2.7）：只读可重建索引；功能关闭时整个键缺省，
+    # 前端按"无课堂"处理。ETag 覆盖 payload 全量，摘要变化自然生效。
+    if settings.classroom_enabled:
+        from app.classroom import service as classroom_service
+        classroom_summaries: dict[str, dict] = {}
+        for w in workspaces:
+            try:
+                classroom_summaries[w["workspace_id"]] = (
+                    classroom_service.workspace_summary(
+                        student_id, w["workspace_id"]))
+            except Exception:
+                continue  # 单工作区摘要失败不影响快照其余部分
+        payload["classroom_summaries"] = classroom_summaries
     etag = _etag_of(payload)
     if if_none_match is not None and etag in if_none_match:
         return Response(status_code=304, headers={"ETag": etag})

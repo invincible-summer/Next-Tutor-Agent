@@ -13,11 +13,13 @@ import {
   getSidebarSnapshot,
 } from "@/lib/api";
 import { notifyWsChanged, useWsSettings, WS_CHANGED_EVENT, SESSION_CHANGED_EVENT } from "@/lib/ws-settings";
+import { clearDraft, draftKey } from "@/lib/chat-drafts";
+import { useAuthStore } from "@/lib/auth-store";
 import { Button } from "@/components/ui/Button";
 import { WorkspaceItem } from "./WorkspaceItem";
 import { SessionRow } from "./SessionRow";
 import { ConfirmDialog } from "./ConfirmDialog";
-import type { WorkspaceItem as WorkspaceInfo, WorkspaceDetail } from "@/lib/types";
+import type { WorkspaceItem as WorkspaceInfo, WorkspaceDetail, ClassroomSummary } from "@/lib/types";
 
 const EXPAND_KEY = "edu-agent-ws-expanded";
 
@@ -25,6 +27,7 @@ type SidebarSnapshot = {
   sessions: import("@/lib/types").SessionItem[];
   workspaces: WorkspaceInfo[];
   details: Record<string, WorkspaceDetail>;
+  classroomSummaries: Record<string, ClassroomSummary>;
 };
 
 // The chat route is a dynamic segment, so navigating from one history row to
@@ -43,6 +46,7 @@ async function fetchSidebarSnapshot(): Promise<SidebarSnapshot> {
     sessions: snap.sessions ?? [],
     workspaces: snap.workspaces ?? [],
     details: snap.details ?? {},
+    classroomSummaries: snap.classroom_summaries ?? {},
   };
 }
 
@@ -87,6 +91,7 @@ export function Sidebar() {
 
   const [workspaces, setWorkspaces] = useState<WorkspaceInfo[]>(initialSidebar?.workspaces ?? []);
   const [wsDetails, setWsDetails] = useState<Record<string, WorkspaceDetail>>(initialSidebar?.details ?? {});
+  const [classroomSummaries, setClassroomSummaries] = useState<Record<string, ClassroomSummary>>(initialSidebar?.classroomSummaries ?? {});
   // null = not hydrated yet (first client render matches SSR: all expanded).
   const [expandedMap, setExpandedMap] = useState<Record<string, boolean> | null>(null);
   const [expandedStored, setExpandedStored] = useState(false);
@@ -141,6 +146,7 @@ export function Sidebar() {
       setSessions(snapshot.sessions);
       setWorkspaces(snapshot.workspaces);
       setWsDetails(snapshot.details);
+      setClassroomSummaries(snapshot.classroomSummaries);
       setSidebarReady(true);
     } catch { /* keep the last complete snapshot visible */ }
   };
@@ -195,6 +201,9 @@ export function Sidebar() {
     const { id, forget } = sessionArchive;
     setSessionArchive(null);
     await deleteSession(id, forget);
+    // 草稿仓随会话清除（§3.2：删除会话清对应草稿）。
+    const owner = useAuthStore.getState().user?.id ?? "";
+    clearDraft(draftKey(owner, id, null));
     if (sessionId === id) newChat();
     if (urlSessionId === id) router.replace("/chat");
     refresh();
@@ -225,6 +234,8 @@ export function Sidebar() {
       onConfirm: async () => {
         // Reuse the single-session DELETE endpoint per id; no backend change.
         const results = await Promise.allSettled(ids.map((id) => deleteSession(id)));
+        const owner = useAuthStore.getState().user?.id ?? "";
+        for (const id of ids) clearDraft(draftKey(owner, id, null));
         if (sessionId && ids.includes(sessionId)) newChat();
         if (urlSessionId && ids.includes(urlSessionId)) router.replace("/chat");
         exitManaging();
@@ -391,6 +402,7 @@ export function Sidebar() {
                 key={ws.workspace_id}
                 ws={ws}
                 detail={detail}
+                classroomSummary={classroomSummaries[ws.workspace_id]}
                 sessions={wsSessions}
                 activeSessionId={urlSessionId}
                 isExpanded={isExpandedId(ws.workspace_id)}

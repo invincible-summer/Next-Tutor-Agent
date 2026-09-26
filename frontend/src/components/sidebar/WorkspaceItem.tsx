@@ -1,23 +1,27 @@
 "use client";
 import { useRef, useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   ChevronDown, ChevronRight, FolderOpen, MoreHorizontal,
-  Plus, Pencil, Trash2, Brain, Settings2,
+  Plus, Pencil, Trash2, Brain, Settings2, Presentation, Sparkles,
 } from "lucide-react";
 import { useUIStore } from "@/lib/store";
 import { t } from "@/lib/i18n";
 import { cn } from "@/lib/cn";
 import { deleteWorkspaceFile } from "@/lib/api";
+import { classroomPath } from "@/components/classroom/WorkspaceModeBar";
 import { notifyWsChanged, useWsSettings } from "@/lib/ws-settings";
 import { Dropdown, type DropdownItem } from "./Dropdown";
 import { InlineEdit } from "./InlineEdit";
 import { WorkspaceFiles } from "./WorkspaceFiles";
 import { SessionRow } from "./SessionRow";
-import type { WorkspaceItem as WorkspaceInfo, WorkspaceDetail, SessionItem, AttachmentMeta } from "@/lib/types";
+import type { WorkspaceItem as WorkspaceInfo, WorkspaceDetail, SessionItem, AttachmentMeta, ClassroomSummary } from "@/lib/types";
 
 export function WorkspaceItem({
   ws,
   detail,
+  classroomSummary,
   sessions,
   activeSessionId,
   isExpanded,
@@ -42,6 +46,8 @@ export function WorkspaceItem({
 }: {
   ws: WorkspaceInfo;
   detail: WorkspaceDetail | undefined;
+  /** Sidebar 索引批量摘要（§3.2.7）；undefined = 课堂未开放。 */
+  classroomSummary?: ClassroomSummary;
   sessions: SessionItem[];
   activeSessionId: string | null;
   isExpanded: boolean;
@@ -68,10 +74,16 @@ export function WorkspaceItem({
 }) {
   const { lang } = useUIStore();
   const tr = (k: string, fb?: string) => t(lang, k, fb);
+  const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
   const [editing, setEditing] = useState(false);
   const [memOpen, setMemOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+
+  const classroomHref = classroomPath(ws.workspace_id);
+  const openCreate = () => router.push(`${classroomHref}?create=1`);
+  const lessonCount = classroomSummary?.lesson_count ?? 0;
+  const generating = classroomSummary?.active_job_count ?? 0;
 
   const onDeleteFile = (file: AttachmentMeta) => {
     askConfirm({
@@ -89,6 +101,7 @@ export function WorkspaceItem({
 
   const menuItems: DropdownItem[] = [
     { icon: Plus, label: tr("ws.new.chat"), onClick: onNewChat },
+    { icon: Sparkles, label: tr("ws.classroom.create"), onClick: openCreate },
     { icon: Settings2, label: tr("ws.settings"), onClick: () => useWsSettings.getState().open(ws.workspace_id) },
     { icon: Pencil, label: tr("ws.rename"), onClick: () => setEditing(true) },
     { icon: Trash2, label: tr("ws.delete"), danger: true, dividerBefore: true, onClick: onDelete },
@@ -165,6 +178,34 @@ export function WorkspaceItem({
             <div className="px-2 py-1 text-[0.7rem] text-muted/50 flex items-center gap-1.5">
               <Brain size={11} /> {tr("ws.no.memory")}
             </div>
+          )}
+
+          {/* 课堂固定入口（§3.2.1）：资料/公共记忆下、会话列表前；
+              undefined = 课堂未开放（灰度/关闭时不显示，避免死入口）。 */}
+          {classroomSummary !== undefined && (
+            <div className="mt-1 mb-0.5 flex items-center gap-1">
+              <Link
+                href={classroomHref}
+                className="group/link flex min-w-0 flex-1 items-center gap-1.5 rounded-[8px] px-2 py-1.5 text-[0.72rem] font-medium text-fg-secondary transition-colors hover:bg-accent-soft/40 hover:text-accent-strong"
+              >
+                <Presentation size={12} className="flex-shrink-0 text-accent" />
+                <span className="flex-1 truncate">{tr("ws.classroom")}</span>
+                <span className="tnum text-[0.62rem] text-muted">{lessonCount}</span>
+              </Link>
+              <button
+                onClick={openCreate}
+                title={tr("ws.classroom.create")}
+                aria-label={tr("ws.classroom.create")}
+                className="flex h-6 w-6 shrink-0 items-center justify-center rounded-[6px] text-muted opacity-0 transition-opacity hover:bg-surface-hover hover:text-accent focus-visible:opacity-100 group-hover:opacity-100"
+              >
+                <Sparkles size={12} />
+              </button>
+            </div>
+          )}
+          {classroomSummary !== undefined && generating > 0 && (
+            <p className="px-2 pb-1 text-[0.62rem] text-accent-strong/80">
+              {tr("ws.classroom.generating").replace("%n", String(generating))}
+            </p>
           )}
 
           {/* Sessions in workspace */}

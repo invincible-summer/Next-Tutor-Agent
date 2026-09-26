@@ -20,6 +20,7 @@ from app.schemas.classroom import (
     ClassroomTemplates,
     CreateLessonRequest,
     CreateLessonResponse,
+    LessonDetailPublic,
     LessonListResponse,
 )
 from app.schemas import classroom as sc
@@ -95,6 +96,15 @@ def create_revision(workspace_id: str, lesson_id: str,
     key = require_idempotency_key(idempotency_key)
     return sc.CreateRevisionResponse(**classroom_revisions.create_revision_job(
         student_id, workspace_id, lesson_id, request, idempotency_key=key))
+
+
+@router.get("/workspaces/{workspace_id}/classroom/lessons/{lesson_id}",
+            response_model=LessonDetailPublic)
+def get_lesson(workspace_id: str, lesson_id: str,
+               revision: int | None = None,
+               student_id: str = Depends(resolve_student_id)):
+    return LessonDetailPublic(**classroom_service.lesson_detail(
+        student_id, workspace_id, lesson_id, revision=revision))
 
 
 @router.get("/workspaces/{workspace_id}/classroom/lessons/{lesson_id}"
