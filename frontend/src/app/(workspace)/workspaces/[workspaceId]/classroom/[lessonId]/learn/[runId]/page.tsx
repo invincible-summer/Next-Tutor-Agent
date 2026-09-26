@@ -27,6 +27,7 @@ import {
 import {
   QuestionDrawer,
 } from "@/components/classroom/player/QuestionDrawer";
+import { ClassroomNotes } from "@/components/classroom/player/ClassroomNotes";
 import { useClassroomPlayer } from "@/lib/classroom/useClassroomPlayer";
 import {
   QUICK_CONFUSED, QUICK_EXAMPLE, useClassroomQA,
@@ -55,7 +56,16 @@ const PLAYER_STR = {
     "cls.ask.resume.page": "从本页开始",
     "cls.ask.failed": "回答失败，请重试。",
     "cls.ask.close": "关闭提问",
+    "cls.ask.mic.hold": "按住说话",
+    "cls.ask.mic.recording": "正在录音，松开结束",
     "cls.ask.hint": "提问会暂停讲授；回答结束后点击「继续原课」回到原位置。",
+    "cls.note.title": "课堂笔记",
+    "cls.note.add": "记下这里",
+    "cls.note.placeholder": "记下当前页的想法…",
+    "cls.note.saved": "已记下",
+    "cls.note.to.center": "保存到笔记中心",
+    "cls.note.to.center.done": "已保存到笔记中心",
+    "cls.note.empty": "还没有批注；听课时随时「记下这里」。",
     "cls.play.suspended": "本课堂正在其他设备播放",
     "cls.play.suspended.takeover": "在这里继续",
     "cls.play.ended": "本节课已完成",
@@ -88,7 +98,16 @@ const PLAYER_STR = {
     "cls.ask.resume.page": "From page start",
     "cls.ask.failed": "Answer failed, please retry.",
     "cls.ask.close": "Close questions",
+    "cls.ask.mic.hold": "Hold to speak",
+    "cls.ask.mic.recording": "Recording, release to stop",
     "cls.ask.hint": "Asking pauses the lesson; click “Resume lesson” afterwards.",
+    "cls.note.title": "Class notes",
+    "cls.note.add": "Note this",
+    "cls.note.placeholder": "Capture a thought about this page…",
+    "cls.note.saved": "Noted",
+    "cls.note.to.center": "Save to Notes",
+    "cls.note.to.center.done": "Saved to Notes",
+    "cls.note.empty": "No notes yet; capture anytime while listening.",
     "cls.play.suspended": "This lesson is playing on another device",
     "cls.play.suspended.takeover": "Continue here",
     "cls.play.ended": "Lesson completed",
@@ -292,6 +311,9 @@ export default function LearnRunPage() {
   };
 
   if (fatal) {
+    // 深链失效（课程/课堂记录被删除）给出可识别状态（§H04），不只是裸错误
+    const gone = fatal.includes("source_not_found")
+      || fatal.includes("不存在") || fatal.includes("404");
     return (
       <div className="flex h-full flex-col">
         <header className="flex items-center gap-3 border-b border-border px-5 py-3">
@@ -303,8 +325,12 @@ export default function LearnRunPage() {
             {tr("cls.learn.player.title")}
           </h1>
         </header>
-        <div className="flex flex-1 items-center justify-center text-muted">
-          {fatal}
+        <div className="flex flex-1 flex-col items-center justify-center gap-3 text-muted">
+          <p>{gone ? tr("cls.detail.notfound") : fatal}</p>
+          <Link href={lessonHref}
+                className="text-sm text-accent-strong hover:underline">
+            {tr("cls.play.back.course")}
+          </Link>
         </div>
       </div>
     );
@@ -391,6 +417,11 @@ export default function LearnRunPage() {
               <QuestionDrawer
                 turns={qa.turns}
                 asking={qa.asking}
+                sttLang={lang === "en" ? "en" : "zh"}
+                onMicPress={() => {
+                  qa.stopAudio();
+                  player.pauseForAsk();
+                }}
                 onAsk={(text) => qa.ask(text)}
                 onResume={resumeFromAnchor}
                 onResumeFromPage={resumeFromPage}
@@ -406,6 +437,8 @@ export default function LearnRunPage() {
                   resumeFromPage: ps("cls.ask.resume.page"),
                   failed: ps("cls.ask.failed"),
                   close: ps("cls.ask.close"),
+                  micHold: ps("cls.ask.mic.hold"),
+                  micRecording: ps("cls.ask.mic.recording"),
                 }} />
             )}
           </div>
@@ -419,12 +452,12 @@ export default function LearnRunPage() {
             s={playerStrings} />
         </main>
 
-        {/* 讲稿侧栏（默认展开为可滚动全稿；来源/提问/笔记在 H 阶段接入） */}
+        {/* 讲稿侧栏（默认展开为可滚动全稿）+ 课堂笔记（H04） */}
         <aside className="hidden w-[320px] shrink-0 flex-col border-l border-border bg-surface xl:flex">
           <div className="border-b border-border px-4 py-2.5 text-sm font-medium text-fg">
             {tr("cls.learn.script")}
           </div>
-          <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
+          <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-4 py-3">
             <ol className="space-y-3 text-[15px] leading-relaxed">
               {player.segments.map((seg) => (
                 <li key={seg.segmentId}
@@ -435,6 +468,23 @@ export default function LearnRunPage() {
                 </li>
               ))}
             </ol>
+            <div className="border-t border-border pt-3">
+              <ClassroomNotes
+                workspaceId={workspaceId}
+                lessonId={lessonId}
+                runId={runId}
+                current={player.current}
+                s={{
+                  title: ps("cls.note.title"),
+                  addHere: ps("cls.note.add"),
+                  placeholder: ps("cls.note.placeholder"),
+                  save: ps("cls.note.add"),
+                  saved: ps("cls.note.saved"),
+                  saveToCenter: ps("cls.note.to.center"),
+                  savedToCenter: ps("cls.note.to.center.done"),
+                  empty: ps("cls.note.empty"),
+                }} />
+            </div>
           </div>
         </aside>
       </div>

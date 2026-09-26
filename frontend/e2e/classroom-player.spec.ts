@@ -291,8 +291,9 @@ test("插问暂停讲授，回答后继续原课", async ({ page }) => {
   await expect(page.getByRole("button", { name: "继续原课" }))
     .toBeVisible({ timeout: 8_000 });
   expect(chatBody).not.toBeNull();
-  const ref = (chatBody as { classroom_ref?: Record<string, unknown> })
-    .classroom_ref;
+  const ref = (chatBody as unknown as {
+    classroom_ref?: Record<string, unknown>;
+  }).classroom_ref;
   expect(ref?.run_id).toBe(RUN);
   expect(ref?.slide_id).toBe(SLIDES[0].id);
 

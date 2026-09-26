@@ -397,6 +397,52 @@ class ClassroomChatTests(RevisionTestBase):
         }, headers={"Idempotency-Key": "k-qa-audio-00000002"})
         self.assertEqual(r2.status_code, 409)
 
+    # ---- 批注与课堂笔记（§12.6/§16.3） ------------------------------------
+
+    def test_annotation_and_save_note_idempotent(self):
+        from app.core import notes as notes_store
+
+        first = min(self.spec.slides, key=lambda s: s.order)
+        seg = first.segments[0]
+        ann_id = runs_mod.add_run_annotation(
+            OWNER, WS, self.lesson_id, self.run.run_id,
+            sc.RunNoteRequest(slide_id=first.slide_id,
+                              segment_id=seg.segment_id,
+                              user_text="这里要记住内力抵消"))
+        self.assertTrue(ann_id.startswith("ann_"))
+        stored = store.load_run(OWNER, WS, self.lesson_id, self.run.run_id)
+        self.assertEqual(len(stored.annotations), 1)
+        self.assertEqual(stored.annotations[0].user_text, "这里要记住内力抵消")
+        self.assertIn(seg.display_text[:10],
+                      stored.annotations[0].auto_excerpt)
+
+        note_id, created = runs_mod.save_run_note(
+            OWNER, WS, self.lesson_id, self.run.run_id,
+            sc.SaveNoteRequest(), idempotency_key="k-note-00000000001")
+        self.assertTrue(created)
+        # 同 key 重放：返回同一 note，不重复创建（§16.3 source 查找）
+        note_id2, created2 = runs_mod.save_run_note(
+            OWNER, WS, self.lesson_id, self.run.run_id,
+            sc.SaveNoteRequest(), idempotency_key="k-note-00000000001")
+        self.assertFalse(created2)
+        self.assertEqual(note_id, note_id2)
+        vault = notes_store.load_vault(OWNER)
+        content = vault.read_note(note_id)
+        self.assertIn(f"第 {first.order} 页", content)
+        self.assertIn("我的批注", content)
+        self.assertIn("这里要记住内力抵消", content)
+        src = vault.find_note(note_id).get("source") or {}
+        self.assertEqual(src.get("kind"), "classroom")
+        self.assertEqual(src.get("run_id"), self.run.run_id)
+
+    def test_annotation_rejects_bad_slide(self):
+        with self.assertRaises(ClassroomError) as ctx:
+            runs_mod.add_run_annotation(
+                OWNER, WS, self.lesson_id, self.run.run_id,
+                sc.RunNoteRequest(slide_id="s_ffffffffffff",
+                                  user_text="x"))
+        self.assertEqual(ctx.exception.code.value, "content_invalid")
+
     def test_qa_session_endpoint_idempotent(self):
         from fastapi.testclient import TestClient
         from app.main import create_app

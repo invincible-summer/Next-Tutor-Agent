@@ -1,17 +1,21 @@
 "use client";
-/* 课堂问答抽屉（plan.md §5.1/§12.5，阶段 H02）。
+/* 课堂问答抽屉（plan.md §5.1/§12.5，阶段 H02/H03）。
  *
  * 在当前页旁展开（右栏抽屉，非聊天瀑布）：快捷补讲（没听懂/举个例子）+
- * 自由提问；回答结束后保持暂停，主按钮「继续原课」（回到最初被打断段）
- * 与「从本页开始」由用户显式点击（§5.2.6/§12.5）。思考流不展示
- * （§12.4 课堂 UI 只消费 answer/tool status/done/error）。
+ * 自由提问 + 按住说话（STT 转写先落输入框可修订，再手动发送）；回答
+ * 结束后保持暂停，主按钮「继续原课」（回到最初被打断段）与「从本页
+ * 开始」由用户显式点击（§5.2.6/§12.5）。思考流不展示（§12.4）。
  */
 import { useEffect, useRef, useState } from "react";
-import { CircleHelp, Lightbulb, Loader2, MessageCircle,
-         RotateCcw, Send, X } from "lucide-react";
+import {
+  CircleHelp, Lightbulb, Loader2, MessageCircle, Mic, RotateCcw, Send, X,
+} from "lucide-react";
 import {
   QUICK_CONFUSED, QUICK_EXAMPLE, type QATurn,
 } from "@/lib/classroom/useClassroomQA";
+import {
+  BrowserRecognition, type RecognitionLang,
+} from "@/lib/voice/browser-recognition";
 
 export interface QuestionDrawerStrings {
   title: string;
@@ -24,13 +28,19 @@ export interface QuestionDrawerStrings {
   resumeFromPage: string;
   failed: string;
   close: string;
+  micHold: string;
+  micRecording: string;
 }
 
 export function QuestionDrawer(
-  { turns, asking, onAsk, onResume, onResumeFromPage, onClose, s }:
+  { turns, asking, sttLang, onMicPress, onAsk, onResume, onResumeFromPage,
+    onClose, s }:
   {
     turns: QATurn[];
     asking: boolean;
+    sttLang: RecognitionLang;
+    /** 按住说话时停止课堂输出，避免回声转写（§12.5）。 */
+    onMicPress: () => void;
     onAsk: (text: string) => void;
     onResume: () => void;
     onResumeFromPage: () => void;
@@ -39,7 +49,17 @@ export function QuestionDrawer(
   },
 ) {
   const [draft, setDraft] = useState("");
+  const [recording, setRecording] = useState(false);
+  const [sttError, setSttError] = useState(false);
   const listRef = useRef<HTMLDivElement | null>(null);
+  const recognitionRef = useRef<BrowserRecognition | null>(null);
+  const sttSupported = typeof window !== "undefined"
+    && BrowserRecognition.supported();
+
+  useEffect(() => {
+    const recognition = recognitionRef.current;
+    return () => recognition?.abort();
+  }, []);
 
   useEffect(() => {
     const el = listRef.current;
@@ -52,6 +72,30 @@ export function QuestionDrawer(
     if (!draft.trim() || asking) return;
     onAsk(draft);
     setDraft("");
+  };
+
+  const micDown = () => {
+    if (recording || asking) return;
+    setSttError(false);
+    onMicPress();
+    const recognition = recognitionRef.current ?? new BrowserRecognition();
+    recognitionRef.current = recognition;
+    const ok = recognition.start(sttLang, {
+      onText: (finalText, interim) => {
+        setDraft((finalText + (interim ? ` ${interim}` : "")).trim());
+      },
+      onError: () => setSttError(true),
+    });
+    setRecording(ok);
+    if (!ok) setSttError(true);
+  };
+
+  const micUp = () => {
+    if (!recording) return;
+    const text = recognitionRef.current?.stop() ?? "";
+    setRecording(false);
+    // 转写先展示为可修订文本，不自动发送（§12.5）
+    if (text) setDraft(text);
   };
 
   return (
@@ -72,12 +116,12 @@ export function QuestionDrawer(
       <div className="flex flex-wrap gap-2 border-b border-border px-4 py-2.5">
         <button type="button" disabled={asking}
                 onClick={() => onAsk(QUICK_CONFUSED)}
-                className="inline-flex cursor-pointer items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-xs text-fg-secondary transition-colors hover:border-accent/50 hover:text-fg disabled:opacity-50">
+                className="inline-flex h-11 cursor-pointer items-center gap-1.5 rounded-full border border-border px-3.5 text-xs text-fg-secondary transition-colors hover:border-accent/50 hover:text-fg disabled:opacity-50">
           <CircleHelp size={12} /> {s.confused}
         </button>
         <button type="button" disabled={asking}
                 onClick={() => onAsk(QUICK_EXAMPLE)}
-                className="inline-flex cursor-pointer items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-xs text-fg-secondary transition-colors hover:border-accent/50 hover:text-fg disabled:opacity-50">
+                className="inline-flex h-11 cursor-pointer items-center gap-1.5 rounded-full border border-border px-3.5 text-xs text-fg-secondary transition-colors hover:border-accent/50 hover:text-fg disabled:opacity-50">
           <Lightbulb size={12} /> {s.example}
         </button>
       </div>
@@ -126,6 +170,24 @@ export function QuestionDrawer(
       )}
 
       <div className="flex items-end gap-2 border-t border-border px-4 py-3">
+        {sttSupported && (
+          <button type="button"
+                  aria-label={recording ? s.micRecording : s.micHold}
+                  aria-pressed={recording}
+                  disabled={asking}
+                  onPointerDown={(e) => { e.preventDefault(); micDown(); }}
+                  onPointerUp={micUp}
+                  onPointerLeave={micUp}
+                  onContextMenu={(e) => e.preventDefault()}
+                  className={`flex h-11 w-11 shrink-0 cursor-pointer touch-none items-center justify-center rounded-[10px] border transition-colors disabled:opacity-40 ${
+                    recording
+                      ? "animate-pulse border-danger bg-danger/10 text-danger"
+                      : sttError
+                        ? "border-border text-muted/50"
+                        : "border-border text-fg-secondary hover:border-accent/50 hover:text-fg"}`}>
+            <Mic size={16} />
+          </button>
+        )}
         <textarea
           value={draft}
           onChange={(e) => setDraft(e.target.value)}

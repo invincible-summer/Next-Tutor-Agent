@@ -421,6 +421,46 @@ def create_qa_session(workspace_id: str, lesson_id: str, run_id: str,
 
 
 @router.post("/workspaces/{workspace_id}/classroom/lessons/{lesson_id}"
+             "/runs/{run_id}/notes", status_code=201,
+             response_model=sc.RunNoteResponse)
+def add_run_note(workspace_id: str, lesson_id: str, run_id: str,
+                 request: sc.RunNoteRequest,
+                 student_id: str = Depends(resolve_student_id)):
+    """POST R/notes：本 run 批注（§14.2/§12.6）；不写个人长期评价。"""
+    from app.classroom import runs as runs_mod
+
+    require_enabled(student_id)
+    annotation_id = runs_mod.add_run_annotation(
+        student_id, workspace_id, lesson_id, run_id, request)
+    return sc.RunNoteResponse(annotation_id=annotation_id)
+
+
+@router.post("/workspaces/{workspace_id}/classroom/lessons/{lesson_id}"
+             "/runs/{run_id}/save-note")
+def save_run_note(workspace_id: str, lesson_id: str, run_id: str,
+                  request: sc.SaveNoteRequest,
+                  idempotency_key: str | None = Header(
+                      default=None, alias="Idempotency-Key"),
+                  student_id: str = Depends(resolve_student_id)):
+    """POST R/save-note：确定性汇总保存到笔记中心（§14.2/§16.3）。
+
+    相同 Idempotency-Key 返回同一 note_id（201 新建 / 200 已存在）。
+    """
+    from app.classroom import runs as runs_mod
+    from app.classroom.errors import require_idempotency_key
+
+    require_enabled(student_id)
+    key = require_idempotency_key(idempotency_key)
+    note_id, created = runs_mod.save_run_note(
+        student_id, workspace_id, lesson_id, run_id, request,
+        idempotency_key=key)
+    return JSONResponse(
+        status_code=201 if created else 200,
+        content=sc.SaveNoteResponse(note_id=note_id).model_dump(
+            mode="json", by_alias=True))
+
+
+@router.post("/workspaces/{workspace_id}/classroom/lessons/{lesson_id}"
              "/runs/{run_id}/qa-audio", status_code=202,
              response_model=sc.QaAudioResponse)
 async def request_qa_audio(workspace_id: str, lesson_id: str, run_id: str,

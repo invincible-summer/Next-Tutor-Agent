@@ -394,6 +394,36 @@ export async function updateAudioProfile(
   return jsonOf<RunPublicExtra>(res);
 }
 
+/** POST R/notes：本 run 批注（§12.6）；不写长期评价。 */
+export async function addRunNote(
+  workspaceId: string, lessonId: string, runId: string,
+  request: { slide_id: string; segment_id?: string | null;
+             user_text?: string },
+): Promise<{ annotation_id: string }> {
+  const res = await apiFetch(
+    R(workspaceId, lessonId) + "/runs/" + encodeURIComponent(runId)
+    + "/notes",
+    { method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(request) });
+  return jsonOf<{ annotation_id: string }>(res);
+}
+
+/** POST R/save-note：确定性汇总保存到笔记中心（§16.3 幂等）。 */
+export async function saveRunNote(
+  workspaceId: string, lessonId: string, runId: string,
+  request: { title?: string | null; include_user_notes?: boolean },
+  idempotencyKey: string,
+): Promise<{ note_id: string }> {
+  const res = await apiFetch(
+    R(workspaceId, lessonId) + "/runs/" + encodeURIComponent(runId)
+    + "/save-note",
+    { method: "POST",
+      headers: { "Content-Type": "application/json",
+                 "Idempotency-Key": idempotencyKey },
+      body: JSON.stringify(request) });
+  return jsonOf<{ note_id: string }>(res);
+}
+
 /** POST R/audio：请求当前+预取段（202），返回 clip 状态。 */
 export async function requestRunAudio(
   workspaceId: string, lessonId: string, runId: string,

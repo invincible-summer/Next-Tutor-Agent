@@ -436,6 +436,96 @@ def ensure_run_qa_session(student_id: str, workspace_id: str, lesson_id: str,
 
 
 # ---------------------------------------------------------------------------
+# 批注与课堂笔记（POST R/notes、POST R/save-note，§12.6/§14.2/§16.3）
+# ---------------------------------------------------------------------------
+
+def add_run_annotation(student_id: str, workspace_id: str, lesson_id: str,
+                       run_id: str, request: sc.RunNoteRequest) -> str:
+    """POST R/notes：本 run 批注（≤100 条）；自动摘录与手写分开（§12.6），
+    不自动写个人长期评价。"""
+    run = load_owned_run(student_id, workspace_id, lesson_id, run_id)
+    spec = load_run_spec(student_id, workspace_id, lesson_id,
+                         run.lesson_revision)
+    slide = next((s for s in spec.slides
+                  if s.slide_id == request.slide_id), None)
+    if slide is None:
+        raise ClassroomError("content_invalid", "页面不存在于固定版本")
+    if request.segment_id is not None and not any(
+            seg.segment_id == request.segment_id for seg in slide.segments):
+        raise ClassroomError("content_invalid", "段不存在于该页")
+    segment = next((seg for seg in slide.segments
+                    if seg.segment_id == (request.segment_id
+                                          or run.cursor.segment_id)), None)
+    auto_excerpt = (segment.display_text if segment else slide.title)[:2000]
+    annotation_id = f"ann_{secrets.token_hex(10)}"
+
+    def mutate(r: sc.ClassroomRun) -> None:
+        if len(r.annotations) >= 100:
+            raise ClassroomError("quota_exceeded", "本课堂批注已达上限")
+        r.annotations.append(sc.RunAnnotation(
+            annotation_id=annotation_id, slide_id=request.slide_id,
+            segment_id=request.segment_id,
+            user_text=request.user_text, auto_excerpt=auto_excerpt,
+            created_at=_utcnow()))
+
+    store.update_run(student_id, workspace_id, lesson_id, run_id, mutate)
+    return annotation_id
+
+
+def save_run_note(student_id: str, workspace_id: str, lesson_id: str,
+                  run_id: str, request: sc.SaveNoteRequest, *,
+                  idempotency_key: str) -> tuple[str, bool]:
+    """POST R/save-note：确定性汇总本课公开内容与批注（§13.5，不调 LLM）。
+
+    幂等桥接（§16.3）：先在 vault 内按 source={kind:classroom,run_id,
+    operation_id} 查找——相同来源返回已有笔记；不存在才创建
+    （create_note 的 note_id 参数遇同 ID 会另造 ID，因此以 source 查找
+    为准，不依赖预留 note_id）。
+    """
+    from ..core import notes as notes_store
+
+    run = load_owned_run(student_id, workspace_id, lesson_id, run_id)
+    spec = load_run_spec(student_id, workspace_id, lesson_id,
+                         run.lesson_revision)
+    lesson = store.load_lesson(student_id, workspace_id, lesson_id)
+    title = request.title or f"课堂笔记 · {lesson.title if lesson else spec.brief.topic}"
+    source = {"kind": "classroom", "run_id": run_id,
+              "operation_id": idempotency_key}
+    vault = notes_store.load_vault(student_id)
+    for meta in vault.notes:
+        src = meta.get("source") or {}
+        if src.get("kind") == "classroom" and src.get("run_id") == run_id \
+                and src.get("operation_id") == idempotency_key:
+            return str(meta.get("id", "")), False
+
+    lines = [f"# {title}", "",
+             f"> 课程：{spec.brief.topic} · 版本 {run.lesson_revision} · "
+             f"{run.created_at.date().isoformat()}", ""]
+    ordered = sorted(spec.slides, key=lambda s: s.order)
+    for slide in ordered:
+        lines.append(f"## 第 {slide.order} 页 · {slide.title}")
+        lines.append("")
+        lines.append("讲稿摘录（自动）：")
+        for seg in slide.segments:
+            lines.append(f"- {seg.display_text.strip()}")
+        notes_here = [a for a in run.annotations
+                      if a.slide_id == slide.slide_id]
+        if request.include_user_notes and notes_here:
+            lines.append("")
+            lines.append("我的批注：")
+            for note in notes_here:
+                if note.user_text:
+                    lines.append(f"- {note.user_text.strip()}")
+                if note.auto_excerpt:
+                    lines.append(f"  - 摘录：{note.auto_excerpt.strip()[:200]}")
+        lines.append("")
+    content = "\n".join(lines)
+    meta = vault.create_note(title, content, source=source)
+    notes_store.save_vault(vault)
+    return str(meta["id"]), True
+
+
+# ---------------------------------------------------------------------------
 # audio profile（PUT R/audio-profile：暂停/段边界生效，进度不变）
 # ---------------------------------------------------------------------------
 
