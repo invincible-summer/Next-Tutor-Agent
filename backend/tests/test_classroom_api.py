@@ -85,6 +85,18 @@ class ClassroomApiTests(StorageSandboxTestCase):
         self.assertFalse(resp.json()["enabled"])
         self.assertIn("limits", resp.json())
 
+    def test_renderer_capability_unavailable_when_assets_missing(self):
+        # J04：构建产物缺失 → renderer 显式不可用，不抛错（capabilities 可读）
+        import tempfile
+        from unittest import mock
+        from app.classroom import capabilities as caps
+        with tempfile.TemporaryDirectory() as tmp:
+            with mock.patch.object(caps, "_RENDERER_ASSETS_DIR",
+                                   Path(tmp)):
+                cap = caps._renderer_capability()
+        self.assertFalse(cap.available)
+        self.assertEqual(cap.reason, "renderer_unavailable")
+
     def test_generation_disabled_envelope(self):
         resp = self.client.post(
             f"/api/v1/workspaces/{WS_A}/classroom/lessons",

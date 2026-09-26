@@ -229,5 +229,27 @@ class DiagramRenderTests(unittest.TestCase):
         self.assertIn("F=2N", html)
 
 
+class RendererEnvTests(unittest.TestCase):
+    """J04：Node 子进程只继承最小环境，不透传供应商密钥/代理。"""
+
+    def test_renderer_env_allowlist(self):
+        import os
+        from unittest import mock
+        from app.classroom.render import check
+        fake = {"PATH": "/usr/bin", "HOME": "/srv/home",
+                "AZURE_SPEECH_KEY": "topsecret", "TAVILY_API_KEY": "tt",
+                "PEXELS_API_KEY": "pp", "HTTP_PROXY": "http://p",
+                "https_proxy": "http://p"}
+        with mock.patch.dict(os.environ, fake, clear=False):
+            env = check.renderer_env()
+        self.assertNotIn("AZURE_SPEECH_KEY", env)
+        self.assertNotIn("TAVILY_API_KEY", env)
+        self.assertNotIn("PEXELS_API_KEY", env)
+        self.assertNotIn("HTTP_PROXY", env)
+        self.assertNotIn("https_proxy", env)
+        self.assertEqual(env["PATH"], "/usr/bin")
+        self.assertEqual(env["HOME"], "/srv/home")
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -2,11 +2,14 @@
 
 全局最多 1 个 headless 校验进程；超时 kill；报告只含
 block_id/尺寸/错误码。禁外网由脚本内部 route abort 保证。
+Node 子进程只继承最小环境（PATH/HOME/缓存路径等），不透传供应商
+密钥（§20.2.3）；Chromium 始终以当前服务账号 + sandbox 运行。
 """
 from __future__ import annotations
 
 import asyncio
 import json
+import os
 import subprocess
 import tempfile
 from dataclasses import dataclass, field
@@ -15,6 +18,17 @@ from pathlib import Path
 from ...core.config import settings
 
 _render_lock: asyncio.Lock | None = None
+
+# renderer 白名单环境：Node/Playwright 运行所需的最小集合；代理变量
+# 刻意排除（渲染进程必须离线），供应商密钥绝不进入子进程。
+_RENDERER_ENV_KEYS = ("PATH", "HOME", "LANG", "LC_ALL", "TMPDIR",
+                      "XDG_CACHE_HOME", "XDG_CONFIG_HOME",
+                      "PLAYWRIGHT_BROWSERS_PATH", "NODE_PATH")
+
+
+def renderer_env() -> dict[str, str]:
+    return {k: os.environ[k] for k in _RENDERER_ENV_KEYS
+            if os.environ.get(k)}
 
 
 def _global_lock() -> asyncio.Lock:
@@ -72,6 +86,7 @@ async def run_layout_check(html_text: str,
                     stdout=asyncio.subprocess.PIPE,
                     stderr=asyncio.subprocess.PIPE,
                     cwd=str(Path(settings.classroom_render_script).parent),
+                    env=renderer_env(),
                 )
             except (OSError, FileNotFoundError) as exc:
                 raise LayoutCheckError(f"排版检查器不可用: {exc}") from exc
