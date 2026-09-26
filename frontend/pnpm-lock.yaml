@@ -20,6 +20,9 @@ importers:
       next:
         specifier: 16.2.11
         version: 16.2.11(@babel/core@7.29.7(supports-color@7.2.0))(@playwright/test@1.61.1)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+      playwright:
+        specifier: 1.61.1
+        version: 1.61.1
       react:
         specifier: 19.2.4
         version: 19.2.4
@@ -63,9 +66,6 @@ importers:
       eslint-config-next:
         specifier: 16.2.11
         version: 16.2.11(@typescript-eslint/parser@8.65.0(eslint@9.39.5(jiti@2.7.0)(supports-color@7.2.0))(supports-color@7.2.0)(typescript@5.9.2))(eslint@9.39.5(jiti@2.7.0)(supports-color@7.2.0))(supports-color@7.2.0)(typescript@5.9.2)
-      playwright:
-        specifier: ^1.61.1
-        version: 1.61.1
       tailwindcss:
         specifier: ^4
         version: 4.3.3
