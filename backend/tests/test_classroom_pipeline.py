@@ -492,5 +492,71 @@ class AnswerLeakRepairLoopTests(PipelineTestBase):
         self.assertEqual(issues[0].slide_id, slide.slide_id)
 
 
+class NeverFixLeakLLM(LeakThenRepairLLM):
+    """修复永远不收敛（每次都仍泄露）→ 触发确定性净化兜底。"""
+
+    def _repair(self, payload: dict) -> dict:
+        self.repair_calls += 1
+        original = (payload.get("original") or {}).get("slide")             or payload.get("original") or {}
+        fixed = json.loads(json.dumps(original))
+        for seg in fixed.get("segments", []):
+            seg["spoken_text"] = self.LEAK
+            seg["display_text"] = self.LEAK
+        return {"slide": fixed, "claims": []}
+
+
+class StubbornReviewerLLM(LeakThenRepairLLM):
+    """复核器固执地把 checkpoint 页判为 answer_leak blocker（修复后也是）
+    ——旧实现里这是死锁（stale verdict 永不消失）；现在修复后重跑复核 +
+    净化兜底应能收敛发布。"""
+
+    async def complete(self, messages, **_):
+        system = messages[0]["content"]
+        if "任务：整课复核" in system:
+            import json as _json
+            slides = _json.loads(messages[-1]["content"]).get("slides", [])
+            host = next((s for s in slides
+                         if s.get("layout") == "checkpoint"), None)
+            issues = []
+            if host:
+                issues.append({
+                    "code": "answer_leak", "severity": "blocker",
+                    "slide_id": host["slide_id"],
+                    "field_path": "segments",
+                    "reason": "讲稿疑似提前给出答案（stub 复核器固定判定）"})
+            return _json.dumps({"issues": issues,
+                                "summary": "stub"}, ensure_ascii=False),                 {"prompt_tokens": 1, "completion_tokens": 1}
+        return await super().complete(messages, **_)
+
+
+class AnswerLeakFallbackTests(PipelineTestBase):
+    """修复轮不收敛时：净化兜底保证课程可发布，讲稿不含答案。"""
+
+    def _publish_with(self, fake) -> None:
+        lesson_id, job_id = self._make_job()
+        pipe = self._pipeline(lesson_id, job_id, self._deps(
+            fake, checkpoint_author=_leaky_question_author))
+        job = asyncio.run(pipe.run())
+        self.assertEqual(job.state, sc.JobState.succeeded,
+                         msg=str(job.last_error))
+        lesson = store.load_lesson(OWNER, WS, lesson_id)
+        self.assertEqual(lesson.latest_ready_revision, 1)
+        revision = store.load_revision(OWNER, WS, lesson_id, 1)
+        for slide in revision.slides:
+            for seg in slide.segments:
+                self.assertNotIn(LeakThenRepairLLM.LEAK[:12],
+                                 seg.spoken_text)
+        self.assertTrue(any("净化" in w for w in pipe.warnings))
+
+    def test_repair_never_converges_falls_back_to_sanitized_guide(self):
+        fake = NeverFixLeakLLM()
+        self._publish_with(fake)
+        # 修复轮确实跑满（兜底只在轮次用尽后介入）
+        self.assertEqual(fake.repair_calls, 2)
+
+    def test_stubborn_reviewer_no_longer_deadlocks(self):
+        self._publish_with(StubbornReviewerLLM())
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -726,32 +726,45 @@ class ClassroomPipeline:
         duration_issues, estimated = validation.duration_gate(
             brief.duration_minutes, slides, brief.language)
         issues += duration_issues
-        # 独立 reviewer（教学门）：不能自报通过
-        review_payload = {
-            "objectives": [_dump_json(o) for o in objectives],
-            "slides": [{"slide_id": s.slide_id, "title": s.title,
-                        "layout": s.layout.value,
-                        "blocks": [getattr(b, "kind", "") for b in s.blocks],
-                        "narration": [seg.spoken_text[:120]
-                                      for seg in s.segments],
-                        "claims": [_dump_json(c) for c in s.claims]}
-                       for s in slides],
-            "duration_estimate_minutes": estimated // 60,
-        }
-        report, _ = await generate_json(
-            self.deps.llm, prompt_id="classroom_review",
-            user_text=json.dumps(review_payload, ensure_ascii=False),
-            model_cls=_ReviewModel)
-        llm_issues = [sc.ReviewIssue(code=i.code[:64],
-                                     severity=sc.Severity(i.severity),
-                                     slide_id=i.slide_id,
-                                     field_path=i.field_path,
-                                     reason=i.reason[:600])
-                      for i in report.issues]
+
+        async def _reviewer_issues(current: list[sc.SlideSpec],
+                                   minutes: int) -> list[sc.ReviewIssue]:
+            # 独立 reviewer（教学门）：不能自报通过；修复后必须重跑——
+            # 旧 verdict 描述的是修复前的内容，留着会让修好的页永远失败。
+            review_payload = {
+                "objectives": [_dump_json(o) for o in objectives],
+                "slides": [{"slide_id": s.slide_id, "title": s.title,
+                            "layout": s.layout.value,
+                            "blocks": [getattr(b, "kind", "") for b in s.blocks],
+                            "narration": [seg.spoken_text[:120]
+                                          for seg in s.segments],
+                            "claims": [_dump_json(c) for c in s.claims]}
+                           for s in current],
+                "duration_estimate_minutes": minutes,
+            }
+            report, _ = await generate_json(
+                self.deps.llm, prompt_id="classroom_review",
+                user_text=json.dumps(review_payload, ensure_ascii=False),
+                model_cls=_ReviewModel)
+            return [sc.ReviewIssue(code=i.code[:64],
+                                   severity=sc.Severity(i.severity),
+                                   slide_id=i.slide_id,
+                                   field_path=i.field_path,
+                                   reason=i.reason[:600])
+                    for i in report.issues]
+
+        def _deterministic_issues(current: list[sc.SlideSpec]
+                                  ) -> list[sc.ReviewIssue]:
+            out = validation.structural_gate(current, templates)
+            out += validation.evidence_gate(brief, objectives, current,
+                                            records)
+            return out
+
+        llm_issues = await _reviewer_issues(slides, estimated // 60)
         combined = validation.combine_reports(issues, llm_issues)
         # 有界按页修复循环（§15.2）：只重生成带 issue 的单页（不是整课
-        # 重试，控制成本）；每轮修复后重跑确定性门，后续轮只修仍带
-        # blocker 的页；无 blocker 或无可定位页即收敛。
+        # 重试，控制成本）；每轮修复后重跑确定性门 + 复核器，后续轮只修
+        # 仍带 blocker 的页；无 blocker 或无可定位页即收敛。
         targets = {i.slide_id for i in combined.issues
                    if i.severity != sc.Severity.minor and i.slide_id}
         for _round in range(limits.QUALITY_REPAIR_ROUNDS):
@@ -759,15 +772,45 @@ class ClassroomPipeline:
                 break
             slides = await self._repair_slides(slides, combined,
                                                targets, records, templates)
-            issues = validation.structural_gate(slides, templates)
-            issues += validation.evidence_gate(brief, objectives, slides,
-                                               records)
-            duration_issues, estimated = validation.duration_gate(
+            issues = _deterministic_issues(slides)
+            _dur, estimated = validation.duration_gate(
                 brief.duration_minutes, slides, brief.language)
-            issues += duration_issues
+            issues += _dur
+            llm_issues = await _reviewer_issues(slides, estimated // 60)
             combined = validation.combine_reports(issues, llm_issues)
             targets = {i.slide_id for i in combined.issues
                        if i.severity == sc.Severity.blocker and i.slide_id}
+        # 确定性兜底：修复轮用尽后，若唯一剩余 blocker 是 answer_leak
+        # （语义判定偏严或模型反复泄露），把该页讲稿替换为中性引导语
+        # ——检查点页讲稿本就应引导思考而非讲授，净化无损教学且必然
+        # 通过确定性门；课程可发布性优先于在这一页上反复烧修复预算。
+        blockers = [i for i in combined.issues
+                    if i.severity == sc.Severity.blocker]
+        if blockers and all(i.code == "answer_leak" and i.slide_id
+                            for i in blockers):
+            leak_slides = {i.slide_id for i in blockers}
+            prompts = {t.slide_id: t.prompt for t in templates
+                       if getattr(t, "prompt", "")}
+            for slide in slides:
+                if slide.slide_id not in leak_slides:
+                    continue
+                guide = prompts.get(
+                    slide.slide_id, "停一停，检查一下你对刚才内容的理解。")
+                for seg in slide.segments:
+                    seg.display_text = guide
+                    seg.spoken_text = guide
+            self.warnings.append(
+                f"检查点页 {sorted(leak_slides)} 讲稿经净化去除答案泄露"
+                f"（修复轮未收敛，已替换为引导语）")
+            issues = _deterministic_issues(slides)
+            _dur, estimated = validation.duration_gate(
+                brief.duration_minutes, slides, brief.language)
+            issues += _dur
+            # 净化页的旧复核 verdict 不再描述当前内容，确定性门已覆盖
+            # 答案不泄露；其余页的复核意见保留。
+            combined = validation.combine_reports(
+                issues, [i for i in llm_issues
+                         if i.slide_id not in leak_slides])
         if validation.has_blocker(combined.issues):
             worst = next(i for i in combined.issues
                          if i.severity == sc.Severity.blocker)
