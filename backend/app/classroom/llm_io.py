@@ -75,9 +75,12 @@ async def generate_json(
     model_cls: Type[T],
     repair_prompt_id: str | None = None,
     context_note: str = "",
+    pre_validate: Any = None,
 ) -> tuple[T, list[dict[str, Any] | None]]:
     """一次生成 + 至多一次修复。返回 (model, usages)。
 
+    pre_validate：严格校验前对原始 dict 的确定性无损修复（如 slide 载荷
+    span 超限合并）；修复失败的结构问题仍走下方一次修复重试。
     最终失败抛 ClassroomError(content_invalid)——管线把它标为阶段失败，
     不把坏 JSON 写进 artifact。"""
     from ..prompts.registry import get as get_prompt
@@ -95,6 +98,8 @@ async def generate_json(
         usages.append(usage)
         try:
             data = extract_json(content)
+            if pre_validate is not None:
+                data = pre_validate(data)
             return model_cls.model_validate(data), usages
         except (ValueError, ValidationError) as exc:
             last_error = _validation_errors(exc)

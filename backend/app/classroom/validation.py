@@ -257,3 +257,88 @@ def combine_reports(*groups: list[sc.ReviewIssue]) -> sc.ReviewReport:
 
 def has_blocker(issues: Iterable[sc.ReviewIssue]) -> bool:
     return any(i.severity == sc.Severity.blocker for i in issues)
+
+
+# ---------------------------------------------------------------------------
+# slide 载荷 span 规范化（严格校验前的无损修复）
+#
+# 真实 LLM 偶发把一段文字切成超过 schema 上限的 span 序列（如 paragraph
+# 9 个 text span，上限 8）。这类机械违规可以确定性修复：相邻同 kind 且
+# 拼接后仍满足单 span 长度上限的合并（text/emphasis 拼接、math 以空格
+# 连接 latex）；仍超上限再从尾部折叠。无法安全合并时保持原样，交给
+# 严格校验 + 一次修复重试（不静默丢内容）。
+# ---------------------------------------------------------------------------
+
+_SPAN_CAPS = {"paragraph": 8, "callout": 8, "steps": 6, "bullets": 8}
+
+
+def _mergeable(a: dict, b: dict) -> bool:
+    ka, kb = a.get("kind"), b.get("kind")
+    if ka == kb == "text" or ka == kb == "emphasis":
+        return len(a.get("text") or "") + len(b.get("text") or "") \
+            <= sc.MAX_INLINE_TEXT
+    if ka == kb == "math":
+        return len(a.get("latex") or "") + len(b.get("latex") or "") + 1 \
+            <= sc.MAX_LATEX \
+            and len(a.get("spoken") or "") + len(b.get("spoken") or "") + 1 \
+            <= sc.MAX_SPOKEN
+    return False
+
+
+def _merge_into(a: dict, b: dict) -> None:
+    if a.get("kind") == "math":
+        a["latex"] = f"{a.get('latex', '')} {b.get('latex', '')}"
+        a["spoken"] = f"{a.get('spoken', '')}，{b.get('spoken', '')}"
+    else:
+        a["text"] = f"{a.get('text', '')}{b.get('text', '')}"
+
+
+def _normalize_span_list(spans, cap: int):
+    if not isinstance(spans, list) or len(spans) <= cap:
+        return spans
+    if not all(isinstance(sp, dict) for sp in spans):
+        return spans  # 结构异常交给严格校验给出准确错误
+    merged: list[dict] = []
+    for span in spans:
+        if merged and _mergeable(merged[-1], span):
+            _merge_into(merged[-1], span)
+        else:
+            merged.append(dict(span))
+    while len(merged) > cap:
+        last = merged.pop()
+        if merged and _mergeable(merged[-1], last):
+            _merge_into(merged[-1], last)
+        else:
+            merged.append(last)
+            break
+    return merged
+
+
+def normalize_slide_spans(payload):
+    """in-place 规范化 _SlideModel 原始载荷中各 block 的 span 序列。"""
+    slide = payload.get("slide") if isinstance(payload, dict) else None
+    blocks = slide.get("blocks") if isinstance(slide, dict) else None
+    if not isinstance(blocks, list):
+        return payload
+    for block in blocks:
+        if not isinstance(block, dict):
+            continue
+        kind = block.get("kind")
+        if kind in ("paragraph", "callout"):
+            block["spans"] = _normalize_span_list(
+                block.get("spans"), _SPAN_CAPS[kind])
+        elif kind == "steps":
+            steps = block.get("steps")
+            if isinstance(steps, list):
+                for step in steps:
+                    if isinstance(step, dict):
+                        step["spans"] = _normalize_span_list(
+                            step.get("spans"), _SPAN_CAPS["steps"])
+        elif kind == "bullets":
+            items = block.get("items")
+            if isinstance(items, list):
+                for idx, item in enumerate(items):
+                    if isinstance(item, list):
+                        items[idx] = _normalize_span_list(
+                            item, _SPAN_CAPS["bullets"])
+    return payload

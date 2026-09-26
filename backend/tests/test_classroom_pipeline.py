@@ -286,5 +286,104 @@ class QualityGateTests(PipelineTestBase):
             store.load_lesson(OWNER, WS, lesson_id).latest_ready_revision)
 
 
+class SpanNormalizationTests(unittest.TestCase):
+    """真实 LLM 超限 span 序列的确定性修复（严格校验前）。"""
+
+    def _slide_payload(self, n_spans: int) -> dict:
+        return {
+            "slide": {
+                "slide_id": "s_%012x" % 1, "order": 1,
+                "title": "动量守恒的条件",
+                "layout": "key_points",
+                "learning_objective_ids": [],
+                "blocks": [{
+                    "id": "blk_%024x" % 1, "kind": "paragraph",
+                    "spans": [{"kind": "text", "text": f"第{i}段内容"}
+                               for i in range(n_spans)],
+                }],
+                "segments": [{
+                    "segment_id": "seg_%024x" % 1, "role": "explain",
+                    "display_text": "讲稿", "spoken_text": "讲稿",
+                    "show_block_ids": ["blk_%024x" % 1],
+                    "focus_block_ids": [],
+                    "pause_after_ms": 0, "source_ids": [],
+                    "estimated_ms": 1000,
+                }],
+                "claims": [], "source_ids": [], "transition": "auto",
+                "estimated_seconds": 1,
+            },
+            "claims": [],
+        }
+
+    def test_over_limit_text_spans_merged_and_content_kept(self):
+        from app.classroom.validation import normalize_slide_spans
+        payload = self._slide_payload(9)   # 上限 8
+        normalize_slide_spans(payload)
+        spans = payload["slide"]["blocks"][0]["spans"]
+        self.assertLessEqual(len(spans), 8)
+        merged_text = "".join(sp["text"] for sp in spans)
+        self.assertEqual(merged_text,
+                         "".join(f"第{i}段内容" for i in range(9)))
+
+    def test_generate_json_with_pre_validate_recovers_nine_spans(self):
+        # 集成：stub LLM 固定输出 9-span 段落；无 pre_validate 时两次都失败，
+        # 有 pre_validate 时一次通过（不触发修复重试）。
+        import asyncio
+        from app.classroom import llm_io
+        from app.classroom.errors import ClassroomError
+        from app.classroom.validation import normalize_slide_spans
+        from pydantic import BaseModel
+
+        class _Wrap(BaseModel):
+            slide: sc.SlideSpec
+            claims: list = []
+
+        payload = self._slide_payload(9)
+        raw = json.dumps(payload, ensure_ascii=False)
+        calls = {"n": 0}
+
+        class StubLLM:
+            async def complete(self, messages, **_):
+                calls["n"] += 1
+                return raw, None
+
+        with self.assertRaises(ClassroomError):
+            asyncio.run(llm_io.generate_json(
+                StubLLM(), prompt_id="classroom_slide",
+                user_text="u", model_cls=_Wrap))
+        self.assertEqual(calls["n"], 2)   # 1 次生成 + 1 次修复重试
+
+        calls["n"] = 0
+        model, _ = asyncio.run(llm_io.generate_json(
+            StubLLM(), prompt_id="classroom_slide",
+            user_text="u", model_cls=_Wrap,
+            pre_validate=normalize_slide_spans))
+        self.assertEqual(calls["n"], 1)
+        block = model.slide.blocks[0]
+        self.assertEqual(block.kind, "paragraph")
+        self.assertLessEqual(len(block.spans), 8)
+        self.assertIn("第8段内容", block.spans[-1].text
+                      if hasattr(block.spans[-1], "text") else "")
+
+    def test_alternating_math_text_not_silently_dropped(self):
+        # 交错 math/text 无法安全合并到上限时保持原样（严格校验报错，
+        # 不静默丢内容）；math+math 可合并。
+        from app.classroom.validation import (
+            _normalize_span_list, _SPAN_CAPS)
+        alt = []
+        for i in range(9):
+            if i % 2 == 0:
+                alt.append({"kind": "math", "latex": f"x_{i}",
+                            "spoken": f"x {i}"})
+            else:
+                alt.append({"kind": "text", "text": f"，其中 t{i}"})
+        out = _normalize_span_list(alt, _SPAN_CAPS["paragraph"])
+        self.assertGreater(len(out), 8)   # 不做危险合并
+        only_math = [{"kind": "math", "latex": f"m{i}",
+                      "spoken": f"m {i}"} for i in range(9)]
+        out2 = _normalize_span_list(only_math, 8)
+        self.assertLessEqual(len(out2), 8)
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -28,6 +28,7 @@ from . import limits, sources, validation
 from .errors import ClassroomError
 from .llm_budget import LLMUsageBudget
 from .llm_io import clamp_pages, generate_json
+from .validation import normalize_slide_spans
 from .media.service import ImageSearchService
 from .research.base import ResearchBudget, WebResearchProvider
 
@@ -590,7 +591,8 @@ class ClassroomPipeline:
                 result, _ = await generate_json(
                     self.deps.llm, prompt_id="classroom_slide",
                     user_text=user_text, model_cls=_SlideModel,
-                    repair_prompt_id="classroom_repair")
+                    repair_prompt_id="classroom_repair",
+                    pre_validate=normalize_slide_spans)
             slide = result.slide
             slide.order = page.order
             # LLM 的 claims 对照 → 服务端 TeachingClaim（claim_id 服务端签发）
@@ -1231,7 +1233,8 @@ class ClassroomPipeline:
         result, _ = await generate_json(
             self.deps.llm, prompt_id="classroom_slide",
             user_text=user_text, model_cls=_SlideModel,
-            repair_prompt_id="classroom_repair")
+            repair_prompt_id="classroom_repair",
+            pre_validate=normalize_slide_spans)
         slide = result.slide
         slide.order = target.order
         # 保留原页的 checkpoint 块与模板绑定（布局必需块不可丢）
