@@ -389,6 +389,23 @@ cp .env.example .env
 - `MULTIMODAL_*`：配置视觉/OCR 模型能力；
 - `VOICE_TTS_PROVIDER=melo`：启用 MeloTTS 语音播报。
 
+课堂模式（工作区“一键备课 → HTML 课件 → AI 讲授”）：
+
+```bash
+# 1) 生成 renderer 静态资源（backend/app/classroom/static/generated/）
+cd frontend && pnpm run build:classroom
+
+# 2) 安装排版检查用 Chromium（部署/CI 初始化一次性步骤）
+pnpm exec playwright install --with-deps chromium
+
+# 3) .env 打开总闸
+# CLASSROOM_ENABLED=1
+```
+
+未执行 1/2 时课堂能力端点返回 `renderer_unavailable`，普通聊天不受
+影响；云端语音（Azure）、联网检索（Tavily）、图库（Pexels/Pixabay）
+按 `.env.example` 逐项可选，缺 key 的能力自动降级为仅教材模式。
+
 BM25 不依赖向量模型即可工作；教材索引也不需要等待知识图谱构建完成。
 
 ---
