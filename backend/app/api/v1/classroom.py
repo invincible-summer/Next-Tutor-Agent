@@ -500,14 +500,33 @@ async def submit_checkpoint(workspace_id: str, lesson_id: str, run_id: str,
                             checkpoint_id: str,
                             request: sc.CheckpointSubmitRequest,
                             student_id: str = Depends(resolve_student_id)):
-    """POST submit：唯一受理链（202）；不改变播放进度。"""
+    """POST submit：唯一受理链（202）；不改变播放进度。
+
+    评估层异常按 §14.3 投影（scope_changed / revision_conflict 等），
+    不让受理语义变成 500。
+    """
+    from app.agents.assessment import (AnswerTooLarge,
+                                       QuestionAlreadyAnswered,
+                                       ScopeRevisionConflict, SubmissionError)
     from app.classroom import assessment_bridge
 
     require_enabled(student_id)
     run, _bridge = _run_for_checkpoint(student_id, workspace_id, lesson_id,
                                        run_id)
-    payload = await assessment_bridge.submit_checkpoint(
-        student_id, workspace_id, lesson_id, run, checkpoint_id, request)
+    try:
+        payload = await assessment_bridge.submit_checkpoint(
+            student_id, workspace_id, lesson_id, run, checkpoint_id, request)
+    except QuestionAlreadyAnswered as exc:
+        raise ClassroomError("revision_conflict",
+                             "该题已按另一答案受理，不能重复作答") from exc
+    except ScopeRevisionConflict as exc:
+        raise ClassroomError("scope_changed",
+                             "教材范围已变化，请刷新后重试") from exc
+    except AnswerTooLarge as exc:
+        raise ClassroomError("content_invalid", str(exc)) from exc
+    except SubmissionError as exc:
+        raise ClassroomError("generation_failed",
+                             f"受理失败：{exc.code}") from exc
     return JSONResponse(payload, status_code=202)
 
 

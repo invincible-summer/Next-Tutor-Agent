@@ -1290,9 +1290,9 @@ exports 24h 过期；搜索缓存按 24h TTL；失败/取消 job staging 保留 
 
 依赖：G、H 及 D 的题模板。
 
-- [ ] I01 实现 run→question 稳定实例化和崩溃恢复；同题重听关联原题族和已获帮助。
-- [ ] I02 QuizQuestionCard transport 抽取，课堂提交/提示/揭晓/恢复与原聊天共用视图。
-- [ ] I03 测试音频/HTML/讲稿/export/preview 中均无未揭晓答案，M2/M4 disabled 与 scope changed 的 UI 文案。
+- [x] I01 实现 run→question 稳定实例化和崩溃恢复；同题重听关联原题族和已获帮助。
+- [x] I02 QuizQuestionCard transport 抽取，课堂提交/提示/揭晓/恢复与原聊天共用视图。
+- [x] I03 测试音频/HTML/讲稿/export/preview 中均无未揭晓答案，M2/M4 disabled 与 scope changed 的 UI 文案。
 - [ ] I04 实现 summary、再学习入口、notes 汇总和已有 M9 outbox 消费；仅有播放行为不提交任何 assessment/dialogue 观察。
 
 退出门：同一正式答案只受理一次；跳过不算失败；观看完不写掌握结论；帮助后作答绝不标 independent。
