@@ -116,6 +116,15 @@ def reset_shared_caches() -> None:
     vector_store._reset()
     eval_journal_store.reset_journal_cache()
     learner_runtime.reset_learner_runtime()
+    # 课堂 TTS（阶段 F）：电话 provider 缓存、共享 semaphore、voices 缓存
+    # 与课堂音频引擎都持有进程级状态，跨沙箱必须重置。
+    from app.voice.tts import service as tts_service
+    tts_service.reset_tts_service()
+    try:
+        from app.classroom import audio as classroom_audio
+        classroom_audio.reset_audio_engine()
+    except ImportError:
+        pass
 
 
 class StorageSandboxTestCase(unittest.TestCase):

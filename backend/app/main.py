@@ -141,6 +141,22 @@ async def _lifespan(app: FastAPI):
             classroom_worker = _stop_classroom_worker
     except Exception:
         log.warning("classroom worker not started", exc_info=True)
+
+    # 课堂云端 TTS voices list 预热（阶段 F）：后台 best-effort 刷新缓存，
+    # 失败只记 degraded；GET capability 永不发网络请求（plan.md §11.6）。
+    voices_task = None
+    try:
+        from app.core.config import settings
+
+        async def _refresh_classroom_voices() -> None:
+            from app.voice.tts import service as tts_service
+            await tts_service.refresh_voices(force=True)
+
+        if settings.classroom_enabled and settings.azure_speech_key:
+            voices_task = asyncio.create_task(_refresh_classroom_voices())
+    except Exception:
+        log.warning("classroom voices prefetch not started", exc_info=True)
+        voices_task = None
     try:
         from app.core.trash import get_global_policy
 
@@ -199,6 +215,12 @@ async def _lifespan(app: FastAPI):
             cleanup_task.cancel()
             try:
                 await cleanup_task
+            except asyncio.CancelledError:
+                pass
+        if voices_task is not None:
+            voices_task.cancel()
+            try:
+                await voices_task
             except asyncio.CancelledError:
                 pass
 

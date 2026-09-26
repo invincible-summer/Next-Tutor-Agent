@@ -56,14 +56,38 @@ def _images_capability() -> sc.ServiceCapability:
 
 
 def _local_tts_enabled() -> bool:
-    if settings.classroom_local_tts_enabled is not None:
-        return settings.classroom_local_tts_enabled
-    return settings.voice_tts_provider == "melo"
+    from ..voice.tts import service as tts_service
+    return tts_service.local_tts_enabled()
+
+
+def _tts_voices(cloud_configured: bool, local_enabled: bool) -> list[sc.VoiceInfo]:
+    """允许音色（§14.1）：管理员批准集合 ∩ voices 缓存佐证；零网络请求。
+
+    缓存未刷新时按部署校验的配置返回默认候选；本地启用时附 melo 音色。
+    """
+    from ..voice.tts import service as tts_service
+    voices: list[sc.VoiceInfo] = []
+    if cloud_configured:
+        approved = tts_service.approved_voices()
+        cached = tts_service.cached_voices()
+        cached_ids = {v.get("voice_id") for v in cached}
+        display = {v.get("voice_id"): v.get("display_name")
+                   for v in cached}
+        for voice_id, locale in approved.items():
+            if cached_ids and voice_id not in cached_ids:
+                continue  # 资源实际不支持该音色（缓存佐证）
+            voices.append(sc.VoiceInfo(
+                voice_id=voice_id, language=locale,
+                display_name=display.get(voice_id) or voice_id))
+    if local_enabled:
+        voices.append(sc.VoiceInfo(voice_id="melo-zh", language="zh-CN",
+                                   display_name="本地语音（MeloTTS）"))
+    return voices
 
 
 def _tts_capability() -> sc.TtsCapability:
-    cloud_configured = bool(settings.azure_speech_key
-                            and settings.azure_speech_region)
+    from ..voice.tts import service as tts_service
+    cloud_configured = tts_service.azure_available()
     local_enabled = _local_tts_enabled()
     available = cloud_configured or local_enabled \
         or settings.classroom_tts_policy == "silent"
@@ -77,7 +101,7 @@ def _tts_capability() -> sc.TtsCapability:
         available=available, reason=reason,
         policy=sc.VoicePolicy(settings.classroom_tts_policy),
         local_enabled=local_enabled,
-        voices=[])
+        voices=_tts_voices(cloud_configured, local_enabled))
 
 
 def user_allowed(student_id: str) -> tuple[bool, str]:

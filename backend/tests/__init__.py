@@ -21,6 +21,9 @@ _ROOT_ENV = Path(__file__).resolve().parents[2] / ".env"
 _ALWAYS_POP = {
     "OPENAI_API_KEY", "OPENAI_ADMIN_KEY", "OPENAI_BASE_URL",
     "LLM_API_KEY", "LLM_BASE_URL", "LLM_MODEL",
+    # 课堂外部服务凭证（阶段 C/F）：azure 语音、联网检索、图库
+    "AZURE_SPEECH_KEY", "AZURE_SPEECH_REGION", "AZURE_SPEECH_ENDPOINT",
+    "TAVILY_API_KEY", "PEXELS_API_KEY", "PIXABAY_API_KEY",
 }
 
 
