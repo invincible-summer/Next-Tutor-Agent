@@ -328,7 +328,7 @@ journal 纯读恢复受理、当前本题判分和学习反馈（未提交为 nu
 404，版本不匹配 409），不触发模型或追加受理。前端按返回的 `pending`
 有限轮询，独立于长期评价状态，支持无学习区的 task-only 判分；失败或
 未判定仍保留只读答案。旧会话丢失 result 缓存也可由题目身份恢复。
-SVG 题图代码已接入；自动化测试记录和剩余人工验收见根目录 `plan.md` 第 17 节。默认部署开关为 `1`，运维可设置为 `0` 立即关闭所有新图生成。
+SVG 题图代码已接入；自动化测试记录见 backend/tests/test_quiz_illustration*.py（验收以测试为准）。默认部署开关为 `1`，运维可设置为 `0` 立即关闭所有新图生成。
 
 **结构化题目 SVG（2026-09-16）**：沿用三条出题路径，题图与题面同次生成、同次审核、先冻结再交付。`QUIZ_SVG_ENABLED` 是默认 `1` 的运维总闸，设为 `0` 时所有入口 fail-closed；登录账户 `profile.prefs.quiz_svg_enabled` 缺省 true，读取失败或无可信账户则禁止新图。`/user/profile` 的 GET/PUT 响应增加 `quiz_svg_available`，PUT 在账户锁内浅合并偏好并严格校验新偏好为 bool。`illustration_request=auto|none|required` 是本次意图：关闭总闸时 auto/none 为 off、required 返回 `illustration_disabled`；开启后 auto 按题必要性选择，required 每题必须带图。Chat provider 绑定可信账户与当前用户意图，模型工具参数不能自行开启开关或伪造强制要求。CAT start 接收该枚举并在实例持久化，next/恢复复用，409 不终止已有实例。
 
@@ -779,6 +779,7 @@ frontend/src/
 | `chat_history/library/<sid>.textbooks.json`（P2 新增） | 教材注册记录（状态机/进度/章节概念数/warnings） | 账号 |
 | `chat_history/workspaces/ws_<ts>_<slug>.json`（+ `uploads/` 共享资料上传目录） | 工作区（含 public_memory/selected_*），每区一文件 | 账号 |
 | `chat_history/trash/items/<sid>/<trash_id>/` | 统一归档包（manifest + payload） | 账号 / 公用 |
+| `chat_history/classroom/<owner>/...` | 课堂模式全部私有运行数据（owner.json、搜索/试听缓存、lessons/<les>/ 的 revisions/jobs/assets/runs/audio/exports；purge tombstone 在根外 .tombstones/） | 账号 |
 | `users/accounts.json` | 账户（bcrypt hash） | 全局 |
 | `students/<sid>.json` | M2 画像（身份/学段/偏好；无能力数值） | 账号 |
 | `students/<sid>.learning_evidence.jsonl` | M2 统一学习证据 journal（唯一事实源；tasks/sources/jobs/判断/scope） | 账号 |
@@ -810,6 +811,8 @@ frontend/src/
 ---
 
 ## 23. API 总表（前缀 `/api/v1`）
+
+（课堂模式端点与错误 envelope 见下方 P12.10；总表只列既有聊天/教材/笔记面。）
 
 - **笔记仓库（M-Notes）**：`GET/notes/{vault,search,graph,reviews/due}`、notes/folders/revisions/templates CRUD、每笔记智能体 `GET/PATCH/DELETE /notes/{id}/agent`、`POST /notes/{id}/review`、`GET /notes/{id}/export`、`GET /notes/export`、SSE `POST /notes/{generate,chat/stream}`（详见文末 M-Notes 章节）
 - **健康/模型**：`GET /health`、`GET /model-info`
@@ -1945,3 +1948,178 @@ CI runner 没有根目录 `.env`，测试套件必须在**零凭证**下自洽�
 - backend-core 安装使用 `-c backend/constraints.txt` 锁定解析集（与
   本地一致，防 openai 等主版本漂移），timeout 45min 匹配 2 核 runner
   上 ~1900 测试的实际耗时。
+
+## P12 课堂模式：一键备课 → HTML 课件 → AI 讲授（2026-09-26 已实现）
+
+工作学习区内新增「课堂」：选择主题/教材章节后一次确认即可后台生成整节
+课程（受约束 LessonSpec → 本项目编译器生成 HTML 课件 + 逐页讲稿），
+随后由课堂播放器按讲稿音频完整讲授，支持插问/补讲/随堂题/断点恢复/
+课后回顾与导出。设计定稿见根目录 `plan.md`（课堂模式开发执行方案），
+本节只记录**已实现现状**。
+
+### P12.1 路由与入口（前端）
+
+- `/workspaces/{workspaceId}/classroom`：课程列表（三态筛选 + Pager(5)
+  + 置顶「继续上课」卡 + 失败卡重试）；`?create=1` 直开备课 Modal。
+- `/workspaces/{workspaceId}/classroom/{lessonId}`：详情/预览/编辑器
+  （`?revision=N` 固定版本；预览不建 run、不触发 TTS）。
+- `/workspaces/{workspaceId}/classroom/{lessonId}/learn/{runId}`：
+  播放器（刷新不重建 run）。
+- 入口：WorkspaceItem 固定「课堂」项 + 菜单「一键备课」；聊天页
+  WorkspaceModeBar「对话 | 课堂」真实链接切换；Sidebar 快照携带
+  `classroom_summary={lesson_count,active_job_count,last_lesson_id}`。
+- 备课 Modal（CreateLessonModal）：主题必填 2–120 字、来源 8 文件/
+  12 章上限、时长/页数/教学模板(5)/视觉模板(5)/更多设置（学段、语言、
+  教材策略、联网+时效、图片密度、检查点密度、语音模式/音色/回退/语速、
+  自定义要求 ≤1000 字）；外部服务不可用时逐项禁用并说明，空教材走
+  「通识资料」路径。
+
+### P12.2 数据与存储（backend/app/core/classroom_store.py）
+
+唯一根 `chat_history/classroom/`；`<owner>/{owner.json,image-search-cache/,
+voice-previews/,workspaces/<ws>/{index.json,operations/,lessons/<les>/}}`；
+lesson 下 `lesson.json`、`revisions/<n>/`（manifest + spec.private.json +
+assets）、`jobs/<id>/{job.json,staging/}`、`assets/`、`runs/<id>.json`、
+`audio/`、`exports/`。规范见 plan.md §16.1，要点：
+
+- 目录 0700/文件 0600；读不 mkdir；symlink 逃逸拒绝；损坏 JSON →
+  `LessonDamagedError`（标 damaged 隔离，不返回空课冒充正常）。
+- 发布事务：staging → 逐文件 hash 校验 → manifest 最后写 → 同文件系统
+  rename → lesson 锁内指针提交（§16.2）；commit intent 带 expected
+  epoch，崩溃后 `recover_pending_publish` 校验 manifest hash 补指针，
+  不"见 manifest 就发布"。失败 revision 留空号永不复用；上限 20 版。
+- owner 级 tombstone（`.tombstones/`）在 purge 后拦截一切晚到写入；
+  任何写路径 OSError（磁盘满/权限）→ `ClassroomStorageError`
+  （storage_unavailable envelope，main 注册全局 handler）。
+- 音频缓存成对 (wav+meta) 管理；owner 500MB/7 天 LRU；exports 24h。
+
+### P12.3 生成管线（classroom/worker.py + pipeline.py）
+
+九阶段（resolve_sources→research→outline→visual_assets→author_slides→
+checkpoints→review→render→publish），检查点化可恢复：每阶段产物写
+staging，重启后从最近检查点续跑（恢复上限 3 次）；cancel/epoch 语义
+防晚到发布；job 状态经 SSE（认证 fetch 读流，心跳 15s）+ 10s 轮询
+fallback 推送前端。预算：LLM 并发 3、job 并发 2/owner 1、960s 累计
+deadline、provider retry 有界。fake LLM（tests/classroom_fake_llm.py）
+可从 Brief 走完教材课程全管线。
+
+### P12.4 来源/检索/图片（classroom/sources|research|media）
+
+- 来源冻结：教材组卷顺序/章节/页码 + source hash；严格教材模式不借
+  网络补证据；显式会话附件需本人勾选。
+- Tavily search/extract 唯一首发适配器（无 key 即 research 不可用）；
+  时效元数据 as_of；prompt injection 不能改变工具 scope。
+- Pexels/Pixabay 候选（24h 缓存、限流头、candidate_id 服务端签发防伪）；
+  下载经 SSRF/IP 校验每跳重验、Pillow 重编码、EXIF 清理、asset hash、
+  署名(creator/license/url)入 credits。
+
+### P12.5 渲染（classroom/render/）
+
+5 主题 × 9 布局的 token/slot 编译器；Block 判别联合（paragraph/bullets/
+formula(KaTeX)/image/diagram/checkpoint）；HTML 全量 escaping、CSP、
+无 raw SVG/JS 执行。排版检查：受控 Node+Playwright 子进程
+（`classroom/render/check.py`，全局单实例 + 硬超时），**子进程只继承
+最小环境白名单（PATH/HOME/XDG_CACHE_HOME 等），供应商密钥与代理变量
+不透传**；Chromium 以服务账号 + 内核 sandbox 运行（禁 --no-sandbox）。
+渲染静态资源 `backend/app/classroom/static/generated/` 为部署期构建
+（`pnpm run build:classroom`，gitignore）；缺失时 capabilities 显式
+`renderer_unavailable`，旧聊天不受影响。应用内经 SlideFrame：iframe
+`sandbox="allow-scripts"` + srcdoc（URL 无 token），握手
+classroom_ready{nonce}（校验 event.source）→ MessagePort 通道。
+
+### P12.6 云端优先 TTS（classroom/audio.py + voice/tts/）
+
+Azure Speech REST 标准音色首发（音色 allowlist + 区域 voices 校验）；
+本地 MeloTTS sidecar 保留为回退（云失败一次即锁本地、每 run 只提示
+一次）；无语音降级为文字课堂（讲稿全文可读）。段级 synthesis key
+（owner/文本 hash/provider/voice/speed/normalizer）+ single-flight +
+WAV 原子写 + 认证内容端点；预取当前+后 2 段，0.5/1/2s 退避轮询；
+纯 GET 幂等。每用户每日云合成字符上限（默认 10 万）；鉴权连击 ≥5
+计入 owner 计数并进健康告警。电话语音 WS 状态机不受影响
+（factory 无参调用兼容）。
+
+### P12.7 播放协议（classroom/runs.py + 前端 useClassroomPlayer）
+
+- run：active/paused/completed/ended；`state_revision` CAS（乐观锁，
+  409 envelope）；音频记账写不推 revision（避免播放端 409）。
+- lease：client_id+epoch，15s 心跳；过期他端可接管（旧控制器停声）。
+- progress：5s 节流 + pagehide keepalive flush；播放行为不写任何
+  学习证据（§13.5）；完成时 action=complete 恰好一次。
+- 前端 player-reducer/audio-controller/audio-focus：段推进只由
+  `<audio>` ended 驱动（媒体时钟为准，绝不以 TTS 完成时间翻页）；
+  跳页/暂停旧音频 epoch 丢弃；最多 3 段 Blob 在存。
+- 专注/全屏/键盘/触控/reduced-motion；快捷键只在播放器挂载。
+
+### P12.8 插问与随堂题（classroom/chat_context|assessment_bridge）
+
+- 插问复用现有聊天管线：qa_session 幂等创建（run 锁内预留 ID + 落
+  intent，崩溃同 ID 重建），`ClassroomTurnContext` 提供当前页公开讲稿
+  边界材料 + 仍授权教材 file_id 的可信检索 override；回复可语音播放；
+  回答后由用户点「继续原课」回到 resume anchor（多轮追问回最初打断段）。
+- 检查点：reflect（思考停顿，不写证据）与 question（复用冻结题 +
+  `evaluate_submission` 唯一受理链）。question_id 由 owner+run+
+  checkpoint+template_hash 确定性派生（崩溃恢复不换题）；hint/reveal
+  先记帮助事件（帮助后作答不标 independent）；跳过不算答错；同题同
+  答案幂等、不同答案冲突；未揭晓答案不出现在 audio/HTML/讲稿/导出。
+- 课后：GET runs/summary 只汇总可观察事实（看过/听过/提问/检查点/
+  批注），笔记经 save-note 幂等桥接进笔记中心（source=classroom
+  查重，同键返回同一 note_id）。
+
+### P12.9 生命周期与可观测性（classroom/lifecycle.py + health.py）
+
+- 单课归档 trash 类型 `classroom_lesson`（durable op → 冻结 → 快照 →
+  bundle commit → 删活跃副本；音频/过期导出不打包可重建）；重试收敛
+  （crash 后已有同 original_id bundle 时补删不重复建）。工作区归档
+  冻结该区课堂并随 bundle 携带；恢复 run→paused、lease 清空、中断
+  job→needs_input(recovered_after_archive)。purge_account 先 tombstone
+  再删根；uploads_only 清理只删自有上传图与含其 bytes 的编译产物，
+  冻结 spec 不动。删除后不留空目录；orphan_cleanup 含 classroom 分类。
+- `GET/POST /admin/classroom-health[/cleanup]`：磁盘<1GB、云鉴权连击
+  ≥5、近 20 job 失败率>20%、queued 停滞>300s、renderer 连败≥3、
+  损坏课程、owner 音频超压 七类告警（阈值 §20.3，limits.py 常量）；
+  恢复动作 sweep_audio（全 owner 过期音频清扫）。
+
+### P12.10 API 面（/api/v1，envelope §14.3）
+
+`classroom/capabilities|templates`；`workspaces/{ws}/classroom/lessons`
+(CRUD/分页)；`lessons/{les}`（详情/预览、revisions POST 快速修订）；
+`jobs/{id}`(+cancel/retry/continue/outline PATCH/brief PATCH/preview/
+events SSE)；`image-search`；`voice-preview[s]`；`revisions/{n}/frame`；
+`exports`(+content)；`runs`(+get)、`runs/{id}`(+lease POST/PUT/DELETE、
+progress、audio-profile、notes、save-note、audio(+clip status/content)、
+checkpoints/{cid}(+hint/reveal/skip/submit/submission)、summary)。
+错误码固定映射（403 classroom_disabled / 404 source_not_found /
+409 revision|lease|scope|idempotency 冲突 / 410 export_expired /
+429 quota|audio_busy / 503 storage|tts|renderer|research 不可用 /
+500 damaged）。Idempotency-Key 16–128 可打印字符，body hash 冲突
+返回 idempotency_conflict。
+
+### P12.11 配置（.env.example 有注释全表）
+
+`CLASSROOM_ENABLED`(默认 0)/`CLASSROOM_ALLOW_GUEST`(0)/
+`CLASSROOM_MODEL`/`CLASSROOM_ALLOWED_USERS`(灰度 allowlist，空=不限)/
+`CLASSROOM_WEB_PROVIDER`+`TAVILY_API_KEY`/`PEXELS_API_KEY`+
+`PIXABAY_API_KEY`+`CLASSROOM_IMAGE_PROVIDERS`/`CLASSROOM_TTS_POLICY`+
+`CLASSROOM_TTS_CLOUD_PROVIDER`+`AZURE_SPEECH_KEY/REGION/ENDPOINT`+
+`CLASSROOM_TTS_VOICE_ZH/EN`/`CLASSROOM_LOCAL_TTS_ENABLED`/
+`CLASSROOM_TTS_LOCAL_FALLBACK`/并发四项/`CLASSROOM_JOB_TIMEOUT_SECONDS`/
+`CLASSROOM_MAX_PAGES`/`CLASSROOM_MAX_REVISIONS`/`CLASSROOM_AUDIO_CACHE_MB`/
+`CLASSROOM_AUDIO_TTL_DAYS`/`CLASSROOM_EXPORT_TTL_HOURS`/
+`CLASSROOM_RENDER_TIMEOUT_SECONDS`/`CLASSROOM_NODE_BIN`/
+`CLASSROOM_RENDER_SCRIPT`/`CLASSROOM_API_DAILY_TTS_CHARS`。
+个人 `profile.prefs.classroom` 白名单字段（theme/pedagogy/voice_policy/
+voice_id/allow_local_fallback/captions/auto_advance/low_stimulus/
+pause_on_hidden）经 /user/profile 严格校验。
+
+### P12.12 测试与验收
+
+后端 `tests/test_classroom_*.py`（schema/storage/identity/sources/
+research/images/network/render/generation/jobs/audio/runs/chat/
+assessment/lifecycle/exports/checkpoints/pipeline/prompts/sidebar/
+revisions/worker/api/typegen/health）+ `test_voice_azure`；
+E2E `frontend/e2e/classroom-*.spec.ts` 八件套（create/editor/player/
+resume/questions/security/export/visual，route 级 API mock + 真实
+audio ended 驱动）；确定性播放器套件 `pnpm test:player`。验收产物在
+`acceptance-reports/`（后端全量 2237 通过、E2E 36+7 通过、视觉截图、
+真实 provider 烟测未验收记录）。
+

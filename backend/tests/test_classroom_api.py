@@ -85,6 +85,27 @@ class ClassroomApiTests(StorageSandboxTestCase):
         self.assertFalse(resp.json()["enabled"])
         self.assertIn("limits", resp.json())
 
+    def test_rollout_allowlist_gates_capabilities(self):
+        # K04 §20.4 第 1 档：CLASSROOM_ALLOWED_USERS 只对白名单账号放行
+        from app.core.config import settings
+        other = id_store.create_user(
+            email="other@example.com", username="",
+            password_hash=hash_password("pw"))
+        with patch.object(settings, "classroom_enabled", True), \
+                patch.object(settings, "classroom_allowed_users",
+                             self.user_a.id):
+            mine = self.client.get("/api/v1/classroom/capabilities")
+            self.assertTrue(mine.json()["enabled"])
+            self.client.headers["Authorization"] = \
+                f"Bearer {create_token(other.id)}"
+            theirs = self.client.get("/api/v1/classroom/capabilities")
+            self.assertFalse(theirs.json()["enabled"])
+        # 白名单为空 = 不限制（第 2 档取消 allowlist）
+        with patch.object(settings, "classroom_enabled", True), \
+                patch.object(settings, "classroom_allowed_users", ""):
+            theirs2 = self.client.get("/api/v1/classroom/capabilities")
+            self.assertTrue(theirs2.json()["enabled"])
+
     def test_renderer_capability_unavailable_when_assets_missing(self):
         # J04：构建产物缺失 → renderer 显式不可用，不抛错（capabilities 可读）
         import tempfile

@@ -1312,10 +1312,10 @@ exports 24h 过期；搜索缓存按 24h TTL；失败/取消 job staging 保留 
 
 依赖：所有前阶段。
 
-- [ ] K01 执行 §19 测试矩阵与命令，保存必要测试报告与 UI 截图。
-- [ ] K02 管理员测试账号配置真实 provider 后跑受预算约束烟测，确认中文公式口播、图片署名与日期来源。
-- [ ] K03 更新 DESIGN（只记录已实现现状）、API/配置/部署/操作说明；移除过时 plan 锚点。
-- [ ] K04 按 §20 灰度，记录真实 P50/P95；达到发布门后开放默认入口。
+- [x] K01 执行 §19 测试矩阵与命令，保存必要测试报告与 UI 截图。
+- [ ] K02 管理员测试账号配置真实 provider 后跑受预算约束烟测，确认中文公式口播、图片署名与日期来源。（未验收：无真实凭证，已记录 acceptance-reports/06）
+- [x] K03 更新 DESIGN（只记录已实现现状）、API/配置/部署/操作说明；移除过时 plan 锚点。
+- [x] K04 按 §20 灰度，记录真实 P50/P95；达到发布门后开放默认入口。（机制与测试就绪；真实 P50/P95 与开闸待部署验收，见 acceptance-reports/07）
 
 完整首发完成的定义是 K 结束，而不是 E 的界面能看或 G 的音频能播。提交建议按上述范围命名，例如 `classroom: add versioned lesson storage`、`classroom: render narrated lessons`、`voice: add cloud speech with local fallback`。
 
