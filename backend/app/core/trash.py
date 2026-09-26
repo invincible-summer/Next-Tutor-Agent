@@ -789,12 +789,24 @@ def archive_workspace(owner_id: str, workspace_id: str) -> dict[str, Any]:
 def archive_classroom_lesson(owner_id: str, workspace_id: str,
                              lesson_id: str) -> dict[str, Any]:
     """单课归档（trash 类型 classroom_lesson）：durable op → 冻结 → 快照 →
-    commit → 删活跃副本；完成后课程从课堂列表消失并进回收站。"""
+    commit → 删活跃副本；完成后课程从课堂列表消失并进回收站。
+
+    crash 收敛（J02）：若上次调用已在 bundle commit 后、删除活跃副本前
+    崩溃（回收站里已有同 original_id 的已提交条目），本次直接补删活跃
+    副本并复用该条目，不产生第二份 bundle。
+    """
     from app.classroom import lifecycle as classroom_lifecycle
     from app.core import classroom_store as store
     lesson = store.load_lesson(owner_id, workspace_id, lesson_id)
     if lesson is None or lesson.owner_id != owner_id:
         raise FileNotFoundError("课程不存在")
+    pending = next((it for it in list_items(
+        owner_id, resource_type="classroom_lesson")
+        if it.get("original_id") == lesson_id), None)
+    if pending is not None:
+        classroom_lifecycle.delete_lesson_active(owner_id, workspace_id,
+                                                 lesson_id)
+        return get_item(owner_id, str(pending.get("id", "")))
     op_id = classroom_lifecycle.begin_operation(
         owner_id, workspace_id, "archive_lesson",
         {"lesson_id": lesson_id})

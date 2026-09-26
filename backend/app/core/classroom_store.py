@@ -341,8 +341,31 @@ def _read_model(path: Path, model_cls: Type[M], *,
         raise LessonDamagedError(f"损坏的模型: {path.name}") from exc
 
 
+def _assert_writable_path(path: Path) -> None:
+    """写前检查路径归属 owner 是否已被 purge（tombstone）。
+
+    purge_account 先落根外 tombstone 再删 owner 根（§16.4）；之后任何
+    晚到写入（在途 TTS、worker 尾巴等）都会在这里被拒绝，不允许静默
+    mkdir 复活目录。tombstones 自身与课堂根直下文件不受影响。
+    """
+    try:
+        rel = path.relative_to(_CLASSROOM_DIR)
+    except ValueError:
+        return
+    parts = rel.parts
+    if not parts or parts[0].startswith("."):
+        return
+    try:
+        tomb = _tombstone_path(parts[0])
+    except ClassroomStorageError:
+        return
+    if tomb.exists():
+        raise ClassroomStorageError("owner 已注销，拒绝晚到写入")
+
+
 def _write_model(path: Path, model: Any) -> None:
     _guard_symlink_parents(path)
+    _assert_writable_path(path)
     _ensure_dir(path.parent)
     text = model.model_dump_json(by_alias=True, indent=2)
     with file_lock(path):
@@ -355,6 +378,7 @@ def _write_model(path: Path, model: Any) -> None:
 
 def write_json(path: Path, obj: Any) -> None:
     _guard_symlink_parents(path)
+    _assert_writable_path(path)
     _ensure_dir(path.parent)
     with file_lock(path):
         atomic_write_text(path, canonical_json(obj))
@@ -375,6 +399,7 @@ def read_json(path: Path) -> Any | None:
 
 def write_bytes(path: Path, data: bytes) -> None:
     _guard_symlink_parents(path)
+    _assert_writable_path(path)
     _ensure_dir(path.parent)
     with file_lock(path):
         atomic_write_bytes(path, data)

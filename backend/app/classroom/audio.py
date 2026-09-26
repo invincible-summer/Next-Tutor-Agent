@@ -872,8 +872,25 @@ class AudioEngine:
             log.warning("lock run %s to local tts failed", item.run_id,
                         exc_info=True)
 
+    def _lesson_writable(self, item: _PendingClip) -> bool:
+        """晚写防护（§16.4）：课程已删除/归档后不得再落音频复活目录。
+
+        run 文件仍在 = 课程子树仍在（写不复活任何目录）；lifecycle 已进入
+        archiving/archived/purging 或 run 文件消失（子树已删）则丢弃。
+        """
+        lesson = store.load_lesson(item.owner_id, item.workspace_id,
+                                   item.lesson_id)
+        if lesson is not None and \
+                lesson.lifecycle != sc.LessonLifecycle.active:
+            return False
+        return store.run_path(item.owner_id, item.workspace_id,
+                              item.lesson_id, item.run_id).is_file()
+
     def _store_ready(self, item: _PendingClip, provider: str, voice_id: str,
                      language: str, result: Any) -> str:
+        if not self._lesson_writable(item):
+            log.info("drop late audio %s: lesson gone", item.clip_id)
+            return ""
         key = synthesis_key(item.owner_id, item.text, provider=provider,
                             voice_id=voice_id, language=language,
                             synthesis_speed=1.0)
@@ -896,6 +913,10 @@ class AudioEngine:
         return key
 
     def _store_failed(self, item: _PendingClip, error: str) -> None:
+        if not self._lesson_writable(item):
+            log.info("drop late audio failure meta %s: lesson gone",
+                     item.clip_id)
+            return
         key = synthesis_key(item.owner_id, item.text, provider=item.provider,
                             voice_id=item.voice_id,
                             language=item.language, synthesis_speed=1.0)

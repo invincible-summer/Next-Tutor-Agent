@@ -1,13 +1,16 @@
-"""课堂生命周期回归（plan.md §16.4 / A03）。
+"""课堂生命周期回归（plan.md §16.4 / A03、J01/J02）。
 
 覆盖：单课归档→恢复→purge、工作区归档携带课堂子树、purge_account
-tombstone 防晚写、uploads_only 上传图清理、orphan 扫描分类、用量分桶。
+tombstone 防晚写、uploads_only 上传图清理、orphan 扫描分类、用量分桶、
+完整课程全生命周期回归，以及 crash 注入（归档 bundle commit、笔记写入、
+删除后晚到 TTS）。
 """
 from __future__ import annotations
 
 import sys
 import unittest
 from pathlib import Path
+from unittest import mock  # noqa: F401  (crash 注入用)
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
@@ -255,134 +258,136 @@ def _no_empty_dirs(root: Path) -> list[Path]:
     return empties
 
 
+def build_full_lesson() -> dict:
+    """真实发布路径构造完整课程：revision/asset/audio/export/run/QA。"""
+    from app.core.session import load_session
+    from app.classroom.chat_context import ensure_qa_session
+
+    ws_mod.save_workspace(ws_mod.Workspace(
+        workspace_id=FULL_WS, name="完整生命周期工作区",
+        student_id=FULL_OWNER))
+    store.ensure_owner(FULL_OWNER)
+    lesson = sc.Lesson(
+        lesson_id=store.new_id("les"), owner_id=FULL_OWNER,
+        workspace_id=FULL_WS, title="动量守恒完整课",
+        created_at=store.utcnow(), updated_at=store.utcnow())
+    store.save_lesson(lesson)
+
+    job = sc.GenerationJob(
+        job_id=store.new_id("job"), owner_id=FULL_OWNER,
+        workspace_id=FULL_WS, lesson_id=lesson.lesson_id,
+        target_revision=1, state=sc.JobState.running,
+        brief_hash="a" * 64, created_at=store.utcnow(),
+        updated_at=store.utcnow())
+    store.save_job(job)
+
+    # 真实发布路径：staging → manifest → commit_revision
+    revision = fx.make_revision(1, slides=[fx.make_slide(1)])
+    asset = revision.assets[0] if revision.assets else sc.AssetRecord(
+        asset_id=store.new_id("ast"), sha256="d" * 64, mime="image/webp",
+        width=640, height=360,
+        provenance=sc.AssetProvenance(
+            provider=sc.AssetProvider.pexels,
+            provider_asset_id="px_123", source_url="https://pexels/p/123",
+            creator="摄图作者", creator_url="https://pexels/u",
+            license_url="https://pexels/l", fetched_at=store.utcnow()),
+        alt="碰撞实验示意", caption="两小车碰撞", role=sc.AssetRole.scene,
+        bytes=64, status=sc.AssetStatus.ready)
+    revision = revision.model_copy(update={"assets": [asset]})
+    store.write_json(store.asset_meta_path(
+        FULL_OWNER, FULL_WS, lesson.lesson_id, asset.asset_id),
+        asset.model_dump(mode="json", by_alias=True))
+    store.write_bytes(store.asset_file_path(
+        FULL_OWNER, FULL_WS, lesson.lesson_id, asset.asset_id, "webp"),
+        b"\x00" + b"a" * 63)
+
+    staging = store.prepare_revision_staging(
+        FULL_OWNER, FULL_WS, lesson.lesson_id, 1)
+    spec_text = store.canonical_json(
+        revision.model_dump(mode="json", by_alias=True))
+    files = {"spec.private.json": store.bytes_hash(spec_text.encode())}
+    store.stage_file(staging, "spec.private.json", spec_text)
+    asset_data = store.asset_file_path(
+        FULL_OWNER, FULL_WS, lesson.lesson_id, asset.asset_id,
+        "webp").read_bytes()
+    (staging / "assets").mkdir()
+    store.stage_file(staging / "assets", f"{asset.asset_id}.webp",
+                     asset_data)
+    files[f"assets/{asset.asset_id}.webp"] = store.bytes_hash(asset_data)
+    manifest = {"revision": 1, "schema_version": 1,
+                "content_hash": revision.content_hash, "files": files,
+                "assets": [{"asset_id": asset.asset_id,
+                            "file": f"assets/{asset.asset_id}.webp",
+                            "sha256": asset.sha256}],
+                "renderer_version": revision.renderer_version,
+                "created_at": revision.created_at.isoformat()}
+    fresh = store.load_job(FULL_OWNER, FULL_WS, lesson.lesson_id,
+                           job.job_id)
+    store.save_commit_intent(fresh, 1, manifest)
+    store.commit_revision(FULL_OWNER, FULL_WS, lesson.lesson_id, 1,
+                          manifest, expected_epoch=fresh.epoch)
+    store.index_upsert_lesson(FULL_OWNER, FULL_WS, lesson)
+
+    # 音频缓存（两段）+ 导出
+    for idx, seg in enumerate(revision.slides[0].segments):
+        synth = f"{idx:064x}"
+        store.write_bytes(store.audio_file_path(
+            FULL_OWNER, FULL_WS, lesson.lesson_id, synth), b"RIFF" + b"x" * 96)
+        store.write_json(store.audio_meta_path(
+            FULL_OWNER, FULL_WS, lesson.lesson_id, synth),
+            {"synthesis_hash": synth, "bytes": 100})
+    export_id = store.new_id("job")
+    store.write_bytes(store.export_zip_path(
+        FULL_OWNER, FULL_WS, lesson.lesson_id, export_id), b"PK-zip")
+    store.write_json(store.export_meta_path(
+        FULL_OWNER, FULL_WS, lesson.lesson_id, export_id),
+        {"export_id": export_id, "kind": "html_zip"})
+
+    # run：lease + 检查点 + 批注 + audio_refs + QA 绑定（真实会话）
+    run = sc.ClassroomRun(
+        run_id=store.new_id("run"), owner_id=FULL_OWNER,
+        workspace_id=FULL_WS, lesson_id=lesson.lesson_id,
+        lesson_revision=1, content_hash=revision.content_hash,
+        status=sc.RunStatus.active,
+        cursor=sc.Cursor(slide_id=revision.slides[0].slide_id,
+                         segment_id=revision.slides[0].segments[0].segment_id),
+        cursor_slide_order=1,
+        checkpoint_refs=[sc.RunCheckpointRef(
+            checkpoint_id=f"ckp_{1:024x}",
+            slide_id=revision.slides[0].slide_id,
+            kind=sc.CheckpointKind.reflect,
+            state=sc.CheckpointRunState.answered)],
+        audio_refs={revision.slides[0].segments[0].segment_id: f"{0:064x}"},
+        visited_slides=[revision.slides[0].slide_id],
+        annotations=[sc.RunAnnotation(
+            annotation_id="ann_1", slide_id=revision.slides[0].slide_id,
+            user_text="内力不改变总动量",
+            created_at=store.utcnow())],
+        created_at=store.utcnow(), updated_at=store.utcnow())
+    run.lease = sc.LeaseInfo(client_id="client_full_01", lease_epoch=1,
+                             expires_at=store.utcnow(),
+                             heartbeat_at=store.utcnow())
+    store.save_run(run)
+
+    qa = ensure_qa_session(FULL_OWNER, run, lesson.title, "本科", "zh")
+    assert load_session(qa.session_id) is not None
+
+    # owner 级缓存：图片搜索缓存 + 试听
+    store.write_json(store.image_search_cache_path(FULL_OWNER, "q" * 16),
+                     {"query_hash": "q" * 16})
+    store.write_bytes(store.voice_preview_path(FULL_OWNER, "v" * 64, "wav"),
+                      b"RIFF")
+    return {"lesson": lesson, "job": job, "run": run, "asset": asset,
+            "revision": revision, "qa_session_id": qa.session_id,
+            "export_id": export_id}
+
+
 class FullLessonLifecycleTests(StorageSandboxTestCase):
     """用真实发布路径构造完整课程，回归归档/恢复/注销/孤儿扫描/管理员清理。"""
 
     def setUp(self) -> None:
         super().setUp()
-        self.full = self._build_full_lesson()
-
-    def _build_full_lesson(self) -> dict:
-        from app.core.session import load_session
-        from app.classroom.chat_context import ensure_qa_session
-
-        ws_mod.save_workspace(ws_mod.Workspace(
-            workspace_id=FULL_WS, name="完整生命周期工作区",
-            student_id=FULL_OWNER))
-        store.ensure_owner(FULL_OWNER)
-        lesson = sc.Lesson(
-            lesson_id=store.new_id("les"), owner_id=FULL_OWNER,
-            workspace_id=FULL_WS, title="动量守恒完整课",
-            created_at=store.utcnow(), updated_at=store.utcnow())
-        store.save_lesson(lesson)
-
-        job = sc.GenerationJob(
-            job_id=store.new_id("job"), owner_id=FULL_OWNER,
-            workspace_id=FULL_WS, lesson_id=lesson.lesson_id,
-            target_revision=1, state=sc.JobState.running,
-            brief_hash="a" * 64, created_at=store.utcnow(),
-            updated_at=store.utcnow())
-        store.save_job(job)
-
-        # 真实发布路径：staging → manifest → commit_revision
-        revision = fx.make_revision(1, slides=[fx.make_slide(1)])
-        asset = revision.assets[0] if revision.assets else sc.AssetRecord(
-            asset_id=store.new_id("ast"), sha256="d" * 64, mime="image/webp",
-            width=640, height=360,
-            provenance=sc.AssetProvenance(
-                provider=sc.AssetProvider.pexels,
-                provider_asset_id="px_123", source_url="https://pexels/p/123",
-                creator="摄图作者", creator_url="https://pexels/u",
-                license_url="https://pexels/l", fetched_at=store.utcnow()),
-            alt="碰撞实验示意", caption="两小车碰撞", role=sc.AssetRole.scene,
-            bytes=64, status=sc.AssetStatus.ready)
-        revision = revision.model_copy(update={"assets": [asset]})
-        store.write_json(store.asset_meta_path(
-            FULL_OWNER, FULL_WS, lesson.lesson_id, asset.asset_id),
-            asset.model_dump(mode="json", by_alias=True))
-        store.write_bytes(store.asset_file_path(
-            FULL_OWNER, FULL_WS, lesson.lesson_id, asset.asset_id, "webp"),
-            b"\x00" + b"a" * 63)
-
-        staging = store.prepare_revision_staging(
-            FULL_OWNER, FULL_WS, lesson.lesson_id, 1)
-        spec_text = store.canonical_json(
-            revision.model_dump(mode="json", by_alias=True))
-        files = {"spec.private.json": store.bytes_hash(spec_text.encode())}
-        store.stage_file(staging, "spec.private.json", spec_text)
-        asset_data = store.asset_file_path(
-            FULL_OWNER, FULL_WS, lesson.lesson_id, asset.asset_id,
-            "webp").read_bytes()
-        (staging / "assets").mkdir()
-        store.stage_file(staging / "assets", f"{asset.asset_id}.webp",
-                         asset_data)
-        files[f"assets/{asset.asset_id}.webp"] = store.bytes_hash(asset_data)
-        manifest = {"revision": 1, "schema_version": 1,
-                    "content_hash": revision.content_hash, "files": files,
-                    "assets": [{"asset_id": asset.asset_id,
-                                "file": f"assets/{asset.asset_id}.webp",
-                                "sha256": asset.sha256}],
-                    "renderer_version": revision.renderer_version,
-                    "created_at": revision.created_at.isoformat()}
-        fresh = store.load_job(FULL_OWNER, FULL_WS, lesson.lesson_id,
-                               job.job_id)
-        store.save_commit_intent(fresh, 1, manifest)
-        store.commit_revision(FULL_OWNER, FULL_WS, lesson.lesson_id, 1,
-                              manifest, expected_epoch=fresh.epoch)
-        store.index_upsert_lesson(FULL_OWNER, FULL_WS, lesson)
-
-        # 音频缓存（两段）+ 导出
-        for idx, seg in enumerate(revision.slides[0].segments):
-            synth = f"{idx:064x}"
-            store.write_bytes(store.audio_file_path(
-                FULL_OWNER, FULL_WS, lesson.lesson_id, synth), b"RIFF" + b"x" * 96)
-            store.write_json(store.audio_meta_path(
-                FULL_OWNER, FULL_WS, lesson.lesson_id, synth),
-                {"synthesis_hash": synth, "bytes": 100})
-        export_id = store.new_id("job")
-        store.write_bytes(store.export_zip_path(
-            FULL_OWNER, FULL_WS, lesson.lesson_id, export_id), b"PK-zip")
-        store.write_json(store.export_meta_path(
-            FULL_OWNER, FULL_WS, lesson.lesson_id, export_id),
-            {"export_id": export_id, "kind": "html_zip"})
-
-        # run：lease + 检查点 + 批注 + audio_refs + QA 绑定（真实会话）
-        run = sc.ClassroomRun(
-            run_id=store.new_id("run"), owner_id=FULL_OWNER,
-            workspace_id=FULL_WS, lesson_id=lesson.lesson_id,
-            lesson_revision=1, content_hash=revision.content_hash,
-            status=sc.RunStatus.active,
-            cursor=sc.Cursor(slide_id=revision.slides[0].slide_id,
-                             segment_id=revision.slides[0].segments[0].segment_id),
-            cursor_slide_order=1,
-            checkpoint_refs=[sc.RunCheckpointRef(
-                checkpoint_id=f"ckp_{1:024x}",
-                slide_id=revision.slides[0].slide_id,
-                kind=sc.CheckpointKind.reflect,
-                state=sc.CheckpointRunState.answered)],
-            audio_refs={revision.slides[0].segments[0].segment_id: f"{0:064x}"},
-            visited_slides=[revision.slides[0].slide_id],
-            annotations=[sc.RunAnnotation(
-                annotation_id="ann_1", slide_id=revision.slides[0].slide_id,
-                user_text="内力不改变总动量",
-                created_at=store.utcnow())],
-            created_at=store.utcnow(), updated_at=store.utcnow())
-        run.lease = sc.LeaseInfo(client_id="client_full_01", lease_epoch=1,
-                                 expires_at=store.utcnow(),
-                                 heartbeat_at=store.utcnow())
-        store.save_run(run)
-
-        qa = ensure_qa_session(FULL_OWNER, run, lesson.title, "本科", "zh")
-        self.assertIsNotNone(load_session(qa.session_id))
-
-        # owner 级缓存：图片搜索缓存 + 试听
-        store.write_json(store.image_search_cache_path(FULL_OWNER, "q" * 16),
-                         {"query_hash": "q" * 16})
-        store.write_bytes(store.voice_preview_path(FULL_OWNER, "v" * 64, "wav"),
-                          b"RIFF")
-        return {"lesson": lesson, "job": job, "run": run, "asset": asset,
-                "revision": revision, "qa_session_id": qa.session_id,
-                "export_id": export_id}
+        self.full = build_full_lesson()
 
     # ------------------------------------------------------------- 归档→恢复
 
@@ -569,6 +574,151 @@ class FullLessonLifecycleTests(StorageSandboxTestCase):
         trash_mod.restore_item(FULL_OWNER, manifest["id"])
         found2 = orphan_cleanup._collect_orphans([FULL_OWNER])
         self.assertEqual(found2["classroom"], [])
+
+
+# ---------------------------------------------------------------------------
+# J02：crash 注入——归档 bundle commit、笔记写入、删除后晚到 TTS
+# ---------------------------------------------------------------------------
+
+class CrashInjectionTests(StorageSandboxTestCase):
+    """逐点注入 crash，断言重试收敛、无重复产物、无目录复活。"""
+
+    def _clip_item(self, run: sc.ClassroomRun, text: str = "晚到的合成"):
+        from app.classroom import audio as audio_mod
+        return audio_mod._PendingClip(
+            owner_id=FULL_OWNER, workspace_id=FULL_WS,
+            lesson_id=run.lesson_id, run_id=run.run_id, kind="narration",
+            segment_id=fx.hex_id("seg", 9), chunk_index=0,
+            clip_id=f"clip_{1:020x}", text=text,
+            key=audio_mod.synthesis_key(FULL_OWNER, text, provider="melo",
+                                        voice_id="zh", language="zh-CN",
+                                        synthesis_speed=1.0),
+            provider="melo", voice_id="zh", language="zh-CN",
+            allow_local_fallback=False)
+
+    def test_archive_crash_after_bundle_commit_converges(self):
+        """bundle 已 commit、活跃副本未删：重试不建第二份回收站条目。"""
+        info = build_full_lesson()
+        lesson_id = info["lesson"].lesson_id
+        # 模拟 crash：commit 之后 delete_lesson_active 抛错
+        from app.classroom import lifecycle as lc_mod
+        with mock.patch.object(
+                lc_mod, "delete_lesson_active",
+                side_effect=OSError("disk went away")):
+            with self.assertRaises(OSError):
+                trash_mod.archive_classroom_lesson(FULL_OWNER, FULL_WS,
+                                                   lesson_id)
+        # crash 后：trash 里有一条已提交条目，课程仍在活跃树（archiving）
+        items = trash_mod.list_items(FULL_OWNER,
+                                     resource_type="classroom_lesson")
+        self.assertEqual(len(items), 1)
+        self.assertTrue(store.lesson_root(FULL_OWNER, FULL_WS,
+                                          lesson_id).exists())
+        # 重试收敛：复用既有 bundle，删除活跃副本，不产生第二条
+        manifest = trash_mod.archive_classroom_lesson(FULL_OWNER, FULL_WS,
+                                                      lesson_id)
+        self.assertEqual(manifest["id"], items[0]["id"])
+        self.assertFalse(store.lesson_root(FULL_OWNER, FULL_WS,
+                                           lesson_id).exists())
+        self.assertEqual(
+            len(trash_mod.list_items(FULL_OWNER,
+                                     resource_type="classroom_lesson")), 1)
+
+    def test_archive_crash_before_bundle_is_retryable(self):
+        """快照前 crash：op 落 failed、无 trash 条目；重试完整成功。"""
+        info = build_full_lesson()
+        lesson_id = info["lesson"].lesson_id
+        with mock.patch.object(
+                trash_mod, "_commit_bundle",
+                side_effect=OSError("commit crash")):
+            with self.assertRaises(OSError):
+                trash_mod.archive_classroom_lesson(FULL_OWNER, FULL_WS,
+                                                   lesson_id)
+        self.assertEqual(
+            trash_mod.list_items(FULL_OWNER,
+                                 resource_type="classroom_lesson"), [])
+        # 课程被冻结但仍在树上，可再次发起归档
+        frozen = store.load_lesson(FULL_OWNER, FULL_WS, lesson_id)
+        self.assertEqual(frozen.lifecycle, sc.LessonLifecycle.archiving)
+        manifest = trash_mod.archive_classroom_lesson(FULL_OWNER, FULL_WS,
+                                                      lesson_id)
+        self.assertFalse(store.lesson_root(FULL_OWNER, FULL_WS,
+                                           lesson_id).exists())
+        restored = trash_mod.restore_item(FULL_OWNER, manifest["id"])
+        self.assertEqual(restored["status"], "restored")
+
+    def test_note_save_crash_converges_single_note(self):
+        """create_note 后 save_vault 前 crash：重试只产生一份笔记。"""
+        from app.classroom import runs as runs_mod
+        from app.core import notes as notes_store
+        info = build_full_lesson()
+        run = store.load_run(FULL_OWNER, FULL_WS, info["lesson"].lesson_id,
+                             info["run"].run_id)
+        request = sc.SaveNoteRequest(title=None, include_user_notes=True)
+        with mock.patch.object(
+                notes_store, "save_vault",
+                side_effect=OSError("crash before persist")):
+            with self.assertRaises(OSError):
+                runs_mod.save_run_note(FULL_OWNER, FULL_WS,
+                                       info["lesson"].lesson_id,
+                                       run.run_id, request,
+                                       idempotency_key="op_crash_1")
+        # 重试（同幂等键）：成功且只有一份
+        note_id, created = runs_mod.save_run_note(
+            FULL_OWNER, FULL_WS, info["lesson"].lesson_id, run.run_id,
+            request, idempotency_key="op_crash_1")
+        self.assertTrue(created)
+        vault = notes_store.load_vault(FULL_OWNER)
+        classroom_notes = [m for m in vault.notes
+                           if (m.get("source") or {}).get("run_id")
+                           == run.run_id]
+        self.assertEqual(len(classroom_notes), 1)
+        # 再次成功调用：幂等返回同一 note_id，不新建
+        note_id2, created2 = runs_mod.save_run_note(
+            FULL_OWNER, FULL_WS, info["lesson"].lesson_id, run.run_id,
+            request, idempotency_key="op_crash_1")
+        self.assertEqual(note_id2, note_id)
+        self.assertFalse(created2)
+
+    def test_late_tts_after_lesson_archive_does_not_resurrect(self):
+        """课程归档后在途合成落盘：不复活 lesson/audio 目录。"""
+        from app.classroom import audio as audio_mod
+        from types import SimpleNamespace
+        info = build_full_lesson()
+        run = info["run"]
+        manifest = trash_mod.archive_classroom_lesson(
+            FULL_OWNER, FULL_WS, info["lesson"].lesson_id)
+
+        def _cleanup() -> None:
+            if trash_mod.get_item(FULL_OWNER, manifest["id"]) is not None:
+                trash_mod.purge_item(FULL_OWNER, manifest["id"])
+        self.addCleanup(_cleanup)
+        engine = audio_mod.get_audio_engine()
+        item = self._clip_item(run)
+        result = SimpleNamespace(pcm16=b"\x00\x00" * 100, sample_rate=24000)
+        key = engine._store_ready(item, "melo", "zh", "zh-CN", result)
+        self.assertEqual(key, "")
+        lesson_root = store.lesson_root(FULL_OWNER, FULL_WS,
+                                        run.lesson_id)
+        self.assertFalse(lesson_root.exists())
+        # 失败 meta 同样不落盘
+        engine._store_failed(item, "provider down")
+        self.assertFalse(lesson_root.exists())
+
+    def test_late_tts_after_account_purge_blocked(self):
+        """账号注销（tombstone）后任何晚到课堂写入都被拒绝。"""
+        from app.classroom import lifecycle as lc_mod
+        info = build_full_lesson()
+        lc_mod.purge_owner_classroom(FULL_OWNER, tombstone=True)
+        self.assertFalse(store.owner_root(FULL_OWNER).exists())
+        # store 层兜底：write_bytes/write_json 直接拒
+        with self.assertRaises(store.ClassroomStorageError):
+            store.write_bytes(
+                store.audio_file_path(FULL_OWNER, FULL_WS,
+                                      info["lesson"].lesson_id, "a" * 64),
+                b"RIFF")
+        with self.assertRaises(store.ClassroomStorageError):
+            store.write_json(store.owner_meta_path(FULL_OWNER), {})
 
 
 if __name__ == "__main__":
