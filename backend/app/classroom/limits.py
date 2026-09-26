@@ -126,3 +126,12 @@ AUTO_ADVANCE_DEFAULT_PAUSE_MS = 800
 # 恢复
 JOB_RECOVERY_MAX = 3
 FAILED_STAGING_TTL_DAYS = 7
+
+# 运行告警阈值（§20.3 初始值；classroom/health.py 消费）
+DISK_ALERT_BYTES = 1 << 30            # 磁盘可用 < 1GB
+JOB_FAILURE_WINDOW = 20               # 最近 N 个终态 job 计算失败率
+JOB_FAILURE_RATE_ALERT = 0.2          # 失败率 > 20%
+JOB_FAILURE_MIN_SAMPLES = 5           # 少于 N 个终态样本不告警
+QUEUE_STALL_SECONDS = 300             # queued 超过 300s 未被调度
+CLOUD_AUTH_FAIL_ALERT = 5             # 云 TTS 鉴权/配置连续失败 5 次
+RENDERER_FAIL_ALERT = 3               # renderer 连续启动失败 3 次

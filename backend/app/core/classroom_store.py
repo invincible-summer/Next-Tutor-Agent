@@ -366,10 +366,16 @@ def _assert_writable_path(path: Path) -> None:
 def _write_model(path: Path, model: Any) -> None:
     _guard_symlink_parents(path)
     _assert_writable_path(path)
-    _ensure_dir(path.parent)
+    try:
+        _ensure_dir(path.parent)
+    except OSError as exc:
+        raise ClassroomStorageError(f"目录创建失败: {exc}") from exc
     text = model.model_dump_json(by_alias=True, indent=2)
     with file_lock(path):
-        atomic_write_text(path, text)
+        try:
+            atomic_write_text(path, text)
+        except OSError as exc:
+            raise ClassroomStorageError(f"写失败: {exc}") from exc
         try:
             os.chmod(path, _FILE_MODE)
         except OSError:
@@ -379,9 +385,16 @@ def _write_model(path: Path, model: Any) -> None:
 def write_json(path: Path, obj: Any) -> None:
     _guard_symlink_parents(path)
     _assert_writable_path(path)
-    _ensure_dir(path.parent)
+    try:
+        _ensure_dir(path.parent)
+    except OSError as exc:
+        raise ClassroomStorageError(f"目录创建失败: {exc}") from exc
     with file_lock(path):
-        atomic_write_text(path, canonical_json(obj))
+        try:
+            atomic_write_text(path, canonical_json(obj))
+        except OSError as exc:
+            # 磁盘满/权限等强制写失败必须可观察（§16.2 storage_unavailable）
+            raise ClassroomStorageError(f"写失败: {exc}") from exc
         try:
             os.chmod(path, _FILE_MODE)
         except OSError:
@@ -400,9 +413,15 @@ def read_json(path: Path) -> Any | None:
 def write_bytes(path: Path, data: bytes) -> None:
     _guard_symlink_parents(path)
     _assert_writable_path(path)
-    _ensure_dir(path.parent)
+    try:
+        _ensure_dir(path.parent)
+    except OSError as exc:
+        raise ClassroomStorageError(f"目录创建失败: {exc}") from exc
     with file_lock(path):
-        atomic_write_bytes(path, data)
+        try:
+            atomic_write_bytes(path, data)
+        except OSError as exc:
+            raise ClassroomStorageError(f"写失败: {exc}") from exc
         try:
             os.chmod(path, _FILE_MODE)
         except OSError:

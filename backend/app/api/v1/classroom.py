@@ -40,6 +40,24 @@ def classroom_exception_handler(request: Request,
     return error_response(exc, _request_id())
 
 
+def storage_exception_handler(request: Request,
+                              exc: Exception) -> JSONResponse:
+    """存储层异常（磁盘满/权限/损坏）→ storage_unavailable/damaged envelope。
+
+    由 main.create_app 注册；保证强制写失败可观察（§16.2），不静默成功。
+    """
+    from app.core.classroom_store import (ClassroomStorageError,
+                                          LessonDamagedError)
+    if isinstance(exc, LessonDamagedError):
+        code = LessonDamagedError.code
+    elif isinstance(exc, ClassroomStorageError):
+        code = ClassroomStorageError.code
+    else:
+        code = "storage_unavailable"
+    mapped = ClassroomError(code, str(exc)[:200], retryable=True)
+    return error_response(mapped, _request_id())
+
+
 def require_enabled(student_id: str) -> None:
     allowed, _reason = caps.user_allowed(student_id)
     if not allowed:

@@ -280,10 +280,18 @@ def create_app() -> FastAPI:
     )
     from app.api.v1.router import api_router
     app.include_router(api_router)
-    # 课堂域统一错误 envelope（plan.md §14.3）
-    from app.api.v1.classroom import classroom_exception_handler
+    # 课堂域统一错误 envelope（plan.md §14.3）；存储强制写失败（磁盘满/
+    # 权限）与损坏课程同样投影为可观察 envelope（J03，§16.2）
+    from app.api.v1.classroom import (classroom_exception_handler,
+                                      storage_exception_handler)
     from app.classroom.errors import ClassroomError
+    from app.core.classroom_store import (ClassroomStorageError,
+                                          LessonDamagedError)
     app.add_exception_handler(ClassroomError, classroom_exception_handler)
+    app.add_exception_handler(ClassroomStorageError,
+                              storage_exception_handler)
+    app.add_exception_handler(LessonDamagedError,
+                              storage_exception_handler)
     return app
 
 

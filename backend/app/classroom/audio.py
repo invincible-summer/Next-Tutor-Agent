@@ -37,7 +37,7 @@ from typing import Any, Iterator
 
 from ..core import classroom_store as store
 from ..schemas import classroom as sc
-from ..voice.base import TTSOptions, VoiceProviderError
+from ..voice.base import TTSConfigError, TTSOptions, VoiceProviderError
 from ..voice.speak_text import to_speakable
 from ..voice.tts import service as tts_service
 from . import limits
@@ -280,6 +280,21 @@ def record_usage(owner_id: str, *, chars: int, provider: str) -> None:
 
 def tts_usage(owner_id: str) -> dict:
     return dict(_tts_counters(owner_id))
+
+
+def record_cloud_auth_result(owner_id: str, *, failed: bool) -> None:
+    """云端 TTS 鉴权/配置失败连击计数（§20.3 告警：连续 5 次需管理员介入）。
+
+    401/403（TTSConfigError）不重试也不自动恢复；成功一次即清零。
+    """
+    def mutate(tts: dict) -> None:
+        if failed:
+            tts["cloud_auth_fail_streak"] = \
+                int(tts.get("cloud_auth_fail_streak") or 0) + 1
+        else:
+            tts["cloud_auth_fail_streak"] = 0
+
+    _mutate_tts_counters(owner_id, mutate)
 
 
 # ---------------------------------------------------------------------------
@@ -805,6 +820,9 @@ class AudioEngine:
         try:
             await self._synthesize_inner(item)
         except VoiceProviderError as exc:
+            if item.provider == "azure":
+                record_cloud_auth_result(
+                    item.owner_id, failed=isinstance(exc, TTSConfigError))
             self._store_failed(item, str(exc))
         except Exception as exc:   # 未知异常也要落定，不能永远 pending
             log.exception("audio synthesis crashed")
@@ -828,6 +846,7 @@ class AudioEngine:
             self._store_ready(item, result.provider or "azure",
                               result.voice_id or item.voice_id,
                               item.language, result)
+            record_cloud_auth_result(item.owner_id, failed=False)
             record_usage(item.owner_id, chars=len(item.text),
                          provider="azure")
         else:
