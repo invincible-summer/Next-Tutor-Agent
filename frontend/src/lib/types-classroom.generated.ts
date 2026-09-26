@@ -572,6 +572,7 @@ export interface ClassroomRun {
   tts_local_locked?: boolean;
   tts_fallback_notified?: boolean;
   tts_chars_used?: number;
+  progress_event_ids?: Array<string>;
   annotations?: Array<RunAnnotation>;
   completed_kind?: "listened" | "browsed" | "";
   created_at: string;

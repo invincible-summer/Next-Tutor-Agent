@@ -305,3 +305,199 @@ def voice_preview_content(workspace_id: str, clip_id: str,
         student_id, workspace_id, clip_id)
     return Response(content=data, media_type="audio/wav",
                     headers={"Cache-Control": "private, max-age=3600"})
+
+
+# ---------------------------------------------------------------------------
+# 课堂 run、lease、进度与音频（plan.md §14.2，阶段 G）
+# ---------------------------------------------------------------------------
+
+def _run_base(workspace_id: str, lesson_id: str, run_id: str) -> str:
+    return (f"/workspaces/{workspace_id}/classroom/lessons/{lesson_id}"
+            f"/runs/{run_id}")
+
+
+@router.post("/workspaces/{workspace_id}/classroom/lessons/{lesson_id}/runs")
+def create_run(workspace_id: str, lesson_id: str,
+               request: sc.CreateRunRequest,
+               idempotency_key: str | None = Header(
+                   default=None, alias="Idempotency-Key"),
+               student_id: str = Depends(resolve_student_id)):
+    """POST L/runs：201 新 run / 200 复用未终结 run；只初始化题目，不合成。"""
+    from app.classroom.errors import require_idempotency_key
+    from app.classroom import runs as runs_mod
+
+    require_enabled(student_id)
+    key = require_idempotency_key(idempotency_key)
+    payload = runs_mod.create_run(student_id, workspace_id, lesson_id,
+                                  request, idempotency_key=key)
+    body = sc.RunCreateResponse(**payload).model_dump(mode="json",
+                                                      by_alias=True)
+    return JSONResponse(status_code=200 if payload.get("resumed") else 201,
+                        content=body)
+
+
+@router.get("/workspaces/{workspace_id}/classroom/lessons/{lesson_id}"
+            "/runs/{run_id}")
+def get_run(workspace_id: str, lesson_id: str, run_id: str,
+            student_id: str = Depends(resolve_student_id)):
+    from app.classroom import runs as runs_mod
+
+    return runs_mod.run_public(student_id, workspace_id, lesson_id, run_id)
+
+
+@router.post("/workspaces/{workspace_id}/classroom/lessons/{lesson_id}"
+             "/runs/{run_id}/lease", response_model=sc.LeaseResponse)
+def acquire_lease(workspace_id: str, lesson_id: str, run_id: str,
+                  request: sc.LeaseAcquireRequest,
+                  student_id: str = Depends(resolve_student_id)):
+    from app.classroom import runs as runs_mod
+
+    return runs_mod.acquire_lease(student_id, workspace_id, lesson_id,
+                                  run_id, request)
+
+
+@router.put("/workspaces/{workspace_id}/classroom/lessons/{lesson_id}"
+            "/runs/{run_id}/lease", response_model=sc.LeaseResponse)
+def renew_lease(workspace_id: str, lesson_id: str, run_id: str,
+                request: sc.LeaseRenewRequest,
+                student_id: str = Depends(resolve_student_id)):
+    from app.classroom import runs as runs_mod
+
+    return runs_mod.renew_lease(student_id, workspace_id, lesson_id, run_id,
+                                request)
+
+
+@router.delete("/workspaces/{workspace_id}/classroom/lessons/{lesson_id}"
+               "/runs/{run_id}/lease")
+def release_lease(workspace_id: str, lesson_id: str, run_id: str,
+                  request: sc.LeaseRenewRequest,
+                  student_id: str = Depends(resolve_student_id)):
+    from app.classroom import runs as runs_mod
+
+    runs_mod.release_lease(student_id, workspace_id, lesson_id, run_id,
+                           request.client_id, request.lease_epoch)
+    return {"status": "released"}
+
+
+@router.put("/workspaces/{workspace_id}/classroom/lessons/{lesson_id}"
+            "/runs/{run_id}/progress", response_model=sc.ProgressResponse)
+def update_progress(workspace_id: str, lesson_id: str, run_id: str,
+                    request: sc.ProgressRequest,
+                    student_id: str = Depends(resolve_student_id)):
+    from app.classroom import runs as runs_mod
+
+    return runs_mod.update_progress(student_id, workspace_id, lesson_id,
+                                    run_id, request)
+
+
+@router.put("/workspaces/{workspace_id}/classroom/lessons/{lesson_id}"
+            "/runs/{run_id}/audio-profile")
+def update_audio_profile(workspace_id: str, lesson_id: str, run_id: str,
+                         request: sc.AudioProfileRequest,
+                         student_id: str = Depends(resolve_student_id)):
+    from app.classroom import runs as runs_mod
+
+    return runs_mod.update_audio_profile(student_id, workspace_id,
+                                         lesson_id, run_id, request)
+
+
+def _run_profile(run: sc.ClassroomRun) -> "tts_service.ClassroomVoiceProfile":
+    """run 冻结的 audio_profile → 引擎 profile（provider 为空时按策略重解）。"""
+    from app.voice.tts import service as tts_service
+    profile = run.audio_profile
+    if profile.provider:
+        return tts_service.ClassroomVoiceProfile(
+            policy=str(getattr(profile.policy, "value", profile.policy)),
+            provider=profile.provider, voice_id=profile.voice_id,
+            language=str(getattr(profile.language, "value",
+                                 profile.language)) or "zh",
+            synthesis_speed=1.0,
+            allow_local_fallback=profile.allow_local_fallback,
+            cloud_configured=tts_service.azure_available(),
+            local_enabled=tts_service.local_tts_enabled())
+    prefs = sc.VoicePreferences(
+        policy=profile.policy, voice_id=profile.voice_id,
+        allow_local_fallback=profile.allow_local_fallback,
+        playback_speed=profile.playback_speed)
+    return tts_service.resolve_classroom_tts(
+        prefs, str(getattr(profile.language, "value", profile.language))
+        or "zh")
+
+
+def _load_run_and_spec(student_id: str, workspace_id: str, lesson_id: str,
+                       run_id: str) -> tuple[sc.ClassroomRun, sc.LessonRevision]:
+    from app.classroom import runs as runs_mod
+
+    run = runs_mod.load_owned_run(student_id, workspace_id, lesson_id,
+                                  run_id)
+    spec = runs_mod.load_run_spec(student_id, workspace_id,
+                                  lesson_id, run.lesson_revision)
+    return run, spec
+
+
+@router.post("/workspaces/{workspace_id}/classroom/lessons/{lesson_id}"
+             "/runs/{run_id}/audio", response_model=sc.AudioResponse,
+             status_code=202)
+async def request_run_audio(workspace_id: str, lesson_id: str, run_id: str,
+                            request: sc.AudioRequest,
+                            idempotency_key: str | None = Header(
+                                default=None, alias="Idempotency-Key"),
+                            student_id: str = Depends(resolve_student_id)):
+    """POST R/audio：仅当前/合法预取范围；202 返回 clip 状态，GET 不计费。"""
+    from app.classroom import audio as audio_mod
+    from app.classroom.errors import require_idempotency_key
+
+    require_enabled(student_id)
+    # Idempotency-Key 只做形状校验：重放由引擎缓存命中 + single-flight
+    # 天然幂等（不落 owner 幂等表，避免高频音频请求挤掉建课条目）。
+    require_idempotency_key(idempotency_key)
+    run, spec = _load_run_and_spec(student_id, workspace_id, lesson_id,
+                                   run_id)
+    if run.lease is None or run.lease.lease_epoch != request.lease_epoch:
+        raise ClassroomError("lease_conflict", "lease 已失效或被接管")
+    profile = _run_profile(run)
+    engine = audio_mod.get_audio_engine()
+    clips = await engine.request_narration_clips(
+        run, spec, profile, request.segment_ids)
+    base = _run_base(workspace_id, lesson_id, run_id)
+    payload = sc.AudioResponse(clips=[
+        sc.ClipStatus(
+            clip_id=c["clip_id"], state=sc.AudioClipState(c["state"]),
+            status_url=f"/api/v1{base}/audio/{c['clip_id']}",
+            content_url=(f"/api/v1{base}/audio/{c['clip_id']}/content"
+                         if c["state"] == "ready" else None))
+        for c in clips])
+    return payload
+
+
+@router.get("/workspaces/{workspace_id}/classroom/lessons/{lesson_id}"
+            "/runs/{run_id}/audio/{clip_id}", response_model=sc.ClipStatus)
+def get_run_clip(workspace_id: str, lesson_id: str, run_id: str,
+                 clip_id: str, student_id: str = Depends(resolve_student_id)):
+    from app.classroom import audio as audio_mod
+
+    run, _spec = _load_run_and_spec(student_id, workspace_id, lesson_id,
+                                    run_id)
+    status = audio_mod.get_audio_engine().clip_status(run, clip_id)
+    base = _run_base(workspace_id, lesson_id, run_id)
+    return sc.ClipStatus(
+        clip_id=clip_id, state=sc.AudioClipState(status["state"]),
+        status_url=f"/api/v1{base}/audio/{clip_id}",
+        content_url=(f"/api/v1{base}/audio/{clip_id}/content"
+                     if status["state"] == "ready" else None))
+
+
+@router.get("/workspaces/{workspace_id}/classroom/lessons/{lesson_id}"
+            "/runs/{run_id}/audio/{clip_id}/content")
+def get_run_clip_content(workspace_id: str, lesson_id: str, run_id: str,
+                         clip_id: str,
+                         student_id: str = Depends(resolve_student_id)):
+    from fastapi.responses import Response
+
+    from app.classroom import audio as audio_mod
+
+    run, _spec = _load_run_and_spec(student_id, workspace_id, lesson_id,
+                                    run_id)
+    data, _meta = audio_mod.get_audio_engine().clip_content(run, clip_id)
+    return Response(content=data, media_type="audio/wav",
+                    headers={"Cache-Control": "private, no-store"})

@@ -998,6 +998,9 @@ class ClassroomRun(_StrictModel):
     tts_local_locked: bool = False
     tts_fallback_notified: bool = False
     tts_chars_used: int = Field(0, ge=0)
+    # 进度事件去重（§12.3：最近 PROGRESS_DEDUP_EVENTS 个 client_event_id）
+    progress_event_ids: list[str] = Field(default_factory=list,
+                                          max_length=256)
     annotations: list[RunAnnotation] = Field(default_factory=list, max_length=100)
     completed_kind: Literal["listened", "browsed", ""] = ""
     created_at: datetime

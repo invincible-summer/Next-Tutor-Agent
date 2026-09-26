@@ -361,13 +361,32 @@ def lesson_detail(student_id: str, workspace_id: str, lesson_id: str,
                                        lesson_id, job),
                 phase=job.phase, state=job.state)
 
+    recent_run = None
+    from .runs import _lease_expired
+    for run in store.list_runs(student_id, workspace_id, lesson_id):
+        if run.status in (sc.RunStatus.active, sc.RunStatus.paused):
+            status = run.status
+            if status == sc.RunStatus.active and _lease_expired(run):
+                status = sc.RunStatus.paused
+            recent_run = sc.RunPublic(
+                run_id=run.run_id, lesson_id=run.lesson_id,
+                lesson_revision=run.lesson_revision, status=status,
+                state_revision=run.state_revision, cursor=run.cursor,
+                resume_anchor=run.resume_anchor,
+                audio_profile=run.audio_profile,
+                qa_session_id=run.qa_session_id,
+                visited_slide_count=len(set(run.visited_slides)),
+                completed_kind=run.completed_kind, created_at=run.created_at,
+                updated_at=run.updated_at)
+            break
+
     detail = sc.LessonDetailPublic(
         lesson_id=lesson.lesson_id, workspace_id=lesson.workspace_id,
         title=lesson.title, lifecycle=lesson.lifecycle,
         latest_ready_revision=lesson.latest_ready_revision,
         published_revisions=list(lesson.published_revisions),
         latest_job=latest_job_public, revision=revision_public,
-        pending=pending, recent_run=None)  # run 投影在 G 阶段接入
+        pending=pending, recent_run=recent_run)
     return detail.model_dump(mode="json", by_alias=True)
 
 

@@ -529,7 +529,14 @@ def save_run(run: sc.ClassroomRun) -> None:
 
 def update_run(owner_id: str, workspace_id: str, lesson_id: str, run_id: str,
                mutate: Callable[[sc.ClassroomRun], None], *,
-               expected_state_revision: int | None = None) -> sc.ClassroomRun:
+               expected_state_revision: int | None = None,
+               bump_revision: bool = True) -> sc.ClassroomRun:
+    """run JSON 的 load→CAS→mutate→atomic write。
+
+    ``bump_revision=False`` 供纯记账写入（lease 心跳、audio_refs、TTS 回退
+    锁）：它们不是内容状态变化，不得推进 state_revision——否则 15s 一次的
+    lease 续期会让播放端的进度 CAS 永远 409（plan.md §12.3）。
+    """
     path = run_path(owner_id, workspace_id, lesson_id, run_id)
     with file_lock(path):
         run = _read_model(path, sc.ClassroomRun, allow_missing=False)
@@ -537,7 +544,8 @@ def update_run(owner_id: str, workspace_id: str, lesson_id: str, run_id: str,
                 run.state_revision != expected_state_revision:
             raise CasConflictError("run state revision 冲突")
         mutate(run)
-        run.state_revision += 1
+        if bump_revision:
+            run.state_revision += 1
         run.updated_at = utcnow()
         atomic_write_text(path, run.model_dump_json(by_alias=True, indent=2))
         try:
