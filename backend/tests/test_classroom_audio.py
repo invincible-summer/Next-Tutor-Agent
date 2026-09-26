@@ -227,6 +227,18 @@ class EngineRequestTests(AudioTestBase):
             self.assertEqual(w.getnchannels(), 1)
             self.assertEqual(w.getsampwidth(), 2)
 
+    def test_bookkeeping_keeps_state_revision(self):
+        # 音频记账（audio_refs/tts_chars_used/回退锁）不得推进
+        # state_revision，否则播放端进度 CAS 会被后台写入打成 409。
+        run = _run_fixture()
+        before = store.load_run(OWNER, WS, LESSON, run.run_id).state_revision
+        self._request_and_wait(run)
+        stored = store.load_run(OWNER, WS, LESSON, run.run_id)
+        self.assertGreater(stored.tts_chars_used, 0)
+        self.assertIn(clip_id_for(run.run_id, "narration", self._seg(1)),
+                      stored.audio_refs)
+        self.assertEqual(stored.state_revision, before)
+
     def test_same_text_voice_replay_hits_cache(self):
         run = _run_fixture()
         self._request_and_wait(run)

@@ -482,7 +482,8 @@ class AudioEngine:
                         lambda r: setattr(
                             r, "tts_chars_used",
                             int(getattr(r, "tts_chars_used", 0) or 0)
-                            + missing_chars))
+                            + missing_chars),
+                        bump_revision=False)
                     run.tts_chars_used = charged + missing_chars
                 except Exception:
                     log.warning("tts_chars_used update failed", exc_info=True)
@@ -742,7 +743,7 @@ class AudioEngine:
 
         try:
             store.update_run(item.owner_id, item.workspace_id, item.lesson_id,
-                             item.run_id, mutate)
+                             item.run_id, mutate, bump_revision=False)
         except Exception:
             log.warning("lock run %s to local tts failed", item.run_id,
                         exc_info=True)
@@ -808,7 +809,7 @@ class AudioEngine:
 
         try:
             store.update_run(run.owner_id, run.workspace_id, run.lesson_id,
-                             run.run_id, mutate)
+                             run.run_id, mutate, bump_revision=False)
             run.audio_refs[clip_id] = key
         except Exception:
             log.warning("audio_refs update failed", exc_info=True)
@@ -822,7 +823,7 @@ class AudioEngine:
 
         try:
             store.update_run(item.owner_id, item.workspace_id, item.lesson_id,
-                             item.run_id, mutate)
+                             item.run_id, mutate, bump_revision=False)
         except Exception:
             log.warning("audio_refs update failed (post)", exc_info=True)
 
