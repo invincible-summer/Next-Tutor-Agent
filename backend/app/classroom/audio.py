@@ -62,6 +62,49 @@ def normalize_spoken_text(spoken_text: str) -> str:
     return to_speakable(spoken_text or "").strip()
 
 
+_QA_SENTENCE_MAX_CHARS = 200
+_QA_SENTENCE_MAX_COUNT = 24
+
+
+def split_reply_sentences(reply_text: str) -> list[str]:
+    """答疑回复按句切片（§12.5）：确定性句界切分 + 长度/数量上限。
+
+    不截断公式语义以外的内容——句子超长时按逗号/分号再切，仍超长按
+    空格硬切；每片朗读规范化后为空则丢弃。"""
+    text = normalize_spoken_text(reply_text)
+    if not text:
+        return []
+    parts: list[str] = []
+    buf = ""
+    for ch in text:
+        buf += ch
+        if ch in "。！？!?；;":
+            parts.append(buf)
+            buf = ""
+    if buf.strip():
+        parts.append(buf)
+
+    out: list[str] = []
+    for piece in parts:
+        piece = piece.strip()
+        if not piece:
+            continue
+        while len(piece) > _QA_SENTENCE_MAX_CHARS:
+            cut = -1
+            for sep in ("，", "、", "：", ",", " "):
+                idx = piece.rfind(sep, 0, _QA_SENTENCE_MAX_CHARS)
+                if idx > 20:
+                    cut = idx + len(sep)
+                    break
+            if cut <= 0:
+                cut = _QA_SENTENCE_MAX_CHARS
+            out.append(piece[:cut].strip())
+            piece = piece[cut:].strip()
+        if piece:
+            out.append(piece)
+    return out[:_QA_SENTENCE_MAX_COUNT]
+
+
 def synthesis_key(owner_id: str, normalized_text: str, *, provider: str,
                   voice_id: str, language: str,
                   synthesis_speed: float) -> str:
@@ -511,6 +554,87 @@ class AudioEngine:
                     lesson_id=run.lesson_id, run_id=run.run_id,
                     kind="narration", segment_id=sid, chunk_index=0,
                     clip_id=clip_id, text=text, key=key,
+                    provider=profile.provider,
+                    voice_id=profile.voice_id, language=profile.language,
+                    allow_local_fallback=profile.allow_local_fallback))
+        return results
+
+    async def request_qa_clips(
+            self, run: sc.ClassroomRun, reply_text: str,
+            profile: tts_service.ClassroomVoiceProfile) -> list[dict]:
+        """POST R/qa-audio 语义（§12.5）：已保存的答疑回复按句切片合成。
+
+        正文由服务端从 run 绑定的答疑 session 读取（route 层校验
+        reply_message_id），引擎不接任意客户端 text。clip_id 按句序
+        确定性派生；预算/队列/缓存语义与 narration 完全一致。
+        """
+        profile = effective_profile(run, profile)
+        if not profile.voice_id:
+            raise ClassroomError("voice_unavailable",
+                                 "当前语言无可用音色（文字课堂）")
+        sentences = split_reply_sentences(reply_text)
+        if not sentences:
+            raise ClassroomError("content_invalid", "回复正文为空，无法合成")
+        wanted: list[tuple[str, str, str]] = []   # (clip_id, text, key)
+        for idx, sentence in enumerate(sentences):
+            key = synthesis_key(run.owner_id, sentence,
+                                provider=profile.provider,
+                                voice_id=profile.voice_id,
+                                language=profile.language,
+                                synthesis_speed=profile.synthesis_speed)
+            wanted.append((clip_id_for(run.run_id, "qa", "reply", idx),
+                           sentence, key))
+
+        missing = [item for item in wanted
+                   if not self._meta_ready(run.owner_id, run.workspace_id,
+                                           run.lesson_id, item[2])]
+        if missing:
+            missing_chars = sum(len(item[1]) for item in missing)
+            if profile.provider == "azure":
+                assert_cloud_char_budget(run.owner_id, missing_chars)
+            reloaded = store.load_run(run.owner_id, run.workspace_id,
+                                      run.lesson_id, run.run_id) or run
+            charged = int(getattr(reloaded, "tts_chars_used", 0) or 0)
+            if charged + missing_chars > limits.TTS_CHARS_PER_RUN:
+                raise ClassroomError("quota_exceeded", "本课堂合成字符已达上限")
+            if missing_chars:
+                try:
+                    store.update_run(
+                        run.owner_id, run.workspace_id, run.lesson_id,
+                        run.run_id,
+                        lambda r: setattr(
+                            r, "tts_chars_used",
+                            int(getattr(r, "tts_chars_used", 0) or 0)
+                            + missing_chars),
+                        bump_revision=False)
+                    run.tts_chars_used = charged + missing_chars
+                except Exception:
+                    log.warning("tts_chars_used update failed (qa)",
+                                exc_info=True)
+        if missing and self._pending_total() + len(missing) > \
+                limits.AUDIO_QUEUE_MAX:
+            raise ClassroomError("audio_busy", "音频合成队列已满，请稍后重试",
+                                 retryable=True)
+
+        results: list[dict] = []
+        for clip_id, text, key in wanted:
+            meta = self._load_meta(run.owner_id, run.workspace_id,
+                                   run.lesson_id, key)
+            if meta is not None and meta.get("state") == "ready":
+                self._touch_key(run, key)
+                results.append(self._clip_dict(meta, clip_id))
+                continue
+            self._remember_ref(run, clip_id, key)
+            results.append({"clip_id": clip_id, "state": "pending",
+                            "provider": "", "voice_id": "",
+                            "sample_rate": 0, "sample_count": 0, "bytes": 0,
+                            "duration_seconds": 0.0, "error": None})
+            if key not in self._inflight:
+                self._enqueue(_PendingClip(
+                    owner_id=run.owner_id, workspace_id=run.workspace_id,
+                    lesson_id=run.lesson_id, run_id=run.run_id,
+                    kind="qa", segment_id="reply",
+                    chunk_index=0, clip_id=clip_id, text=text, key=key,
                     provider=profile.provider,
                     voice_id=profile.voice_id, language=profile.language,
                     allow_local_fallback=profile.allow_local_fallback))

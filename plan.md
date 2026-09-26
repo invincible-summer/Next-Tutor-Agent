@@ -1279,8 +1279,8 @@ exports 24h 过期；搜索缓存按 24h TTL；失败/取消 job staging 保留 
 
 依赖：G；修改旧聊天代码之前先补兼容回归。
 
-- [ ] H01 实现 qa_session 幂等创建、ClassroomTurnContext、受信任来源 override，并贯通 supervisor/legacy/fallback。
-- [ ] H02 问答抽屉、快捷补讲、原课 resume anchor、回复正文语音，保证 ask 不使 run 自动结束。
+- [x] H01 实现 qa_session 幂等创建、ClassroomTurnContext、受信任来源 override，并贯通 supervisor/legacy/fallback。
+- [x] H02 问答抽屉、快捷补讲、原课 resume anchor、回复正文语音，保证 ask 不使 run 自动结束。
 - [ ] H03 抽浏览器 STT 适配，麦克风按住开启/松开结束；不支持时文字输入可用；启用 STT 时停止课堂输出避免回声转写。
 - [ ] H04 批注、记录当前页、保存 notes 的幂等操作与深链；课堂链接被删除后的无效状态可识别。
 

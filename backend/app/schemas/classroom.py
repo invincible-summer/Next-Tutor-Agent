@@ -1603,6 +1603,11 @@ class AudioResponse(_StrictModel):
     clips: list[ClipStatus] = Field(default_factory=list, max_length=3)
 
 
+class QaAudioResponse(_StrictModel):
+    """§12.5：回复按句切片，段数上限与 split_reply_sentences 一致。"""
+    clips: list[ClipStatus] = Field(default_factory=list, max_length=24)
+
+
 class AudioProfileRequest(_StrictModel):
     expected_state_revision: int = Field(..., ge=1)
     voice_preferences: VoicePreferences
@@ -1771,7 +1776,7 @@ PUBLIC_TYPE_MODELS: list[str] = [
     "ImageSearchRequest", "ImageCandidate", "ImageSearchResponse",
     "AssetUploadResponse", "CreateRunRequest", "RunCreateResponse",
     "LeaseAcquireRequest", "LeaseRenewRequest", "LeaseResponse",
-    "ProgressRequest", "ProgressResponse", "AudioRequest", "ClipStatus",
+    "ProgressRequest", "ProgressResponse", "AudioRequest", "QaAudioResponse", "ClipStatus",
     "AudioResponse", "AudioProfileRequest", "QaSessionResponse",
     "QaAudioRequest", "CheckpointSubmitRequest", "RunNoteRequest",
     "RunNoteResponse", "SaveNoteRequest", "SaveNoteResponse",

@@ -710,7 +710,7 @@ export async function voiceTicket(): Promise<{ ticket: string; expires_in: numbe
 }
 
 export async function* chatStream(
-  body: { message: string; session_id?: string | null; workspace_id?: string | null; grade?: string; lang?: string; output_language?: string | null; attachments?: unknown[] },
+  body: { message: string; session_id?: string | null; workspace_id?: string | null; grade?: string; lang?: string; output_language?: string | null; attachments?: unknown[]; classroom_ref?: unknown },
   signal?: AbortSignal,
 ): AsyncGenerator<ChatSSEEvent> {
   const res = await apiFetch(`${BASE}/chat/stream`, {

@@ -279,6 +279,124 @@ class ClassroomChatTests(RevisionTestBase):
         })
         self.assertEqual(r.status_code, 409)
 
+    # ---- resume anchor（§12.5：只有最初的原课堂 anchor 被保留） ----------
+
+    def test_resume_anchor_kept_on_first_ask_only(self):
+        self._resolve()
+        stored = store.load_run(OWNER, WS, self.lesson_id, self.run.run_id)
+        self.assertIsNotNone(stored.resume_anchor)
+        self.assertEqual(stored.resume_anchor.segment_id,
+                         self.run.cursor.segment_id)
+        # 推进游标后再次插问：anchor 不被覆盖
+        lease = runs_mod.acquire_lease(
+            OWNER, WS, self.lesson_id, self.run.run_id,
+            sc.LeaseAcquireRequest(client_id="client-qa-00001"))
+        second = sorted(self.spec.slides, key=lambda s: s.order)[1]
+        runs_mod.update_progress(
+            OWNER, WS, self.lesson_id, self.run.run_id,
+            sc.ProgressRequest(
+                expected_state_revision=stored.state_revision,
+                client_event_id="evt-anchor-00000001", client_seq=1,
+                lease_epoch=lease.lease_epoch,
+                action=sc.ProgressAction.progress,
+                cursor=sc.Cursor(slide_id=second.slide_id,
+                                 segment_id=second.segments[0].segment_id)))
+        self._resolve(_ref(self.run, second))
+        after = store.load_run(OWNER, WS, self.lesson_id, self.run.run_id)
+        self.assertEqual(after.resume_anchor, stored.resume_anchor)
+
+    # ---- qa-audio（§12.5：正文来自已保存回复，不接受客户端 text） ------
+
+    def test_qa_audio_sentences_from_saved_reply(self):
+        from app.classroom import audio as ca
+        from app.voice.base import TTSResult
+        from app.voice.tts import service as tts_service
+
+        ca.reset_audio_engine()
+        tts_service.reset_tts_service()
+        self.addCleanup(ca.reset_audio_engine)
+        self.addCleanup(tts_service.reset_tts_service)
+        ctx = self._resolve()
+        session = ctx.qa_session
+        session.messages.append({
+            "role": "assistant",
+            "content": "内力成对出现。系统内力相互抵消，所以总动量不变！"
+                       "这就是动量守恒的核心；选系统时要小心。",
+            "thinking": ""})
+        from app.core.session import save_session
+        save_session(session)
+        reply_id = next(m["message_id"] for m in reversed(session.messages)
+                        if m.get("role") == "assistant")
+
+        calls: list[str] = []
+
+        async def _cloud(text, options):
+            calls.append(text)
+            return TTSResult(pcm16=b"\x00\x01" * 2400, sample_rate=24000,
+                             provider="azure",
+                             voice_id="zh-CN-XiaoxiaoNeural")
+
+        with mock.patch.object(tts_service, "cloud_synthesize", _cloud):
+            engine = ca.get_audio_engine()
+
+            async def go():
+                clips = await engine.request_qa_clips(
+                    self.run, session.messages[-1]["content"],
+                    tts_service.ClassroomVoiceProfile(
+                        policy="cloud", provider="azure",
+                        voice_id="zh-CN-XiaoxiaoNeural", language="zh-CN",
+                        allow_local_fallback=True, cloud_configured=True,
+                        local_enabled=True))
+                await engine.wait_run(self.run.run_id)
+                return clips
+            clips = asyncio.run(go())
+        self.assertEqual(len(clips), 4)   # 四个句界
+        self.assertEqual(len(calls), 4)
+        # 句级 clip 确定性派生 + 绑定到本 run（合成完成后复查状态）
+        run2 = store.load_run(OWNER, WS, self.lesson_id, self.run.run_id)
+        for c in clips:
+            self.assertIn(c["clip_id"], run2.audio_refs)
+            status = engine.clip_status(run2, c["clip_id"])
+            self.assertEqual(status["state"], "ready")
+            data, meta = engine.clip_content(run2, c["clip_id"])
+            self.assertTrue(data)
+            self.assertEqual(meta["voice_id"], "zh-CN-XiaoxiaoNeural")
+        # 预算记账推进、state_revision 不动
+        self.assertGreater(run2.tts_chars_used, 0)
+        self.assertEqual(run2.state_revision, self.run.state_revision)
+
+    def test_qa_audio_rejects_client_text_only(self):
+        # route 层校验：reply 必须存在于答疑 session（外来 message_id 拒绝）
+        from fastapi.testclient import TestClient
+        from app.main import create_app
+        from app.identity import deps as id_deps
+
+        ctx = self._resolve()
+        app = create_app()
+        app.dependency_overrides[id_deps.resolve_student_id] = lambda: OWNER
+        client = TestClient(app)
+        lease = runs_mod.acquire_lease(
+            OWNER, WS, self.lesson_id, self.run.run_id,
+            sc.LeaseAcquireRequest(client_id="client-qa-00002"))
+        url = (f"/api/v1/workspaces/{WS}/classroom/lessons/{self.lesson_id}"
+               f"/runs/{self.run.run_id}/qa-audio")
+        # 外来 message_id：404，不合成
+        r = client.post(url, json={
+            "reply_message_id": "m_does_not_exist",
+            "lease_epoch": lease.lease_epoch,
+        }, headers={"Idempotency-Key": "k-qa-audio-00000001"})
+        self.assertEqual(r.status_code, 404)
+        # 真实回复 + 错误 lease epoch：409
+        session = ctx.qa_session
+        session.messages.append({"role": "assistant", "content": "一句话。"})
+        from app.core.session import save_session
+        save_session(session)
+        reply_id = session.messages[-1]["message_id"]
+        r2 = client.post(url, json={
+            "reply_message_id": reply_id, "lease_epoch": 999,
+        }, headers={"Idempotency-Key": "k-qa-audio-00000002"})
+        self.assertEqual(r2.status_code, 409)
+
     def test_qa_session_endpoint_idempotent(self):
         from fastapi.testclient import TestClient
         from app.main import create_app

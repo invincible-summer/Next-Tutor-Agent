@@ -420,6 +420,53 @@ def create_qa_session(workspace_id: str, lesson_id: str, run_id: str,
     return JSONResponse(status_code=201 if created else 200, content=payload)
 
 
+@router.post("/workspaces/{workspace_id}/classroom/lessons/{lesson_id}"
+             "/runs/{run_id}/qa-audio", status_code=202,
+             response_model=sc.QaAudioResponse)
+async def request_qa_audio(workspace_id: str, lesson_id: str, run_id: str,
+                           request: sc.QaAudioRequest,
+                           idempotency_key: str | None = Header(
+                               default=None, alias="Idempotency-Key"),
+                           student_id: str = Depends(resolve_student_id)):
+    """POST R/qa-audio：已保存答疑回复的句级音频（§14.2/§12.5）。
+
+    正文只从本 run 答疑 session 的 assistant 消息读取（message_id 匹配），
+    不接客户端 text；lease 校验与 narration 一致。
+    """
+    from app.classroom import audio as audio_mod
+    from app.classroom.errors import require_idempotency_key
+
+    require_enabled(student_id)
+    require_idempotency_key(idempotency_key)
+    run, _spec = _load_run_and_spec(student_id, workspace_id, lesson_id,
+                                    run_id)
+    if not run.qa_session_id:
+        raise ClassroomError("source_not_found", "课堂尚未创建答疑会话")
+    if run.lease is None or run.lease.lease_epoch != request.lease_epoch:
+        raise ClassroomError("lease_conflict", "lease 已失效或被接管")
+
+    from app.core.session import load_session
+    qa = load_session(run.qa_session_id)
+    if qa is None or (qa.student_id and qa.student_id != student_id):
+        raise ClassroomError("source_not_found", "答疑会话不存在")
+    reply = next((m for m in reversed(qa.messages)
+                  if m.get("message_id") == request.reply_message_id), None)
+    if reply is None or reply.get("role") != "assistant":
+        raise ClassroomError("source_not_found", "答疑回复不存在")
+    text = str(reply.get("content") or "")
+    profile = _run_profile(run)
+    engine = audio_mod.get_audio_engine()
+    clips = await engine.request_qa_clips(run, text, profile)
+    base = _run_base(workspace_id, lesson_id, run_id)
+    return sc.QaAudioResponse(clips=[
+        sc.ClipStatus(
+            clip_id=c["clip_id"], state=sc.AudioClipState(c["state"]),
+            status_url=f"/api/v1{base}/audio/{c['clip_id']}",
+            content_url=(f"/api/v1{base}/audio/{c['clip_id']}/content"
+                         if c["state"] == "ready" else None))
+        for c in clips])
+
+
 @router.put("/workspaces/{workspace_id}/classroom/lessons/{lesson_id}"
             "/runs/{run_id}/audio-profile")
 def update_audio_profile(workspace_id: str, lesson_id: str, run_id: str,

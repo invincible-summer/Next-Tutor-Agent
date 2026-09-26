@@ -137,6 +137,7 @@ def resolve_classroom_turn(student_id: str, ref: ClassroomRef,
     qa = ensure_qa_session(student_id, run, lesson_title,
                            spec.brief.grade, spec.brief.language)
     block = classroom_material_block(spec, slide, segment_id)
+    _preserve_resume_anchor(student_id, run)
     return ClassroomTurnContext(
         run_id=run.run_id, lesson_id=run.lesson_id,
         workspace_id=run.workspace_id, lesson_revision=run.lesson_revision,
@@ -145,6 +146,32 @@ def resolve_classroom_turn(student_id: str, ref: ClassroomRef,
         slide_title=slide.title, segment_id=segment_id,
         material_block=block, qa_session=qa,
         file_ids=authorized_lesson_file_ids(spec))
+
+
+def _preserve_resume_anchor(student_id: str, run: sc.ClassroomRun) -> None:
+    """首个插问保存原课堂 anchor（§12.5）：只有最初一次被保留。
+
+    后续追问不覆盖（anchor 指向学生最初被打断的段）；写入是记账性
+    操作，不推 state_revision。anchor 恢复时从该段开头重讲，最多重复
+    约 30 秒（§12.2）。
+    """
+    if run.resume_anchor is not None:
+        return
+    anchor = sc.Cursor(**run.cursor.model_dump())
+
+    def _set(r: sc.ClassroomRun) -> None:
+        if r.resume_anchor is None:
+            r.resume_anchor = anchor
+
+    try:
+        store.update_run(student_id, run.workspace_id, run.lesson_id,
+                         run.run_id, _set, bump_revision=False)
+        run.resume_anchor = anchor
+    except Exception:
+        import logging
+
+        logging.getLogger(__name__).warning(
+            "resume anchor update failed", exc_info=True)
 
 
 def _locate_run(student_id: str,

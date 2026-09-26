@@ -9,7 +9,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, LogOut, MonitorPlay } from "lucide-react";
+import {
+  ArrowLeft, CircleHelp, Lightbulb, LogOut, MessageCircle, MonitorPlay,
+} from "lucide-react";
 import { getLesson, getRevisionFrame } from "@/lib/api-classroom";
 import type { LessonDetailPublic } from "@/lib/types-classroom.generated";
 import { useUIStore } from "@/lib/store";
@@ -22,7 +24,13 @@ import SlideFrameDefault, {
 import {
   CaptionBar, PlayerControls, SlideOutline, type PlayerStrings,
 } from "@/components/classroom/player/PlayerWidgets";
+import {
+  QuestionDrawer,
+} from "@/components/classroom/player/QuestionDrawer";
 import { useClassroomPlayer } from "@/lib/classroom/useClassroomPlayer";
+import {
+  QUICK_CONFUSED, QUICK_EXAMPLE, useClassroomQA,
+} from "@/lib/classroom/useClassroomQA";
 import { STRINGS as PAGE_STRINGS } from "../../../strings";
 
 const PLAYER_STR = {
@@ -36,6 +44,18 @@ const PLAYER_STR = {
     "cls.play.fullscreen": "全屏", "cls.play.exit.fullscreen": "退出全屏",
     "cls.play.reading": "阅读模式", "cls.play.exit.reading": "退出阅读模式",
     "cls.play.textmode": "文字课堂", "cls.play.click.resume": "点击继续播放",
+    "cls.ask.title": "课堂提问",
+    "cls.ask.confused": "没听懂",
+    "cls.ask.example": "举个例子",
+    "cls.ask.open": "提问",
+    "cls.ask.placeholder": "关于当前页的问题…（Enter 发送）",
+    "cls.ask.send": "发送",
+    "cls.ask.thinking": "正在讲解…",
+    "cls.ask.resume": "继续原课",
+    "cls.ask.resume.page": "从本页开始",
+    "cls.ask.failed": "回答失败，请重试。",
+    "cls.ask.close": "关闭提问",
+    "cls.ask.hint": "提问会暂停讲授；回答结束后点击「继续原课」回到原位置。",
     "cls.play.suspended": "本课堂正在其他设备播放",
     "cls.play.suspended.takeover": "在这里继续",
     "cls.play.ended": "本节课已完成",
@@ -57,6 +77,18 @@ const PLAYER_STR = {
     "cls.play.exit.reading": "Exit reading mode",
     "cls.play.textmode": "Text-only lesson",
     "cls.play.click.resume": "Click to resume playback",
+    "cls.ask.title": "Ask in class",
+    "cls.ask.confused": "I'm lost",
+    "cls.ask.example": "Give an example",
+    "cls.ask.open": "Ask",
+    "cls.ask.placeholder": "Ask about this page… (Enter to send)",
+    "cls.ask.send": "Send",
+    "cls.ask.thinking": "Explaining…",
+    "cls.ask.resume": "Resume lesson",
+    "cls.ask.resume.page": "From page start",
+    "cls.ask.failed": "Answer failed, please retry.",
+    "cls.ask.close": "Close questions",
+    "cls.ask.hint": "Asking pauses the lesson; click “Resume lesson” afterwards.",
     "cls.play.suspended": "This lesson is playing on another device",
     "cls.play.suspended.takeover": "Continue here",
     "cls.play.ended": "Lesson completed",
@@ -87,6 +119,7 @@ export default function LearnRunPage() {
   const [detail, setDetail] = useState<LessonDetailPublic | null>(null);
   const [frameHtml, setFrameHtml] = useState<string | null>(null);
   const [fatal, setFatal] = useState<string | null>(null);
+  const [askOpen, setAskOpen] = useState(false);
   const frameRef = useRef<SlideFrameHandle | null>(null);
   const shellRef = useRef<HTMLDivElement | null>(null);
 
@@ -115,6 +148,34 @@ export default function LearnRunPage() {
     detail: detail ?? ({ revision: null } as unknown as LessonDetailPublic),
   });
   const slides = useMemo(() => detail?.revision?.slides ?? [], [detail]);
+
+  // 课堂插问（§12.4/§12.5）：ask 暂停讲授；resume 回到最初被打断段
+  const qa = useClassroomQA({
+    workspaceId, lessonId, runId,
+    leaseEpoch: player.run?.lease?.lease_epoch ?? 0,
+    current: player.current,
+    lessonRevision: detail?.revision?.revision ?? 1,
+    withVoice: !player.textMode,
+    pauseNarration: player.pauseForAsk,
+  });
+  const anchorSegmentId = player.run?.resume_anchor?.segment_id ?? null;
+  const resumeFromAnchor = useCallback(() => {
+    qa.stopAudio();
+    const segId = anchorSegmentId ?? player.current?.segmentId;
+    if (segId) player.gotoSegment(segId, true);
+    player.setSettings({ type: "status", status: "paused" });
+  }, [qa, anchorSegmentId, player]);
+  const resumeFromPage = useCallback(() => {
+    qa.stopAudio();
+    const anchorSlide = anchorSegmentId
+      ? player.segments.find((s) => s.segmentId === anchorSegmentId)?.slideId
+      : player.current?.slideId;
+    const first = player.segments.find((s) => s.slideId === anchorSlide)
+      ?? player.segments[0];
+    if (first) player.gotoSegment(first.segmentId, true);
+    player.setSettings({ type: "status", status: "paused" });
+  }, [qa, anchorSegmentId, player]);
+
   const slideOrders = useMemo(
     () => [...slides].sort((a, b) => a.order - b.order).map((s) => s.order),
     [slides]);
@@ -195,6 +256,10 @@ export default function LearnRunPage() {
         case "f":
         case "F":
           toggleFullscreen();
+          break;
+        case "q":
+        case "Q":
+          setAskOpen(true);
           break;
         default:
           break;
@@ -320,6 +385,29 @@ export default function LearnRunPage() {
                 ▶ {ps("cls.play.click.resume")}
               </button>
             )}
+
+            {/* 问答抽屉：在当前页旁展开（§5.1），提问区不是聊天瀑布 */}
+            {askOpen && (
+              <QuestionDrawer
+                turns={qa.turns}
+                asking={qa.asking}
+                onAsk={(text) => qa.ask(text)}
+                onResume={resumeFromAnchor}
+                onResumeFromPage={resumeFromPage}
+                onClose={() => { qa.stopAudio(); setAskOpen(false); }}
+                s={{
+                  title: ps("cls.ask.title"),
+                  confused: ps("cls.ask.confused"),
+                  example: ps("cls.ask.example"),
+                  placeholder: ps("cls.ask.placeholder"),
+                  send: ps("cls.ask.send"),
+                  thinking: ps("cls.ask.thinking"),
+                  resume: ps("cls.ask.resume"),
+                  resumeFromPage: ps("cls.ask.resume.page"),
+                  failed: ps("cls.ask.failed"),
+                  close: ps("cls.ask.close"),
+                }} />
+            )}
           </div>
 
           <CaptionBar
@@ -349,6 +437,32 @@ export default function LearnRunPage() {
             </ol>
           </div>
         </aside>
+      </div>
+
+      {/* §5.1 第二行：快捷补讲 + 提问（真实用户操作表达，§12.6） */}
+      <div className="flex flex-wrap items-center gap-2 border-t border-border bg-surface px-4 py-1.5">
+        <button type="button" disabled={qa.asking || ended}
+                onClick={() => { setAskOpen(true); qa.ask(QUICK_CONFUSED); }}
+                className="inline-flex h-11 cursor-pointer items-center gap-1.5 rounded-full border border-border px-3.5 text-xs text-fg-secondary transition-colors hover:border-accent/50 hover:text-fg disabled:opacity-50">
+          <CircleHelp size={13} /> {ps("cls.ask.confused")}
+        </button>
+        <button type="button" disabled={qa.asking || ended}
+                onClick={() => { setAskOpen(true); qa.ask(QUICK_EXAMPLE); }}
+                className="inline-flex h-11 cursor-pointer items-center gap-1.5 rounded-full border border-border px-3.5 text-xs text-fg-secondary transition-colors hover:border-accent/50 hover:text-fg disabled:opacity-50">
+          <Lightbulb size={13} /> {ps("cls.ask.example")}
+        </button>
+        <button type="button" disabled={ended}
+                onClick={() => setAskOpen(true)}
+                aria-pressed={askOpen}
+                className={`inline-flex h-11 cursor-pointer items-center gap-1.5 rounded-full border px-3.5 text-xs transition-colors disabled:opacity-50 ${
+                  askOpen
+                    ? "border-accent bg-accent-soft/50 text-accent-strong"
+                    : "border-border text-fg-secondary hover:border-accent/50 hover:text-fg"}`}>
+          <MessageCircle size={13} /> {ps("cls.ask.open")}
+        </button>
+        <span className="ml-auto hidden text-[0.68rem] text-muted/70 md:inline">
+          {ps("cls.ask.hint")}
+        </span>
       </div>
 
       <PlayerControls

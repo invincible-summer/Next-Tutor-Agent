@@ -1072,6 +1072,10 @@ export interface AudioRequest {
   lease_epoch: number;
 }
 
+export interface QaAudioResponse {
+  clips?: Array<ClipStatus>;
+}
+
 export interface ClipStatus {
   clip_id: string;
   state: AudioClipState;

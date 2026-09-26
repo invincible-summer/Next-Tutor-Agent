@@ -87,7 +87,11 @@ export interface PlayerApi {
   nextSegment: () => void;
   prevSegment: () => void;
   gotoSlide: (order: number) => void;
+  /** 跳到任意段（问答恢复：从打断段/本页开头重讲）。 */
+  gotoSegment: (segmentId: string, autoPlay: boolean) => void;
   replaySegment: () => void;
+  /** 插问打断：立即停声并进入 asking（§12.1 playing→asking）。 */
+  pauseForAsk: () => void;
   setSettings: (action: PlayerAction) => void;
   endLesson: () => void;
   clipUrl: (segmentId: string) => string | null;
@@ -565,6 +569,18 @@ export function useClassroomPlayer(
     gotoSlide: (order: number) => {
       const seg = segments.find((s) => s.slideOrder === order);
       if (seg) jumpTo(seg, stateRef.current?.status === "playing");
+    },
+    gotoSegment: (segmentId: string, autoPlay: boolean) => {
+      const seg = segments.find((s) => s.segmentId === segmentId);
+      if (seg) jumpTo(seg, autoPlay && !textMode);
+    },
+    pauseForAsk: () => {
+      const cur = stateRef.current;
+      controllerRef.current?.pause();
+      if (cur && (cur.status === "playing" || cur.status === "buffering")) {
+        setStateBoth({ type: "status", status: "asking" });
+        flushRef.current?.("pause");
+      }
     },
     replaySegment: () => { if (current) jumpTo(current, true); },
     setSettings: (action) => {

@@ -240,6 +240,67 @@ test("暂停立即停声，恢复后从当前段继续", async ({ page }) => {
   await expect(caption).toContainText(SEGS[2].text, { timeout: 8_000 });
 });
 
+test("插问暂停讲授，回答后继续原课", async ({ page }) => {
+  await routeClassroomApi(page, { withVoice: true });
+  let chatBody: Record<string, unknown> | null = null;
+  await page.route("**/api/v1/chat/stream", async (route) => {
+    chatBody = route.request().postDataJSON() as Record<string, unknown>;
+    const sse = [
+      'event: answer\ndata: {"type":"answer","content":"内力成对出现，相互抵消。","is_delta":true}\n\n',
+      'event: done\ndata: {"type":"done","answer":"内力成对出现，相互抵消。","thinking":"","session_id":"sess-qa-e2e","trace_id":"tr1"}\n\n',
+      'event: history_saved\ndata: {"type":"history_saved","session_id":"sess-qa-e2e"}\n\n',
+    ].join("");
+    await route.fulfill({ status: 200,
+                          contentType: "text/event-stream", body: sse });
+  });
+  await page.route("**/api/v1/chat/sessions/**", async (route) => {
+    await route.fulfill({
+      status: 200, contentType: "application/json",
+      body: JSON.stringify({ session_id: "sess-qa-e2e", messages: [
+        { message_id: "m_e2e_reply_01", role: "user" },
+        { message_id: "m_e2e_reply_02", role: "assistant",
+          content: "内力成对出现，相互抵消。" },
+      ] }),
+    });
+  });
+  await page.route("**/qa-audio", async (route) => {
+    await route.fulfill({
+      status: 202, contentType: "application/json",
+      body: JSON.stringify({ clips: [{
+        clip_id: "clip-qa-e2e-01", state: "ready",
+        status_url: "/s", content_url: "/c" }] }),
+    });
+  });
+
+  await page.goto(`/workspaces/${WS}/classroom/${LESSON}/learn/${RUN}`);
+  const caption = page.locator(
+    "section[aria-label='字幕'] p[aria-live='polite']");
+  await expect(caption).toContainText(SEGS[0].text);
+  await page.click("button[aria-label='播放']");
+
+  // 快捷补讲：暂停讲授 + 打开问答抽屉
+  await page.getByRole("button", { name: "没听懂" }).click();
+  await expect(page.getByRole("heading", { name: "课堂提问" }))
+    .toBeVisible();
+  await page.waitForTimeout(900);
+  await expect(caption).toContainText(SEGS[0].text);   // 未推进（暂停）
+
+  // 回答流式显示，随后出现「继续原课」
+  await expect(page.locator("section[aria-label='课堂提问']")
+    .getByText("内力成对出现，相互抵消。")).toBeVisible({ timeout: 8_000 });
+  await expect(page.getByRole("button", { name: "继续原课" }))
+    .toBeVisible({ timeout: 8_000 });
+  expect(chatBody).not.toBeNull();
+  const ref = (chatBody as { classroom_ref?: Record<string, unknown> })
+    .classroom_ref;
+  expect(ref?.run_id).toBe(RUN);
+  expect(ref?.slide_id).toBe(SLIDES[0].id);
+
+  // 继续原课：从被打断段恢复，随后正常推进
+  await page.getByRole("button", { name: "继续原课" }).click();
+  await expect(caption).toContainText(SEGS[1].text, { timeout: 8_000 });
+});
+
 test("无语音时进入文字课堂，讲稿仍可完整阅读", async ({ page }) => {
   await routeClassroomApi(page, { withVoice: false });
   await page.goto(
