@@ -19,11 +19,13 @@ _LAYOUTS_WITH_BULLETS = {"key_points", "summary"}
 class FakeClassroomLLM:
     def __init__(self, *, bogus_source: bool = False,
                  bad_json: bool = False,
-                 with_questions: bool = False) -> None:
+                 with_questions: bool = False,
+                 research_queries: list | None = None) -> None:
         self.calls: list[str] = []
         self.bogus_source = bogus_source
         self.bad_json = bad_json
         self.with_questions = with_questions
+        self.research_queries = research_queries
 
     async def complete(self, messages: list[dict], **_: Any):
         system = messages[0]["content"]
@@ -62,7 +64,8 @@ class FakeClassroomLLM:
         if "任务：整课复核" in system:
             return {"issues": [], "summary": "复核通过（fake）"}
         if "任务：检索计划" in system:
-            return {"queries": [], "skipped": []}
+            return {"queries": self.research_queries or [],
+                    "skipped": []}
         return {"issues": []}
 
     # ------------------------------------------------------------------ 大纲
@@ -173,6 +176,10 @@ class FakeClassroomLLM:
         spoken_1 = (f"我们先看这一页，{title}。这一页的目标很明确，"
                     f"请大家先建立一个整体印象，我再逐步展开讲清楚"
                     f"它背后的道理和适用条件，讲完会留时间消化。")
+        if payload.get("instruction"):
+            spoken_1 = (f"按修改要求重写：{payload['instruction']}。"
+                        f"这一页我们换一个更清楚的角度讲{title}，"
+                        f"先把关键前提摆出来，再一步步推到结论。")
         spoken_2 = (f"接着我们把要点逐条过一遍，注意每一条成立的"
                     f"前提。{title}这部分最容易忽略条件，我在这里"
                     f"停一下，大家对照刚才的讲解再想一想。")

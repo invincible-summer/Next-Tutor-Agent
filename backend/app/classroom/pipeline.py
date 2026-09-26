@@ -216,6 +216,15 @@ class ClassroomPipeline:
         token = _set_llm_hook(budgets.llm)
         stage_started = time.monotonic()
         try:
+            # 修订操作（D05）：先从 base revision 派生前序阶段产物，
+            # 再落入常规阶段循环（render→publish / review→render→publish）
+            fresh = self._load_job()
+            if fresh.operation is not None and \
+                    not self._stage_done(sc.JobPhase.resolve_sources, fresh):
+                if self.deps.crash_at == "operation":
+                    raise PipelineCrash("operation")
+                self._update_job(phase=None)
+                await self._prepare_operation_stages(fresh, budgets)
             for phase in PHASES:
                 job = self._load_job()
                 if job.state in TERMINAL_STATES:
@@ -942,6 +951,319 @@ class ClassroomPipeline:
             if path.exists():
                 out[asset.asset_id] = path.read_bytes()
         return out
+
+    # ------------------------------------------------------------------ D05 修订操作
+
+    def _split_sources(self, base: sc.LessonRevision
+                       ) -> tuple[list[sc.SourceRecord], list[sc.SourceRecord]]:
+        files = [r for r in base.source_snapshot
+                 if r.kind != sc.SourceKind.web]
+        web = [r for r in base.source_snapshot
+               if r.kind == sc.SourceKind.web]
+        return files, web
+
+    async def _prepare_operation_stages(self, job: sc.GenerationJob,
+                                        budgets: _Budgets) -> None:
+        """五种 revision operation 的派生入口（§14.1/§4.3）。"""
+        from .revisions_ops import (apply_edit_changes,
+                                    apply_replace_image, apply_theme_change)
+        base = store.load_revision(self.owner, self.workspace_id,
+                                   self.lesson_id, job.base_revision or 0)
+        if base is None:
+            raise ClassroomError("source_not_found", "基线版本内容缺失")
+        file_records, web_records = self._split_sources(base)
+        # 发布前授权复查：文件来源必须仍可读且 hash 一致（web 是冻结快照）
+        sources.assert_sources_authorized(
+            self.owner, self.workspace_id, file_records)
+        op = job.operation
+        if op.op == "change_theme":
+            draft = apply_theme_change(base, op.theme_id)
+            await self._finalize_fast_revision(job, draft)
+            return
+        if op.op == "edit_content":
+            draft = apply_edit_changes(base, op.changes)
+            await self._finalize_fast_revision(job, draft)
+            return
+        if op.op == "replace_image":
+            asset = await self._resolve_replacement_asset(base, op, budgets)
+            draft = apply_replace_image(
+                base, op.slide_id, op.block_id, asset=asset,
+                alt=asset.alt, keep_caption=True)
+            await self._finalize_fast_revision(job, draft)
+            return
+        if op.op == "refresh_research":
+            draft = await self._refresh_research(job, base, budgets)
+            await self._finalize_fast_revision(job, draft)
+            return
+        if op.op == "regenerate_slide":
+            await self._prepare_regenerate(job, base, budgets)
+            return
+        raise ClassroomError("content_invalid", "未知修订操作")
+
+    async def _finalize_fast_revision(self, job: sc.GenerationJob,
+                                      draft: sc.LessonRevision) -> None:
+        """零 LLM 路径：确定性门校验后写入阶段 1–7 产物；render/publish
+        由常规阶段循环执行（排版门照跑，发布照走六步事务）。"""
+        file_records, web_records = self._split_sources(draft)
+        issues = validation.structural_gate(
+            draft.slides, draft.checkpoint_templates)
+        issues += validation.evidence_gate(
+            draft.brief, draft.objectives, draft.slides,
+            file_records + web_records)
+        duration_issues, _seconds = validation.duration_gate(
+            draft.brief.duration_minutes, draft.slides, draft.brief.language)
+        report = validation.combine_reports(issues, duration_issues)
+        if validation.has_blocker(report.issues):
+            worst = next(i for i in report.issues
+                         if i.severity == sc.Severity.blocker)
+            raise ClassroomError(
+                "content_invalid",
+                f"修订未通过确定性门：{worst.code} {worst.reason}")
+        # 组装阶段从 job brief.json 读 brief：把派生后的 brief（如换主题）
+        # 持久化为该 job 的生效 brief（brief_hash 保持原创建口径）
+        store.stage_file(
+            store.job_root(self.owner, self.workspace_id, self.lesson_id,
+                           self.job_id),
+            "brief.json",
+            json.dumps(_dump_json(draft.brief), ensure_ascii=False,
+                       indent=1))
+        self._save_stage(sc.JobPhase.resolve_sources, {
+            "records": [_dump_json(r) for r in file_records]})
+        self._save_stage(sc.JobPhase.research, {
+            "records": [_dump_json(r) for r in web_records]})
+        # outline artifact 也需占位（循环按阶段序跳过；大纲由基线反推）
+        outline = sc.OutlinePlan(
+            objectives=draft.objectives,
+            pages=[sc.OutlinePage(
+                order=s.order, title=s.title, layout=s.layout,
+                objective_ids=list(s.learning_objective_ids),
+                budget_seconds=s.estimated_seconds)
+                for s in draft.slides],
+            glossary=draft.glossary,
+            total_budget_seconds=sum(s.estimated_seconds
+                                     for s in draft.slides))
+        self._save_stage(sc.JobPhase.outline, {"plan": _dump_json(outline)})
+        self._save_stage(sc.JobPhase.visual_assets, {
+            "records": [_dump_json(a) for a in draft.assets]})
+        self._save_stage(sc.JobPhase.author_slides, {
+            "slides": [{"slide": _dump_json(s)} for s in draft.slides],
+            "objectives": [_dump_json(o) for o in draft.objectives],
+            "glossary": [_dump_json(g) for g in draft.glossary]})
+        self._save_stage(sc.JobPhase.checkpoints, {
+            "templates": [_dump_json(t)
+                          for t in draft.checkpoint_templates],
+            "slides": [_dump_json(s) for s in draft.slides]})
+        self._save_stage(sc.JobPhase.review, {
+            "report": _dump_json(report),
+            "slides": [_dump_json(s) for s in draft.slides],
+            "templates": [_dump_json(t)
+                          for t in draft.checkpoint_templates],
+            "objectives": [_dump_json(o) for o in draft.objectives]})
+
+    async def _resolve_replacement_asset(
+            self, base: sc.LessonRevision, op: Any,
+            budgets: _Budgets) -> sc.AssetRecord:
+        if op.asset_id:
+            found = next((a for a in base.assets
+                          if a.asset_id == op.asset_id), None)
+            if found is None:
+                raise ClassroomError("content_invalid", "指定资产不存在")
+            return found
+        from .media import service as media_service
+        candidate = media_service.pop_candidate(self.owner,
+                                                op.candidate_id or "")
+        if candidate is None:
+            raise ClassroomError("image_unavailable",
+                                 "候选已过期或不存在，请重新搜索换图")
+        from .media.download import download_and_sanitize
+        processed = await download_and_sanitize(candidate.download_url)
+        if len(processed.data) > limits.IMAGE_BYTES_HARD_MAX:
+            raise ClassroomError("image_unavailable", "图片清洗后超上限")
+        asset_id = store.new_id("ast")
+        ext = "png" if processed.mime == "image/png" else "webp"
+        path = store.asset_file_path(self.owner, self.workspace_id,
+                                     self.lesson_id, asset_id, ext)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        store.stage_file(path.parent, path.name, processed.data)
+        return sc.AssetRecord(
+            asset_id=asset_id, sha256=processed.sha256,
+            mime=processed.mime, width=processed.width,
+            height=processed.height,
+            provenance=sc.AssetProvenance(
+                provider=candidate.provider,
+                provider_asset_id=candidate.provider_asset_id,
+                source_url=candidate.page_url[:2048],
+                creator=candidate.creator[:200],
+                creator_url=candidate.creator_url[:2048],
+                license_url=candidate.license_url[:2048],
+                fetched_at=store.utcnow()),
+            alt=candidate.alt[:500],
+            caption="", role=sc.AssetRole.object,
+            bytes=len(processed.data), status=sc.AssetStatus.ready)
+
+    async def _refresh_research(self, job: sc.GenerationJob,
+                                base: sc.LessonRevision,
+                                budgets: _Budgets) -> sc.LessonRevision:
+        """refresh_research：重跑检索并追加新 web 来源；页面内容不变
+        （旧来源保留，已发布页面的引用不断链）。"""
+        if self.deps.research is None:
+            raise ClassroomError("research_unavailable",
+                                 "检索服务未配置，无法刷新来源",
+                                 retryable=False)
+        brief = base.brief
+        plan, _ = await generate_json(
+            self.deps.llm, prompt_id="classroom_search_plan",
+            user_text=json.dumps({
+                "topic": brief.topic, "goals": brief.goals,
+                "policy": brief.source_policy.value,
+                "timeliness": brief.research.timeliness.value,
+                "covered": [r.title for r in base.source_snapshot],
+                "scope": job.operation.scope.value,
+                "language": brief.language.value,
+            }, ensure_ascii=False), model_cls=_SearchPlanModel)
+        _, web_records = self._split_sources(base)
+        fresh: list[sc.SourceRecord] = []
+        provider = self.deps.research
+        for item in plan.queries[:limits.SEARCH_CALL_BUDGET]:
+            try:
+                hits = await provider.search(
+                    item.query, timeliness=item.timeliness,
+                    owner=self.owner, budget=budgets.research)
+                targets = [h.url for h in hits][:3]
+                if not targets:
+                    continue
+                outcome = await provider.extract(
+                    targets, owner=self.owner, budget=budgets.research)
+            except ClassroomError:
+                continue
+            for page in outcome.pages:
+                from urllib.parse import urlparse
+                fresh.append(sc.SourceRecord(
+                    source_id=store.new_id("src"),
+                    kind=sc.SourceKind.web,
+                    title=page.title or page.url[:200],
+                    locator=sc.WebLocator(
+                        url=page.url[:2048],
+                        canonical_url=page.canonical_url[:2048],
+                        domain=(urlparse(page.url).hostname
+                                or "unknown")[:200],
+                        publisher=None, retrieved_at=page.retrieved_at),
+                    excerpt=page.text[:limits.EXCERPT_CHARS_PER_MATERIAL],
+                    excerpt_hash=store.canonical_hash(page.text),
+                    retrieved_at=page.retrieved_at,
+                    published_at=page.published_at,
+                    as_of=date.today()))
+        if not fresh:
+            raise ClassroomError("research_unavailable",
+                                 "刷新检索没有取得任何新来源", retryable=True)
+        return base.model_copy(update={
+            "source_snapshot": list(base.source_snapshot) + fresh})
+
+    async def _prepare_regenerate(self, job: sc.GenerationJob,
+                                  base: sc.LessonRevision,
+                                  budgets: _Budgets) -> None:
+        """regenerate_slide：单页重写（含用户指令），其余页/模板原样；
+        随后走常规 review（LLM 复核）→ render → publish。"""
+        op = job.operation
+        target = next((s for s in base.slides
+                       if s.slide_id == op.slide_id), None)
+        if target is None:
+            raise ClassroomError("content_invalid", "目标页不存在")
+        file_records, web_records = self._split_sources(base)
+        records = file_records + web_records
+        budgets.llm.call_budget = limits.llm_call_budget(len(base.slides))
+        evidence = _evidence_pack(records, 8000)
+        page_assets = [a for a in base.assets
+                       if a.asset_id in {getattr(b, "asset_id", "")
+                                         for b in target.blocks}]
+        neighbors = []
+        orders = sorted(base.slides, key=lambda s: s.order)
+        position = orders.index(target)
+        if position > 0:
+            neighbors.append(f"前一页：{orders[position - 1].title}")
+        if position < len(orders) - 1:
+            neighbors.append(f"后一页：{orders[position + 1].title}")
+        user_text = json.dumps({
+            "slide_id": target.slide_id,
+            "order": target.order,
+            "page_plan": {
+                "order": target.order, "title": target.title,
+                "layout": target.layout.value,
+                "objective_ids": [o for o in
+                                  target.learning_objective_ids],
+                "budget_seconds": target.estimated_seconds,
+                "key_points": [], "visual_intent": None},
+            "layout": target.layout.value,
+            "instruction": op.instruction,
+            "neighbors": "；".join(neighbors),
+            "glossary": [_dump_json(g) for g in base.glossary],
+            "assets": [{"asset_id": a.asset_id, "alt": a.alt,
+                        "caption": a.caption, "width": a.width,
+                        "height": a.height} for a in page_assets],
+            "allowed_actions": ["reveal", "highlight", "advance"],
+        }, ensure_ascii=False) + "\n\n" + evidence
+        result, _ = await generate_json(
+            self.deps.llm, prompt_id="classroom_slide",
+            user_text=user_text, model_cls=_SlideModel,
+            repair_prompt_id="classroom_repair")
+        slide = result.slide
+        slide.order = target.order
+        # 保留原页的 checkpoint 块与模板绑定（布局必需块不可丢）
+        for block in target.blocks:
+            if getattr(block, "kind", "") == "checkpoint" and \
+                    not any(getattr(b, "checkpoint_id", None)
+                            == getattr(block, "checkpoint_id", None)
+                            for b in slide.blocks):
+                slide.blocks.append(block)
+        teaching_claims = []
+        for claim in result.claims:
+            if claim.block_id not in {b.id for b in slide.blocks}:
+                continue
+            teaching_claims.append(sc.TeachingClaim(
+                claim_id=store.new_id("claim")[:30],
+                text=claim.text[:600],
+                kind=sc.ClaimKind(claim.claim_kind),
+                block_ids=[claim.block_id], segment_ids=[],
+                source_ids=([claim.source_id] if claim.source_id else [])))
+        slide.claims = teaching_claims[:sc.MAX_CLAIMS_PER_SLIDE]
+        from .render.compiler import validate_layout_slots
+        probe = sc.LessonRevision(
+            revision=1, brief=sc.LessonBrief(topic="probe"),
+            source_snapshot=[], slides=[slide], objectives=[
+                sc.Objective(objective_id="objective_1", text="probe")],
+            content_hash="0" * 64, created_at=store.utcnow())
+        try:
+            validate_layout_slots(probe)
+        except ValueError as exc:
+            raise ClassroomError("content_invalid",
+                                 f"重生成页布局非法：{exc}") from exc
+        slides = [slide if s.slide_id == op.slide_id else s
+                  for s in base.slides]
+        self._save_stage(sc.JobPhase.resolve_sources, {
+            "records": [_dump_json(r) for r in file_records]})
+        self._save_stage(sc.JobPhase.research, {
+            "records": [_dump_json(r) for r in web_records]})
+        outline = sc.OutlinePlan(
+            objectives=base.objectives,
+            pages=[sc.OutlinePage(
+                order=s.order, title=s.title, layout=s.layout,
+                objective_ids=list(s.learning_objective_ids),
+                budget_seconds=s.estimated_seconds)
+                for s in slides],
+            glossary=base.glossary,
+            total_budget_seconds=sum(s.estimated_seconds
+                                     for s in slides))
+        self._save_stage(sc.JobPhase.outline, {"plan": _dump_json(outline)})
+        self._save_stage(sc.JobPhase.visual_assets, {
+            "records": [_dump_json(a) for a in base.assets]})
+        self._save_stage(sc.JobPhase.author_slides, {
+            "slides": [{"slide": _dump_json(s)} for s in slides],
+            "objectives": [_dump_json(o) for o in base.objectives],
+            "glossary": [_dump_json(g) for g in base.glossary]})
+        self._save_stage(sc.JobPhase.checkpoints, {
+            "templates": [_dump_json(t)
+                          for t in base.checkpoint_templates],
+            "slides": [_dump_json(s) for s in slides]})
 
 
 class _AwaitingOutlineStop(Exception):

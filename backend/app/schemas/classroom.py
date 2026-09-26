@@ -1426,6 +1426,21 @@ class CreateLessonResponse(_StrictModel):
     events_url: str
 
 
+class CreateRevisionRequest(_StrictModel):
+    """POST L/revisions：五种修订 operation 之一（§14.1）。"""
+
+    base_revision: int = Field(..., ge=1)
+    operation: RevisionOperation
+
+
+class CreateRevisionResponse(_StrictModel):
+    lesson_id: LessonId
+    job_id: JobId
+    revision: int
+    status_url: str
+    events_url: str
+
+
 class JobSnapshotEvent(_StrictModel):
     """SSE snapshot 事件体（§14.4）。"""
 
@@ -1710,7 +1725,8 @@ PUBLIC_TYPE_MODELS: list[str] = [
     "ClassroomLimits", "ClassroomCapabilities",
     "PedagogyTemplateInfo", "ThemeTemplateInfo", "TemplateDefaults",
     "ClassroomTemplates",
-    "CreateLessonRequest", "CreateLessonResponse", "JobSnapshotEvent",
+    "CreateLessonRequest", "CreateLessonResponse",
+    "CreateRevisionRequest", "CreateRevisionResponse", "JobSnapshotEvent",
     "CancelJobRequest", "RetryJobRequest", "OutlinePatchRequest",
     "BriefPatchRequest", "ContinueJobRequest", "RevisionOpRequest",
     "ImageSearchRequest", "ImageCandidate", "ImageSearchResponse",

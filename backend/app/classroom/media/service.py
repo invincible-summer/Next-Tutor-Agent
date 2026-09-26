@@ -7,6 +7,8 @@
 """
 from __future__ import annotations
 
+from typing import Any
+
 from ..errors import ClassroomError  # noqa: F401  (供管线错误分类复用)
 from .base import (ImageCandidate, ImageSearchBudget, ImageSearchProvider,
                    RateLimitExceeded)
@@ -91,3 +93,43 @@ async def aclose_providers(providers: list[ImageSearchProvider]) -> None:
         closer = getattr(provider, "aclose", None)
         if closer is not None:
             await closer()
+
+
+# ---------------------------------------------------------------------------
+# 候选登记（§14.1：candidate_id 是服务端短期签发/保存的候选引用，不能由
+# 客户端拼图片 URL）。W/image-search 登记，replace_image 一次性消费。
+# ---------------------------------------------------------------------------
+import threading
+import time as _time
+
+_candidate_lock = threading.Lock()
+_candidates: dict[str, tuple[str, Any, float]] = {}
+_CANDIDATE_TTL_SECONDS = 24 * 3600
+
+
+def register_candidates(owner: str, candidates: list) -> list[str]:
+    """登记一批候选，返回可用于 API 回包的 id 列表。"""
+    now = _time.monotonic()
+    ids = []
+    with _candidate_lock:
+        # 过期惰性清理
+        for cid in [k for k, (_o, _c, exp) in _candidates.items()
+                    if exp < now]:
+            _candidates.pop(cid, None)
+        for cand in candidates:
+            _candidates[cand.candidate_id] = (
+                owner, cand, now + _CANDIDATE_TTL_SECONDS)
+            ids.append(cand.candidate_id)
+    return ids
+
+
+def pop_candidate(owner: str, candidate_id: str):
+    """一次性取回本人候选（取后即焚；过期/他人候选返回 None）。"""
+    with _candidate_lock:
+        entry = _candidates.pop(candidate_id, None)
+    if entry is None:
+        return None
+    entry_owner, cand, expires = entry
+    if entry_owner != owner or expires < _time.monotonic():
+        return None
+    return cand

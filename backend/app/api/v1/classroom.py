@@ -22,6 +22,7 @@ from app.schemas.classroom import (
     CreateLessonResponse,
     LessonListResponse,
 )
+from app.schemas import classroom as sc
 
 router = APIRouter(tags=["classroom"])
 
@@ -78,6 +79,22 @@ def create_lesson(workspace_id: str, request: CreateLessonRequest,
     key = require_idempotency_key(idempotency_key)
     return CreateLessonResponse(**classroom_service.create_lesson(
         student_id, workspace_id, request, idempotency_key=key))
+
+
+@router.post("/workspaces/{workspace_id}/classroom/lessons/{lesson_id}"
+             "/revisions",
+             response_model=sc.CreateRevisionResponse, status_code=202)
+def create_revision(workspace_id: str, lesson_id: str,
+                    request: sc.CreateRevisionRequest,
+                    idempotency_key: str | None = Header(
+                        default=None, alias="Idempotency-Key"),
+                    student_id: str = Depends(resolve_student_id)):
+    from app.classroom.errors import require_idempotency_key
+    from app.classroom import revisions as classroom_revisions
+
+    key = require_idempotency_key(idempotency_key)
+    return sc.CreateRevisionResponse(**classroom_revisions.create_revision_job(
+        student_id, workspace_id, lesson_id, request, idempotency_key=key))
 
 
 @router.get("/workspaces/{workspace_id}/classroom/lessons/{lesson_id}"

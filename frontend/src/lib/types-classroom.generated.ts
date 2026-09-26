@@ -925,6 +925,19 @@ export interface CreateLessonResponse {
   events_url: string;
 }
 
+export interface CreateRevisionRequest {
+  base_revision: number;
+  operation: EditContentOperation | ChangeThemeOperation | RegenerateSlideOperation | ReplaceImageOperation | RefreshResearchOperation;
+}
+
+export interface CreateRevisionResponse {
+  lesson_id: string;
+  job_id: string;
+  revision: number;
+  status_url: string;
+  events_url: string;
+}
+
 export interface JobSnapshotEvent {
   job_id: string;
   state_revision: number;
