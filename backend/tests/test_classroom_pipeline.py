@@ -558,5 +558,106 @@ class AnswerLeakFallbackTests(PipelineTestBase):
         self._publish_with(StubbornReviewerLLM())
 
 
+class DerivationImageLLM(FakeClassroomLLM):
+    """单页写作把一个 key_points 页改成 derivation + image（布局违规）；
+    单页修复原样返回（永不修复）→ 触发确定性块矫正兜底。"""
+
+    def __init__(self, **kw) -> None:
+        super().__init__(**kw)
+        self.repair_calls = 0
+
+    async def complete(self, messages, **_):
+        system = messages[0]["content"]
+        out_json, usage = await super().complete(messages, **_)
+        if "任务：单页写作" in system:
+            data = json.loads(out_json)
+            slide = data.get("slide") or {}
+            if (slide.get("layout") == "key_points"
+                    and slide.get("order") == 3):
+                fid = slide["blocks"][0]["id"]
+                iid = "ast_" + "a" * 24
+                slide["layout"] = "derivation"
+                slide["blocks"] = [
+                    {"kind": "formula", "id": fid,
+                     "latex": r"\sum F_{ext} = 0 \Rightarrow \Delta p = 0",
+                     "spoken": "合外力为零时总动量变化为零。"},
+                    {"kind": "image", "id": "blk_" + "b" * 24,
+                     "asset_id": iid, "alt": "示意图",
+                     "caption": "碰撞示意"}]
+                for seg in slide["segments"]:
+                    seg["show_block_ids"] = [fid]
+                    seg["focus_block_ids"] = []
+                data["claims"] = []
+            return json.dumps(data, ensure_ascii=False), usage
+        return out_json, usage
+
+    def _repair(self, payload: dict) -> dict:
+        # 永不修复：原样返回（驱动两轮修复后走块矫正兜底）
+        self.repair_calls += 1
+        original = (payload.get("original") or {}).get("slide")             or payload.get("original") or {}
+        return {"slide": json.loads(json.dumps(original)),
+                "claims": []}
+
+
+class LayoutSlotGateTests(PipelineTestBase):
+    """布局 slot 违规：review 门命中（带 slide_id）→ 修复轮 → 矫正兜底。"""
+
+    def test_derivation_image_coerced_and_published(self):
+        lesson_id, job_id = self._make_job()
+        fake = DerivationImageLLM()
+        job = asyncio.run(self._pipeline(lesson_id, job_id, self._deps(fake)).run())
+        self.assertEqual(job.state, sc.JobState.succeeded,
+                         msg=str(job.last_error))
+        self.assertEqual(fake.repair_calls, 2)
+        revision = store.load_revision(OWNER, WS, lesson_id, 1)
+        page = next(s for s in revision.slides if s.order == 3)
+        self.assertEqual(page.layout, sc.SlideLayout.derivation)
+        kinds = [getattr(b, "kind", "") for b in page.blocks]
+        self.assertIn("formula", kinds)
+        self.assertNotIn("image", kinds)   # 布局不允许的块已被移除
+        # 段引用仍指向存在的块
+        kept_ids = {b.id for b in page.blocks}
+        for seg in page.segments:
+            self.assertTrue(set(seg.show_block_ids) <= kept_ids)
+
+    def test_gate_and_coerce_units(self):
+        from app.classroom import validation
+
+        def mk(blocks, layout=sc.SlideLayout.derivation):
+            seg_show = [b.id for b in blocks]
+            return sc.SlideSpec(
+                slide_id="s_%012x" % 3, order=3, title="推导",
+                layout=layout, learning_objective_ids=[],
+                blocks=blocks,
+                segments=[sc.NarrationSegment(
+                    segment_id="seg_%024x" % 1, role=sc.SegmentRole.derive,
+                    display_text="推导", spoken_text="推导",
+                    show_block_ids=seg_show, focus_block_ids=seg_show,
+                    pause_after_ms=0, source_ids=[], estimated_ms=1000)],
+                claims=[sc.TeachingClaim(
+                    claim_id="claim_" + "1" * 24, text="说明",
+                    kind="author_explanation",
+                    block_ids=[blocks[-1].id])],
+                source_ids=[], transition=sc.TransitionKind.auto,
+                estimated_seconds=1)
+
+        formula = sc.FormulaBlock(id="blk_" + "1" * 24,
+                                  latex="F=ma", spoken="牛顿第二定律")
+        image = sc.ImageBlock(id="blk_" + "2" * 24,
+                              asset_id="ast_" + "3" * 24,
+                              alt="图", caption="图")
+        slide = mk([formula, image])
+        issues = validation.layout_slot_gate([slide], [])
+        self.assertEqual(len(issues), 1)
+        self.assertEqual(issues[0].code, "layout_slot")
+        self.assertEqual(issues[0].slide_id, slide.slide_id)
+        self.assertTrue(validation.coerce_layout_blocks(slide))
+        self.assertEqual([b.kind for b in slide.blocks], ["formula"])
+        self.assertEqual(slide.claims, [])   # 悬空 claim 已清理
+        self.assertEqual(validation.layout_slot_gate([slide], []), [])
+        # 再次矫正应无改动
+        self.assertFalse(validation.coerce_layout_blocks(slide))
+
+
 if __name__ == "__main__":
     unittest.main()

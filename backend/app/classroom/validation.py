@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import math
 import re
+from datetime import datetime, timezone
 from typing import Iterable
 
 from ..schemas import classroom as sc
@@ -324,6 +325,81 @@ def _normalize_span_list(spans, cap: int):
             merged.append(last)
             break
     return merged
+
+
+# ---------------------------------------------------------------------------
+# 布局 slot 门与确定性矫正（render 前置，§9.2）
+#
+# 真实 LLM 可能把 image 放进 derivation 这类不接受图片的布局，该违规
+# 原先要到 render 编译才以裸 ValueError 崩管线（worker 反复重试同一
+# 确定性错误直到恢复超限）。这里把它前移为带 slide_id 的 blocker（按页
+# 修复可定位），并提供无损兜底：移除布局不允许/超限的块并清理悬空引用。
+# ---------------------------------------------------------------------------
+
+def _slot_probe(slide, templates) -> None:
+    from .render.compiler import validate_layout_slots
+
+    probe = sc.LessonRevision(
+        revision=1, brief=sc.LessonBrief(topic="probe"),
+        source_snapshot=[], slides=[slide],
+        objectives=[sc.Objective(objective_id="objective_1", text="probe")],
+        checkpoint_templates=list(templates or []),
+        content_hash="0" * 64, created_at=datetime.now(timezone.utc))
+    validate_layout_slots(probe)
+
+
+def layout_slot_gate(slides: list[sc.SlideSpec],
+                     templates: list[sc.CheckpointTemplate],
+                     ) -> list[sc.ReviewIssue]:
+    """逐页对照布局 slot 表：不允许/超限/缺必需块 → blocker（带 slide_id）。"""
+    issues: list[sc.ReviewIssue] = []
+    for slide in slides:
+        try:
+            _slot_probe(slide, templates)
+        except ValueError as exc:
+            issues.append(_issue("layout_slot", "blocker", str(exc),
+                                 slide_id=slide.slide_id,
+                                 field_path="blocks"))
+    return issues
+
+
+def coerce_layout_blocks(slide: sc.SlideSpec) -> bool:
+    """把页内 block 确定性修正到布局允许范围，清理悬空引用。
+
+    规则：不在 slot 表中的块移除；同类块超过 max 的移除尾部多余项
+    （必需块只在超限时才动）。段显隐/聚焦引用与 claims 指向被移除块的
+    一并清理。返回是否发生了改动。
+    """
+    from .render.themes import layout_spec
+
+    spec = layout_spec(slide.layout.value)
+    kept: list = []
+    counts: dict[str, int] = {}
+    removed_ids: set[str] = set()
+    changed = False
+    for block in slide.blocks:
+        kind = getattr(block, "kind", "")
+        slot = spec.slots.get(kind)
+        if slot is None or counts.get(kind, 0) >= slot[0]:
+            removed_ids.add(block.id)
+            changed = True
+            continue
+        counts[kind] = counts.get(kind, 0) + 1
+        kept.append(block)
+    if not changed:
+        return False
+    slide.blocks = kept
+    kept_ids = {b.id for b in kept}
+    for seg in slide.segments:
+        if any(bid not in kept_ids for bid in seg.show_block_ids):
+            seg.show_block_ids = [b for b in seg.show_block_ids
+                                  if b in kept_ids] or list(kept_ids)
+        if any(bid not in kept_ids for bid in seg.focus_block_ids):
+            seg.focus_block_ids = [b for b in seg.focus_block_ids
+                                   if b in kept_ids]
+    slide.claims = [c for c in slide.claims
+                    if not (set(c.block_ids) - kept_ids)]
+    return True
 
 
 def normalize_slide_spans(payload):

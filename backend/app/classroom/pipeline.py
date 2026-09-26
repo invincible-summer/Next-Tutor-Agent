@@ -721,11 +721,8 @@ class ClassroomPipeline:
                    .get("records", [])
                    + self._read_stage(sc.JobPhase.research)
                    .get("records", [])]
-        issues = validation.structural_gate(slides, templates)
-        issues += validation.evidence_gate(brief, objectives, slides, records)
         duration_issues, estimated = validation.duration_gate(
             brief.duration_minutes, slides, brief.language)
-        issues += duration_issues
 
         async def _reviewer_issues(current: list[sc.SlideSpec],
                                    minutes: int) -> list[sc.ReviewIssue]:
@@ -758,8 +755,12 @@ class ClassroomPipeline:
             out = validation.structural_gate(current, templates)
             out += validation.evidence_gate(brief, objectives, current,
                                             records)
+            # 布局 slot 违规前移到 review（带 slide_id 可按页修复），
+            # 不再等到 render 编译以裸 ValueError 崩管线
+            out += validation.layout_slot_gate(current, templates)
             return out
 
+        issues = _deterministic_issues(slides) + duration_issues
         llm_issues = await _reviewer_issues(slides, estimated // 60)
         combined = validation.combine_reports(issues, llm_issues)
         # 有界按页修复循环（§15.2）：只重生成带 issue 的单页（不是整课
@@ -786,22 +787,28 @@ class ClassroomPipeline:
         # 通过确定性门；课程可发布性优先于在这一页上反复烧修复预算。
         blockers = [i for i in combined.issues
                     if i.severity == sc.Severity.blocker]
-        if blockers and all(i.code == "answer_leak" and i.slide_id
-                            for i in blockers):
-            leak_slides = {i.slide_id for i in blockers}
+        if blockers and all(i.code in ("answer_leak", "layout_slot")
+                            and i.slide_id for i in blockers):
+            leak_slides = {i.slide_id for i in blockers
+                           if i.code == "answer_leak"}
+            slot_slides = {i.slide_id for i in blockers
+                           if i.code == "layout_slot"}
             prompts = {t.slide_id: t.prompt for t in templates
                        if getattr(t, "prompt", "")}
             for slide in slides:
-                if slide.slide_id not in leak_slides:
-                    continue
-                guide = prompts.get(
-                    slide.slide_id, "停一停，检查一下你对刚才内容的理解。")
-                for seg in slide.segments:
-                    seg.display_text = guide
-                    seg.spoken_text = guide
-            self.warnings.append(
-                f"检查点页 {sorted(leak_slides)} 讲稿经净化去除答案泄露"
-                f"（修复轮未收敛，已替换为引导语）")
+                if slide.slide_id in leak_slides:
+                    guide = prompts.get(
+                        slide.slide_id, "停一停，检查一下你对刚才内容的理解。")
+                    for seg in slide.segments:
+                        seg.display_text = guide
+                        seg.spoken_text = guide
+                if slide.slide_id in slot_slides:
+                    validation.coerce_layout_blocks(slide)
+            if leak_slides or slot_slides:
+                self.warnings.append(
+                    f"修复轮未收敛，已确定性兜底：检查点页 "
+                    f"{sorted(leak_slides)} 讲稿净化去答案泄露；"
+                    f"布局页 {sorted(slot_slides)} 移除了布局不允许的块")
             issues = _deterministic_issues(slides)
             _dur, estimated = validation.duration_gate(
                 brief.duration_minutes, slides, brief.language)
@@ -889,7 +896,13 @@ class ClassroomPipeline:
                 report = await report
             return revision, html, report
 
-        _revision, html, report = await _compile_and_check()
+        try:
+            _revision, html, report = await _compile_and_check()
+        except ValueError as exc:
+            # 布局/结构违规在 review 阶段已门控；此处兜底转成统一
+            # envelope，避免裸 ValueError 让 worker 反复崩同一确定性错误
+            raise ClassroomError(
+                "content_invalid", f"课件编译失败：{exc}") from exc
         if report is not None and getattr(report, "ok", True) is False:
             # §15.5 视觉门：失败最多 1 次排版修复（只修溢出页），修完
             # 写回 review 载荷——publish 始终从 review 阶段组装。
