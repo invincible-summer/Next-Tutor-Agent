@@ -661,7 +661,9 @@ export function ExportButtons({ workspaceId, lessonId, revision, tr }: {
         `/classroom/lessons/${encodeURIComponent(lessonId)}/exports`, {
           method: "POST",
           headers: { "Content-Type": "application/json",
-                     "Idempotency-Key": `exp_${Date.now().toString(36)}` },
+                     // API 幂等键下限 16 字符：时间戳+随机后缀
+                     "Idempotency-Key": `exp_${Date.now().toString(36)}` +
+                       `_${Math.random().toString(36).slice(2, 10)}` },
           body: JSON.stringify({ revision, format }),
         });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -676,7 +678,8 @@ export function ExportButtons({ workspaceId, lessonId, revision, tr }: {
         ? `lesson-${lessonId}-r${revision}.zip`
         : `lesson-${lessonId}-r${revision}-notes.md`;
       a.click();
-      URL.revokeObjectURL(url);
+      // 延迟 revoke：立即回收会让浏览器来不及开始读取 blob 下载
+      window.setTimeout(() => URL.revokeObjectURL(url), 30_000);
     } catch { /* 静默：按钮态提示 */ }
     finally { setBusy(null); }
   };

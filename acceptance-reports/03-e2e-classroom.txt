@@ -1,0 +1,255 @@
+
+[WebServer] AUTH_JWT_SECRET 仍为开发默认值，仅限本地开发使用；部署到公网前必须设置独立随机密钥。
+
+[WebServer] INFO:     Started server process [128365]
+[WebServer] INFO:     Waiting for application startup.
+
+[WebServer] INFO:     Application startup complete.
+
+[WebServer] INFO:     Uvicorn running on http://127.0.0.1:8124 (Press CTRL+C to quit)
+
+Running 36 tests using 1 worker
+
+[1/36] [chromium] › e2e/classroom-create.spec.ts:121:5 › 一次生成后关闭重进仍是同一课程与任务
+[2/36] [chromium] › e2e/classroom-create.spec.ts:158:5 › 空教材且无外部服务时仍有明确路径
+[3/36] [chromium] › e2e/classroom-editor.spec.ts:86:5 › 逐页讲稿可见并可通过编辑生成新版本
+[4/36] [chromium] › e2e/classroom-editor.spec.ts:114:5 › 换主题与换图走确定性快速修订
+[5/36] [chromium] › e2e/classroom-editor.spec.ts:142:5 › 单页重生成展示生成进度
+[6/36] [chromium] › e2e/classroom-editor.spec.ts:170:5 › 双窗口编辑 409 提示冲突并支持重载
+
+[WebServer] ERROR:    Exception in ASGI application
+[WebServer] Traceback (most recent call last):
+[WebServer]   File "/home/invincible/.local/lib/python3.14/site-packages/starlette/_exception_handler.py", line 42, in wrapped_app
+[WebServer]     await app(scope, receive, sender)
+[WebServer]   File "/home/invincible/.local/lib/python3.14/site-packages/fastapi/routing.py", line 143, in app
+[WebServer]     await response(scope, receive, send)
+[WebServer]   File "/home/invincible/.local/lib/python3.14/site-packages/starlette/responses.py", line 273, in __call__
+[WebServer]     async with create_collapsing_task_group() as task_group:
+[WebServer]                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^
+[WebServer]   File "/usr/lib/python3.14/contextlib.py", line 235, in __aexit__
+[WebServer]     await self.gen.athrow(value)
+[WebServer]   File "/home/invincible/.local/lib/python3.14/site-packages/starlette/_utils.py", line 93, in create_collapsing_task_group
+[WebServer]     raise exc from exc.__cause__ or context
+[WebServer]   File "/home/invincible/.local/lib/python3.14/site-packages/anyio/_core/_tasks.py", line 275, in _run_coro
+[WebServer]     retval = await self._coro
+[WebServer]              ^^^^^^^^^^^^^^^^
+[WebServer]   File "/home/invincible/.local/lib/python3.14/site-packages/starlette/responses.py", line 276, in wrap
+[WebServer]     await func()
+[WebServer]   File "/home/invincible/.local/lib/python3.14/site-packages/starlette/responses.py", line 250, in stream_response
+[WebServer]     async for chunk in self.body_iterator:
+[WebServer]     ...<2 lines>...
+[WebServer]         await send({"type": "http.response.body", "body": chunk, "more_body": True})
+[WebServer]   File "/tmp/edu-agent-e2e/backend/app/classroom/service.py", line 899, in job_events
+[WebServer]     _lesson, job = _load_owned_job(student_id, workspace_id, lesson_id,
+[WebServer]                    ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[WebServer]                                    job_id)
+[WebServer]                                    ^^^^^^^
+[WebServer]   File "/tmp/edu-agent-e2e/backend/app/classroom/service.py", line 500, in _load_owned_job
+[WebServer]     lesson = store.load_lesson(student_id, workspace_id, lesson_id)
+[WebServer]   File "/tmp/edu-agent-e2e/backend/app/core/classroom_store.py", line 494, in load_lesson
+[WebServer]     return _read_model(lesson_meta_path(owner_id, workspace_id, lesson_id),
+[WebServer]                        ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[WebServer]   File "/tmp/edu-agent-e2e/backend/app/core/classroom_store.py", line 159, in lesson_meta_path
+[WebServer]     return lesson_root(owner_id, workspace_id, lesson_id) / "lesson.json"
+[WebServer]            ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[WebServer]   File "/tmp/edu-agent-e2e/backend/app/core/classroom_store.py", line 154, in lesson_root
+[WebServer]     validate_new_id("les", lesson_id)
+[WebServer]     ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^
+[WebServer]   File "/tmp/edu-agent-e2e/backend/app/core/classroom_store.py", line 69, in validate_new_id
+[WebServer]     raise ClassroomStorageError(f"非法课堂 {kind} ID")
+[WebServer] app.core.classroom_store.ClassroomStorageError: 非法课堂 les ID
+[WebServer] 
+[WebServer] The above exception was the direct cause of the following exception:
+[WebServer] 
+[WebServer] Traceback (most recent call last):
+[WebServer]   File "/home/invincible/.local/lib/python3.14/site-packages/uvicorn/protocols/http/httptools_impl.py", line 422, in run_asgi
+[WebServer]     result = await app(  # type: ignore[func-returns-value]
+[WebServer]              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[WebServer]         self.scope, self.receive, self.send
+[WebServer]         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[WebServer]     )
+[WebServer]     ^
+[WebServer]   File "/home/invincible/.local/lib/python3.14/site-packages/uvicorn/middleware/proxy_headers.py", line 63, in __call__
+[WebServer]     return await self.app(scope, receive, send)
+[WebServer]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[WebServer]   File "/home/invincible/.local/lib/python3.14/site-packages/fastapi/applications.py", line 1163, in __call__
+[WebServer]     await super().__call__(scope, receive, send)
+[WebServer]   File "/home/invincible/.local/lib/python3.14/site-packages/starlette/applications.py", line 90, in __call__
+[WebServer]     await self.middleware_stack(scope, receive, send)
+[WebServer]   File "/home/invincible/.local/lib/python3.14/site-packages/starlette/middleware/errors.py", line 186, in __call__
+[WebServer]     raise exc
+[WebServer]   File "/home/invincible/.local/lib/python3.14/site-packages/starlette/middleware/errors.py", line 164, in __call__
+[WebServer]     await self.app(scope, receive, _send)
+[WebServer]   File "/home/invincible/.local/lib/python3.14/site-packages/starlette/middleware/cors.py", line 96, in __call__
+[WebServer]     await self.simple_response(scope, receive, send, request_headers=headers)
+[WebServer]   File "/home/invincible/.local/lib/python3.14/site-packages/starlette/middleware/cors.py", line 154, in simple_response
+[WebServer]     await self.app(scope, receive, send)
+[WebServer]   File "/home/invincible/.local/lib/python3.14/site-packages/starlette/middleware/base.py", line 198, in __call__
+[WebServer]     raise app_exc
+[WebServer]   File "/home/invincible/.local/lib/python3.14/site-packages/starlette/middleware/base.py", line 144, in coro
+[WebServer]     await self.app(scope, receive_or_disconnect, send_no_error)
+[WebServer]   File "/home/invincible/.local/lib/python3.14/site-packages/starlette/middleware/exceptions.py", line 63, in __call__
+[WebServer]     await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+[WebServer]   File "/home/invincible/.local/lib/python3.14/site-packages/starlette/_exception_handler.py", line 53, in wrapped_app
+[WebServer]     raise exc
+[WebServer]   File "/home/invincible/.local/lib/python3.14/site-packages/starlette/_exception_handler.py", line 42, in wrapped_app
+[WebServer]     await app(scope, receive, sender)
+[WebServer]   File "/home/invincible/.local/lib/python3.14/site-packages/fastapi/middleware/asyncexitstack.py", line 18, in __call__
+[WebServer]     await self.app(scope, receive, send)
+[WebServer]   File "/home/invincible/.local/lib/python3.14/site-packages/starlette/routing.py", line 660, in __call__
+[WebServer]     await self.middleware_stack(scope, receive, send)
+[WebServer]   File "/home/invincible/.local/lib/python3.14/site-packages/fastapi/routing.py", line 2692, in app
+[WebServer]     await route.handle(scope, receive, send)
+[WebServer]   File "/home/invincible/.local/lib/python3.14/site-packages/fastapi/routing.py", line 1773, in handle
+[WebServer]     await self.original_router.handle(scope, receive, send)
+[WebServer]   File "/home/invincible/.local/lib/python3.14/site-packages/fastapi/routing.py", line 2747, in handle
+[WebServer]     await included_router._handle_selected(scope, receive, send)
+[WebServer]   File "/home/invincible/.local/lib/python3.14/site-packages/fastapi/routing.py", line 1784, in _handle_selected
+[WebServer]     await route.handle(scope, receive, send)
+[WebServer]   File "/home/invincible/.local/lib/python3.14/site-packages/fastapi/routing.py", line 1773, in handle
+[WebServer]     await self.original_router.handle(scope, receive, send)
+[WebServer]   File "/home/invincible/.local/lib/python3.14/site-packages/fastapi/routing.py", line 2747, in handle
+[WebServer]     await included_router._handle_selected(scope, receive, send)
+[WebServer]   File "/home/invincible/.local/lib/python3.14/site-packages/fastapi/routing.py", line 1793, in _handle_selected
+[WebServer]     await original_route.handle(scope, receive, send)
+[WebServer]   File "/home/invincible/.local/lib/python3.14/site-packages/fastapi/routing.py", line 1272, in handle
+[WebServer]     await app(scope, receive, send)
+[WebServer]   File "/home/invincible/.local/lib/python3.14/site-packages/fastapi/routing.py", line 156, in app
+[WebServer]     await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+[WebServer]   File "/home/invincible/.local/lib/python3.14/site-packages/starlette/_exception_handler.py", line 56, in wrapped_app
+[WebServer]     raise RuntimeError("Caught handled exception, but response already started.") from exc
+[WebServer] RuntimeError: Caught handled exception, but response already started.
+
+[WebServer] ERROR:    Exception in ASGI application
+[WebServer] Traceback (most recent call last):
+[WebServer]   File "/home/invincible/.local/lib/python3.14/site-packages/starlette/_exception_handler.py", line 42, in wrapped_app
+[WebServer]     await app(scope, receive, sender)
+[WebServer]   File "/home/invincible/.local/lib/python3.14/site-packages/fastapi/routing.py", line 143, in app
+[WebServer]     await response(scope, receive, send)
+[WebServer]   File "/home/invincible/.local/lib/python3.14/site-packages/starlette/responses.py", line 273, in __call__
+[WebServer]     async with create_collapsing_task_group() as task_group:
+[WebServer]                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^
+[WebServer]   File "/usr/lib/python3.14/contextlib.py", line 235, in __aexit__
+[WebServer]     await self.gen.athrow(value)
+[WebServer]   File "/home/invincible/.local/lib/python3.14/site-packages/starlette/_utils.py", line 93, in create_collapsing_task_group
+[WebServer]     raise exc from exc.__cause__ or context
+[WebServer]   File "/home/invincible/.local/lib/python3.14/site-packages/anyio/_core/_tasks.py", line 275, in _run_coro
+[WebServer]     retval = await self._coro
+[WebServer]              ^^^^^^^^^^^^^^^^
+[WebServer]   File "/home/invincible/.local/lib/python3.14/site-packages/starlette/responses.py", line 276, in wrap
+[WebServer]     await func()
+[WebServer]   File "/home/invincible/.local/lib/python3.14/site-packages/starlette/responses.py", line 250, in stream_response
+[WebServer]     async for chunk in self.body_iterator:
+[WebServer]     ...<2 lines>...
+[WebServer]         await send({"type": "http.response.body", "body": chunk, "more_body": True})
+[WebServer]   File "/tmp/edu-agent-e2e/backend/app/classroom/service.py", line 899, in job_events
+[WebServer]     _lesson, job = _load_owned_job(student_id, workspace_id, lesson_id,
+[WebServer]                    ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[WebServer]                                    job_id)
+[WebServer]                                    ^^^^^^^
+[WebServer]   File "/tmp/edu-agent-e2e/backend/app/classroom/service.py", line 500, in _load_owned_job
+[WebServer]     lesson = store.load_lesson(student_id, workspace_id, lesson_id)
+[WebServer]   File "/tmp/edu-agent-e2e/backend/app/core/classroom_store.py", line 494, in load_lesson
+[WebServer]     return _read_model(lesson_meta_path(owner_id, workspace_id, lesson_id),
+[WebServer]                        ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[WebServer]   File "/tmp/edu-agent-e2e/backend/app/core/classroom_store.py", line 159, in lesson_meta_path
+[WebServer]     return lesson_root(owner_id, workspace_id, lesson_id) / "lesson.json"
+[WebServer]            ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[WebServer]   File "/tmp/edu-agent-e2e/backend/app/core/classroom_store.py", line 154, in lesson_root
+[WebServer]     validate_new_id("les", lesson_id)
+[WebServer]     ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^
+[WebServer]   File "/tmp/edu-agent-e2e/backend/app/core/classroom_store.py", line 69, in validate_new_id
+[WebServer]     raise ClassroomStorageError(f"非法课堂 {kind} ID")
+[WebServer] app.core.classroom_store.ClassroomStorageError: 非法课堂 les ID
+[WebServer] 
+[WebServer] The above exception was the direct cause of the following exception:
+[WebServer] 
+[WebServer] Traceback (most recent call last):
+[WebServer]   File "/home/invincible/.local/lib/python3.14/site-packages/uvicorn/protocols/http/httptools_impl.py", line 422, in run_asgi
+[WebServer]     result = await app(  # type: ignore[func-returns-value]
+[WebServer]              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[WebServer]         self.scope, self.receive, self.send
+[WebServer]         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[WebServer]     )
+[WebServer]     ^
+[WebServer]   File "/home/invincible/.local/lib/python3.14/site-packages/uvicorn/middleware/proxy_headers.py", line 63, in __call__
+[WebServer]     return await self.app(scope, receive, send)
+[WebServer]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[WebServer]   File "/home/invincible/.local/lib/python3.14/site-packages/fastapi/applications.py", line 1163, in __call__
+[WebServer]     await super().__call__(scope, receive, send)
+[WebServer]   File "/home/invincible/.local/lib/python3.14/site-packages/starlette/applications.py", line 90, in __call__
+[WebServer]     await self.middleware_stack(scope, receive, send)
+[WebServer]   File "/home/invincible/.local/lib/python3.14/site-packages/starlette/middleware/errors.py", line 186, in __call__
+[WebServer]     raise exc
+[WebServer]   File "/home/invincible/.local/lib/python3.14/site-packages/starlette/middleware/errors.py", line 164, in __call__
+[WebServer]     await self.app(scope, receive, _send)
+[WebServer]   File "/home/invincible/.local/lib/python3.14/site-packages/starlette/middleware/cors.py", line 96, in __call__
+[WebServer]     await self.simple_response(scope, receive, send, request_headers=headers)
+[WebServer]   File "/home/invincible/.local/lib/python3.14/site-packages/starlette/middleware/cors.py", line 154, in simple_response
+[WebServer]     await self.app(scope, receive, send)
+[WebServer]   File "/home/invincible/.local/lib/python3.14/site-packages/starlette/middleware/base.py", line 198, in __call__
+[WebServer]     raise app_exc
+[WebServer]   File "/home/invincible/.local/lib/python3.14/site-packages/starlette/middleware/base.py", line 144, in coro
+[WebServer]     await self.app(scope, receive_or_disconnect, send_no_error)
+[WebServer]   File "/home/invincible/.local/lib/python3.14/site-packages/starlette/middleware/exceptions.py", line 63, in __call__
+[WebServer]     await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+[WebServer]   File "/home/invincible/.local/lib/python3.14/site-packages/starlette/_exception_handler.py", line 53, in wrapped_app
+[WebServer]     raise exc
+[WebServer]   File "/home/invincible/.local/lib/python3.14/site-packages/starlette/_exception_handler.py", line 42, in wrapped_app
+[WebServer]     await app(scope, receive, sender)
+[WebServer]   File "/home/invincible/.local/lib/python3.14/site-packages/fastapi/middleware/asyncexitstack.py", line 18, in __call__
+[WebServer]     await self.app(scope, receive, send)
+[WebServer]   File "/home/invincible/.local/lib/python3.14/site-packages/starlette/routing.py", line 660, in __call__
+[WebServer]     await self.middleware_stack(scope, receive, send)
+[WebServer]   File "/home/invincible/.local/lib/python3.14/site-packages/fastapi/routing.py", line 2692, in app
+[WebServer]     await route.handle(scope, receive, send)
+[WebServer]   File "/home/invincible/.local/lib/python3.14/site-packages/fastapi/routing.py", line 1773, in handle
+[WebServer]     await self.original_router.handle(scope, receive, send)
+[WebServer]   File "/home/invincible/.local/lib/python3.14/site-packages/fastapi/routing.py", line 2747, in handle
+[WebServer]     await included_router._handle_selected(scope, receive, send)
+[WebServer]   File "/home/invincible/.local/lib/python3.14/site-packages/fastapi/routing.py", line 1784, in _handle_selected
+[WebServer]     await route.handle(scope, receive, send)
+[WebServer]   File "/home/invincible/.local/lib/python3.14/site-packages/fastapi/routing.py", line 1773, in handle
+[WebServer]     await self.original_router.handle(scope, receive, send)
+[WebServer]   File "/home/invincible/.local/lib/python3.14/site-packages/fastapi/routing.py", line 2747, in handle
+[WebServer]     await included_router._handle_selected(scope, receive, send)
+[WebServer]   File "/home/invincible/.local/lib/python3.14/site-packages/fastapi/routing.py", line 1793, in _handle_selected
+[WebServer]     await original_route.handle(scope, receive, send)
+[WebServer]   File "/home/invincible/.local/lib/python3.14/site-packages/fastapi/routing.py", line 1272, in handle
+[WebServer]     await app(scope, receive, send)
+[WebServer]   File "/home/invincible/.local/lib/python3.14/site-packages/fastapi/routing.py", line 156, in app
+[WebServer]     await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+[WebServer]   File "/home/invincible/.local/lib/python3.14/site-packages/starlette/_exception_handler.py", line 56, in wrapped_app
+[WebServer]     raise RuntimeError("Caught handled exception, but response already started.") from exc
+[WebServer] RuntimeError: Caught handled exception, but response already started.
+[7/36] [chromium] › e2e/classroom-editor.spec.ts:191:5 › 删除页后页码钳位且最后一页不可删
+[8/36] [chromium] › e2e/classroom-editor.spec.ts:226:5 › 继续上课直达既有 run，不换版本
+[9/36] [chromium] › e2e/classroom-export.spec.ts:68:5 › 下载课件与讲稿：受理→鉴权内容→浏览器下载
+[10/36] [chromium] › e2e/classroom-export.spec.ts:103:5 › 导出过期（410）无下载且按钮可重试
+[11/36] [chromium] › e2e/classroom-player.spec.ts:189:5 › 整课经真实音频 ended 推进到完成
+[12/36] [chromium] › e2e/classroom-player.spec.ts:223:5 › 暂停立即停声，恢复后从当前段继续
+[13/36] [chromium] › e2e/classroom-player.spec.ts:243:5 › 插问暂停讲授，回答后继续原课
+[14/36] [chromium] › e2e/classroom-player.spec.ts:305:5 › 无语音时进入文字课堂，讲稿仍可完整阅读
+[15/36] [chromium] › e2e/classroom-questions.spec.ts:229:5 › 检查点：提示→揭晓→提交一次受理，答案不提前泄漏
+[16/36] [chromium] › e2e/classroom-questions.spec.ts:280:5 › 跳过不算答错：标记已跳过且不显示对错
+[17/36] [chromium] › e2e/classroom-questions.spec.ts:300:5 › 刷新恢复：已答检查点不重开为新题
+[18/36] [chromium] › e2e/classroom-questions.spec.ts:345:5 › 插问多轮后回到最初被打断段
+[19/36] [chromium] › e2e/classroom-resume.spec.ts:174:5 › 刷新恢复到上次游标且不自动发声
+[20/36] [chromium] › e2e/classroom-resume.spec.ts:197:5 › 进度上报失败不崩溃且重试收敛
+[21/36] [chromium] › e2e/classroom-resume.spec.ts:217:5 › pagehide 立即 flush 进度
+[22/36] [chromium] › e2e/classroom-security.spec.ts:160:5 › 课件 iframe 沙箱隔离且伪造 postMessage 无效
+[23/36] [chromium] › e2e/classroom-security.spec.ts:191:5 › frame 与音频内容请求都经 Authorization 头鉴权
+[24/36] [chromium] › e2e/classroom-security.spec.ts:224:5 › 他人资源 404/410 时播放器优雅降级
+[25/36] [chromium] › e2e/classroom-visual.spec.ts:155:9 › 课堂播放器视觉矩阵 › 主题 学术清晰（浅色 1440×900）
+[26/36] [chromium] › e2e/classroom-visual.spec.ts:155:9 › 课堂播放器视觉矩阵 › 主题 暖粉笔记（浅色 1440×900）
+[27/36] [chromium] › e2e/classroom-visual.spec.ts:155:9 › 课堂播放器视觉矩阵 › 主题 墨色极简（浅色 1440×900）
+[28/36] [chromium] › e2e/classroom-visual.spec.ts:155:9 › 课堂播放器视觉矩阵 › 主题 自然野趣（浅色 1440×900）
+[29/36] [chromium] › e2e/classroom-visual.spec.ts:155:9 › 课堂播放器视觉矩阵 › 主题 星空夜话（浅色 1440×900）
+[30/36] [chromium] › e2e/classroom-visual.spec.ts:166:9 › 课堂播放器视觉矩阵 › 窄屏 390×844 浅色控件不遮挡课件
+[31/36] [chromium] › e2e/classroom-visual.spec.ts:180:9 › 课堂播放器视觉矩阵 › 平板 768×1024 浅色
+[32/36] [chromium] › e2e/classroom-visual.spec.ts:166:9 › 课堂播放器视觉矩阵 › 窄屏 390×844 深色控件不遮挡课件
+[33/36] [chromium] › e2e/classroom-visual.spec.ts:180:9 › 课堂播放器视觉矩阵 › 平板 768×1024 深色
+[34/36] [chromium] › e2e/classroom-visual.spec.ts:190:7 › 课堂播放器视觉矩阵 › 200% 字号下控件与讲稿仍可读可用
+[35/36] [chromium] › e2e/classroom-visual.spec.ts:207:7 › 课堂播放器视觉矩阵 › reduced-motion 下正常渲染（无动画依赖）
+[36/36] [chromium] › e2e/classroom-visual.spec.ts:219:7 › 课堂播放器视觉矩阵 › 五主题课件帧截图互不相同
+  36 passed (56.2s)

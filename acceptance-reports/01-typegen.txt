@@ -1,0 +1,1 @@
+[typegen] OK: /home/invincible/daily/program/Next-Tutor-Agent/frontend/src/lib/types-classroom.generated.ts 与 schema 一致

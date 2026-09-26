@@ -1,0 +1,32 @@
+
+[WebServer] AUTH_JWT_SECRET 仍为开发默认值，仅限本地开发使用；部署到公网前必须设置独立随机密钥。
+
+[WebServer] INFO:     Started server process [127922]
+[WebServer] INFO:     Waiting for application startup.
+
+[WebServer] INFO:     Application startup complete.
+
+[WebServer] INFO:     Uvicorn running on http://127.0.0.1:8124 (Press CTRL+C to quit)
+
+Running 7 tests using 1 worker
+
+[1/7] [chromium] › e2e/auth-isolation.spec.ts:10:5 › A 的私有 session/教材对 B 不可见
+[2/7] [chromium] › e2e/auth-isolation.spec.ts:56:5 › UI 登录后可以看到自己的教材
+[3/7] [chromium] › e2e/notes.spec.ts:10:5 › 创建笔记并保持私有 ownership
+[4/7] [chromium] › e2e/quiz-card-contract.spec.ts:9:5 › 聊天出题可作答、刷新恢复并在习题中心加载
+[5/7] [chromium] › e2e/strict-qa.spec.ts:13:5 › 根据教材提问，回答引用教材事实
+[6/7] [chromium] › e2e/voice-smoke.spec.ts:11:5 › voice ticket -> WS 协议闭环
+
+[WebServer] INFO:     127.0.0.1:46094 - "WebSocket /api/v1/voice/ws?ticket=lbyWz3zgnge4S_KZyBIxLwqjRx4avim8" [accepted]
+
+[WebServer] INFO:     connection open
+[7/7] [chromium] › e2e/voice-smoke.spec.ts:73:5 › voice ticket 单次消费（重放被拒）
+
+[WebServer] INFO:     127.0.0.1:46124 - "WebSocket /api/v1/voice/ws?ticket=TqFGVMP0CHgIFnqbeYoVJ2xN29GI62gW" [accepted]
+
+[WebServer] INFO:     connection open
+
+[WebServer] INFO:     127.0.0.1:46128 - "WebSocket /api/v1/voice/ws?ticket=TqFGVMP0CHgIFnqbeYoVJ2xN29GI62gW" 403
+
+[WebServer] INFO:     connection rejected (403 Forbidden)
+  7 passed (15.8s)

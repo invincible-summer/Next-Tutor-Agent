@@ -147,6 +147,8 @@ export function CheckpointPanel(
         task_result?: { verdict?: string } | null;
         evaluation_status?: string;
       };
+      // 受理后本面板进入已答形态（✓ + 继续上课）；服务端已持久化。
+      setData((d) => d ? { ...d, run_state: "answered" } : d);
       return {
         task_result: payload.task_result ?? null,
         evaluation: { status: payload.evaluation_status ?? "pending" },
