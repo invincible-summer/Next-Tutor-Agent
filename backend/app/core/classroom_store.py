@@ -660,6 +660,11 @@ def stage_file(staging: Path, name: str, data: bytes | str) -> Path:
     if name in ("", ".") or "/" in name or name.startswith("."):
         raise ClassroomStorageError("非法 staging 文件名")
     path = staging / name
+    _guard_symlink_parents(path)
+    _assert_writable_path(path)
+    # 目标目录可能尚未创建（如全新课程首个图库资产写入 assets/），与
+    # write_bytes/write_json 一致地按需建目录，调用方无须预先 mkdir。
+    _ensure_dir(staging)
     if isinstance(data, str):
         atomic_write_text(path, data)
     else:

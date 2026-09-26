@@ -333,6 +333,26 @@ class AtomicBytesTests(StorageSandboxTestCase):
         self.assertEqual(path.read_bytes(), b"\x00\x01\x02")
         self.assertFalse(path.with_name("b.bin.tmp").exists())
 
+    def test_stage_file_creates_missing_assets_dir(self):
+        # 回归：全新课程首次保存图库资产时 assets/ 目录尚不存在，
+        # stage_file 必须自建目录（pipeline._stage_visual_assets 路径）
+        lesson = make_lesson()
+        store.save_lesson(lesson)
+        self.assertFalse(store.asset_file_path(
+            OWNER, WS, lesson.lesson_id, store.new_id("ast"),
+            "webp").parent.exists())
+        target = store.asset_file_path(OWNER, WS, lesson.lesson_id,
+                                       store.new_id("ast"), "webp")
+        path = store.stage_file(target.parent, target.name, b"\x00webp")
+        self.assertTrue(path.is_file())
+        self.assertEqual(path.read_bytes(), b"\x00webp")
+        self.assertFalse(path.with_name(path.name + ".tmp").exists())
+        # 字符串写入同样适用（未准备的 staging 目录）
+        fresh = store.revision_staging_dir(OWNER, WS, lesson.lesson_id, 9)
+        self.assertFalse(fresh.exists())
+        store.stage_file(fresh, "notes.md", "# n")
+        self.assertTrue((fresh / "notes.md").is_file())
+
     def test_canonical_hash_stable(self):
         a = store.canonical_hash({"b": 1, "a": {"y": [1, 2], "x": "文"}})
         b = store.canonical_hash({"a": {"x": "文", "y": [1, 2]}, "b": 1})
