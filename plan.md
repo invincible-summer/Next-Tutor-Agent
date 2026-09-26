@@ -1235,7 +1235,7 @@ exports 24h 过期；搜索缓存按 24h TTL；失败/取消 job staging 保留 
 - [x] D03 接入题目生成/审核并保留私有模板；内容生成和题模板不提前注册为学生作答。
 - [x] D04 实现 checkpoint、恢复、epoch、取消、上限、provider retry 预算；发布前复查来源与版本。
 - [x] D05 实现单页重生成/手工修改/换主题/换图/刷新来源五种 revision operation，保留旧版本可用。
-- [ ] D06 实现 job snapshot SSE 和轮询 fallback；前端断线不影响 worker。
+- [x] D06 实现 job snapshot SSE 和轮询 fallback；前端断线不影响 worker。
 
 退出门：stub 生成可真正产出 HTML+讲稿+来源+题模板；每个阶段注入一次 crash 后可恢复；cancel 不发布晚到结果；坏 JSON/无来源/溢出均不会标 ready。
 

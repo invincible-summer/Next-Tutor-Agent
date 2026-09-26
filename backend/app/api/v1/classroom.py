@@ -98,6 +98,79 @@ def create_revision(workspace_id: str, lesson_id: str,
 
 
 @router.get("/workspaces/{workspace_id}/classroom/lessons/{lesson_id}"
+            "/jobs/{job_id}", response_model=sc.JobPublic)
+def get_job(workspace_id: str, lesson_id: str, job_id: str,
+            student_id: str = Depends(resolve_student_id)):
+    return sc.JobPublic(**classroom_service.job_snapshot(
+        student_id, workspace_id, lesson_id, job_id))
+
+
+@router.get("/workspaces/{workspace_id}/classroom/lessons/{lesson_id}"
+            "/jobs/{job_id}/events")
+async def job_events(workspace_id: str, lesson_id: str, job_id: str,
+                     after_revision: int = 0,
+                     student_id: str = Depends(resolve_student_id)):
+    from fastapi.responses import StreamingResponse
+
+    generator = classroom_service.job_events(
+        student_id, workspace_id, lesson_id, job_id,
+        after_revision=after_revision)
+    return StreamingResponse(
+        generator, media_type="text/event-stream",
+        headers={"Cache-Control": "no-store", "X-Accel-Buffering": "no"})
+
+
+@router.post("/workspaces/{workspace_id}/classroom/lessons/{lesson_id}"
+             "/jobs/{job_id}/cancel", response_model=sc.JobPublic)
+def cancel_job(workspace_id: str, lesson_id: str, job_id: str,
+               request: sc.CancelJobRequest,
+               student_id: str = Depends(resolve_student_id)):
+    return sc.JobPublic(**classroom_service.cancel_job(
+        student_id, workspace_id, lesson_id, job_id,
+        request.expected_state_revision))
+
+
+@router.post("/workspaces/{workspace_id}/classroom/lessons/{lesson_id}"
+             "/jobs/{job_id}/retry", response_model=sc.JobPublic)
+def retry_job(workspace_id: str, lesson_id: str, job_id: str,
+              request: sc.RetryJobRequest,
+              idempotency_key: str | None = Header(
+                  default=None, alias="Idempotency-Key"),
+              student_id: str = Depends(resolve_student_id)):
+    return sc.JobPublic(**classroom_service.retry_job(
+        student_id, workspace_id, lesson_id, job_id,
+        request.expected_state_revision))
+
+
+@router.post("/workspaces/{workspace_id}/classroom/lessons/{lesson_id}"
+             "/jobs/{job_id}/continue", response_model=sc.JobPublic)
+def continue_job(workspace_id: str, lesson_id: str, job_id: str,
+                 request: sc.ContinueJobRequest,
+                 student_id: str = Depends(resolve_student_id)):
+    return sc.JobPublic(**classroom_service.continue_job(
+        student_id, workspace_id, lesson_id, job_id,
+        request.expected_state_revision))
+
+
+@router.patch("/workspaces/{workspace_id}/classroom/lessons/{lesson_id}"
+              "/jobs/{job_id}/outline", response_model=sc.JobPublic)
+def patch_outline(workspace_id: str, lesson_id: str, job_id: str,
+                  request: sc.OutlinePatchRequest,
+                  student_id: str = Depends(resolve_student_id)):
+    return sc.JobPublic(**classroom_service.patch_outline(
+        student_id, workspace_id, lesson_id, job_id, request))
+
+
+@router.patch("/workspaces/{workspace_id}/classroom/lessons/{lesson_id}"
+              "/jobs/{job_id}/brief", response_model=sc.JobPublic)
+def patch_brief(workspace_id: str, lesson_id: str, job_id: str,
+                request: sc.BriefPatchRequest,
+                student_id: str = Depends(resolve_student_id)):
+    return sc.JobPublic(**classroom_service.patch_brief(
+        student_id, workspace_id, lesson_id, job_id, request))
+
+
+@router.get("/workspaces/{workspace_id}/classroom/lessons/{lesson_id}"
             "/revisions/{revision}/frame")
 def get_revision_frame(workspace_id: str, lesson_id: str, revision: int,
                        mode: str = "presentation",

@@ -235,3 +235,327 @@ def get_revision_frame(student_id: str, workspace_id: str, lesson_id: str,
     if mode == "reading":
         html = html.replace('<html lang=', '<html data-reading="1" lang=', 1)
     return html
+
+
+# ---------------------------------------------------------------------------
+# Job 控制面（plan.md §14.1，D06）：snapshot / cancel / retry / continue /
+# patch_outline / patch_brief + SSE 事件流。
+# ---------------------------------------------------------------------------
+
+def _load_owned_job(student_id: str, workspace_id: str, lesson_id: str,
+                    job_id: str) -> tuple[sc.Lesson, sc.GenerationJob]:
+    lesson = store.load_lesson(student_id, workspace_id, lesson_id)
+    if lesson is None or lesson.owner_id != student_id:
+        raise ClassroomError("source_not_found", "课程不存在")
+    job = store.load_job(student_id, workspace_id, lesson_id, job_id)
+    if job is None or job.owner_id != student_id:
+        raise ClassroomError("source_not_found", "任务不存在")
+    return lesson, job
+
+
+def _job_progress(student_id: str, workspace_id: str, lesson_id: str,
+                  job: sc.GenerationJob) -> sc.JobProgress:
+    total = 0
+    completed = 0
+    stages = store.stages_dir(student_id, workspace_id, lesson_id,
+                              job.job_id)
+    outline = stages / "outline.json"
+    if outline.is_file():
+        try:
+            total = len(json.loads(
+                outline.read_text(encoding="utf-8"))["plan"]["pages"])
+        except (OSError, ValueError, KeyError):
+            total = 0
+    authored = stages / "author_slides.json"
+    if authored.is_file() and total:
+        try:
+            completed = len(json.loads(
+                authored.read_text(encoding="utf-8"))["slides"])
+        except (OSError, ValueError, KeyError):
+            completed = 0
+    if job.state == sc.JobState.succeeded and total:
+        completed = total
+    return sc.JobProgress(completed_slides=completed, total_slides=total)
+
+
+def _job_warnings(student_id: str, workspace_id: str, lesson_id: str,
+                  job: sc.GenerationJob) -> list[str]:
+    warnings: list[str] = []
+    stages = store.stages_dir(student_id, workspace_id, lesson_id,
+                              job.job_id)
+    resolve = stages / "resolve_sources.json"
+    if resolve.is_file():
+        try:
+            issues = json.loads(
+                resolve.read_text(encoding="utf-8")).get("issues") or []
+            warnings.extend(
+                f"{i.get('code')}: {str(i.get('message', ''))[:120]}"
+                for i in issues)
+        except (OSError, ValueError):
+            pass
+    return warnings[:32]
+
+
+def _next_actions(job: sc.GenerationJob) -> list[str]:
+    if job.state in (sc.JobState.queued, sc.JobState.running):
+        return ["cancel"]
+    if job.state == sc.JobState.awaiting_outline:
+        return ["patch_outline", "continue", "cancel"]
+    if job.state == sc.JobState.needs_input:
+        return ["patch_brief", "continue", "cancel"]
+    if job.state == sc.JobState.failed:
+        return ["retry", "cancel"]
+    if job.state == sc.JobState.cancelled:
+        return ["retry"]
+    return []
+
+
+def job_snapshot(student_id: str, workspace_id: str, lesson_id: str,
+                 job_id: str) -> dict[str, Any]:
+    """GET J：完整 snapshot（进度来自阶段产物，只读）。"""
+    allowed, _ = caps.user_allowed(student_id)
+    if not allowed:
+        raise ClassroomError("classroom_disabled", "课堂功能未开放")
+    _lesson, job = _load_owned_job(student_id, workspace_id, lesson_id,
+                                   job_id)
+    public = sc.JobPublic(
+        job_id=job.job_id, lesson_id=job.lesson_id, state=job.state,
+        phase=job.phase, state_revision=job.state_revision,
+        progress=_job_progress(student_id, workspace_id, lesson_id, job),
+        warnings=_job_warnings(student_id, workspace_id, lesson_id, job),
+        last_error=job.last_error, cancel_requested=job.cancel_requested,
+        start_mode=job.start_mode, created_at=job.created_at,
+        updated_at=job.updated_at, next_actions=_next_actions(job))
+    return public.model_dump(mode="json", by_alias=True)
+
+
+def _cas_job(student_id: str, workspace_id: str, lesson_id: str,
+             job_id: str, expected_state_revision: int,
+             mutate) -> sc.GenerationJob:
+    try:
+        return store.update_job(student_id, workspace_id, lesson_id,
+                                job_id, mutate,
+                                expected_state_revision=expected_state_revision)
+    except store.CasConflictError as exc:
+        raise ClassroomError("revision_conflict",
+                             "state_revision 已变化，请刷新后重试") from exc
+
+
+def _wake(student_id: str, workspace_id: str, lesson_id: str,
+          job_id: str) -> None:
+    if enqueue_job is not None:
+        try:
+            enqueue_job(student_id, workspace_id, lesson_id, job_id)
+        except Exception:
+            pass
+
+
+def cancel_job(student_id: str, workspace_id: str, lesson_id: str,
+               job_id: str, expected_state_revision: int) -> dict[str, Any]:
+    """POST J/cancel：非终态 → cancel_requested（202）；终态原样返回。"""
+    _lesson, job = _load_owned_job(student_id, workspace_id, lesson_id,
+                                   job_id)
+    if job.state in (sc.JobState.succeeded, sc.JobState.failed,
+                     sc.JobState.cancelled):
+        return job_snapshot(student_id, workspace_id, lesson_id, job_id)
+
+    def mutate(target: sc.GenerationJob) -> None:
+        target.cancel_requested = True
+
+    _cas_job(student_id, workspace_id, lesson_id, job_id,
+             expected_state_revision, mutate)
+    return job_snapshot(student_id, workspace_id, lesson_id, job_id)
+
+
+_ACTIVE_RETRY_STATES = (sc.JobState.failed, sc.JobState.cancelled,
+                        sc.JobState.needs_input)
+
+
+def retry_job(student_id: str, workspace_id: str, lesson_id: str,
+              job_id: str, expected_state_revision: int) -> dict[str, Any]:
+    """POST J/retry：显式重试（保留已校验阶段产物与目标 revision）。"""
+    _lesson, job = _load_owned_job(student_id, workspace_id, lesson_id,
+                                   job_id)
+    if job.state not in _ACTIVE_RETRY_STATES:
+        raise ClassroomError("content_invalid",
+                             f"状态 {job.state.value} 不支持重试")
+
+    def mutate(target: sc.GenerationJob) -> None:
+        target.state = sc.JobState.queued
+        target.phase = None
+        target.cancel_requested = False
+        target.next_retry_at = None
+        target.recovery_count = 0
+        target.attempts += 1
+
+    _cas_job(student_id, workspace_id, lesson_id, job_id,
+             expected_state_revision, mutate)
+    _wake(student_id, workspace_id, lesson_id, job_id)
+    return job_snapshot(student_id, workspace_id, lesson_id, job_id)
+
+
+def continue_job(student_id: str, workspace_id: str, lesson_id: str,
+                 job_id: str, expected_state_revision: int) -> dict[str, Any]:
+    """POST J/continue：大纲审核后/补齐输入后继续（来源重查由阶段保证）。"""
+    _lesson, job = _load_owned_job(student_id, workspace_id, lesson_id,
+                                   job_id)
+    if job.state not in (sc.JobState.awaiting_outline,
+                         sc.JobState.needs_input):
+        raise ClassroomError("content_invalid",
+                             f"状态 {job.state.value} 不需要 continue")
+
+    def mutate(target: sc.GenerationJob) -> None:
+        target.state = sc.JobState.queued
+        target.phase = None
+        target.cancel_requested = False
+
+    _cas_job(student_id, workspace_id, lesson_id, job_id,
+             expected_state_revision, mutate)
+    _wake(student_id, workspace_id, lesson_id, job_id)
+    return job_snapshot(student_id, workspace_id, lesson_id, job_id)
+
+
+def patch_outline(student_id: str, workspace_id: str, lesson_id: str,
+                  job_id: str, request: sc.OutlinePatchRequest,
+                  ) -> dict[str, Any]:
+    """PATCH J/outline：仅 awaiting_outline/needs_input；替换大纲产物并
+    使 author 之后的产物失效（重排/改页数会让逐页产物过期）。"""
+    _lesson, job = _load_owned_job(student_id, workspace_id, lesson_id,
+                                   job_id)
+    if job.state not in (sc.JobState.awaiting_outline,
+                         sc.JobState.needs_input):
+        raise ClassroomError("content_invalid",
+                             "只有等待大纲审核的任务可改大纲")
+    outline = request.outline
+    for index, page in enumerate(outline.pages, start=1):
+        page.order = index
+    payload = {"plan": outline.model_dump(mode="json", by_alias=True)}
+    digest = store.canonical_hash(payload)
+    stages = store.stages_dir(student_id, workspace_id, lesson_id, job_id)
+    stages.mkdir(parents=True, exist_ok=True)
+    store.stage_file(stages, "outline.json",
+                     json.dumps(payload, ensure_ascii=False, indent=1))
+    invalidate = [sc.JobPhase.author_slides, sc.JobPhase.checkpoints,
+                  sc.JobPhase.review, sc.JobPhase.render, sc.JobPhase.publish]
+
+    def mutate(target: sc.GenerationJob) -> None:
+        target.artifacts["outline"] = digest
+        for phase in invalidate:
+            target.artifacts.pop(phase.value, None)
+        target.stage_inputs.pop("outline", None)
+        target.stage_inputs["outline"] = digest
+
+    _cas_job(student_id, workspace_id, lesson_id, job_id,
+             request.expected_state_revision, mutate)
+    return job_snapshot(student_id, workspace_id, lesson_id, job_id)
+
+
+# §4 用户可改字段白名单（PATCH J/brief；owner/lesson/target 不可改）
+_BRIEF_PATCH_FIELDS = frozenset({
+    "topic", "goals", "source_selection", "source_policy", "research",
+    "duration_minutes", "page_plan", "language", "grade", "pedagogy_id",
+    "theme_id", "image_density", "checkpoint_density", "voice_preferences",
+    "custom_requirements",
+})
+
+
+def patch_brief(student_id: str, workspace_id: str, lesson_id: str,
+                job_id: str, request: sc.BriefPatchRequest,
+                ) -> dict[str, Any]:
+    """PATCH J/brief：白名单整体替换；重算 hash 并失效受影响阶段。"""
+    _lesson, job = _load_owned_job(student_id, workspace_id, lesson_id,
+                                   job_id)
+    if job.state not in (sc.JobState.failed, sc.JobState.needs_input,
+                         sc.JobState.awaiting_outline):
+        raise ClassroomError("content_invalid",
+                             f"状态 {job.state.value} 不支持修改 brief")
+    if job.operation is not None:
+        raise ClassroomError("content_invalid",
+                             "修订任务不支持改 brief，请重新发起修订")
+    patch = request.brief_patch.model_dump(mode="json", by_alias=True)
+    current = json.loads(
+        store.job_brief_path(student_id, workspace_id, lesson_id, job_id)
+        .read_text(encoding="utf-8"))
+    updated = dict(current)
+    selection_changed = False
+    for key, value in patch.items():
+        if key not in _BRIEF_PATCH_FIELDS:
+            continue
+        selection_changed = selection_changed or key == "source_selection"
+        updated[key] = value
+    brief = sc.LessonBrief.model_validate(updated)
+    store.stage_file(
+        store.job_root(student_id, workspace_id, lesson_id, job_id),
+        "brief.json",
+        json.dumps(brief.model_dump(mode="json", by_alias=True),
+                   ensure_ascii=False, indent=1))
+    new_hash = store.canonical_hash(
+        brief.model_dump(mode="json", by_alias=True))
+    if selection_changed:
+        invalidate = [sc.JobPhase.resolve_sources, sc.JobPhase.research,
+                      sc.JobPhase.outline, sc.JobPhase.visual_assets,
+                      sc.JobPhase.author_slides, sc.JobPhase.checkpoints,
+                      sc.JobPhase.review, sc.JobPhase.render,
+                      sc.JobPhase.publish]
+    else:
+        invalidate = [sc.JobPhase.research, sc.JobPhase.outline,
+                      sc.JobPhase.visual_assets, sc.JobPhase.author_slides,
+                      sc.JobPhase.checkpoints, sc.JobPhase.review,
+                      sc.JobPhase.render, sc.JobPhase.publish]
+
+    def mutate(target: sc.GenerationJob) -> None:
+        target.brief_hash = new_hash
+        for phase in invalidate:
+            target.artifacts.pop(phase.value, None)
+
+    _cas_job(student_id, workspace_id, lesson_id, job_id,
+             request.expected_state_revision, mutate)
+    return job_snapshot(student_id, workspace_id, lesson_id, job_id)
+
+
+async def job_events(student_id: str, workspace_id: str, lesson_id: str,
+                     job_id: str, *, after_revision: int = 0,
+                     heartbeat_seconds: float = 15.0):
+    """GET J/events：SSE 事件流（§14.4）。
+
+    轮询持久化 job（0.5s）：事件 id=state_revision；连接即发完整
+    snapshot；终态发 terminal 后关闭；15s 无变化发 heartbeat 注释。
+    SSE 断开不影响 worker——磁盘 job 是唯一事实源。
+    """
+    import asyncio
+
+    _lesson, job = _load_owned_job(student_id, workspace_id, lesson_id,
+                                   job_id)
+    last_sent = -1
+    quiet = 0.0
+    while True:
+        job = store.load_job(student_id, workspace_id, lesson_id, job_id)
+        if job is None:
+            yield "event: terminal\ndata: {}\n\n"
+            return
+        terminal = job.state in (sc.JobState.succeeded, sc.JobState.failed,
+                                 sc.JobState.cancelled)
+        if job.state_revision != last_sent:
+            event = sc.JobSnapshotEvent(
+                job_id=job.job_id, state_revision=job.state_revision,
+                state=job.state, phase=job.phase,
+                completed_slides=_job_progress(
+                    student_id, workspace_id, lesson_id,
+                    job).completed_slides,
+                total_slides=_job_progress(
+                    student_id, workspace_id, lesson_id, job).total_slides,
+                warnings=_job_warnings(student_id, workspace_id,
+                                       lesson_id, job))
+            data = event.model_dump_json(by_alias=True)
+            name = "terminal" if terminal else "snapshot"
+            yield (f"id: {job.state_revision}\nevent: {name}\n"
+                   f"data: {data}\n\n")
+            last_sent = job.state_revision
+            quiet = 0.0
+            if terminal:
+                return
+        await asyncio.sleep(0.5)
+        quiet += 0.5
+        if quiet >= heartbeat_seconds:
+            yield ": heartbeat\n\n"
+            quiet = 0.0
