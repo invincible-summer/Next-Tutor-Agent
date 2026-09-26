@@ -28,6 +28,9 @@ import {
   QuestionDrawer,
 } from "@/components/classroom/player/QuestionDrawer";
 import { ClassroomNotes } from "@/components/classroom/player/ClassroomNotes";
+import {
+  CheckpointPanel,
+} from "@/components/classroom/player/CheckpointPanel";
 import { useClassroomPlayer } from "@/lib/classroom/useClassroomPlayer";
 import {
   QUICK_CONFUSED, QUICK_EXAMPLE, useClassroomQA,
@@ -66,6 +69,12 @@ const PLAYER_STR = {
     "cls.note.to.center": "保存到笔记中心",
     "cls.note.to.center.done": "已保存到笔记中心",
     "cls.note.empty": "还没有批注；听课时随时「记下这里」。",
+    "cls.ckp.reflect": "想一想",
+    "cls.ckp.continue": "继续上课",
+    "cls.ckp.think": "可以再想一会儿",
+    "cls.ckp.question": "随堂练习",
+    "cls.ckp.skip": "跳过此题",
+    "cls.ckp.skipped": "已跳过",
     "cls.play.suspended": "本课堂正在其他设备播放",
     "cls.play.suspended.takeover": "在这里继续",
     "cls.play.ended": "本节课已完成",
@@ -108,6 +117,12 @@ const PLAYER_STR = {
     "cls.note.to.center": "Save to Notes",
     "cls.note.to.center.done": "Saved to Notes",
     "cls.note.empty": "No notes yet; capture anytime while listening.",
+    "cls.ckp.reflect": "Think about it",
+    "cls.ckp.continue": "Continue lesson",
+    "cls.ckp.think": "Take your time",
+    "cls.ckp.question": "Check your understanding",
+    "cls.ckp.skip": "Skip this question",
+    "cls.ckp.skipped": "Skipped",
     "cls.play.suspended": "This lesson is playing on another device",
     "cls.play.suspended.takeover": "Continue here",
     "cls.play.ended": "Lesson completed",
@@ -139,6 +154,7 @@ export default function LearnRunPage() {
   const [frameHtml, setFrameHtml] = useState<string | null>(null);
   const [fatal, setFatal] = useState<string | null>(null);
   const [askOpen, setAskOpen] = useState(false);
+  const [dismissedCkps, setDismissedCkps] = useState<string[]>([]);
   const frameRef = useRef<SlideFrameHandle | null>(null);
   const shellRef = useRef<HTMLDivElement | null>(null);
 
@@ -204,9 +220,34 @@ export default function LearnRunPage() {
     return m;
   }, [slides]);
 
+  // 检查点触发（§13.1）：当前页有检查点且已讲到本页最后一段
+  const slideCheckpoints = useMemo(() => {
+    const m = new Map<number, string[]>();
+    for (const sl of slides) {
+      const cps = sl.blocks
+        .filter((b) => b.kind === "checkpoint")
+        .map((b) => (b as { checkpoint_id: string }).checkpoint_id);
+      if (cps.length) m.set(sl.order, cps);
+    }
+    return m;
+  }, [slides]);
   // 段动作 → frame 指令（翻页 + 块显隐/高亮）
   const slideOrder = player.current?.slideOrder ?? 1;
   const currentSeg = player.current;
+
+  // 检查点触发（§13.1）：当前页有检查点且已讲到本页最后一段
+  const checkpointDue = useMemo(() => {
+    const cur = currentSeg;
+    if (!cur) return null;
+    const cps = slideCheckpoints.get(cur.slideOrder);
+    if (!cps?.length || dismissedCkps.includes(cps[0])) return null;
+    const segsOfSlide = player.segments
+      .filter((sg) => sg.slideOrder === cur.slideOrder);
+    const isLast = cur.seq === segsOfSlide[segsOfSlide.length - 1]?.seq;
+    return isLast ? cps[0] : null;
+    // currentSeg 是 player.current 的渲染期快照
+  }, [currentSeg, player.segments, slideCheckpoints, dismissedCkps]);
+
   useEffect(() => {
     frameRef.current?.gotoPage(slideOrder);
   }, [slideOrder]);
@@ -439,6 +480,24 @@ export default function LearnRunPage() {
                   close: ps("cls.ask.close"),
                   micHold: ps("cls.ask.mic.hold"),
                   micRecording: ps("cls.ask.mic.recording"),
+                }} />
+            )}
+
+            {/* 检查点（§13.1）：本页最后一段结束后出现 */}
+            {checkpointDue && !ended && !suspended && (
+              <CheckpointPanel
+                workspaceId={workspaceId}
+                lessonId={lessonId}
+                runId={runId}
+                checkpointId={checkpointDue}
+                onResolved={() => setDismissedCkps((p) => [...p, checkpointDue])}
+                s={{
+                  reflectTitle: ps("cls.ckp.reflect"),
+                  reflectContinue: ps("cls.ckp.continue"),
+                  reflectThinkMore: ps("cls.ckp.think"),
+                  questionTitle: ps("cls.ckp.question"),
+                  skip: ps("cls.ckp.skip"),
+                  skipped: ps("cls.ckp.skipped"),
                 }} />
             )}
           </div>
