@@ -5,6 +5,7 @@ Never read API keys anywhere except here. Everything else imports `settings`.
 from __future__ import annotations
 
 import os
+import sys
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -13,9 +14,19 @@ from dotenv import load_dotenv
 # Load .env from project root (parent of backend/) if present.
 _PROJECT_ROOT = Path(__file__).resolve().parents[3]
 _BACKEND_ROOT = _PROJECT_ROOT / "backend"
-# Test runs force the keyless CI environment (tests/__init__.py sets the
-# flag and scrubs the variables); never load real credentials there.
-if os.environ.get("EDU_TEST_KEYLESS") != "1":
+
+
+def _under_test_runner() -> bool:
+    # Test runs force the keyless CI environment (tests/__init__.py sets the
+    # flag and scrubs the variables); never load real credentials there.
+    # `unittest in sys.modules` covers `discover` imports where a test module
+    # reaches `app.*` before the tests package scrub runs (order-dependent
+    # hermeticity hole); the runner package is always imported first by
+    # `python -m unittest`, and never present in production processes.
+    return os.environ.get("EDU_TEST_KEYLESS") == "1" or "unittest" in sys.modules
+
+
+if not _under_test_runner():
     load_dotenv(_PROJECT_ROOT / ".env")
 
 
@@ -58,23 +69,15 @@ def _resolve_trace_dir() -> str:
 
 @dataclass
 class Settings:
-    # Main LLM (Chat Completions). Read LLM_* env vars; falls back to
-    # DEEPSEEK_* aliases for backward compat with older .env files.
-    llm_base_url: str = os.getenv("LLM_BASE_URL") or os.getenv("DEEPSEEK_BASE_URL", "https://api.deepseek.com/v1")
-    llm_api_key: str = os.getenv("LLM_API_KEY") or os.getenv("DEEPSEEK_API_KEY", "")
+    # 单一 LLM 通道（2026-09 精简）：DeepSeek 官方或任一 OpenAI 兼容端点
+    # 二选一，聊天/推理/出题/课堂/视觉 OCR 共用同一模型（请选多模态模型；
+    # 模型无视觉能力时 OCR 自动回退本地 tesseract）。
+    llm_base_url: str = os.getenv("LLM_BASE_URL", "https://api.deepseek.com/v1")
+    llm_api_key: str = os.getenv("LLM_API_KEY", "")
     # 2026-09 DeepSeek API 只接受 deepseek-flash / deepseek-v4-pro；
     # 旧名（deepseek-v4-flash 等）会被 400 invalid_request_error 拒绝，
     # 表现为出题/对话全部 generation_failed。
-    llm_model: str = os.getenv("LLM_MODEL") or os.getenv("DEEPSEEK_MODEL_REASONING", "deepseek-flash")
-    # Structured question generation is latency-sensitive and has its own
-    # model/retry lane.  Deployments that expose DEEPSEEK_MODEL_LIGHT get the
-    # fast model automatically; QUIZ_MODEL can override it explicitly.
-    quiz_model: str = (os.getenv("QUIZ_MODEL")
-                       or os.getenv("DEEPSEEK_MODEL_LIGHT")
-                       or llm_model)
-    quiz_sdk_max_retries: int = max(0, int(os.getenv("QUIZ_SDK_MAX_RETRIES", "0")))
-    quiz_retry_max: int = max(1, min(3, int(os.getenv("QUIZ_RETRY_MAX", "2"))))
-    quiz_retry_base_delay: float = max(0.1, float(os.getenv("QUIZ_RETRY_BASE_DELAY", "0.75")))
+    llm_model: str = os.getenv("LLM_MODEL", "deepseek-flash")
     # CAT must not spend the 180-second generic budget on nested retries.  One
     # initial attempt plus one bounded fallback is enough for transient model
     # variance while keeping the endpoint responsive.
@@ -85,12 +88,15 @@ class Settings:
     assessment_generation_deadline_seconds: int = max(
         30, min(180, int(os.getenv("ASSESSMENT_GENERATION_DEADLINE_SECONDS", "90"))))
     llm_max_tokens: int = int(os.getenv("LLM_MAX_TOKENS", "4000"))
-    llm_context_window: int = int(os.getenv("LLM_CONTEXT_WINDOW", "65536"))
-    llm_max_output_tokens: int = int(os.getenv("LLM_MAX_OUTPUT_TOKENS", "8000"))
+    # 上下文/输出预算的内置默认值 = 2026-09 实例实际值；管理员可在
+    # 「运行参数」面板在线调整（core/llm_policy.py，热更新），env 值仅在
+    # 策略文件缺失时作为初始默认。
+    llm_context_window: int = int(os.getenv("LLM_CONTEXT_WINDOW", "165536"))
+    llm_max_output_tokens: int = int(os.getenv("LLM_MAX_OUTPUT_TOKENS", "20000"))
     llm_context_safety_margin: int = int(os.getenv("LLM_CONTEXT_SAFETY_MARGIN", "2500"))
     context_soft_trigger_ratio: float = float(os.getenv("CONTEXT_SOFT_TRIGGER_RATIO", "0.72"))
     context_hard_trigger_ratio: float = float(os.getenv("CONTEXT_HARD_TRIGGER_RATIO", "0.88"))
-    context_history_max_tokens: int = int(os.getenv("CONTEXT_HISTORY_MAX_TOKENS", "24000"))
+    context_history_max_tokens: int = int(os.getenv("CONTEXT_HISTORY_MAX_TOKENS", "30000"))
     context_recent_full_turns: int = int(os.getenv("CONTEXT_RECENT_FULL_TURNS", "4"))
     llm_provider: str = os.getenv("LLM_PROVIDER", "openai_compatible")
     # Direct uvicorn remains conservative by default; start.sh promotes the
@@ -174,19 +180,9 @@ class Settings:
     compat_grade: str = os.getenv("COMPAT_GRADE", "本科")
     llm_temperature: float = float(os.getenv("LLM_TEMPERATURE", "0.3"))
 
-    # Multimodal (optional): separate API channel for image understanding.
-    # If MULTIMODAL_API_KEY is set, image recognition goes through this channel.
-    # If not set, falls back to local tesseract OCR (chi_sim+eng, offline).
-    multimodal_base_url: str = os.getenv("MULTIMODAL_BASE_URL") or ""
-    multimodal_api_key: str = os.getenv("MULTIMODAL_API_KEY") or ""
-    multimodal_model: str = os.getenv("MULTIMODAL_MODEL") or ""
-    # OCR 页转录是提取任务，推理/思考链纯浪费延迟与输出预算（实测思考型模型
-    # 单页 22-36s）。默认下发「关闭思考 + 最低思考强度」；=0 恢复旧行为。
-    multimodal_disable_thinking: bool = os.getenv(
-        "MULTIMODAL_DISABLE_THINKING", "1") not in ("0", "false", "False", "off")
-    # 单页 vision 调用最大尝试次数（异常与空 content 都重试，指数退避+抖动；
-    # 耗尽才回退 tesseract）。
-    multimodal_ocr_retries: int = int(os.getenv("MULTIMODAL_OCR_RETRIES", "3"))
+    # Multimodal (2026-09 精简)：不再有独立视觉通道——图片理解/逐页 OCR
+    # 直接走上方主 LLM 通道（见 core/ocr.py / core/multimodal_context.py）；
+    # 模型无视觉能力或调用失败时回退本地 tesseract OCR（chi_sim+eng，离线）。
 
     # Embedding (optional): explicit provider keeps old deployments off by
     # default. ``local`` is a generic bring-your-own interface for offline
@@ -286,6 +282,60 @@ class Settings:
     # Server
     api_host: str = os.getenv("API_HOST", "127.0.0.1")
     api_port: int = int(os.getenv("API_PORT", "8000"))
+
+    # ------------------------------------------------------------------
+    # 课堂模式（plan.md §20.1；默认值为开发阶段值，验收后发布模板设 1）
+    # ------------------------------------------------------------------
+    classroom_enabled: bool = _env_bool("CLASSROOM_ENABLED", False)
+    # 默认仅认证用户可生成/播放私有课堂；测试可显式放行游客
+    classroom_allow_guest: bool = _env_bool("CLASSROOM_ALLOW_GUEST", False)
+    # 灰度 allowlist：空为不限制（在 enabled 之上再收窄）
+    classroom_allowed_users: str = os.getenv("CLASSROOM_ALLOWED_USERS", "").strip()
+    # 联网检索：provider 无 key 即不可用，不伪联网
+    classroom_web_provider: str = os.getenv("CLASSROOM_WEB_PROVIDER", "tavily").strip().lower()
+    tavily_api_key: str = os.getenv("TAVILY_API_KEY", "").strip()
+    # 图片：顺序固定，可配置禁某个 provider
+    classroom_image_providers: str = os.getenv(
+        "CLASSROOM_IMAGE_PROVIDERS", "pexels,pixabay").strip().lower()
+    pexels_api_key: str = os.getenv("PEXELS_API_KEY", "").strip()
+    pixabay_api_key: str = os.getenv("PIXABAY_API_KEY", "").strip()
+    # 课堂语音策略：auto | cloud | local | silent；云端首发 azure
+    classroom_tts_policy: str = _resolve_mode(
+        "CLASSROOM_TTS_POLICY", {"auto", "cloud", "local", "silent"}, "auto")
+    classroom_tts_cloud_provider: str = os.getenv(
+        "CLASSROOM_TTS_CLOUD_PROVIDER", "azure").strip().lower()
+    azure_speech_key: str = os.getenv("AZURE_SPEECH_KEY", "").strip()
+    azure_speech_region: str = os.getenv("AZURE_SPEECH_REGION", "").strip()
+    # 可选官方资源域；不能由普通用户配置
+    azure_speech_endpoint: str = os.getenv("AZURE_SPEECH_ENDPOINT", "").strip()
+    classroom_tts_voice_zh: str = os.getenv(
+        "CLASSROOM_TTS_VOICE_ZH", "zh-CN-XiaoxiaoNeural").strip()
+    classroom_tts_voice_en: str = os.getenv(
+        "CLASSROOM_TTS_VOICE_EN", "en-US-JennyNeural").strip()
+    # None = 继承 VOICE_TTS_PROVIDER 是否为 melo；显式 1 才独立启用课堂本地回退
+    classroom_local_tts_enabled: bool | None = (
+        None if os.getenv("CLASSROOM_LOCAL_TTS_ENABLED") is None
+        else _env_bool("CLASSROOM_LOCAL_TTS_ENABLED", False))
+    classroom_tts_local_fallback: bool = _env_bool(
+        "CLASSROOM_TTS_LOCAL_FALLBACK", True)
+    # 受限作业调度（plan.md §15.3/§15.4）
+    classroom_job_concurrency: int = max(1, int(os.getenv("CLASSROOM_JOB_CONCURRENCY", "2")))
+    classroom_owner_concurrency: int = max(1, int(os.getenv("CLASSROOM_OWNER_CONCURRENCY", "1")))
+    classroom_llm_concurrency: int = max(1, int(os.getenv("CLASSROOM_LLM_CONCURRENCY", "3")))
+    classroom_tts_cloud_concurrency: int = max(1, int(os.getenv("CLASSROOM_TTS_CLOUD_CONCURRENCY", "2")))
+    classroom_job_timeout_seconds: int = max(60, int(os.getenv("CLASSROOM_JOB_TIMEOUT_SECONDS", "900")))
+    classroom_max_pages: int = max(1, int(os.getenv("CLASSROOM_MAX_PAGES", "24")))
+    classroom_max_revisions: int = max(1, int(os.getenv("CLASSROOM_MAX_REVISIONS", "20")))
+    classroom_audio_cache_mb: int = max(50, int(os.getenv("CLASSROOM_AUDIO_CACHE_MB", "500")))
+    classroom_audio_ttl_days: int = max(1, int(os.getenv("CLASSROOM_AUDIO_TTL_DAYS", "7")))
+    classroom_export_ttl_hours: int = max(1, int(os.getenv("CLASSROOM_EXPORT_TTL_HOURS", "24")))
+    classroom_render_timeout_seconds: int = max(5, int(os.getenv("CLASSROOM_RENDER_TIMEOUT_SECONDS", "45")))
+    # 部署级可信可执行文件与固定脚本路径；客户端/模型不可改写
+    classroom_node_bin: str = os.getenv("CLASSROOM_NODE_BIN", "node").strip()
+    classroom_render_script: str = os.getenv(
+        "CLASSROOM_RENDER_SCRIPT",
+        str(_PROJECT_ROOT / "frontend" / "scripts" / "check-classroom-render.mjs")).strip()
+    classroom_api_daily_tts_chars: int = max(1000, int(os.getenv("CLASSROOM_API_DAILY_TTS_CHARS", "100000")))
 
 
 settings = Settings()

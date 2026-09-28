@@ -8,6 +8,7 @@ import {
   MessageSquareText,
   Network,
   NotebookPen,
+  Presentation,
   ShieldCheck,
   Target,
   UserRound,
@@ -22,6 +23,8 @@ export interface NavItem {
   module?: string;
   /** 仅 role=admin 显示（P6-B4 管理端入口） */
   adminOnly?: boolean;
+  /** 依赖课堂特性开关（CLASSROOM_ENABLED），关闭时隐藏 */
+  classroomOnly?: boolean;
 }
 
 export interface NavGroup {
@@ -35,6 +38,7 @@ export const NAV: NavGroup[] = [
     i18nKey: "nav.group.learn",
     items: [
       { href: "/chat", i18nKey: "nav.chat", icon: MessageSquareText, module: "M1" },
+      { href: "/course", i18nKey: "nav.course", icon: Presentation, classroomOnly: true },
       { href: "/notes", i18nKey: "nav.notes", icon: NotebookPen, module: "MN" },
       { href: "/dashboard", i18nKey: "nav.dashboard", icon: LayoutDashboard, module: "M2" },
       { href: "/knowledge", i18nKey: "nav.knowledge", icon: Network, module: "M5" },
@@ -62,6 +66,9 @@ export const NAV: NavGroup[] = [
 
 /** 由路径反查当前导航项（TopBar 标题用）。 */
 export function navItemByPath(pathname: string): NavItem | null {
+  if (/^\/workspaces\/[^/]+\/classroom(?:\/|$)/.test(pathname)) {
+    return NAV.flatMap((g) => g.items).find((item) => item.href === "/course") ?? null;
+  }
   for (const g of NAV) {
     for (const it of g.items) {
       if (pathname === it.href || pathname.startsWith(it.href + "/")) return it;

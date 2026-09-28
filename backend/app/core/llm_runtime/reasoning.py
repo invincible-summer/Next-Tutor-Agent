@@ -6,6 +6,7 @@ from enum import Enum
 from typing import Any
 
 from ..config import settings
+from .. import llm_policy
 from .capabilities import ProviderCapabilities, current_capabilities
 
 
@@ -64,8 +65,8 @@ def resolve_reasoning_policy(stage: str, *, has_tools: bool,
                  else ReasoningMode.LOW if has_tools
                  else ReasoningMode.MEDIUM if complex_task
                  else ReasoningMode.LOW)
-    provider_max = max(512, int(caps.max_output_tokens or settings.llm_max_output_tokens))
-    configured_max = max(512, int(settings.llm_max_output_tokens))
+    provider_max = max(512, int(caps.max_output_tokens or llm_policy.max_output_tokens()))
+    configured_max = max(512, llm_policy.max_output_tokens())
     tool_cap = max(512, int(getattr(settings, "executor_tool_max_output_tokens", 6000)))
     max_output = min(configured_max, provider_max, tool_cap) if has_tools else min(configured_max, provider_max)
 

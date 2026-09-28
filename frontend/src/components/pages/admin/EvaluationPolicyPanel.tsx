@@ -110,17 +110,13 @@ export function EvaluationPolicyPanel({ tr }: { tr: Tr }) {
         ))}
       </div>
       <div className="mt-3 grid gap-3 sm:grid-cols-2">
-        <Field label={tr("adm.eval.tz")}>
+        <Field label={tr("adm.eval.tz")} hint={tr("adm.eval.tz.hint")}>
           <input className={inputCls} value={timezone}
             onChange={(e) => setTimezone(e.target.value)}
             placeholder="Asia/Singapore" data-testid="eval-tz-input" />
         </Field>
-        <Field label={tr("adm.eval.dailyAt")}>
-          <input className={inputCls} value="00:00" disabled
-            aria-describedby="eval-daily-at-hint" />
-          <p id="eval-daily-at-hint" className="mt-1 text-[0.7rem] text-muted">
-            {tr("adm.eval.dailyAt.hint")}
-          </p>
+        <Field label={tr("adm.eval.dailyAt")} hint={tr("adm.eval.dailyAt.hint")}>
+          <input className={inputCls} value="00:00" disabled />
         </Field>
       </div>
       {conflict && (

@@ -3,6 +3,12 @@ Description=Edu_Agent backend (FastAPI / uvicorn)
 Wants=network-online.target
 After=network-online.target
 
+# 课堂模式（可选）：renderer 依赖 Node + Playwright Chromium，以本服务账号
+# （非 root）+ 内核 sandbox 运行，禁止 --no-sandbox；浏览器缓存走
+# XDG_CACHE_HOME=/var/lib/edu-agent/cache（ReadWritePaths 已含）。渲染静态
+# 资源需部署期执行  生成；缺失时
+# 课堂能力端点显式 renderer_unavailable，旧聊天不受影响。详见
+# docs/The_Website_deployment_plan.md §7.1。
 [Service]
 Type=simple
 User=edu-agent

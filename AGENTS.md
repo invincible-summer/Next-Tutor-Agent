@@ -2,6 +2,8 @@
 
 ## Project Structure & Module Organization
 
+暂时不做手机端适配
+
 Edu_Agent is a textbook-driven AI teaching workspace. The FastAPI backend lives in `backend/app/`: routes are under `api/v1/`, identity handling under `identity/`, orchestration layers M1–M10 under `agents/`, and shared utilities under `core/`. Tests are in `backend/tests/test_*.py`.
 
 The Next.js frontend is in `frontend/src/`: pages under `app/`, reusable UI under `components/`, and API, state, i18n, and types under `lib/`. Deployment templates live in `deploy/`. Runtime data, private uploads, conversations, traces, and `.env` files must never be committed. The repository ships no textbook or derived data assets: public textbook namespaces, parsed text, chunks, knowledge graphs and demo runtime data are deployment-local runtime state. Account deletion (self-service or admin) purges all account data via `core/account_data.purge_account` with no empty-dir residue; the admin "数据清理" page (`GET/POST /admin/orphan-data`) scans and purges orphan runtime data left by tests or legacy deletions. Read `docs/DESIGN.md` before changing architecture, storage, APIs, or agent pipelines.

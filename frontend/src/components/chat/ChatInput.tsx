@@ -2,8 +2,10 @@
 import { useRef, useEffect, useState } from "react";
 import { ArrowUp, Square, Paperclip, X, FileText, Loader2, GraduationCap, ScanLine, LibraryBig } from "lucide-react";
 import { useUIStore, useChatStore } from "@/lib/store";
+import { useAuthStore } from "@/lib/auth-store";
 import { t, GRADE_LABELS } from "@/lib/i18n";
 import { uploadFiles, uploadFailures, attachLibraryFiles, patchSession } from "@/lib/api";
+import { clearDraft, draftKey, saveDraft, takeDraft } from "@/lib/chat-drafts";
 import { LibraryPickerModal, type LibraryRefItem } from "./LibraryPickerModal";
 import type { AttachmentMeta } from "@/lib/types";
 import { gradeForApi } from "@/lib/types";
@@ -34,6 +36,82 @@ export function ChatInput({ onSend, disabled, onStop, prefill }: {
   const { sessionId, pendingLibraryRefs, setPendingLibraryRefs } = useChatStore();
   const tr = (k: string, fb?: string) => t(lang, k, fb);
   const grades = GRADE_LABELS[lang];
+
+  // --- 草稿仓（§3.2 末段）：模式切换/路由卸载不丢正文与附件引用 ---
+  // 键 = owner+session（新会话用 workspace）；切换键时先把旧状态存回，
+  // 再取新键草稿；File 对象仅 SPA 内存保留，刷新后按文件名提示重选。
+  const draftKeyNow = draftKey(
+    useAuthStore.getState().user?.id ?? "",
+    sessionId,
+    sessionId ? null : sessionStorage.getItem("edu-agent-active-ws"),
+  );
+  const draftKeyRef = useRef(draftKeyNow);
+  const draftRestoredRef = useRef<string | null>(null);
+  // 最新输入快照：effect 内更新（不在渲染期写 ref），卸载时读取。
+  const latestRef = useRef({ text, pending, attachedRefs, pendingLibraryRefs });
+  useEffect(() => {
+    latestRef.current = { text, pending, attachedRefs, pendingLibraryRefs };
+  });
+
+  useEffect(() => {
+    const prevKey = draftKeyRef.current;
+    const snap = latestRef.current;
+    if (prevKey !== draftKeyNow) {
+      // 离开的会话：把当前输入原样存回（含 File 对象，SPA 内可完整还原）。
+      saveDraft(prevKey, {
+        body: snap.text, pendingFiles: snap.pending,
+        pendingFileNames: snap.pending.map((f) => f.name),
+        attachedRefs: snap.attachedRefs,
+        pendingLibraryRefs: snap.pendingLibraryRefs,
+      });
+      draftKeyRef.current = draftKeyNow;
+      draftRestoredRef.current = null;
+    }
+    if (draftRestoredRef.current === draftKeyNow) return;
+    draftRestoredRef.current = draftKeyNow;
+    let cancelled = false;
+    void Promise.resolve().then(() => {
+      if (cancelled) return;
+      const d = takeDraft(draftKeyNow);
+      if (!d) return;
+      setText(d.body);
+      setPending(d.pendingFiles);
+      setAttachedRefs(d.attachedRefs);
+      setPendingLibraryRefs(d.pendingLibraryRefs);
+      if (d.pendingFileNames.length > 0 && d.pendingFiles.length === 0) {
+        setUploadError(
+          tr("chat.draft.refiles").replace("%f", d.pendingFileNames.join("、")));
+      }
+    });
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [draftKeyNow]);
+
+  // 防抖持久化：正文/引用随时进仓（刷新可从 sessionStorage 复原正文）。
+  useEffect(() => {
+    if (draftRestoredRef.current !== draftKeyRef.current) return;
+    const key = draftKeyRef.current;
+    const timer = setTimeout(() => {
+      saveDraft(key, {
+        body: text, pendingFiles: pending,
+        pendingFileNames: pending.map((f) => f.name),
+        attachedRefs, pendingLibraryRefs,
+      });
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [text, pending, attachedRefs, pendingLibraryRefs]);
+
+  // 卸载（模式切换离开 /chat 等）：立即存回。
+  useEffect(() => () => {
+    const key = draftKeyRef.current;
+    const snap = latestRef.current;
+    saveDraft(key, {
+      body: snap.text, pendingFiles: snap.pending,
+      pendingFileNames: snap.pending.map((f) => f.name),
+      attachedRefs: snap.attachedRefs,
+      pendingLibraryRefs: snap.pendingLibraryRefs,
+    });
+  }, []);
 
   useEffect(() => {
     const ta = taRef.current;
@@ -183,6 +261,7 @@ export function ChatInput({ onSend, disabled, onStop, prefill }: {
     ].filter((item, index, all) => all.findIndex((x) => x.id === item.id) === index);
     onSend(finalMsg, turnAttachments.length > 0 ? turnAttachments : undefined);
     setText(""); setPending([]); setOcrText(""); setAttachedRefs([]); setImageAttachments([]);
+    clearDraft(draftKeyRef.current); // 发送成功即清对应草稿（§3.2）
   };
 
   const onKeyDown = (e: React.KeyboardEvent) => {

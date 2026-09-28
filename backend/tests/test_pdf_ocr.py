@@ -113,7 +113,7 @@ class TestOcrPageImageChannel(unittest.TestCase):
     def test_tesseract_path_when_no_multimodal(self):
         # 未配 MULTIMODAL_API_KEY → 走 tesseract（mock 返回固定串）。
         from app.core import ocr
-        with patch.object(ocr.settings, "multimodal_api_key", ""), \
+        with patch.object(ocr.settings, "llm_api_key", ""), \
              patch.object(ocr, "_tesseract_ocr", return_value="tess结果") as m:
             out = asyncio.run(ocr.ocr_page_image(b"png"))
         self.assertEqual(out, "tess结果")
@@ -130,7 +130,7 @@ class TestOcrPageImageChannel(unittest.TestCase):
             captured["fallback_psm"] = fallback_psm
             return "视觉OCR结果"
 
-        with patch.object(ocr.settings, "multimodal_api_key", "k"), \
+        with patch.object(ocr.settings, "llm_api_key", "k"), \
              patch.object(ocr, "_multimodal_understand", side_effect=fake_mm):
             out = asyncio.run(ocr.ocr_page_image(b"png"))
         self.assertEqual(out, "视觉OCR结果")
@@ -169,27 +169,17 @@ class TestMultimodalThinkingOff(unittest.TestCase):
     def test_default_sends_thinking_off(self):
         from app.core import ocr
         captured, calls = {}, {"n": 0}
-        with patch.object(ocr.settings, "multimodal_api_key", "k"), \
+        with patch.object(ocr.settings, "llm_api_key", "k"), \
              patch("openai.AsyncOpenAI", return_value=self._fake_client(captured, calls)):
             out = asyncio.run(ocr._multimodal_understand(self._png()))
         self.assertEqual(out, "转录文本")
         self.assertEqual(captured.get("extra_body"),
                          {"thinking": {"type": "disabled"}, "reasoning_effort": "low"})
 
-    def test_env_off_sends_no_extra_body(self):
-        from app.core import ocr
-        captured, calls = {}, {"n": 0}
-        with patch.object(ocr.settings, "multimodal_api_key", "k"), \
-             patch.object(ocr.settings, "multimodal_disable_thinking", False), \
-             patch("openai.AsyncOpenAI", return_value=self._fake_client(captured, calls)):
-            out = asyncio.run(ocr._multimodal_understand(self._png()))
-        self.assertEqual(out, "转录文本")
-        self.assertNotIn("extra_body", captured)
-
     def test_400_retries_without_extra_body(self):
         from app.core import ocr
         captured, calls = {}, {"n": 0}
-        with patch.object(ocr.settings, "multimodal_api_key", "k"), \
+        with patch.object(ocr.settings, "llm_api_key", "k"), \
              patch("openai.AsyncOpenAI",
                    return_value=self._fake_client(captured, calls, fail_first_400=True)):
             out = asyncio.run(ocr._multimodal_understand(self._png()))
@@ -463,8 +453,8 @@ class TestMultimodalRetry(unittest.TestCase):
         from app.core import ocr
         async def _no_sleep(_s):
             return None
-        with patch.object(ocr.settings, "multimodal_api_key", "k"), \
-             patch.object(ocr.settings, "multimodal_ocr_retries", retries), \
+        with patch.object(ocr.settings, "llm_api_key", "k"), \
+             patch.object(ocr, "_OCR_RETRIES", retries), \
              patch("openai.AsyncOpenAI",
                    return_value=self._flaky_client(calls, fail, empty)), \
              patch("asyncio.sleep", side_effect=_no_sleep):
@@ -497,8 +487,8 @@ class TestMultimodalRetry(unittest.TestCase):
         with patch.object(ocr, "_tesseract_ocr", return_value="tess") as tess:
             async def _no_sleep(_s):
                 return None
-            with patch.object(ocr.settings, "multimodal_api_key", "k"), \
-                 patch.object(ocr.settings, "multimodal_ocr_retries", 1), \
+            with patch.object(ocr.settings, "llm_api_key", "k"), \
+                 patch.object(ocr, "_OCR_RETRIES", 1), \
                  patch("openai.AsyncOpenAI",
                        return_value=self._flaky_client(calls, fail_times=99)), \
                  patch("asyncio.sleep", side_effect=_no_sleep):

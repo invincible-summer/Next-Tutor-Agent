@@ -105,7 +105,7 @@ class TestPerQuestionAudit(unittest.TestCase):
         from app.core.quiz_verify import generate_verified_questions
         gen = json.dumps({"questions": [_q(1), _q(2)]}, ensure_ascii=False)
         llm = QueueLLM([gen, _audit(1, "passed")])   # 生成 + critic（漏题二）
-        with mock.patch.object(settings, "quiz_verify_mode", "critic"):
+        with mock.patch("app.core.llm_policy.quiz_verify_mode", return_value="critic"):
             questions, meta = asyncio.run(generate_verified_questions(
                 llm, make_prompt=lambda: "p",
                 parse=lambda raw: json.loads(raw)["questions"],
@@ -119,7 +119,7 @@ class TestPerQuestionAudit(unittest.TestCase):
         from app.core.quiz_verify import generate_verified_questions
         gen = json.dumps({"questions": [_q(1)]}, ensure_ascii=False)
         llm = QueueLLM([gen, _audit(1, "passed")])
-        with mock.patch.object(settings, "quiz_verify_mode", "critic"):
+        with mock.patch("app.core.llm_policy.quiz_verify_mode", return_value="critic"):
             questions, meta = asyncio.run(generate_verified_questions(
                 llm, make_prompt=lambda: "p",
                 parse=lambda raw: json.loads(raw)["questions"],

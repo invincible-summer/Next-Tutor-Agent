@@ -21,6 +21,9 @@ _ROOT_ENV = Path(__file__).resolve().parents[2] / ".env"
 _ALWAYS_POP = {
     "OPENAI_API_KEY", "OPENAI_ADMIN_KEY", "OPENAI_BASE_URL",
     "LLM_API_KEY", "LLM_BASE_URL", "LLM_MODEL",
+    # 课堂外部服务凭证（阶段 C/F）：azure 语音、联网检索、图库
+    "AZURE_SPEECH_KEY", "AZURE_SPEECH_REGION", "AZURE_SPEECH_ENDPOINT",
+    "TAVILY_API_KEY", "PEXELS_API_KEY", "PIXABAY_API_KEY",
 }
 
 
@@ -43,3 +46,17 @@ def _force_keyless() -> None:
 
 
 _force_keyless()
+
+# LLM 运行参数策略文件默认指向仓库内 chat_history/settings/llm_policy.json：
+# 本机管理页写过的值会泄漏进测试默认值（CI 无此文件，本地与 CI 行为分叉）。
+# 重定向进测试进程生命周期的临时目录（TemporaryDirectory 析构时清理），
+# 与 storage sandbox 的 patch 互不干扰（sandbox 在测试内再改写并还原）。
+import tempfile as _tempfile
+
+_POLICY_DIR = _tempfile.TemporaryDirectory(prefix="edu_test_llm_policy_")
+try:
+    from app.core import llm_policy as _llm_policy
+    _llm_policy.POLICY_FILE = Path(_POLICY_DIR.name) / "llm_policy.json"
+    _llm_policy.reset_policy_cache()
+except Exception:  # pragma: no cover - app 导入失败由具体测试兜底报错
+    pass

@@ -29,7 +29,8 @@ from .atomic import atomic_write_text, file_lock
 # 聊天/材料类条目随聊天清理一起永久清掉；笔记与图谱条目只在整账号
 # 彻底删除时处理。
 _CHAT_TRASH_TYPES = {"session", "library_file", "library_folder",
-                     "textbook", "textbook_volume", "workspace"}
+                     "textbook", "textbook_volume", "workspace",
+                     "classroom_lesson"}
 _FILE_TRASH_TYPES = {"library_file", "library_folder",
                      "textbook", "textbook_volume"}
 
@@ -73,6 +74,8 @@ def _empty_buckets() -> dict[str, Any]:
         "students_bytes": 0,
         "knowledge_bytes": 0,
         "trash_bytes": 0,
+        "classroom_bytes": 0,   # 课堂内容（不含音频）
+        "audio_bytes": 0,       # 课堂音频（独立项，总量另加一次）
         "session_count": 0,
         "file_count": 0,
     }
@@ -81,7 +84,8 @@ def _empty_buckets() -> dict[str, Any]:
 def _total_of(buckets: dict[str, Any]) -> int:
     return int(sum(buckets.get(k, 0) for k in
                    ("chat_bytes", "uploads_bytes", "notes_bytes",
-                    "students_bytes", "knowledge_bytes", "trash_bytes")))
+                    "students_bytes", "knowledge_bytes", "trash_bytes",
+                    "classroom_bytes", "audio_bytes")))
 
 
 def scan_storage(user_ids: list[str]) -> dict[str, dict[str, Any]]:
@@ -164,6 +168,16 @@ def scan_storage(user_ids: list[str]) -> dict[str, dict[str, Any]]:
         index = _read_json(idx)
         if index is not None and isinstance(index.get("files"), list):
             buckets["file_count"] += len(index["files"])
+
+    # --- 课堂：内容与音频分开统计（§16.4，无副作用不 mkdir） ---
+    try:
+        from app.classroom import lifecycle as classroom_lifecycle
+        for uid, buckets in out.items():
+            content, audio = classroom_lifecycle.storage_sizes(uid)
+            buckets["classroom_bytes"] += content
+            buckets["audio_bytes"] += audio
+    except Exception:
+        pass
 
     # --- 回收站 / 笔记 / 学习档案 / 知识图谱：目录直取 ---
     for uid, buckets in out.items():
@@ -412,6 +426,12 @@ def clear_chat_data(user_id: str, scope: str = "all") -> dict[str, Any]:
         report["sessions"] = _clear_sessions_all(uid)
         report["workspaces"] = _clear_workspaces(uid)
         report["library_files"] = _clear_library(uid, remove_folders=True)
+        # 课堂随聊天侧整体清除（账号仍在，不打 purged tombstone）
+        try:
+            from app.classroom import lifecycle as classroom_lifecycle
+            classroom_lifecycle.purge_owner_classroom(uid, tombstone=False)
+        except Exception:
+            pass
         report["trash_items"] = _purge_trash_types(uid, _CHAT_TRASH_TYPES)
         # 聊天类条目清完后若 owner 目录已空则顺手移除（非聊天条目仍在时
         # rmdir 自然失败跳过）。
@@ -425,6 +445,13 @@ def clear_chat_data(user_id: str, scope: str = "all") -> dict[str, Any]:
         report["sessions"] = sessions_touched
         report["workspaces"] = workspaces_touched
         report["library_files"] = _clear_library(uid, remove_folders=False)
+        # 课堂仅清自有上传图与含其 bytes 的编译产物；讲稿/spec/进度保留
+        try:
+            from app.classroom import lifecycle as classroom_lifecycle
+            report["classroom_upload_images"] = \
+                classroom_lifecycle.strip_uploaded_images(uid)
+        except Exception:
+            pass
         report["trash_items"] = _purge_trash_types(uid, _FILE_TRASH_TYPES)
     after = scan_storage([uid]).get(uid, _empty_buckets())
     report["freed_bytes"] = max(0, _total_of(before) - _total_of(after))
@@ -442,6 +469,12 @@ def purge_account(user_id: str) -> dict[str, Any]:
 
     uid = _safe(user_id)
     before = scan_storage([uid]).get(uid, _empty_buckets())
+    # §16.4：先吊销课堂工作资格（tombstone 防晚到写回），清理内再删根
+    try:
+        from app.classroom import lifecycle as classroom_lifecycle
+        classroom_lifecycle.purge_owner_classroom(uid, tombstone=True)
+    except Exception:
+        pass
     report = clear_chat_data(uid, scope="all")
 
     # 回收站残留（笔记/图谱类条目）逐个正规 purge，再兜底删归属目录与偏好。

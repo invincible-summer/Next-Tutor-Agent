@@ -1,0 +1,749 @@
+"use client";
+/* 课堂播放器页（plan.md §3.1/§5/§12，阶段 G）。
+ *
+ * 布局：导航 | 章节目录 | 幻灯片舞台+字幕 | 讲稿（折叠） + 底部控制条。
+ * 键盘 Space/←/→/C/F（输入框聚焦时不响应）；后台标签暂停；lease 丢失
+ * 显示“在这里继续”接管；恢复音频需用户点击（§5.4）；reduced-motion 由
+ * 全局 motion 类承担；<640px 由 CSS 折叠目录与右栏。音量/语速经
+ * localStorage（edu-agent-player-prefs）跨会话保持；全屏播放时镀铬
+ * （顶栏/快捷行/控制条）3 秒无操作自动隐藏，鼠标/触摸即恢复。
+ */
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
+import { useParams, useRouter } from "next/navigation";
+import {
+  ArrowLeft, BookOpenText, List, LogOut,
+  MessageCircle, MonitorPlay, NotebookPen, X, AudioLines,
+} from "lucide-react";
+import { getLesson, getRevisionFrame, getRun,
+  type RunPublicExtra } from "@/lib/api-classroom";
+import type { LessonDetailPublic } from "@/lib/types-classroom.generated";
+import { useUIStore } from "@/lib/store";
+import { makePageT } from "@/lib/i18n-page";
+import { Button } from "@/components/ui/Button";
+import SlideFrameDefault, {
+  type SlideFrameHandle,
+} from "@/components/classroom/SlideFrame";
+import {
+  CaptionBar, PlayerControls, SlideOutline, type PlayerStrings,
+} from "@/components/classroom/player/PlayerWidgets";
+import {
+  QuestionDrawer, QUICK_PRESETS,
+} from "@/components/classroom/player/QuestionDrawer";
+import { VoicePanel } from "@/components/classroom/player/VoicePanel";
+import { ScriptPanel } from "@/components/classroom/player/ScriptPanel";
+import { ClassroomNotes } from "@/components/classroom/player/ClassroomNotes";
+import {
+  CheckpointPanel,
+} from "@/components/classroom/player/CheckpointPanel";
+import { useClassroomPlayer } from "@/lib/classroom/useClassroomPlayer";
+import { useClassroomQA } from "@/lib/classroom/useClassroomQA";
+import { STRINGS as PLAYER_STR } from "@/components/classroom/strings";
+import { STRINGS as PAGE_STRINGS } from "../../../strings";
+
+const PREFS_KEY = "edu-agent-player-prefs";
+
+/** 播放器音量/语速偏好：localStorage 持久化（SSR 安全，坏数据静默丢弃）。 */
+function readPlayerPrefs(): { volume?: number; playbackRate?: number } {
+  if (typeof window === "undefined") return {};
+  try {
+    const raw = window.localStorage.getItem(PREFS_KEY);
+    if (!raw) return {};
+    const data = JSON.parse(raw) as Record<string, unknown>;
+    const out: { volume?: number; playbackRate?: number } = {};
+    if (typeof data.volume === "number" && Number.isFinite(data.volume)) {
+      out.volume = Math.min(1, Math.max(0, data.volume));
+    }
+    if (typeof data.playbackRate === "number"
+        && Number.isFinite(data.playbackRate)) {
+      out.playbackRate = Math.min(1.5, Math.max(0.5, data.playbackRate));
+    }
+    return out;
+  } catch {
+    return {};
+  }
+}
+
+function writePlayerPrefs(prefs: { volume: number; playbackRate: number }) {
+  try {
+    window.localStorage.setItem(PREFS_KEY, JSON.stringify(prefs));
+  } catch { /* 隐私模式等场景静默失败 */ }
+}
+
+/** 全屏播放镀铬自动隐藏：active 期间 ms 无鼠标/触摸操作即隐藏，动即恢复。 */
+function useAutoHide(active: boolean, ms: number): boolean {
+  const [idle, setIdle] = useState(false);
+  const timerRef = useRef(0);
+  // 激活沿复位（render 期条件调整，避免 effect 内同步 setState）
+  const [wasActive, setWasActive] = useState(active);
+  if (wasActive !== active) {
+    setWasActive(active);
+    setIdle(false);
+  }
+  useEffect(() => {
+    if (!active) return;
+    const arm = () => {
+      window.clearTimeout(timerRef.current);
+      timerRef.current = window.setTimeout(() => setIdle(true), ms);
+    };
+    const show = () => {
+      setIdle(false);
+      arm();
+    };
+    arm();
+    window.addEventListener("mousemove", show);
+    window.addEventListener("touchstart", show);
+    window.addEventListener("keydown", show);
+    window.addEventListener("focusin", show);
+    return () => {
+      window.clearTimeout(timerRef.current);
+      window.removeEventListener("mousemove", show);
+      window.removeEventListener("touchstart", show);
+      window.removeEventListener("keydown", show);
+      window.removeEventListener("focusin", show);
+    };
+  }, [active, ms]);
+  return active && idle;
+}
+
+export default function LearnRunPage() {
+  const { lang } = useUIStore();
+  const tr = makePageT(lang, PAGE_STRINGS);
+  const ps = makePageT(lang, PLAYER_STR);
+  const params = useParams<{
+    workspaceId: string; lessonId: string; runId: string;
+  }>();
+  const router = useRouter();
+  const safe = (s: string) => {
+    try { return decodeURIComponent(s); } catch { return s; }
+  };
+  const workspaceId = safe(params.workspaceId ?? "");
+  const lessonId = safe(params.lessonId ?? "");
+  const runId = safe(params.runId ?? "");
+  const lessonHref = `/workspaces/${encodeURIComponent(workspaceId)}` +
+    `/classroom/${encodeURIComponent(lessonId)}`;
+
+  const [detail, setDetail] = useState<LessonDetailPublic | null>(null);
+  const [frameHtml, setFrameHtml] = useState<string | null>(null);
+  const [fatal, setFatal] = useState<string | null>(null);
+  const [askOpen, setAskOpen] = useState(false);
+  const [initialRun, setInitialRun] = useState<RunPublicExtra | null>(null);
+  const [sidePanel, setSidePanel] = useState<"outline" | "script" | "notes" | null>("script");
+  const [voiceOpen, setVoiceOpen] = useState(false);
+  const [summary, setSummary] = useState<{
+    slides?: { visited: number; total: number };
+    segments?: { listened: number; total: number };
+    questions_asked?: { count: number };
+    checkpoints?: { items: { state: string }[] };
+    mastery?: { note: string };
+  } | null>(null);
+  const frameRef = useRef<SlideFrameHandle | null>(null);
+  const shellRef = useRef<HTMLDivElement | null>(null);
+  const mobileReadingSetRef = useRef(false);
+
+  useEffect(() => {
+    let alive = true;
+    void (async () => {
+      try {
+        const loadedRun = await getRun(workspaceId, lessonId, runId);
+        const d = await getLesson(workspaceId, lessonId,
+                                  loadedRun.lesson_revision);
+        if (!alive) return;
+        if (window.matchMedia("(max-width: 1023px)").matches) setSidePanel(null);
+        setInitialRun(loadedRun);
+        setDetail(d);
+        const rev = d.revision?.revision;
+        if (rev) {
+          const html = await getRevisionFrame(workspaceId, lessonId, rev,
+                                              "presentation");
+          if (alive) setFrameHtml(html);
+        }
+      } catch (err) {
+        if (alive) setFatal(err instanceof Error ? err.message : String(err));
+      }
+    })();
+    return () => { alive = false; };
+  }, [workspaceId, lessonId, runId]);
+
+  const player = useClassroomPlayer({
+    workspaceId, lessonId, runId,
+    detail: detail ?? ({ revision: null } as unknown as LessonDetailPublic),
+    initialRun,
+  });
+  const slides = useMemo(() => detail?.revision?.slides ?? [], [detail]);
+
+  // 课堂插问（§12.4/§12.5）：ask 暂停讲授；resume 回到最初被打断段
+  const qa = useClassroomQA({
+    workspaceId, lessonId, runId,
+    leaseEpoch: player.run?.lease?.lease_epoch ?? 0,
+    current: player.current,
+    lessonRevision: detail?.revision?.revision ?? 1,
+    withVoice: !player.textMode,
+    pauseNarration: player.pauseForAsk,
+  });
+  const anchorSegmentId = player.run?.resume_anchor?.segment_id ?? null;
+  const resumeFromAnchor = useCallback(() => {
+    qa.stopAudio();
+    const segId = anchorSegmentId ?? player.current?.segmentId;
+    if (segId) player.gotoSegment(segId, true);
+  }, [qa, anchorSegmentId, player]);
+  const resumeFromPage = useCallback(() => {
+    qa.stopAudio();
+    const anchorSlide = anchorSegmentId
+      ? player.segments.find((s) => s.segmentId === anchorSegmentId)?.slideId
+      : player.current?.slideId;
+    const first = player.segments.find((s) => s.slideId === anchorSlide)
+      ?? player.segments[0];
+    if (first) player.gotoSegment(first.segmentId, true);
+  }, [qa, anchorSegmentId, player]);
+
+  const slideOrders = useMemo(
+    () => [...slides].sort((a, b) => a.order - b.order).map((s) => s.order),
+    [slides]);
+  const slideTitles = useMemo(() => {
+    const m = new Map<number, string>();
+    for (const s of slides) m.set(s.order, s.title);
+    return m;
+  }, [slides]);
+
+  // 段动作 → frame 指令（翻页 + 块显隐/高亮）
+  const slideOrder = player.current?.slideOrder ?? 1;
+  const currentSeg = player.current;
+
+  const checkpointDue = player.pendingCheckpoint;
+
+  useEffect(() => {
+    frameRef.current?.gotoPage(slideOrder);
+  }, [slideOrder, frameHtml]);
+  useEffect(() => {
+    const show = currentSeg?.showBlockIds ?? [];
+    const focus = currentSeg?.focusBlockIds ?? [];
+    frameRef.current?.setBlockState(show.length ? show : ["*"], focus);
+  }, [currentSeg, slideOrder, frameHtml]);
+  useEffect(() => {
+    frameRef.current?.setReading(player.state.readingMode);
+  }, [player.state.readingMode, frameHtml]);
+  useEffect(() => {
+    if (mobileReadingSetRef.current || !detail
+        || player.state.status === "loading") return;
+    mobileReadingSetRef.current = true;
+
+    if (window.matchMedia("(max-width: 639px)").matches) {
+      player.setSettings({ type: "settings", readingMode: true });
+    }
+  }, [detail, player]);
+
+  // 音量/语速偏好：课堂装载完成后恢复一次（覆盖 reducer 初始值）
+  const prefsRestoredRef = useRef(false);
+  useEffect(() => {
+    if (prefsRestoredRef.current || player.state.status === "loading") return;
+    prefsRestoredRef.current = true;
+    const prefs = readPlayerPrefs();
+    if (prefs.volume !== undefined || prefs.playbackRate !== undefined) {
+      player.setSettings({ type: "settings", ...prefs });
+    }
+  }, [player]);
+
+  // 一次性 notice（语音源切换/本地回退）：短暂展示后清除。
+  // setSettings 经 ref 调用，effect 只随 notice 码重置计时（播放中推进
+  // 新段导致的重渲染不应延长展示）。
+  const playerSettingsRef = useRef(player.setSettings);
+  useEffect(() => { playerSettingsRef.current = player.setSettings; });
+  const noticeCode = player.state.notice;
+  useEffect(() => {
+    if (!noticeCode) return;
+    const t = window.setTimeout(() => {
+      playerSettingsRef.current({ type: "notice", notice: null });
+    }, 3000);
+    return () => window.clearTimeout(t);
+  }, [noticeCode]);
+
+  // 全屏播放 3s 无操作隐藏镀铬；面板/抽屉/检查点打开时不隐藏
+  const chromeHidden = useAutoHide(
+    player.state.fullscreen
+      && (player.state.status === "playing"
+          || player.state.status === "buffering")
+      && !sidePanel && !askOpen && !voiceOpen
+      && !player.pendingCheckpoint,
+    3000);
+  const chromeCls = `transition-opacity duration-300 ${
+    chromeHidden ? "pointer-events-none opacity-0" : "opacity-100"}`;
+
+  // 阅读模式（§5.2.4）：进入即暂停讲授、课件重排为可读版；退出后由用户
+  // 点击播放恢复，不自动续播（§5.2.6）
+  const toggleReading = useCallback((on: boolean) => {
+    if (on) {
+      if (player.state.status === "playing"
+          || player.state.status === "buffering") {
+        player.togglePlay();
+      }
+    }
+    player.setSettings({ type: "settings", readingMode: on });
+    frameRef.current?.setReading(on);
+  }, [player]);
+
+  const toggleFullscreen = useCallback(() => {
+    const el = shellRef.current;
+    if (!el) return;
+    if (document.fullscreenElement) {
+      void document.exitFullscreen().catch(() => undefined);
+    } else if (el.classList.contains("player-focus-fallback")) {
+      el.classList.remove("player-focus-fallback");
+      player.setSettings({ type: "settings", fullscreen: false });
+    } else {
+      const fallback = () => {
+        el.classList.add("player-focus-fallback");
+        player.setSettings({ type: "settings", fullscreen: true });
+      };
+      if (el.requestFullscreen) void el.requestFullscreen().catch(fallback);
+      else fallback();
+    }
+  }, [player]);
+
+  useEffect(() => {
+    const onFs = () => player.setSettings({
+      type: "settings", fullscreen: document.fullscreenElement != null,
+    });
+    document.addEventListener("fullscreenchange", onFs);
+    return () => document.removeEventListener("fullscreenchange", onFs);
+  }, [player]);
+
+  // 课后回顾（§13.5）：确定性 summary，完成层展示
+  const playStatus = player.state.status;
+  useEffect(() => {
+    if (playStatus !== "ended" || summary) return;
+    let alive = true;
+    void (async () => {
+      try {
+        const { apiFetch } = await import("@/lib/api-fetch");
+        const { API_BASE } = await import("@/lib/api");
+        const res = await apiFetch(
+          API_BASE +
+          "/workspaces/" + encodeURIComponent(workspaceId) +
+          "/classroom/lessons/" + encodeURIComponent(lessonId) +
+          "/runs/" + encodeURIComponent(runId) + "/summary");
+        if (alive && res.ok) setSummary(await res.json());
+      } catch { /* 回顾可选 */ }
+    })();
+    return () => { alive = false; };
+  }, [playStatus, summary, workspaceId, lessonId, runId]);
+
+  // 键盘 Space/←/→/C/F：输入框聚焦时不响应（§5.3）
+  const handlePlayerKey = useCallback((key: string) => {
+      switch (key) {
+        case " ":
+          if (player.textMode) player.nextSegment();
+          else player.togglePlay();
+          break;
+        case "ArrowRight":
+          player.gotoSlide(Math.min(slideOrders.length,
+                                    (player.current?.slideOrder ?? 1) + 1));
+          break;
+        case "ArrowLeft":
+          player.gotoSlide(Math.max(1,
+                                    (player.current?.slideOrder ?? 1) - 1));
+          break;
+        case "c":
+        case "C":
+          player.setSettings({ type: "settings",
+                               captions: !player.state.captions });
+          break;
+        case "f":
+        case "F":
+          toggleFullscreen();
+          break;
+        case "q":
+        case "Q":
+          setAskOpen(true);
+          break;
+        default:
+          break;
+      }
+  }, [player, toggleFullscreen, slideOrders.length]);
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const t = e.target as HTMLElement | null;
+      if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA"
+                || t.isContentEditable || t.tagName === "SELECT")) return;
+      if (e.altKey || e.ctrlKey || e.metaKey || askOpen || voiceOpen || checkpointDue) return;
+      if (t?.closest("button, a, [role=dialog]")) return;
+      if (e.key === " ") e.preventDefault();
+      handlePlayerKey(e.key);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [handlePlayerKey, askOpen, voiceOpen, checkpointDue]);
+
+  const playerStrings: PlayerStrings = {
+    captionsLabel: ps("cls.play.captions"),
+    captionsBackToCurrent: ps("cls.play.captions.back"),
+    outlineTitle: ps("cls.play.outline"),
+    play: ps("cls.play.play"), pause: ps("cls.play.pause"),
+    prevPage: ps("cls.play.prev"), nextPage: ps("cls.play.next"),
+    replay: ps("cls.play.replay"), volume: ps("cls.play.volume"),
+    mute: ps("cls.play.mute"), unmute: ps("cls.play.unmute"),
+    progress: ps("cls.play.progress"), estimated: ps("cls.play.estimated"), speed: ps("cls.play.speed"),
+    focusMode: ps("cls.play.fullscreen"),
+    fullscreen: ps("cls.play.fullscreen"),
+    exitFullscreen: ps("cls.play.exit.fullscreen"),
+    readingMode: ps("cls.play.reading"),
+    exitReadingMode: ps("cls.play.exit.reading"),
+    pageOf: (n, t) => ps("cls.play.pageof").replace("%n", String(n))
+      .replace("%t", String(t)),
+    segmentOf: (n, t) => ps("cls.play.segmentof").replace("%n", String(n))
+      .replace("%t", String(t)),
+    textMode: ps("cls.play.textmode"),
+    continueReading: ps("cls.play.continue.reading"),
+    moreSettings: ps("cls.play.more.settings"),
+    bufferingSlow: ps("cls.play.click.resume"),
+    remaining: (m) => `${m} min`,
+  };
+
+  // 一次性提示码 → 本地化文案（useClassroomPlayer 只发码不发文案）
+  const noticeText = player.state.notice
+    ? {
+        local_fallback_notice: ps("cls.play.notice.local_fallback"),
+        voice_switched: ps("cls.voice.switched"),
+        voice_switch_failed: ps("cls.voice.switch.failed"),
+        voice_switch_conflict: ps("cls.voice.switch.conflict"),
+      }[player.state.notice] ?? null
+    : null;
+
+  if (fatal) {
+    // 深链失效（课程/课堂记录被删除）给出可识别状态（§H04），不只是裸错误
+    const gone = fatal.includes("source_not_found")
+      || fatal.includes("不存在") || fatal.includes("404");
+    return (
+      <div className="flex h-full flex-col">
+        <header className="flex items-center gap-3 border-b border-border px-5 py-3">
+          <Link href={lessonHref} aria-label={tr("cls.back.to.list")}
+                className="flex h-8 w-8 items-center justify-center rounded-[8px] text-muted hover:bg-surface-hover hover:text-fg">
+            <ArrowLeft size={16} />
+          </Link>
+          <h1 className="font-serif text-[1.05rem] font-bold text-fg">
+            {tr("cls.learn.player.title")}
+          </h1>
+        </header>
+        <div className="flex flex-1 flex-col items-center justify-center gap-3 text-muted">
+          <p>{gone ? tr("cls.detail.notfound") : ps("cls.play.suspended.error")}</p>
+          {!gone && <Button variant="primary" size="sm"
+                            onClick={() => window.location.reload()}>
+            {ps("cls.play.suspended.retry")}
+          </Button>}
+          <Link href={lessonHref}
+                className="text-sm text-accent-strong hover:underline">
+            {ps("cls.play.back.course")}
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  const status = player.state.status;
+  const suspended = status === "suspended";
+  const ended = status === "ended";
+
+  return (
+    <div ref={shellRef} className="classroom-player flex h-full min-h-0 flex-col bg-bg">
+      <header className={`flex min-h-14 items-center gap-2 border-b border-border bg-surface px-3 sm:gap-3 sm:px-5 ${chromeCls}`}>
+        <button type="button" aria-label={tr("cls.back.to.list")}
+              onClick={() => void player.leaveLesson().then(() => router.push(lessonHref))}
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[8px] text-muted hover:bg-surface-hover hover:text-fg">
+          <ArrowLeft size={16} />
+        </button>
+        <div className="min-w-0 flex-1">
+          <div className="mb-0.5 flex items-center gap-1.5 text-[9px] font-medium tracking-widest text-accent-strong"><AudioLines size={11} />{ps("cls.play.studio")}</div>
+          <h1 className="truncate text-sm font-semibold tracking-tight text-fg">{detail?.title ?? tr("cls.learn.player.title")}</h1>
+        </div>
+        <span className="ml-auto hidden rounded-full border border-border px-3 py-1 text-xs tabular-nums text-muted sm:inline-flex">
+          {playerStrings.pageOf(slideOrder, slideOrders.length || 1)}
+        </span>
+        <div className="flex items-center gap-1 sm:gap-2">
+          <button type="button" onClick={() => setSidePanel((p) => p === "outline" ? null : "outline")}
+                  aria-label={ps("cls.play.outline")} aria-pressed={sidePanel === "outline"}
+                  disabled={Boolean(checkpointDue) || askOpen}
+                  className="classroom-header-action"><List size={18} /></button>
+          <button type="button" onClick={() => setSidePanel((p) => p === "script" ? null : "script")}
+                  aria-label={tr("cls.learn.script")} aria-pressed={sidePanel === "script"}
+                  disabled={Boolean(checkpointDue) || askOpen}
+                  className="classroom-header-action"><BookOpenText size={18} /></button>
+          <button type="button" onClick={() => setSidePanel((p) => p === "notes" ? null : "notes")}
+                  aria-label={ps("cls.note.title")} aria-pressed={sidePanel === "notes"}
+                  disabled={Boolean(checkpointDue) || askOpen}
+                  className="classroom-header-action"><NotebookPen size={18} /></button>
+          <Button variant="ghost" size="sm"
+                  className="min-h-11 min-w-11"
+                  icon={<LogOut size={14} />}
+                  onClick={() => {
+                    void player.leaveLesson().then(() => {
+                    router.push(lessonHref);
+                    });
+                  }}>
+            <span className="hidden sm:inline">{ps("cls.play.exit")}</span>
+          </Button>
+        </div>
+      </header>
+
+      <div className="relative flex min-h-0 flex-1">
+        {noticeText && (
+          <div role="status"
+               className="motion-fade pointer-events-none absolute bottom-4 left-1/2 z-40 max-w-[85%] -translate-x-1/2 rounded-full border border-border bg-surface px-4 py-2 text-center text-xs text-fg shadow-lg">
+            {noticeText}
+          </div>
+        )}
+        <main className="relative flex min-w-0 flex-1 flex-col">
+          <div className="classroom-stage relative flex min-h-0 flex-1 items-center justify-center overflow-hidden">
+            {frameHtml ? (
+              <SlideFrameDefault
+                ref={frameRef} html={frameHtml}
+                title={detail?.title ?? "classroom"}
+                onHotkey={handlePlayerKey}
+                className="classroom-slide-frame h-full w-full border-0" />
+            ) : (
+              <div className="flex items-center gap-2 text-sm text-white/60">
+                <MonitorPlay size={18} />
+                {ps("cls.play.loading")}
+              </div>
+            )}
+
+            {suspended && (
+              <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-bg/80 px-6 backdrop-blur-sm">
+                <p className="text-sm text-fg">
+                  {player.state.error
+                    ? ps("cls.play.suspended.error")
+                    : ps("cls.play.suspended")}
+                </p>
+                {!player.state.error && (
+                  <p className="max-w-sm text-center text-xs text-fg-secondary">
+                    {ps("cls.play.suspended.hint")}
+                  </p>
+                )}
+                <Button variant="primary" size="sm" className="min-h-11 px-5 text-sm"
+                        onClick={() => {
+                          if (player.state.error) window.location.reload();
+                          else void player.takeover();
+                        }}>
+                  {player.state.error
+                    ? ps("cls.play.suspended.retry")
+                    : ps("cls.play.suspended.takeover")}
+                </Button>
+              </div>
+            )}
+            {ended && (
+              <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-bg/80 px-6 backdrop-blur-sm">
+                <p className="text-base font-medium text-fg">
+                  {ps("cls.play.ended")}
+                </p>
+                {summary && (
+                  <div className="max-w-md rounded-[12px] border border-border bg-surface px-4 py-3 text-[0.78rem] text-fg-secondary">
+                    <p className="tnum">
+                      {ps("cls.sum.slides")
+                        .replace("%n", String(summary.slides?.visited ?? 0))
+                        .replace("%t", String(summary.slides?.total ?? 0))}
+                      {" · "}
+                      {ps("cls.sum.segments")
+                        .replace("%n", String(summary.segments?.listened ?? 0))
+                        .replace("%t", String(summary.segments?.total ?? 0))}
+                    </p>
+                    <p className="tnum mt-1">
+                      {ps("cls.sum.asked")
+                        .replace("%n", String(summary.questions_asked?.count ?? 0))}
+                      {" · "}
+                      {ps("cls.sum.checkpoints")
+                        .replace("%n", String((summary.checkpoints?.items ?? [])
+                          .filter((c) => c.state === "answered").length))}
+                    </p>
+                    <p className="mt-1 text-muted">
+                      {summary.mastery?.note}
+                    </p>
+                  </div>
+                )}
+                <div className="flex items-center gap-2">
+                  <Link href={lessonHref}>
+                    <Button variant="outline" size="sm" className="min-h-11 px-5 text-sm">
+                      {ps("cls.play.back.course")}
+                    </Button>
+                  </Link>
+                </div>
+              </div>
+            )}
+            {player.state.error === "click_to_resume"
+              && status === "paused" && (
+              <button type="button" onClick={player.togglePlay}
+                      className="absolute bottom-4 left-1/2 z-10 -translate-x-1/2 rounded-full bg-accent px-5 py-2.5 text-sm font-medium text-on-accent shadow-lg">
+                ▶ {ps("cls.play.click.resume")}
+              </button>
+            )}
+
+            {/* 问答抽屉：在当前页旁展开（§5.1），提问区不是聊天瀑布 */}
+            {askOpen && (
+              <QuestionDrawer
+                turns={qa.turns}
+                asking={qa.asking}
+                sttLang={lang === "en" ? "en" : "zh"}
+                onMicPress={() => {
+                  qa.stopAudio();
+                  player.pauseForAsk();
+                }}
+                onAsk={(text) => qa.ask(text)}
+                onResume={() => { resumeFromAnchor(); setAskOpen(false); }}
+                onResumeFromPage={() => { resumeFromPage(); setAskOpen(false); }}
+                onClose={() => { qa.stopAudio(); setAskOpen(false); }}
+                s={{
+                  title: ps("cls.ask.title"),
+                  confused: ps("cls.ask.confused"),
+                  example: ps("cls.ask.example"),
+                  placeholder: ps("cls.ask.placeholder"),
+                  send: ps("cls.ask.send"),
+                  thinking: ps("cls.ask.thinking"),
+                  resume: ps("cls.ask.resume"),
+                  resumeFromPage: ps("cls.ask.resume.page"),
+                  failed: ps("cls.ask.failed"),
+                  close: ps("cls.ask.close"),
+                  micHold: ps("cls.ask.mic.hold"),
+                  micRecording: ps("cls.ask.mic.recording"),
+                }} />
+            )}
+
+            {/* 检查点（§13.1）：本页最后一段结束后出现 */}
+            {checkpointDue && !ended && !suspended && (
+              <CheckpointPanel
+                workspaceId={workspaceId}
+                lessonId={lessonId}
+                runId={runId}
+                checkpointId={checkpointDue}
+                onResolved={() => { setSidePanel(null); player.resolveCheckpoint(); }}
+                s={{
+                  reflectTitle: ps("cls.ckp.reflect"),
+                  reflectContinue: ps("cls.ckp.continue"),
+                  reflectThinkMore: ps("cls.ckp.think"),
+                  questionTitle: ps("cls.ckp.question"),
+                  skip: ps("cls.ckp.skip"),
+                  skipped: ps("cls.ckp.skipped"),
+                }} />
+            )}
+          </div>
+
+          <CaptionBar
+            current={player.current} next={player.next}
+            captions={player.state.captions}
+            followPaused={player.state.captionFollowPaused}
+            onUserScroll={(paused) => player.setSettings(
+              { type: "caption_follow", paused })}
+            s={playerStrings} />
+        </main>
+
+        {sidePanel && !checkpointDue && !askOpen && (
+          <aside className="motion-drawer classroom-side-panel absolute inset-y-0 right-0 z-30 flex w-[min(360px,100%)] shrink-0 flex-col border-l border-border bg-surface shadow-xl lg:relative lg:inset-auto lg:shadow-none"
+                 aria-label={sidePanel === "outline" ? ps("cls.play.outline") : sidePanel === "notes" ? ps("cls.note.title") : tr("cls.learn.script")}>
+            <div className="flex h-14 shrink-0 items-center justify-between border-b border-border px-5">
+              <div className="flex gap-1" role="tablist" aria-label={ps("cls.play.more.settings")}>
+                {(["outline", "script", "notes"] as const).map((tab) => <button type="button" role="tab" aria-selected={sidePanel === tab} key={tab} onClick={() => setSidePanel(tab)} className={`rounded-lg px-3 py-2 text-xs font-medium ${sidePanel === tab ? "bg-accent-soft text-accent-strong" : "text-muted hover:bg-surface-hover"}`}>{tab === "outline" ? ps("cls.play.outline") : tab === "notes" ? ps("cls.note.title") : tr("cls.learn.script")}</button>)}
+              </div>
+              <button type="button" className="classroom-header-action" aria-label={ps("cls.play.close.panel")}
+                      onClick={() => setSidePanel(null)}><X size={18} /></button>
+            </div>
+            <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
+            {sidePanel === "outline" && (
+              <SlideOutline
+                segments={player.segments} slideTitles={slideTitles}
+                slideOrders={slideOrders} current={player.current}
+                onSelect={(order) => { player.gotoSlide(order); if (window.innerWidth < 1024) setSidePanel(null); }}
+                s={playerStrings} />
+            )}
+            {sidePanel === "script" && (
+              <ScriptPanel
+                segments={player.segments} slideTitles={slideTitles}
+                slideOrders={slideOrders} current={player.current}
+                onSelect={(segmentId) => player.gotoSegment(segmentId, true)}
+                s={{ pageOf: (order) => ps("cls.script.page").replace("%n", String(order)), follow: ps("cls.script.follow"), play: ps("cls.script.listen"), hint: ps("cls.script.hint") }} />
+            )}
+            {sidePanel === "notes" && (
+              <ClassroomNotes
+                workspaceId={workspaceId}
+                lessonId={lessonId}
+                runId={runId}
+                current={player.current}
+                s={{
+                  title: ps("cls.note.title"),
+                  addHere: ps("cls.note.add"),
+                  placeholder: ps("cls.note.placeholder"),
+                  save: ps("cls.note.add"),
+                  saved: ps("cls.note.saved"),
+                  saveToCenter: ps("cls.note.to.center"),
+                  savedToCenter: ps("cls.note.to.center.done"),
+                  empty: ps("cls.note.empty"),
+                  excerpt: ps("cls.note.excerpt"),
+                }} />
+            )}
+            </div>
+          </aside>
+        )}
+      </div>
+
+      {/* §5.1 第二行：快捷补讲 + 提问（真实用户操作表达，§12.6）；预设
+          与 QuestionDrawer 共享 QUICK_PRESETS */}
+      <div className={`classroom-quick-actions flex flex-wrap items-center gap-2 border-t border-border-light bg-surface px-5 py-2 ${chromeCls}`}>
+        {QUICK_PRESETS.map(({ id, text, Icon, labelKey }) => (
+          <button key={id} type="button" disabled={qa.asking || ended}
+                  onClick={() => {
+                    setSidePanel(null); setAskOpen(true); qa.ask(text);
+                  }}
+                  className="inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-lg border border-border-light px-3 text-[11px] text-fg-secondary transition-colors hover:border-accent/50 hover:text-fg disabled:opacity-50">
+            <Icon size={13} /> {ps(`cls.ask.${labelKey}`)}
+          </button>
+        ))}
+        <button type="button" disabled={ended}
+                onClick={() => { setSidePanel(null); setAskOpen(true); }}
+                aria-pressed={askOpen}
+                className={`inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-lg border px-3 text-[11px] transition-colors disabled:opacity-50 ${
+                  askOpen
+                    ? "border-accent bg-accent-soft/50 text-accent-strong"
+                    : "border-border text-fg-secondary hover:border-accent/50 hover:text-fg"}`}>
+          <MessageCircle size={13} /> {ps("cls.ask.open")}
+        </button>
+        <span className="ml-auto hidden text-[0.68rem] text-muted/70 md:inline">
+          {ps("cls.ask.hint")}
+        </span>
+      </div>
+
+      <PlayerControls
+        state={player.state} current={player.current} segments={player.segments}
+        totalPages={slideOrders.length || 1}
+        textMode={player.textMode}
+        className={chromeCls}
+        onToggle={player.textMode ? player.nextSegment : player.togglePlay}
+        onPrev={() => player.gotoSlide(slideOrder - 1)}
+        onNext={() => player.gotoSlide(slideOrder + 1)}
+        onReplay={player.replaySegment}
+        onSpeed={(rate) => {
+          player.setSettings({ type: "settings", playbackRate: rate });
+          writePlayerPrefs({ volume: player.state.volume,
+                             playbackRate: rate });
+        }}
+        onVolume={(v) => {
+          player.setSettings({ type: "settings", volume: v });
+          writePlayerPrefs({ volume: v,
+                             playbackRate: player.state.playbackRate });
+        }}
+        onCaptions={() => player.setSettings({ type: "settings", captions: !player.state.captions })}
+        onSeek={(segmentId) => player.gotoSegment(segmentId, false)}
+        onReading={toggleReading}
+        onFullscreen={toggleFullscreen}
+        voicePanel={(
+          <VoicePanel
+            workspaceId={workspaceId}
+            run={player.run}
+            onApply={player.applyAudioProfile}
+            onPreviewStart={() => {
+              if (player.state.status === "playing"
+                  || player.state.status === "buffering") {
+                player.togglePlay();
+              }
+            }}
+            onOpenChange={setVoiceOpen} />
+        )}
+        s={playerStrings} />
+    </div>
+  );
+}

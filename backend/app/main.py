@@ -118,6 +118,45 @@ async def _lifespan(app: FastAPI):
 
     # 回收站过期清扫不依赖浏览器打开：启动时先扫一次，之后进程内定时扫。
     cleanup_task = None
+    # 课堂生成 worker（plan.md §15.3）：恢复未终结 job + 受限调度。
+    # classroom 关闭时不启动（无新 job；旧 job 留在磁盘等下次开启）。
+    classroom_worker = None
+    try:
+        from app.core.config import settings
+        if settings.classroom_enabled:
+            from app.classroom import service as classroom_service
+            from app.classroom.worker import get_worker
+
+            async def _start_classroom_worker() -> None:
+                worker = get_worker()
+                await worker.start()
+                classroom_service.enqueue_job = worker.enqueue
+
+            async def _stop_classroom_worker() -> None:
+                await get_worker().stop()
+                classroom_service.enqueue_job = None
+
+            await run_bootstrap_step(report, "classroom_worker",
+                                     _start_classroom_worker)
+            classroom_worker = _stop_classroom_worker
+    except Exception:
+        log.warning("classroom worker not started", exc_info=True)
+
+    # 课堂云端 TTS voices list 预热（阶段 F）：后台 best-effort 刷新缓存，
+    # 失败只记 degraded；GET capability 永不发网络请求（plan.md §11.6）。
+    voices_task = None
+    try:
+        from app.core.config import settings
+
+        async def _refresh_classroom_voices() -> None:
+            from app.voice.tts import service as tts_service
+            await tts_service.refresh_voices(force=True)
+
+        if settings.classroom_enabled and settings.azure_speech_key:
+            voices_task = asyncio.create_task(_refresh_classroom_voices())
+    except Exception:
+        log.warning("classroom voices prefetch not started", exc_info=True)
+        voices_task = None
     try:
         from app.core.trash import get_global_policy
 
@@ -139,6 +178,13 @@ async def _lifespan(app: FastAPI):
         yield
     finally:
         # shutdown 类失败只 warning（plan.md §19），不再无痕。
+        # 课堂 worker：先停调度（≤10s 检查点宽限），再走其余清理
+        if classroom_worker is not None:
+            try:
+                await classroom_worker()
+            except Exception:
+                log.warning("shutdown: classroom worker stop failed",
+                            exc_info=True)
         # R01：先停评价 worker（停止认领、等待在途租约、关闭共享 LLM 客户端）
         try:
             from app.agents.student_model.evaluation.worker import (
@@ -169,6 +215,12 @@ async def _lifespan(app: FastAPI):
             cleanup_task.cancel()
             try:
                 await cleanup_task
+            except asyncio.CancelledError:
+                pass
+        if voices_task is not None:
+            voices_task.cancel()
+            try:
+                await voices_task
             except asyncio.CancelledError:
                 pass
 
@@ -228,6 +280,18 @@ def create_app() -> FastAPI:
     )
     from app.api.v1.router import api_router
     app.include_router(api_router)
+    # 课堂域统一错误 envelope（plan.md §14.3）；存储强制写失败（磁盘满/
+    # 权限）与损坏课程同样投影为可观察 envelope（J03，§16.2）
+    from app.api.v1.classroom import (classroom_exception_handler,
+                                      storage_exception_handler)
+    from app.classroom.errors import ClassroomError
+    from app.core.classroom_store import (ClassroomStorageError,
+                                          LessonDamagedError)
+    app.add_exception_handler(ClassroomError, classroom_exception_handler)
+    app.add_exception_handler(ClassroomStorageError,
+                              storage_exception_handler)
+    app.add_exception_handler(LessonDamagedError,
+                              storage_exception_handler)
     return app
 
 

@@ -29,6 +29,7 @@ from typing import Any, Callable
 
 from .config import settings
 from .llm_async import AsyncLLMClient
+from . import llm_policy
 from .quiz_design import grounding_block
 from .quiz_illustration import (IllustrationValidationError,
                                  normalize_question_illustration)
@@ -501,7 +502,7 @@ async def generate_verified_questions(
     critic when textbook evidence is present.
     """
     mode = verify_mode if verify_mode in {"critic", "basic", "off"} \
-        else settings.quiz_verify_mode
+        else llm_policy.quiz_verify_mode()
     meta: dict[str, Any] = {"mode": mode, "attempts": 0, "critic": "skipped",
                             "dropped_ill_formed": 0, "dropped_by_critic": 0,
                             "dropped_rejected": 0,

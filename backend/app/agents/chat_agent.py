@@ -32,8 +32,9 @@ from ..prompts.tutor import TUTOR_SYSTEM, grade_preamble
 from ..prompts.tutor import error_recovery_hint
 from ..prompts.registry import active_versions
 from ..core.context import (build_context, compact_history, estimate_tokens, history_tokens,
-                            SOFT_BUDGET_TOKENS, KEEP_RECENT_TURNS,
-                            append_transcript, transcript_path)
+                            KEEP_RECENT_TURNS,
+                            append_transcript, transcript_path,
+                            soft_budget_tokens)
 from ..core.workspace_memory import update_workspace_memory
 
 MAX_STEPS = 6
@@ -386,6 +387,7 @@ async def chat_turn(
     lang: str = "zh",
     output_language: str | None = None,
     attachments: list[dict] | None = None,
+    classroom_context: Any = None,
 ) -> AsyncGenerator[dict[str, Any], None]:
     """Run one conversation turn, yielding SSE events.
 
@@ -466,6 +468,10 @@ async def chat_turn(
     preamble = grade_preamble(session.grade, bool(_merged_files),
                              file_names, answer_lang=answer_lang, forced=forced,
                              textbooks=_textbooks_for_session(session, _merged_files))
+    # 课堂插问（§12.4）：同一格式化 helper 的边界材料区（讲稿/来源摘录/
+    # 答疑规则），随 prompt 注入；用户消息原文保持原样。
+    if classroom_context is not None:
+        preamble += "\n" + classroom_context.material_block
     # R9: augment preamble with attachment reminder (reminder, not body)
     att_ctx = _attachment_context(session)
     if att_ctx:
@@ -499,7 +505,8 @@ async def chat_turn(
     history = [dict(m) for m in session.messages]
     hist_tokens = history_tokens(history)
     compaction_triggered = False
-    if hist_tokens > SOFT_BUDGET_TOKENS and len(history) > KEEP_RECENT_TURNS + 2:
+    soft_budget = soft_budget_tokens()
+    if hist_tokens > soft_budget and len(history) > KEEP_RECENT_TURNS + 2:
         try:
             history, summary = await compact_history(
                 [TUTOR_SYSTEM, preamble] + history, llm,
@@ -518,7 +525,7 @@ async def chat_turn(
                 }
                 compaction_triggered = True
                 trace.log("compaction", summary_tokens=estimate_tokens(summary),
-                          kept_recent=KEEP_RECENT_TURNS, budget=SOFT_BUDGET_TOKENS,
+                          kept_recent=KEEP_RECENT_TURNS, budget=soft_budget,
                           pre_tokens=hist_tokens)
         except Exception as e:
             trace.log("compaction_error", message=str(e))
@@ -969,6 +976,7 @@ async def run_turn(
     output_language: str | None = None,
     attachments: list[dict] | None = None,
     student_id: str = "",
+    classroom_context: Any = None,
 ) -> AsyncGenerator[dict[str, Any], None]:
     """Entry point chosen by chat.py. Dispatches to V1 chat_turn or V2
     supervisor.run based on SUPERVISOR_MODE (default v2).
@@ -978,7 +986,8 @@ async def run_turn(
     try:
         async for ev in _run_turn_dispatch(
                 user_message, session, tools, llm, progress_cb, lang,
-                output_language, attachments, student_id=student_id):
+                output_language, attachments, student_id=student_id,
+                classroom_context=classroom_context):
             yield ev
     finally:
         _after_turn_dialogue_receipt(session, student_id)
@@ -994,6 +1003,7 @@ async def _run_turn_dispatch(
     output_language: str | None = None,
     attachments: list[dict] | None = None,
     student_id: str = "",
+    classroom_context: Any = None,
 ) -> AsyncGenerator[dict[str, Any], None]:
     """Entry point chosen by chat.py. Dispatches to V1 chat_turn or V2
     supervisor.run based on SUPERVISOR_MODE (default v2).
@@ -1009,7 +1019,8 @@ async def _run_turn_dispatch(
             from .supervisor import run as supervisor_run
             async for ev in supervisor_run(user_message, session, tools, llm,
                                             progress_cb, lang, output_language, attachments,
-                                            student_id=student_id):
+                                            student_id=student_id,
+                                            classroom_context=classroom_context):
                 yield ev
             return
         except Exception as e:  # never break the stream; observe, then decide
@@ -1035,5 +1046,7 @@ async def _run_turn_dispatch(
                 return
     async for ev in chat_turn(user_message, session, tools, llm,
                               progress_cb=progress_cb, lang=lang,
-                              output_language=output_language, attachments=attachments):
+                              output_language=output_language,
+                              attachments=attachments,
+                              classroom_context=classroom_context):
         yield ev

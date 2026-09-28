@@ -47,23 +47,23 @@ export function PolicyPanel({ tr }: { tr: Tr }) {
             {tr("adm.policy.trash")}
           </div>
           <div className="grid grid-cols-3 gap-2">
-            <Field label={tr("adm.policy.trash.defaultDays")} helper={tr("adm.policy.trash.defaultDays.hint")}>
+            <Field label={tr("adm.policy.trash.defaultDays")} hint={tr("adm.policy.trash.defaultDays.hint")}>
               <input type="number" min={1} max={30} value={retention.default_days}
                 onChange={(e) => setRetention({ ...retention, default_days: Number(e.target.value) })}
                 className={inputCls} />
             </Field>
-            <Field label={tr("adm.policy.trash.userMaxDays")} helper={tr("adm.policy.trash.userMaxDays.hint")}>
+            <Field label={tr("adm.policy.trash.userMaxDays")} hint={tr("adm.policy.trash.userMaxDays.hint")}>
               <input type="number" min={1} max={30} value={retention.user_max_days}
                 onChange={(e) => setRetention({ ...retention, user_max_days: Number(e.target.value) })}
                 className={inputCls} />
             </Field>
-            <Field label={tr("adm.policy.trash.forcedMaxDays")} helper={tr("adm.policy.trash.forcedMaxDays.hint")}>
+            <Field label={tr("adm.policy.trash.forcedMaxDays")} hint={tr("adm.policy.trash.forcedMaxDays.hint")}>
               <input type="number" min={1} max={365} value={retention.forced_max_days}
                 onChange={(e) => setRetention({ ...retention, forced_max_days: Number(e.target.value) })}
                 className={inputCls} />
             </Field>
           </div>
-          <Field label={tr("adm.policy.trash.mode")} helper={tr("adm.policy.trash.mode.hint")}>
+          <Field label={tr("adm.policy.trash.mode")} hint={tr("adm.policy.trash.mode.hint")}>
             <select value={retention.mode} onChange={(e) => setRetention({ ...retention, mode: e.target.value })}
               className={inputCls}>
               <option value="auto">{tr("adm.policy.trash.mode.auto")}</option>
@@ -76,22 +76,22 @@ export function PolicyPanel({ tr }: { tr: Tr }) {
             {tr("adm.policy.memory")}
           </div>
           <div className="grid grid-cols-2 gap-2">
-            <Field label={tr("adm.policy.memory.defaultWindow")} helper={tr("adm.policy.memory.defaultWindow.hint")}>
+            <Field label={tr("adm.policy.memory.defaultWindow")} hint={tr("adm.policy.memory.defaultWindow.hint")}>
               <input type="number" min={5} value={promptPolicy.default_window}
                 onChange={(e) => setPromptPolicy({ ...promptPolicy, default_window: Number(e.target.value) })}
                 className={inputCls} />
             </Field>
-            <Field label={tr("adm.policy.memory.maxWindow")} helper={tr("adm.policy.memory.maxWindow.hint")}>
+            <Field label={tr("adm.policy.memory.maxWindow")} hint={tr("adm.policy.memory.maxWindow.hint")}>
               <input type="number" min={5} value={promptPolicy.max_window}
                 onChange={(e) => setPromptPolicy({ ...promptPolicy, max_window: Number(e.target.value) })}
                 className={inputCls} />
             </Field>
-            <Field label={tr("adm.policy.memory.coreLimit")} helper={tr("adm.policy.memory.coreLimit.hint")}>
+            <Field label={tr("adm.policy.memory.coreLimit")} hint={tr("adm.policy.memory.coreLimit.hint")}>
               <input type="number" min={1} value={promptPolicy.core_char_limit}
                 onChange={(e) => setPromptPolicy({ ...promptPolicy, core_char_limit: Number(e.target.value) })}
                 className={inputCls} />
             </Field>
-            <Field label={tr("adm.policy.memory.directiveLimit")} helper={tr("adm.policy.memory.directiveLimit.hint")}>
+            <Field label={tr("adm.policy.memory.directiveLimit")} hint={tr("adm.policy.memory.directiveLimit.hint")}>
               <input type="number" min={1} value={promptPolicy.directive_char_limit}
                 onChange={(e) => setPromptPolicy({ ...promptPolicy, directive_char_limit: Number(e.target.value) })}
                 className={inputCls} />

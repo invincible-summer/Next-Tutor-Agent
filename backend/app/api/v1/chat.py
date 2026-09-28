@@ -56,108 +56,19 @@ def _validate_workspace_binding(workspace_id: str | None, student_id: str) -> No
 
 
 def _build_tools(session: TutorSession, *, user_message: str = "",
-                 attachments: list[dict] | None = None):
-    """Wire tools for a session (knowledge_search needs the session's store).
+                 attachments: list[dict] | None = None,
+                 restrict_to_file_ids=None):
+    """Thin wrapper over core.agent_tools.build_session_tools（plan.md §12.4）。
 
-    If the session belongs to a workspace, merge the workspace's SELECTED
-    library sources (its exclusive folder + picked folders/files) into the
-    session's store so knowledge_search searches both session-level and
-    workspace-readable materials — unselected library files stay invisible.
-    When the embedding track is configured, knowledge_search additionally
-    gets the scoped (session/folder/file) stores for hybrid retrieval;
-    otherwise the BM25 overlay alone remains the whole retrieval path.
-
-    统一 Quiz Grounding（plan.md §4.2）：本轮 message/attachments 经
-    decide_material_grounding 得出 strict 教材语义，注入共享的
-    KnowledgeSearchQuizGroundingProvider —— generate_quiz / fit_quiz 与
-    普通问答使用同一个已授权检索空间；教材 scope 由服务端闭包决定，
-    LLM 工具 schema 不新增任何身份参数。
+    公共构建逻辑已提取到 core/agent_tools.py；本符号保留给既有测试的
+    patch 点。课堂问答由 chat_stream 以服务端构造的
+    restrict_to_file_ids 调用（可信来源 override：检索 overlay 限于
+    当前仍授权的 lesson 来源）；普通聊天不传该参数，行为不变。
     """
-    from app.core.llm_async import get_llm
-    from app.tools.knowledge_search import KnowledgeSearchTool
-    from app.tools.knowledge_read import KnowledgeReadTool
-    from app.tools.quiz import GenerateQuizTool
-    from app.tools.fit_quiz import FitQuizTool
-    from app.tools.recall_history import RecallHistoryTool
-    llm = get_llm()
-    # Hybrid track: scoped stores + embed client (None when unconfigured).
-    from app.core.embedding import get_embedding_client
-    embed = get_embedding_client()
-    scoped = None
-    if embed is not None:
-        from app.core.workspace import scoped_knowledge_stores
-        scoped = scoped_knowledge_stores(session) or None
-    # Merge workspace-readable knowledge if applicable.
-    # Prior quiz stems feed generate_quiz's anti-repeat list so successive
-    # turns don't re-issue the same canonical question.
-    avoid_stems = [
-        str(q.get("stem", "")).strip()[:40]
-        for qh in (session.quiz_history or [])[-3:]
-        for q in ((qh.get("questions") or []) if isinstance(qh, dict) else [])
-        if isinstance(q, dict) and str(q.get("stem", "")).strip()
-    ]
-
-    def _quiz_tools(search_tool):
-        from app.agents.preresearch import decide_material_grounding
-        from app.core.quiz_grounding import (
-            KnowledgeSearchQuizGroundingProvider)
-        decision = decide_material_grounding(session, user_message, attachments)
-        quiz_grounding = KnowledgeSearchQuizGroundingProvider(
-            search_tool,
-            required=decision.required,
-            reason=decision.trace_reason,
-            file_ids=decision.file_ids,
-        )
-        from app.core.quiz_illustration_policy import (
-            IllustrationPolicyProvider, explicit_illustration_request)
-        illustrations = IllustrationPolicyProvider(
-            session.student_id, explicit_illustration_request(user_message))
-        return (GenerateQuizTool(llm, avoid_stems=avoid_stems,
-                                 grounding_provider=quiz_grounding,
-                                 illustration_policy_provider=illustrations),
-                FitQuizTool(llm, grounding_provider=quiz_grounding,
-                            illustration_policy_provider=illustrations))
-
-    if session.workspace_id:
-        from app.core.workspace import readable_files, readable_stores, workspace_for_session
-        ws = workspace_for_session(session)
-        if ws:
-            ws_stores = readable_stores(ws)
-            ws_chunks = [c for _s, st in ws_stores for c in st.chunks]
-            if ws_chunks:
-                # Create a SEPARATE KnowledgeStore copy so workspace chunks are
-                # NOT persisted to the session file. Temporary overlay for
-                # knowledge_search tool only.
-                from app.core.knowledge_store import KnowledgeStore
-                overlay = KnowledgeStore()
-                overlay.chunks = list(session.knowledge.chunks) + ws_chunks
-                overlay.files = list(session.knowledge.files) + readable_files(ws)
-                search_tool = KnowledgeSearchTool(
-                    overlay, scoped_stores=scoped, embed_client=embed,
-                    student_id=getattr(session, "student_id", "") or "")
-                gen_quiz, fit_quiz = _quiz_tools(search_tool)
-                return [
-                    search_tool,
-                    KnowledgeReadTool(overlay, scoped_stores=scoped),
-                    gen_quiz,
-                    fit_quiz,
-                    RecallHistoryTool(session.session_id,
-                                      getattr(session, "student_id", "") or "",
-                                      getattr(session, "workspace_id", "") or ""),
-                ]
-    search_tool = KnowledgeSearchTool(
-        session.knowledge, scoped_stores=scoped, embed_client=embed,
-        student_id=getattr(session, "student_id", "") or "")
-    gen_quiz, fit_quiz = _quiz_tools(search_tool)
-    return [
-        search_tool,
-        KnowledgeReadTool(session.knowledge, scoped_stores=scoped),
-        gen_quiz,
-        fit_quiz,
-        RecallHistoryTool(session.session_id,
-                          getattr(session, "student_id", "") or "",
-                          getattr(session, "workspace_id", "") or ""),
-    ]
+    from app.core.agent_tools import build_session_tools
+    return build_session_tools(session, user_message=user_message,
+                               attachments=attachments,
+                               restrict_to_file_ids=restrict_to_file_ids)
 
 
 @router.post("/stream")
@@ -170,7 +81,25 @@ async def chat_stream(req: ChatRequest, student_id: str = Depends(resolve_studen
     req.grade = normalize_grade(req.grade)
 
     session = None
-    if req.session_id:
+    classroom_ctx = None
+    if req.classroom_ref is not None:
+        # 课堂插问（§12.4）：run/版本/页段校验 + qa session 绑定全部在
+        # 服务端完成；客户端不能指定任意会话承载课堂上下文。
+        from app.classroom.chat_context import resolve_classroom_turn
+        from app.classroom.errors import ClassroomError
+        try:
+            classroom_ctx = resolve_classroom_turn(student_id,
+                                                   req.classroom_ref)
+        except ClassroomError as exc:
+            raise HTTPException(exc.http_status, exc.message)
+        session = classroom_ctx.qa_session
+        if req.session_id and req.session_id != session.session_id:
+            raise HTTPException(409, "会话与课堂记录不匹配")
+        # 课堂课程语言与 UI 语言分开（§12.4）：qa session 首建时已从冻结
+        # brief 继承 grade/output_language；本轮显式选择仍可覆盖。
+        if req.output_language:
+            session.output_language = req.output_language
+    elif req.session_id:
         session = load_session(req.session_id)
         # Ownership: a stamped session belongs to its owner only. A foreign
         # id is invisible (404, no existence leak) and its student_id stamp
@@ -191,8 +120,10 @@ async def chat_stream(req: ChatRequest, student_id: str = Depends(resolve_studen
     # unstamped legacy session this also claims it for the caller.
     session.student_id = student_id
     # Persist the user's explicit answer-language choice on the session so
-    # resumed conversations remember it (None = auto mode).
-    session.output_language = req.output_language
+    # resumed conversations remember it (None = auto mode). 课堂 turn 除外：
+    # 未显式选择时保留从冻结 brief 继承的语言（§12.4）。
+    if classroom_ctx is None or req.output_language is not None:
+        session.output_language = req.output_language
     if not session.title and req.message:
         session.title = req.message[:20]
 
@@ -214,7 +145,10 @@ async def chat_stream(req: ChatRequest, student_id: str = Depends(resolve_studen
         add_session_to_workspace(req.workspace_id, session.session_id)
 
     tools = _build_tools(session, user_message=req.message,
-                         attachments=req.attachments)
+                         attachments=req.attachments,
+                         restrict_to_file_ids=(
+                             classroom_ctx.file_ids
+                             if classroom_ctx is not None else None))
     progress_queue: asyncio.Queue = asyncio.Queue()
 
     def progress_cb(msg: str):
@@ -222,7 +156,7 @@ async def chat_stream(req: ChatRequest, student_id: str = Depends(resolve_studen
 
     async def event_stream():
         async def run_chat():
-            async for event in run_turn(req.message, session, tools, progress_cb=progress_cb, lang=req.lang, output_language=req.output_language, attachments=req.attachments, student_id=student_id):
+            async for event in run_turn(req.message, session, tools, progress_cb=progress_cb, lang=req.lang, output_language=req.output_language, attachments=req.attachments, student_id=student_id, classroom_context=classroom_ctx):
                 # Bind the conversation: stamp the stable session_id onto the
                 # done event so the frontend persists it immediately. The
                 # follow-up history_saved is a backup; an early return in the

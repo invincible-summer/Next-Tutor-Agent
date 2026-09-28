@@ -99,7 +99,8 @@ def _tesseract_ocr(image_bytes: bytes, *, psm: int = 6) -> str:
 
 
 def _has_multimodal() -> bool:
-    return bool(settings.multimodal_api_key)
+    """主 LLM 通道即视觉通道：配置了主通道就认为视觉可用。"""
+    return bool(settings.llm_api_key)
 
 
 # 模块级客户端缓存：逐页 OCR 每页新建 AsyncOpenAI+httpx 意味着整本书数百次
@@ -108,6 +109,9 @@ def _has_multimodal() -> bool:
 # 复用报错。
 _client_cache: dict[tuple[str, str], tuple[object, object]] = {}
 _textbook_client_cache: dict[tuple[str, str, int], tuple[object, object]] = {}
+# 单页 vision 调用最大尝试次数（异常与空 content 都重试，指数退避+抖动；
+# 耗尽才回退 tesseract）。
+_OCR_RETRIES = 3
 
 
 @dataclass(frozen=True)
@@ -135,7 +139,7 @@ def _get_client(base_url: str, model: str):
     if cached is not None and cached[1] is loop:
         return cached[0]
     client = AsyncOpenAI(
-        api_key=settings.multimodal_api_key,
+        api_key=settings.llm_api_key,
         base_url=base_url,
         timeout=60.0,
         max_retries=2,
@@ -160,7 +164,7 @@ def _get_textbook_client(base_url: str, model: str, timeout_seconds: int):
     if cached is not None and cached[1] is loop:
         return cached[0]
     client = AsyncOpenAI(
-        api_key=settings.multimodal_api_key,
+        api_key=settings.llm_api_key,
         base_url=base_url,
         timeout=float(timeout),
         max_retries=0,
@@ -201,14 +205,14 @@ async def textbook_ocr_page_api(image_bytes: bytes, *, attempt: int = 1,
     This deliberately never calls tesseract.  Retry/fallback policy belongs to
     the durable textbook scheduler, not this one-attempt transport function.
     """
-    if not settings.multimodal_api_key:
+    if not settings.llm_api_key:
         return TextbookOCRResult(
-            False, error_code="multimodal_not_configured",
-            error_summary="未配置教材多模态 OCR API", retryable=False,
+            False, error_code="vision_not_configured",
+            error_summary="未配置 LLM 通道，教材多模态 OCR 不可用", retryable=False,
             attempt=max(1, int(attempt)))
     try:
-        base_url = settings.multimodal_base_url or settings.llm_base_url
-        model = settings.multimodal_model or "glm-4.6v"
+        base_url = settings.llm_base_url
+        model = settings.llm_model
         client = _get_textbook_client(base_url, model, timeout_seconds)
         img = Image.open(io.BytesIO(image_bytes))
         if img.width > 2000:
@@ -253,12 +257,12 @@ async def _vision_once(client, model: str, prompt: str, b64: str) -> str:
         "max_tokens": 4000,
         "temperature": 0.1,
     }
-    if settings.multimodal_disable_thinking:
-        # 转录是提取而非推理：关闭 thinking + 请求最低思考强度（两种写法
-        # 覆盖 deepseek/qwen 系与 OpenAI 系兼容端点），与主 LLM 客户端
-        # complete(disable_thinking=True) 同一意图。
-        kwargs["extra_body"] = {"thinking": {"type": "disabled"},
-                                "reasoning_effort": "low"}
+    # 转录是提取而非推理：关闭 thinking + 请求最低思考强度（两种写法
+    # 覆盖 deepseek/qwen 系与 OpenAI 系兼容端点），与主 LLM 客户端
+    # complete(disable_thinking=True) 同一意图。OCR 页转录实测思考型模型
+    # 单页 22-36s，纯浪费延迟与输出预算。
+    kwargs["extra_body"] = {"thinking": {"type": "disabled"},
+                            "reasoning_effort": "low"}
     try:
         response = await client.chat.completions.create(**kwargs)
     except Exception as e:
@@ -278,16 +282,16 @@ async def _vision_once(client, model: str, prompt: str, b64: str) -> str:
 
 async def _multimodal_understand(image_bytes: bytes, *, prompt: str = _VISION_PROMPT,
                                  fallback_psm: int = 6) -> str:
-    """Send image to a vision model via the configured multimodal channel.
+    """Send image to the vision-capable main LLM channel.
 
     ``prompt`` 默认题目照片专用；整页文档 OCR 传 ``_PAGE_OCR_PROMPT``。
-    异常与空 content 都按指数退避重试（``settings.multimodal_ocr_retries``
-    次）——瞬时 429/5xx/截断不再丢页；耗尽才回退 tesseract（``fallback_psm``
+    异常与空 content 都按指数退避重试（``_OCR_RETRIES`` 次）——瞬时
+    429/5xx/截断不再丢页；耗尽才回退 tesseract（``fallback_psm``
     区分题目照片 6 / 整页文档 3）。
     """
     try:
-        base_url = settings.multimodal_base_url or settings.llm_base_url
-        model = settings.multimodal_model or "glm-4.6v"
+        base_url = settings.llm_base_url
+        model = settings.llm_model
         client = _get_client(base_url, model)
 
         img = Image.open(io.BytesIO(image_bytes))
@@ -300,7 +304,7 @@ async def _multimodal_understand(image_bytes: bytes, *, prompt: str = _VISION_PR
         img.save(buf, format="JPEG", quality=90)
         b64 = base64.b64encode(buf.getvalue()).decode("ascii")
 
-        attempts = max(1, settings.multimodal_ocr_retries)
+        attempts = max(1, _OCR_RETRIES)
         for attempt in range(1, attempts + 1):
             try:
                 text = await _vision_once(client, model, prompt, b64)
@@ -322,8 +326,8 @@ async def _multimodal_understand(image_bytes: bytes, *, prompt: str = _VISION_PR
 async def understand_image(image_bytes: bytes, filename: str = "image.png") -> str:
     """Extract text from an image.
 
-    If MULTIMODAL_API_KEY is configured, use the vision model channel.
-    Otherwise, use local tesseract OCR (chi_sim+eng).
+    主 LLM 通道配置且模型具备视觉能力时走模型识别；否则使用本地
+    tesseract OCR（chi_sim+eng）。
     """
     if _has_multimodal():
         return await _multimodal_understand(image_bytes)

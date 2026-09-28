@@ -70,7 +70,7 @@ SSE 为前端直连后端的流式通道（`POST /chat/stream`、`POST /quiz/gra
 - **学段去僵化（P1）**：学段不再是硬编码默认「高中」。`grade=""`（空串，前端 token「自动」）即「自动」——不预置学段语境，由模型按提问内容/资料自适应深度与语言；显式学段（小学/初中/高中/本科）才注入七维度强约束。三级解析：会话级选择 > 全局默认偏好 > 自动。`stage_profile.is_auto/normalize_grade` 是唯一判定源，preamble/出题/M3 策略全走它。**产品默认学段为本科**：前端 store/注册页默认选中本科，后端各兜底回退（账户资料、Session/Context 缺省、stage_profile 未知档、quiz/assessment API 字段缺省、`COMPAT_GRADE`）一律本科；「自动」仍可手动选择，空串自动语义不变。
 - **教材库（P2/P6）**：`TEXTBOOK_GRAPH_ENABLED`（默认 `1`；`=0` 时上传只解析+索引，跳过图谱构建直接 ready）。`TEXTBOOK_GRAPH_MAX_CHAPTERS=30` / `TEXTBOOK_GRAPH_MAX_CONCEPTS=400` 控制教材图谱规模（`custom_graph.spec_to_graph` 形参化）。教材 = Library 文件（`kind:"textbook"`）+ Textbook 注册记录 + M5.7 图谱，三者以 `file_id`/`topic_key` 双向链接；上传后 fire-and-forget 后台构建（分钟级），对话零等待。**上传必选学段**（小学/初中/高中/本科/其他，用户选择优先于骨架 LLM 推断，图谱节点按所选 stamp，知识谱系按学段分组）。**公用教材库（P6-B）**：`scope=public` 的教材落保留命名空间 `public`（文件/记录/图谱同构），所有账号可选用，仅管理员可写；`graph_for` 合并视图 = seed(空) ∪ learned ∪ 公用图谱 ∪ 自有图谱。**P6-A2：考纲 seed 包已全部删除**，知识只来自教材；手动构建图谱端点（custom/build 等）已移除。
 - **教材组（多卷合一图谱）**：一套教材的上下册/分册（力学/光学/电磁学各一个 PDF）可编为**教材组**（记录 `kind:"group"` + 有序 `file_ids`，自定义组名）。构建 = 逐卷走与单教材相同的「OCR+切片+抽取」得 spec，再把各卷章节列表（章名加卷前缀 `卷名·章名`）合并成**一个 spec 单次 `spec_to_graph`**——`name_to_id` 全局按名去重使跨卷同名概念合并为一个节点，按名前置引用跨卷成边（确定性，无额外 LLM）。概念预索引按章属卷限定检索域、条目 chunk_ids 跨卷混合（消费端零改动）。上传 `group` 参数成组、`group_id` 追加卷（自动重建，已 OCR 卷零重 OCR）；`DELETE /textbooks/{gid}/volumes/{fid}` 删卷（剩余卷自动重建，删空删组）；删组级联全部卷文件+图谱。公用组同 scope=public 规则（仅管理员可写）。
-- **扫描/混合 PDF OCR（P5a 逐页择优）**：`PDF_OCR_MODE`（auto/on/off，默认 auto 按**逐页**稀疏判定触发：存在任一稀疏页即逐页择优 OCR，文本层达标页原样保留；on 强制整本）、`PDF_OCR_MAX_PAGES=1024`（教材库后台 OCR 页数上限）、`PDF_OCR_SYNC_MAX_PAGES=20`（对话/资料库同步段 OCR 页数上限，保护响应性）、`PDF_OCR_DPI=200`、`PDF_OCR_CONCURRENCY=5`（后台 OCR 并行批次大小，1=串行；账户资料 `prefs.ocr_parallel` 逐人覆盖开关）。OCR 合并结果空页占位、页码与物理页对齐；写回 `.txt` 走原子写并同步 library 元数据；OCR 覆盖按当前文本稠密页推导（rebuild 不重复 OCR，调高上限自动续扩）。视觉模型复用 `MULTIMODAL_*`（默认关闭思考/最低强度，`MULTIMODAL_DISABLE_THINKING=1`；单页调用按 `MULTIMODAL_OCR_RETRIES=3` 对异常/空 content 退避重试，耗尽才回退）；未配走本地 tesseract。**启动收割**：构建是进程内 asyncio 任务，服务启动时残留 `building` 记录由 lifespan reaper 置 `graph_failed`（可重建）。
+- **扫描/混合 PDF OCR（P5a 逐页择优）**：`PDF_OCR_MODE`（auto/on/off，默认 auto 按**逐页**稀疏判定触发：存在任一稀疏页即逐页择优 OCR，文本层达标页原样保留；on 强制整本）、`PDF_OCR_MAX_PAGES=1024`（教材库后台 OCR 页数上限）、`PDF_OCR_SYNC_MAX_PAGES=20`（对话/资料库同步段 OCR 页数上限，保护响应性）、`PDF_OCR_DPI=200`、`PDF_OCR_CONCURRENCY=5`（后台 OCR 并行批次大小，1=串行；账户资料 `prefs.ocr_parallel` 逐人覆盖开关）。OCR 合并结果空页占位、页码与物理页对齐；写回 `.txt` 走原子写并同步 library 元数据；OCR 覆盖按当前文本稠密页推导（rebuild 不重复 OCR，调高上限自动续扩）。视觉模型走主 LLM 通道（2026-09 起单一多模态模型；提取型调用固定关闭思考/最低强度，单页调用按内置 3 次对异常/空 content 退避重试，耗尽才回退）；主通道未配置走本地 tesseract。**启动收割**：构建是进程内 asyncio 任务，服务启动时残留 `building` 记录由 lifespan reaper 置 `graph_failed`（可重建）。
 - **记忆收敛（P6-D）**：`CROSS_SESSION_MEMORY` 仍控制 transcript/详细跨会话召回；用户级 prompt memory 另由 `students/<id>.prompt_memory.json` 管理，普通对话与工作区对话全局统一计数，默认最近 15 个会话、可选 5–30，只有总体水平/学习概况/语气/讲解偏好进入 prompt。工作区 public_memory 始终只在同一工作区可见。
 - **管理员（P6-B）**：`ADMIN_EMAIL`/`ADMIN_PASSWORD` 启动引导（lifespan 确保账号存在且 role=admin）；`require_admin` 依赖；`GET /admin/users`、`POST /admin/users/{id}/clear-chat`、`DELETE /admin/users/{id}`（不可删 admin）、`GET/POST /admin/orphan-data[/purge]`（孤儿数据清理，`core/orphan_cleanup.py`）。
 
@@ -210,7 +210,7 @@ M10 Registry 将 Agent Skill 投影为能力 → 工具子集，收窄 LLM 每�
 - `core/tool_context.py` 按工具语义生成模型上下文投影：quiz/fit 只给题目数、ID、考点和“前端已渲染”边界，检索/历史结果按长度截断并保留 spill 引用；完整 ToolResult 仍通过 SSE、quiz_history 和业务存储流转。默认 `on` 用于模型上下文，但完整 SSE/quiz_history/业务存储不变；可一键退回 shadow。
 - `core/message_protocol.py` 生成 assistant tool_call + tool result 的内部标准消息影子，保留 call ID、工具名和参数；`TOOL_MESSAGE_MODE=native` 已切换当前回合为 assistant tool_calls + tool result；Provider 返回 400 时自动将本轮消息转换回 legacy 并重试。历史会话仍以普通教学回答 + SessionLearningCard 恢复，不重放旧工具 payload。
 - `core/context_telemetry.py` 按当前用户 Session 关联的 trace_id 聚合 context_budget、llm_usage、reasoning/answer 通道、compaction、tool projection 与 fallback，只返回统计不返回 Prompt、用户正文、工具原文或隐藏 reasoning；`GET /evaluation/context-budget` 投影到现有系统洞察页。
-- `start.sh` 默认启动完整运行时：Supervisor v2、Skill gated、LLM adapter、Tool Context on、Tool Message native、Reasoning Summary adaptive；读取显式 shell 或 `.env` 中对应非敏感模式作为覆盖，并优先使用 Edu 专用端口 8123/3001 和 pnpm。stop 只终止记录为本项目的 PID，不再扫描杀死 Paper_Agent 端口。
+- `start.sh` 默认启动完整运行时：Supervisor v2、Skill gated、LLM adapter、Tool Context on、Tool Message native；读取显式 shell 或 `.env` 中对应非敏感模式作为覆盖，并优先使用 Edu 专用端口 8123/3001 和 pnpm。stop 只终止记录为本项目的 PID，不再扫描杀死 Paper_Agent 端口。
 - `recall_history` 工具提供 JIT 检索：对 transcript 做 BM25，找回被压缩省略的细节——有损压缩因此可恢复。**P4 起支持跨会话**：工具携带 student_id，检索索引连带该生名下最近 8 个其它会话的 transcript 尾部（各 600 行），命中条目标注来源会话（`会话《标题》(MM-DD)`），「之前/上次讲过什么」不再丢；仍全程定界包裹。transcript 除师生对话外还包含两类系统记录（`core/quiz_attempts.py`）：出题成功时的【出题记录】（题干/答案/考点摘要，模型经 tool 投影与历史剥离后仍能找回自己出的题）与每次批改后的【作答记录】（题目/学生作答/判定），作答不再只存在于不可检索的 quiz API 黑洞里。
 - 工具结果 truncate-then-persist（§3.5 R4），避免大 payload 反复进上下文。
 
@@ -263,7 +263,7 @@ M10 Registry 将 Agent Skill 投影为能力 → 工具子集，收窄 LLM 每�
   - **DOCX**：段落 + 表格按文档顺序展开；存在 embedded media 时有界提取图片并 OCR，纯文字文档不调用 OCR。
   - **PPTX**：递归提取组合形状/表格/备注页；嵌入图片走同一视觉 OCR，文本 slide 保留原文。
   - **TXT/MD**：多编码回退（utf-8 → gbk 等）。
-- 图片：OCR 双通道——默认本地 tesseract（chi_sim+eng）；配置 `MULTIMODAL_*` 走视觉模型。聊天图片在选择时直接通过 `/chat/upload` 写入当前 session KnowledgeStore（原件 + OCR 文本 + chunks），同时返回预览；发送问题时作为 current-turn attachment 强制触发 R10，而不是只把 OCR 文本临时拼入 Prompt。
+- 图片：OCR 双通道——本地 tesseract（chi_sim+eng）兜底；主 LLM 通道的多模态模型承担视觉识别（2026-09 起无独立视觉配置）。聊天图片在选择时直接通过 `/chat/upload` 写入当前 session KnowledgeStore（原件 + OCR 文本 + chunks），同时返回预览；发送问题时作为 current-turn attachment 强制触发 R10，而不是只把 OCR 文本临时拼入 Prompt。
 
 ### 6.2 结构化切块（`core/retriever.py::chunk_text`）
 
@@ -328,11 +328,11 @@ journal 纯读恢复受理、当前本题判分和学习反馈（未提交为 nu
 404，版本不匹配 409），不触发模型或追加受理。前端按返回的 `pending`
 有限轮询，独立于长期评价状态，支持无学习区的 task-only 判分；失败或
 未判定仍保留只读答案。旧会话丢失 result 缓存也可由题目身份恢复。
-SVG 题图代码已接入；自动化测试记录和剩余人工验收见根目录 `plan.md` 第 17 节。默认部署开关为 `1`，运维可设置为 `0` 立即关闭所有新图生成。
+SVG 题图代码已接入；自动化测试记录见 backend/tests/test_quiz_illustration*.py（验收以测试为准）。默认部署开关为 `1`，运维可设置为 `0` 立即关闭所有新图生成。
 
 **结构化题目 SVG（2026-09-16）**：沿用三条出题路径，题图与题面同次生成、同次审核、先冻结再交付。`QUIZ_SVG_ENABLED` 是默认 `1` 的运维总闸，设为 `0` 时所有入口 fail-closed；登录账户 `profile.prefs.quiz_svg_enabled` 缺省 true，读取失败或无可信账户则禁止新图。`/user/profile` 的 GET/PUT 响应增加 `quiz_svg_available`，PUT 在账户锁内浅合并偏好并严格校验新偏好为 bool。`illustration_request=auto|none|required` 是本次意图：关闭总闸时 auto/none 为 off、required 返回 `illustration_disabled`；开启后 auto 按题必要性选择，required 每题必须带图。Chat provider 绑定可信账户与当前用户意图，模型工具参数不能自行开启开关或伪造强制要求。CAT start 接收该枚举并在实例持久化，next/恢复复用，409 不终止已有实例。
 
-`core/quiz_illustration.py` 以 defusedxml 解析后按闭合白名单重建黑白 SVG（最多 24KiB、180 节点、深度 10、800 路径段）。禁止脚本、HTML、CSS、外链、引用、动画和 DTD/实体；不把非法图删掉后原样交付依图题。规范化对象 `{kind,schema_version,sanitizer_version,svg,alt,caption,width,height,content_hash}` 沿 `Question → TaskSnapshot → QuestionPublic` 保存与投影，并进入本题评分上下文。模型提供的审核/内部字段不受信任；即使 `QUIZ_VERIFY_MODE=off/basic`，带图题也必须独立审题并得到 `illustration_check=passed`。Chat/Fit 等普通生成入口继续使用蓝图、生成、审核共享 7 次逻辑调用/180 秒预算、最多一次整题修订；CAT 首题使用 `get_llm("quiz")` 快速模型通道，跳过非必要蓝图轮但保留相同 SVG 校验与 critic，默认最多两次逻辑尝试、共享 6 次调用、90 秒截止。`QUIZ_MODEL` 优先，其次 `DEEPSEEK_MODEL_LIGHT`，SDK 重试默认关闭，避免 provider 与应用层重试相乘；provider 内部网络重试仍受统一期限约束。
+`core/quiz_illustration.py` 以 defusedxml 解析后按闭合白名单重建黑白 SVG（最多 24KiB、180 节点、深度 10、800 路径段）。禁止脚本、HTML、CSS、外链、引用、动画和 DTD/实体；不把非法图删掉后原样交付依图题。规范化对象 `{kind,schema_version,sanitizer_version,svg,alt,caption,width,height,content_hash}` 沿 `Question → TaskSnapshot → QuestionPublic` 保存与投影，并进入本题评分上下文。模型提供的审核/内部字段不受信任；即使校验模式为 `off/basic`，带图题也必须独立审题并得到 `illustration_check=passed`。Chat/Fit 等普通生成入口继续使用蓝图、生成、审核共享 7 次逻辑调用/180 秒预算、最多一次整题修订；CAT 首题使用 `get_llm("quiz")` 快速通道（2026-09 起同一主模型，SDK 重试关闭避免 provider 与应用层重试相乘；provider 内部网络重试仍受统一期限约束）。
 
 题组注册在账户锁与 journal 锁内复查图生成权限、检查同题同 revision 材料不可变，再一次事务写入整组。账户开关变化不修改历史图；重练同一冻结题图仍可复用。journal 重放使用 `JournalTransaction.from_persisted_json`，先校验磁盘原始 envelope 再解析新增默认字段，避免将历史记录误判为 checksum 损坏；不批量迁移或重写旧行。
 
@@ -779,6 +779,7 @@ frontend/src/
 | `chat_history/library/<sid>.textbooks.json`（P2 新增） | 教材注册记录（状态机/进度/章节概念数/warnings） | 账号 |
 | `chat_history/workspaces/ws_<ts>_<slug>.json`（+ `uploads/` 共享资料上传目录） | 工作区（含 public_memory/selected_*），每区一文件 | 账号 |
 | `chat_history/trash/items/<sid>/<trash_id>/` | 统一归档包（manifest + payload） | 账号 / 公用 |
+| `chat_history/classroom/<owner>/...` | 课堂模式全部私有运行数据（owner.json、搜索/试听缓存、lessons/<les>/ 的 revisions/jobs/assets/runs/audio/exports；purge tombstone 在根外 .tombstones/） | 账号 |
 | `users/accounts.json` | 账户（bcrypt hash） | 全局 |
 | `students/<sid>.json` | M2 画像（身份/学段/偏好；无能力数值） | 账号 |
 | `students/<sid>.learning_evidence.jsonl` | M2 统一学习证据 journal（唯一事实源；tasks/sources/jobs/判断/scope） | 账号 |
@@ -810,6 +811,8 @@ frontend/src/
 ---
 
 ## 23. API 总表（前缀 `/api/v1`）
+
+（课堂模式端点与错误 envelope 见下方 P12.10；总表只列既有聊天/教材/笔记面。）
 
 - **笔记仓库（M-Notes）**：`GET/notes/{vault,search,graph,reviews/due}`、notes/folders/revisions/templates CRUD、每笔记智能体 `GET/PATCH/DELETE /notes/{id}/agent`、`POST /notes/{id}/review`、`GET /notes/{id}/export`、`GET /notes/export`、SSE `POST /notes/{generate,chat/stream}`（详见文末 M-Notes 章节）
 - **健康/模型**：`GET /health`、`GET /model-info`
@@ -962,11 +965,12 @@ rag_graph）。
 ### P7.4 对话多模态路由 + 思考模式（`core/multimodal_context.py`）
 
 本轮上下文含图（图片附件原件 + RAG figure/table 证据页快照，合计 ≤3 张
-token 护栏）时，tutor LLM 从主模型切换到 **MULTIMODAL 通道**
-（`AsyncLLMClient` 参数化实例），图片以 content parts 注入**最后一条 user
-消息**（会话历史/持久化保持纯文本，不污染 token 估算与压缩）；多模态轮
-**开启思考推理**（覆盖 grounding 的关思考策略；预算护栏仍优先）。未配置
-`MULTIMODAL_API_KEY` → 降级纯文本不报错。trace 记 `multimodal_routing`。
+token 护栏）时，tutor 复用**主 LLM 通道**的同一个多模态模型
+（`AsyncLLMClient` 参数化实例，2026-09 起视觉不再有独立通道），图片以
+content parts 注入**最后一条 user 消息**（会话历史/持久化保持纯文本，
+不污染 token 估算与压缩）；多模态轮**开启思考推理**（覆盖 grounding 的
+关思考策略；预算护栏仍优先）。主通道未配置 → 降级纯文本不报错。trace
+记 `multimodal_routing`。
 对照：教材 OCR/图述等**提取型**调用保持 `disable_thinking`（转录不需要
 推理，开推理更慢更贵且易吃输出预算）——两策略相反是刻意设计。
 
@@ -1038,8 +1042,8 @@ token 护栏）时，tutor LLM 从主模型切换到 **MULTIMODAL 通道**
 
 ### P7.7.4 知识谱系统一规范（跨学段一致的章层契约）
 - **建模模型契约（防漂移）**：谱系构建全部走主 LLM（`llm_async.get_llm()`，
-  即 LLM_MODEL，`disable_thinking=True` 小 JSON 调用）；OCR 才走 MULTIMODAL
-  通道（视觉模型，关思考）。两者分工不可互换。
+  即 LLM_MODEL，`disable_thinking=True` 小 JSON 调用）；OCR 也走主通道的
+  同一多模态模型（视觉输入，关思考）。单一通道下两者只是输入形态不同。
 - **Tier 1 书签标题质检**（`_garbage_outline_title`，类级结构规则、无书名
   词表）：文件名（`_`/`.pdf`/`.djvu`）、印刷段号（`^\d{3,}[-_]`、`2.23小`
   工单模式）、卷/书名包装（含出版社/教科书/第N版，或归一化等于卷文件名
@@ -1267,8 +1271,8 @@ tool_result/note_updated/mode_changed/plan_card/run_end/error/done；事件只�
   `KnowledgeSearchTool` 检索——与 chat 同一条混合检索+证据门路径，step=retrieving，
   片段以[检索片段]并入[来源材料]，预算 `_RETRIEVAL_CHAR_BUDGET`）→
   `notes_generator_system` 流式生成（含仓库概览供 [[链接]]、用户补充要求最高优先；
-  **多模态**：RAG 图表证据页快照 + 所选会话图片附件 ≤3 张，配置 MULTIMODAL 时切
-  视觉通道，未配置静默降级纯文本）→ 剥开场白/代码围栏 → 存为 draft 笔记（source
+  **多模态**：RAG 图表证据页快照 + 所选会话图片附件 ≤3 张，主 LLM 通道
+  的多模态模型直接识别（未配置主通道时静默降级纯文本））→ 剥开场白/代码围栏 → 存为 draft 笔记（source
   记录 source_mode/material_file_ids 溯源，供助手后续检索圈定范围、温故模板
   注册 M9 卡片）→ `note_created`/`done`。`sources_summary` 含 retrieved 计数。
 - `POST /notes/chat/stream`：ReAct-lite（≤4 步），**每笔记专属 + 三模式工具矩阵**
@@ -1295,7 +1299,7 @@ tool_result/note_updated/mode_changed/plan_card/run_end/error/done；事件只�
   `knowledge_search` 一旦参与修改，会把证据标准化为去重的简短 `> [知识卡]`（来源
   位置 + 1–2 句摘要 + 隐藏指纹元数据），禁止将完整 RAG 原文写入正文。
   **图片附件**：`POST /notes/upload`（图片 OCR/文档提取，存 notes 侧 uploads），
-  请求带 `attachments` 时配置 MULTIMODAL 则切视觉通道（历史持久化仍纯文本，
+  请求带 `attachments` 时由主通道多模态模型识别（历史持久化仍纯文本，
   附件只记 id/filename 元数据），未配置降级用消息内 `<ocr_material>` OCR 文本。
 
 提示词注册：`notes_assistant_system@1.3.0`（当前笔记专属助手契约 + 三模式边界 +
@@ -1938,3 +1942,290 @@ CI runner 没有根目录 `.env`，测试套件必须在**零凭证**下自洽�
 - backend-core 安装使用 `-c backend/constraints.txt` 锁定解析集（与
   本地一致，防 openai 等主版本漂移），timeout 45min 匹配 2 核 runner
   上 ~1900 测试的实际耗时。
+
+## P12 课堂模式：一键备课 → HTML 课件 → AI 讲授（2026-09-26 已实现）
+
+工作学习区内新增「课堂」：选择主题/教材章节后一次确认即可后台生成整节
+课程（受约束 LessonSpec → 本项目编译器生成 HTML 课件 + 逐页讲稿），
+随后由课堂播放器按讲稿音频完整讲授，支持插问/补讲/随堂题/断点恢复/
+课后回顾与导出。设计定稿见根目录 `plan.md`（课堂模式开发执行方案），
+本节只记录**已实现现状**。
+
+### P12.1 路由与入口（前端）
+
+- `/workspaces/{workspaceId}/classroom`：课程列表（三态筛选 + Pager(5)
+  + 置顶「继续上课」卡 + 失败卡重试）；`?create=1` 直开备课 Modal。
+- `/workspaces/{workspaceId}/classroom/{lessonId}`：详情/预览/编辑器
+  （`?revision=N` 固定版本；预览不建 run、不触发 TTS）。
+- `/workspaces/{workspaceId}/classroom/{lessonId}/learn/{runId}`：
+  播放器（刷新不重建 run）。
+- 独立入口 `/course`「备课上课」，与「聊天辅导」并列；课程按工作学习区
+  分组，提供继续学习、分组查找与分页、新建工作学习区及备课入口。聊天
+  页不再嵌入课程切换。旧 `/workspaces/.../classroom` 深链继续有效，导航
+  始终归属「备课上课」。Sidebar 快照仍携带各工作区课程摘要。
+- 备课 Modal（CreateLessonModal）分「内容来源 → 课件设计 → 授课设置」
+  三步，可返回调整；语音来源、音色试听、回退与语速直接展示。主题必填 2–120 字、来源 8 文件/
+  12 章上限、时长/页数/教学模板(5)/视觉模板(5)/更多设置（学段、语言、
+  教材策略、联网+时效、图片密度、检查点密度、语音模式/音色/回退/语速、
+  自定义要求 ≤1000 字）；外部服务不可用时逐项禁用并说明，空教材走
+  「通识资料」路径。
+- 「课件内容检查」开关对应 `LessonBrief.content_review_enabled`，默认
+  `false`（旧 Brief 缺字段也按关闭处理）；开启后单轮提供建议，不自动重写
+  或阻止发布。检查结果及降级提示可在编辑器「生成提示与检查建议」查看。
+
+### P12.2 数据与存储（backend/app/core/classroom_store.py）
+
+唯一根 `chat_history/classroom/`；`<owner>/{owner.json,image-search-cache/,
+voice-previews/,workspaces/<ws>/{index.json,operations/,lessons/<les>/}}`；
+lesson 下 `lesson.json`、`revisions/<n>/`（manifest + spec.private.json +
+assets）、`jobs/<id>/{job.json,staging/}`、`assets/`、`runs/<id>.json`、
+`audio/`、`exports/`。规范见 plan.md §16.1，要点：
+
+- 目录 0700/文件 0600；读不 mkdir；symlink 逃逸拒绝；损坏 JSON →
+  `LessonDamagedError`（标 damaged 隔离，不返回空课冒充正常）。
+- 发布事务：staging → 逐文件 hash 校验 → manifest 最后写 → 同文件系统
+  rename → lesson 锁内指针提交（§16.2）；commit intent 带 expected
+  epoch，崩溃后 `recover_pending_publish` 校验 manifest hash 补指针，
+  不"见 manifest 就发布"。失败 revision 留空号永不复用；上限 20 版。
+- owner 级 tombstone（`.tombstones/`）在 purge 后拦截一切晚到写入；
+  任何写路径 OSError（磁盘满/权限）→ `ClassroomStorageError`
+  （storage_unavailable envelope，main 注册全局 handler）。
+- 音频缓存成对 (wav+meta) 管理；owner 500MB/7 天 LRU；exports 24h。
+
+### P12.3 生成管线（classroom/worker.py + pipeline.py）
+
+九阶段（resolve_sources→research→outline→visual_assets→author_slides→
+checkpoints→review→render→publish），检查点化可恢复：每阶段产物写
+staging，重启后从最近检查点续跑（恢复上限 3 次）；cancel/epoch 语义
+防晚到发布；job 状态经 SSE（认证 fetch 读流，心跳 15s）+ 10s 轮询
+fallback 推送前端。预算：LLM 并发 3、job 并发 2/owner 1、960s 累计
+deadline、provider retry 有界。fake LLM（tests/classroom_fake_llm.py）
+可从 Brief 走完教材课程全管线。
+
+成本与容错边界：
+
+- 内容复核关闭时不调用 reviewer，也不执行证据/时长的内容评价；开启时
+  仅调用一次，复核 JSON 不额外修复，失败或预算不足记提示后继续发布。
+  模型自报 blocker 只作为 major 建议；正文/讲稿风格和估算时长不阻断生成。
+- 结构校验、来源授权、HTML escaping/CSP 和正式题答案的私有存储始终保留。
+  展示布局与悬空引用优先本地修正；答案披露仅检查题目所属页的明确披露，
+  正常讲授相同知识点不算泄漏，确有披露的题页本地改为中性作答引导。
+- 已生成页写 `author_slides_partial`（带输入 hash 与产物 hash）；每个随堂
+  题也独立缓存。中断后复用匹配结果；只切换内容检查时不失效已写页面。
+  随堂题最多一轮生成与原有题目审核，失败/预算不足降级 reflect。
+- LLM 请求发出前预留并持久化调用/token 预算，返回后按 usage 调整；恢复
+  完整累计账目，失败/取消也记账。确定性数据错误不进入 worker 自动重试。
+  写作 JSON 结构错误最多一次修复，不再运行内容或排版的模型重写循环。
+
+### P12.4 来源/检索/图片（classroom/sources|research|media）
+
+- 来源冻结：教材组卷顺序/章节/页码 + source hash；严格教材模式不借
+  网络补证据；显式会话附件需本人勾选。
+- Tavily search/extract 唯一首发适配器（无 key 即 research 不可用）；
+  时效元数据 as_of；prompt injection 不能改变工具 scope。
+- Pexels/Pixabay 候选（24h 缓存、限流头、candidate_id 服务端签发防伪）；
+  下载经 SSRF/IP 校验每跳重验、Pillow 重编码、EXIF 清理、asset hash、
+  署名(creator/license/url)入 credits。
+
+### P12.5 渲染（classroom/render/）
+
+5 主题 × 9 布局的 token/slot 编译器；Block 判别联合（paragraph/bullets/
+formula(KaTeX)/image/diagram/checkpoint）；HTML 全量 escaping、CSP、
+无 raw SVG/JS 执行。排版检查：受控 Node+Playwright 子进程
+（`classroom/render/check.py`，全局单实例 + 硬超时），**子进程只继承
+最小环境白名单（PATH/HOME/XDG_CACHE_HOME 等），供应商密钥与代理变量
+不透传**；Chromium 以服务账号 + 内核 sandbox 运行（禁 --no-sandbox）。
+渲染静态资源 `backend/app/classroom/static/generated/` 为部署期构建
+（`pnpm run build:classroom`，gitignore）；缺失时 capabilities 显式
+`renderer_unavailable`，旧聊天不受影响。应用内经 SlideFrame：iframe
+`sandbox="allow-scripts"` + srcdoc（URL 无 token），握手
+classroom_ready{nonce}（校验 event.source）→ MessagePort 通道。
+长内容在画布正文区域可滚动阅读，窄屏按阅读模式重排；排版检查的溢出或
+检查器环境故障只产生提示，不调用模型修复。缺编译静态资源或结构无法
+编译仍返回明确错误，不发布不可打开的课件。
+
+### P12.6 云端优先 TTS（classroom/audio.py + voice/tts/）
+
+Azure Speech REST 标准音色首发（音色 allowlist + 区域 voices 校验）；
+本地 MeloTTS sidecar 保留为回退（云失败一次即锁本地、每 run 只提示
+一次）；无语音降级为文字课堂（讲稿全文可读）。段级 synthesis key
+（owner/文本 hash/provider/voice/speed/normalizer）+ single-flight +
+WAV 原子写 + 认证内容端点；预取当前+后 2 段，0.5/1/2s 退避轮询；
+纯 GET 幂等。每用户每日云合成字符上限（默认 10 万）；鉴权连击 ≥5
+计入 owner 计数并进健康告警。电话语音 WS 状态机不受影响
+（factory 无参调用兼容）。
+
+### P12.7 播放协议（classroom/runs.py + 前端 useClassroomPlayer）
+
+- run：active/paused/completed/ended；`state_revision` CAS（乐观锁，
+  409 envelope）；音频记账写不推 revision（避免播放端 409）。
+- lease：client_id+epoch，15s 心跳；过期他端可接管（旧控制器停声）。
+  client_id 为每标签页 sessionStorage 持久随机 ID（刷新沿用、新标签页/
+  新设备不同），保证接管判定可靠。
+- progress：5s 节流 + pagehide keepalive flush；播放行为不写任何
+  学习证据（§13.5）；完成时 action=complete 恰好一次。
+- 前端 player-reducer/audio-controller/audio-focus：段推进只由
+  `<audio>` ended 驱动（媒体时钟为准，绝不以 TTS 完成时间翻页）；
+  跳页/暂停旧音频 epoch 丢弃；最多 3 段 Blob 在存。
+- 专注/全屏/键盘/触控/reduced-motion；快捷键只在播放器挂载。
+- 桌面课件与讲稿并排，窄屏面板覆盖；讲稿与字幕共用 Markdown/KaTeX
+  渲染，支持段落跳转与跟随开关。控制栏提供按段跳转、预计剩余时间、
+  倍速、音量/静音、字幕、阅读模式、语音来源和全屏；音量与倍速本地记忆。
+- 备课编辑器按内容区宽度切换三栏/抽屉，课程内容缩略目录、16:9 舞台、
+  讲稿/来源/设置面板与合并导出菜单。SlideFrame 注入固定展示 CSS，
+  优化既有课件字体、留白、焦点与窄屏阅读；不改发布内容或导出 HTML。
+
+### P12.8 插问与随堂题（classroom/chat_context|assessment_bridge）
+
+- 插问复用现有聊天管线：qa_session 幂等创建（run 锁内预留 ID + 落
+  intent，崩溃同 ID 重建），`ClassroomTurnContext` 提供当前页公开讲稿
+  边界材料 + 仍授权教材 file_id 的可信检索 override；回复可语音播放；
+  回答后由用户点「继续原课」回到 resume anchor（多轮追问回最初打断段）。
+- 检查点：reflect（思考停顿，不写证据）与 question（复用冻结题 +
+  `evaluate_submission` 唯一受理链）。question_id 由 owner+run+
+  checkpoint+template_hash 确定性派生（崩溃恢复不换题）；hint/reveal
+  先记帮助事件（帮助后作答不标 independent）；跳过不算答错；同题同
+  答案幂等、不同答案冲突；未揭晓答案不出现在 audio/HTML/讲稿/导出。
+- 课后：GET runs/summary 只汇总可观察事实（看过/听过/提问/检查点/
+  批注），笔记经 save-note 幂等桥接进笔记中心（source=classroom
+  查重，同键返回同一 note_id）。
+
+### P12.9 生命周期与可观测性（classroom/lifecycle.py + health.py）
+
+- 单课归档 trash 类型 `classroom_lesson`（durable op → 冻结 → 快照 →
+  bundle commit → 删活跃副本；音频/过期导出不打包可重建）；重试收敛
+  （crash 后已有同 original_id bundle 时补删不重复建）。工作区归档
+  冻结该区课堂并随 bundle 携带；恢复 run→paused、lease 清空、中断
+  job→needs_input(recovered_after_archive)。purge_account 先 tombstone
+  再删根；uploads_only 清理只删自有上传图与含其 bytes 的编译产物，
+  冻结 spec 不动。删除后不留空目录；orphan_cleanup 含 classroom 分类。
+- `GET/POST /admin/classroom-health[/cleanup]`：磁盘<1GB、云鉴权连击
+  ≥5、近 20 job 失败率>20%、queued 停滞>300s、renderer 连败≥3、
+  损坏课程、owner 音频超压 七类告警（阈值 §20.3，limits.py 常量）；
+  恢复动作 sweep_audio（全 owner 过期音频清扫）。
+
+### P12.10 API 面（/api/v1，envelope §14.3）
+
+`classroom/capabilities|templates`；`workspaces/{ws}/classroom/lessons`
+(CRUD/分页)；`lessons/{les}`（详情/预览、revisions POST 快速修订）；
+`jobs/{id}`(+cancel/retry/continue/outline PATCH/brief PATCH/preview/
+events SSE)；`image-search`；`voice-preview[s]`；`revisions/{n}/frame`；
+`exports`(+content)；`runs`(+get)、`runs/{id}`(+lease POST/PUT/DELETE、
+progress、audio-profile、notes、save-note、audio(+clip status/content)、
+checkpoints/{cid}(+hint/reveal/skip/submit/submission)、summary)。
+错误码固定映射（403 classroom_disabled / 404 source_not_found /
+409 revision|lease|scope|idempotency 冲突 / 410 export_expired /
+429 quota|audio_busy / 503 storage|tts|renderer|research 不可用 /
+500 damaged）。Idempotency-Key 16–128 可打印字符，body hash 冲突
+返回 idempotency_conflict。
+
+### P12.11 配置（2026-09 精简：env 只留密钥/URL/模型名/部署开关）
+
+单一 LLM 通道（`LLM_BASE_URL`/`LLM_API_KEY`/`LLM_MODEL`）：DeepSeek 官方
+或任一 OpenAI 兼容端点二选一，聊天/推理/出题/课堂/视觉 OCR 共用同一
+**多模态**模型（模型无视觉能力时 OCR 回退本地 tesseract）。`DEEPSEEK_*`
+别名、`MULTIMODAL_*` 独立视觉通道、`QUIZ_MODEL`/`CLASSROOM_MODEL`
+模型覆盖均已移除（quiz/classroom 车道保留各自时延/重试语义，模型恒为
+主模型）。课堂保留：`CLASSROOM_ENABLED`(默认 0)、`CLASSROOM_WEB_PROVIDER`+
+`TAVILY_API_KEY`/`PEXELS_API_KEY`+`PIXABAY_API_KEY`、Azure 语音、
+调度/缓存/渲染路径等部署项（完整清单见 `backend/app/core/config.py` 注释）。
+**运行参数**（上下文窗口、最大输出预算、温度、agent 步数、单次调用
+上限、出题校验模式）以内置默认值运行（默认值=2026-09 实例实际值：
+165536/20000/0.3/6/4000/critic），管理员经 `GET/PUT /admin/llm-policy`
+在线调整：写 `chat_history/settings/llm_policy.json`（`core/llm_policy.py`，
+file_lock+原子写），消费点（context_budget/capabilities/context/reasoning/
+executor/llm_async/quiz 校验）调用时读取、热生效无需重启；策略文件缺失时
+以 env 同名键为初值（老部署兼容）。其余 RAG/OCR/灰度等开关保留代码默认
+值，env 仍可覆盖但不再出现在 `.env.example`。
+个人 `profile.prefs.classroom` 白名单字段（theme/pedagogy/voice_policy/
+voice_id/allow_local_fallback/captions/auto_advance/low_stimulus/
+pause_on_hidden）经 /user/profile 严格校验。
+
+### P12.12 测试与验收
+
+后端 `tests/test_classroom_*.py`（schema/storage/identity/sources/
+research/images/network/render/generation/jobs/audio/runs/chat/
+assessment/lifecycle/exports/checkpoints/pipeline/prompts/sidebar/
+revisions/worker/api/typegen/health）+ `test_voice_azure`；
+E2E `frontend/e2e/classroom-*.spec.ts` 八件套（create/editor/player/
+resume/questions/security/export/visual，route 级 API mock + 真实
+audio ended 驱动）；确定性播放器套件 `pnpm test:player`。验收产物在
+`acceptance-reports/`（后端全量 2237 通过、E2E 36+7 通过、视觉截图、
+真实 provider 烟测未验收记录）。
+
+### P12.13 课堂第二版视觉与交互（2026-09-27）
+
+实施步骤与验收清单见 [`CLASSROOM_V2.md`](CLASSROOM_V2.md)。新课程创建
+固定 `GenerationJob.renderer_version=2.0.0` 和视觉主题 `@2`；历史 Job
+缺版本默认 `1.0.0`，历史 Revision 与已开始的 Run 不做迁移。修订作业
+继承其基版 renderer，播放器始终按 `run.lesson_revision` 取固定课件。
+
+`compiler_v2.py` 只给新版注入布局和主题样式；`compiler.py` 的 block
+escaping、CSP、iframe 协议保持共用。新版九布局保留正文可滚动区域，
+阅读模式改为单列，打印模式允许长内容自然展开；排版诊断允许有意的
+纵向滚动，仍检查水平溢出。`classroom_outline`/`classroom_slide` 的
+`2.0.0` 提示词随 Job 冻结；每页证据按本页主题排序，素材按页关联。
+新版大纲超过目标页数时保留规划页并给出警告，超过 schema 的 24 页
+上限则明确失败，避免无声丢失知识页。结构修正先切换通用布局，保留
+已验证的 block。
+
+课堂 learn 页使用独立的沉浸布局和按需侧栏；刷新先读取 Run 再取其
+revision。租约接管需用户点击。完成时服务端只在全部段确实记录为听完
+时标 `listened`，其余为 `browsed`。`GET revisions/{n}/frame?mode=print`
+提供授权打印页，浏览器打印对话框可保存为 PDF；现有 HTML ZIP 和
+Markdown 讲稿导出仍可用。
+
+### P12.14 一键备课的失败收敛与预算分配（2026-09-27）
+
+备课保持每课 40,000 输出 token、180,000 输入 token 和 `min(40, 2N+8)`
+次请求尝试的上限。结构化调用分别使用检索计划 1,200、大纲 4,800、
+复核 1,800 token 的单次上限；写作页根据剩余页数均分剩余额度，另预留
+一页的修复空间，单次最多 6,000 token。课堂 client 的默认上限也缩至
+6,000，避免嵌套调用继承普通聊天的 20,000 上限。模型明确拒收的 400、
+429 等响应只计调用次数，不误扣输出 token；超时和断连结果不确定，仍按
+预留额度记账。成功响应没有 usage 时按可见输出字符估算，保留现有总额护栏。
+
+新课使用 `classroom_slide@2.1.0`，从提示词中移除 schema 不支持的
+`actions` 字段，明确要点和讲稿段上限。Job 冻结 `slide_prompt_version`；
+已排队的旧版 Job 缺字段时继续用 `2.0.0`，修订继承基版。进入 schema 前，
+服务端可无损替换模型的短页内 ID、把过长要点转为正文、把过长口头讲解
+按句拆段；来源与资产引用仍严格校验。旧缓存中的不兼容布局在渲染前改为
+通用布局并保留正文，不重复调用 LLM。
+
+模型暂时不可用时，worker 在阶段产物基础上有界自动续跑三轮；配置错误
+直接失败。终态 SSE 后前端取完整 Job 快照，展示原因和可用操作。
+
+### P12.15 单页 JSON 截断续写（2026-09-27）
+
+`classroom_slide` 返回的对象若未闭合，不能把已输出的整页塞回修复提示词
+要求重写：同一个单次输出上限会再次截断，且重复消耗全课预算。解析器将
+未闭合对象单独识别；每页最多一次使用 `classroom_json_continue@1.0.0`
+在原始证据上下文和已输出前缀之后生成缺失尾部。拼接结果仍须通过原有
+schema 与来源校验，失败则保留已完成页并报告明确的续写错误，不发布
+半页。普通字段校验错误仍使用原来的一次完整修复。
+
+### P12.16 手动重试预算与单课归档（2026-09-27）
+
+用户显式调用 `POST .../jobs/{job}/retry` 时，任务保留已校验的阶段产物和
+目标 revision，`attempts` 加一，并把当前 `JobBudget` 合入
+`prior_attempts_budget`，再把当前预算账本置零。LLM 调用、输入/输出 token、
+检索、图片、TTS 与活跃耗时都按新窗口计算；自动 worker 恢复和普通
+`continue` 不重置，避免断线或重启无意中增加额度。失败/取消任务总是
+提供手动重试，包括上次窗口因预算耗尽失败的任务。重试仍须由当前课程
+所有者发起，沿用 Job 的 CAS `state_revision`，不新建课程或发布旧草稿。
+已发布课程的修订任务失败后，编辑器保留生成进度与重试入口；用户也可返回
+编辑页重新选择操作。
+
+`DELETE /workspaces/{ws}/classroom/lessons/{lesson}` 将课程归档到统一
+`classroom_lesson` 回收站：先验证 owner→workspace→lesson，再冻结生成任务、
+快照版本/任务/run/素材、提交归档包，最后删除活跃子树和索引。课堂列表与
+详情均提供归档确认；归档中心可恢复或彻底删除。单课恢复仅回到原学习区，
+原学习区不存在时提示先恢复学习区，避免出现无法在课堂列表访问的孤课。
+同课归档和手动重试、继续及输入修改共用课程锁；重复归档返回同一归档条目，
+提交归档包前出错则恢复课程可见状态，避免半途失败后课程从列表消失。
+若供应商以 `finish_reason=length` 返回空正文，则明确报告输出耗尽，不把
+同一请求自动重发三轮。
+
+重试入口根据持久化账本和未完成页数判断可行性，即使上一轮报的是
+`content_invalid`，剩余额度不足时也不再入队空转。修订任务若只重写
+一页，按一页估算，而非按整份课件估算。

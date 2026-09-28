@@ -111,22 +111,20 @@ class AssessmentGenerationFastPathTest(unittest.TestCase):
         self.assertIn("题型硬性要求", llm.calls[0]["messages"][0]["content"])
         self.assertEqual(len(llm.calls), 1)
 
-    def test_quiz_client_uses_light_model_and_single_retry_lane(self):
+    def test_quiz_client_uses_single_model_with_bounded_retry_lane(self):
         from app.core import config
         from app.core import llm_async
 
-        with patch.object(config.settings, "quiz_model", "deepseek-flash"), \
-                patch.object(config.settings, "quiz_sdk_max_retries", 0), \
-                patch.object(config.settings, "quiz_retry_max", 2), \
-                patch.object(config.settings, "quiz_retry_base_delay", 0.5), \
+        with patch.object(config.settings, "llm_model", "deepseek-flash"), \
                 patch.object(llm_async, "AsyncLLMClient") as client:
             llm_async.get_llm("quiz")
 
         kwargs = client.call_args.kwargs
+        # 2026-09 单一模型通道：quiz 车道共用主模型，仅保留有界重试语义。
         self.assertEqual(kwargs["model"], "deepseek-flash")
         self.assertEqual(kwargs["sdk_max_retries"], 0)
         self.assertEqual(kwargs["retry_max"], 2)
-        self.assertEqual(kwargs["retry_base_delay"], 0.5)
+        self.assertEqual(kwargs["retry_base_delay"], 0.75)
 
     def test_critic_switch_off_delivers_normal_question_without_critic_call(self):
         """用户关闭 critic 后：单次生成调用、正常 q_ 前缀、诚实 unreviewed。"""
@@ -173,18 +171,17 @@ class AssessmentGenerationFastPathTest(unittest.TestCase):
 
 class QuizVerifyModePolicyTest(unittest.TestCase):
     def test_effective_mode_downgrades_only_the_critic_lane(self):
-        from app.core import config
         from app.core import quiz_illustration_policy as policy
 
         with patch.object(policy, "account_allows_quiz_critic", return_value=True):
             self.assertEqual(policy.effective_quiz_verify_mode("u1"), "critic")
         with patch.object(policy, "account_allows_quiz_critic", return_value=False):
             self.assertEqual(policy.effective_quiz_verify_mode("u1"), "basic")
-        # 环境级降档不可被用户开关逆转
-        with patch.object(config.settings, "quiz_verify_mode", "off"), \
+        # 部署级降档不可被用户开关逆转（运行参数面板 / llm_policy 提供）
+        with patch("app.core.llm_policy.quiz_verify_mode", return_value="off"), \
                 patch.object(policy, "account_allows_quiz_critic", return_value=True):
             self.assertEqual(policy.effective_quiz_verify_mode("u1"), "off")
-        with patch.object(config.settings, "quiz_verify_mode", "basic"), \
+        with patch("app.core.llm_policy.quiz_verify_mode", return_value="basic"), \
                 patch.object(policy, "account_allows_quiz_critic", return_value=False):
             self.assertEqual(policy.effective_quiz_verify_mode("u1"), "basic")
 

@@ -120,11 +120,13 @@ export const loadSession = (id: string, tail?: number): Promise<SessionDetail> =
   });
 
 /** P2 组合快照：一次返回侧边栏所需的会话摘要 + 工作区列表 + 各工作区详情
- *  （带 ETag，数据未变 304 由浏览器缓存复用）。替代原来的三级 N+1 瀑布。 */
+ *  （带 ETag，数据未变 304 由浏览器缓存复用）。替代原来的三级 N+1 瀑布。
+ *  课堂开启时附带 classroom_summaries（E01，§3.2.7 索引批量摘要）。 */
 export const getSidebarSnapshot = (): Promise<{
   sessions: SessionItem[];
   workspaces: WorkspaceItem[];
   details: Record<string, WorkspaceDetail>;
+  classroom_summaries?: Record<string, import("./types").ClassroomSummary>;
 }> =>
   apiFetch(`${BASE}/sidebar`).then((r) => {
     if (!r.ok) throw new Error(`sidebar failed: ${r.status}`);
@@ -708,7 +710,7 @@ export async function voiceTicket(): Promise<{ ticket: string; expires_in: numbe
 }
 
 export async function* chatStream(
-  body: { message: string; session_id?: string | null; workspace_id?: string | null; grade?: string; lang?: string; output_language?: string | null; attachments?: unknown[] },
+  body: { message: string; session_id?: string | null; workspace_id?: string | null; grade?: string; lang?: string; output_language?: string | null; attachments?: unknown[]; classroom_ref?: unknown },
   signal?: AbortSignal,
 ): AsyncGenerator<ChatSSEEvent> {
   const res = await apiFetch(`${BASE}/chat/stream`, {
@@ -1047,6 +1049,51 @@ export async function setAdminOCRPolicy(policy: {
     body: JSON.stringify(policy),
   });
   if (!res.ok) throw new Error(`Set OCR policy failed: ${res.status}`);
+  return res.json();
+}
+
+export interface AdminLLMRunPolicy {
+  context_window: number;
+  max_output_tokens: number;
+  temperature: number;
+  agent_max_steps: number;
+  llm_max_tokens: number;
+  quiz_verify_mode: "critic" | "basic" | "off";
+  updated_at: number;
+  version: number;
+  min_context_window: number;
+  max_context_window: number;
+  min_max_output_tokens: number;
+  max_max_output_tokens: number;
+  min_temperature: number;
+  max_temperature: number;
+  min_agent_max_steps: number;
+  max_agent_max_steps: number;
+  min_llm_max_tokens: number;
+  max_llm_max_tokens: number;
+  verify_modes: string[];
+  scope: string;
+}
+
+export async function getAdminLLMRunPolicy(): Promise<AdminLLMRunPolicy> {
+  const res = await apiFetch(`${BASE}/admin/llm-policy`);
+  if (!res.ok) throw new Error(`Get LLM policy failed: ${res.status}`);
+  return res.json();
+}
+
+export async function setAdminLLMRunPolicy(policy: {
+  context_window: number;
+  max_output_tokens: number;
+  temperature: number;
+  agent_max_steps: number;
+  llm_max_tokens: number;
+  quiz_verify_mode: AdminLLMRunPolicy["quiz_verify_mode"];
+}): Promise<AdminLLMRunPolicy> {
+  const res = await apiFetch(`${BASE}/admin/llm-policy`, {
+    method: "PUT", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(policy),
+  });
+  if (!res.ok) throw new Error(`Set LLM policy failed: ${res.status}`);
   return res.json();
 }
 

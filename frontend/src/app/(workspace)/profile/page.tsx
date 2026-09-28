@@ -13,6 +13,7 @@ import type { UxMotivation, UxProfileSummary } from "@/lib/types";
 import type { StudentProfileResp } from "@/lib/types-modules";
 import { AcademicCard } from "@/components/pages/profile/AcademicCard";
 import { AccountCard } from "@/components/pages/profile/AccountCard";
+import { ClassroomVoiceCard } from "@/components/pages/profile/ClassroomVoiceCard";
 import { IdentityCard } from "@/components/pages/profile/IdentityCard";
 import { InteractionCard } from "@/components/pages/profile/InteractionCard";
 import { MotivationCard } from "@/components/pages/profile/MotivationCard";
@@ -84,6 +85,9 @@ export default function ProfilePage() {
 
         {/* M0 账户卡（仅登录态渲染，guest 模式自动隐藏） */}
         <AccountCard tr={tr} />
+
+        {/* 课堂语音默认偏好（仅登录态且课堂功能开放时渲染） */}
+        <ClassroomVoiceCard tr={tr} />
 
         {loading ? (
           <PageSkeleton />

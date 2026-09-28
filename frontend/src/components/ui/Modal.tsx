@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { Button } from "./Button";
 
 /** 居中确认弹窗。 */
@@ -25,8 +26,8 @@ export function Modal({
     return () => window.removeEventListener("keydown", fn);
   }, [open, onClose]);
 
-  if (!open) return null;
-  return (
+  if (!open || typeof document === "undefined") return null;
+  return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="motion-fade absolute inset-0 bg-black/30 backdrop-blur-[2px]" onClick={onClose} />
       <div
@@ -37,7 +38,8 @@ export function Modal({
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain text-sm text-fg-secondary">{children}</div>
         {footer && <div className="mt-5 flex shrink-0 justify-end gap-2">{footer}</div>}
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 

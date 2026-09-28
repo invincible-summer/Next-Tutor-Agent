@@ -1,0 +1,494 @@
+// 课堂模式 API 客户端（plan.md §14.1）。
+// 全部走 apiFetch（带 Authorization）；SSE 用 ReadableStream 手解析——
+// 原生 EventSource 不能设置 Authorization 头（§14.4）。
+import { apiFetch } from "./api-fetch";
+import { API_BASE } from "./api";
+import type {
+  AudioProfileRequest, AudioRequest, AudioResponse, ClipStatus,
+  CancelJobRequest, ClassroomCapabilities, ClassroomTemplates,
+  ContinueJobRequest, CreateLessonRequest, CreateLessonResponse,
+  CreateRevisionRequest, CreateRevisionResponse, BriefPatchRequest,
+  ImageSearchRequest, ImageSearchResponse, JobPreviewResponse,
+  JobPublic, JobSnapshotEvent, LessonDetailPublic, LessonListResponse,
+  CreateRunRequest, LeaseAcquireRequest, LeaseRenewRequest, LeaseResponse,
+  OutlinePatchRequest, ProgressRequest, ProgressResponse, RetryJobRequest,
+  RunCreateResponse, VoicePreviewRequest, VoicePreviewResponse,
+} from "./types-classroom.generated";
+
+const BASE = API_BASE;
+
+export class ClassroomApiError extends Error {
+  code: string;
+  status: number;
+  constructor(code: string, message: string, status: number) {
+    super(message);
+    this.code = code;
+    this.status = status;
+  }
+}
+
+/** 统一错误抽取：FastapiHTTPException → ClassroomApiError（§14.3 错误码）。 */
+async function readError(res: Response): Promise<ClassroomApiError> {
+  let code = "storage_unavailable";
+  let message = `HTTP ${res.status}`;
+  try {
+    const body = await res.json();
+    code = body?.detail?.error?.code ?? body?.error?.code ?? code;
+    message = body?.detail?.error?.message ?? body?.error?.message ?? message;
+  } catch { /* keep defaults */ }
+  return new ClassroomApiError(code, message, res.status);
+}
+
+async function jsonOf<T>(res: Response): Promise<T> {
+  if (!res.ok) throw await readError(res);
+  return res.json() as Promise<T>;
+}
+
+const W = (workspaceId: string) =>
+  `/workspaces/${encodeURIComponent(workspaceId)}/classroom`;
+
+export async function getClassroomCapabilities(): Promise<ClassroomCapabilities> {
+  return jsonOf(await apiFetch(`${BASE}/classroom/capabilities`));
+}
+
+export async function getClassroomTemplates(lang?: string): Promise<ClassroomTemplates> {
+  const q = lang ? `?lang=${encodeURIComponent(lang)}` : "";
+  return jsonOf(await apiFetch(`${BASE}/classroom/templates${q}`));
+}
+
+export async function listLessons(workspaceId: string, opts?: {
+  page?: number; pageSize?: number; status?: string;
+}): Promise<LessonListResponse> {
+  const p = new URLSearchParams();
+  p.set("page", String(opts?.page ?? 1));
+  p.set("page_size", String(opts?.pageSize ?? 5));
+  if (opts?.status) p.set("status", opts.status);
+  return jsonOf(await apiFetch(`${BASE}${W(workspaceId)}/lessons?${p}`));
+}
+
+export async function createLesson(
+  workspaceId: string, request: CreateLessonRequest, idempotencyKey: string,
+): Promise<CreateLessonResponse> {
+  const res = await apiFetch(`${BASE}${W(workspaceId)}/lessons`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "Idempotency-Key": idempotencyKey },
+    body: JSON.stringify(request),
+  });
+  if (res.status === 409) throw await readError(res);
+  return jsonOf(res);
+}
+
+export async function createRevision(
+  workspaceId: string, lessonId: string, request: CreateRevisionRequest,
+  idempotencyKey: string,
+): Promise<CreateRevisionResponse> {
+  const res = await apiFetch(
+    `${BASE}${W(workspaceId)}/lessons/${encodeURIComponent(lessonId)}/revisions`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Idempotency-Key": idempotencyKey },
+      body: JSON.stringify(request),
+    });
+  if (res.status === 409) throw await readError(res);
+  return jsonOf(res);
+}
+
+/** GET L：详情/预览数据；未完成时只有 pending（brief/progress），无 slides。 */
+export async function getLesson(
+  workspaceId: string, lessonId: string, revision?: number,
+): Promise<LessonDetailPublic> {
+  const q = revision ? `?revision=${revision}` : "";
+  return jsonOf(await apiFetch(
+    `${BASE}${W(workspaceId)}/lessons/${encodeURIComponent(lessonId)}${q}`));
+}
+
+/** 归档课程及其版本、任务和课堂记录；可从归档中心恢复或彻底删除。 */
+export async function archiveLesson(
+  workspaceId: string, lessonId: string,
+): Promise<{ status: string; trash_item_id: string }> {
+  return jsonOf(await apiFetch(
+    `${BASE}${W(workspaceId)}/lessons/${encodeURIComponent(lessonId)}`,
+    { method: "DELETE" }));
+}
+
+export async function getJob(
+  workspaceId: string, lessonId: string, jobId: string,
+): Promise<JobPublic> {
+  return jsonOf(await apiFetch(
+    `${BASE}${W(workspaceId)}/lessons/${encodeURIComponent(lessonId)}` +
+    `/jobs/${encodeURIComponent(jobId)}`));
+}
+
+/** POST W/image-search：换图候选（服务端短期签发 candidate_id）。 */
+export async function imageSearch(
+  workspaceId: string, request: ImageSearchRequest, idempotencyKey: string,
+): Promise<ImageSearchResponse> {
+  const res = await apiFetch(
+    `${BASE}${W(workspaceId)}/image-search`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Idempotency-Key": idempotencyKey },
+      body: JSON.stringify(request),
+    });
+  if (!res.ok) throw await readError(res);
+  return res.json() as Promise<ImageSearchResponse>;
+}
+
+/** GET J/preview：只读草稿 DTO（slides/outline；html 可空）。 */
+export async function getJobPreview(
+  workspaceId: string, lessonId: string, jobId: string,
+  slideId?: string,
+): Promise<JobPreviewResponse> {
+  const q = slideId ? `?slide_id=${encodeURIComponent(slideId)}` : "";
+  return jsonOf(await apiFetch(
+    `${BASE}${W(workspaceId)}/lessons/${encodeURIComponent(lessonId)}` +
+    `/jobs/${encodeURIComponent(jobId)}/preview${q}`));
+}
+
+export async function cancelJob(
+  workspaceId: string, lessonId: string, jobId: string,
+  request: CancelJobRequest,
+): Promise<JobPublic> {
+  return jsonOf(await apiFetch(
+    `${BASE}${W(workspaceId)}/lessons/${encodeURIComponent(lessonId)}` +
+    `/jobs/${encodeURIComponent(jobId)}/cancel`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(request),
+    }));
+}
+
+export async function retryJob(
+  workspaceId: string, lessonId: string, jobId: string,
+  request: RetryJobRequest,
+): Promise<JobPublic> {
+  return jsonOf(await apiFetch(
+    `${BASE}${W(workspaceId)}/lessons/${encodeURIComponent(lessonId)}` +
+    `/jobs/${encodeURIComponent(jobId)}/retry`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(request),
+    }));
+}
+
+export async function continueJob(
+  workspaceId: string, lessonId: string, jobId: string,
+  request: ContinueJobRequest,
+): Promise<JobPublic> {
+  return jsonOf(await apiFetch(
+    `${BASE}${W(workspaceId)}/lessons/${encodeURIComponent(lessonId)}` +
+    `/jobs/${encodeURIComponent(jobId)}/continue`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(request),
+    }));
+}
+
+export async function patchOutline(
+  workspaceId: string, lessonId: string, jobId: string,
+  request: OutlinePatchRequest,
+): Promise<JobPublic> {
+  return jsonOf(await apiFetch(
+    `${BASE}${W(workspaceId)}/lessons/${encodeURIComponent(lessonId)}` +
+    `/jobs/${encodeURIComponent(jobId)}/outline`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(request),
+    }));
+}
+
+export async function patchBrief(
+  workspaceId: string, lessonId: string, jobId: string,
+  request: BriefPatchRequest,
+): Promise<JobPublic> {
+  return jsonOf(await apiFetch(
+    `${BASE}${W(workspaceId)}/lessons/${encodeURIComponent(lessonId)}` +
+    `/jobs/${encodeURIComponent(jobId)}/brief`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(request),
+    }));
+}
+
+/** 受鉴权的课件 HTML 文本（父页面写入 iframe srcdoc）。 */
+export async function getRevisionFrame(
+  workspaceId: string, lessonId: string, revision: number,
+  mode: "presentation" | "reading" | "print" = "presentation",
+): Promise<string> {
+  const res = await apiFetch(
+    `${BASE}${W(workspaceId)}/lessons/${encodeURIComponent(lessonId)}` +
+    `/revisions/${revision}/frame?mode=${mode}`);
+  if (!res.ok) throw await readError(res);
+  return res.text();
+}
+
+// ---------------------------------------------------------------------------
+// SSE（§14.4）：GET J/events 经认证 fetch 读流；每 15s 心跳注释；显式
+// AbortSignal（避开 apiFetch 的 GET 30s 超时）；离开页面立即 abort。
+// ---------------------------------------------------------------------------
+
+export interface JobEventsHandlers {
+  onSnapshot: (snapshot: JobSnapshotEvent) => void;
+  onTerminal?: (snapshot: JobSnapshotEvent) => void;
+  onError?: (err: unknown) => void;
+}
+
+/** 解析 text/event-stream 帧（id/event/data 多行合并；注释行忽略）。 */
+export async function* parseSSE(
+  stream: ReadableStream<Uint8Array>,
+): AsyncGenerator<{ id?: string; event?: string; data: string }> {
+  const reader = stream.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      // 帧以空行分隔；保留不完整尾部。
+      let idx: number;
+      while ((idx = buffer.indexOf("\n\n")) >= 0) {
+        const raw = buffer.slice(0, idx);
+        buffer = buffer.slice(idx + 2);
+        const frame: { id?: string; event?: string; data: string[] } = { data: [] };
+        for (const line of raw.split("\n")) {
+          if (line.startsWith(":")) continue; // heartbeat comment
+          if (line.startsWith("id:")) frame.id = line.slice(3).trim();
+          else if (line.startsWith("event:")) frame.event = line.slice(6).trim();
+          else if (line.startsWith("data:")) frame.data.push(line.slice(5).trimStart());
+        }
+        if (frame.data.length > 0) {
+          yield { id: frame.id, event: frame.event, data: frame.data.join("\n") };
+        }
+      }
+    }
+  } finally {
+    reader.releaseLock();
+  }
+}
+
+const TERMINAL_STATES = new Set(["succeeded", "failed", "cancelled"]);
+
+/** 订阅 J/events；返回 abort 函数。断线由调用方重连（§14.4 指数退避）。 */
+export function subscribeJobEvents(
+  workspaceId: string, lessonId: string, jobId: string,
+  handlers: JobEventsHandlers, signal: AbortSignal,
+): void {
+  const url =
+    `${BASE}${W(workspaceId)}/lessons/${encodeURIComponent(lessonId)}` +
+    `/jobs/${encodeURIComponent(jobId)}/events`;
+  void (async () => {
+    try {
+      const res = await apiFetch(url, { signal, headers: { Accept: "text/event-stream" } });
+      if (!res.ok || !res.body) throw await readError(res);
+      for await (const frame of parseSSE(res.body)) {
+        if (signal.aborted) return;
+        if (frame.event !== "snapshot" && frame.event !== "terminal") continue;
+        const data = JSON.parse(frame.data) as JobSnapshotEvent;
+        if (frame.event === "terminal") handlers.onTerminal?.(data);
+        else handlers.onSnapshot(data);
+        if (TERMINAL_STATES.has(data.state) || frame.event === "terminal") return;
+      }
+      if (!signal.aborted) handlers.onError?.(new Error("课堂进度连接已断开"));
+    } catch (err) {
+      if (signal.aborted) return;
+      handlers.onError?.(err);
+    }
+  })();
+}
+
+// ---------------------------------------------------------------------------
+// 课堂 run / lease / 进度 / 音频（plan.md §14.2，阶段 G）
+// ---------------------------------------------------------------------------
+
+const R = (ws: string, lesson: string) =>
+  BASE + W(ws) + "/lessons/" + encodeURIComponent(lesson);
+
+export interface RunPublicExtra {
+  run_id: string;
+  lesson_id: string;
+  lesson_revision: number;
+  status: "active" | "paused" | "completed" | "ended";
+  state_revision: number;
+  cursor: { slide_id: string; segment_id: string; chunk_index: number;
+            offset_ms: number; last_completed_segment_id: string | null };
+  resume_anchor: RunPublicExtra["cursor"] | null;
+  audio_profile: Record<string, unknown>;
+  qa_session_id: string | null;
+  visited_slide_count: number;
+  completed_kind: string;
+  created_at: string;
+  updated_at?: string;
+  lease: { held: boolean; expired: boolean; client_id: string | null;
+           lease_epoch: number; expires_at: string | null };
+  cursor_index: number;
+  segment_total: number;
+  tts_local_locked: boolean;
+  tts_fallback_notified: boolean;
+}
+
+export async function createRun(
+  workspaceId: string, lessonId: string, request: CreateRunRequest,
+  idempotencyKey: string,
+): Promise<RunCreateResponse> {
+  const res = await apiFetch(R(workspaceId, lessonId) + "/runs", {
+    method: "POST",
+    headers: { "Content-Type": "application/json",
+               "Idempotency-Key": idempotencyKey },
+    body: JSON.stringify(request) });
+  return jsonOf<RunCreateResponse>(res);
+}
+
+export async function getRun(
+  workspaceId: string, lessonId: string, runId: string,
+): Promise<RunPublicExtra> {
+  const res = await apiFetch(
+    R(workspaceId, lessonId) + "/runs/" + encodeURIComponent(runId));
+  return jsonOf<RunPublicExtra>(res);
+}
+
+export async function acquireLease(
+  workspaceId: string, lessonId: string, runId: string,
+  request: LeaseAcquireRequest,
+): Promise<LeaseResponse> {
+  const res = await apiFetch(
+    R(workspaceId, lessonId) + "/runs/" + encodeURIComponent(runId)
+    + "/lease",
+    { method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(request) });
+  return jsonOf<LeaseResponse>(res);
+}
+
+export async function renewLease(
+  workspaceId: string, lessonId: string, runId: string,
+  request: LeaseRenewRequest,
+): Promise<LeaseResponse> {
+  const res = await apiFetch(
+    R(workspaceId, lessonId) + "/runs/" + encodeURIComponent(runId)
+    + "/lease",
+    { method: "PUT", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(request) });
+  return jsonOf<LeaseResponse>(res);
+}
+
+export async function releaseLease(
+  workspaceId: string, lessonId: string, runId: string,
+  request: LeaseRenewRequest,
+): Promise<void> {
+  await apiFetch(
+    R(workspaceId, lessonId) + "/runs/" + encodeURIComponent(runId)
+    + "/lease",
+    { method: "DELETE", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(request) });
+}
+
+export async function updateProgress(
+  workspaceId: string, lessonId: string, runId: string,
+  request: ProgressRequest,
+): Promise<ProgressResponse> {
+  const res = await apiFetch(
+    R(workspaceId, lessonId) + "/runs/" + encodeURIComponent(runId)
+    + "/progress",
+    { method: "PUT", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(request) });
+  return jsonOf<ProgressResponse>(res);
+}
+
+export async function updateAudioProfile(
+  workspaceId: string, lessonId: string, runId: string,
+  request: AudioProfileRequest,
+): Promise<RunPublicExtra> {
+  const res = await apiFetch(
+    R(workspaceId, lessonId) + "/runs/" + encodeURIComponent(runId)
+    + "/audio-profile",
+    { method: "PUT", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(request) });
+  return jsonOf<RunPublicExtra>(res);
+}
+
+/** POST R/notes：本 run 批注（§12.6）；不写长期评价。 */
+export async function addRunNote(
+  workspaceId: string, lessonId: string, runId: string,
+  request: { slide_id: string; segment_id?: string | null;
+             user_text?: string },
+): Promise<{ annotation_id: string }> {
+  const res = await apiFetch(
+    R(workspaceId, lessonId) + "/runs/" + encodeURIComponent(runId)
+    + "/notes",
+    { method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(request) });
+  return jsonOf<{ annotation_id: string }>(res);
+}
+
+/** POST R/save-note：确定性汇总保存到笔记中心（§16.3 幂等）。 */
+export async function saveRunNote(
+  workspaceId: string, lessonId: string, runId: string,
+  request: { title?: string | null; include_user_notes?: boolean },
+  idempotencyKey: string,
+): Promise<{ note_id: string }> {
+  const res = await apiFetch(
+    R(workspaceId, lessonId) + "/runs/" + encodeURIComponent(runId)
+    + "/save-note",
+    { method: "POST",
+      headers: { "Content-Type": "application/json",
+                 "Idempotency-Key": idempotencyKey },
+      body: JSON.stringify(request) });
+  return jsonOf<{ note_id: string }>(res);
+}
+
+/** POST R/audio：请求当前+预取段（202），返回 clip 状态。 */
+export async function requestRunAudio(
+  workspaceId: string, lessonId: string, runId: string,
+  request: AudioRequest, idempotencyKey: string,
+): Promise<AudioResponse> {
+  const res = await apiFetch(
+    R(workspaceId, lessonId) + "/runs/" + encodeURIComponent(runId)
+    + "/audio",
+    { method: "POST",
+      headers: { "Content-Type": "application/json",
+                 "Idempotency-Key": idempotencyKey },
+      body: JSON.stringify(request) });
+  return jsonOf<AudioResponse>(res);
+}
+
+export async function getClipStatus(
+  workspaceId: string, lessonId: string, runId: string, clipId: string,
+): Promise<ClipStatus> {
+  const res = await apiFetch(
+    R(workspaceId, lessonId) + "/runs/" + encodeURIComponent(runId)
+    + "/audio/" + encodeURIComponent(clipId));
+  return jsonOf<ClipStatus>(res);
+}
+
+/** 认证拉取 WAV → Blob URL；调用方负责 revoke（§11.5）。 */
+export async function fetchClipBlobUrl(
+  workspaceId: string, lessonId: string, runId: string, clipId: string,
+): Promise<string> {
+  const res = await apiFetch(
+    R(workspaceId, lessonId) + "/runs/" + encodeURIComponent(runId)
+    + "/audio/" + encodeURIComponent(clipId) + "/content");
+  if (!res.ok) throw await readError(res);
+  const blob = await res.blob();
+  return URL.createObjectURL(blob);
+}
+
+export async function createVoicePreview(
+  workspaceId: string, request: VoicePreviewRequest,
+  idempotencyKey: string,
+): Promise<VoicePreviewResponse> {
+  const res = await apiFetch(BASE + W(workspaceId) + "/voice-preview", {
+    method: "POST",
+    headers: { "Content-Type": "application/json",
+               "Idempotency-Key": idempotencyKey },
+    body: JSON.stringify(request) });
+  return jsonOf<VoicePreviewResponse>(res);
+}
+
+export async function fetchVoicePreviewBlobUrl(
+  workspaceId: string, clipId: string,
+): Promise<string> {
+  const res = await apiFetch(
+    BASE + W(workspaceId) + "/voice-previews/"
+    + encodeURIComponent(clipId) + "/content");
+  if (!res.ok) throw await readError(res);
+  const blob = await res.blob();
+  return URL.createObjectURL(blob);
+}

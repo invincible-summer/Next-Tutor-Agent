@@ -1,13 +1,34 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
 import { GraduationCap, PanelLeftClose, PanelLeftOpen } from "lucide-react";
-import { NAV } from "@/lib/nav";
+import { NAV, navItemByPath } from "@/lib/nav";
 import { useUIStore } from "@/lib/store";
 import { useAuthStore } from "@/lib/auth-store";
 import { t } from "@/lib/i18n";
 import { cn } from "@/lib/cn";
 import { ModuleBadge } from "@/components/ui/Badge";
+import { getClassroomCapabilities } from "@/lib/api-classroom";
+
+// 课堂特性开关：乐观显示，确认关闭后隐藏（模块级缓存避免重复请求）。
+let classroomEnabledCache: boolean | null = null;
+let classroomEnabledReq: Promise<boolean> | null = null;
+function loadClassroomEnabled(): Promise<boolean> {
+  if (classroomEnabledCache !== null) return Promise.resolve(classroomEnabledCache);
+  if (!classroomEnabledReq) {
+    classroomEnabledReq = getClassroomCapabilities()
+      .then((caps) => {
+        classroomEnabledCache = caps.enabled !== false;
+        return classroomEnabledCache;
+      })
+      .catch(() => {
+        classroomEnabledReq = null;
+        return true; // 网络失败时保持显示，由页面自身兜底
+      });
+  }
+  return classroomEnabledReq;
+}
 
 /** 全局左侧导航：学习工作区各模块入口（M1–M8）。 */
 export function SideNav() {
@@ -15,6 +36,15 @@ export function SideNav() {
   const { lang, navCollapsed, toggleNav } = useUIStore();
   const isAdmin = useAuthStore((s) => s.user?.role === "admin");
   const tr = (k: string, fb?: string) => t(lang, k, fb);
+  const [classroomEnabled, setClassroomEnabled] = useState(true);
+
+  useEffect(() => {
+    let alive = true;
+    void loadClassroomEnabled().then((on) => {
+      if (alive) setClassroomEnabled(on);
+    });
+    return () => { alive = false; };
+  }, []);
 
   return (
     <aside
@@ -54,13 +84,17 @@ export function SideNav() {
               </div>
             )}
             <div className="flex flex-col gap-1">
-              {group.items.filter((item) => !item.adminOnly || isAdmin).map((item) => {
-                const active = pathname === item.href || pathname.startsWith(item.href + "/");
+              {group.items
+                .filter((item) => (!item.adminOnly || isAdmin)
+                  && (!item.classroomOnly || classroomEnabled))
+                .map((item) => {
+                const active = navItemByPath(pathname)?.href === item.href;
                 const Icon = item.icon;
                 return (
                   <Link
                     key={item.href}
                     href={item.href}
+                    aria-current={active ? "page" : undefined}
                     title={navCollapsed ? tr(item.i18nKey) : undefined}
                     className={cn(
                       "flex items-center gap-2.5 text-[13px] transition-all duration-200",

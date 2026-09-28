@@ -23,6 +23,7 @@ from typing import Any, AsyncGenerator, Callable
 
 from ..core.config import settings
 from ..core.llm_async import AsyncLLMClient
+from ..core.llm_policy import agent_max_steps
 from ..core.quiz_attempts import record_generated_quiz
 from ..core.session import TutorSession
 from ..core.tool_base import Tool
@@ -47,7 +48,10 @@ def _register_quiz_tasks(session: TutorSession, quiz_data: dict) -> None:
     register_quiz_payload(student_id=student_id, workspace_id=workspace_id,
                           session_id=session.session_id, quiz_data=quiz_data)
 
-MAX_STEPS = settings.agent_max_steps  # V1 hard cap (default 6)
+def max_steps() -> int:
+    """V1 hard cap on agent reasoning steps（「运行参数」面板可调，热更新）。"""
+    return agent_max_steps()
+
 _TOOL_MSG_MAX_CHARS = 2000
 
 # Circuit breaker (V1 R3) -- module-level state, keyed per tool. Reset per
@@ -742,7 +746,7 @@ async def execute(
 
     # --- REACT path ---
     pseudo_guard_used = False
-    for step in range(1, MAX_STEPS + 1):
+    for step in range(1, max_steps() + 1):
         yield {"type": "step", "step": "thinking"}
         thinking_buf = ""
         answer_buf = ""
@@ -900,7 +904,7 @@ async def execute(
                     yield {"type": "answer", "content": tail, "is_delta": True}
             if (pseudo_guard is not None and pseudo_guard.detected
                     and not pseudo_guard_used and ks_tool is not None
-                    and step < MAX_STEPS):
+                    and step < max_steps()):
                 # 模型在正文里叙述了假 <knowledge_search> 标签而非发起调用：
                 # 执行真实检索，注入结果，继续环路让模型基于真结果续写。
                 pseudo_guard_used = True

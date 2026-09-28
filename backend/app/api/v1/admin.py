@@ -149,6 +149,29 @@ def purge_orphan_data(req: OrphanPurgeRequest,
     return {"status": report["status"], "report": report}
 
 
+class ClassroomCleanupRequest(BaseModel):
+    action: str = Field(..., description="恢复动作：sweep_audio=清扫过期音频")
+
+
+@router.get("/classroom-health")
+def scan_classroom_health(admin: User = Depends(require_admin)) -> dict:
+    """课堂运行健康扫描（§20.3 告警阈值）：磁盘/鉴权/失败率/队列/renderer/
+    损坏课程/音频压力。只读，无副作用。"""
+    from app.classroom import health
+    return health.scan_alerts()
+
+
+@router.post("/classroom-health/cleanup")
+def run_classroom_cleanup(req: ClassroomCleanupRequest,
+                          admin: User = Depends(require_admin)) -> dict:
+    """课堂告警的恢复动作（当前：sweep_audio 清扫全 owner 过期音频）。"""
+    from app.classroom import health
+    try:
+        return health.run_cleanup(req.action)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc))
+
+
 class PromptMemoryPolicyRequest(BaseModel):
     default_window: int = Field(..., ge=5, le=30)
     max_window: int = Field(..., ge=5, le=30)
@@ -198,6 +221,34 @@ async def update_textbook_pipeline_policy(
     from app.core.textbook_pipeline import set_policy
     try:
         return await set_policy(**req.model_dump())
+    except ValueError as exc:
+        raise HTTPException(400, str(exc))
+
+
+class LLMRunPolicyRequest(BaseModel):
+    context_window: int = Field(..., ge=8192, le=1_000_000)
+    max_output_tokens: int = Field(..., ge=1024, le=200_000)
+    temperature: float = Field(..., ge=0.0, le=2.0)
+    agent_max_steps: int = Field(..., ge=1, le=30)
+    llm_max_tokens: int = Field(..., ge=512, le=100_000)
+    quiz_verify_mode: str = Field(..., pattern="^(critic|basic|off)$")
+
+
+@router.get("/llm-policy")
+def get_llm_run_policy(admin: User = Depends(require_admin)) -> dict:
+    """LLM 运行参数快照（上下文预算/生成参数/出题校验模式 + 边界）。"""
+    from app.core.llm_policy import get_policy
+    return get_policy()
+
+
+@router.put("/llm-policy")
+def update_llm_run_policy(req: LLMRunPolicyRequest,
+                          admin: User = Depends(require_admin)) -> dict:
+    """在线调整 LLM 运行参数：写 chat_history/settings/llm_policy.json 并
+    进程内即时生效（消费点调用时读取），无需重启。"""
+    from app.core.llm_policy import set_policy
+    try:
+        return set_policy(**req.model_dump())
     except ValueError as exc:
         raise HTTPException(400, str(exc))
 

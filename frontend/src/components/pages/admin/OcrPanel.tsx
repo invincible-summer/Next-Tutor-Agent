@@ -87,12 +87,12 @@ export function OcrPanel({ tr }: { tr: Tr }) {
         </p>
       )}
       <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
-        <Field label={tr("adm.ocr.concurrency")} helper={tr("adm.ocr.concurrency.hint")}>
+        <Field label={tr("adm.ocr.concurrency")} hint={tr("adm.ocr.concurrency.hint")}>
           <input type="number" min={1} max={100} value={concurrency}
             onChange={(e) => setConcurrency(Math.max(1, Math.min(100, Number(e.target.value))))}
             className={inputCls} />
         </Field>
-        <Field label={tr("adm.ocr.failureMode")} helper={tr("adm.ocr.failureMode.hint")}>
+        <Field label={tr("adm.ocr.failureMode")} hint={tr("adm.ocr.failureMode.hint")}>
           <select value={failureMode}
             onChange={(e) => setFailureMode(e.target.value as AdminOCRPolicy["failure_mode"])}
             className={inputCls}>
@@ -101,17 +101,17 @@ export function OcrPanel({ tr }: { tr: Tr }) {
             <option value="bounded_api_only">{failureModeLabels.bounded_api_only}</option>
           </select>
         </Field>
-        <Field label={tr("adm.ocr.maxAttempts")} helper={tr("adm.ocr.maxAttempts.hint")}>
+        <Field label={tr("adm.ocr.maxAttempts")} hint={tr("adm.ocr.maxAttempts.hint")}>
           <input type="number" min={1} max={100} value={maxAttempts}
             onChange={(e) => setMaxAttempts(Math.max(1, Math.min(100, Number(e.target.value))))}
             className={inputCls} />
         </Field>
-        <Field label={tr("adm.ocr.retryInterval")} helper={tr("adm.ocr.retryInterval.hint")}>
+        <Field label={tr("adm.ocr.retryInterval")} hint={tr("adm.ocr.retryInterval.hint")}>
           <input type="number" min={0} max={3600} value={retryInterval}
             onChange={(e) => setRetryInterval(Math.max(0, Math.min(3600, Number(e.target.value))))}
             className={inputCls} />
         </Field>
-        <Field label={tr("adm.ocr.requestTimeout")} helper={tr("adm.ocr.requestTimeout.hint")}>
+        <Field label={tr("adm.ocr.requestTimeout")} hint={tr("adm.ocr.requestTimeout.hint")}>
           <input type="number" min={10} max={300} value={requestTimeout}
             onChange={(e) => setRequestTimeout(Math.max(10, Math.min(300, Number(e.target.value))))}
             className={inputCls} />

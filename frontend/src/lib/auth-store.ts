@@ -1,6 +1,7 @@
 "use client";
 import { create } from "zustand";
 import { API_BASE } from "./api";
+import { clearAllDrafts } from "./chat-drafts";
 import { useEvaluationCacheStore } from "./store";
 
 // --- types ------------------------------------------------------------------
@@ -18,8 +19,9 @@ export interface AuthUser {
     school: string;
     subjects: string[];
     avatar: string;
-    /** 通用每用户偏好（ocr_parallel OCR 并行、tts_speed 朗读语速）。 */
-    prefs?: { ocr_parallel?: boolean; tts_speed?: number; quiz_svg_enabled?: boolean };
+    /** 通用每用户偏好（ocr_parallel OCR 并行、tts_speed 朗读语速、classroom 课堂默认）。 */
+    prefs?: { ocr_parallel?: boolean; tts_speed?: number; quiz_svg_enabled?: boolean;
+      classroom?: import("./types-modules").ClassroomPrefs };
   };
 }
 
@@ -91,6 +93,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
   clearAuth: () => {
     useEvaluationCacheStore.getState().clearAll();
+    // 登出清除聊天草稿仓（§3.2：含 sessionStorage 正文，不留给下一账号）。
+    clearAllDrafts();
     clearToken();
     set({ token: null, user: null });
   },

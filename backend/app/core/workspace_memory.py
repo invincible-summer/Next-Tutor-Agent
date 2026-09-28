@@ -23,7 +23,7 @@ from pathlib import Path
 from typing import Any
 
 from .llm_async import AsyncLLMClient, get_llm
-from .context import estimate_tokens, SOFT_BUDGET_TOKENS, transcript_path
+from .context import estimate_tokens, soft_budget_tokens, transcript_path
 from .workspace import Workspace, load_workspace, save_workspace
 from ..prompts.registry import get as _prompt
 
@@ -31,10 +31,13 @@ from ..prompts.registry import get as _prompt
 # 阶段D：prompt 文本统一由注册表管理（含版本号），此处薄 re-export 兼容。
 _WS_MEMORY_SYSTEM = _prompt("workspace_memory_system").text
 
+
 # When public memory itself exceeds this, compress it (self-summarize).
 # 这里的比较对象是 len()（字符），所以按 ~4 字符/token 从 token 预算换算，
-# 保持与旧 SOFT_BUDGET_CHARS=24000 相同的有效阈值。
-_WS_MEMORY_BUDGET = SOFT_BUDGET_TOKENS * 4  # same as single conversation window
+# 保持与旧 SOFT_BUDGET_CHARS=24000 相同的有效阈值；调用时读取以跟随
+# 「运行参数」面板热更新。
+def _ws_memory_budget() -> int:
+    return soft_budget_tokens() * 4  # same as single conversation window
 
 
 def _render_turn_for_memory(
@@ -103,7 +106,7 @@ async def update_workspace_memory(
         new_memory = (new_memory or "").strip()
         if new_memory:
             # Self-compaction: if memory exceeds budget, compress it once.
-            if len(new_memory) > _WS_MEMORY_BUDGET:
+            if len(new_memory) > _ws_memory_budget():
                 new_memory = await _compact_workspace_memory(new_memory, llm)
             # Reload BEFORE saving: the LLM call above takes seconds, and any
             # upload/rename/session-move landing in that window must not be
@@ -136,7 +139,7 @@ async def _compact_workspace_memory(memory: str, llm: AsyncLLMClient) -> str:
         temperature=0.2,
         max_tokens=1200,
     )
-    return (result or "").strip() or memory[:_WS_MEMORY_BUDGET]
+    return (result or "").strip() or memory[:_ws_memory_budget()]
 
 
 async def compact_workspace_memory_on_new_session(
@@ -166,7 +169,7 @@ async def compact_workspace_memory_on_new_session(
             latest.memory_boundary_sessions.append(session_id)
         latest.memory_boundary_sessions = latest.memory_boundary_sessions[-100:]
         if compacted:
-            latest.public_memory = compacted[:_WS_MEMORY_BUDGET]
+            latest.public_memory = compacted[:_ws_memory_budget()]
             latest.public_memory_updated_at = time.time()
         save_workspace(latest)
         return {"status": "compacted" if compacted else "empty"}
@@ -251,7 +254,7 @@ async def init_workspace_memory_from_session(
         )
         new_memory = (new_memory or "").strip()
         if new_memory:
-            if len(new_memory) > _WS_MEMORY_BUDGET:
+            if len(new_memory) > _ws_memory_budget():
                 new_memory = await _compact_workspace_memory(new_memory, llm)
             ws.public_memory = new_memory
             ws.public_memory_updated_at = time.time()

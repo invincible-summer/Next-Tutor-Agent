@@ -29,7 +29,7 @@ _DEFAULT_POLICY = {
     "cleanup_interval_seconds": 3600,
 }
 _TYPES = {"session", "library_file", "library_folder", "textbook", "textbook_volume",
-          "workspace", "knowledge_graph", "notes_note"}
+          "workspace", "knowledge_graph", "notes_note", "classroom_lesson"}
 
 
 def _safe(value: str) -> str:
@@ -738,9 +738,18 @@ def archive_workspace(owner_id: str, workspace_id: str) -> dict[str, Any]:
                 session_ids.append(sid)
             except FileNotFoundError:
                 continue
+        # 课堂子树：快照前冻结写入（lifecycle=archiving/取消在途），commit 后删活跃
+        classroom_lesson_ids: list[str] = []
+        try:
+            from app.classroom import lifecycle as classroom_lifecycle
+            classroom_lesson_ids = classroom_lifecycle.snapshot_workspace_into(
+                owner_id, workspace_id, staging / "payload" / "classroom")
+        except Exception:
+            classroom_lesson_ids = []
         manifest["metadata"].update({
             "session_count": len(session_ids), "file_count": len(records),
             "has_public_memory": bool(ws.public_memory),
+            "classroom_lesson_count": len(classroom_lesson_ids),
         })
         _commit_bundle(owner_id, item_id, staging, manifest)
         for sid in session_ids:
@@ -765,9 +774,94 @@ def archive_workspace(owner_id: str, workspace_id: str) -> dict[str, Any]:
             vector_store.delete_scope(f"workspace:{workspace_id}")
         except Exception:
             pass
+        # trash bundle 已 commit：现在删除活跃课堂子树（§16.4）
+        try:
+            from app.classroom import lifecycle as classroom_lifecycle
+            classroom_lifecycle.delete_workspace_active(owner_id, workspace_id)
+        except Exception:
+            pass
         return _public_manifest(manifest, _item_dir(owner_id, item_id))
     except Exception:
         _abort_bundle(staging)
+        raise
+
+
+def archive_classroom_lesson(owner_id: str, workspace_id: str,
+                             lesson_id: str) -> dict[str, Any]:
+    """单课归档（trash 类型 classroom_lesson）：durable op → 冻结 → 快照 →
+    commit → 删活跃副本；完成后课程从课堂列表消失并进回收站。
+
+    crash 收敛（J02）：若上次调用已在 bundle commit 后、删除活跃副本前
+    崩溃（回收站里已有同 original_id 的已提交条目），本次直接补删活跃
+    副本并复用该条目，不产生第二份 bundle。
+    """
+    from app.core import classroom_store as store
+    # 同一课的两个归档请求串行处理，避免各自提交一个 bundle。
+    with file_lock(store.lesson_root(owner_id, workspace_id, lesson_id)):
+        return _archive_classroom_lesson_locked(owner_id, workspace_id,
+                                                lesson_id)
+
+
+def _archive_classroom_lesson_locked(owner_id: str, workspace_id: str,
+                                     lesson_id: str) -> dict[str, Any]:
+    from app.classroom import lifecycle as classroom_lifecycle
+    from app.core import classroom_store as store
+    lesson = store.load_lesson(owner_id, workspace_id, lesson_id)
+    if lesson is not None and (lesson.owner_id != owner_id or
+                              lesson.workspace_id != workspace_id or
+                              lesson.lesson_id != lesson_id):
+        raise FileNotFoundError("课程不存在")
+    pending = next((it for it in list_items(
+        owner_id, resource_type="classroom_lesson")
+        if it.get("original_id") == lesson_id and
+        (it.get("metadata") or {}).get("workspace_id") == workspace_id), None)
+    if pending is not None:
+        if lesson is not None:
+            classroom_lifecycle.delete_lesson_active(owner_id, workspace_id,
+                                                     lesson_id)
+        return pending
+    if lesson is None:
+        raise FileNotFoundError("课程不存在")
+    op_id = classroom_lifecycle.begin_operation(
+        owner_id, workspace_id, "archive_lesson",
+        {"lesson_id": lesson_id})
+    item_id = ""
+    staging = None
+    committed = False
+    frozen = False
+    try:
+        frozen = True
+        classroom_lifecycle.freeze_lesson(owner_id, workspace_id, lesson_id)
+        lesson = store.load_lesson(owner_id, workspace_id, lesson_id) or lesson
+        item_id, staging, manifest = _new_bundle(
+            owner_id, "classroom_lesson", lesson_id, lesson.title)
+        summary = classroom_lifecycle.snapshot_lesson_into(
+            owner_id, workspace_id, lesson_id,
+            staging / "payload" / "lesson")
+        manifest["metadata"].update(summary)
+        manifest["metadata"]["operation_id"] = op_id
+        _commit_bundle(owner_id, item_id, staging, manifest)
+        committed = True
+        classroom_lifecycle.delete_lesson_active(owner_id, workspace_id,
+                                                 lesson_id)
+        classroom_lifecycle.complete_operation(
+            owner_id, workspace_id, op_id,
+            {"trash_item_id": item_id})
+        return _public_manifest(manifest, _item_dir(owner_id, item_id))
+    except Exception as exc:
+        if staging is not None:
+            _abort_bundle(staging)
+        if frozen and not committed:
+            from app.schemas.classroom import LessonLifecycle
+            try:
+                store.update_lesson(
+                    owner_id, workspace_id, lesson_id,
+                    lambda target: setattr(target, "lifecycle",
+                                           LessonLifecycle.active))
+            except Exception:
+                pass  # 原始存储错误优先；下次归档可从 archiving 续跑。
+        classroom_lifecycle.fail_operation(owner_id, workspace_id, op_id,
+                                           str(exc))
         raise
 
 
@@ -957,6 +1051,24 @@ def restore_item(owner_id: str, item_id: str, *, workspace_ids: list[str] | None
             if session:
                 session.workspace_id = restored_id
                 session_store.save_session(session)
+        # 课堂子树按原 ID 恢复；冲突课程跳过（§16.4）
+        try:
+            from app.classroom import lifecycle as classroom_lifecycle
+            classroom_lifecycle.restore_workspace_from(
+                owner_id, restored_id, payload / "classroom")
+        except Exception:
+            pass
+    elif kind == "classroom_lesson":
+        from app.classroom import lifecycle as classroom_lifecycle
+        from .workspace import _owner_of, load_workspace
+        workspace_id = str((manifest.get("metadata") or {}).get("workspace_id") or "")
+        if not workspace_id:
+            raise ValueError("归档缺少 workspace_id 元数据")
+        workspace = load_workspace(workspace_id)
+        if workspace is None or _owner_of(workspace) != owner_id:
+            raise ValueError("原学习区已不存在，请先恢复学习区")
+        classroom_lifecycle.restore_lesson_tree(
+            owner_id, workspace_id, restored_id, payload / "lesson")
     else:
         raise ValueError("不支持的归档类型")
     if resume_textbook_id:
@@ -1042,6 +1154,20 @@ def _residual_purge(owner_id: str, manifest: dict[str, Any]) -> None:
             vector_store.delete_scope(f"workspace:{original_id}")
         except Exception:
             pass
+        try:
+            from app.classroom import lifecycle as classroom_lifecycle
+            classroom_lifecycle.delete_workspace_active(owner_id, original_id)
+        except Exception:
+            pass
+    elif kind == "classroom_lesson":
+        from app.classroom import lifecycle as classroom_lifecycle
+        workspace_id = str((manifest.get("metadata") or {}).get("workspace_id") or "")
+        if workspace_id:
+            try:
+                classroom_lifecycle.delete_lesson_active(
+                    owner_id, workspace_id, original_id)
+            except Exception:
+                pass
 
 
 def _archived_session_ids(owner_id: str, manifest: dict[str, Any]) -> list[str]:

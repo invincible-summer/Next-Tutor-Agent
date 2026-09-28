@@ -52,18 +52,27 @@ def patch_all_storage_roots(root: Path) -> list:
     from app.agents.student_model.evaluation import store as eval_journal_store
     from app.agents.teaching_engine import guidance_store, teaching_log
     from app.agents.ux_intelligence import store as ux_store
+    from app.core import classroom_store
     from app.core import context, learning_episodes, library, notes
-    from app.core import learner_evaluation_policy
+    from app.core import learner_evaluation_policy, llm_policy
     from app.core import session, textbook, trash, usage_docs, workspace
     from app.core import vector_store
     from app.core.config import settings
     patches = [
         patch.object(trash, "_TRASH_DIR", root / "chat_history" / "trash"),
+        # 课堂模式（plan.md §16.1）：唯一根常量在此重定向，防写穿生产
+        patch.object(classroom_store, "_CLASSROOM_DIR",
+                     root / "chat_history" / "classroom"),
         # 阶段C：策略文件是全局设置（不入账号清理），但测试必须落沙箱
         patch.object(learner_evaluation_policy, "POLICY_FILE",
                      root / "chat_history" / "settings" /
                      "learner_evaluation_policy.json"),
         _PolicyCacheReset(learner_evaluation_policy),
+        # LLM 运行参数（「运行参数」面板）：同属 chat_history/settings 全局
+        # 设置，测试必须落沙箱；懒加载缓存随沙箱重置。
+        patch.object(llm_policy, "POLICY_FILE",
+                     root / "chat_history" / "settings" / "llm_policy.json"),
+        _PolicyCacheReset(llm_policy),
         patch.object(trash, "_GLOBAL_POLICY",
                      root / "chat_history" / "trash" / "policy.json"),
         patch.object(session, "_SESSIONS_DIR", root / "chat_history"),
@@ -112,6 +121,15 @@ def reset_shared_caches() -> None:
     vector_store._reset()
     eval_journal_store.reset_journal_cache()
     learner_runtime.reset_learner_runtime()
+    # 课堂 TTS（阶段 F）：电话 provider 缓存、共享 semaphore、voices 缓存
+    # 与课堂音频引擎都持有进程级状态，跨沙箱必须重置。
+    from app.voice.tts import service as tts_service
+    tts_service.reset_tts_service()
+    try:
+        from app.classroom import audio as classroom_audio
+        classroom_audio.reset_audio_engine()
+    except ImportError:
+        pass
 
 
 class StorageSandboxTestCase(unittest.TestCase):
@@ -124,8 +142,8 @@ class StorageSandboxTestCase(unittest.TestCase):
         for sub in ("users", "students", "chat_history", "chat_history/library",
                     "chat_history/library/data", "chat_history/trash",
                     "chat_history/trash/items", "chat_history/workspaces",
-                    "notes", "knowledge", "knowledge/custom", "traces",
-                    "uploads"):
+                    "chat_history/classroom", "notes", "knowledge",
+                    "knowledge/custom", "traces", "uploads"):
             (root / sub).mkdir(parents=True, exist_ok=True)
 
         from app.identity import config as id_config

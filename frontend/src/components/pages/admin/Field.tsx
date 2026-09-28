@@ -1,11 +1,20 @@
 "use client";
 import type { ReactNode } from "react";
+import { Hint } from "@/components/ui/Hint";
 
-/** 管理台表单字段：标签 + 控件 + 常驻帮助小字（取代悬浮气泡，不遮挡内容）。 */
-export function Field({ label, helper, children }: { label: string; helper?: string; children: ReactNode }) {
+/** 管理台表单字段：标签 +（可选问号悬浮提示）+ 控件 +（可选常驻帮助小字）。 */
+export function Field({ label, helper, hint, children }: {
+  label: string;
+  helper?: string;
+  hint?: string;
+  children: ReactNode;
+}) {
   return (
     <label className="flex min-w-0 flex-col gap-1.5">
-      <span className="text-xs text-muted">{label}</span>
+      <span className="flex items-center gap-1 text-xs text-muted">
+        {label}
+        {hint && <Hint text={hint} />}
+      </span>
       {children}
       {helper && <span className="text-[0.65rem] leading-snug text-muted">{helper}</span>}
     </label>

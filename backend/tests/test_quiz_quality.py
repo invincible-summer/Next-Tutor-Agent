@@ -339,7 +339,7 @@ class TestGenerateVerified(unittest.TestCase):
     def test_mode_off_skips_all_checks(self):
         from app.core.quiz_verify import generate_verified_questions
         llm = QueueLLM([_gen_json([_q(1, answer="E")])])
-        with mock.patch.object(settings, "quiz_verify_mode", "off"):
+        with mock.patch("app.core.llm_policy.quiz_verify_mode", return_value="off"):
             questions, meta = asyncio.run(generate_verified_questions(
                 llm, make_prompt=lambda: "p", parse=lambda raw: json.loads(raw)["questions"],
                 topic="t", grade="g", temperature=0.4, max_tokens=1000))

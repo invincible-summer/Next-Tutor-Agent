@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from ..config import settings
+from .. import llm_policy
 
 
 @dataclass(frozen=True)
@@ -30,8 +31,8 @@ def current_capabilities() -> ProviderCapabilities:
     return ProviderCapabilities(
         provider_id=settings.llm_provider,
         model=settings.llm_model,
-        context_window=settings.llm_context_window,
-        max_output_tokens=settings.llm_max_output_tokens,
+        context_window=llm_policy.context_window(),
+        max_output_tokens=llm_policy.max_output_tokens(),
         supports_native_tool_messages=settings.llm_supports_native_tool_messages,
         supports_reasoning=settings.llm_supports_reasoning,
         supports_reasoning_effort=settings.llm_supports_reasoning_effort,

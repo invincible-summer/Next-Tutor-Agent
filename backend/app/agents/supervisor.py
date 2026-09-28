@@ -24,9 +24,9 @@ import time
 from typing import Any, AsyncGenerator, Callable
 
 from ..core.config import settings
-from ..core.context import (SOFT_BUDGET_TOKENS,
-                            append_transcript, build_context, compact_history,
-                            estimate_tokens, history_tokens)
+from ..core.context import (append_transcript, build_context, compact_history,
+                            estimate_tokens, history_tokens,
+                            soft_budget_tokens)
 from ..core.llm_async import AsyncLLMClient, get_llm
 from ..core.session import TutorSession, save_session
 from ..core.trace import Trace
@@ -1122,7 +1122,8 @@ async def _maybe_compact(session: TutorSession, preamble: str, llm: AsyncLLMClie
     history = [dict(m) for m in session.messages]
     hist_tokens = history_tokens(history)
     recent_turns = settings.context_recent_full_turns
-    if hist_tokens > SOFT_BUDGET_TOKENS and len(history) > recent_turns + 2:
+    soft_budget = soft_budget_tokens()
+    if hist_tokens > soft_budget and len(history) > recent_turns + 2:
         try:
             from ..core.quiz_attempts import quiz_digest_for_session
             compacted, summary = await compact_history(
@@ -1140,7 +1141,7 @@ async def _maybe_compact(session: TutorSession, preamble: str, llm: AsyncLLMClie
                     "summary_tokens": estimate_tokens(summary),
                 }
                 trace.log("compaction", summary_tokens=estimate_tokens(summary),
-                          kept_recent=recent_turns, budget=SOFT_BUDGET_TOKENS,
+                          kept_recent=recent_turns, budget=soft_budget,
                           pre_tokens=hist_tokens)
                 return compacted, True
         except Exception as e:
@@ -1362,6 +1363,7 @@ async def run(
     output_language: str | None = None,
    attachments: list[dict] | None = None,
    student_id: str = "",
+   classroom_context: Any = None,
 ) -> AsyncGenerator[dict[str, Any], None]:
     """Run one Supervisor turn, yielding SSE events (V1-compatible surface).
 
@@ -1568,6 +1570,10 @@ async def run(
     if att:
         preamble += "\n" + att
     preamble += _workspace_memory_block(session)
+    # 课堂插问（§12.4）：边界材料区与 chat_turn 共用同一格式化 helper，
+    # supervisor/legacy 两条路径的课堂上下文注入保持一致。
+    if classroom_context is not None:
+        preamble += "\n" + classroom_context.material_block
     learning_card_note = _prepare_session_learning_card(
         session, understanding, snapshot, plan, goal, strategy, trace)
     if learning_card_note:

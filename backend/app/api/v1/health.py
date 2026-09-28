@@ -50,12 +50,14 @@ def ready():
 def model_info():
     """Return non-sensitive model configuration info.
 
-    Only model *names* and a boolean for multimodal availability are exposed.
+    Only model *names* and a boolean for vision availability are exposed.
     API keys are NEVER returned. The frontend uses this to show the user
     which model is active and whether image OCR falls back to local tesseract.
+    2026-09 起视觉与主通道合一：multimodal_configured 即主 LLM 通道已配置，
+    multimodal_model 恒等于 llm_model（字段保留以兼容前端）。
     """
     return {
         "llm_model": settings.llm_model,
-        "multimodal_configured": bool(settings.multimodal_api_key),
-        "multimodal_model": settings.multimodal_model or "",
+        "multimodal_configured": bool(settings.llm_api_key),
+        "multimodal_model": settings.llm_model,
     }

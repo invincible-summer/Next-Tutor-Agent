@@ -460,6 +460,7 @@ function ChatWorkspace() {
   }, [handleSend]);
 
   const isEmpty = chat.messages.length === 0 && !chat.streaming;
+
   const materialSources: MaterialSource[] = [
     ...workspaceSources,
     ...chat.files.map((file) => ({

@@ -13,7 +13,8 @@ import logging
 
 import httpx
 
-from ..base import TTSProvider, TTSResult, TTSUnavailable
+from ..base import (TTSCapabilities, TTSOptions, TTSProvider, TTSResult,
+                    TTSUnavailable)
 from ..wav import wav_to_pcm16
 
 log = logging.getLogger(__name__)
@@ -21,14 +22,19 @@ log = logging.getLogger(__name__)
 
 class MeloTTS(TTSProvider):
     name = "melo"
+    # MeloTTS-Chinese 只有中文单音色；英文课件的本地回退按 §11.5 转文字
+    VOICE_ID = "melo-zh"
 
     def __init__(self, base_url: str = "", *, timeout: float = 60.0):
         from app.core.config import settings
         self.base_url = (base_url or settings.voice_tts_base_url).rstrip("/")
         self.timeout = timeout
 
-    async def synthesize(self, text: str, *, speed: float | None = None) -> TTSResult:
+    async def synthesize(self, text: str, *, speed: float | None = None,
+                         options: TTSOptions | None = None) -> TTSResult:
         from app.core.config import settings
+        if options is not None and options.synthesis_speed != 1.0:
+            speed = options.synthesis_speed
         speed = settings.voice_tts_speed if speed is None else speed
         try:
             async with httpx.AsyncClient(trust_env=False, timeout=self.timeout) as client:
@@ -46,4 +52,10 @@ class MeloTTS(TTSProvider):
             pcm, rate = await asyncio.to_thread(wav_to_pcm16, resp.content)
         except Exception as exc:
             raise TTSUnavailable(f"TTS sidecar 返回非 WAV 内容: {exc}") from exc
-        return TTSResult(pcm16=pcm, sample_rate=rate)
+        return TTSResult(pcm16=pcm, sample_rate=rate, provider=self.name,
+                         voice_id=self.VOICE_ID)
+
+    def capabilities(self) -> TTSCapabilities:
+        return TTSCapabilities(languages=("zh-CN",), voices=(self.VOICE_ID,),
+                               speed_range=(0.5, 2.0),
+                               has_word_boundaries=False, max_text_chars=400)

@@ -25,12 +25,13 @@ from .llm_async import AsyncLLMClient
 _PROJECT_ROOT = Path(__file__).resolve().parents[3]
 _TRANSCRIPT_DIR = _PROJECT_ROOT / "chat_history"
 
-def _soft_budget_tokens() -> int:
+def soft_budget_tokens() -> int:
     """L3 压缩触发预算，统一为 token 口径（与 estimate_tokens 比较）。
 
     EDU_SOFT_BUDGET_TOKENS 优先；旧变量 EDU_SOFT_BUDGET_CHARS（字符口径）
     仍生效但按 ~4 字符/token 换算并记 deprecation warning（与
     estimate_tokens 的 latin 启发式一致，原默认值 24000 chars ≈ 6000 tokens）。
+    动态默认随「运行参数」面板热更新（上下文窗口/输出上限来自 llm_policy）。
     """
     tok = os.getenv("EDU_SOFT_BUDGET_TOKENS")
     if tok:
@@ -47,8 +48,9 @@ def _soft_budget_tokens() -> int:
     # the next answer instead of treating history as the whole context.
     try:
         from .config import settings
-        usable = (settings.llm_context_window
-                  - settings.llm_max_output_tokens
+        from . import llm_policy
+        usable = (llm_policy.context_window()
+                  - llm_policy.max_output_tokens()
                   - settings.llm_context_safety_margin)
         return min(settings.context_history_max_tokens,
                    max(1000, int(usable * 0.50)))
@@ -56,7 +58,10 @@ def _soft_budget_tokens() -> int:
         return 6000
 
 
-SOFT_BUDGET_TOKENS = _soft_budget_tokens()
+# Import-time snapshot kept for backward compatibility (tests / module-level
+# derivations); runtime callers should use soft_budget_tokens() so admin panel
+# changes take effect without restart.
+SOFT_BUDGET_TOKENS = soft_budget_tokens()
 KEEP_RECENT_TURNS = 4       # full user-assistant turns kept after compaction
 
 from ..prompts.registry import get as _prompt

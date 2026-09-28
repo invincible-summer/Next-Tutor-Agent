@@ -11,12 +11,42 @@ import { useRouter } from "next/navigation";
 import { cn } from "@/lib/cn";
 import { useUIStore } from "@/lib/store";
 import { t } from "@/lib/i18n";
-import { fetchQuizHint, fetchQuizSubmission, revealQuizAnswer, submitQuizAnswer, type QuizSubmitOutcome } from "@/lib/api";
+import { fetchQuizHint, fetchQuizSubmission, revealQuizAnswer, submitQuizAnswer, type QuizSubmitOutcome, type QuizSubmissionState } from "@/lib/api";
 import { Badge } from "@/components/ui/Badge";
 import { Textarea } from "@/components/ui/Input";
 import { MiniMarkdown } from "./markdown";
 import { SubmissionOutcome } from "@/components/learning-evaluation/SubmissionOutcome";
 import type { QuizQuestion, QuizSourceRef } from "@/lib/types";
+
+/**
+ * 课堂 transport（plan §13.3）：提交/提示/揭晓/恢复的传输层可注入，
+ * 原聊天默认走 /quiz/* 端点；课堂经 R/checkpoints/{cid}/* 并附 run 归属
+ * 校验。两个视图共用同一卡片渲染。
+ */
+export interface QuizCardTransport {
+  submit(body: {
+    question_id: string;
+    question_revision: number;
+    student_answer: string;
+    session_id?: string;
+  }): Promise<QuizSubmitOutcome>;
+  hint(qid: string, rev: number): Promise<
+    { status: string; hint: string; message?: string }>;
+  reveal(qid: string, rev: number): Promise<{
+    status: string; answer: string; explanation: string;
+    [key: string]: unknown;
+  }>;
+  submission(qid: string, rev: number): Promise<{
+    submission: QuizSubmissionState | null;
+  }>;
+}
+
+const defaultTransport: QuizCardTransport = {
+  submit: submitQuizAnswer,
+  hint: fetchQuizHint,
+  reveal: revealQuizAnswer,
+  submission: fetchQuizSubmission,
+};
 
 // Streaming tool-result reconciliation can briefly remount a question card while
 // the user is typing. Keep a small in-memory draft keyed by authoritative
@@ -53,10 +83,13 @@ export function QuizQuestionCard({
   question: q,
   index,
   sessionId,
+  transport = defaultTransport,
 }: {
   question: QuizQuestion;
   index: number;
   sessionId?: string;
+  /** 可注入传输层：课堂检查点经 R/checkpoints/*（§13.3）。 */
+  transport?: QuizCardTransport;
 }) {
   const { lang } = useUIStore();
   const router = useRouter();
@@ -96,7 +129,7 @@ export function QuizQuestionCard({
     async function refresh() {
       attempts += 1;
       try {
-        const { submission } = await fetchQuizSubmission(qid, rev);
+        const { submission } = await transport.submission(qid, rev);
         if (!alive) return;
         if (submission) {
           rememberQuizDraft(draftKey, "");
@@ -122,6 +155,9 @@ export function QuizQuestionCard({
       alive = false;
       if (timer) clearTimeout(timer);
     };
+    // transport 不进依赖：注入的 transport 每次渲染都是新对象（课堂面板
+    // 闭包捕获 run/checkpoint），恢复轮询只应随题身份/显式刷新重启。
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [qid, rev, draftKey, refreshVersion]);
 
   const submitted = !!outcome || !!savedResult;
@@ -139,7 +175,7 @@ export function QuizQuestionCard({
     if (!hasIdentity || hintLoading || submitted) return;
     setHintLoading(true);
     try {
-      const res = await fetchQuizHint(qid, rev);
+      const res = await transport.hint(qid, rev);
       setHint(res.status === "ok" ? res.hint : (res.message || tr("quiz.hint.none")));
     } catch {
       setHint(tr("quiz.hint.error"));
@@ -151,7 +187,7 @@ export function QuizQuestionCard({
   async function reveal() {
     if (!hasIdentity || revealed) return;
     try {
-      const res = await revealQuizAnswer(qid, rev);
+      const res = await transport.reveal(qid, rev);
       if (res.status === "ok") {
         setRevealed({ answer: res.answer, explanation: res.explanation });
         setExpOpen(true);
@@ -166,7 +202,7 @@ export function QuizQuestionCard({
     setSubmitting(true);
     setSubmitError("");
     try {
-      const res = await submitQuizAnswer({
+      const res = await transport.submit({
         question_id: qid,
         question_revision: rev,
         student_answer: selected,

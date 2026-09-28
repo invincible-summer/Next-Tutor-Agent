@@ -79,14 +79,15 @@ def account_allows_quiz_critic(student_id: str) -> bool:
 
 
 def effective_quiz_verify_mode(student_id: str) -> str:
-    """Resolve QUIZ_VERIFY_MODE with the account-level critic switch.
+    """Resolve quiz verify mode (admin panel runtime value) with the
+    account-level critic switch.
 
-    The environment keeps final authority to *lower* quality gates only: an
-    operator-set basic/off stays basic/off. A student switch can only turn a
+    The deployment keeps final authority to *lower* quality gates only: an
+    admin-set basic/off stays basic/off. A student switch can only turn a
     deployment-default critic lane down to basic, never up.
     """
-    from .config import settings
-    mode = str(settings.quiz_verify_mode or "critic").strip().lower()
+    from . import llm_policy
+    mode = llm_policy.quiz_verify_mode()
     if mode not in {"critic", "basic", "off"}:
         mode = "critic"
     if mode == "critic" and not account_allows_quiz_critic(student_id):

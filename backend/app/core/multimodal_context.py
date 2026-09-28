@@ -139,14 +139,13 @@ def evidence_snapshot_images(results: list[dict[str, Any]], student_id: str,
 
 
 def get_multimodal_llm():
-    """MULTIMODAL 通道的 tutor 客户端；未配置返回 None（降级纯文本）。"""
-    if not settings.multimodal_api_key:
+    """视觉/识题用的 tutor 客户端：直接复用主 LLM 通道（同一多模态模型）；
+    主通道未配置返回 None（降级纯文本）。"""
+    if not settings.llm_api_key:
         return None
     from .llm_async import AsyncLLMClient
     return AsyncLLMClient(
-        model=settings.multimodal_model or settings.llm_model,
-        api_key=settings.multimodal_api_key,
-        base_url=settings.multimodal_base_url or settings.llm_base_url,
+        model=settings.llm_model,
         timeout=300.0,
     )
 

@@ -20,17 +20,17 @@ class TestTextbookOCRAPI(unittest.TestCase):
         ocr._textbook_client_cache.clear()
 
     def test_missing_config_is_blocked_without_tesseract(self):
-        with patch.object(ocr.settings, "multimodal_api_key", ""), \
+        with patch.object(ocr.settings, "llm_api_key", ""), \
              patch.object(ocr, "_tesseract_ocr") as tess:
             result = asyncio.run(ocr.textbook_ocr_page_api(_png(), attempt=2))
         self.assertFalse(result.success)
-        self.assertEqual(result.error_code, "multimodal_not_configured")
+        self.assertEqual(result.error_code, "vision_not_configured")
         self.assertFalse(result.retryable)
         self.assertEqual(result.attempt, 2)
         tess.assert_not_called()
 
     def test_success_returns_text(self):
-        with patch.object(ocr.settings, "multimodal_api_key", "k"), \
+        with patch.object(ocr.settings, "llm_api_key", "k"), \
              patch.object(ocr, "_get_textbook_client", return_value=object()), \
              patch.object(ocr, "_vision_once", return_value="教材正文"):
             result = asyncio.run(ocr.textbook_ocr_page_api(_png()))
@@ -38,7 +38,7 @@ class TestTextbookOCRAPI(unittest.TestCase):
         self.assertEqual(result.text, "教材正文")
 
     def test_empty_is_retryable_and_no_tesseract(self):
-        with patch.object(ocr.settings, "multimodal_api_key", "k"), \
+        with patch.object(ocr.settings, "llm_api_key", "k"), \
              patch.object(ocr, "_get_textbook_client", return_value=object()), \
              patch.object(ocr, "_vision_once", return_value=""), \
              patch.object(ocr, "_tesseract_ocr") as tess:
@@ -54,7 +54,7 @@ class TestTextbookOCRAPI(unittest.TestCase):
                 self.status_code = status
         for status, retryable in ((429, True), (503, True), (401, False)):
             with self.subTest(status=status), \
-                 patch.object(ocr.settings, "multimodal_api_key", "k"), \
+                 patch.object(ocr.settings, "llm_api_key", "k"), \
                  patch.object(ocr, "_get_textbook_client", return_value=object()), \
                  patch.object(ocr, "_vision_once", side_effect=APIError(status)), \
                  patch.object(ocr, "_tesseract_ocr") as tess:

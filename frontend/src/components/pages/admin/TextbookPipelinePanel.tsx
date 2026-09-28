@@ -86,7 +86,7 @@ export function TextbookPipelinePanel({ tr }: { tr: Tr }) {
         </p>
       )}
       <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-        <Field label={tr("adm.pipeline.mode")} helper={tr("adm.pipeline.mode.hint")}>
+        <Field label={tr("adm.pipeline.mode")} hint={tr("adm.pipeline.mode.hint")}>
           <select value={mode}
             onChange={(e) => setMode(e.target.value as AdminTextbookPipelinePolicy["mode"])}
             className={inputCls}>
@@ -94,17 +94,17 @@ export function TextbookPipelinePanel({ tr }: { tr: Tr }) {
             <option value="legacy">{modeLabels.legacy}</option>
           </select>
         </Field>
-        <Field label={tr("adm.pipeline.build")} helper={tr("adm.pipeline.build.hint")}>
+        <Field label={tr("adm.pipeline.build")} hint={tr("adm.pipeline.build.hint")}>
           <input type="number" min={1} max={policy?.max_build_concurrency ?? 4} value={build}
             onChange={(e) => setBuild(clampNum(e.target.value, 1, policy?.max_build_concurrency ?? 4))}
             className={inputCls} />
         </Field>
-        <Field label={tr("adm.pipeline.volume")} helper={tr("adm.pipeline.volume.hint")}>
+        <Field label={tr("adm.pipeline.volume")} hint={tr("adm.pipeline.volume.hint")}>
           <input type="number" min={1} max={policy?.max_volume_concurrency ?? 4} value={volume}
             onChange={(e) => setVolume(clampNum(e.target.value, 1, policy?.max_volume_concurrency ?? 4))}
             className={inputCls} />
         </Field>
-        <Field label={tr("adm.pipeline.llm")} helper={tr("adm.pipeline.llm.hint")}>
+        <Field label={tr("adm.pipeline.llm")} hint={tr("adm.pipeline.llm.hint")}>
           <input type="number" min={1} max={policy?.max_llm_concurrency ?? 8} value={llm}
             onChange={(e) => setLlm(clampNum(e.target.value, 1, policy?.max_llm_concurrency ?? 8))}
             className={inputCls} />

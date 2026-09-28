@@ -44,7 +44,6 @@ set_runtime_default SKILL_RUNTIME_MODE gated
 set_runtime_default LLM_RUNTIME_MODE adapter
 set_runtime_default TOOL_CONTEXT_PROJECTION_MODE on
 set_runtime_default TOOL_MESSAGE_MODE native
-set_runtime_default REASONING_SUMMARY_LEVEL adaptive
 # Frontend run mode: prod (default) builds once + `next start` — minified
 # bundles, Link prefetching, no on-demand compile (dev-mode page loads are
 # seconds-slow, especially under WSL2). FRONTEND_MODE=dev keeps the classic
@@ -53,7 +52,7 @@ set_runtime_default REASONING_SUMMARY_LEVEL adaptive
 # runtime echo so the log line reflects the actual mode.
 if [ "${1:-all}" = "dev" ]; then FRONTEND_MODE=dev; fi
 set_runtime_default FRONTEND_MODE prod
-echo "[start.sh] runtime: supervisor=$SUPERVISOR_MODE skill=$SKILL_RUNTIME_MODE llm=$LLM_RUNTIME_MODE tool_context=$TOOL_CONTEXT_PROJECTION_MODE tool_messages=$TOOL_MESSAGE_MODE reasoning_summary=$REASONING_SUMMARY_LEVEL frontend=$FRONTEND_MODE"
+echo "[start.sh] runtime: supervisor=$SUPERVISOR_MODE skill=$SKILL_RUNTIME_MODE llm=$LLM_RUNTIME_MODE tool_context=$TOOL_CONTEXT_PROJECTION_MODE tool_messages=$TOOL_MESSAGE_MODE frontend=$FRONTEND_MODE"
 
 BACK_PID=""; FRONT_PID=""; VOICE_PID=""; BACK_PORT=""; FRONT_PORT=""; VOICE_PORT=""
 
@@ -128,15 +127,45 @@ start_backend() {
 }
 
 start_voice_sidecar() {
-    # P10 语音：VOICE_TTS_PROVIDER=melo 时拉起 MeloTTS sidecar（自带 venv，
-    # 见 deploy/install_voice.sh）。未安装/未启用时仅提示，主服务照常运行
-    # （fail-open：后端把语音请求报告为 tts 不可用，聊天完全不受影响）。
+    # 语音 sidecar（MeloTTS-Chinese，本地 CPU；电话 P10 + 课堂回退共用）。
+    # plan.md §11.6 启动判定（任一成立即启动）：
+    #   1) 旧电话 VOICE_TTS_PROVIDER=melo；
+    #   2) 旧电话 provider=auto 且未配置云端（melo 作兜底）；
+    #   3) 课堂启用且本地回退启用，且默认策略 local/auto 或允许本地回退。
+    # 未安装 venv/模型时仅提示（fail-open）：语音按不可用降级为文字路径，
+    # 聊天/课堂不受影响，也绝不临时安装大型模型。
     set_runtime_default VOICE_TTS_PROVIDER off
-    if [ "$VOICE_TTS_PROVIDER" != "melo" ]; then
+    set_runtime_default CLASSROOM_ENABLED 0
+    set_runtime_default CLASSROOM_TTS_POLICY auto
+    set_runtime_default CLASSROOM_TTS_LOCAL_FALLBACK 1
+    # 课堂本地回退开关：未显式设置时继承旧电话是否为 melo
+    if [ -z "${CLASSROOM_LOCAL_TTS_ENABLED:-}" ]; then
+        if [ "$VOICE_TTS_PROVIDER" = "melo" ]; then
+            export CLASSROOM_LOCAL_TTS_ENABLED=1
+        else
+            export CLASSROOM_LOCAL_TTS_ENABLED=0
+        fi
+    fi
+    local want=0
+    if [ "$VOICE_TTS_PROVIDER" = "melo" ]; then
+        want=1
+    fi
+    if [ "$VOICE_TTS_PROVIDER" = "auto" ] \
+        && [ -z "$(read_nonsecret_env AZURE_SPEECH_KEY)" ]; then
+        want=1
+    fi
+    if [ "$CLASSROOM_ENABLED" = "1" ] \
+        && [ "$CLASSROOM_LOCAL_TTS_ENABLED" = "1" ]; then
+        case "$CLASSROOM_TTS_POLICY" in
+            local|auto) want=1 ;;
+            cloud) [ "$CLASSROOM_TTS_LOCAL_FALLBACK" = "1" ] && want=1 ;;
+        esac
+    fi
+    if [ "$want" != "1" ]; then
         return 0
     fi
     if [ ! -x "$ROOT/backend/voice_sidecar/.venv/bin/python" ]; then
-        echo "[start.sh] VOICE_TTS_PROVIDER=melo 但 sidecar venv 缺失（bash deploy/install_voice.sh）；语音 TTS 将不可用"
+        echo "[start.sh] 语音 sidecar 判定需要启动，但 venv 缺失（bash deploy/install_voice.sh）；语音 TTS 将不可用（文字课堂照常）"
         return 0
     fi
     VOICE_PORT="$(pick_port 8130 8131 8132)"
@@ -184,9 +213,22 @@ frontend_build_needed() {
     return 1
 }
 
+build_classroom_assets() {
+    # 课堂渲染资产包（plan.md §9.4）：tsc frame-runtime + 固定 KaTeX 打成
+    # backend 可读包。必须在 next build 前显式执行（npm prebuild hook 不会
+    # 被 next build 触发）；缺包时课堂 capability 明确 renderer_unavailable。
+    if [ ! -f backend/app/classroom/static/generated/manifest.json ]; then
+        echo "[start.sh] building classroom renderer assets"
+        (cd frontend && pnpm run build:classroom) || {
+            echo "[start.sh] classroom assets build failed; classroom renderer will be unavailable"
+        }
+    fi
+}
+
 build_frontend() {
     local bport="$1"
     echo "[start.sh] building frontend (next build --webpack, backend :$bport baked in; first build ~1-2 min)"
+    build_classroom_assets
     # NEXT_PUBLIC_* 内联给客户端直连；BACKEND_URL 供 rewrites() 构建期求值——
     # 缺了会把同源回退代理固化到默认 8000，端口回退时 SSR/相对路径请求全断。
     if command -v pnpm &>/dev/null; then

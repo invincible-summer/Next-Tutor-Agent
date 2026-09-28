@@ -843,14 +843,29 @@ export interface UserProfileData {
   school: string;
   subjects: string[];
   avatar: string;
-  /** 通用每用户偏好（ocr_parallel OCR 并行、tts_speed 朗读语速）。 */
+  /** 通用每用户偏好（ocr_parallel OCR 并行、tts_speed 朗读语速、classroom 课堂默认）。 */
   prefs?: {
     ocr_parallel?: boolean;
     tts_speed?: number;
     quiz_svg_enabled?: boolean;
     quiz_critic_enabled?: boolean;
     quiz_illustration_review_enabled?: boolean;
+    classroom?: ClassroomPrefs;
   };
+}
+
+/** 个人课堂偏好（prefs.classroom，plan.md §20.1；后端白名单校验）。
+ * 本卡只写语音三键，保存时需并入既有键避免整层覆盖。 */
+export interface ClassroomPrefs {
+  voice_policy?: "auto" | "cloud" | "local" | "silent";
+  voice_id?: string;
+  allow_local_fallback?: boolean;
+  theme_id?: string;
+  pedagogy_id?: string;
+  captions?: boolean;
+  auto_advance?: boolean;
+  low_stimulus?: boolean;
+  pause_on_hidden?: boolean;
 }
 
 // --- M9 学习编排（/orchestration/* · 无 status 信封，空态靠空字段/空数组表达） ---

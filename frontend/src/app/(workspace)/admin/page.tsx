@@ -14,6 +14,7 @@ import { PolicyPanel } from "@/components/pages/admin/PolicyPanel";
 import { EvaluationPolicyPanel } from "@/components/pages/admin/EvaluationPolicyPanel";
 import { OcrPanel } from "@/components/pages/admin/OcrPanel";
 import { TextbookPipelinePanel } from "@/components/pages/admin/TextbookPipelinePanel";
+import { LLMRunPolicyPanel } from "@/components/pages/admin/LLMRunPolicyPanel";
 import { TrashPanel } from "@/components/pages/admin/TrashPanel";
 import { CleanupPanel } from "@/components/pages/admin/CleanupPanel";
 import { STRINGS } from "./strings";
@@ -45,6 +46,7 @@ export default function AdminPage() {
   const items = [
     { key: "accounts", label: tr("adm.tab.accounts"),
       badge: <Badge tone="muted">{summary.count}</Badge> },
+    { key: "runtime", label: tr("adm.tab.runtime") },
     { key: "policy", label: tr("adm.tab.policy") },
     { key: "ocr", label: tr("adm.tab.ocr") },
     { key: "trash", label: tr("adm.tab.trash"),
@@ -68,6 +70,7 @@ export default function AdminPage() {
         <AccountsPanel tr={tr} users={users} summary={summary}
           loading={loading} error={error} refresh={refresh} />
       )}
+      {tab === "runtime" && <LLMRunPolicyPanel tr={tr} />}
       {tab === "policy" && (
         <div className="flex flex-col gap-4">
           <EvaluationPolicyPanel tr={tr} />

@@ -7,6 +7,7 @@ from typing import Any
 
 from .config import settings
 from .context import estimate_tokens
+from . import llm_policy
 
 
 def _compact_json(value: Any) -> str:
@@ -56,19 +57,20 @@ def build_budget_snapshot(messages: list[dict[str, Any]],
     tool_schema_tokens = estimate_tokens(_compact_json(tools or []))
     estimated = message_tokens + tool_schema_tokens
     requested = max(1, int(max_output_tokens))
+    window = llm_policy.context_window()
     available_output = max(
         1,
-        settings.llm_context_window - estimated - settings.llm_context_safety_margin,
+        window - estimated - settings.llm_context_safety_margin,
     )
     effective_output = min(requested, available_output)
-    usable = max(1, settings.llm_context_window - effective_output
+    usable = max(1, window - effective_output
                  - settings.llm_context_safety_margin)
     soft = max(1, int(usable * settings.context_soft_trigger_ratio))
     hard = max(soft + 1, int(usable * settings.context_hard_trigger_ratio))
     pressure = "hard" if estimated >= hard else "soft" if estimated >= soft else "normal"
     return ContextBudgetSnapshot(
         stage=stage,
-        context_window=settings.llm_context_window,
+        context_window=window,
         requested_output_tokens=requested,
         max_output_tokens=effective_output,
         available_output_tokens=available_output,

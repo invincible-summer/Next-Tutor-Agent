@@ -59,7 +59,7 @@ def _load_owned(ws_id: str, student_id: str) -> Workspace:
     """Load a workspace and enforce ownership (404 = invisible, not 403)."""
     ws = load_workspace(ws_id)
     if ws is None or not _owned(ws, student_id):
-        raise HTTPException(404, "工作学习区不存在")
+        raise HTTPException(404, "辅导区不存在")
     return ws
 
 
@@ -181,7 +181,7 @@ def remove(ws_id: str, student_id: str = Depends(resolve_student_id)):
     try:
         item = archive_workspace(student_id, ws_id)
     except FileNotFoundError:
-        raise HTTPException(404, "工作学习区不存在")
+        raise HTTPException(404, "辅导区不存在")
     return {"status": "archived", "workspace_id": ws_id, "trash_item": item}
 
 
@@ -197,7 +197,7 @@ async def move_session(ws_id: str, req: MoveSessionRequest,
         raise HTTPException(404, "会话不存在")
     ws = add_session_to_workspace(ws_id, req.session_id)
     if ws is None:
-        raise HTTPException(404, "工作学习区不存在")
+        raise HTTPException(404, "辅导区不存在")
     # Stamp workspace_id on the session file.
     if session:
         session.workspace_id = ws_id
@@ -214,7 +214,7 @@ def remove_session(ws_id: str, session_id: str,
     _load_owned(ws_id, student_id)
     ws = remove_session_from_workspace(ws_id, session_id)
     if ws is None:
-        raise HTTPException(404, "工作学习区不存在")
+        raise HTTPException(404, "辅导区不存在")
     # Clear workspace_id on the session file.
     from app.core.session import load_session, save_session
     session = load_session(session_id)
