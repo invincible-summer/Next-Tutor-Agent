@@ -56,6 +56,7 @@ export function LandingNav({ tr, loggedIn }: { tr: LandingTr; loggedIn: boolean 
           onClick={() => setLang(lang === "zh" ? "en" : "zh")}
           className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-full font-mono text-[11px] text-fg-secondary transition-colors hover:bg-surface-hover"
           title={lang === "zh" ? "Switch to English" : "切换到中文"}
+          aria-label={lang === "zh" ? "Switch to English" : "切换到中文"}
         >
           {lang === "zh" ? "EN" : "中"}
         </button>
@@ -63,7 +64,7 @@ export function LandingNav({ tr, loggedIn }: { tr: LandingTr; loggedIn: boolean 
           type="button"
           onClick={toggleTheme}
           className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-full text-fg-secondary transition-colors hover:bg-surface-hover"
-          title={theme === "dark" ? "Light" : "Dark"}
+          title={tr(theme === "dark" ? "settings.theme.light" : "settings.theme.dark")}
         >
           {theme === "dark" ? <Sun size={15} /> : <Moon size={15} />}
         </button>

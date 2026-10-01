@@ -2,11 +2,11 @@
 
 Providers are explicit: ``off`` (default), ``local`` (offline, bring-your-own
 embedding model), or ``openai`` (OpenAI-compatible Embeddings API). The
-``local`` provider is a generic interface: Edu_Agent bundles, pins, or
+``local`` provider is a generic interface: Next-Tutor-Agent bundles, pins, or
 defaults to no specific local model — the operator supplies the model files
 and their inference runtime explicitly via EMBEDDING_MODEL /
 EMBEDDING_MODEL_PATH. The public ``embed(texts)`` coroutine is stable across
-providers.  Local model loading and encoding run on Edu_Agent's single-slot
+providers.  Local model loading and encoding run on Next-Tutor-Agent's single-slot
 CPU executor, so FastAPI's event loop never performs ML work and a
 missing/unconfigured model only makes the caller fall back to BM25.
 """

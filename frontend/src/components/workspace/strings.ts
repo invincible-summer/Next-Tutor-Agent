@@ -2,6 +2,8 @@ import type { PageStrings } from "@/lib/i18n-page";
 
 export const STRINGS = {
   zh: {
+    "wsm.textbooks.volumes": "卷",
+    "wsm.files.empty": "暂无文件",
     "wsm.title.new": "新建学习区",
     "wsm.title.edit": "学习区设置",
     "wsm.name.label": "名称",
@@ -34,6 +36,8 @@ export const STRINGS = {
     "wsm.name.required": "请填写学习区名称",
   },
   en: {
+    "wsm.textbooks.volumes": "volumes",
+    "wsm.files.empty": "No files yet",
     "wsm.title.new": "New workspace",
     "wsm.title.edit": "Workspace settings",
     "wsm.name.label": "Name",

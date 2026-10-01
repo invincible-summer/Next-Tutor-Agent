@@ -16,7 +16,7 @@ test.beforeEach(async ({ page }) => {
 });
 
 test("备课终态取回真实错误，额度耗尽后不再显示无效重试", async ({ page }) => {
-  await page.setViewportSize({ width: 390, height: 844 });
+  await page.setViewportSize({ width: 1024, height: 768 });
   await routeCreateFlow(page);
   const failed = jobPublic({ state: "failed", state_revision: 8,
     phase: "author_slides", progress: { completed_slides: 2, total_slides: 10 },
@@ -35,9 +35,10 @@ test("备课终态取回真实错误，额度耗尽后不再显示无效重试",
   });
   await page.goto(`/workspaces/${WS_ID}/classroom/${LESSON_ID}`);
   await expect(page.getByText("budget_exceeded: 剩余输出额度不足以完成未生成页面")).toBeVisible();
-  await expect(page.getByRole("button", { name: "重试此阶段" })).toHaveCount(0);
-  await expect(page.getByRole("link", { name: "调整范围，重新备课" })).toHaveAttribute(
-    "href", `/workspaces/${WS_ID}/classroom?create=1`);
+  // next_actions 无 retry：不渲染"重试并重置额度"；失败态标题明确可见
+  //（旧"调整范围，重新备课"链接已随详情页 UI 演进移除）。
+  await expect(page.getByRole("button", { name: "重试并重置额度" })).toHaveCount(0);
+  await expect(page.getByText("生成失败")).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 });
 
@@ -66,10 +67,10 @@ test("重试被服务端拒绝时展示原因并刷新可用操作", async ({ pa
     return route.fallback();
   });
   await page.goto(`/workspaces/${WS_ID}/classroom/${LESSON_ID}`);
-  await page.getByRole("button", { name: "重试此阶段" }).click();
+  await page.getByRole("button", { name: "重试并重置额度" }).click();
   await expect(page.getByRole("alert").filter({ hasText: "本次备课额度不足，已完成页面已保存" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "重试此阶段" })).toHaveCount(0);
-  await expect(page.getByRole("link", { name: "调整范围，重新备课" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "重试并重置额度" })).toHaveCount(0);
+  await expect(page.getByText("生成失败")).toBeVisible();
 });
 
 interface CreateCapture {
@@ -181,13 +182,17 @@ test("一次生成后关闭重进仍是同一课程与任务", async ({ page }) 
   await page.goto(`/workspaces/${WS_ID}/classroom`);
   await expect(page.getByText("还没有课程")).toBeVisible();
 
-  // 打开一键备课，默认值可见，填主题后一次生成
+  // 打开一键备课，默认值可见，填主题后一次生成。
+  // 弹窗是三步表单（内容来源 → 课件设计 → 授课设置）：内容检查开关在
+  // 第一步，提交按钮只在最后一步出现。
   await page.getByRole("button", { name: "一键备课" }).click();
   const dialog = page.locator('.motion-modal');
   await expect(dialog).toBeVisible();
   await dialog.locator("input").first()
     .fill("动量守恒与系统边界");
   await expect(dialog.getByRole("checkbox", { name: "生成后检查内容（可选）" })).not.toBeChecked();
+  await page.getByRole("button", { name: "下一步" }).click();
+  await page.getByRole("button", { name: "下一步" }).click();
   await page.getByRole("button", { name: "生成课程" }).click();
 
   expect(cap.createCalls).toBe(1);
@@ -239,12 +244,15 @@ test("空教材且无外部服务时仍有明确路径", async ({ page }) => {
   await expect(
     dialog.getByText("未选教材时将按「通识资料」生成主题课程")).toBeVisible();
 
-  // 展开更多设置：联网开关在无 key 时禁用 + 明确提示；仍可提交
+  // 联网开关在"授课设置"步（最后一步）的"更多设置"折叠区：无 key 时
+  // 禁用 + 明确提示；仍可提交
+  await dialog.locator("input").first().fill("斜抛运动");
+  await page.getByRole("button", { name: "下一步" }).click();
+  await page.getByRole("button", { name: "下一步" }).click();
   await dialog.getByRole("button", { name: "更多设置" }).click();
   const researchBox = dialog.getByRole("checkbox", { name: "启用后会检索主题关键词补充资料；严格教材时仍可单独搜图。" });
   await expect(researchBox).toBeDisabled();
   await expect(dialog.getByText("联网检索暂不可用：no_key")).toBeVisible();
-  await dialog.locator("input").first().fill("斜抛运动");
   await page.getByRole("button", { name: "生成课程" }).click();
 
   expect(cap.createCalls).toBe(1);
@@ -255,8 +263,8 @@ test("空教材且无外部服务时仍有明确路径", async ({ page }) => {
 });
 
 for (const theme of ["light", "dark"] as const) {
-  test(`可选内容检查开关：${theme} 窄屏`, async ({ page }, testInfo) => {
-    await page.setViewportSize({ width: 390, height: 844 });
+  test(`可选内容检查开关：${theme} 桌面窄窗口`, async ({ page }, testInfo) => {
+    await page.setViewportSize({ width: 1024, height: 768 });
     await page.emulateMedia({ colorScheme: theme });
     const cap = await routeCreateFlow(page);
     await page.goto(`/workspaces/${WS_ID}/classroom`);
@@ -273,6 +281,8 @@ for (const theme of ["light", "dark"] as const) {
     await expect(review).toBeChecked();
     await review.scrollIntoViewIfNeeded();
     await page.screenshot({ path: testInfo.outputPath(`content-review-${theme}.png`) });
+    await page.getByRole("button", { name: "下一步" }).click();
+    await page.getByRole("button", { name: "下一步" }).click();
     await expect(page.getByRole("button", { name: "生成课程" })).toBeVisible();
     await page.getByRole("button", { name: "生成课程" }).click();
     expect((cap.body?.brief as Record<string, unknown>)?.content_review_enabled).toBe(true);

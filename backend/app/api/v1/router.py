@@ -1,5 +1,7 @@
 """Aggregates all v1 routers under /api/v1."""
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
+from app.identity.access import require_api_access
+from app.api.v1 import guest
 
 from app.api.v1 import health, chat
 from app.api.v1 import trace
@@ -26,8 +28,10 @@ from app.api.v1 import notes
 from app.api.v1 import docs
 from app.api.v1 import voice
 from app.api.v1 import classroom
+from app.api.v1 import assistant
 
-api_router = APIRouter(prefix="/api/v1")
+api_router = APIRouter(prefix="/api/v1", dependencies=[Depends(require_api_access)])
+api_router.include_router(guest.router)
 api_router.include_router(health.router)
 api_router.include_router(chat.router)
 api_router.include_router(trace.router)
@@ -54,3 +58,4 @@ api_router.include_router(notes.router)
 api_router.include_router(docs.router)
 api_router.include_router(voice.router)
 api_router.include_router(classroom.router)
+api_router.include_router(assistant.router)

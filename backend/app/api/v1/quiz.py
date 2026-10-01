@@ -110,6 +110,9 @@ class QuizSubmitRequest(BaseModel):
 
 async def _submit(req: QuizSubmitRequest, student_id: str,
                   surface: str) -> dict[str, Any]:
+    from app.core import guest_learning, guest_runtime
+    if guest_runtime.is_guest(student_id):
+        return await guest_learning.submit(guest_runtime.context_for_owner(student_id), req)
     # R21：off=暂停长期评价，不是关练习——受理与 MC 判分照常
     #（语义解释由 manager 降级跳过）。
     qref = S.QuestionRef(question_id=req.question_id,
@@ -186,6 +189,11 @@ def get_quiz_submission(question_id: str = Query(min_length=1, max_length=96),
                         question_revision: int = Query(1, ge=1, le=1_000_000),
                         student_id: str = Depends(resolve_student_id)):
     """Recover accepted answers by identity; GET never grades or writes."""
+    from app.core import guest_learning, guest_runtime
+    if guest_runtime.is_guest(student_id):
+        context = guest_runtime.context_for_owner(student_id)
+        guest_learning.question(context, question_id, question_revision)
+        return {"submission": context.submissions.get(question_id)}
     try:
         load_task_snapshot(student_id, S.QuestionRef(
             question_id=question_id, question_revision=question_revision))
@@ -216,6 +224,11 @@ async def quiz_hint(question_id: str = Query(""),
                     question_revision: int = Query(1, ge=1),
                     student_id: str = Depends(resolve_student_id)):
     """从冻结量规派生关键步骤提示；服务端记录帮助事件（§7.3）。"""
+    from app.core import guest_learning, guest_runtime
+    if guest_runtime.is_guest(student_id):
+        task = guest_learning.question(guest_runtime.context_for_owner(student_id),
+                                       question_id, question_revision)
+        return {"status": "ok", "hint": "\n".join(c.description for c in task.rubric[:4])}
     if not question_id:
         raise _error(422, "question_id_required",
                      "请升级前端后使用（旧接口已停用）")

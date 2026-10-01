@@ -1,19 +1,13 @@
 "use client";
-/* 课堂播放器页（plan.md §3.1/§5/§12，阶段 G）。
- *
- * 布局：导航 | 章节目录 | 幻灯片舞台+字幕 | 讲稿（折叠） + 底部控制条。
- * 键盘 Space/←/→/C/F（输入框聚焦时不响应）；后台标签暂停；lease 丢失
- * 显示“在这里继续”接管；恢复音频需用户点击（§5.4）；reduced-motion 由
- * 全局 motion 类承担；<640px 由 CSS 折叠目录与右栏。音量/语速经
- * localStorage（edu-agent-player-prefs）跨会话保持；全屏播放时镀铬
- * （顶栏/快捷行/控制条）3 秒无操作自动隐藏，鼠标/触摸即恢复。
- */
+import { navigationSucceeded, navigationFailed } from "@/lib/assistant/navigation";
+
+/* 选页预览 → 全屏播放器；对话、讲稿与笔记共用右侧栏。 */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import {
-  ArrowLeft, BookOpenText, List, LogOut,
-  MessageCircle, MonitorPlay, NotebookPen, X, AudioLines,
+  ArrowLeft, LogOut, Play,
+  MonitorPlay, AudioLines, MessageCircle, BookOpenText, NotebookPen,
 } from "lucide-react";
 import { getLesson, getRevisionFrame, getRun,
   type RunPublicExtra } from "@/lib/api-classroom";
@@ -25,11 +19,13 @@ import SlideFrameDefault, {
   type SlideFrameHandle,
 } from "@/components/classroom/SlideFrame";
 import {
-  CaptionBar, PlayerControls, SlideOutline, type PlayerStrings,
+  CaptionBar, PlayerControls, type PlayerStrings,
 } from "@/components/classroom/player/PlayerWidgets";
+import { consumeAssistantDraft, getAssistantDraft } from "@/lib/assistant/api";
 import {
-  QuestionDrawer, QUICK_PRESETS,
+  QuestionDrawer,
 } from "@/components/classroom/player/QuestionDrawer";
+import { SlideThumbnail } from "@/components/classroom/SlideThumbnail";
 import { VoicePanel } from "@/components/classroom/player/VoicePanel";
 import { ScriptPanel } from "@/components/classroom/player/ScriptPanel";
 import { ClassroomNotes } from "@/components/classroom/player/ClassroomNotes";
@@ -38,6 +34,8 @@ import {
 } from "@/components/classroom/player/CheckpointPanel";
 import { useClassroomPlayer } from "@/lib/classroom/useClassroomPlayer";
 import { useClassroomQA } from "@/lib/classroom/useClassroomQA";
+import { useAssistantPage } from "@/lib/assistant/useAssistantPage";
+import { currentRouteEpoch } from "@/lib/assistant/page-context";
 import { STRINGS as PLAYER_STR } from "@/components/classroom/strings";
 import { STRINGS as PAGE_STRINGS } from "../../../strings";
 
@@ -70,42 +68,6 @@ function writePlayerPrefs(prefs: { volume: number; playbackRate: number }) {
   } catch { /* 隐私模式等场景静默失败 */ }
 }
 
-/** 全屏播放镀铬自动隐藏：active 期间 ms 无鼠标/触摸操作即隐藏，动即恢复。 */
-function useAutoHide(active: boolean, ms: number): boolean {
-  const [idle, setIdle] = useState(false);
-  const timerRef = useRef(0);
-  // 激活沿复位（render 期条件调整，避免 effect 内同步 setState）
-  const [wasActive, setWasActive] = useState(active);
-  if (wasActive !== active) {
-    setWasActive(active);
-    setIdle(false);
-  }
-  useEffect(() => {
-    if (!active) return;
-    const arm = () => {
-      window.clearTimeout(timerRef.current);
-      timerRef.current = window.setTimeout(() => setIdle(true), ms);
-    };
-    const show = () => {
-      setIdle(false);
-      arm();
-    };
-    arm();
-    window.addEventListener("mousemove", show);
-    window.addEventListener("touchstart", show);
-    window.addEventListener("keydown", show);
-    window.addEventListener("focusin", show);
-    return () => {
-      window.clearTimeout(timerRef.current);
-      window.removeEventListener("mousemove", show);
-      window.removeEventListener("touchstart", show);
-      window.removeEventListener("keydown", show);
-      window.removeEventListener("focusin", show);
-    };
-  }, [active, ms]);
-  return active && idle;
-}
-
 export default function LearnRunPage() {
   const { lang } = useUIStore();
   const tr = makePageT(lang, PAGE_STRINGS);
@@ -124,11 +86,40 @@ export default function LearnRunPage() {
     `/classroom/${encodeURIComponent(lessonId)}`;
 
   const [detail, setDetail] = useState<LessonDetailPublic | null>(null);
+  const [frameIdentity, setFrameIdentity] = useState("");
   const [frameHtml, setFrameHtml] = useState<string | null>(null);
   const [fatal, setFatal] = useState<string | null>(null);
-  const [askOpen, setAskOpen] = useState(false);
+  const [sidePanel, setSidePanel] = useState<"chat" | "script" | "notes">("chat");
+  // A13 助手插问草稿：?assistant_draft= 打开抽屉并预填，不自动提交。
+  const [questionDraft, setQuestionDraft] = useState<string | undefined>(undefined);
+  const questionDraftIdRef = useRef<string | null>(null);
+  useEffect(() => {
+    const draftId = new URLSearchParams(window.location.search)
+      .get("assistant_draft");
+    if (!draftId || questionDraftIdRef.current) return;
+    questionDraftIdRef.current = draftId;
+    getAssistantDraft(draftId)
+      .then((draft) => {
+        const prefill = (draft as {
+          prefill?: { kind?: string; question?: string };
+          consumed?: boolean; expired?: boolean;
+        }).prefill;
+        if (prefill?.kind !== "classroom_question"
+            || draft.consumed || draft.expired) {
+          return;
+        }
+        setQuestionDraft(String(prefill.question || ""));
+        setSidePanel("chat");
+        const params = new URLSearchParams(window.location.search);
+        params.delete("assistant_draft");
+        const query = params.toString();
+        window.history.replaceState(null, "", query
+          ? `${window.location.pathname}?${query}`
+          : window.location.pathname);
+      })
+      .catch(() => undefined);
+  }, []);
   const [initialRun, setInitialRun] = useState<RunPublicExtra | null>(null);
-  const [sidePanel, setSidePanel] = useState<"outline" | "script" | "notes" | null>("script");
   const [voiceOpen, setVoiceOpen] = useState(false);
   const [summary, setSummary] = useState<{
     slides?: { visited: number; total: number };
@@ -139,7 +130,6 @@ export default function LearnRunPage() {
   } | null>(null);
   const frameRef = useRef<SlideFrameHandle | null>(null);
   const shellRef = useRef<HTMLDivElement | null>(null);
-  const mobileReadingSetRef = useRef(false);
 
   useEffect(() => {
     let alive = true;
@@ -149,14 +139,13 @@ export default function LearnRunPage() {
         const d = await getLesson(workspaceId, lessonId,
                                   loadedRun.lesson_revision);
         if (!alive) return;
-        if (window.matchMedia("(max-width: 1023px)").matches) setSidePanel(null);
         setInitialRun(loadedRun);
         setDetail(d);
         const rev = d.revision?.revision;
         if (rev) {
           const html = await getRevisionFrame(workspaceId, lessonId, rev,
                                               "presentation");
-          if (alive) setFrameHtml(html);
+          if (alive) { setFrameHtml(html); setFrameIdentity(`${workspaceId}:${lessonId}:${runId}`); }
         }
       } catch (err) {
         if (alive) setFatal(err instanceof Error ? err.message : String(err));
@@ -182,6 +171,51 @@ export default function LearnRunPage() {
     pauseNarration: player.pauseForAsk,
   });
   const anchorSegmentId = player.run?.resume_anchor?.segment_id ?? null;
+
+  // §5.3-1 助手按钮避让课堂控制条：实测控制条高度，经适配器上报。
+  const [controlsHeight, setControlsHeight] = useState(0);
+  useEffect(() => {
+    const el = shellRef.current?.querySelector<HTMLElement>(
+      ".classroom-controls");
+    if (!el || typeof ResizeObserver === "undefined") {
+      setControlsHeight(el?.offsetHeight ?? 0);
+      return;
+    }
+    setControlsHeight(el.offsetHeight);
+    const ro = new ResizeObserver(() => setControlsHeight(el.offsetHeight));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [frameHtml, player.state.fullscreen, detail]);
+
+  // §20.2 页面适配器：课堂播放上下文（run 实体 + 预览/全屏态）。
+  // 离开课堂不阻断导航（暂停/恢复由播放器既有行为处理，§5.4）。
+  useAssistantPage({
+    navigationStatus: (target) => {
+      if (fatal) return navigationFailed;
+      if (!detail || !frameHtml || frameIdentity !== `${workspaceId}:${lessonId}:${runId}` || initialRun?.run_id !== runId) return null;
+      return target.kind === "classroom_run" && target.workspace_id === workspaceId && target.lesson_id === lessonId && target.run_id === runId
+        ? navigationSucceeded : null;
+    },
+    context: () => ({
+      schema_version: 1,
+      route_id: "course" as const,
+      route_epoch: currentRouteEpoch(),
+      workspace_id: workspaceId || undefined,
+      entity: runId ? {
+        kind: "run" as const,
+        id: runId,
+        parent_id: lessonId || undefined,
+        revision: detail?.revision
+          ? String(detail.revision.revision) : undefined,
+      } : undefined,
+      view: player.state.fullscreen ? "fullscreen" : "preview",
+    }),
+    clientState: () => ({
+      dirty: false,
+      blocking_activity: "none" as const,
+      safe_bottom_px: Math.max(24, controlsHeight + 16),
+    }),
+  });
   const resumeFromAnchor = useCallback(() => {
     qa.stopAudio();
     const segId = anchorSegmentId ?? player.current?.segmentId;
@@ -218,20 +252,9 @@ export default function LearnRunPage() {
   useEffect(() => {
     const show = currentSeg?.showBlockIds ?? [];
     const focus = currentSeg?.focusBlockIds ?? [];
-    frameRef.current?.setBlockState(show.length ? show : ["*"], focus);
-  }, [currentSeg, slideOrder, frameHtml]);
-  useEffect(() => {
-    frameRef.current?.setReading(player.state.readingMode);
-  }, [player.state.readingMode, frameHtml]);
-  useEffect(() => {
-    if (mobileReadingSetRef.current || !detail
-        || player.state.status === "loading") return;
-    mobileReadingSetRef.current = true;
-
-    if (window.matchMedia("(max-width: 639px)").matches) {
-      player.setSettings({ type: "settings", readingMode: true });
-    }
-  }, [detail, player]);
+    const preview = !player.state.fullscreen;
+    frameRef.current?.setBlockState(preview || !show.length ? ["*"] : show, preview ? [] : focus);
+  }, [currentSeg, slideOrder, frameHtml, player.state.fullscreen]);
 
   // 音量/语速偏好：课堂装载完成后恢复一次（覆盖 reducer 初始值）
   const prefsRestoredRef = useRef(false);
@@ -258,30 +281,6 @@ export default function LearnRunPage() {
     return () => window.clearTimeout(t);
   }, [noticeCode]);
 
-  // 全屏播放 3s 无操作隐藏镀铬；面板/抽屉/检查点打开时不隐藏
-  const chromeHidden = useAutoHide(
-    player.state.fullscreen
-      && (player.state.status === "playing"
-          || player.state.status === "buffering")
-      && !sidePanel && !askOpen && !voiceOpen
-      && !player.pendingCheckpoint,
-    3000);
-  const chromeCls = `transition-opacity duration-300 ${
-    chromeHidden ? "pointer-events-none opacity-0" : "opacity-100"}`;
-
-  // 阅读模式（§5.2.4）：进入即暂停讲授、课件重排为可读版；退出后由用户
-  // 点击播放恢复，不自动续播（§5.2.6）
-  const toggleReading = useCallback((on: boolean) => {
-    if (on) {
-      if (player.state.status === "playing"
-          || player.state.status === "buffering") {
-        player.togglePlay();
-      }
-    }
-    player.setSettings({ type: "settings", readingMode: on });
-    frameRef.current?.setReading(on);
-  }, [player]);
-
   const toggleFullscreen = useCallback(() => {
     const el = shellRef.current;
     if (!el) return;
@@ -300,9 +299,21 @@ export default function LearnRunPage() {
     }
   }, [player]);
 
+  const startPlayback = useCallback(() => {
+    if (["loading", "suspended", "ended"].includes(player.state.status) || player.pendingCheckpoint || qa.asking) return;
+    qa.stopAudio();
+    const playing = ["playing", "buffering"].includes(player.state.status);
+    if (!playing && !player.state.fullscreen) {
+      toggleFullscreen();
+      if (player.textMode) return;
+    }
+    if (player.textMode) player.nextSegment();
+    else player.togglePlay();
+  }, [player, qa, toggleFullscreen]);
+
   useEffect(() => {
     const onFs = () => player.setSettings({
-      type: "settings", fullscreen: document.fullscreenElement != null,
+      type: "settings", fullscreen: document.fullscreenElement === shellRef.current,
     });
     document.addEventListener("fullscreenchange", onFs);
     return () => document.removeEventListener("fullscreenchange", onFs);
@@ -330,10 +341,11 @@ export default function LearnRunPage() {
 
   // 键盘 Space/←/→/C/F：输入框聚焦时不响应（§5.3）
   const handlePlayerKey = useCallback((key: string) => {
+      if ((["loading", "suspended", "ended"].includes(player.state.status) || player.pendingCheckpoint || qa.asking)
+          && !["f", "F", "c", "C", "Escape"].includes(key)) return;
       switch (key) {
         case " ":
-          if (player.textMode) player.nextSegment();
-          else player.togglePlay();
+          startPlayback();
           break;
         case "ArrowRight":
           player.gotoSlide(Math.min(slideOrders.length,
@@ -352,27 +364,30 @@ export default function LearnRunPage() {
         case "F":
           toggleFullscreen();
           break;
+        case "Escape":
+          if (shellRef.current?.classList.contains("player-focus-fallback")) toggleFullscreen();
+          break;
         case "q":
         case "Q":
-          setAskOpen(true);
+          setSidePanel("chat");
           break;
         default:
           break;
       }
-  }, [player, toggleFullscreen, slideOrders.length]);
+  }, [player, qa.asking, startPlayback, toggleFullscreen, slideOrders.length]);
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const t = e.target as HTMLElement | null;
       if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA"
                 || t.isContentEditable || t.tagName === "SELECT")) return;
-      if (e.altKey || e.ctrlKey || e.metaKey || askOpen || voiceOpen || checkpointDue) return;
+      if (e.altKey || e.ctrlKey || e.metaKey || voiceOpen || checkpointDue) return;
       if (t?.closest("button, a, [role=dialog]")) return;
       if (e.key === " ") e.preventDefault();
       handlePlayerKey(e.key);
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [handlePlayerKey, askOpen, voiceOpen, checkpointDue]);
+  }, [handlePlayerKey, voiceOpen, checkpointDue]);
 
   const playerStrings: PlayerStrings = {
     captionsLabel: ps("cls.play.captions"),
@@ -386,8 +401,6 @@ export default function LearnRunPage() {
     focusMode: ps("cls.play.fullscreen"),
     fullscreen: ps("cls.play.fullscreen"),
     exitFullscreen: ps("cls.play.exit.fullscreen"),
-    readingMode: ps("cls.play.reading"),
-    exitReadingMode: ps("cls.play.exit.reading"),
     pageOf: (n, t) => ps("cls.play.pageof").replace("%n", String(n))
       .replace("%t", String(t)),
     segmentOf: (n, t) => ps("cls.play.segmentof").replace("%n", String(n))
@@ -444,8 +457,8 @@ export default function LearnRunPage() {
   const ended = status === "ended";
 
   return (
-    <div ref={shellRef} className="classroom-player flex h-full min-h-0 flex-col bg-bg">
-      <header className={`flex min-h-14 items-center gap-2 border-b border-border bg-surface px-3 sm:gap-3 sm:px-5 ${chromeCls}`}>
+    <div ref={shellRef} data-fullscreen={player.state.fullscreen} className="classroom-player flex h-full min-h-0 flex-col bg-bg">
+      <header className={`flex min-h-14 items-center gap-2 border-b border-border bg-surface px-3 sm:gap-3 sm:px-5`}>
         <button type="button" aria-label={tr("cls.back.to.list")}
               onClick={() => void player.leaveLesson().then(() => router.push(lessonHref))}
               className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[8px] text-muted hover:bg-surface-hover hover:text-fg">
@@ -459,18 +472,6 @@ export default function LearnRunPage() {
           {playerStrings.pageOf(slideOrder, slideOrders.length || 1)}
         </span>
         <div className="flex items-center gap-1 sm:gap-2">
-          <button type="button" onClick={() => setSidePanel((p) => p === "outline" ? null : "outline")}
-                  aria-label={ps("cls.play.outline")} aria-pressed={sidePanel === "outline"}
-                  disabled={Boolean(checkpointDue) || askOpen}
-                  className="classroom-header-action"><List size={18} /></button>
-          <button type="button" onClick={() => setSidePanel((p) => p === "script" ? null : "script")}
-                  aria-label={tr("cls.learn.script")} aria-pressed={sidePanel === "script"}
-                  disabled={Boolean(checkpointDue) || askOpen}
-                  className="classroom-header-action"><BookOpenText size={18} /></button>
-          <button type="button" onClick={() => setSidePanel((p) => p === "notes" ? null : "notes")}
-                  aria-label={ps("cls.note.title")} aria-pressed={sidePanel === "notes"}
-                  disabled={Boolean(checkpointDue) || askOpen}
-                  className="classroom-header-action"><NotebookPen size={18} /></button>
           <Button variant="ghost" size="sm"
                   className="min-h-11 min-w-11"
                   icon={<LogOut size={14} />}
@@ -490,6 +491,19 @@ export default function LearnRunPage() {
                className="motion-fade pointer-events-none absolute bottom-4 left-1/2 z-40 max-w-[85%] -translate-x-1/2 rounded-full border border-border bg-surface px-4 py-2 text-center text-xs text-fg shadow-lg">
             {noticeText}
           </div>
+        )}
+        {!player.state.fullscreen && (
+          <nav aria-label={lang === "en" ? "Course slides" : "课件列表"} className="classroom-slide-list w-44 shrink-0 overflow-y-auto border-r border-border bg-surface p-3">
+            <p className="mb-3 px-1 text-xs font-medium text-muted">{lang === "en" ? "Choose a slide" : "选择课件页"} <span className="tnum ml-1">{slides.length}</span></p>
+            <ol className="space-y-3">{slides.map((slide) => <li key={slide.slide_id}>
+              <button disabled={Boolean(checkpointDue) || suspended || qa.asking} type="button" aria-current={slideOrder === slide.order ? "true" : undefined}
+                onClick={() => { qa.stopAudio(); player.gotoSlide(slide.order); }}
+                className={`w-full rounded-xl border p-1.5 text-left transition-colors disabled:opacity-50 ${slideOrder === slide.order ? "border-accent/50 bg-accent-soft/40" : "border-transparent hover:bg-surface-hover"}`}>
+                <SlideThumbnail slide={slide} themeId={detail?.revision?.brief?.theme_id ?? "academic_clear@2"} />
+                <span className="mt-2 flex gap-2 px-1 text-[11px] leading-5 text-fg-secondary"><span className="tnum text-muted">{String(slide.order).padStart(2, "0")}</span><span className="truncate">{slide.title}</span></span>
+              </button>
+            </li>)}</ol>
+          </nav>
         )}
         <main className="relative flex min-w-0 flex-1 flex-col">
           <div className="classroom-stage relative flex min-h-0 flex-1 items-center justify-center overflow-hidden">
@@ -569,15 +583,53 @@ export default function LearnRunPage() {
             )}
             {player.state.error === "click_to_resume"
               && status === "paused" && (
-              <button type="button" onClick={player.togglePlay}
+              <button type="button" onClick={startPlayback}
                       className="absolute bottom-4 left-1/2 z-10 -translate-x-1/2 rounded-full bg-accent px-5 py-2.5 text-sm font-medium text-on-accent shadow-lg">
                 ▶ {ps("cls.play.click.resume")}
               </button>
             )}
 
-            {/* 问答抽屉：在当前页旁展开（§5.1），提问区不是聊天瀑布 */}
-            {askOpen && (
-              <QuestionDrawer
+            {!player.state.fullscreen && ["ready", "paused", "paused_text"].includes(status) && !checkpointDue && !player.state.captions && (
+              <Button onClick={startPlayback} icon={<Play size={15} />} className="absolute bottom-8 left-1/2 z-10 -translate-x-1/2 !rounded-full px-6 shadow-lg">
+                {lang === "en" ? "Start from this slide" : "从本页开始上课"}
+              </Button>
+            )}
+          <CaptionBar
+            current={player.current} next={player.next}
+            captions={player.state.captions}
+            followPaused={player.state.captionFollowPaused}
+            onUserScroll={(paused) => player.setSettings(
+              { type: "caption_follow", paused })}
+            s={playerStrings} />
+            {/* 检查点（§13.1）：本页最后一段结束后出现 */}
+            {checkpointDue && !ended && !suspended && (
+              <CheckpointPanel
+                workspaceId={workspaceId}
+                lessonId={lessonId}
+                runId={runId}
+                checkpointId={checkpointDue}
+                onResolved={() => player.resolveCheckpoint()}
+                s={{
+                  reflectTitle: ps("cls.ckp.reflect"),
+                  reflectContinue: ps("cls.ckp.continue"),
+                  reflectThinkMore: ps("cls.ckp.think"),
+                  questionTitle: ps("cls.ckp.question"),
+                  skip: ps("cls.ckp.skip"),
+                  skipped: ps("cls.ckp.skipped"),
+                }} />
+            )}
+          </div>
+
+        </main>
+
+        <aside className="classroom-side-panel relative flex w-[340px] shrink-0 flex-col border-l border-border bg-surface" aria-label={lang === "en" ? "Classroom sidebar" : "课堂侧栏"}>
+          <div className="flex h-14 shrink-0 items-center border-b border-border px-3">
+            <div className="classroom-tool-tabs flex w-full gap-1" role="tablist" aria-label={lang === "en" ? "Classroom tools" : "课堂工具"}>
+              {(["chat", "script", "notes"] as const).map((tab) => <button type="button" role="tab" aria-selected={sidePanel === tab} key={tab} onClick={() => { if (tab !== "chat") qa.stopAudio(); setSidePanel(tab); }} className={`inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg px-2 py-2 text-xs font-medium ${sidePanel === tab ? "bg-accent-soft text-accent-strong" : "text-muted hover:bg-surface-hover"}`}>{tab === "chat" ? <MessageCircle size={14} /> : tab === "script" ? <BookOpenText size={14} /> : <NotebookPen size={14} />}{tab === "chat" ? (lang === "en" ? "Chat" : "对话") : tab === "notes" ? ps("cls.note.title") : (lang === "en" ? "Script" : "课程讲稿")}</button>)}
+            </div>
+          </div>
+          <div className={sidePanel === "chat" ? "min-h-0 flex-1" : "hidden"}>
+              <QuestionDrawer embedded disabled={suspended || ended || Boolean(checkpointDue) || status === "loading"}
                 turns={qa.turns}
                 asking={qa.asking}
                 sttLang={lang === "en" ? "en" : "zh"}
@@ -585,10 +637,20 @@ export default function LearnRunPage() {
                   qa.stopAudio();
                   player.pauseForAsk();
                 }}
-                onAsk={(text) => qa.ask(text)}
-                onResume={() => { resumeFromAnchor(); setAskOpen(false); }}
-                onResumeFromPage={() => { resumeFromPage(); setAskOpen(false); }}
-                onClose={() => { qa.stopAudio(); setAskOpen(false); }}
+                initialDraft={questionDraft}
+                onAsk={(text) => {
+                  const draftId = questionDraftIdRef.current;
+                  if (draftId) {
+                    questionDraftIdRef.current = null;
+                    consumeAssistantDraft(draftId,
+                      { kind: "classroom_question", id: text.slice(0, 64) })
+                      .catch(() => undefined);
+                  }
+                  qa.ask(text);
+                }}
+                onResume={() => { resumeFromAnchor(); setSidePanel("chat"); }}
+                onResumeFromPage={() => { resumeFromPage(); setSidePanel("chat"); }}
+                onClose={() => { qa.stopAudio(); setSidePanel("chat"); }}
                 s={{
                   title: ps("cls.ask.title"),
                   confused: ps("cls.ask.confused"),
@@ -603,62 +665,20 @@ export default function LearnRunPage() {
                   micHold: ps("cls.ask.mic.hold"),
                   micRecording: ps("cls.ask.mic.recording"),
                 }} />
-            )}
-
-            {/* 检查点（§13.1）：本页最后一段结束后出现 */}
-            {checkpointDue && !ended && !suspended && (
-              <CheckpointPanel
-                workspaceId={workspaceId}
-                lessonId={lessonId}
-                runId={runId}
-                checkpointId={checkpointDue}
-                onResolved={() => { setSidePanel(null); player.resolveCheckpoint(); }}
-                s={{
-                  reflectTitle: ps("cls.ckp.reflect"),
-                  reflectContinue: ps("cls.ckp.continue"),
-                  reflectThinkMore: ps("cls.ckp.think"),
-                  questionTitle: ps("cls.ckp.question"),
-                  skip: ps("cls.ckp.skip"),
-                  skipped: ps("cls.ckp.skipped"),
-                }} />
+          </div>
+          <div className={sidePanel === "script" ? "min-h-0 flex-1 overflow-y-auto p-4" : "hidden"}>
+            {(
+              <ScriptPanel
+                active={sidePanel === "script"}
+                disabled={suspended || ended || Boolean(checkpointDue) || qa.asking || status === "loading"}
+                segments={player.segments} slideTitles={slideTitles}
+                slideOrders={slideOrders} current={player.current}
+                onSelect={(segmentId) => { if (!player.state.fullscreen) toggleFullscreen(); player.gotoSegment(segmentId, true); }}
+                s={{ pageOf: (order) => ps("cls.script.page").replace("%n", String(order)), follow: ps("cls.script.follow"), play: lang === "en" ? "Play this page" : "从本页开始听", hint: lang === "en" ? "Expand a page to read its full script" : "按页展开，查看完整讲稿" }} />
             )}
           </div>
-
-          <CaptionBar
-            current={player.current} next={player.next}
-            captions={player.state.captions}
-            followPaused={player.state.captionFollowPaused}
-            onUserScroll={(paused) => player.setSettings(
-              { type: "caption_follow", paused })}
-            s={playerStrings} />
-        </main>
-
-        {sidePanel && !checkpointDue && !askOpen && (
-          <aside className="motion-drawer classroom-side-panel absolute inset-y-0 right-0 z-30 flex w-[min(360px,100%)] shrink-0 flex-col border-l border-border bg-surface shadow-xl lg:relative lg:inset-auto lg:shadow-none"
-                 aria-label={sidePanel === "outline" ? ps("cls.play.outline") : sidePanel === "notes" ? ps("cls.note.title") : tr("cls.learn.script")}>
-            <div className="flex h-14 shrink-0 items-center justify-between border-b border-border px-5">
-              <div className="flex gap-1" role="tablist" aria-label={ps("cls.play.more.settings")}>
-                {(["outline", "script", "notes"] as const).map((tab) => <button type="button" role="tab" aria-selected={sidePanel === tab} key={tab} onClick={() => setSidePanel(tab)} className={`rounded-lg px-3 py-2 text-xs font-medium ${sidePanel === tab ? "bg-accent-soft text-accent-strong" : "text-muted hover:bg-surface-hover"}`}>{tab === "outline" ? ps("cls.play.outline") : tab === "notes" ? ps("cls.note.title") : tr("cls.learn.script")}</button>)}
-              </div>
-              <button type="button" className="classroom-header-action" aria-label={ps("cls.play.close.panel")}
-                      onClick={() => setSidePanel(null)}><X size={18} /></button>
-            </div>
-            <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
-            {sidePanel === "outline" && (
-              <SlideOutline
-                segments={player.segments} slideTitles={slideTitles}
-                slideOrders={slideOrders} current={player.current}
-                onSelect={(order) => { player.gotoSlide(order); if (window.innerWidth < 1024) setSidePanel(null); }}
-                s={playerStrings} />
-            )}
-            {sidePanel === "script" && (
-              <ScriptPanel
-                segments={player.segments} slideTitles={slideTitles}
-                slideOrders={slideOrders} current={player.current}
-                onSelect={(segmentId) => player.gotoSegment(segmentId, true)}
-                s={{ pageOf: (order) => ps("cls.script.page").replace("%n", String(order)), follow: ps("cls.script.follow"), play: ps("cls.script.listen"), hint: ps("cls.script.hint") }} />
-            )}
-            {sidePanel === "notes" && (
+          <div className={sidePanel === "notes" ? "min-h-0 flex-1 overflow-y-auto p-4" : "hidden"}>
+            {(
               <ClassroomNotes
                 workspaceId={workspaceId}
                 lessonId={lessonId}
@@ -677,45 +697,19 @@ export default function LearnRunPage() {
                 }} />
             )}
             </div>
-          </aside>
-        )}
-      </div>
-
-      {/* §5.1 第二行：快捷补讲 + 提问（真实用户操作表达，§12.6）；预设
-          与 QuestionDrawer 共享 QUICK_PRESETS */}
-      <div className={`classroom-quick-actions flex flex-wrap items-center gap-2 border-t border-border-light bg-surface px-5 py-2 ${chromeCls}`}>
-        {QUICK_PRESETS.map(({ id, text, Icon, labelKey }) => (
-          <button key={id} type="button" disabled={qa.asking || ended}
-                  onClick={() => {
-                    setSidePanel(null); setAskOpen(true); qa.ask(text);
-                  }}
-                  className="inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-lg border border-border-light px-3 text-[11px] text-fg-secondary transition-colors hover:border-accent/50 hover:text-fg disabled:opacity-50">
-            <Icon size={13} /> {ps(`cls.ask.${labelKey}`)}
-          </button>
-        ))}
-        <button type="button" disabled={ended}
-                onClick={() => { setSidePanel(null); setAskOpen(true); }}
-                aria-pressed={askOpen}
-                className={`inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-lg border px-3 text-[11px] transition-colors disabled:opacity-50 ${
-                  askOpen
-                    ? "border-accent bg-accent-soft/50 text-accent-strong"
-                    : "border-border text-fg-secondary hover:border-accent/50 hover:text-fg"}`}>
-          <MessageCircle size={13} /> {ps("cls.ask.open")}
-        </button>
-        <span className="ml-auto hidden text-[0.68rem] text-muted/70 md:inline">
-          {ps("cls.ask.hint")}
-        </span>
+        </aside>
       </div>
 
       <PlayerControls
+        blocked={Boolean(checkpointDue) || qa.asking}
         state={player.state} current={player.current} segments={player.segments}
         totalPages={slideOrders.length || 1}
+        pageTitle={slideTitles.get(slideOrder)}
         textMode={player.textMode}
-        className={chromeCls}
-        onToggle={player.textMode ? player.nextSegment : player.togglePlay}
+        onToggle={startPlayback}
         onPrev={() => player.gotoSlide(slideOrder - 1)}
         onNext={() => player.gotoSlide(slideOrder + 1)}
-        onReplay={player.replaySegment}
+        onReplay={() => { if (!player.state.fullscreen) toggleFullscreen(); player.replaySegment(); }}
         onSpeed={(rate) => {
           player.setSettings({ type: "settings", playbackRate: rate });
           writePlayerPrefs({ volume: player.state.volume,
@@ -728,7 +722,6 @@ export default function LearnRunPage() {
         }}
         onCaptions={() => player.setSettings({ type: "settings", captions: !player.state.captions })}
         onSeek={(segmentId) => player.gotoSegment(segmentId, false)}
-        onReading={toggleReading}
         onFullscreen={toggleFullscreen}
         voicePanel={(
           <VoicePanel

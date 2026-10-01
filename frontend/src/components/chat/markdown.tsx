@@ -46,10 +46,15 @@ function rehypeStyleObjects() {
  * We convert those to the $-form before markdown parsing so KaTeX renders them.
  * We protect fenced code blocks and inline code spans from substitution. */
 const REMARK_PLUGINS = [remarkGfm, remarkMath];
-// strict:false + throwOnError:false：模型输出里的中文下标等非严格 LaTeX
-// 由 sanitizeCjkInMath 兜底转 \\text{}，渲染绝不中断、不刷 console 警告。
+// 显式写死 KaTeX 安全位（与课件侧 frame-runtime.ts 一致）：trust:false 禁用
+// \\href/\\url 等可注入命令，maxSize/maxExpand 挡展开炸弹。strict:false +
+// throwOnError:false：模型输出里的中文下标等非严格 LaTeX 由 sanitizeCjkInMath
+// 兜底转 \\text{}，渲染绝不中断、不刷 console 警告。
 const REHYPE_PLUGINS: ComponentProps<typeof ReactMarkdown>["rehypePlugins"] =
-  [[rehypeKatex, { output: "htmlAndMathml", strict: false, throwOnError: false }], rehypeStyleObjects];
+  [[rehypeKatex, {
+    output: "htmlAndMathml", strict: false, throwOnError: false,
+    trust: false, maxSize: 25, maxExpand: 200,
+  }], rehypeStyleObjects];
 
 type MathKind = "inline-dollar" | "display-dollar" | "paren" | "bracket";
 type MathSpan = { kind: MathKind; start: number; end: number };

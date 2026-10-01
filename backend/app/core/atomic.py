@@ -7,48 +7,73 @@
     读-改-写互相覆盖，JSONL append 也可能交错出半行。
 
 这里提供两个最小原语（不引新依赖，uvicorn 单进程足够）：
-  - atomic_write_text: 同目录 tmp 文件 + flush + os.fsync + os.replace。
-    与 knowledge/custom store 既有的 tmp+replace 写法同款，补上了 fsync。
-  - file_lock: 按路径字符串分键的 threading.RLock 字典（RLock 允许同线程
-    重入，避免外层锁内调用内层加锁函数时自锁）。
+  - atomic_write_text: 同目录唯一命名 tmp 文件 + flush + os.fsync +
+    os.replace + fsync 目录。tmp 唯一命名保证即使两个调用方并发写同一
+    目标（上层锁缺失/失效时）也不会交叉写同一个 tmp 损坏内容。
+  - file_lock: 按路径字符串分键的 threading.RLock（RLock 允许同线程
+    重入，避免外层锁内调用内层加锁函数时自锁）。锁对象以弱引用登记：
+    没有等待者/持有者时条目自动回收，长寿命进程不再无界增长。
 """
 from __future__ import annotations
 
 import os
 import threading
+import uuid
+import weakref
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Iterator, Union
 
 PathLike = Union[str, Path]
 
-_locks: dict[str, threading.RLock] = {}
+# WeakValueDictionary：file_lock 在临界区内始终持局部强引用，条目在
+# 最后一个使用者退出后自动消失。并发安全性：任意线程从 get 到 acquire
+# 之间都持着同一对象的强引用，字典条目不会在使用中途消失，也不会出现
+# 两个线程各拿一把"同路径不同对象"的锁。
+_locks: "weakref.WeakValueDictionary[str, threading.RLock]" = (
+    weakref.WeakValueDictionary())
 _locks_guard = threading.Lock()
 
 
+def _tmp_path(path: Path) -> Path:
+    """同目录且全局唯一的临时名：并发写同一目标也不会互相打开同一文件。"""
+    return path.with_name(
+        f"{path.name}.tmp.{os.getpid()}.{threading.get_ident()}"
+        f".{uuid.uuid4().hex[:8]}")
+
+
 def atomic_write_text(path: PathLike, text: str, encoding: str = "utf-8") -> None:
-    """原子写文本：同目录 tmp + flush + fsync + os.replace。
+    """原子写文本：同目录 tmp + flush + fsync + os.replace + fsync 目录。
 
     replace 是单步原子操作，读者只会看到旧文件或新文件，不会看到半截。
     """
     path = Path(path)
-    tmp = path.with_name(path.name + ".tmp")
-    with tmp.open("w", encoding=encoding) as f:
-        f.write(text)
-        f.flush()
-        os.fsync(f.fileno())
-    os.replace(tmp, path)
+    tmp = _tmp_path(path)
+    try:
+        with tmp.open("w", encoding=encoding) as f:
+            f.write(text)
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(tmp, path)
+    finally:
+        # 正常路径下 replace 已把 tmp 挪走；异常路径不留残片。
+        tmp.unlink(missing_ok=True)
+    fsync_dir(path.parent)
 
 
 def atomic_write_bytes(path: PathLike, data: bytes) -> None:
     """原子写二进制（音频/ZIP 等，plan.md §16.2）：同目录 tmp + fsync + replace。"""
     path = Path(path)
-    tmp = path.with_name(path.name + ".tmp")
-    with tmp.open("wb") as f:
-        f.write(data)
-        f.flush()
-        os.fsync(f.fileno())
-    os.replace(tmp, path)
+    tmp = _tmp_path(path)
+    try:
+        with tmp.open("wb") as f:
+            f.write(data)
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(tmp, path)
+    finally:
+        tmp.unlink(missing_ok=True)
+    fsync_dir(path.parent)
 
 
 @contextmanager
@@ -56,7 +81,10 @@ def file_lock(key: PathLike) -> Iterator[None]:
     """按路径字符串分键的进程内锁，保护 load-modify-write / append 临界区。"""
     k = str(key)
     with _locks_guard:
-        lock = _locks.setdefault(k, threading.RLock())
+        lock = _locks.get(k)
+        if lock is None:
+            lock = threading.RLock()
+            _locks[k] = lock
     with lock:
         yield
 

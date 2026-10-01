@@ -12,6 +12,11 @@ import {
   SquareRadical, Strikethrough, Table, Braces,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
+import { useUIStore } from "@/lib/store";
+import { makePageT } from "@/lib/i18n-page";
+import { STRINGS } from "@/app/(workspace)/notes/[[...noteId]]/strings";
+import { Input, FIELD_CLS } from "@/components/ui/Input";
+import { AnchoredPopover } from "@/components/ui/AnchoredPopover";
 import { applyAction, type EditorAction } from "./editorActions";
 
 export interface ToolbarButtonDef {
@@ -63,12 +68,15 @@ export function MarkdownEditor({
   value, onChange, placeholder, noteTitles, toolbar, createWikiLabel,
   onTriggerCreateWiki, onScrollRatioChange, scrollRatio, resourceLinks = [],
 }: MarkdownEditorProps) {
+  const lang = useUIStore((s) => s.lang);
+  const tr = makePageT(lang, STRINGS);
   const taRef = useRef<HTMLTextAreaElement>(null);
   const [wikiQuery, setWikiQuery] = useState<string | null>(null);
   const [wikiStart, setWikiStart] = useState(0);
   const [wikiIndex, setWikiIndex] = useState(0);
   const [resourceOpen, setResourceOpen] = useState(false);
   const [resourceQuery, setResourceQuery] = useState("");
+  const resourceButtonRef = useRef<HTMLButtonElement>(null);
 
   const matches = useMemo(() => {
     if (wikiQuery === null) return [];
@@ -110,7 +118,7 @@ export function MarkdownEditor({
     const ta = taRef.current;
     if (!ta) return;
     const state = { value, start: ta.selectionStart, end: ta.selectionEnd };
-    applyEdit(applyAction(state, action));
+    applyEdit(applyAction(state, action, lang));
   };
 
   const insertResource = (resource: EditorResourceLink) => {
@@ -233,12 +241,12 @@ export function MarkdownEditor({
             <Icon size={15} />
           </button>
         ))}
-        <button type="button" title="插入资源链接" aria-label="插入资源链接" onMouseDown={(e) => e.preventDefault()} onClick={() => setResourceOpen((open) => !open)} className="ml-1 flex h-7 cursor-pointer items-center gap-1 rounded-[6px] border border-border px-1.5 text-[10px] text-muted transition-colors hover:border-accent hover:text-accent"><Link2 size={13} />资源</button>
+        <button ref={resourceButtonRef} type="button" title={tr("resource.insert")} aria-label={tr("resource.insert")} aria-expanded={resourceOpen} onMouseDown={(e) => e.preventDefault()} onClick={() => setResourceOpen((open) => !open)} className="ml-1 flex h-7 cursor-pointer items-center gap-1 rounded-[6px] border border-border px-1.5 text-[10px] text-muted transition-colors hover:border-accent hover:text-accent"><Link2 size={13} />{tr("resource.label")}</button>
       </div>
-      {resourceOpen && <div className="motion-pop absolute left-3 top-11 z-30 w-80 rounded-[10px] border border-border bg-surface p-2 shadow-lg">
-        <input autoFocus value={resourceQuery} onChange={(e) => setResourceQuery(e.target.value)} placeholder="搜索笔记或对话" className="mb-1.5 h-8 w-full rounded-md border border-border bg-bg px-2 text-xs outline-none focus:border-accent" />
-        <div className="max-h-64 overflow-y-auto">{filteredResources.length ? filteredResources.map((resource) => <button key={resource.url} onMouseDown={(e) => { e.preventDefault(); insertResource(resource); }} className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs hover:bg-surface-hover"><span className="rounded bg-accent-soft px-1 py-0.5 text-[9px] text-accent-strong">{resource.kind}</span><span className="truncate">{resource.title}</span></button>) : <div className="px-2 py-3 text-center text-xs text-muted">没有匹配资源</div>}</div>
-      </div>}
+      <AnchoredPopover anchorRef={resourceButtonRef} open={resourceOpen} onClose={() => setResourceOpen(false)} placement="bottom-start" className="z-50 w-80 rounded-[10px] border border-border bg-surface p-2 shadow-lg">
+        <Input autoFocus value={resourceQuery} onChange={(e) => setResourceQuery(e.target.value)} placeholder={tr("resource.search")} className={`${FIELD_CLS} mb-1.5`} />
+        <div className="max-h-64 overflow-y-auto">{filteredResources.length ? filteredResources.map((resource) => <button key={resource.url} onMouseDown={(e) => { e.preventDefault(); insertResource(resource); }} className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs hover:bg-surface-hover"><span className="rounded bg-accent-soft px-1 py-0.5 text-[9px] text-accent-strong">{tr(`resource.kind.${resource.kind}`)}</span><span className="truncate">{resource.title}</span></button>) : <div className="px-2 py-3 text-center text-xs text-muted">{tr("resource.empty")}</div>}</div>
+      </AnchoredPopover>
       {/* 编辑区 */}
       <textarea
         ref={taRef}
@@ -286,7 +294,7 @@ export function MarkdownEditor({
               }}
               className="block w-full cursor-pointer rounded-md px-2.5 py-1.5 text-left text-xs text-accent hover:bg-surface-hover"
             >
-              + {createWikiLabel ?? "新建笔记"}「{wikiQuery}」
+              + {createWikiLabel ?? tr("notes.new")}「{wikiQuery}」
             </button>
           )}
         </div>

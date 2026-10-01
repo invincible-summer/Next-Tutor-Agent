@@ -8,8 +8,11 @@ import { getAdminLLMRunPolicy, setAdminLLMRunPolicy, type AdminLLMRunPolicy } fr
 import { Card, CardHeader } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Field, inputCls, type Tr } from "./Field";
+import { localeFor } from "@/lib/i18n";
+import { useUIStore } from "@/lib/store";
 
 export function LLMRunPolicyPanel({ tr }: { tr: Tr }) {
+  const lang = useUIStore((s) => s.lang);
   const [busy, setBusy] = useState(false);
   const [applied, setApplied] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -119,7 +122,7 @@ export function LLMRunPolicyPanel({ tr }: { tr: Tr }) {
       <div className="mt-3 flex items-center justify-between">
         <span className="text-[0.65rem] text-muted">
           {policy?.updated_at
-            ? `${tr("adm.llm.updatedAt")}: ${new Date(policy.updated_at * 1000).toLocaleString()}`
+            ? `${tr("adm.llm.updatedAt")}: ${new Date(policy.updated_at * 1000).toLocaleString(localeFor(lang))}`
             : ""}
         </span>
         <Button size="sm" disabled={busy} onClick={() => void apply()}

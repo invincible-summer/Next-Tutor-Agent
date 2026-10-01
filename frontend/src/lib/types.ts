@@ -17,6 +17,8 @@ export function gradeFromApi(g: string | undefined | null): Grade {
 export interface ChatMessage {
   role: "user" | "assistant";
   content: string;
+  /** 后端稳定消息 ID（G3）：chat_message 深链定位用；旧会话可能缺失。 */
+  message_id?: string;
   thinking?: string;
   toolCalls?: ToolCallRecord[];
   attachments?: AttachmentMeta[];

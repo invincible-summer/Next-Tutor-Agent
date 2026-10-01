@@ -3,7 +3,11 @@ import type { PageStrings } from "@/lib/i18n-page";
 
 export const STRINGS = {
   zh: {
+    "ins.stat.strategies": "教学策略",
+    "ins.stat.strategies.foot": "有实测记录的教学策略数",
     "ins.title": "系统洞察",
+    "ins.deep.proposalMissing": "未找到该教学提案，可能已被处理或移除。",
+    "ins.deep.guidanceMissing": "未找到该生效指导，可能已被撤销。",
     "ins.subtitle": "M7 评估与改进智能 · 改进顾问层",
     "ins.observer":
       "M7 是纯观察者：observe → diagnose → propose。批准与部署由人工在此确认，智能层不会自行修改教学行为。",
@@ -18,6 +22,7 @@ export const STRINGS = {
     "ins.context.pressure.danger": "触及硬阈值",
     "ins.context.window": "上下文窗口",
     "ins.context.avgInput": "平均输入",
+    "ins.context.calls": "%n 次调用",
     "ins.context.avgOutput": "平均输出",
     "ins.context.saved": "估算节省",
     "ins.context.tokens": "tokens",
@@ -88,7 +93,11 @@ export const STRINGS = {
     "ins.disabled": "M7 评估智能已被环境开关关闭。",
   },
   en: {
+    "ins.stat.strategies": "Teaching strategies",
+    "ins.stat.strategies.foot": "Strategies with recorded outcomes",
     "ins.title": "Insights",
+    "ins.deep.proposalMissing": "Proposal not found; it may have been handled or removed.",
+    "ins.deep.guidanceMissing": "Active guidance not found; it may have been revoked.",
     "ins.subtitle": "M7 Evaluation & Improvement · advisor layer",
     "ins.observer":
       "M7 is a pure observer: observe → diagnose → propose. Approve & deploy are confirmed by a human here — the agent never changes teaching behavior on its own.",
@@ -103,6 +112,7 @@ export const STRINGS = {
     "ins.context.pressure.danger": "Hard threshold",
     "ins.context.window": "Context window",
     "ins.context.avgInput": "Avg input",
+    "ins.context.calls": "%n calls",
     "ins.context.avgOutput": "Avg output",
     "ins.context.saved": "Estimated saved",
     "ins.context.tokens": "tokens",

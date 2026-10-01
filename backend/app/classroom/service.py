@@ -81,7 +81,7 @@ def create_lesson(student_id: str, workspace_id: str,
         job_id=job_id, owner_id=student_id, workspace_id=workspace_id,
         lesson_id=lesson_id, target_revision=target_revision,
         state=sc.JobState.queued, renderer_version="2.0.0",
-        slide_prompt_version="2.1.0",
+        slide_prompt_version="2.6.0",
         brief_hash=store.canonical_hash(
             brief.model_dump(mode="json", by_alias=True)),
         start_mode=request.start_mode, created_at=now, updated_at=now)
@@ -466,8 +466,8 @@ def get_revision_frame(student_id: str, workspace_id: str, lesson_id: str,
 
     已发布 revision 的冻结 spec 确定性编译；读取不写盘。
     """
-    if mode not in ("presentation", "reading", "print"):
-        raise ClassroomError("content_invalid", "mode 必须是 presentation|reading|print")
+    if mode not in ("presentation", "print"):
+        raise ClassroomError("content_invalid", "mode 必须是 presentation|print")
     spec = load_published_revision(student_id, workspace_id, lesson_id, revision)
     asset_bytes: dict[str, bytes] = {}
     for asset in spec.assets:
@@ -492,8 +492,6 @@ def get_revision_frame(student_id: str, workspace_id: str, lesson_id: str,
                              "课件渲染器不可用", retryable=True) from exc
     except ValueError as exc:
         raise ClassroomError("content_invalid", str(exc)) from exc
-    if mode == "reading":
-        html = html.replace('<html lang=', '<html data-reading="1" lang=', 1)
     return html
 
 

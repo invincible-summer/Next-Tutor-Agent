@@ -53,6 +53,7 @@ MAX_SLIDES = 24
 MAX_SEGMENTS_AUTHORED = 12
 MAX_SEGMENTS_AFTER_SPLIT = 24
 MAX_BLOCKS_PER_SLIDE = 16
+MAX_INLINE_SPANS = 32  # Alternating prose/math is not a measure of visual density.
 MAX_CLAIMS_PER_SLIDE = 12
 MAX_PUBLISHED_REVISIONS = 20
 
@@ -481,7 +482,7 @@ DiagramSpec = Annotated[
 class ParagraphBlock(_StrictModel):
     kind: Literal["paragraph"] = "paragraph"
     id: BlockId
-    spans: list[InlineSpan] = Field(..., min_length=1, max_length=8)
+    spans: list[InlineSpan] = Field(..., min_length=1, max_length=MAX_INLINE_SPANS)
 
 
 class BulletsBlock(_StrictModel):
@@ -492,7 +493,7 @@ class BulletsBlock(_StrictModel):
     @model_validator(mode="after")
     def _check(self) -> "BulletsBlock":
         for item in self.items:
-            if not (1 <= len(item) <= 8):
+            if not (1 <= len(item) <= MAX_INLINE_SPANS):
                 raise ValueError("bullets 条目 span 数非法")
             for span in item:
                 text = getattr(span, "text", None)
@@ -507,6 +508,14 @@ class FormulaBlock(_StrictModel):
     latex: str = Field(..., min_length=1, max_length=MAX_LATEX)
     spoken: str = Field(..., min_length=1, max_length=MAX_SPOKEN)
     label: str | None = Field(None, min_length=1, max_length=40)
+
+
+class CodeBlock(_StrictModel):
+    kind: Literal["code"] = "code"
+    id: BlockId
+    code: str = Field(..., min_length=1, max_length=12000)
+    language: str = Field("text", pattern=r"^[a-zA-Z0-9_+#.-]{1,30}$")
+    caption: str = Field("", max_length=160)
 
 
 class ImageBlock(_StrictModel):
@@ -542,7 +551,7 @@ class TableBlock(_StrictModel):
 
 class StepItem(_StrictModel):
     label: str = Field(..., min_length=1, max_length=40)
-    spans: list[InlineSpan] = Field(..., min_length=1, max_length=6)
+    spans: list[InlineSpan] = Field(..., min_length=1, max_length=MAX_INLINE_SPANS)
 
 
 class StepsBlock(_StrictModel):
@@ -567,13 +576,13 @@ class CalloutBlock(_StrictModel):
     kind: Literal["callout"] = "callout"
     id: BlockId
     tone: CalloutTone = CalloutTone.note
-    spans: list[InlineSpan] = Field(..., min_length=1, max_length=8)
+    spans: list[InlineSpan] = Field(..., min_length=1, max_length=MAX_INLINE_SPANS)
 
 
 SlideBlock = Annotated[
     Union[
         ParagraphBlock, BulletsBlock, FormulaBlock, ImageBlock, TableBlock,
-        StepsBlock, DiagramBlock, CheckpointBlock, CalloutBlock,
+        StepsBlock, DiagramBlock, CheckpointBlock, CalloutBlock, CodeBlock,
     ],
     Field(discriminator="kind"),
 ]
@@ -601,6 +610,16 @@ class NarrationSegment(_StrictModel):
     estimated_ms: int = Field(0, ge=0, le=600_000)
 
 
+class SlideComposition(_StrictModel):
+    """Model-selected design intent; never accepts executable HTML/CSS."""
+    mode: Literal["auto", "stack", "columns", "sidebar", "editorial"] = "auto"
+    density: Literal["balanced", "compact", "airy"] = "balanced"
+    surface: Literal["plain", "soft", "outlined"] = "plain"
+    focal_block_id: BlockId | None = None
+    emphasis_block_id: BlockId | None = None
+    wide_block_ids: list[BlockId] = Field(default_factory=list, max_length=16)
+
+
 class SlideSpec(_StrictModel):
     slide_id: SlideId
     order: int = Field(..., ge=1, le=MAX_SLIDES)
@@ -608,6 +627,7 @@ class SlideSpec(_StrictModel):
     learning_objective_ids: list[ObjectiveId] = Field(
         default_factory=list, max_length=8)
     layout: SlideLayout
+    composition: SlideComposition | None = None
     blocks: list[SlideBlock] = Field(..., min_length=1, max_length=MAX_BLOCKS_PER_SLIDE)
     segments: list[NarrationSegment] = Field(
         ..., min_length=1, max_length=MAX_SEGMENTS_AFTER_SPLIT)
@@ -621,6 +641,17 @@ class SlideSpec(_StrictModel):
     def _check(self) -> "SlideSpec":
         if not check_mixed_text(self.title, 36, 12):
             raise ValueError("页面标题超长（≤36 中文字或 ≤12 英文词）")
+        if self.composition is not None:
+            if self.composition.focal_block_id is not None and self.composition.focal_block_id not in {
+                    block.id for block in self.blocks}:
+                raise ValueError("视觉主角必须引用本页组件")
+            image_count = sum(block.kind == "image" for block in self.blocks)
+            if image_count > 1:
+                raise ValueError("每页至多一张插图，其他知识用文字或受控图形表达")
+            if image_count and not any(block.kind in (
+                    "paragraph", "bullets", "steps", "callout", "table", "code")
+                    for block in self.blocks):
+                raise ValueError("插图必须配合同页解释，不生成整页插图")
         return self
 
 
@@ -1075,13 +1106,20 @@ class DeleteSlideChange(_StrictModel):
     slide_id: SlideId
 
 
+class ReplaceBlockChange(_StrictModel):
+    op: Literal["replace_block"] = "replace_block"
+    slide_id: SlideId
+    block_id: BlockId
+    block: SlideBlock
+
+
 class ReorderSlidesChange(_StrictModel):
     op: Literal["reorder_slides"] = "reorder_slides"
     page_ids: list[SlideId] = Field(..., min_length=1, max_length=MAX_SLIDES)
 
 
 EditChange = Annotated[
-    Union[ReplaceSlideChange, DeleteSlideChange, ReorderSlidesChange],
+    Union[ReplaceSlideChange, ReplaceBlockChange, DeleteSlideChange, ReorderSlidesChange],
     Field(discriminator="op"),
 ]
 
@@ -1110,6 +1148,13 @@ class ReplaceImageOperation(_StrictModel):
     asset_id: AssetId | None = None
 
 
+class RegenerateBlockOperation(_StrictModel):
+    op: Literal["regenerate_block"] = "regenerate_block"
+    slide_id: SlideId
+    block_id: BlockId
+    instruction: str = Field(..., min_length=1, max_length=500)
+
+
 class RefreshResearchOperation(_StrictModel):
     op: Literal["refresh_research"] = "refresh_research"
     scope: RefreshScope = RefreshScope.missing
@@ -1118,7 +1163,7 @@ class RefreshResearchOperation(_StrictModel):
 RevisionOperation = Annotated[
     Union[
         EditContentOperation, ChangeThemeOperation, RegenerateSlideOperation,
-        ReplaceImageOperation, RefreshResearchOperation,
+        ReplaceImageOperation, RefreshResearchOperation, RegenerateBlockOperation,
     ],
     Field(discriminator="op"),
 ]
@@ -1731,14 +1776,15 @@ PUBLIC_TYPE_UNIONS: dict[str, tuple[str, ...]] = {
     "SlideBlock": (
         "ParagraphBlock", "BulletsBlock", "FormulaBlock", "ImageBlock",
         "TableBlock", "StepsBlock", "DiagramBlock", "CheckpointBlock",
-        "CalloutBlock",
+        "CalloutBlock", "CodeBlock",
     ),
     "SourceLocator": ("FileLocator", "WebLocator"),
-    "EditChange": ("ReplaceSlideChange", "DeleteSlideChange", "ReorderSlidesChange"),
+    "EditChange": ("ReplaceSlideChange", "ReplaceBlockChange", "DeleteSlideChange", "ReorderSlidesChange"),
     "RevisionOperation": (
         "EditContentOperation", "ChangeThemeOperation",
         "RegenerateSlideOperation", "ReplaceImageOperation",
         "RefreshResearchOperation",
+        "RegenerateBlockOperation",
     ),
 }
 
@@ -1758,8 +1804,8 @@ PUBLIC_TYPE_MODELS: list[str] = [
     "CartesianPlot", "ForceBody", "ForceArrow", "ForceDiagram",
     "ParagraphBlock", "BulletsBlock", "FormulaBlock", "ImageBlock",
     "TableBlock", "StepItem", "StepsBlock", "DiagramBlock",
-    "CheckpointBlock", "CalloutBlock",
-    "TeachingClaim", "NarrationSegment", "SlideSpec",
+    "CheckpointBlock", "CalloutBlock", "CodeBlock",
+    "TeachingClaim", "NarrationSegment", "SlideComposition", "SlideSpec",
     "Objective", "GlossaryEntry", "CheckpointTemplate", "OutlinePage",
     "OutlinePlan", "VisualIntent",
     "FileLocator", "WebLocator", "SourceRecord", "AssetProvenance",
@@ -1769,10 +1815,11 @@ PUBLIC_TYPE_MODELS: list[str] = [
     "ReviewIssue", "ReviewReport", "LessonRevision", "Lesson", "JobBudget",
     "GenerationJob", "JobPreviewResponse", "Cursor", "LeaseInfo", "RunCheckpointRef",
     "AudioProfile", "RunAnnotation", "ClassroomRun", "AudioClip", "ExportJob",
-    "ReplaceSlideChange", "DeleteSlideChange", "ReorderSlidesChange",
+    "ReplaceSlideChange", "ReplaceBlockChange", "DeleteSlideChange", "ReorderSlidesChange",
     "EditContentOperation", "ChangeThemeOperation",
     "RegenerateSlideOperation", "ReplaceImageOperation",
     "RefreshResearchOperation",
+    "RegenerateBlockOperation",
     "ErrorBody", "ErrorResponse",
     "SourcePublic", "AssetPublic", "CheckpointPublic", "BriefPublic",
     "RevisionPublic", "JobProgress", "JobPublic", "LessonBriefProgress",

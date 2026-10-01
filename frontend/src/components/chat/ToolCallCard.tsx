@@ -116,12 +116,12 @@ export function ToolCallCard({ name, result }: { name: string; result: unknown }
                 </p>
                 <div className="space-y-1">
                   {knowledgeResults.map((item, i) => {
-                    const filename = String(item.filename || item.source || "资料");
+                    const filename = String(item.filename || item.source || tr("tool.knowledge.resource"));
                     // 双轨页码：教材自标印刷页码优先，PDF 物理页码兜底
                     const printed = item.printed_page;
                     const page = printed
-                      ? `${tr("tool.knowledge.printedPage", "教材第")} ${String(printed)} ${tr("tool.knowledge.pageUnit", "页")}`
-                      : item.page ? `PDF 第 ${String(item.page)} 页` : tr("tool.knowledge.unpaged", "未标页");
+                      ? tr("tool.knowledge.textbookPage").replace("%n", String(printed))
+                      : item.page ? tr("tool.knowledge.pdfPage").replace("%n", String(item.page)) : tr("tool.knowledge.unpaged", "未标页");
                     const chapter = String(item.chapter || "").trim();
                     const section = String(item.section || "").trim();
                     // 章（单元）与节（课/篇目）并存且不同时都展示：如「第一单元 · 沁园春·江畔」
@@ -145,10 +145,10 @@ export function ToolCallCard({ name, result }: { name: string; result: unknown }
                 <div key={`excerpt-${String(item.chunk_id || i)}`} className="rounded-[7px] border border-border-light px-2.5 py-2">
                   <p className="mb-1 flex items-center gap-1.5 text-[0.68rem] text-muted">
                     <span>
-                      {String(item.filename || item.source || "资料")}
+                      {String(item.filename || item.source || tr("tool.knowledge.resource"))}
                       {item.printed_page
-                        ? ` · ${tr("tool.knowledge.printedPage", "教材第")} ${String(item.printed_page)} ${tr("tool.knowledge.pageUnit", "页")}`
-                        : item.page ? ` · PDF 第 ${String(item.page)} 页` : ""}
+                        ? ` · ${tr("tool.knowledge.textbookPage").replace("%n", String(item.printed_page))}`
+                        : item.page ? ` · ${tr("tool.knowledge.pdfPage").replace("%n", String(item.page))}` : ""}
                     </span>
                     {canViewPage(item) && (
                       <button

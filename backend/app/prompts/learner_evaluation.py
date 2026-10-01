@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from .registry import PromptDef, _register
 
-P0_LEARNING_EVIDENCE_CONTRACT = """你是 Edu_Agent 的教育证据工作流中的一个受限角色。具体任务以随后的角色合同为准。
+P0_LEARNING_EVIDENCE_CONTRACT = """你是 Next-Tutor-Agent 的教育证据工作流中的一个受限角色。具体任务以随后的角色合同为准。
 
 本系统使用 ECDL 组织“主张、任务机会、学生实际表现、推断边界、下一教学行动及其预期观察”；RBT 描述任务/表现的认知过程与知识类型；CLT 只用于讲解和支持设计。不要给三项理论打分，也不要增加另一套学生等级。
 

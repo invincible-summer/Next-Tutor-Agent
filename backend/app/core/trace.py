@@ -17,9 +17,11 @@ from .config import trace_dir_path
 
 
 class Trace:
-    def __init__(self, run_id: str | None = None) -> None:
+    def __init__(self, run_id: str | None = None, *, persistent: bool = True) -> None:
+        from .execution_policy import current_policy
+        self.persistent = persistent and current_policy().persistent
         self.run_id = run_id or uuid.uuid4().hex[:12]
-        self.path = trace_dir_path() / f"trace_{self.run_id}.jsonl"
+        self.path = trace_dir_path() / f"trace_{self.run_id}.jsonl" if self.persistent else None
         self.events: list[dict[str, Any]] = []
         self._t0 = time.time()
         # R11: usage/cost accumulator
@@ -32,6 +34,8 @@ class Trace:
         self._decision_chain: list[dict[str, Any]] = []
 
     def log(self, kind: str, **payload: Any) -> None:
+        if not self.persistent:
+            return
         ev = {
             "ts": round(time.time() - self._t0, 3),
             "run_id": self.run_id,

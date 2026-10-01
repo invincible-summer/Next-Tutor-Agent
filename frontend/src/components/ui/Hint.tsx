@@ -1,10 +1,13 @@
+"use client";
+
 import { cn } from "@/lib/cn";
 import { HelpCircle } from "lucide-react";
-import type { ReactNode } from "react";
+import { useId, type ReactNode } from "react";
 
 /** 问号悬浮提示：纯 CSS hover/聚焦气泡，用于收纳表单与卡片的补充说明。 */
 export function Hint({
   text,
+  label,
   side = "top",
   align = "start",
   iconSize = 12,
@@ -12,21 +15,25 @@ export function Hint({
   className,
 }: {
   text: ReactNode;
+  label?: string;
   side?: "top" | "bottom";
   align?: "start" | "center" | "end";
   iconSize?: number;
   width?: string;
   className?: string;
 }) {
+  const id = useId();
   return (
     <span className={cn("relative inline-flex group/hint", className)}>
-      <HelpCircle
-        size={iconSize}
-        tabIndex={0}
-        aria-label={typeof text === "string" ? text : undefined}
+      <button
+        type="button"
+        aria-label={label ?? (typeof text === "string" ? text : undefined)}
+        aria-describedby={id}
         className="shrink-0 cursor-help text-muted transition-colors hover:text-fg-secondary focus-visible:outline-none focus-visible:text-accent"
-      />
+      ><HelpCircle size={iconSize} aria-hidden="true" /></button>
       <span
+        id={id}
+        role="tooltip"
         className={cn(
           "pointer-events-none absolute z-50 hidden rounded-md border border-border bg-surface px-2.5 py-2 text-left text-[0.65rem] leading-relaxed text-fg-secondary shadow-lg group-hover/hint:block group-focus-within/hint:block",
           width,

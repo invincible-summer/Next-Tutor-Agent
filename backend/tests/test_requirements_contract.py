@@ -44,7 +44,8 @@ class RequirementsContractTest(unittest.TestCase):
         for banned in ("sentence-transformers==", "transformers==", "scikit-learn==", "torch=="):
             self.assertNotIn(banned, constraints)
         test_requirements = (BACKEND / "requirements-test.txt").read_text(encoding="utf-8")
-        self.assertIn("-r requirements-vector.txt", test_requirements)
+        self.assertNotIn("-r requirements-vector.txt", test_requirements)
+        self.assertIn("httpx2", _requirement_names("requirements-test.txt"))
 
     def test_constraints_pin_python311_production_set(self):
         constraints = (BACKEND / "constraints.txt").read_text(encoding="utf-8")

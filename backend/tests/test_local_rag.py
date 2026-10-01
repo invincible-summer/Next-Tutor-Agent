@@ -15,7 +15,7 @@ try:
     import numpy as np
     _HAS_VECTOR_DEPS = True
 except ImportError:  # BM25-only production（plan.md §22.1）：本文件属
-    _HAS_VECTOR_DEPS = False  # backend-vector-regression job，核心 job 跳过
+    _HAS_VECTOR_DEPS = False  # Extended regression，核心 CI 跳过
 
 
 def load_tests(loader, tests, pattern):

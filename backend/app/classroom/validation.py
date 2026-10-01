@@ -50,6 +50,8 @@ def _block_texts(block) -> list[str]:
         out.append(block.spoken)
         if block.label:
             out.append(block.label)
+    elif kind == "code":
+        out.extend([block.code, block.caption])
     elif kind == "image":
         out.extend([block.alt, block.caption])
     elif kind == "diagram":
@@ -383,6 +385,8 @@ def coerce_layout_blocks(slide: sc.SlideSpec, *,
 
     # 必需元素未生成（如图库不可用导致无 image）时，选择能容纳现有块
     # 的布局，避免为一个展示模板重写整页。
+    if slide.composition is not None:
+        return False
     original_layout = slide.layout
     counts = {}
     for block in slide.blocks:

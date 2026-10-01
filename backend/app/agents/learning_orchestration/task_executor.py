@@ -172,7 +172,11 @@ def mark_overdue(state: OrchestrationState, *,
     count = 0
     for t in state.daily_tasks:
         if t.status.value in ("pending", "in_progress") and t.day < today:
+            from_status = t.status
             t.status = DailyTaskStatus.OVERDUE
+            # §22.2-2（B08）：逾期迁移记 task_status_changed。
+            from . import history as _history
+            _history.note_status_change(state, t, from_status, now=now)
             count += 1
     return count
 

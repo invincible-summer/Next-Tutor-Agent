@@ -16,6 +16,8 @@ import {
 import {
   BrowserRecognition, type RecognitionLang,
 } from "@/lib/voice/browser-recognition";
+import { Textarea } from "@/components/ui/Input";
+import { Markdown } from "@/components/chat/markdown";
 
 export interface QuestionDrawerStrings {
   title: string;
@@ -36,14 +38,16 @@ export interface QuestionDrawerStrings {
  * QuestionDrawerStrings / 页面词条 cls.ask.<labelKey>。 */
 export const QUICK_PRESETS = [
   { id: "confused", text: QUICK_CONFUSED, Icon: CircleHelp,
+    textEn: "Please explain that part more intuitively. I have not understood it yet.",
     labelKey: "confused" },
   { id: "example", text: QUICK_EXAMPLE, Icon: Lightbulb,
+    textEn: "Please give a concrete example of the concept you just explained.",
     labelKey: "example" },
 ] as const;
 
 export function QuestionDrawer(
   { turns, asking, sttLang, onMicPress, onAsk, onResume, onResumeFromPage,
-    onClose, s }:
+    onClose, s, initialDraft, embedded = false, disabled = false }:
   {
     turns: QATurn[];
     asking: boolean;
@@ -55,9 +59,18 @@ export function QuestionDrawer(
     onResumeFromPage: () => void;
     onClose: () => void;
     s: QuestionDrawerStrings;
+    /** 助手插问草稿预填（§9.5）：只预填，不自动提交。 */
+    initialDraft?: string;
+    embedded?: boolean;
+    disabled?: boolean;
   },
 ) {
-  const [draft, setDraft] = useState("");
+  const [draft, setDraft] = useState(initialDraft ?? "");
+  const [lastDraft, setLastDraft] = useState(initialDraft);
+  if (initialDraft !== lastDraft) {
+    setLastDraft(initialDraft);
+    if (initialDraft !== undefined) setDraft(initialDraft);
+  }
   const [recording, setRecording] = useState(false);
   const [sttError, setSttError] = useState(false);
   const listRef = useRef<HTMLDivElement | null>(null);
@@ -66,8 +79,7 @@ export function QuestionDrawer(
     && BrowserRecognition.supported();
 
   useEffect(() => {
-    const recognition = recognitionRef.current;
-    return () => recognition?.abort();
+    return () => recognitionRef.current?.abort();
   }, []);
 
   useEffect(() => {
@@ -78,7 +90,7 @@ export function QuestionDrawer(
   const lastDone = turns.length > 0 && turns[turns.length - 1].done;
 
   const submit = () => {
-    if (!draft.trim() || asking) return;
+    if (!draft.trim() || asking || disabled) return;
     onAsk(draft);
     setDraft("");
   };
@@ -110,22 +122,22 @@ export function QuestionDrawer(
   return (
     <section
       aria-label={s.title}
-      className="motion-drawer absolute inset-y-0 right-0 z-20 flex w-full max-w-[420px] flex-col border-l border-border bg-surface shadow-xl sm:w-[420px]"
+      className={embedded ? "flex h-full min-h-0 flex-col bg-surface" : "motion-drawer absolute inset-y-0 right-0 z-20 flex w-full max-w-[420px] flex-col border-l border-border bg-surface shadow-xl sm:w-[420px]"}
     >
       <header className="flex items-center gap-2 border-b border-border px-4 py-2.5">
         <MessageCircle size={16} className="text-accent" />
         <h2 className="flex-1 text-sm font-semibold text-fg">{s.title}</h2>
-        <button type="button" onClick={onClose} aria-label={s.close}
+        {!embedded && <button type="button" onClick={onClose} aria-label={s.close}
                 className="flex h-8 w-8 items-center justify-center rounded-[8px] text-muted hover:bg-surface-hover hover:text-fg">
           <X size={15} />
-        </button>
+        </button>}
       </header>
 
       {/* 快捷补讲：真实用户操作表达（§12.6），点击即发送 */}
       <div className="flex flex-wrap gap-2 border-b border-border px-4 py-2.5">
-        {QUICK_PRESETS.map(({ id, text, Icon, labelKey }) => (
-          <button key={id} type="button" disabled={asking}
-                  onClick={() => onAsk(text)}
+        {QUICK_PRESETS.map(({ id, text, textEn, Icon, labelKey }) => (
+          <button key={id} type="button" disabled={asking || disabled}
+                  onClick={() => onAsk(sttLang === "en" ? textEn : text)}
                   className="inline-flex h-11 cursor-pointer items-center gap-1.5 rounded-full border border-border px-3.5 text-xs text-fg-secondary transition-colors hover:border-accent/50 hover:text-fg disabled:opacity-50">
             <Icon size={12} /> {s[labelKey]}
           </button>
@@ -146,7 +158,7 @@ export function QuestionDrawer(
             </p>
             {turn.answer && (
               <div className="w-fit max-w-[92%] whitespace-pre-wrap rounded-[12px] rounded-bl-[4px] border border-border bg-bg px-3 py-2 text-[0.82rem] leading-relaxed text-fg">
-                {turn.answer}
+                <Markdown className="chat-prose classroom-prose">{turn.answer}</Markdown>
               </div>
             )}
             {asking && i === turns.length - 1 && !turn.answer && (
@@ -162,7 +174,7 @@ export function QuestionDrawer(
       </div>
 
       {/* 问答结束保持暂停：恢复由用户点击（§12.5） */}
-      {lastDone && !asking && (
+      {lastDone && !asking && !disabled && (
         <div className="flex items-center gap-2 border-t border-border px-4 py-2.5">
           <button type="button" onClick={onResume}
                   className="inline-flex h-11 flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-[10px] bg-accent px-4 text-sm font-medium text-on-accent transition-colors hover:bg-accent/85">
@@ -180,7 +192,7 @@ export function QuestionDrawer(
           <button type="button"
                   aria-label={recording ? s.micRecording : s.micHold}
                   aria-pressed={recording}
-                  disabled={asking}
+                  disabled={asking || disabled}
                   onPointerDown={(e) => { e.preventDefault(); micDown(); }}
                   onPointerUp={micUp}
                   onPointerLeave={micUp}
@@ -194,7 +206,8 @@ export function QuestionDrawer(
             <Mic size={16} />
           </button>
         )}
-        <textarea
+        <Textarea
+          disabled={disabled}
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
           onKeyDown={(e) => {
@@ -206,9 +219,9 @@ export function QuestionDrawer(
           }}
           rows={2}
           placeholder={s.placeholder}
-          className="min-h-[44px] flex-1 resize-none rounded-[10px] border border-border bg-bg px-3 py-2 text-sm text-fg outline-none transition-colors placeholder:text-muted focus:border-accent"
+          className="min-h-[44px] min-w-0 flex-1 resize-none"
         />
-        <button type="button" onClick={submit} disabled={asking || !draft.trim()}
+        <button type="button" onClick={submit} disabled={asking || disabled || !draft.trim()}
                 aria-label={s.send}
                 className="flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center rounded-[10px] bg-accent text-on-accent transition-colors hover:bg-accent/85 disabled:opacity-40">
           <Send size={16} />

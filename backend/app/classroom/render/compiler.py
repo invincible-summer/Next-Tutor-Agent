@@ -17,6 +17,8 @@ from ...schemas.classroom import (
     CheckpointTemplate,
     ImageBlock,
     LessonRevision,
+    MAX_BLOCKS_PER_SLIDE,
+    SlideComposition,
     SourceRecord,
 )
 from . import blocks as blocks_mod
@@ -68,7 +70,7 @@ justify-content:center;overflow:hidden}}
 background:var(--cc-bg);color:var(--cc-text);border-radius:14px;
 overflow:hidden;transform-origin:center center;padding:var(--safe);
 display:flex;flex-direction:column}}
-.stage h1{{font-size:var(--cc-fs-title);line-height:1.22;font-weight:700;
+.stage h1{{overflow-wrap:anywhere;flex-shrink:0;font-size:var(--cc-fs-title);line-height:1.22;font-weight:700;
 margin-bottom:16px}}
 .slide[data-hero="1"] .stage h1{{font-size:calc(var(--cc-fs-title) * 1.5);
 margin-top:auto;margin-bottom:auto}}
@@ -91,6 +93,11 @@ outline-offset:2px;border-color:var(--cc-focus-ring)}}
 text-underline-offset:4px;text-decoration:underline;
 text-decoration-color:var(--cc-accent-soft)}}
 .span-math,.formula-box{{font-size:1.02em}}
+.plot-legend{{display:flex;flex-wrap:wrap;gap:8px 20px;font-size:18px;line-height:1.4;padding:8px 12px}}
+.plot-legend-item{{display:inline-flex;gap:8px;align-items:center;min-width:0}}
+.plot-legend-item i{{display:inline-block;width:24px;height:3px;flex:none}}
+.slide[data-theme^="chalk_focus"]{{--cc-series-2:#7ED4B2;--cc-series-3:#FFA663}}
+.table td.numeric{{white-space:nowrap;font-variant-numeric:tabular-nums}}
 .block.bullets ul{{list-style:none;display:flex;flex-direction:column;gap:10px}}
 .block.bullets li{{position:relative;padding-left:30px}}
 .block.bullets li::before{{content:"";position:absolute;left:2px;top:.52em;
@@ -109,7 +116,7 @@ border:1px dashed var(--cc-border);border-radius:calc(var(--cc-radius) - 4px);
 font-size:var(--cc-fs-caption)}}
 .block.image figcaption{{font-size:var(--cc-fs-caption);color:var(--cc-muted);
 line-height:1.5;padding:0 4px}}
-.block.table table{{width:100%;border-collapse:collapse;font-size:calc(
+.block.table table{{width:100%;table-layout:fixed;border-collapse:collapse;font-size:calc(
 var(--cc-fs-body) * .86)}}
 .block.table th,.block.table td{{border:1px solid var(--cc-border);
 padding:7px 11px;text-align:left}}
@@ -120,7 +127,8 @@ color:var(--cc-muted)}}
 counter-reset:step}}
 .block.steps li{{display:flex;gap:14px;align-items:baseline}}
 .block.steps li{{counter-increment:step}}
-.block.steps .step-label{{flex:none;min-width:64px;font-weight:650;
+.block.steps .step-body{{min-width:0;flex:1}}
+.block.steps .step-label{{flex:0 1 25%;min-width:64px;font-weight:650;
 color:var(--cc-accent)}}
 .block.steps .step-label::before{{content:counter(step) ". "}}
 .block.callout{{border-left:6px solid var(--cc-accent);
@@ -168,19 +176,6 @@ html[data-mode="offline"] #controls{{display:flex}}
 html[data-mode="offline"] #viewport{{padding-bottom:76px}}
 html[data-mode="print"] #controls{{display:none}}
 #page-indicator{{color:#eee;font-size:17px;align-self:center}}
-html[data-reading="1"] #viewport{{position:static;display:block;
-overflow:visible}}
-html[data-reading="1"] .slide{{display:none}}
-html[data-reading="1"] .slide.current{{display:block}}
-html[data-reading="1"] .stage{{width:100%;max-width:720px;margin:0 auto;
-height:auto;transform:none !important;padding:24px 18px;border-radius:0}}
-html[data-reading="1"] .cols-2 .body-area{{grid-template-columns:1fr}}
-html[data-reading="1"] .body-area{{overflow:visible;flex:none}}
-html[data-reading="1"] .stage h1{{font-size:calc(var(--cc-fs-title) * .82)}}
-html[data-reading="1"] .block{{font-size:30px}}
-html[data-reading="1"] .block.image img{{max-height:56vh}}
-html[data-reading="1"] .block.pending{{visibility:visible;opacity:1}}
-html[data-reading="1"] .block.focus{{outline:none;box-shadow:none}}
 @media (prefers-reduced-motion: reduce){{.block{{transition:none}}}}
 @media print{{
  body{{background:#fff}}
@@ -227,8 +222,24 @@ def _slide_html(revision: LessonRevision, slide, *,
             block, assets_data=assets_data,
             checkpoint_prompts=checkpoint_prompts)
         for block in slide.blocks)
+    composition = slide.composition
+    design = ""
+    if revision.renderer_version.startswith("2."):
+        composition = composition or SlideComposition()
+        design = (f'data-composition="{composition.mode}" '
+                  f'data-density="{composition.density}" data-surface="{composition.surface}" ')
+        for block in slide.blocks:
+            attrs = []
+            if block.id == composition.focal_block_id:
+                attrs.append('data-focal="1"')
+            if block.id == composition.emphasis_block_id:
+                attrs.append('data-emphasis="1"')
+            if block.id in composition.wide_block_ids:
+                attrs.append('data-wide="1"')
+            blocks_html = blocks_html.replace(f'data-block-id="{block.id}"',
+                f'data-block-id="{block.id}" ' + " ".join(attrs))
     total = len(revision.slides)
-    footer_left = (f"<span>{blocks_mod._esc(revision.brief.topic[:40])}"
+    footer_left = (f"<span>{blocks_mod.render_text(revision.brief.topic[:40])}"
                    f"</span>")
     footer_right = (
         f'<span class="page-no">{slide.order} / {total}</span>')
@@ -236,11 +247,11 @@ def _slide_html(revision: LessonRevision, slide, *,
         f'<section class="slide layout-{slide.layout.value}'
         f'{" cols-2" if spec.columns == 2 else ""}" '
         f'data-slide-id="{slide.slide_id}" data-order="{slide.order}" '
-        f'data-layout="{slide.layout.value}" '
+        f'data-layout="{slide.layout.value}" {design}'
         f'data-hero="{1 if spec.hero_title else 0}" '
         f'data-theme="{revision.brief.theme_id}">'
         f'<div class="stage">'
-        f"<h1>{blocks_mod._esc(slide.title)}</h1>"
+        f"<h1>{blocks_mod.render_text(slide.title)}</h1>"
         f'<div class="body-area">{blocks_html}</div>'
         f'<div class="slide-footer">{footer_left}'
         f"{_source_marks(slide_sources)}{footer_right}</div>"
@@ -248,13 +259,14 @@ def _slide_html(revision: LessonRevision, slide, *,
 
 
 def validate_layout_slots(revision: LessonRevision) -> None:
-    """布局 slot 校验（§9.2 固定 slots 与数量上限；编译与质量门共用）。"""
+    """旧页 slot 校验；显式构图允许混排，仍校验 checkpoint 引用。"""
     for slide in revision.slides:
         spec = layout_spec(slide.layout.value)
         counts: dict[str, int] = {}
         for block in slide.blocks:
             counts[block.kind] = counts.get(block.kind, 0) + 1
-        for kind, (max_count, required) in spec.slots.items():
+        slots = spec.slots if slide.composition is None else {kind: (MAX_BLOCKS_PER_SLIDE, False) for kind in counts}
+        for kind, (max_count, required) in slots.items():
             actual = counts.get(kind, 0)
             if actual > max_count:
                 raise ValueError(
@@ -264,7 +276,7 @@ def validate_layout_slots(revision: LessonRevision) -> None:
                 raise ValueError(
                     f"布局 {slide.layout.value} 缺少必需的 {kind}，"
                     f"slide_id={slide.slide_id}")
-        unknown = set(counts) - set(spec.slots)
+        unknown = set(counts) - set(slots)
         if unknown:
             raise ValueError(
                 f"布局 {slide.layout.value} 不允许 block：{sorted(unknown)}，"

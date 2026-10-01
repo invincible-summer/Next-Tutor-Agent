@@ -1,3 +1,5 @@
+import { t } from "@/lib/i18n";
+import { useUIStore } from "@/lib/store";
 // M-Notes 页面状态：仓库快照 + 当前笔记 + 脏态自动保存 + 每笔记专属智能体。
 // 约定与 useChatStore 一致：SSR 安全（不在 initializer 读 localStorage）、
 // 流式增量在本地累积、AbortController 挂在 store 上。
@@ -143,7 +145,7 @@ export const useNotesStore = create<NotesState>((set, get) => ({
       const vault = await getVault();
       set({ vault, vaultError: "", vaultLoading: false });
     } catch (e) {
-      set({ vaultError: e instanceof Error ? e.message : "加载失败",
+      set({ vaultError: e instanceof Error ? e.message : t(useUIStore.getState().lang, "notes.error.load"),
            vaultLoading: false });
     }
   },
@@ -173,7 +175,7 @@ export const useNotesStore = create<NotesState>((set, get) => ({
       set({ currentId: noteId, detail, content: detail.content,
             saveState: "saved", saveError: "", conflictDetail: null });
     } catch (e) {
-      set({ saveError: e instanceof Error ? e.message : "打开失败" });
+      set({ saveError: e instanceof Error ? e.message : t(useUIStore.getState().lang, "notes.error.open") });
     }
   },
   setContent: (content) => {
@@ -215,7 +217,7 @@ export const useNotesStore = create<NotesState>((set, get) => ({
               } });
       } else {
         set({ saveState: "error",
-              saveError: err.message || "保存失败" });
+              saveError: err.message || t(useUIStore.getState().lang, "notes.error.save") });
       }
     }
   },

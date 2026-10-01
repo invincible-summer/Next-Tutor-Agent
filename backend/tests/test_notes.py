@@ -17,6 +17,7 @@ Fake clients only, no network. Data dirs are redirected to temp dirs.
 """
 import os
 import sys
+from tests.storage_sandbox import patch_all_storage_roots, reset_shared_caches, authenticated_client
 import tempfile
 import unittest
 from pathlib import Path
@@ -42,6 +43,8 @@ class _TmpDirs:
         self._tmp = tempfile.TemporaryDirectory(prefix="notes_")
         root = Path(self._tmp.name)
         self.root = root
+        (root / "users").mkdir(exist_ok=True)
+        self._sandbox = patch_all_storage_roots(root)
         from app.agents.learning_orchestration import store as orch_store
         self._patches = [
             patch.object(notes_mod, "_NOTES_DIR", root / "notes"),
@@ -51,7 +54,7 @@ class _TmpDirs:
                          root / "chat_history" / "library"),
         ]
         if with_users:
-            (root / "users").mkdir()
+            (root / "users").mkdir(exist_ok=True)
             self._patches.append(
                 patch.object(id_store, "_ACCOUNTS_FILE",
                              root / "users" / "accounts.json"))
@@ -61,13 +64,16 @@ class _TmpDirs:
     def cleanup(self):
         for p in reversed(self._patches):
             p.stop()
+        for p in reversed(self._sandbox):
+            p.stop()
+        reset_shared_caches()
         self._tmp.cleanup()
 
 
 class TestNotesVaultApi(unittest.TestCase):
     def setUp(self) -> None:
         self._dirs = _TmpDirs(self)
-        self.client = TestClient(create_app())
+        self.client = authenticated_client(create_app(), "student_default")
 
     def tearDown(self) -> None:
         self._dirs.cleanup()

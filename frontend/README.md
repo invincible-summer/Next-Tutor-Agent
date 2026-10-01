@@ -1,36 +1,25 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Next Tutor Agent frontend
 
-## Getting Started
-
-First, run the development server:
+Use Node.js 22 and the pnpm version declared in `package.json`.
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+pnpm install --frozen-lockfile
+pnpm dev          # development server
+pnpm check        # types, ESLint, lightweight unit tests
+pnpm build        # webpack production build
+pnpm start        # serve the production build
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Browser tests start an isolated backend and fake LLM. Install backend test
+requirements, Chromium and classroom assets before running them:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+pnpm exec playwright install --with-deps chromium
+pnpm build:classroom
+NEXT_PUBLIC_BACKEND_URL=http://127.0.0.1:8124 pnpm build
+E2E_PRODUCTION=1 E2E_FRESH=1 pnpm test:e2e:ci  # critical journeys
+E2E_PRODUCTION=1 E2E_FRESH=1 pnpm test:e2e     # full regression
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+See [Testing and CI maintenance](../docs/TESTING.md) for Python setup, test
+isolation, diagnostics, and the GitHub workflow policy.

@@ -58,6 +58,7 @@ export function GuidancePanel({
           {active.map((e) => (
             <div
               key={e.id}
+              data-guidance-id={e.id}
               className="flex flex-col gap-1.5 rounded-[8px] border border-border-light bg-surface-sunken/40 p-3"
             >
               <div className="flex flex-wrap items-center gap-2">

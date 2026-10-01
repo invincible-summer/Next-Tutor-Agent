@@ -5,6 +5,7 @@ import {
   Loader2, Trash2, Upload,
 } from "lucide-react";
 import { useUIStore } from "@/lib/store";
+import { gradeLabel } from "@/lib/i18n";
 import { makePageT } from "@/lib/i18n-page";
 import {
   createWorkspace, deleteWorkspaceFile, downloadLibraryFile,
@@ -259,7 +260,7 @@ function Content({ target }: { target: "new" | string }) {
           )}
           {tb.subject && <span className="text-muted"> · {tb.subject}</span>}
         </span>
-        {tb.level && <Badge tone="muted">{tb.level}</Badge>}
+        {tb.level && <Badge tone="muted">{gradeLabel(lang, tb.level)}</Badge>}
       </label>
     );
   };
@@ -335,7 +336,7 @@ function Content({ target }: { target: "new" | string }) {
                   </div>
                   <div className="border-t border-accent/20 px-1.5 py-1">
                     {exclusiveFiles.length === 0 && !uploading && (
-                      <p className="px-2 py-1 text-[11px] text-muted/60">{tr("res.empty.files", "暂无文件")}</p>
+                      <p className="px-2 py-1 text-[11px] text-muted/60">{tr("wsm.files.empty")}</p>
                     )}
                     {exclusiveFiles.map((file) => (
                       <FileRow

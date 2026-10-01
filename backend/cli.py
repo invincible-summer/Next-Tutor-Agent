@@ -34,7 +34,7 @@ def main() -> int:
              for q in ((qh.get("questions") or []) if isinstance(qh, dict) else [])
              if isinstance(q, dict)]
     tools = [KnowledgeSearchTool(session.knowledge), GenerateQuizTool(llm, avoid_stems=avoid)]
-    print(f"[Edu_Agent] 学段={args.grade or '自动'} 模型已就绪。输入 'exit' 退出。", flush=True)
+    print(f"[Next-Tutor-Agent] 学段={args.grade or '自动'} 模型已就绪。输入 'exit' 退出。", flush=True)
 
     if args.once:
         _turn(args.once, session, tools)

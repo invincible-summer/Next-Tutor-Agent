@@ -1,11 +1,13 @@
 "use client";
+import { useAssistantPage } from "@/lib/assistant/useAssistantPage";
+import { currentRouteEpoch } from "@/lib/assistant/page-context";
 import { useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { API_BASE } from "@/lib/api";
 import { useAuthStore } from "@/lib/auth-store";
 import { useUIStore } from "@/lib/store";
-import { t } from "@/lib/i18n";
+import { t, GRADE_LABELS } from "@/lib/i18n";
 import { gradeForApi, type Grade } from "@/lib/types";
 import { Button } from "@/components/ui/Button";
 import { Field, Input } from "@/components/ui/Input";
@@ -16,9 +18,14 @@ import { AuthShell } from "@/components/auth/AuthShell";
 const GRADES = ["自动", "小学", "初中", "高中", "本科"] as const satisfies readonly Grade[];
 
 function RegisterForm() {
+  useAssistantPage({ context: () => ({ schema_version: 1, route_id: "register", route_epoch: currentRouteEpoch() }) });
   const router = useRouter();
   const params = useSearchParams();
-  const redirect = params.get("redirect") || "/chat";
+  // 只允许站内路径：外链与协议相对 //evil.com 会把刚注册的用户重定向到钓鱼站。
+  const rawRedirect = params.get("redirect");
+  const redirect = rawRedirect && rawRedirect.startsWith("/")
+    && !rawRedirect.startsWith("//") && !rawRedirect.startsWith("/\\")
+    ? rawRedirect : "/chat";
   const { setAuth } = useAuthStore();
   const { lang } = useUIStore();
   const tr = (k: string) => t(lang, k);
@@ -172,7 +179,7 @@ function RegisterForm() {
                         : "text-muted hover:text-fg"
                     }`}
                   >
-                    {g}
+                    {GRADE_LABELS[lang].find((entry) => entry.token === g)?.label ?? g}
                   </button>
                 ))}
               </div>

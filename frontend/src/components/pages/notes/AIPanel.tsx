@@ -28,6 +28,7 @@ import { VAULT_AGENT_KEY, notesChatStream, notesUpload } from "@/lib/api-notes";
 import { useNotesStore } from "@/lib/store-notes";
 import type { AgentMode } from "@/lib/types-notes";
 import { NotesToolCard, toolDisplayName } from "./NotesToolCard";
+import { useUIStore } from "@/lib/store";
 import { PlanCard, stripPlanCardJson } from "./PlanCard";
 
 const MODES: { key: AgentMode; icon: LucideIcon; labelKey: string; descKey: string }[] = [
@@ -54,6 +55,7 @@ export function AIPanel({
   /** 抽屉场景传入（关闭抽屉）；内联场景缺省 = 折叠面板 */
   onClose?: () => void;
 }) {
+  const lang = useUIStore((s) => s.lang);
   const {
     currentId, detail, agentMode, setAgentMode, applyModeFromServer,
     agent, agentMessages, loadAgent, setAgentPlan, clearAgentChat,
@@ -273,7 +275,7 @@ export function AIPanel({
             {currentId ? <FileText size={10} /> : <Sparkles size={10} />}
             <span className="truncate">{currentId ? tr("ai.context.note") : tr("ai.context.vault")}</span>
           </span>
-          <span className="rounded-full bg-surface-sunken px-2 py-0.5 text-[10px] text-muted">仓库 · {vault?.notes.length || 0} 篇</span>
+          <span className="rounded-full bg-surface-sunken px-2 py-0.5 text-[10px] text-muted">{tr("ai.vault.count").replace("{n}", String(vault?.notes.length || 0))}</span>
         </div>
       </div>
 
@@ -310,7 +312,7 @@ export function AIPanel({
               ))}
               {activeTool && (
                 <div className="mb-2">
-                  <ActiveToolCard name={activeTool} progress={[toolDisplayName(activeTool)]} heartbeatElapsed={0} />
+                  <ActiveToolCard name={activeTool} progress={[toolDisplayName(activeTool, lang)]} heartbeatElapsed={0} />
                 </div>
               )}
               {streamAnswer ? (

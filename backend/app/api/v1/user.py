@@ -8,13 +8,16 @@ from __future__ import annotations
 
 import re
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, status
+from fastapi.responses import Response
+from starlette.concurrency import run_in_threadpool
 from pydantic import BaseModel, Field, field_validator
 from typing import Any
 
 from app.core.account_data import purge_account
-from app.identity.deps import require_user
-from app.identity.models import User
+from app.identity.deps import require_user, resolve_student_id
+from app.identity.models import User, VALID_GRADES
+from app.identity import avatars
 from app.identity.security import verify_password
 from app.identity.store import update_profile_fields
 
@@ -43,6 +46,20 @@ class UpdateProfileRequest(BaseModel):
     subjects: list[str] | None = None
     avatar: str | None = Field(default=None, max_length=200)
     prefs: dict[str, Any] | None = None
+
+    @field_validator("grade")
+    @classmethod
+    def validate_grade(cls, grade):
+        if grade is not None and grade not in (*VALID_GRADES, ""):
+            raise ValueError("invalid_grade")
+        return grade
+
+    @field_validator("avatar")
+    @classmethod
+    def validate_avatar(cls, avatar):
+        if avatar is not None:
+            raise ValueError("use_avatar_upload_endpoint")
+        return avatar
 
     @field_validator("prefs")
     @classmethod
@@ -109,6 +126,44 @@ def update_profile(req: UpdateProfileRequest, user: User = Depends(require_user)
         if "grade" in fields:
             _sync_grade_to_student_model(user)
     return get_profile(user)
+
+
+@router.get("/avatar")
+def get_avatar(user: User = Depends(require_user),
+               owner: str = Depends(resolve_student_id)):
+    data = avatars.read(owner)
+    if data is None:
+        raise HTTPException(404, "avatar_not_found")
+    return Response(data, media_type="image/png", headers={
+        "Cache-Control": "private, no-store", "X-Content-Type-Options": "nosniff"})
+
+
+@router.put("/avatar")
+async def upload_avatar(file: UploadFile = File(...),
+                        user: User = Depends(require_user),
+                        owner: str = Depends(resolve_student_id)):
+    try:
+        data = await file.read(avatars.MAX_UPLOAD_BYTES + 1)
+    finally:
+        await file.close()
+    if len(data) > avatars.MAX_UPLOAD_BYTES:
+        raise HTTPException(413, "avatar_too_large")
+    try:
+        updated = await run_in_threadpool(avatars.save, owner, data)
+    except ValueError as exc:
+        code = str(exc)
+        raise HTTPException(404 if code == "account_not_found" else
+                            413 if code == "avatar_too_large" else 422, code) from exc
+    return get_profile(updated)
+
+
+@router.delete("/avatar")
+def delete_avatar(user: User = Depends(require_user),
+                  owner: str = Depends(resolve_student_id)):
+    try:
+        return get_profile(avatars.remove(owner))
+    except ValueError as exc:
+        raise HTTPException(404, "account_not_found") from exc
 
 
 class DeleteAccountRequest(BaseModel):

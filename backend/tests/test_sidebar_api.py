@@ -11,6 +11,7 @@
 Fake clients only, no network. Data dirs are redirected to temp dirs.
 """
 import sys
+from tests.storage_sandbox import patch_all_storage_roots, reset_shared_caches, authenticated_client
 import tempfile
 import unittest
 from pathlib import Path
@@ -38,6 +39,8 @@ class _TmpDirs:
         self._tmp = tempfile.TemporaryDirectory(prefix="sidebar_")
         root = Path(self._tmp.name)
         self.root = root
+        (root / "users").mkdir(exist_ok=True)
+        self._sandbox = patch_all_storage_roots(root)
         from app.agents.memory import prompt_memory
         from app.core import trash as trash_mod
         self._patches = [
@@ -53,7 +56,7 @@ class _TmpDirs:
                          root / "students" / "prompt_memory_policy.json"),
         ]
         if with_users:
-            (root / "users").mkdir()
+            (root / "users").mkdir(exist_ok=True)
             self._patches.append(
                 patch.object(id_store, "_ACCOUNTS_FILE", root / "users" / "accounts.json"))
         for p in self._patches:
@@ -62,13 +65,16 @@ class _TmpDirs:
     def cleanup(self):
         for p in reversed(self._patches):
             p.stop()
+        for p in reversed(self._sandbox):
+            p.stop()
+        reset_shared_caches()
         self._tmp.cleanup()
 
 
 class TestSidebarApi(unittest.TestCase):
     def setUp(self) -> None:
         self._dirs = _TmpDirs(self)
-        self.client = TestClient(create_app())
+        self.client = authenticated_client(create_app(), "student_default")
 
     def tearDown(self) -> None:
         self._dirs.cleanup()
@@ -115,7 +121,7 @@ class TestSidebarApi(unittest.TestCase):
     def test_identity_isolation(self):
         self._dirs.cleanup()
         self._dirs = _TmpDirs(self, with_users=True)
-        self.client = TestClient(create_app())
+        self.client = authenticated_client(create_app(), "student_default")
         alice_user = id_store.create_user(email="alice@t.local", username="alice",
                                           password_hash=hash_password("pw"))
         bob_user = id_store.create_user(email="bob@t.local", username="bob",

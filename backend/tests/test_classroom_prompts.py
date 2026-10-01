@@ -38,8 +38,8 @@ LOCKED_RULES = """你在编写一节可以实际讲授的课程。只输出所�
 class ClassroomPromptRegistryTests(unittest.TestCase):
     def test_seven_prompts_registered_with_current_versions(self) -> None:
         for pid in CLASSROOM_PROMPT_IDS:
-            expected = ("2.0.0" if pid == "classroom_outline"
-                        else "2.1.0" if pid == "classroom_slide"
+            expected = ("2.4.0" if pid == "classroom_outline"
+                        else "2.6.0" if pid == "classroom_slide"
                         else "1.1.0" if pid in ("classroom_review", "classroom_repair")
                         else "1.0.0")
             self.assertEqual(active_versions().get(pid), expected)
@@ -69,6 +69,15 @@ class ClassroomPromptRegistryTests(unittest.TestCase):
         }
         for pid, keyword in contracts.items():
             self.assertIn(keyword, get(pid).text)
+
+    def test_outline_contract_delivers_page_assignments(self) -> None:
+        import json
+        import re
+        text = get('classroom_outline').text
+        contract = text[text.index('{'):text.index('\n}\n') + 2]
+        assignments = re.search(r'"key_points":(\[[^\]]+\])', contract)
+        self.assertIsNotNone(assignments)
+        self.assertTrue(json.loads(assignments.group(1)))
 
 
 class GetLLMClassroomTests(unittest.TestCase):

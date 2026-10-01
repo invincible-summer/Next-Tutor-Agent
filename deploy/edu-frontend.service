@@ -1,5 +1,5 @@
 [Unit]
-Description=Edu_Agent frontend (Next.js next start)
+Description=Next-Tutor-Agent frontend (Next.js next start)
 Wants=network-online.target
 After=network-online.target edu-agent-backend.service
 

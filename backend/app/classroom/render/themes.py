@@ -4,8 +4,8 @@
 登记的 token 白名单取值；展示正文对比度 ≥4.5:1。字体用系统 CJK
 无衬线栈（不引外网字体，避免首屏闪烁）。
 
-布局是固定 slots：每个布局声明允许的 block 种类与数量上限、是否必需、
-列数；编译器与确定性质量门共用同一张表，禁止新加任意 layout 字符串。
+教学页型保持枚举契约。旧页使用 slots 校验种类、数量、必需项和列数；
+新页可通过 SlideComposition 混排合法组件，由实测 runtime 负责布局。
 """
 from __future__ import annotations
 
@@ -114,7 +114,9 @@ THEMES: dict[str, ThemeTokens] = {
         text="#3D3A50", text_muted="#7A7790",
         accent="#7C6FD9", accent_soft="#ECE9FB", border="#E7E2F2",
         on_accent="#FFFFFF", focus_ring="#7C6FD9",
-        title_scale=1.12, body_scale=1.12, radius="18px",
+        # v1 固定画布预算：正文 1.12 会让推导/例题页在展示课实测越界
+        # （steps 换行 +149px），收敛到 1.03（实测余量 ≥9px）。
+        title_scale=1.12, body_scale=1.03, radius="18px",
         extra_css=(
             ".slide h1,.slide h2{font-weight:700}"
             ".block.bullets li{margin:.42em 0}"
@@ -137,6 +139,12 @@ for _legacy_id, _legacy in list(THEMES.items()):
         focus_ring=_legacy.focus_ring, title_scale=_legacy.title_scale,
         body_scale=_legacy.body_scale, radius=_legacy.radius,
     )
+
+# gentle_beginner@2 由实测续排承载大字号，保留 1.12 的初学者友好设计；
+# 仅 v1 固定画布路径需要收敛（见上方 @1 注释）。
+from dataclasses import replace as _dc_replace
+THEMES["gentle_beginner@2"] = _dc_replace(
+    THEMES["gentle_beginner@2"], body_scale=1.12)
 
 THEME_IDS = tuple(THEMES.keys())
 
@@ -161,11 +169,11 @@ LAYOUTS: dict[str, LayoutSpec] = {
     "key_points": LayoutSpec(
         layout="key_points",
         # 单列流式布局也作为生成容错的后备；所有块仍由 schema 校验，
-        # 长页可滚动，不为布局偏好删掉正文或重新请求模型。
+        # 长页实测续排，不为布局偏好删掉正文或重新请求模型。
         slots={kind: (MAX_BLOCKS_PER_SLIDE, False) for kind in (
             "bullets", "paragraph", "image", "diagram", "callout",
-            "formula", "table", "steps", "checkpoint")},
-        description="要点页：单列内容，支持混合块与长页滚动",
+            "formula", "table", "steps", "checkpoint", "code")},
+        description="要点页：支持混合组件与实测续排",
     ),
     "image_explain": LayoutSpec(
         layout="image_explain", columns=2,

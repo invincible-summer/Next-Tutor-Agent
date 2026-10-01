@@ -21,6 +21,7 @@ class ClassroomRef(BaseModel):
 
 
 class ChatRequest(BaseModel):
+    public_textbook_ids: list[str] = Field(default_factory=list, max_length=8)
     message: str = Field(..., min_length=1, description="学生输入")
     session_id: str | None = Field(None, description="已有会话 id；为空则新建")
     grade: str = Field("", description="学段: 空=自动/小学/初中/高中/本科")

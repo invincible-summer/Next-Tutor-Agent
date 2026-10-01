@@ -168,6 +168,94 @@ class FullCourseTests(PipelineTestBase):
         self.assertIn("classroom_outline", revision.prompt_versions)
         self.assertTrue(job.stage_inputs.get("outline"))
 
+    def test_new_composition_contract_is_frozen_and_published(self) -> None:
+        brief = self._brief(theme_id="academic_clear@2")
+        lesson_id, job_id = self._make_job(brief, renderer_version="2.0.0")
+        job = store.load_job(OWNER, WS, lesson_id, job_id)
+        job.slide_prompt_version = "2.3.0"
+        store.save_job(job)
+        deps = self._deps()
+        job = asyncio.run(self._pipeline(lesson_id, job_id, deps).run())
+        self.assertEqual(job.state, sc.JobState.succeeded, job.last_error)
+        revision = store.load_revision(OWNER, WS, lesson_id, 1)
+        self.assertEqual(revision.prompt_versions["classroom_slide"], "2.3.0")
+        self.assertEqual(revision.prompt_versions["classroom_outline"], "2.1.0")
+        self.assertTrue(all(slide.composition is not None for slide in revision.slides))
+
+    def test_single_canvas_generation_rejects_measured_overflow(self) -> None:
+        brief = self._brief(theme_id="academic_clear@2")
+        lesson_id, job_id = self._make_job(brief, renderer_version="2.0.0")
+        job = store.load_job(OWNER, WS, lesson_id, job_id)
+        job.slide_prompt_version = "2.4.0"
+        store.save_job(job)
+        deps = self._deps()
+        deps.layout_check = lambda html: FakeLayoutReport(ok=False, issues=[
+            {"code": "vertical_overflow", "slide_order": 3}])
+        job = asyncio.run(self._pipeline(lesson_id, job_id, deps).run())
+        self.assertEqual(job.state, sc.JobState.failed)
+        self.assertIn("第 3 页", job.last_error)
+        self.assertIsNone(store.load_lesson(OWNER, WS, lesson_id).latest_ready_revision)
+
+    def test_single_canvas_prompt_versions_are_frozen(self) -> None:
+        brief = self._brief(theme_id="academic_clear@2")
+        lesson_id, job_id = self._make_job(brief, renderer_version="2.0.0")
+        job = store.load_job(OWNER, WS, lesson_id, job_id)
+        job.slide_prompt_version = "2.4.0"
+        store.save_job(job)
+        job = asyncio.run(self._pipeline(lesson_id, job_id, self._deps()).run())
+        self.assertEqual(job.state, sc.JobState.succeeded, job.last_error)
+        revision = store.load_revision(OWNER, WS, lesson_id, 1)
+        self.assertEqual(revision.prompt_versions["classroom_outline"], "2.2.0")
+        self.assertEqual(revision.prompt_versions["classroom_slide"], "2.4.0")
+        self.assertTrue(all(s.composition is not None for s in revision.slides))
+
+    def test_story_context_reaches_each_new_authored_page(self) -> None:
+        from tests.classroom_fake_llm import _split_payload
+
+        class StoryLLM(FakeClassroomLLM):
+            def __init__(self):
+                super().__init__()
+                self.pages = []
+
+            def _outline(self, payload):
+                outline = super()._outline(payload)
+                for page in outline['pages']:
+                    if not page.get('key_points'):
+                        page['key_points'] = [f"本页任务：{page['title']}"]
+                return outline
+
+            def _slide(self, payload, raw_user):
+                self.pages.append(_split_payload(raw_user))
+                return super()._slide(payload, raw_user)
+
+        lesson_id, job_id = self._make_job(self._brief(theme_id='academic_clear@2'), renderer_version='2.0.0')
+        job = store.load_job(OWNER, WS, lesson_id, job_id)
+        job.slide_prompt_version = '2.6.0'
+        store.save_job(job)
+        llm = StoryLLM()
+        result = asyncio.run(self._pipeline(lesson_id, job_id, self._deps(llm)).run())
+        self.assertEqual(result.state, sc.JobState.succeeded, result.last_error)
+        self.assertIsNone(llm.pages[0]['previous_page'])
+        self.assertTrue(llm.pages[1]['previous_page']['blocks'])
+        self.assertEqual(len(llm.pages[0]['course_story']), len(llm.pages))
+        self.assertTrue(llm.pages[0]['allowed_source_ids'])
+        self.assertTrue(all(page['key_points'] for page in llm.pages[0]['course_story']))
+        self.assertEqual(llm.pages[0]['prior_visual_choices'], [])
+        self.assertEqual(llm.pages[1]['prior_visual_choices'][0]['block_kinds'],
+                         [block['kind'] for block in llm.pages[1]['previous_page']['blocks']])
+        self.assertIn('focal_block_id', llm.pages[0]['slide_schema']['slide']['composition'])
+        revision = store.load_revision(OWNER, WS, lesson_id, 1)
+        self.assertEqual(revision.prompt_versions['classroom_slide'], '2.6.0')
+        self.assertEqual(revision.prompt_versions['classroom_outline'], '2.4.0')
+
+    def test_new_outline_requires_page_assignments_before_authoring(self) -> None:
+        from app.classroom.pipeline import _OutlineModelV24
+        from pydantic import ValidationError
+        payload = {'objectives': [{'objective_id': 'obj_1', 'text': '理解概念'}],
+                   'pages': [{'order': 1, 'title': '有标题但没有分工', 'layout': 'title'}]}
+        with self.assertRaisesRegex(ValidationError, 'key_points'):
+            _OutlineModelV24.model_validate(payload)
+
     def test_reused_image_stays_associated_after_asset_limit(self) -> None:
         from app.classroom.media.base import ImageCandidate, ImageSearchBudget
         from app.classroom.media.download import ProcessedImage
@@ -217,6 +305,13 @@ class FullCourseTests(PipelineTestBase):
         self.assertEqual(len(stage["records"]), 1)
         self.assertEqual(stage["page_assets"]["1"], stage["page_assets"]["3"])
         self.assertNotIn("2", stage["page_assets"])
+
+        new_job = pipeline._load_job()
+        new_job.slide_prompt_version = "2.3.0"
+        with patch("app.classroom.media.download.download_and_sanitize", fake_download):
+            asyncio.run(pipeline._stage_visual_assets(new_job, budgets))
+        selective = pipeline._read_stage(sc.JobPhase.visual_assets)
+        self.assertEqual(list(selective["page_assets"]), ["1"])
 
     def test_outline_first_awaits_user(self) -> None:
         lesson_id, job_id = self._make_job(start_mode="outline_first")
@@ -294,6 +389,22 @@ class QualityGateTests(PipelineTestBase):
         for slide in revision.slides:
             for item in [slide, *slide.segments, *slide.claims]:
                 self.assertTrue(set(item.source_ids) <= known)
+
+    def test_malformed_claim_source_does_not_crash_generation(self) -> None:
+        class MalformedSourceLLM(FakeClassroomLLM):
+            def _slide(self, payload, raw_user):
+                result = super()._slide(payload, raw_user)
+                for claim in result['claims']:
+                    claim['source_id'] = 'src_avg_velocity'
+                return result
+
+        lesson_id, job_id = self._make_job()
+        job = self._run(lesson_id, job_id, self._deps(MalformedSourceLLM()))
+        self.assertEqual(job.state, sc.JobState.succeeded, job.last_error)
+        revision = store.load_revision(OWNER, WS, lesson_id, 1)
+        claims = [c for s in revision.slides for c in s.claims]
+        self.assertTrue(claims)
+        self.assertTrue(all(not c.source_ids for c in claims))
 
     def test_layout_overflow_keeps_course_without_rewriting(self) -> None:
         lesson_id, job_id = self._make_job()
@@ -389,7 +500,7 @@ class SpanNormalizationTests(unittest.TestCase):
 
     def test_over_limit_text_spans_merged_and_content_kept(self):
         from app.classroom.validation import normalize_slide_spans
-        payload = self._slide_payload(9)   # 上限 8
+        payload = self._slide_payload(9)   # 合并目标 8，严格上限 32
         normalize_slide_spans(payload)
         spans = payload["slide"]["blocks"][0]["spans"]
         self.assertLessEqual(len(spans), 8)
@@ -397,8 +508,8 @@ class SpanNormalizationTests(unittest.TestCase):
         self.assertEqual(merged_text,
                          "".join(f"第{i}段内容" for i in range(9)))
 
-    def test_generate_json_with_pre_validate_recovers_nine_spans(self):
-        # 集成：stub LLM 固定输出 9-span 段落；无 pre_validate 时两次都失败，
+    def test_generate_json_with_pre_validate_recovers_over_limit_spans(self):
+        # 集成：stub LLM 超出严格片段上限；无 pre_validate 时两次都失败，
         # 有 pre_validate 时一次通过（不触发修复重试）。
         import asyncio
         from app.classroom import llm_io
@@ -410,7 +521,7 @@ class SpanNormalizationTests(unittest.TestCase):
             slide: sc.SlideSpec
             claims: list = []
 
-        payload = self._slide_payload(9)
+        payload = self._slide_payload(sc.MAX_INLINE_SPANS + 1)
         raw = json.dumps(payload, ensure_ascii=False)
         calls = {"n": 0}
 
@@ -434,7 +545,7 @@ class SpanNormalizationTests(unittest.TestCase):
         block = model.slide.blocks[0]
         self.assertEqual(block.kind, "paragraph")
         self.assertLessEqual(len(block.spans), 8)
-        self.assertIn("第8段内容", block.spans[-1].text
+        self.assertIn(f"第{sc.MAX_INLINE_SPANS}段内容", block.spans[-1].text
                       if hasattr(block.spans[-1], "text") else "")
 
     def test_alternating_math_text_not_silently_dropped(self):

@@ -83,6 +83,7 @@ class Workspace:
         selected_file_ids: list[str] | None = None,
         workspace_file_ids: list[str] | None = None,
         memory_boundary_sessions: list[str] | None = None,
+        assistant_request_id: str = "",
     ) -> None:
         self.workspace_id = workspace_id
         self.student_id = student_id  # M0: 归属命名空间（"" = M0 前遗留，归游客）
@@ -111,6 +112,9 @@ class Workspace:
         # Session ids whose new-conversation boundary compression has already
         # run. This makes boundary hooks idempotent across upload/chat entrypoints.
         self.memory_boundary_sessions = memory_boundary_sessions or []
+        # 站内助手创建幂等标记（§21.6.1）：去重记录与创建共用这一次 JSON
+        # 原子写；页面创建的工作区恒为空串。
+        self.assistant_request_id = str(assistant_request_id or "")
         self.created_at = created_at or time.time()
         self.updated_at = updated_at or time.time()
 
@@ -126,6 +130,7 @@ class Workspace:
             "selected_file_ids": self.selected_file_ids,
             "workspace_file_ids": self.workspace_file_ids,
             "memory_boundary_sessions": self.memory_boundary_sessions[-100:],
+            "assistant_request_id": self.assistant_request_id,
             "public_memory": self.public_memory,
             "public_memory_updated_at": self.public_memory_updated_at,
             "created_at": self.created_at,
@@ -148,6 +153,7 @@ class Workspace:
             selected_file_ids=d.get("selected_file_ids", []),
             workspace_file_ids=d.get("workspace_file_ids", []),
             memory_boundary_sessions=d.get("memory_boundary_sessions", []),
+            assistant_request_id=str(d.get("assistant_request_id", "") or ""),
         )
         # Rebuild knowledge store from persisted file metadata.
         upload_dir = workspace_upload_dir(ws.workspace_id) if ws.workspace_id else None
@@ -429,6 +435,7 @@ def list_workspaces() -> list[dict[str, Any]]:
                 "workspace_file_ids": d.get("workspace_file_ids", []),
                 "has_memory": bool(d.get("public_memory", "").strip()),
                 "updated_at": d.get("updated_at", 0),
+                "assistant_request_id": d.get("assistant_request_id", ""),
             })
         except Exception:
             continue

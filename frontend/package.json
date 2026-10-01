@@ -1,16 +1,21 @@
 {
   "name": "frontend",
-  "version": "1.1.0",
+  "version": "2.1.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "next build --webpack",
     "start": "next start",
     "lint": "eslint",
+    "typecheck": "tsc --noEmit",
+    "test:unit": "node scripts/test-classroom-player.mjs && node scripts/test-i18n.mjs && node scripts/test-assistant-navigation.mjs",
+    "check": "pnpm typecheck && pnpm lint && pnpm test:unit",
     "test:e2e": "playwright test",
     "test:player": "node scripts/test-classroom-player.mjs",
+    "test:i18n": "node scripts/test-i18n.mjs",
+    "test:e2e:i18n": "playwright test --config=playwright.i18n.config.ts",
     "test:e2e:headed": "playwright test --headed",
-    "test:e2e:ci": "playwright test --reporter=line,html",
+    "test:e2e:ci": "playwright test --config=playwright.ci.config.ts",
     "test:e2e:live-llm": "playwright test --config=playwright.live.config.ts",
     "build:classroom": "tsc -p tsconfig.classroom.json && node scripts/build-classroom-assets.mjs"
   },
@@ -19,7 +24,6 @@
     "katex": "0.16.47",
     "lucide-react": "^1.26.0",
     "next": "16.2.11",
-    "playwright": "1.61.1",
     "react": "19.2.4",
     "react-dom": "19.2.4",
     "react-markdown": "^10.1.0",
@@ -37,7 +41,8 @@
     "eslint-config-next": "16.2.11",
     "tailwindcss": "^4",
     "typescript": "^5.9.2",
-    "@playwright/test": "1.61.1"
+    "@playwright/test": "1.61.1",
+    "playwright": "1.61.1"
   },
   "packageManager": "pnpm@11.25.0+sha512.5cde925b4f075f725eb71fbae18a42ffe784524789f19b61c731cb8721ec28aaee160e01a8d5af4fedb2a42cdbf300efe23db356b0d4a17b4d63e11f8ab7c956"
 }

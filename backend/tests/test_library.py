@@ -10,6 +10,10 @@
 
 Fake clients only, no network. Data dirs are redirected to temp dirs.
 """
+
+from __future__ import annotations
+
+
 import os
 import sys
 import tempfile
@@ -20,16 +24,22 @@ from unittest.mock import patch
 _BACKEND = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(_BACKEND))
 
-from fastapi.testclient import TestClient  # noqa: E402
-
-from app.main import create_app  # noqa: E402
-from app.core import library as library_mod  # noqa: E402
-from app.core import workspace as ws_mod  # noqa: E402
-from app.core.library import file_scope, load_library  # noqa: E402
-from app.core.workspace import Workspace, ensure_library_folder, save_workspace  # noqa: E402
-from app.identity import config as id_config  # noqa: E402
-from app.identity import store as id_store  # noqa: E402
-from app.identity.security import create_token, hash_password  # noqa: E402
+from tests.storage_sandbox import patch_all_storage_roots, reset_shared_caches, authenticated_client
+from fastapi.testclient import TestClient
+from app.main import create_app
+from app.core import library as library_mod
+from app.core import workspace as ws_mod
+from app.core.library import file_scope, load_library
+from app.core.workspace import Workspace, ensure_library_folder, save_workspace
+from app.identity import config as id_config
+from app.identity import store as id_store
+from app.identity.security import create_token, hash_password
+import fitz
+from fastapi import FastAPI
+from tests.storage_sandbox import StorageSandboxTestCase
+from app.api.v1.library import router
+from app.core.library import Library, save_library
+from app.identity.deps import resolve_student_id
 
 
 class _TmpDirs:
@@ -39,6 +49,8 @@ class _TmpDirs:
         self._tmp = tempfile.TemporaryDirectory(prefix="library_")
         root = Path(self._tmp.name)
         self.root = root
+        (root / "users").mkdir(exist_ok=True)
+        self._sandbox = patch_all_storage_roots(root)
         from app.agents.memory import prompt_memory
         from app.core import trash as trash_mod
         self._patches = [
@@ -53,7 +65,7 @@ class _TmpDirs:
                          root / "students" / "prompt_memory_policy.json"),
         ]
         if with_users:
-            (root / "users").mkdir()
+            (root / "users").mkdir(exist_ok=True)
             self._patches.append(
                 patch.object(id_store, "_ACCOUNTS_FILE", root / "users" / "accounts.json"))
         for p in self._patches:
@@ -62,13 +74,16 @@ class _TmpDirs:
     def cleanup(self):
         for p in reversed(self._patches):
             p.stop()
+        for p in reversed(self._sandbox):
+            p.stop()
+        reset_shared_caches()
         self._tmp.cleanup()
 
 
 class TestLibraryApi(unittest.TestCase):
     def setUp(self) -> None:
         self._dirs = _TmpDirs(self)
-        self.client = TestClient(create_app())
+        self.client = authenticated_client(create_app(), "student_default")
 
     def tearDown(self) -> None:
         self._dirs.cleanup()
@@ -245,7 +260,7 @@ class TestLibraryIsolation(unittest.TestCase):
         self._secret_patch = patch.object(
             id_config, "AUTH_JWT_SECRET", "test-secret-not-default")
         self._secret_patch.start()
-        self.client = TestClient(create_app())
+        self.client = authenticated_client(create_app(), "student_default")
         self._headers = {}
         for label in ("a", "b"):
             user = id_store.create_user(email=f"{label}@example.com", username="",
@@ -322,16 +337,12 @@ class TestDownloadNaming(unittest.TestCase):
             _download_response(self.data, {"id": "f4", "filename": "旧.pdf", "orig_ext": ""})
 
 
-if __name__ == "__main__":
-    unittest.main()
-
-
 class TestPageSnapshotApi(unittest.TestCase):
     """P7 页快照端点：PDF 原件按需渲染 PNG；越界/非 PDF/未知文件 404。"""
 
     def setUp(self):
         self._dirs = _TmpDirs(self)
-        self.client = TestClient(create_app())
+        self.client = authenticated_client(create_app(), "student_default")
 
     def tearDown(self):
         self._dirs.cleanup()
@@ -376,3 +387,45 @@ class TestPageSnapshotApi(unittest.TestCase):
             self.client.get(f"/api/v1/library/files/{fid}/page/1").status_code, 404)
         self.assertEqual(
             self.client.get("/api/v1/library/files/unknown/page/1").status_code, 404)
+
+# Related navigation file preview regressions.
+
+
+class FileNavigationPreviewTest(StorageSandboxTestCase):
+    def setUp(self):
+        super().setUp()
+        app = FastAPI()
+        app.include_router(router)
+        self.owner = "nav_preview_owner"
+        app.dependency_overrides[resolve_student_id] = lambda: self.owner
+        self.client = TestClient(app)
+        self.addCleanup(self.client.close)
+        with fitz.open() as doc:
+            for number in (1, 2):
+                doc.new_page().insert_text((30, 50), f"Navigation page {number}")
+            raw = doc.tobytes()
+        lib = Library(student_id=self.owner)
+        self.pdf = lib.add_file("", "nav.pdf", "Navigation pages", raw=raw, orig_ext=".pdf")["id"]
+        self.txt = lib.add_file("", "nav.txt", "Text", raw=b"Text", orig_ext=".txt")["id"]
+        save_library(lib)
+
+    def test_valid_page_is_a_rendered_png(self):
+        response = self.client.get(f"/library/files/{self.pdf}/page/2")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.headers["content-type"], "image/png")
+        self.assertTrue(response.content.startswith(b"\x89PNG"))
+        self.assertNotEqual(response.content, self.client.get(f"/library/files/{self.pdf}/page/1").content)
+
+    def test_invalid_missing_and_unsupported_are_not_success(self):
+        for file_id, page in ((self.pdf, 0), (self.pdf, 3), (self.pdf, 5001), (self.txt, 1), ("deleted", 1)):
+            with self.subTest(file=file_id, page=page):
+                self.assertEqual(self.client.get(f"/library/files/{file_id}/page/{page}").status_code, 404)
+        self.assertEqual(self.client.get(f"/library/files/{self.pdf}/page/not-a-page").status_code, 422)
+
+    def test_other_account_cannot_preview_private_original(self):
+        self.owner = "nav_preview_other"
+        self.assertEqual(self.client.get(f"/library/files/{self.pdf}/page/1").status_code, 404)
+
+
+if __name__ == "__main__":
+    unittest.main()

@@ -13,10 +13,15 @@ Phase 5 实现后全绿。
 """
 from __future__ import annotations
 
+
 import asyncio
 import unittest
+import json
+from unittest.mock import patch
 
 from tests.storage_sandbox import StorageSandboxTestCase
+from app.api.v1.health import model_info
+from app.core.config import settings
 
 
 class TestBootstrapReportContract(StorageSandboxTestCase):
@@ -191,6 +196,34 @@ class TestReadyEndpointContract(StorageSandboxTestCase):
         self.assertIn("textbook recovery boom", check.detail)
         # 非关键：服务仍 ready（degraded）
         self.assertTrue(report.ready)
+
+# Related model info regressions.
+
+
+class ModelInfoTests(unittest.TestCase):
+    def test_reports_configured_cloud_and_local_without_secrets(self):
+        with patch.object(settings, "azure_speech_key", "private-test-secret"), \
+             patch.object(settings, "azure_speech_region", "eastasia"), \
+             patch.object(settings, "voice_tts_base_url", "http://private-host:8130"), \
+             patch.object(settings, "classroom_local_tts_enabled", True):
+            data = model_info()
+        voice = data["voice_models"]
+        self.assertEqual(voice["local"]["model"], "MeloTTS-Chinese")
+        self.assertTrue(voice["local"]["enabled"])
+        self.assertEqual(voice["cloud"]["model"], "Azure Speech")
+        self.assertTrue(voice["cloud"]["configured"])
+        self.assertEqual(voice["automatic_priority"], "local")
+        encoded = json.dumps(data)
+        self.assertNotIn("private-test-secret", encoded)
+        self.assertNotIn("private-host", encoded)
+        self.assertNotIn("eastasia", encoded)
+
+    def test_disabled_voice_still_names_model_without_claiming_enabled(self):
+        with patch.object(settings, "azure_speech_key", ""), \
+             patch.object(settings, "classroom_local_tts_enabled", False):
+            data = model_info()["voice_models"]
+        self.assertFalse(data["cloud"]["configured"])
+        self.assertFalse(data["local"]["enabled"])
 
 
 if __name__ == "__main__":

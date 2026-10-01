@@ -141,16 +141,16 @@ export function TextbookUpload({
       />
 
       <div className="flex flex-wrap items-center gap-2.5 rounded-[10px] border border-border-light bg-surface-sunken/40 px-3 py-2.5 text-xs">
-        <span className="font-medium text-fg-secondary">教材组默认容量</span>
+        <span className="font-medium text-fg-secondary">{tr("res.tb.policy.defaults")}</span>
         <div className="w-32">
-          <input type="number" min={1} value={maxChapters} onChange={(e) => setMaxChapters(e.target.value)} placeholder="章节：不限制"
+          <Input type="number" min={1} value={maxChapters} onChange={(e) => setMaxChapters(e.target.value)} placeholder={tr("res.tb.policy.chapters.unlimited")}
             className={FIELD_CLS} />
         </div>
         <div className="w-32">
-          <input type="number" min={1} value={maxConcepts} onChange={(e) => setMaxConcepts(e.target.value)} placeholder="概念：不限制"
+          <Input type="number" min={1} value={maxConcepts} onChange={(e) => setMaxConcepts(e.target.value)} placeholder={tr("res.tb.policy.concepts.unlimited")}
             className={FIELD_CLS} />
         </div>
-        <span className="text-[11px] text-muted">留空表示不限制；每本教材独立应用，不共享总预算。</span>
+        <span className="text-[11px] text-muted">{tr("res.tb.policy.upload.desc")}</span>
       </div>
 
       <div
@@ -193,16 +193,16 @@ export function TextbookUpload({
         <>
           {/* 逐卷容量覆盖：细分隔线列表（留空=使用教材组默认） */}
           <div className="overflow-hidden rounded-[10px] border border-border">
-            <div className="border-b border-border-light bg-surface-sunken/40 px-3 py-2 text-xs font-medium text-fg">逐本设置（留空=使用教材组默认）</div>
+            <div className="border-b border-border-light bg-surface-sunken/40 px-3 py-2 text-xs font-medium text-fg">{tr("res.tb.policy.volumes")}</div>
             <div className="divide-y divide-border-light">
               {pendingFiles.map((file, index) => {
                 const value = overrides[String(index)] ?? { max_chapters: "", max_concepts: "" };
                 return <div key={`${file.name}-${index}`} className="grid gap-2 px-3 py-2.5 sm:grid-cols-[1fr_120px_120px] sm:items-center">
                   <span className="truncate text-xs text-fg-secondary">{file.name}</span>
-                  <input type="number" min={1} value={value.max_chapters} placeholder="章节：继承"
+                  <Input type="number" min={1} value={value.max_chapters} placeholder={tr("res.tb.policy.chapters.inherit")}
                     onChange={(e) => setOverrides({ ...overrides, [String(index)]: { ...value, max_chapters: e.target.value } })}
                     className={FIELD_CLS} />
-                  <input type="number" min={1} value={value.max_concepts} placeholder="概念：继承"
+                  <Input type="number" min={1} value={value.max_concepts} placeholder={tr("res.tb.policy.concepts.inherit")}
                     onChange={(e) => setOverrides({ ...overrides, [String(index)]: { ...value, max_concepts: e.target.value } })}
                     className={FIELD_CLS} />
                 </div>;
@@ -210,8 +210,8 @@ export function TextbookUpload({
             </div>
           </div>
           <div className="flex flex-col gap-2">
-            <Button className="w-full" disabled={uploading} onClick={emit}>开始上传并构建</Button>
-            <Button variant="ghost" size="sm" className="self-end" onClick={() => { setPendingFiles([]); setOverrides({}); }}>取消</Button>
+            <Button className="w-full" disabled={uploading} onClick={emit}>{tr("res.tb.upload.start")}</Button>
+            <Button variant="ghost" size="sm" className="self-end" onClick={() => { setPendingFiles([]); setOverrides({}); }}>{tr("res.tb.cancel")}</Button>
           </div>
         </>
       )}

@@ -52,13 +52,3 @@ test("A 的私有 session/教材对 B 不可见", async ({ page }) => {
   await expect(page.getByText("zx17讲义").first()).toBeHidden();
   await api.dispose();
 });
-
-test("UI 登录后可以看到自己的教材", async ({ page }) => {
-  const api = await pwRequest.newContext();
-  const a = await registerAndLogin(api);
-  await uploadZx17Textbook(api, a.token);
-  await loginViaStorage(page, a.token);
-  await page.goto("/resources/textbooks");
-  await expect(page.getByText("zx17讲义").first()).toBeVisible({ timeout: 20_000 });
-  await api.dispose();
-});

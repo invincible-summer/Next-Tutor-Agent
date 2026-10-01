@@ -17,10 +17,12 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
   // 乱序完成，两者都落定才渲染，未登录用户绝不闪现工作区。
   // /docs 使用文档是产品文档（后端 GET /docs/content 本就公开），
   // 匿名访客可读；从 /docs 侧栏进入其他工作区页仍会照常跳登录。
-  const needsRedirect = loaded && statusLoaded && authRequired && !user && pathname !== "/docs";
+  const guestPage = pathname === "/chat" || pathname === "/assessment";
+  const needsRedirect = loaded && statusLoaded && !user && pathname !== "/docs"
+    && (authRequired || !guestPage);
   useEffect(() => {
     if (needsRedirect) {
-      const redirect = encodeURIComponent(window.location.pathname);
+      const redirect = encodeURIComponent(window.location.pathname + window.location.search);
       window.location.href = `/login?redirect=${redirect}`;
     }
   }, [needsRedirect]);

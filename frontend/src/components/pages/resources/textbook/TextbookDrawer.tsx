@@ -6,7 +6,8 @@ import type { TextbookDetail, TextbookGraphPolicy, TextbookListItem } from "@/li
 import { getTextbook, patchTextbook, patchTextbookVolume, removeTextbookVolume, downloadTextbookVolume, setTextbookGraphPolicy } from "@/lib/api";
 import type { Lang } from "@/lib/i18n";
 import { Badge } from "@/components/ui/Badge";
-import { GRADE_LABELS } from "@/lib/i18n";
+import { Input, Textarea, FIELD_CLS } from "@/components/ui/Input";
+import { gradeLabel, GRADE_LABELS } from "@/lib/i18n";
 
 /** 教材详情抽屉：章节大纲树 + 概念清单 + warnings + 跳知识图谱 + 编辑信息。
  *  教材组（kind=group）：卷清单（逐卷下载/移除，剩余卷自动重建组图谱）。 */
@@ -135,7 +136,7 @@ export function TextbookDrawer({
           {loading && <div className="flex justify-center py-8"><Loader2 className="animate-spin text-muted" /></div>}
           {err && !loading && <p className="text-sm text-danger">{err}</p>}
           {tb && !loading && (
-            <div className="flex flex-col gap-4">
+            <div data-textbook-id={tb.id} className="flex flex-col gap-4">
               {/* 标题 + 徽标 */}
               {!editing ? (
                 <div>
@@ -147,30 +148,30 @@ export function TextbookDrawer({
                   </div>
                   <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
                     {tb.subject && <Badge tone="accent">{tb.subject}</Badge>}
-                    {tb.level && <Badge tone="muted">{tb.level}</Badge>}
+                    {tb.level && <Badge tone="muted">{gradeLabel(lang, tb.level)}</Badge>}
                     <span className="tnum text-[11px] text-muted">{tb.filename}</span>
                   </div>
                 </div>
               ) : (
                 <div className="flex flex-col gap-2 rounded-[10px] border border-border p-3">
                   <label className="text-xs text-muted">{tr("res.title")}</label>
-                  <input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })}
-                    className="rounded-[6px] border border-border bg-transparent px-2 py-1.5 text-sm text-fg outline-none focus:border-accent" />
+                  <Input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })}
+                    className={FIELD_CLS} />
                   <label className="text-xs text-muted">{tr("res.tb.group.name", "教材组/栏目名称")}</label>
-                  <input value={form.group_name} onChange={(e) => setForm({ ...form, group_name: e.target.value })}
-                    className="rounded-[6px] border border-border bg-transparent px-2 py-1.5 text-sm text-fg outline-none focus:border-accent" />
+                  <Input value={form.group_name} onChange={(e) => setForm({ ...form, group_name: e.target.value })}
+                    className={FIELD_CLS} />
                   <label className="text-xs text-muted">{tr("res.tb.group.note.edit", "教材组备注")}</label>
-                  <textarea value={form.group_note} onChange={(e) => setForm({ ...form, group_note: e.target.value })}
-                    rows={2} className="resize-none rounded-[6px] border border-border bg-transparent px-2 py-1.5 text-sm text-fg outline-none focus:border-accent" />
+                  <Textarea value={form.group_note} onChange={(e) => setForm({ ...form, group_note: e.target.value })}
+                    rows={2} className={FIELD_CLS} />
                   <label className="text-xs text-muted">{tr("res.tb.subject")}</label>
-                  <input value={form.subject} onChange={(e) => setForm({ ...form, subject: e.target.value })}
-                    className="rounded-[6px] border border-border bg-transparent px-2 py-1.5 text-sm text-fg outline-none focus:border-accent" />
+                  <Input value={form.subject} onChange={(e) => setForm({ ...form, subject: e.target.value })}
+                    className={FIELD_CLS} />
                   <label className="text-xs text-muted">{tr("res.tb.file.name", "PDF 文件显示名")}</label>
-                  <input value={form.filename} onChange={(e) => setForm({ ...form, filename: e.target.value })}
-                    className="rounded-[6px] border border-border bg-transparent px-2 py-1.5 text-sm text-fg outline-none focus:border-accent" />
+                  <Input value={form.filename} onChange={(e) => setForm({ ...form, filename: e.target.value })}
+                    className={FIELD_CLS} />
                   <label className="text-xs text-muted">{tr("res.tb.level")}</label>
                   <select value={form.level} onChange={(e) => setForm({ ...form, level: e.target.value })}
-                    className="rounded-[6px] border border-border bg-transparent px-2 py-1.5 text-sm text-fg outline-none focus:border-accent">
+                    className={FIELD_CLS}>
                     <option value="">{lang === "zh" ? "自动" : "Auto"}</option>
                     {GRADE_LABELS[lang].filter((g) => g.token !== "自动").map((g) => (
                       <option key={g.token} value={g.token}>{g.label}</option>
@@ -191,10 +192,10 @@ export function TextbookDrawer({
                   </h4>
                   <div className="flex flex-col gap-1.5">
                     {(tb.volumes || []).map((v) => (
-                      <div key={v.file_id} className="flex items-center gap-2 rounded-[8px] border border-border px-2.5 py-1.5">
+                      <div key={v.file_id} data-volume-id={v.file_id} className="flex items-center gap-2 rounded-[8px] border border-border px-2.5 py-1.5">
                         <BookOpen size={12} className="shrink-0 text-accent/70" />
                         {editingVolume === v.file_id ? (
-                          <input autoFocus value={volumeName} onChange={(e) => setVolumeName(e.target.value)}
+                          <Input autoFocus value={volumeName} onChange={(e) => setVolumeName(e.target.value)}
                             className="min-w-0 flex-1 rounded border border-accent bg-transparent px-1.5 py-1 text-xs text-fg outline-none" />
                         ) : (
                           <span className="min-w-0 flex-1 truncate text-xs text-fg" title={v.filename}>{v.filename}</span>
@@ -237,36 +238,36 @@ export function TextbookDrawer({
 
               {canWrite && (tb.volumes || []).length > 0 && (
                 <div className="space-y-2 rounded-[10px] border border-border p-3">
-                  <h4 className="text-sm font-medium text-fg">知识谱系容量设置</h4>
-                  <p className="text-[11px] leading-relaxed text-muted">留空表示不限制。每本教材独立应用；保存只复用抽取缓存重新裁剪合并，不会 OCR、重新解析或调用 LLM。卡片上的“重新生成知识谱系”才会调用 LLM。</p>
+                  <h4 className="text-sm font-medium text-fg">{tr("res.tb.policy.title")}</h4>
+                  <p className="text-[11px] leading-relaxed text-muted">{tr("res.tb.policy.desc")}</p>
                   <div className="grid grid-cols-2 gap-2">
-                    <label className="text-[11px] text-muted">组默认章节
-                      <input type="number" min={1} value={policy.default_max_chapters ?? ""}
+                    <label className="text-[11px] text-muted">{tr("res.tb.policy.chapters")}
+                      <Input type="number" min={1} value={policy.default_max_chapters ?? ""}
                         onChange={(e) => setPolicy({ ...policy, default_max_chapters: e.target.value ? Number(e.target.value) : null })}
-                        placeholder="不限制" className="mt-1 h-7 w-full rounded border border-border bg-surface px-2 text-xs text-fg" />
+                        placeholder={tr("res.tb.policy.unlimited")} className={`${FIELD_CLS} mt-1`} />
                     </label>
-                    <label className="text-[11px] text-muted">组默认概念
-                      <input type="number" min={1} value={policy.default_max_concepts ?? ""}
+                    <label className="text-[11px] text-muted">{tr("res.tb.policy.concepts")}
+                      <Input type="number" min={1} value={policy.default_max_concepts ?? ""}
                         onChange={(e) => setPolicy({ ...policy, default_max_concepts: e.target.value ? Number(e.target.value) : null })}
-                        placeholder="不限制" className="mt-1 h-7 w-full rounded border border-border bg-surface px-2 text-xs text-fg" />
+                        placeholder={tr("res.tb.policy.unlimited")} className={`${FIELD_CLS} mt-1`} />
                     </label>
                   </div>
                   {(tb.volumes || []).map((volume) => {
                     const override = policy.volume_overrides[volume.file_id];
                     return <div key={`policy-${volume.file_id}`} className="grid gap-1.5 border-t border-border-light pt-2 sm:grid-cols-[1fr_90px_90px] sm:items-end">
-                      <div className="truncate text-[11px] text-fg-secondary">{volume.filename}<br /><span className="text-muted">{override ? "自定义" : "使用组默认"}</span></div>
-                      <input type="number" min={1} value={override?.max_chapters ?? ""} placeholder="章节继承"
+                      <div className="truncate text-[11px] text-fg-secondary">{volume.filename}<br /><span className="text-muted">{override ? tr("res.tb.policy.custom") : tr("res.tb.policy.inherited")}</span></div>
+                      <Input type="number" min={1} value={override?.max_chapters ?? ""} placeholder={tr("res.tb.policy.chapters.inherit")}
                         onChange={(e) => setPolicy({ ...policy, volume_overrides: { ...policy.volume_overrides,
                           [volume.file_id]: { max_chapters: e.target.value ? Number(e.target.value) : null, max_concepts: override?.max_concepts ?? null } } })}
-                        className="h-7 rounded border border-border bg-surface px-1.5 text-[11px] text-fg" />
-                      <input type="number" min={1} value={override?.max_concepts ?? ""} placeholder="概念继承"
+                        className={FIELD_CLS} />
+                      <Input type="number" min={1} value={override?.max_concepts ?? ""} placeholder={tr("res.tb.policy.concepts.inherit")}
                         onChange={(e) => setPolicy({ ...policy, volume_overrides: { ...policy.volume_overrides,
                           [volume.file_id]: { max_chapters: override?.max_chapters ?? null, max_concepts: e.target.value ? Number(e.target.value) : null } } })}
-                        className="h-7 rounded border border-border bg-surface px-1.5 text-[11px] text-fg" />
+                        className={FIELD_CLS} />
                     </div>;
                   })}
                   <div className="flex justify-end"><button onClick={() => void savePolicy()} disabled={saving}
-                    className="rounded bg-accent px-3 py-1.5 text-xs font-medium text-white disabled:opacity-50">保存容量设置（快速）</button></div>
+                    className="rounded bg-accent px-3 py-1.5 text-xs font-medium text-white disabled:opacity-50">{tr("res.tb.policy.save")}</button></div>
                 </div>
               )}
 
@@ -301,7 +302,7 @@ export function TextbookDrawer({
                 {detail && detail.outline.length > 0 ? (
                   <div className="flex flex-col gap-2">
                     {detail.outline.map((ch, i) => (
-                      <div key={i} className="rounded-[8px] border border-border p-2.5">
+                      <div key={i} data-chapter-id={ch.chapter} className="rounded-[8px] border border-border p-2.5">
                         <div className="flex items-center justify-between">
                           <span className="text-sm font-medium text-fg">{ch.chapter}</span>
                           <span className="tnum text-[11px] text-muted">{ch.concept_count} {tr("res.tb.concepts")}</span>

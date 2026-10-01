@@ -331,6 +331,45 @@ def list_sessions() -> list[dict[str, Any]]:
     return out
 
 
+# trace 授权反向索引缓存：path -> (mtime, {run_id: owner})。/trace/{run_id}
+# 的归属校验此前对每次请求全量 load_session（O(全部会话总字节) 读+解析），
+# 登录用户可用随机 run_id 高频触发读放大；同款 mtime 失效后未变更文件只
+# stat 不读。
+_trace_owner_cache: dict[str, tuple[float, dict[str, str]]] = {}
+
+
+def trace_owner_index(default_student_id: str) -> dict[str, str]:
+    """run_id -> 会话属主 student_id（无戳遗留会话归 default_student_id）。
+
+    仅服务端授权判断使用；不含标题/消息等任何内容字段。"""
+    _SESSIONS_DIR.mkdir(parents=True, exist_ok=True)
+    out: dict[str, str] = {}
+    seen: set[str] = set()
+    for p in _SESSIONS_DIR.glob("*.json"):
+        try:
+            mtime = p.stat().st_mtime
+        except OSError:
+            continue
+        key = str(p)
+        seen.add(key)
+        cached = _trace_owner_cache.get(key)
+        if cached is None or cached[0] != mtime:
+            try:
+                d = json.loads(p.read_text(encoding="utf-8"))
+            except Exception:
+                _trace_owner_cache.pop(key, None)
+                continue
+            owner = str(d.get("student_id") or default_student_id)
+            cached = (mtime,
+                      {str(t): owner for t in (d.get("trace_ids") or [])})
+            _trace_owner_cache[key] = cached
+        out.update(cached[1])
+    if len(seen) != len(_trace_owner_cache):
+        for key in [k for k in _trace_owner_cache if k not in seen]:
+            _trace_owner_cache.pop(key, None)
+    return out
+
+
 def delete_session(session_id: str) -> bool:
     path = _resolve(session_id)
     knowledge_files: list[dict[str, Any]] = []

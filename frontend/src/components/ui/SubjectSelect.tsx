@@ -6,6 +6,8 @@ import { getKnowledgeCatalog } from "@/lib/api-modules";
 import type { CatalogStage } from "@/lib/types-modules";
 import { cn } from "@/lib/cn";
 import { FIELD_CLS } from "@/components/ui/Input";
+import { gradeLabel } from "@/lib/i18n";
+import { useUIStore } from "@/lib/store";
 
 type Tr = (key: string, fallback?: string) => string;
 
@@ -27,6 +29,7 @@ export function SubjectSelect({
   disabled?: boolean;
   className?: string;
 }) {
+  const lang = useUIStore((s) => s.lang);
   const [stages, setStages] = useState<CatalogStage[] | null>(null);
   const [failed, setFailed] = useState(false);
 
@@ -89,7 +92,7 @@ export function SubjectSelect({
           {!loading && level === "" && <option value="">{tr("catalog.levelPh", "…")}</option>}
           {levelOptions.map((lv) => (
             <option key={lv} value={lv}>
-              {lv}
+              {gradeLabel(lang, lv)}
             </option>
           ))}
         </select>

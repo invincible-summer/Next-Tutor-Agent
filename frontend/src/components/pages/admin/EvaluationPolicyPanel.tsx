@@ -11,10 +11,13 @@ import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { cn } from "@/lib/cn";
 import { Field, inputCls, type Tr } from "./Field";
+import { localeFor } from "@/lib/i18n";
+import { useUIStore } from "@/lib/store";
 
 type Schedule = "immediate" | "daily_midnight";
 
 export function EvaluationPolicyPanel({ tr }: { tr: Tr }) {
+  const lang = useUIStore((s) => s.lang);
   const [status, setStatus] = useState<AdminEvalPolicyStatus | null>(null);
   const [schedule, setSchedule] = useState<Schedule>("immediate");
   const [timezone, setTimezone] = useState("Asia/Singapore");
@@ -59,7 +62,7 @@ export function EvaluationPolicyPanel({ tr }: { tr: Tr }) {
   };
 
   const nextRun = status?.next_run_utc
-    ? new Date(status.next_run_utc).toLocaleString() : "—";
+    ? new Date(status.next_run_utc).toLocaleString(localeFor(lang)) : "—";
   const stats: { label: string; value: string }[] = [
     { label: tr("adm.eval.stat.revision"), value: `v${status?.policy.revision ?? "—"}` },
     { label: tr("adm.eval.stat.service"),
@@ -68,7 +71,7 @@ export function EvaluationPolicyPanel({ tr }: { tr: Tr }) {
     { label: tr("adm.eval.stat.pending"), value: String(status?.pending_source_count ?? 0) },
     { label: tr("adm.eval.stat.oldest"),
       value: status?.oldest_pending_observed_at
-        ? new Date(status.oldest_pending_observed_at).toLocaleString() : "—" },
+        ? new Date(status.oldest_pending_observed_at).toLocaleString(localeFor(lang)) : "—" },
     { label: tr("adm.eval.stat.lastBatch"),
       value: status?.last_batch
         ? `${status.last_batch.local_date} · ${tr("adm.eval.batch.evaluated")}${status.last_batch.evaluated_count}`

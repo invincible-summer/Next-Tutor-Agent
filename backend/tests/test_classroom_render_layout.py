@@ -193,7 +193,7 @@ class FullThemeLayoutTests(unittest.TestCase):
                             for i in report.issues),
                         f"质量门未拦截超预算页: {report.overflow_issue_summary()}")
 
-    def test_v2_long_page_remains_scrollable(self):
+    def test_v2_dense_components_fit_single_canvas(self):
         report = self._check(build_showcase_revision(
             "academic_clear@2", overfull=True))
         self.assertTrue(report.ok, report.overflow_issue_summary())

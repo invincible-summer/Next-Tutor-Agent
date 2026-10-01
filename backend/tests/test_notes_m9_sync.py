@@ -14,6 +14,7 @@
 Pure local stores, no network. Data dirs are redirected to temp dirs.
 """
 import sys
+from tests.storage_sandbox import patch_all_storage_roots, reset_shared_caches, authenticated_client
 import tempfile
 import time
 import unittest
@@ -36,6 +37,8 @@ class TestNotesM9Sync(unittest.TestCase):
     def setUp(self) -> None:
         self._tmp = tempfile.TemporaryDirectory(prefix="notes_m9_")
         root = Path(self._tmp.name)
+        (root / "users").mkdir()
+        self._sandbox = patch_all_storage_roots(root)
         self._patches = [
             patch.object(notes_mod, "_NOTES_DIR", root / "notes"),
             patch.object(orch_store, "_STUDENTS_DIR", root / "students"),
@@ -44,12 +47,15 @@ class TestNotesM9Sync(unittest.TestCase):
         for p in self._patches:
             p.start()
         self.addCleanup(self._cleanup)
-        self.client = TestClient(create_app())
+        self.client = authenticated_client(create_app(), "student_default")
         self.service = m9_manager.LearningOrchestrationService()
 
     def _cleanup(self):
         for p in reversed(self._patches):
             p.stop()
+        for p in reversed(self._sandbox):
+            p.stop()
+        reset_shared_caches()
         self._tmp.cleanup()
 
     def _make_review_note(self, title: str = "温故笔记") -> dict:

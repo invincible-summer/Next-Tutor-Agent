@@ -5,6 +5,8 @@
 import { useMemo, useState } from "react";
 import { BookOpen, BookText, ChevronRight, CircleAlert, GraduationCap } from "lucide-react";
 import { cn } from "@/lib/cn";
+import { gradeLabel } from "@/lib/i18n";
+import { useUIStore } from "@/lib/store";
 import { KNOWLEDGE_LEVEL_ORDER } from "@/lib/labels";
 import { Badge } from "@/components/ui/Badge";
 import type {
@@ -40,6 +42,7 @@ export function TextbookSidebar({
   onSelectGroup: (id: string | null) => void;
   onOpenTextbook: (id: string) => void;
 }) {
+  const lang = useUIStore((s) => s.lang);
   const levels = useMemo(() => {
     const known = KNOWLEDGE_LEVEL_ORDER.filter((lv) =>
       rawLevels.some((x) => x.name === lv && x.subjects.some((s) => s.groups.length > 0)));
@@ -107,7 +110,7 @@ export function TextbookSidebar({
             <div key={lvKey} className="flex flex-col gap-1">
               <div onClick={() => toggle(lvKey)} className={rowCls(false)}>
                 <GraduationCap size={14} className="shrink-0 text-muted" />
-                <span className={textCls(false)}>{lv.name}</span>
+                <span className={textCls(false)}>{gradeLabel(lang, lv.name)}</span>
                 <Badge tone="muted" className="tnum">{groupCount}</Badge>
                 <ChevronRight size={13} className={chevronCls(lvOpen)} />
               </div>
@@ -158,7 +161,7 @@ export function TextbookSidebar({
                                 <button
                                   key={v.file_id}
                                   onClick={() => onOpenTextbook(g.id)}
-                                  title={`${v.chapter_count} 章 · ${v.concept_count} 概念${v.error ? ` · ${v.error}` : ""}`}
+                                  title={`${v.chapter_count} ${tr("res.tb.chapters")} · ${v.concept_count} ${tr("res.tb.concepts")}${v.error ? ` · ${v.error}` : ""}`}
                                   className="flex cursor-pointer items-center gap-1.5 rounded-[8px] px-2 py-1 text-left text-xs text-fg-secondary transition-colors hover:bg-surface-hover hover:text-fg"
                                 >
                                   <span className="min-w-0 flex-1 truncate">

@@ -9,6 +9,10 @@ uploaded PDF) instead of a clean slate. Pins the fixed behavior:
   - by-id endpoints 404 on foreign workspaces (no existence leak),
   - move_session rejects sessions owned by another identity.
 """
+
+from __future__ import annotations
+
+
 import json
 import os
 import sys
@@ -16,19 +20,21 @@ import tempfile
 import unittest
 from pathlib import Path
 from unittest.mock import patch
+import asyncio
 
 _BACKEND = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(_BACKEND))
 
-from fastapi.testclient import TestClient  # noqa: E402
-
-from app.main import create_app  # noqa: E402
-from app.core import workspace as ws_mod  # noqa: E402
-from app.core import library as library_mod  # noqa: E402
-from app.core import session as session_mod  # noqa: E402
-from app.identity import config as id_config  # noqa: E402
-from app.identity import store as id_store  # noqa: E402
-from app.identity.security import create_token, hash_password  # noqa: E402
+from fastapi.testclient import TestClient
+from app.main import create_app
+from app.core import workspace as ws_mod
+from app.core import library as library_mod
+from app.core import session as session_mod
+from app.identity import config as id_config
+from app.identity import store as id_store
+from app.identity.security import create_token, hash_password
+from tests.storage_sandbox import StorageSandboxTestCase
+from app.core import workspace, workspace_memory
 
 
 def _write_workspace(dirpath: Path, ws_id: str, student_id: str | None) -> None:
@@ -40,41 +46,20 @@ def _write_workspace(dirpath: Path, ws_id: str, student_id: str | None) -> None:
         json.dumps(d, ensure_ascii=False), encoding="utf-8")
 
 
-class TestWorkspaceIsolation(unittest.TestCase):
+class TestWorkspaceIsolation(StorageSandboxTestCase):
     def setUp(self) -> None:
-        self._tmp = tempfile.TemporaryDirectory()
-        root = Path(self._tmp.name)
-        (root / "users").mkdir()
-        (root / "sessions").mkdir()
-        self._env_old = os.environ.get("AUTH_MODE")
-        os.environ["AUTH_MODE"] = "1"
-        self._patches = [
-            patch.object(ws_mod, "_WORKSPACES_DIR", root / "workspaces"),
-            patch.object(library_mod, "_LIBRARY_DIR", root / "library"),
-            patch.object(session_mod, "_SESSIONS_DIR", root / "sessions"),
-            # AUTH_MODE=1 refuses to boot with the dev default JWT secret.
-            patch.object(id_config, "AUTH_JWT_SECRET", "test-secret-not-default"),
-            patch.object(id_store, "_ACCOUNTS_FILE", root / "users" / "accounts.json"),
-        ]
-        for p in self._patches:
-            p.start()
+        super().setUp()
         self.client = TestClient(create_app())
         self.user = id_store.create_user(
             email="grace@example.com", username="",
             password_hash=hash_password("secret123"))
         self.token = create_token(self.user.id)
         self.headers = {"Authorization": f"Bearer {self.token}"}
-        self.ws_root = root / "workspaces"
+        self.ws_root = ws_mod._WORKSPACES_DIR
         self.ws_root.mkdir(exist_ok=True)
 
     def tearDown(self) -> None:
-        for p in reversed(self._patches):
-            p.stop()
-        if self._env_old is None:
-            os.environ.pop("AUTH_MODE", None)
-        else:
-            os.environ["AUTH_MODE"] = self._env_old
-        self._tmp.cleanup()
+        super().tearDown()
 
     def _ids(self, headers: dict | None = None) -> list[str]:
         r = self.client.get("/api/v1/workspaces", headers=headers or {})
@@ -85,7 +70,7 @@ class TestWorkspaceIsolation(unittest.TestCase):
         _write_workspace(self.ws_root, "ws_guest", "student_default")
         _write_workspace(self.ws_root, "ws_legacy", None)
         _write_workspace(self.ws_root, "ws_other", "usr_someoneelse")
-        self.assertEqual(self._ids(), ["ws_guest", "ws_legacy"])
+        self.assertEqual(self.client.get("/api/v1/workspaces").status_code, 401)
 
     def test_new_account_starts_with_empty_workspaces(self):
         _write_workspace(self.ws_root, "ws_guest", "student_default")
@@ -98,7 +83,7 @@ class TestWorkspaceIsolation(unittest.TestCase):
         self.assertEqual(r.status_code, 200)
         wid = r.json()["workspace_id"]
         self.assertEqual(self._ids(self.headers), [wid])
-        self.assertEqual(self._ids(), [])  # invisible to the guest
+        self.assertEqual(self.client.get("/api/v1/workspaces").status_code, 401)
 
     def test_foreign_workspace_by_id_404(self):
         _write_workspace(self.ws_root, "ws_guest", "student_default")
@@ -112,19 +97,49 @@ class TestWorkspaceIsolation(unittest.TestCase):
             self.assertEqual(r.status_code, 404, f"{method} {url}")
         # The owner's own view still works.
         r = self.client.get("/api/v1/workspaces/ws_guest")
-        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r.status_code, 401)
 
     def test_move_session_rejects_foreign_session(self):
         r = self.client.post("/api/v1/workspaces", json={"name": "mine"},
                              headers=self.headers)
         wid = r.json()["workspace_id"]
         # A guest-owned session must not be moved into the user's workspace.
-        (self._tmp.name and Path(self._tmp.name) / "sessions" / "s_guest.json").write_text(
+        (session_mod._SESSIONS_DIR / "s_guest.json").write_text(
             json.dumps({"session_id": "s_guest", "student_id": "student_default",
                         "messages": []}), encoding="utf-8")
         r = self.client.post(f"/api/v1/workspaces/{wid}/sessions",
                              json={"session_id": "s_guest"}, headers=self.headers)
         self.assertEqual(r.status_code, 404)
+
+# Related workspace memory boundary regressions.
+
+
+class TestWorkspaceMemoryBoundary(StorageSandboxTestCase):
+    def test_new_session_compacts_once_and_stays_workspace_local(self):
+        with tempfile.TemporaryDirectory() as tmp, \
+                patch.object(workspace, "_WORKSPACES_DIR", Path(tmp) / "workspaces"):
+            ws = workspace.Workspace(
+                workspace_id="ws1", student_id="stu1", name="课程项目",
+                public_memory="知识点：旧内容\n薄弱点：需要复习")
+            workspace.save_workspace(ws)
+
+            class LLM:
+                calls = 0
+                async def complete(self, messages, **kwargs):
+                    self.calls += 1
+                    return "知识点：压缩后内容\n薄弱点：需要复习", {}
+
+            llm = LLM()
+            first = asyncio.run(workspace_memory.compact_workspace_memory_on_new_session(
+                "ws1", "chat1", llm=llm))
+            second = asyncio.run(workspace_memory.compact_workspace_memory_on_new_session(
+                "ws1", "chat1", llm=llm))
+            self.assertEqual(first["status"], "compacted")
+            self.assertEqual(second["status"], "already_done")
+            self.assertEqual(llm.calls, 1)
+            restored = workspace.load_workspace("ws1")
+            self.assertEqual(restored.public_memory, "知识点：压缩后内容\n薄弱点：需要复习")
+            self.assertEqual(restored.memory_boundary_sessions, ["chat1"])
 
 
 if __name__ == "__main__":

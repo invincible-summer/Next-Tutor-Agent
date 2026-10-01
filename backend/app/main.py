@@ -58,12 +58,10 @@ async def _lifespan(app: FastAPI):
         from app.identity.store import ensure_admin_account
         ensure_admin_account()
 
-    # 预热默认学生模型（性能）：M5 合并公共教材图谱进 SkillGraph，放到
-    # 后台线程避免冻结事件循环；预热失败只是首请求变慢，不阻止服务。
+    # 保留启动报告步骤；学生模型仅在登录账号首次使用时加载。
     def _warm_default_student_model() -> None:
-        from app.agents.student_model import get_student_model, is_enabled
-        if is_enabled():
-            get_student_model()
+        # Guests have no persistent student model. Registered models load lazily.
+        return
 
     def _trash_cleanup_once() -> None:
         from app.core.trash import cleanup_expired
@@ -83,7 +81,7 @@ async def _lifespan(app: FastAPI):
                              _legacy_graph_cleanup)
     await run_bootstrap_step(report, "textbook_recovery", _textbook_recovery)
     await run_bootstrap_step(report, "admin_bootstrap", _admin_bootstrap,
-                             to_thread=True)
+                             to_thread=True, critical=True)
 
     async def _warm_async() -> None:
         await asyncio.to_thread(_warm_default_student_model)
@@ -174,9 +172,55 @@ async def _lifespan(app: FastAPI):
     except Exception:
         log.warning("trash cleanup loop not started", exc_info=True)
         cleanup_task = None
+
+    # 站内学习助手（plan.md §12.2/§12.3-5）：开关关闭时不启动后台任务。
+    assistant_runtime = None
+    assistant_draft_task = None
+    try:
+        from app.core.config import settings
+
+        if settings.site_assistant_enabled:
+            from app.agents.site_assistant.runtime import get_runtime
+
+            async def _start_assistant() -> None:
+                await get_runtime().start()
+
+            await run_bootstrap_step(report, "assistant_runtime",
+                                     _start_assistant)
+            assistant_runtime = get_runtime()
+
+            async def _assistant_draft_purge_loop() -> None:
+                # 启动清一次，此后每小时一次（§12.3-5）。
+                from app.core import assistant_store as asst_store
+                while True:
+                    try:
+                        if asst_store._ASSISTANT_DIR.is_dir():
+                            for d in asst_store._ASSISTANT_DIR.iterdir():
+                                if d.is_dir():
+                                    await asyncio.to_thread(
+                                        asst_store.purge_expired_drafts,
+                                        d.name)
+                    except Exception:
+                        log.debug("assistant draft purge iteration failed",
+                                  exc_info=True)
+                    await asyncio.sleep(3600.0)
+
+            assistant_draft_task = asyncio.create_task(
+                _assistant_draft_purge_loop())
+    except Exception:
+        log.warning("assistant runtime not started", exc_info=True)
+        assistant_runtime = None
+    from app.core.guest_runtime import sweep_loop, purge_all as purge_guests
+    guest_sweep_task = asyncio.create_task(sweep_loop())
     try:
         yield
     finally:
+        purge_guests()
+        guest_sweep_task.cancel()
+        try:
+            await guest_sweep_task
+        except asyncio.CancelledError:
+            pass
         # shutdown 类失败只 warning（plan.md §19），不再无痕。
         # 课堂 worker：先停调度（≤10s 检查点宽限），再走其余清理
         if classroom_worker is not None:
@@ -217,6 +261,19 @@ async def _lifespan(app: FastAPI):
                 await cleanup_task
             except asyncio.CancelledError:
                 pass
+        # 站内助手：停机取消未完成模型请求，尽力写 interrupted（§12.2）。
+        if assistant_draft_task is not None:
+            assistant_draft_task.cancel()
+            try:
+                await assistant_draft_task
+            except asyncio.CancelledError:
+                pass
+        if assistant_runtime is not None:
+            try:
+                await assistant_runtime.stop()
+            except Exception:
+                log.warning("shutdown: assistant runtime stop failed",
+                            exc_info=True)
         if voices_task is not None:
             voices_task.cancel()
             try:
@@ -267,7 +324,15 @@ def create_app() -> FastAPI:
     from app.identity.config import ensure_secret_safety
     ensure_secret_safety()
 
-    app = FastAPI(title="Next Tutor Agent API", version=__version__, lifespan=_lifespan)
+    # 生产（AUTH_MODE=1）关闭交互文档：/docs、/redoc、/openapi.json 会向
+    # 匿名访客完整暴露 API 面（含 admin/trace 端点描述）。开发模式保留。
+    _production = _os.getenv("AUTH_MODE", "0") == "1"
+    app = FastAPI(
+        title="Next Tutor Agent API", version=__version__, lifespan=_lifespan,
+        docs_url=None if _production else "/docs",
+        redoc_url=None if _production else "/redoc",
+        openapi_url=None if _production else "/openapi.json",
+    )
     app.middleware("http")(_process_time_header)
     origins = _cors_origins()
     app.add_middleware(

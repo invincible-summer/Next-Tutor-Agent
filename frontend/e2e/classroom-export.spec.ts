@@ -1,4 +1,4 @@
-/* 课堂导出 E2E（plan.md §19.3 classroom-export）。
+/* 课堂导出 E2E。
  *
  * - 下载课件（HTML ZIP）与讲稿（Markdown）：POST exports 带
  *   Idempotency-Key 与 format；content_url 经鉴权 GET；浏览器下载
@@ -75,10 +75,11 @@ test("下载课件与讲稿：受理→鉴权内容→浏览器下载", async ({
                                contentStatus: 200 };
   await routeExport(page, state, hooks);
   await page.goto(`/workspaces/${WS_ID}/classroom/${LESSON_ID}`);
-  await expect(page.getByText("本页讲稿")).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByRole("button", { name: "导出课件", exact: true })).toBeVisible();
 
   // 下载课件（HTML ZIP）
   const zipDownload = page.waitForEvent("download");
+  await page.getByRole("button", { name: "导出课件", exact: true }).click();
   await page.getByRole("button", { name: "下载课件" }).click();
   const zip = await zipDownload;
   expect(zip.suggestedFilename())
@@ -86,6 +87,7 @@ test("下载课件与讲稿：受理→鉴权内容→浏览器下载", async ({
 
   // 下载讲稿（Markdown）
   const mdDownload = page.waitForEvent("download");
+  await page.getByRole("button", { name: "导出课件", exact: true }).click();
   await page.getByRole("button", { name: "下载讲稿" }).click();
   const md = await mdDownload;
   expect(md.suggestedFilename())
@@ -110,18 +112,23 @@ test("导出过期（410）无下载且按钮可重试", async ({ page }) => {
                                contentStatus: 410 };
   await routeExport(page, state, hooks);
   await page.goto(`/workspaces/${WS_ID}/classroom/${LESSON_ID}`);
+  const menu = page.getByRole("button", { name: "导出课件", exact: true });
+  await menu.click();
   const btn = page.getByRole("button", { name: "下载课件" });
   await expect(btn).toBeVisible({ timeout: 10_000 });
 
   let downloads = 0;
   page.on("download", () => { downloads += 1; });
   await btn.click();
-  await page.waitForTimeout(600);
+  await expect(page.getByRole("alert").filter({ hasText: "导出失败，请重试" })).toBeVisible();
   expect(downloads).toBe(0);
-  // 按钮不再处于 busy：可再次点击（重试生成新导出）
+  // 重新打开菜单，按钮恢复可用；重试必须产生新的请求。
+  await menu.click();
   await expect(btn).toBeEnabled();
   await btn.click();
-  expect(hooks.posts.length).toBe(2);
+  await expect.poll(() => hooks.posts.length).toBe(2);
+  await expect.poll(() => hooks.contentFetches).toBe(2);
+  expect(downloads).toBe(0);
 });
 
 test("打印 PDF 读取当前固定版本的授权打印页", async ({ page }) => {
@@ -140,12 +147,12 @@ test("打印 PDF 读取当前固定版本的授权打印页", async ({ page }) =
     }
   });
   await page.goto(`/workspaces/${WS_ID}/classroom/${LESSON_ID}`);
+  await page.getByRole("button", { name: "导出课件", exact: true }).click();
   const popupReady = page.waitForEvent("popup");
   await page.getByRole("button", { name: "打印 / PDF" }).click();
   const popup = await popupReady;
   await expect.poll(() => printRequests.length).toBe(1);
   expect(printRequests[0]).toContain(`/revisions/3/frame?mode=print`);
-  await expect.poll(async () => (await popup.content()).includes("动量守恒"))
-    .toBe(true);
+  await expect(popup.frameLocator("iframe").getByRole("heading", { name: /动量守恒/ })).toBeVisible();
   await popup.close();
 });

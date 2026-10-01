@@ -12,6 +12,11 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // 本地跑 Playwright 生成的报告/产物（.gitignore 同款）：其中的打包
+    // JS 不是源码，无参数全仓库 lint 时必须跳过。
+    "playwright-report/**",
+    "test-results/**",
+    ".playwright/**",
   ]),
   {
     // Playwright E2E：动态 JSON 响应用 any 是刻意选择（断言层关心字段

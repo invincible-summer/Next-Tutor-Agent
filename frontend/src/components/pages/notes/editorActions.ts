@@ -1,6 +1,7 @@
 // MarkdownEditor 的纯函数层：对 textarea 选区做包装/行前缀/插入。
 // 应用层用 document.execCommand("insertText")（见 MarkdownEditor），这里只算
 // 出目标文本与选区，保持可单测。
+import type { Lang } from "@/lib/i18n";
 
 export interface EditState {
   value: string;
@@ -77,8 +78,9 @@ export const GFM_TABLE = [
 ].join("\n");
 
 /** 生成 markdown 表格的插入态。 */
-export function tableSnippet(s: EditState): EditResult {
-  return insertBlock(s, GFM_TABLE);
+export function tableSnippet(s: EditState, lang: Lang = "zh"): EditResult {
+  const table = lang === "en" ? GFM_TABLE.replace("列一 | 列二 | 列三", "Column 1 | Column 2 | Column 3") : GFM_TABLE;
+  return insertBlock(s, table);
 }
 
 /** 供工具栏按钮用的编辑动作描述。 */
@@ -88,13 +90,14 @@ export type EditorAction =
   | "table" | "hr" | "link" | "image" | "math" | "mathblock"
   | "wikilink";
 
-export function applyAction(s: EditState, action: EditorAction): EditResult {
+export function applyAction(s: EditState, action: EditorAction, lang: Lang = "zh"): EditResult {
+  const label = (zh: string, en: string) => lang === "en" ? en : zh;
   switch (action) {
-    case "bold": return wrapSelection(s, "**", "**", "加粗文本");
-    case "italic": return wrapSelection(s, "*", "*", "斜体文本");
-    case "strike": return wrapSelection(s, "~~", "~~", "删除文本");
+    case "bold": return wrapSelection(s, "**", "**", label("加粗文本", "bold text"));
+    case "italic": return wrapSelection(s, "*", "*", label("斜体文本", "italic text"));
+    case "strike": return wrapSelection(s, "~~", "~~", label("删除文本", "deleted text"));
     case "code": return wrapSelection(s, "`", "`", "code");
-    case "codeblock": return insertBlock(s, "```\n代码\n```");
+    case "codeblock": return insertBlock(s, `\`\`\`\n${label("代码", "code")}\n\`\`\``);
     case "h1": return toggleLinePrefix(s, "# ");
     case "h2": return toggleLinePrefix(s, "## ");
     case "h3": return toggleLinePrefix(s, "### ");
@@ -102,13 +105,13 @@ export function applyAction(s: EditState, action: EditorAction): EditResult {
     case "ul": return toggleLinePrefix(s, "- ");
     case "ol": return toggleLinePrefix(s, "1. ", true);
     case "task": return toggleLinePrefix(s, "- [ ] ");
-    case "table": return tableSnippet(s);
+    case "table": return tableSnippet(s, lang);
     case "hr": return insertBlock(s, "---");
-    case "link": return wrapSelection(s, "[", "](https://)", "链接文字");
-    case "image": return replaceRange(s, "![图片描述](https://)");
-    case "math": return wrapSelection(s, "$", "$", "公式");
-    case "mathblock": return insertBlock(s, "$$\n公式\n$$");
-    case "wikilink": return wrapSelection(s, "[[", "]]", "笔记标题");
+    case "link": return wrapSelection(s, "[", "](https://)", label("链接文字", "link text"));
+    case "image": return replaceRange(s, `![${label("图片描述", "image description")}](https://)`);
+    case "math": return wrapSelection(s, "$", "$", label("公式", "formula"));
+    case "mathblock": return insertBlock(s, `$$\n${label("公式", "formula")}\n$$`);
+    case "wikilink": return wrapSelection(s, "[[", "]]", label("笔记标题", "note title"));
   }
 }
 

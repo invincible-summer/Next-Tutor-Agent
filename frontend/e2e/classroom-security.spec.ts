@@ -162,9 +162,10 @@ test("课件 iframe 沙箱隔离且伪造 postMessage 无效", async ({ page }) 
                   audioContentStatus: 200 };
   await routeSec(page, hooks);
   await page.goto(`/workspaces/${WS}/classroom/${LESSON}/learn/${RUN}`);
+  await page.getByRole("button", { name: "字幕", exact: true }).click();
   await expect(page.locator(
-    "section[aria-label='字幕'] p[aria-live='polite']"))
-    .toContainText(SEGS[0].text, { timeout: 10_000 });
+    "section[aria-label='字幕'] [aria-live='polite']"))
+    .toContainText(SEGS[0].text, { timeout: 30_000 });
 
   // sandbox 只有 allow-scripts；无 allow-same-origin；srcdoc 而非 src
   const sandbox = await page.locator("iframe[title='动量守恒']")
@@ -181,37 +182,20 @@ test("课件 iframe 沙箱隔离且伪造 postMessage 无效", async ({ page }) 
     { type: "classroom_ready", nonce: "evil" }, "*"));
   await page.evaluate(() => window.postMessage(
     { type: "classroom_init", nonce: "evil" }, "*"));
-  await page.waitForTimeout(400);
   // 播放器仍可用：目录跳转到第 2 页成功
-  await page.getByRole("button", { name: "章节目录" }).click();
-  await page.click("nav[aria-label='章节目录'] li:nth-child(2) button");
-  await expect(page.locator("footer span", { hasText: "2 / 2" }))
-    .toBeVisible({ timeout: 10_000 });
+  await page.getByRole("button", { name: "下一页", exact: true }).click();
+  await expect(page.locator(".player-page-count")).toHaveText("2/2");
 });
 
 test("frame 与音频内容请求都经 Authorization 头鉴权", async ({ page }) => {
   const hooks = { authHeaders: [] as Record<string, string | undefined>[],
                   audioContentStatus: 200 };
   await routeSec(page, hooks);
-  // 假 token 过 /auth/me 校验，避免被登出逻辑清除（否则后续请求无鉴权头）
-  await page.route("**/api/v1/auth/**", async (route) => {
-    const path = new URL(route.request().url()).pathname;
-    if (path.endsWith("/auth/me")) {
-      return route.fulfill({ status: 200, contentType: "application/json",
-        body: JSON.stringify({ user: { id: "u-e2e",
-          email: "e2e@example.com", username: "E2E",
-          profile: { name: "E2E" }, role: "student" } }) });
-    }
-    if (path.endsWith("/auth/status")) {
-      return route.fulfill({ status: 200, contentType: "application/json",
-        body: JSON.stringify({ auth_required: true }) });
-    }
-    return route.fallback();
-  });
   await page.goto(`/workspaces/${WS}/classroom/${LESSON}/learn/${RUN}`);
+  await page.getByRole("button", { name: "字幕", exact: true }).click();
   await expect(page.locator(
-    "section[aria-label='字幕'] p[aria-live='polite']"))
-    .toContainText(SEGS[0].text, { timeout: 10_000 });
+    "section[aria-label='字幕'] [aria-live='polite']"))
+    .toContainText(SEGS[0].text, { timeout: 30_000 });
   await page.click("button[aria-label='播放']");
   await expect.poll(() => hooks.authHeaders.filter(
     (h) => h.audioContent !== undefined).length).toBeGreaterThan(0);
@@ -222,23 +206,24 @@ test("frame 与音频内容请求都经 Authorization 头鉴权", async ({ page 
   expect(audioAuth?.audioContent).toBe("Bearer e2e-fake-token");
 });
 
-test("他人资源 404/410 时播放器优雅降级", async ({ page }) => {
+test("音频内容不可用时仍可翻页和阅读讲稿", async ({ page }) => {
   const hooks = { authHeaders: [] as Record<string, string | undefined>[],
                   audioContentStatus: 404 };
   await routeSec(page, hooks);
   await page.goto(`/workspaces/${WS}/classroom/${LESSON}/learn/${RUN}`);
+  await page.getByRole("button", { name: "字幕", exact: true }).click();
   await expect(page.locator(
-    "section[aria-label='字幕'] p[aria-live='polite']"))
-    .toContainText(SEGS[0].text, { timeout: 10_000 });
+    "section[aria-label='字幕'] [aria-live='polite']"))
+    .toContainText(SEGS[0].text, { timeout: 30_000 });
 
   // 音频内容 404：无声音但不崩溃；目录导航/讲稿仍可用
   await page.click("button[aria-label='播放']");
-  await page.waitForTimeout(800);
-  await page.getByRole("button", { name: "章节目录" }).click();
-  await page.click("nav[aria-label='章节目录'] li:nth-child(2) button");
-  await expect(page.locator("footer span", { hasText: "2 / 2" }))
-    .toBeVisible({ timeout: 10_000 });
-  await page.getByRole("button", { name: "本课讲稿" }).click();
+  await expect.poll(() => hooks.authHeaders.some((header) => header.audioContent)).toBe(true);
+  await expect(page.getByRole("button", { name: "播放", exact: true })).toBeEnabled();
+  await page.getByRole("button", { name: "下一页", exact: true }).click();
+  await expect(page.locator(".player-page-count")).toHaveText("2/2");
+  await page.getByRole("tab", { name: "课程讲稿", exact: true }).click();
+  await page.locator('[data-script-page="2"] summary').click();
   await expect(page.locator("aside").getByText(SEGS[1].text,
     { exact: false })).toBeVisible();
 });

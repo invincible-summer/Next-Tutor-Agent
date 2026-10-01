@@ -1,8 +1,16 @@
 "use client";
+import { navigationAnchor, navigationSucceeded, navigationMissing } from "@/lib/assistant/navigation";
+
 import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { Menu, ArrowRight, Search, BookOpen, GraduationCap, ClipboardList, Target, MessageSquareOff, Plus, PanelRight, Phone } from "lucide-react";
 import { useUIStore, useChatStore } from "@/lib/store";
+import { useAuthStore } from "@/lib/auth-store";
+import { GuestLearning } from "@/components/guest/GuestLearning";
+import { consumeAssistantDraft, getAssistantDraft } from "@/lib/assistant/api";
+import { useAssistantPage } from "@/lib/assistant/useAssistantPage";
+import { currentRouteEpoch } from "@/lib/assistant/page-context";
+import { focusDeepTarget } from "@/lib/assistant/deep-link";
 import { t, type Lang } from "@/lib/i18n";
 import { Sidebar } from "@/components/sidebar/Sidebar";
 import { ChatMessage, StreamingMessage } from "@/components/chat/ChatMessage";
@@ -29,6 +37,11 @@ function buildSuggestions(lang: Lang) {
 }
 
 function ChatWorkspace() {
+  const user = useAuthStore((s) => s.user);
+  return user ? <AuthenticatedChatWorkspace /> : <GuestLearning mode="chat" />;
+}
+
+function AuthenticatedChatWorkspace() {
   const { grade, lang, outputLanguage, toggleSidebar } = useUIStore();
   const chat = useChatStore();
   const router = useRouter();
@@ -36,6 +49,7 @@ function ChatWorkspace() {
   const tr = (k: string, fb?: string) => t(lang, k, fb);
   const suggestions = buildSuggestions(lang);
   const [greeting, setGreeting] = useState("");
+  const [loadedWorkspace, setLoadedWorkspace] = useState("");
   const [workspaceSources, setWorkspaceSources] = useState<MaterialSource[]>([]);
   const [materialsOpen, setMaterialsOpen] = useState(true);
   // P10 语音通话：后端 /voice/status 决定入口显隐（provider off 时整条链路
@@ -90,6 +104,63 @@ function ChatWorkspace() {
   // R12：来自 Memory/图谱的"开始验证"深链携带工作区——新对话绑定该区，
   // 评价来源归属可信（服务端 resolve_submission_binding 仍复核）。
   const deepWs = searchParams.get("ws");
+  // A13 助手交接草稿：只预填不自动发送（§9.5 不带 send=1）。
+  const assistantDraftId = searchParams.get("assistant_draft");
+  // B01 §20.1 聊天深链：?message= 定位具体消息（FULL-02：未加载到窗口内
+  // 时给温和提示，不假装精确定位）。
+  const deepMessage = searchParams.get("message");
+  const [deepMessageMissing, setDeepMessageMissing] = useState(false);
+  const deepMessageLast = useRef("");
+  useEffect(() => {
+    if (!deepMessage || !urlSession) return;
+    if (deepMessageLast.current === deepMessage) return;
+    if (!chat.messages.length || chat.sessionId !== urlSession) return;
+    deepMessageLast.current = deepMessage;
+    const loaded = chat.messages.some((m) => m.message_id === deepMessage);
+    if (!loaded) {
+      let alive = true;
+      loadSession(urlSession).then((detail) => {
+        if (!alive || useChatStore.getState().sessionId !== urlSession) return;
+        const messages = detail.messages || [];
+        const found = messages.some((message) => message.message_id === deepMessage);
+        if (found) deepMessageLast.current = "";
+        useChatStore.getState().setMessages(messages);
+        setEarlierCount(0);
+        setDeepMessageMissing(!found);
+      }).catch(() => { if (alive) setDeepMessageMissing(true); });
+      return () => { alive = false; };
+    }
+    const timer = window.setTimeout(() => {
+      if (!focusDeepTarget("message-id", deepMessage)) {
+        setDeepMessageMissing(true);
+      }
+    }, 60);
+    return () => window.clearTimeout(timer);
+  }, [deepMessage, urlSession, chat.messages, chat.sessionId]);
+
+  // §20.2 页面适配器：当前会话实体 + 进行中活动（语音通话）。
+  useAssistantPage({
+    navigationStatus: (target) => {
+      if (target.kind === "module") return navigationSucceeded;
+      if (target.kind === "workspace_chat") return loadedWorkspace === target.workspace_id ? navigationSucceeded : null;
+      if (target.kind !== "chat_session" && target.kind !== "chat_message") return null;
+      if (loadErrorFor === target.session_id) return navigationMissing;
+      if (chat.sessionId !== target.session_id || loadedRef.current !== target.session_id) return null;
+      return target.kind === "chat_message" ? navigationAnchor("message-id", target.message_id) : navigationSucceeded;
+    },
+    context: () => ({
+      schema_version: 1,
+      route_id: "chat",
+      route_epoch: currentRouteEpoch(),
+      ...(urlSession ? { entity: { kind: "chat" as const, id: urlSession } } : {}),
+    }),
+    clientState: () => ({
+      dirty: chat.streaming,
+      blocking_activity: voiceOpen
+        ? ("voice_call" as const) : ("none" as const),
+      safe_bottom_px: 24,
+    }),
+  });
 
   // Backward compat: old /chat?s=<id> deep links redirect to /chat/<id>.
   useEffect(() => {
@@ -109,7 +180,24 @@ function ChatWorkspace() {
     if (deepWs) sessionStorage.setItem("edu-agent-active-ws", deepWs);
   }, [deepWs]);
 
+  const [draftPrefill, setDraftPrefill] = useState<string | null>(null);
+  const draftIdRef = useRef<string | null>(null);
+  const draftConsumedRef = useRef(false);
   useEffect(() => {
+    if (!assistantDraftId || draftIdRef.current) return;
+    draftIdRef.current = assistantDraftId;
+    getAssistantDraft(assistantDraftId)
+      .then((draft) => {
+        const prefill = (draft as { prefill?: { kind?: string; text?: string } }).prefill;
+        if (prefill?.kind === "chat" && !draft.consumed && !draft.expired) {
+          setDraftPrefill(String(prefill.text || ""));
+        }
+      })
+      .catch(() => undefined);
+  }, [assistantDraftId]);
+
+  useEffect(() => {
+    let alive = true;
     const refresh = () => {
       const wsId = sessionStorage.getItem("edu-agent-active-ws");
       if (!wsId) {
@@ -117,14 +205,16 @@ function ChatWorkspace() {
         return;
       }
       getWorkspace(wsId).then((ws) => {
+        if (!alive) return;
+        setLoadedWorkspace(wsId);
         setWorkspaceSources((ws.knowledge_files || []).filter((s) =>
           s.source_scope === "workspace" || s.source_scope === "workspace_textbook"));
       }).catch(() => undefined);
     };
     refresh();
     window.addEventListener(WS_CHANGED_EVENT, refresh);
-    return () => window.removeEventListener(WS_CHANGED_EVENT, refresh);
-  }, [urlSession]);
+    return () => { alive = false; window.removeEventListener(WS_CHANGED_EVENT, refresh); };
+  }, [urlSession, deepWs]);
 
   // The URL is the source of truth for the current session: deep links,
   // sidebar navigation and browser back/forward (popstate) all funnel
@@ -154,6 +244,7 @@ function ChatWorkspace() {
         st.aborter?.abort();
         st.newChat();
       }
+      useUIStore.getState().setGrade(useUIStore.getState().defaultGrade);
       setEarlierCount(0);
       loadedRef.current = null;
       boundUrlRef.current = null;
@@ -247,6 +338,15 @@ function ChatWorkspace() {
       pinnedRef.current = true;
       voiceCtlRef.current.sendText(message);
       return;
+    }
+    // A13：交接草稿在用户实际发送后消费（读取不消耗，§19.5）。
+    const draftId = draftIdRef.current;
+    if (draftId && !draftConsumedRef.current) {
+      draftConsumedRef.current = true;
+      const sid0 = useChatStore.getState().sessionId;
+      consumeAssistantDraft(draftId, sid0
+        ? { kind: "chat", id: sid0 } : { kind: "chat" })
+        .catch(() => undefined);
     }
     chat.setStreaming(true);
     chat.resetPending();
@@ -400,7 +500,7 @@ function ChatWorkspace() {
         // switch (generation bumped) discards it instead.
         if (sameGeneration() && (answerAccum || thinkingAccum || toolCallsAccum.length > 0)) {
           chat.setMessages([...useChatStore.getState().messages, {
-            role: "assistant", content: answerAccum || thinkingAccum || "(已中断)",
+            role: "assistant", content: answerAccum || thinkingAccum || tr("chat.stopped"),
             thinking: thinkingAccum, toolCalls: toolCallsAccum as never,
           }]);
         }
@@ -586,8 +686,16 @@ function ChatWorkspace() {
                   </button>
                 </div>
               )}
+              {deepMessageMissing && (
+                <div role="status" className="mx-auto mb-2 w-fit rounded-full border border-border bg-surface px-3 py-1 text-xs text-muted">
+                  {tr("chat.deep.messageMissing",
+                    lang === "en"
+                      ? "Message not in the loaded range; try loading earlier messages."
+                      : "该消息不在当前加载范围内，可尝试加载更早消息。")}
+                </div>
+              )}
               {chat.messages.map((m, i) => (
-                <div key={i} className={containsMathMarkdown(m.content) ? undefined : "msg-cv"}>
+                <div key={i} data-message-id={m.message_id} className={containsMathMarkdown(m.content) ? undefined : "msg-cv"}>
                   <ChatMessage msg={m}
                     disabled={chat.streaming}
                     onRegenerate={i === chat.messages.length - 1 && m.role === "assistant" ? handleRegenerate : undefined}
@@ -622,7 +730,7 @@ function ChatWorkspace() {
           />
         )}
         <ChatInput onSend={handleSend} disabled={chat.streaming} onStop={handleStop}
-          prefill={deepSend === "1" && !urlSession ? null : deepPrefill} />
+          prefill={deepSend === "1" && !urlSession ? null : (draftPrefill ?? deepPrefill)} />
       </div>
       {materialsOpen && (
         <ChatMaterialsPanel sources={materialSources} open onClose={() => setMaterialsOpen(false)} />

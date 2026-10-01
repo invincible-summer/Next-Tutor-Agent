@@ -1,12 +1,17 @@
 """Structured RAG V2, Evidence Gate and no-re-OCR migration contracts."""
 from __future__ import annotations
 
+
 import asyncio
 import hashlib
 import tempfile
 import unittest
 from pathlib import Path
 from unittest.mock import AsyncMock, patch
+import sys
+
+_BACKEND = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(_BACKEND))
 
 from tests.storage_sandbox import StorageSandboxTestCase
 from app.core import library as library_mod
@@ -14,8 +19,7 @@ from app.core import textbook as tb_store
 from app.core.evidence_gate import apply_evidence_gate
 from app.core.knowledge_store import KnowledgeStore
 from app.core.rag_index import rebuild_textbook_rag
-from app.core.structured_chunker import (CHUNK_SCHEMA_VERSION, HARD_TOKEN_LIMIT,
-                                         TARGET_TOKEN_MIN, chunk_text_v2)
+from app.core.structured_chunker import CHUNK_SCHEMA_VERSION, HARD_TOKEN_LIMIT, TARGET_TOKEN_MIN, chunk_text_v2
 from app.core.tool_context import ToolResultRetention, project_tool_result
 from app.core.tool_protocol import ok
 from app.tools.knowledge_search import KnowledgeSearchTool
@@ -56,7 +60,6 @@ class TestStructuredChunkerV2(unittest.TestCase):
                              chunks[index + 1].chunk_id if index + 1 < len(chunks) else None)
         long_content = [c for c in content if c.metadata["token_estimate"] >= TARGET_TOKEN_MIN]
         self.assertTrue(long_content)
-
 
 
 class TestEvidenceGateV2(StorageSandboxTestCase):
@@ -208,10 +211,6 @@ class TestNoOcrRagMigration(unittest.TestCase):
         current = library_mod.load_library("stu").find_file("f1")
         self.assertEqual(current["chunk_schema"], "legacy-v1")
         self.assertEqual(current["rag_index"]["version"], "legacy")
-
-
-if __name__ == "__main__":
-    unittest.main()
 
 
 class TestColloquialQuestionRetrieval(StorageSandboxTestCase):
@@ -377,3 +376,45 @@ class TestFigurePageMarkersV2(unittest.TestCase):
             self.assertEqual(c.metadata.get("printed_page"), 98)
             self.assertNotIn("[页码=", c.text)
             self.assertIn("页码为 97。", c.text)
+
+# Related material retrieval regressions.
+
+
+class TestMaterialRetrieval(StorageSandboxTestCase):
+    def test_results_cover_multiple_files_and_include_locations(self):
+        store = KnowledgeStore()
+        for fid, name, chapter in (
+            ("v1", "大学物理上册.pdf", "第一章 质点运动"),
+            ("v2", "大学物理下册.pdf", "第八章 电磁感应"),
+            ("v3", "大学物理实验.pdf", "第三章 测量方法"),
+        ):
+            text = "\f".join(
+                f"{chapter}\n共同概念 动量守恒 在本卷的说明 {i}。" * 5
+                for i in range(1, 5))
+            store.add_file(
+                fid, name, text,
+                metadata={"source_scope": "workspace_textbook",
+                          "source_visibility": "public"})
+        result = asyncio.run(KnowledgeSearchTool(store).run(query="动量守恒", top_k=3))
+        self.assertEqual(result.status, "success")
+        rows = result.data["results"]
+        self.assertEqual(len({r["file_id"] for r in rows}), 3)
+        for row in rows:
+            self.assertTrue(row["filename"])
+            self.assertTrue(row["page"])
+            self.assertTrue(row["chapter"])
+            self.assertEqual(row["source_scope"], "workspace_textbook")
+            self.assertIn("location_label", row)
+
+    def test_internal_file_scope_never_leaks_other_file(self):
+        store = KnowledgeStore()
+        store.add_file("a", "A.txt", "相同主题 A 私有内容 " * 30)
+        store.add_file("b", "B.txt", "相同主题 B 指定内容 " * 30)
+        result = asyncio.run(KnowledgeSearchTool(store).run(
+            query="相同主题", top_k=4, file_ids=["b"]))
+        self.assertEqual({r["file_id"] for r in result.data["results"]}, {"b"})
+        self.assertNotIn("A 私有内容", result.text)
+
+
+if __name__ == "__main__":
+    unittest.main()

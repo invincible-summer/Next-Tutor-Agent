@@ -1,6 +1,6 @@
 # 自备本地模型的语义 RAG 部署与公共向量发布
 
-Edu_Agent 的语义检索是独立运行时：不 import Paper_Agent，不复用其虚拟环境、数据库或服务。
+Next-Tutor-Agent 的语义检索是独立运行时：不 import Paper_Agent，不复用其虚拟环境、数据库或服务。
 BM25 始终常驻；本地模型或 Chroma 故障时检索自动回退 BM25。
 
 **本仓库不内置、不固定、不默认分发任何本地向量大模型。** 曾捆绑的本地 embedding
@@ -12,7 +12,7 @@ constraints 中彻底移除，仓库与远端历史中也从未包含过任何�
 
 ## 1. 自备本地模型运行时
 
-使用 Python 3.11 与 Edu_Agent 自己的虚拟环境。向量轨需要 Chroma：
+使用 Python 3.11 与 Next-Tutor-Agent 自己的虚拟环境。向量轨需要 Chroma：
 
 ```bash
 python3.11 -m venv .venv
@@ -101,5 +101,5 @@ collection。
 
 4 vCPU / 10GB 基线：单 Uvicorn worker、部署方自备的 CPU embedding 模型、
 batch 32、2–4 个 native CPU threads、不加载 reranker/Docling、不运行时下载模型。
-上线仍需在目标服务器同时运行 Paper_Agent 与 Edu_Agent，实测 RSS、swap、上传、
+上线仍需在目标服务器同时运行 Paper_Agent 与 Next-Tutor-Agent，实测 RSS、swap、上传、
 SSE 和连续检索峰值；仓库测试不能替代该资源验收。

@@ -512,6 +512,10 @@ class TestVoiceWebSocket(StorageSandboxTestCase):
         from app.main import create_app
         from fastapi.testclient import TestClient
         self.client = TestClient(create_app())
+        from app.identity.store import create_user
+        from app.identity.security import create_token
+        self.voice_user = create_user("voice-fixture@test.local", "", "unused")
+        self.auth_headers = {"Authorization": "Bearer " + create_token(self.voice_user.id)}
 
     def tearDown(self) -> None:
         self._reset_tts()
@@ -529,7 +533,7 @@ class TestVoiceWebSocket(StorageSandboxTestCase):
                "tool_calls": [], "trace_id": "trace_voice_test"}
 
     def _ticket(self) -> str:
-        resp = self.client.post("/api/v1/voice/ticket")
+        resp = self.client.post("/api/v1/voice/ticket", headers=self.auth_headers)
         self.assertEqual(resp.status_code, 200)
         return resp.json()["ticket"]
 
@@ -569,7 +573,7 @@ class TestVoiceWebSocket(StorageSandboxTestCase):
                 return events
 
     def test_status_reports_browser_stt_and_tts(self):
-        data = self.client.get("/api/v1/voice/status").json()
+        data = self.client.get("/api/v1/voice/status", headers=self.auth_headers).json()
         self.assertEqual(data, {"enabled": True, "stt": "browser", "tts": "stub"})
 
     def test_status_disabled_tts_still_reports_browser_stt(self):
@@ -578,7 +582,7 @@ class TestVoiceWebSocket(StorageSandboxTestCase):
 
         with patch.object(settings, "voice_tts_provider", "off"):
             reset_tts_provider()
-            data = self.client.get("/api/v1/voice/status").json()
+            data = self.client.get("/api/v1/voice/status", headers=self.auth_headers).json()
         reset_tts_provider()
         self.assertEqual(data, {"enabled": False, "stt": "browser", "tts": None})
 
@@ -604,11 +608,10 @@ class TestVoiceWebSocket(StorageSandboxTestCase):
         self.assertEqual(len(audio_frames), 2)
         self.assertTrue(all(size > 0 for _tag, size in audio_frames))
 
-        from app.agents.student_model.store import DEFAULT_STUDENT_ID
         from app.core.session import load_session
         persisted = load_session(sid)
         self.assertIsNotNone(persisted)
-        self.assertEqual(persisted.student_id, DEFAULT_STUDENT_ID)
+        self.assertEqual(persisted.student_id, self.voice_user.id)
 
     def test_pipeline_streams_text_ahead_of_slow_tts(self):
         """Synthesis must not stall the LLM stream: with slow clips every

@@ -284,6 +284,21 @@ class Settings:
     api_port: int = int(os.getenv("API_PORT", "8000"))
 
     # ------------------------------------------------------------------
+    # 站内学习助手（plan.md §0.2/§17；默认 0，发布阶段显式启用）
+    # ------------------------------------------------------------------
+    site_assistant_enabled: bool = _env_bool("SITE_ASSISTANT_ENABLED", False)
+    # §26.5 领域写入与预览许可（B05 起）；默认随助手开启，灰度可单独关闭。
+    site_assistant_actions_enabled: bool = _env_bool(
+        "SITE_ASSISTANT_ACTIONS_ENABLED", True)
+    # §26.5 工作流创建/执行（C01 起）；默认随助手开启。
+    site_assistant_workflows_enabled: bool = _env_bool(
+        "SITE_ASSISTANT_WORKFLOWS_ENABLED", True)
+    # §26.5 订阅调度（C04 起）；自动建议默认关闭（§14.2/§17-4），须显式
+    # 启用且用户逐项开启订阅，不随总开关一次性开放。
+    site_assistant_proactive_enabled: bool = _env_bool(
+        "SITE_ASSISTANT_PROACTIVE_ENABLED", False)
+
+    # ------------------------------------------------------------------
     # 课堂模式（plan.md §20.1；默认值为开发阶段值，验收后发布模板设 1）
     # ------------------------------------------------------------------
     classroom_enabled: bool = _env_bool("CLASSROOM_ENABLED", False)
@@ -312,7 +327,7 @@ class Settings:
         "CLASSROOM_TTS_VOICE_ZH", "zh-CN-XiaoxiaoNeural").strip()
     classroom_tts_voice_en: str = os.getenv(
         "CLASSROOM_TTS_VOICE_EN", "en-US-JennyNeural").strip()
-    # None = 继承 VOICE_TTS_PROVIDER 是否为 melo；显式 1 才独立启用课堂本地回退
+    # None = 继承 VOICE_TTS_PROVIDER 是否为 melo/auto；显式 1 才独立启用课堂本地回退
     classroom_local_tts_enabled: bool | None = (
         None if os.getenv("CLASSROOM_LOCAL_TTS_ENABLED") is None
         else _env_bool("CLASSROOM_LOCAL_TTS_ENABLED", False))

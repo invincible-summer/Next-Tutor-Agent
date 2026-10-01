@@ -1,0 +1,41 @@
+.reading :global(.chat-prose) {
+  font-size: 14px;
+  line-height: 1.95;
+  color: rgb(var(--fg-secondary));
+}
+.reading :global(.chat-prose h1) {
+  margin: 0 0 1.1em;
+  font-family: var(--font-serif);
+  font-size: 1.65em;
+  line-height: 1.5;
+  letter-spacing: -.025em;
+  color: rgb(var(--fg));
+}
+.reading :global(.chat-prose h2) {
+  margin: 2.6em 0 1em;
+  padding-top: 1.5em;
+  border-top: 1px solid rgb(var(--border-light));
+  font-size: 1.3em;
+  line-height: 1.6;
+  color: rgb(var(--fg));
+}
+.reading :global(.chat-prose h3) {
+  margin: 1.8em 0 .65em;
+  font-size: 1.05em;
+  color: rgb(var(--fg));
+}
+.reading :global(.chat-prose p) { margin: .85em 0; }
+.reading :global(.chat-prose li) { margin: .5em 0; }
+.reading :global(.chat-prose blockquote) {
+  margin: 1.5em 0;
+  padding: .8em 1.3em;
+  border-radius: 0 12px 12px 0;
+  background: rgb(var(--accent-soft) / .45);
+  color: rgb(var(--fg-secondary));
+}
+.reading :global(.chat-prose th),
+.reading :global(.chat-prose td) { padding: .8em 1em; }
+.reading :global(.chat-prose :is(h1, h2, h3)) { scroll-margin-top: 24px; }
+.reading :global(.chat-prose ol) { list-style-type: decimal; }
+.reading :global(.chat-prose ul) { list-style-type: disc; }
+.reading :global(.chat-prose li::marker) { color: rgb(var(--accent)); }

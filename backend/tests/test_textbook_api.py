@@ -7,6 +7,10 @@
 - DELETE 级联：library 文件 + 记录同步清除。
 - library 直删文件 → 孤儿教材记录清理。
 """
+
+from __future__ import annotations
+
+
 import io
 import os
 import sys
@@ -14,16 +18,22 @@ import tempfile
 import unittest
 from pathlib import Path
 from unittest.mock import patch
+import asyncio
+from PIL import Image
 
 _BACKEND = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(_BACKEND))
 
-from fastapi.testclient import TestClient  # noqa: E402
+from fastapi.testclient import TestClient
+from app.main import create_app
+from app.core import ocr
+from tests.storage_sandbox import StorageSandboxTestCase
+
+
 # Import create_app at module load (AUTH_MODE defaults to "0" here, so the
 # module-level `app = create_app()` in main.py boots fine). setUp then sets
 # AUTH_MODE=1 + patches the secret before calling create_app() again — mirroring
 # test_session_isolation.py.
-from app.main import create_app  # noqa: E402
 
 
 def _setup_app(tmpdir: str):
@@ -388,10 +398,6 @@ class TestLibraryOrphanCleanup(unittest.TestCase):
         self.assertEqual(len(self.client.get("/api/v1/textbooks", headers=self.h).json()["textbooks"]), 1)
 
 
-if __name__ == "__main__":
-    unittest.main()
-
-
 class TestFigureStatusAPI(unittest.TestCase):
     """P7 图表标记状态端点：旧书（无 [图/[页码= 标记）False、升级后 True、外人 404。"""
 
@@ -451,3 +457,148 @@ class TestFigureStatusAPI(unittest.TestCase):
             f"/api/v1/textbooks/{tb_id}/figure-status",
             headers={"Authorization": f"Bearer {create_token(other.id)}"})
         self.assertEqual(r.status_code, 404)
+
+# Related textbook ocr api regressions.
+
+
+def _png() -> bytes:
+    buf = io.BytesIO()
+    Image.new("RGB", (20, 20), "white").save(buf, format="PNG")
+    return buf.getvalue()
+
+class TestTextbookOCRAPI(unittest.TestCase):
+    def setUp(self):
+        ocr._textbook_client_cache.clear()
+
+    def test_missing_config_is_blocked_without_tesseract(self):
+        with patch.object(ocr.settings, "llm_api_key", ""), \
+             patch.object(ocr, "_tesseract_ocr") as tess:
+            result = asyncio.run(ocr.textbook_ocr_page_api(_png(), attempt=2))
+        self.assertFalse(result.success)
+        self.assertEqual(result.error_code, "vision_not_configured")
+        self.assertFalse(result.retryable)
+        self.assertEqual(result.attempt, 2)
+        tess.assert_not_called()
+
+    def test_success_returns_text(self):
+        with patch.object(ocr.settings, "llm_api_key", "k"), \
+             patch.object(ocr, "_get_textbook_client", return_value=object()), \
+             patch.object(ocr, "_vision_once", return_value="教材正文"):
+            result = asyncio.run(ocr.textbook_ocr_page_api(_png()))
+        self.assertTrue(result.success)
+        self.assertEqual(result.text, "教材正文")
+
+    def test_empty_is_retryable_and_no_tesseract(self):
+        with patch.object(ocr.settings, "llm_api_key", "k"), \
+             patch.object(ocr, "_get_textbook_client", return_value=object()), \
+             patch.object(ocr, "_vision_once", return_value=""), \
+             patch.object(ocr, "_tesseract_ocr") as tess:
+            result = asyncio.run(ocr.textbook_ocr_page_api(_png()))
+        self.assertEqual(result.error_code, "empty_content")
+        self.assertTrue(result.retryable)
+        tess.assert_not_called()
+
+    def test_429_is_retryable_401_is_blocked(self):
+        class APIError(RuntimeError):
+            def __init__(self, status):
+                super().__init__(f"status {status}")
+                self.status_code = status
+        for status, retryable in ((429, True), (503, True), (401, False)):
+            with self.subTest(status=status), \
+                 patch.object(ocr.settings, "llm_api_key", "k"), \
+                 patch.object(ocr, "_get_textbook_client", return_value=object()), \
+                 patch.object(ocr, "_vision_once", side_effect=APIError(status)), \
+                 patch.object(ocr, "_tesseract_ocr") as tess:
+                result = asyncio.run(ocr.textbook_ocr_page_api(_png()))
+                self.assertEqual(result.retryable, retryable)
+                self.assertEqual(result.http_status, status)
+                tess.assert_not_called()
+
+
+# Related textbook quality api regressions.
+
+
+if str(_BACKEND) not in sys.path:
+    sys.path.insert(0, str(_BACKEND))
+
+
+class TextbookQualityAPITest(StorageSandboxTestCase):
+    def setUp(self):
+        super().setUp()
+        from app.api.v1 import textbook as tb_api
+        from app.core.ratelimit import reset_rate_limits
+        # 不触发后台构建/刷新（端点行为与受理语义是断言对象）。
+        self._build_patch = patch.object(tb_api, "_spawn_build", lambda *a, **k: None)
+        self._build_patch.start()
+        self._refresh_patch = patch.object(tb_api, "_spawn_refresh", lambda *a, **k: False)
+        self._refresh_patch.start()
+        reset_rate_limits()
+        self.client = TestClient(create_app())
+        from app.identity import store as id_store
+        from app.identity.security import create_token, hash_password
+        user = id_store.create_user(email="q@example.com", username="",
+                                    password_hash=hash_password("secret123"))
+        self.h = {"Authorization": f"Bearer {create_token(user.id)}"}
+
+    def tearDown(self):
+        self._refresh_patch.stop()
+        self._build_patch.stop()
+        super().tearDown()
+
+    def _upload(self, filename, content):
+        return self.client.post(
+            "/api/v1/textbooks/upload",
+            files={"files": (filename, io.BytesIO(content.encode("utf-8")),
+                             "text/plain")},
+            headers=self.h, data={"group": "质量测试组"})
+
+    def test_quality_report_flags_corrupt_volume(self):
+        garble = "\f".join(["ａ１１ｘ１＋ａ１２ｘ２＝ｂ１ꎬ" * 6 + "正常中文" * 10
+                            for _ in range(6)])
+        resp = self._upload("线代.txt", garble)
+        self.assertEqual(resp.status_code, 200)
+        tb_id = resp.json()["results"][0]["group_id"]
+        report = self.client.get(f"/api/v1/textbooks/{tb_id}/quality",
+                                 headers=self.h)
+        self.assertEqual(report.status_code, 200)
+        body = report.json()
+        self.assertEqual(len(body["volumes"]), 1)
+        vol = body["volumes"][0]
+        self.assertGreater(vol["text_quality"]["corrupt"], 0)
+        self.assertGreaterEqual(body["corrupt_ratio"], 0.10)
+        self.assertEqual(body["recommended_mode"], "quality_ocr")
+
+    def test_quality_report_clean_volume(self):
+        clean = "\f".join(["卷积神经网络具有局部连接和权重共享特性。" * 20
+                           for _ in range(4)])
+        resp = self._upload("深度学习.txt", clean)
+        tb_id = resp.json()["results"][0]["group_id"]
+        body = self.client.get(f"/api/v1/textbooks/{tb_id}/quality",
+                               headers=self.h).json()
+        self.assertEqual(body["page_verdicts"]["corrupt"], 0)
+        self.assertEqual(body["recommended_mode"], "rag_graph")
+
+    def test_rebuild_graph_accepts_quality_ocr_mode(self):
+        resp = self._upload("教材.txt", "正常教材内容。" * 20)
+        tb_id = resp.json()["results"][0]["group_id"]
+        ok = self.client.post(f"/api/v1/textbooks/{tb_id}/rebuild_graph",
+                              json={"mode": "quality_ocr"}, headers=self.h)
+        self.assertEqual(ok.status_code, 200)
+        self.assertTrue(ok.json()["ocr_requested"])
+        self.assertEqual(ok.json()["mode"], "quality_ocr")
+
+    def test_rebuild_graph_rejects_unknown_mode(self):
+        resp = self._upload("教材.txt", "正常教材内容。" * 20)
+        tb_id = resp.json()["results"][0]["group_id"]
+        bad = self.client.post(f"/api/v1/textbooks/{tb_id}/rebuild_graph",
+                               json={"mode": "turbo"}, headers=self.h)
+        self.assertEqual(bad.status_code, 400)
+
+    def test_quality_missing_textbook_404(self):
+        resp = self.client.get("/api/v1/textbooks/tb_missing/quality",
+                               headers=self.h)
+        self.assertEqual(resp.status_code, 404)
+
+
+if __name__ == "__main__":
+    unittest.main()

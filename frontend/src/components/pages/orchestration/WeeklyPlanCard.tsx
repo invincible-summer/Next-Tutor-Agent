@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { CalendarRange, Check, ChevronDown, ChevronRight, MessagesSquare, Network, Plus, Sparkles, Trash2, X } from "lucide-react";
 import { Badge } from "@/components/ui/Badge";
@@ -289,6 +289,8 @@ export function WeeklyPlanCard({
   reviewHref,
   conceptOptions = [],
   nowTs = 0,
+  deepWeekIndex,
+  deepTaskId,
   onAddWeek,
   onDeleteWeek,
   onAddConcept,
@@ -307,6 +309,9 @@ export function WeeklyPlanCard({
   conceptOptions?: ConceptOption[];
   /** 父组件回源时刷新的当前时间戳（render 不取 Date.now）。 */
   nowTs?: number;
+  /** §20.1 week_task 深链：?week=N 切到该周（存在时）。 */
+  deepWeekIndex?: number;
+  deepTaskId?: string;
   onAddWeek?: (p: OrchWeekPayload) => Promise<boolean>;
   onDeleteWeek?: (weekIndex: number) => Promise<boolean>;
   onAddConcept?: (weekIndex: number, p: OrchWeekConceptPayload) => Promise<boolean>;
@@ -341,6 +346,21 @@ export function WeeklyPlanCard({
   const [selected, setSelected] = useState<number | null>(null);
   const sel = selected !== null && selected < weeks.length ? selected : currentIdx;
   const week = weeks[sel] ?? null;
+
+  // 深链周选择：deepWeekIndex 变化且该周存在时切换（数据晚到同样生效）。
+  const deepWeekLast = useRef<number | null>(null);
+  useEffect(() => {
+    if (deepWeekIndex == null || deepWeekIndex < 0) return;
+    if (deepWeekLast.current === deepWeekIndex && !deepTaskId) return;
+    const idx = weeks.findIndex((w) => w.week_index === deepWeekIndex);
+    if (idx < 0) return;
+    deepWeekLast.current = deepWeekIndex;
+    void Promise.resolve().then(() => {
+      setSelected(idx);
+      const taskIndex = weeks[idx].tasks.findIndex((task) => task.id === deepTaskId);
+      setTaskPage(taskIndex < 0 ? 0 : Math.floor(taskIndex / 5));
+    });
+  }, [deepWeekIndex, deepTaskId, weeks]);
 
   const wrap = (fn: () => Promise<boolean>, close: () => void) => {
     setSubmitting(true);
@@ -407,6 +427,7 @@ export function WeeklyPlanCard({
               <button
                 key={w.week_index}
                 type="button"
+                data-week-index={w.week_index}
                 onClick={() => { setSelected(i); setTaskPage(0); }}
                 className={cn(
                   "cursor-pointer rounded-full border px-2.5 py-1 text-[0.7rem] transition-colors",
@@ -422,7 +443,7 @@ export function WeeklyPlanCard({
           </div>
 
           {week && (
-            <div>
+            <div data-selected-week={week.week_index}>
               <div className="mb-1.5 flex items-center gap-2">
                 {week.week_start > 0 && (
                   <span className="tnum text-[0.66rem] text-muted">{fmtDate(week.week_start)}</span>
@@ -520,8 +541,7 @@ export function WeeklyPlanCard({
               ) : (
                 <div className="space-y-1.5">
                   {paged(week.tasks, taskPage).map((t) => (
-                    <WeekTaskRow
-                      key={t.id}
+                    <div key={t.id} data-task-id={t.id}><WeekTaskRow
                       task={t}
                       expanded={expandedId === t.id}
                       tr={tr}
@@ -533,7 +553,7 @@ export function WeeklyPlanCard({
                       onDeleteSubtask={(sid) => void onDeleteSubtask?.(week.week_index, t.id, sid)}
                       onAddSubtask={(p) => onAddSubtask ? onAddSubtask(week.week_index, t.id, p) : Promise.resolve(false)}
                       onSuggest={() => suggest(t.id)}
-                    />
+                    /></div>
                   ))}
                 </div>
               )}

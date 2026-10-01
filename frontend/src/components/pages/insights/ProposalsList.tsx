@@ -3,7 +3,7 @@
 // 改进提案列表（人工确认门）：批准 / 拒绝 / 标记已应用。
 // 现行提案为开放式教学指导（标题/适用范围/指导文本/注意事项），
 // 旧式 target 型提案回落 change/rationale 展示；已应用提案带影响回显。
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Card, CardHeader } from "@/components/ui/Card";
@@ -21,8 +21,10 @@ export function ProposalsList({
   proposals,
   tr,
   onChanged,
+  deepProposalId,
 }: {
   proposals: EvalProposal[];
+  deepProposalId?: string;
   tr: Tr;
   onChanged: () => void;
 }) {
@@ -50,6 +52,12 @@ export function ProposalsList({
     return pa - pb || b.ts - a.ts;
   });
   // 数据回源后条数可能变少：切片页码先钳位，避免停在空白页。
+  const deepIndex = ordered.findIndex((proposal) => proposal.id === deepProposalId);
+  useEffect(() => {
+    if (deepIndex < 0) return;
+    const timer = window.setTimeout(() => setPage(Math.floor(deepIndex / 5)), 0);
+    return () => window.clearTimeout(timer);
+  }, [deepProposalId, deepIndex]);
   const cur = Math.min(page, pageCount(ordered.length) - 1);
   const rows = paged(ordered, cur);
 
@@ -89,7 +97,8 @@ function ProposalRow({
   // 现行格式：教学指导文本非空；否则是旧式 target 型提案
   const isGuidance = Boolean(p.guidance);
   return (
-    <div className="flex flex-col gap-2 rounded-[8px] border border-border-light bg-surface-sunken/40 p-3">
+    <div data-proposal-id={p.id}
+      className="flex flex-col gap-2 rounded-[8px] border border-border-light bg-surface-sunken/40 p-3">
       <div className="flex flex-wrap items-center gap-2">
         {isGuidance ? (
           <Badge tone="accent">{tr("ins.target.guidance")}</Badge>

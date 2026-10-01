@@ -241,14 +241,14 @@ export async function deleteEvalEvidence(sourceId: string): Promise<void> {
 
 // --- 使用文档（/docs：全员读、管理员写） ---
 
-export const getDocsContent = () =>
-  get<DocsContentResp>("/docs/content");
+export const getDocsContent = (lang: "zh" | "en" = "zh") =>
+  get<DocsContentResp>(`/docs/content?lang=${lang}`);
 
-export async function putDocsContent(markdown: string): Promise<DocsContentResp> {
+export async function putDocsContent(markdown: string, lang: "zh" | "en" = "zh"): Promise<DocsContentResp> {
   const res = await apiFetch(`${API_BASE}/docs/content`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ markdown }),
+    body: JSON.stringify({ markdown, lang }),
   });
   if (!res.ok) throw new Error(`PUT docs failed: ${res.status}`);
   return res.json();
@@ -571,6 +571,26 @@ export async function updateUserProfile(
   if (!res.ok) throw new Error(`Update profile failed: ${res.status}`);
   const data = await res.json();
   return data.profile;
+}
+
+export async function saveUserAvatar(blob: Blob): Promise<import("./types-modules").UserProfileData> {
+  const form = new FormData();
+  form.append("file", blob, "avatar.png");
+  const res = await apiFetch(`${API_BASE}/user/avatar`, { method: "PUT", body: form });
+  if (!res.ok) throw new Error(`Avatar upload failed: ${res.status}`);
+  return (await res.json()).profile;
+}
+
+export async function deleteUserAvatar(): Promise<import("./types-modules").UserProfileData> {
+  const res = await apiFetch(`${API_BASE}/user/avatar`, { method: "DELETE" });
+  if (!res.ok) throw new Error(`Avatar deletion failed: ${res.status}`);
+  return (await res.json()).profile;
+}
+
+export async function getUserAvatar(revision: string, signal: AbortSignal): Promise<Blob> {
+  const res = await apiFetch(`${API_BASE}/user/avatar?version=${encodeURIComponent(revision)}`, { signal, cache: "no-store" });
+  if (!res.ok) throw new Error(`Avatar unavailable: ${res.status}`);
+  return res.blob();
 }
 
 /** 注销当前账号（需密码二次确认）。成功后服务端删除账户记录，JWT 随之失效。 */

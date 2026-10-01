@@ -4,7 +4,7 @@ import { BookOpen, CheckSquare, Globe2, LibraryBig, Loader2, Square } from "luci
 import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
 import { useUIStore } from "@/lib/store";
-import { t } from "@/lib/i18n";
+import { t, gradeLabel } from "@/lib/i18n";
 import { getTextbooks, type TextbookListItem } from "@/lib/api";
 
 export interface LibraryRefItem {
@@ -94,8 +94,8 @@ export function LibraryPickerModal({
         <BookOpen size={13} className="shrink-0 text-accent/70" />
         <span className="min-w-0 flex-1 truncate text-[0.78rem] text-fg">
           {tb.title}
-          {isGroup && <span className="text-muted"> · {(tb.file_ids || []).length}卷</span>}
-          {tb.level ? <span className="text-muted"> · {tb.level}</span> : null}
+          {isGroup && <span className="text-muted"> · {(tb.file_ids || []).length} {lang === "en" ? "volumes" : "卷"}</span>}
+          {tb.level ? <span className="text-muted"> · {gradeLabel(lang, tb.level)}</span> : null}
           {tb.subject ? <span className="text-muted"> · {tb.subject}</span> : null}
         </span>
       </button>

@@ -1,9 +1,10 @@
 "use client";
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useId, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { Button } from "./Button";
+import { MODAL_LAYER, isTopmost, registerOverlay } from "@/lib/assistant/overlay";
 
-/** 居中确认弹窗。 */
+/** 居中确认弹窗。Escape 只关最上层覆盖层（OverlayCoordinator，AC-30）。 */
 export function Modal({
   open,
   onClose,
@@ -19,12 +20,21 @@ export function Modal({
   footer?: ReactNode;
   width?: number;
 }) {
+  const overlayId = useId();
   useEffect(() => {
     if (!open) return;
-    const fn = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    const unregister = registerOverlay({
+      id: overlayId, kind: "modal", layer: MODAL_LAYER, onClose,
+    });
+    const fn = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && isTopmost(overlayId)) onClose();
+    };
     window.addEventListener("keydown", fn);
-    return () => window.removeEventListener("keydown", fn);
-  }, [open, onClose]);
+    return () => {
+      window.removeEventListener("keydown", fn);
+      unregister();
+    };
+  }, [open, onClose, overlayId]);
 
   if (!open || typeof document === "undefined") return null;
   return createPortal(

@@ -8,21 +8,26 @@ import { useMemo } from "react";
 import { ArrowLeft, Link2 } from "lucide-react";
 import { Markdown } from "@/components/chat/markdown";
 import type { NoteDetail, NoteSummary } from "@/lib/types-notes";
+import type { Lang } from "@/lib/i18n";
+import { useUIStore } from "@/lib/store";
+import { makePageT } from "@/lib/i18n-page";
+import { STRINGS } from "@/app/(workspace)/notes/[[...noteId]]/strings";
 
 const WIKI_RE = /\[\[([^\[\]|]+)(?:\|([^\[\]]+))?\]\]/g;
 // 行首的 # 是标题，不当作标签；要求前面是空白或行首
 const RESOURCE_RE = /(?<!\]\()(?<!href=["'])(note:\/\/[^\s)<>]+|conversation:\/\/(?:session|notes)\/[^\s)<>]+)/g;
 const TAG_RE = /(^|\s)#([A-Za-z0-9_\-\u4e00-\u9fff]{1,24})/g;
 
-export function preprocessWiki(content: string): string {
+export function preprocessWiki(content: string, lang: Lang = "zh"): string {
+  const tr = makePageT(lang, STRINGS);
   let out = content.replace(WIKI_RE, (_m, title: string, alias?: string) => {
     const t = encodeURIComponent(title.trim());
     const label = (alias || title).trim();
     return `[${label}](note://${t})`;
   });
   out = out.replace(RESOURCE_RE, (url) => {
-    const label = url.startsWith("note://") ? "笔记链接"
-      : url.startsWith("conversation://session/") ? "历史对话" : "助手线程";
+    const label = url.startsWith("note://") ? tr("resource.note")
+      : url.startsWith("conversation://session/") ? tr("resource.chat") : tr("resource.assistant");
     return `[${label} · ${url.split("/").pop()}](${url})`;
   });
   out = out.replace(TAG_RE, (m, lead: string, tag: string) => {
@@ -45,7 +50,8 @@ export function NotePreview({
   onTagClick?: (tag: string) => void;
   onResourceLink?: (url: string) => void;
 }) {
-  const processed = useMemo(() => preprocessWiki(content), [content]);
+  const lang = useUIStore((s) => s.lang);
+  const processed = useMemo(() => preprocessWiki(content, lang), [content, lang]);
   return (
     <div
       className={className}
@@ -80,9 +86,11 @@ export function BacklinksPanel({
   onCreateNote: (title: string) => void;
   onOpenResource?: (url: string) => void;
 }) {
+  const lang = useUIStore((s) => s.lang);
+  const tr = makePageT(lang, STRINGS);
   const { backlinks, links } = detail;
   if (backlinks.length === 0 && links.resolved.length === 0
-      && links.unresolved.length === 0) {
+      && links.unresolved.length === 0 && (links.resources?.length ?? 0) === 0) {
     return null;
   }
   return (
@@ -90,7 +98,7 @@ export function BacklinksPanel({
       {backlinks.length > 0 && (
         <div>
           <div className="mb-1.5 flex items-center gap-1.5 font-medium text-fg-secondary">
-            <ArrowLeft size={13} /> 反向链接（{backlinks.length}）
+            <ArrowLeft size={13} /> {tr("resource.backlinks").replace("{n}", String(backlinks.length))}
           </div>
           <div className="flex flex-wrap gap-1.5">
             {backlinks.map((b: NoteSummary) => (
@@ -107,12 +115,12 @@ export function BacklinksPanel({
       )}
       {(links.resources?.length ?? 0) > 0 && (
         <div>
-          <div className="mb-1.5 flex items-center gap-1.5 font-medium text-fg-secondary"><Link2 size={13} /> 资源链接</div>
+          <div className="mb-1.5 flex items-center gap-1.5 font-medium text-fg-secondary"><Link2 size={13} /> {tr("resource.links")}</div>
           <div className="grid gap-1.5">
             {links.resources?.map((resource) => (
               <button key={resource.url} disabled={!resource.resolved} onClick={() => onOpenResource?.(resource.url)} className={`rounded-md border px-2.5 py-2 text-left ${resource.resolved ? "cursor-pointer border-border bg-surface hover:border-accent" : "cursor-not-allowed border-danger/40 bg-danger/5"}`}>
                 <div className="font-medium text-fg-secondary">{resource.title}</div>
-                <div className="mt-0.5 text-[10px] text-muted">{resource.type} · {resource.resolved ? `${resource.message_count ?? resource.folder_name ?? "可访问"}` : resource.status === "deleted" ? "该资源已删除" : "该资源不存在或无法访问"}</div>
+                <div className="mt-0.5 text-[10px] text-muted">{tr(`resource.kind.${resource.type}`, resource.type)} · {resource.resolved ? `${resource.message_count ?? resource.folder_name ?? tr("resource.accessible")}` : resource.status === "deleted" ? tr("resource.deleted") : tr("resource.unavailable")}</div>
               </button>
             ))}
           </div>
@@ -121,7 +129,7 @@ export function BacklinksPanel({
       {(links.resolved.length > 0 || links.unresolved.length > 0) && (
         <div>
           <div className="mb-1.5 flex items-center gap-1.5 font-medium text-fg-secondary">
-            <Link2 size={13} /> 出链（{links.resolved.length + links.unresolved.length}）
+            <Link2 size={13} /> {tr("resource.outlinks").replace("{n}", String(links.resolved.length + links.unresolved.length))}
           </div>
           <div className="flex flex-wrap gap-1.5">
             {links.resolved.map((l) => (
@@ -137,7 +145,7 @@ export function BacklinksPanel({
               <button
                 key={title}
                 onClick={() => onCreateNote(title)}
-                title="点击创建"
+                title={tr("resource.create")}
                 className="cursor-pointer rounded-full border border-dashed border-border px-2.5 py-1 text-muted transition-colors hover:border-accent2 hover:text-accent2"
               >
                 {title} ?

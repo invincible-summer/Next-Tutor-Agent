@@ -100,7 +100,8 @@ export function SemanticEvaluationPanel({
     ) : undefined;
 
   return (
-    <div className="space-y-3" data-testid="semantic-evaluation-panel">
+    <div className="space-y-3" data-testid="semantic-evaluation-panel"
+      data-concept-id={view.concept_ref.concept_id}>
       <header className="flex flex-wrap items-start justify-between gap-2">
         <div className="min-w-0">
           <h3 className="font-serif text-base font-semibold text-fg">{displayName}</h3>

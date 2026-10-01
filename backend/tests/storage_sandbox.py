@@ -53,12 +53,18 @@ def patch_all_storage_roots(root: Path) -> list:
     from app.agents.teaching_engine import guidance_store, teaching_log
     from app.agents.ux_intelligence import store as ux_store
     from app.core import classroom_store
+    from app.core import assistant_store
     from app.core import context, learning_episodes, library, notes
-    from app.core import learner_evaluation_policy, llm_policy
+    from app.core import guest_policy, learner_evaluation_policy, llm_policy
     from app.core import session, textbook, trash, usage_docs, workspace
     from app.core import vector_store
     from app.core.config import settings
+    from app.identity import avatars, config as id_config, store as id_store
     patches = [
+        patch.object(guest_policy, "POLICY_FILE", root / "chat_history/settings/guest_policy.json"),
+        patch.object(id_config, "USERS_DIR", root / "users"),
+        patch.object(id_store, "_ACCOUNTS_FILE", root / "users/accounts.json"),
+        patch.object(avatars, "_AVATARS_DIR", root / "users" / "avatars"),
         patch.object(trash, "_TRASH_DIR", root / "chat_history" / "trash"),
         # 课堂模式（plan.md §16.1）：唯一根常量在此重定向，防写穿生产
         patch.object(classroom_store, "_CLASSROOM_DIR",
@@ -99,6 +105,8 @@ def patch_all_storage_roots(root: Path) -> list:
         patch.object(orch_store, "_STUDENTS_DIR", root / "students"),
         patch.object(ux_store, "_STUDENTS_DIR", root / "students"),
         patch.object(notes, "_NOTES_DIR", root / "notes"),
+        patch.object(assistant_store, "_ASSISTANT_DIR",
+                     root / "chat_history" / "assistant"),
         patch.object(usage_docs, "_DOCS_FILE",
                      root / "chat_history" / "settings" / "usage_docs.json"),
         patch.object(settings, "trace_dir", str(root / "traces")),
@@ -113,6 +121,8 @@ def patch_all_storage_roots(root: Path) -> list:
 
 def reset_shared_caches() -> None:
     """tearDown 用：清掉可能指向已删除临时目录的进程级缓存。"""
+    from app.core.guest_runtime import purge_all
+    purge_all()
     from app.agents.student_model import manager as sm_manager
     from app.agents.student_model.evaluation import store as eval_journal_store
     from app.core import vector_store
@@ -121,6 +131,10 @@ def reset_shared_caches() -> None:
     vector_store._reset()
     eval_journal_store.reset_journal_cache()
     learner_runtime.reset_learner_runtime()
+    # 站内检索（§20.4）按 student_id+query 缓存结果 30s：跨沙箱会命中
+    # 上一用例的实体数据，同键用例必须重置。
+    from app.agents.site_assistant import search as site_search
+    site_search._cache.clear()
     # 课堂 TTS（阶段 F）：电话 provider 缓存、共享 semaphore、voices 缓存
     # 与课堂音频引擎都持有进程级状态，跨沙箱必须重置。
     from app.voice.tts import service as tts_service
@@ -153,7 +167,7 @@ class StorageSandboxTestCase(unittest.TestCase):
         os.environ["AUTH_MODE"] = "1"
         self._patches = patch_all_storage_roots(root)
         id_patches = [
-            patch.object(id_config, "AUTH_JWT_SECRET", "sandbox-test-secret"),
+            patch.object(id_config, "AUTH_JWT_SECRET", "sandbox-test-secret-for-isolated-tests-only"),
             patch.object(id_store, "_ACCOUNTS_FILE", root / "users" / "accounts.json"),
         ]
         for p in id_patches:
@@ -166,6 +180,16 @@ class StorageSandboxTestCase(unittest.TestCase):
         if self._env_old is None:
             os.environ.pop("AUTH_MODE", None)
         else:
-            os.environ[self._env_old] = self._env_old
+            os.environ["AUTH_MODE"] = self._env_old
         reset_shared_caches()
         self._tmp.cleanup()
+
+
+def authenticated_client(app, owner: str):
+    """Authenticated route fixture; call only inside an active storage sandbox."""
+    from fastapi.testclient import TestClient
+    from app.identity.store import get_by_id, create_user
+    from app.identity.security import create_token
+    if get_by_id(owner) is None:
+        create_user(owner + "@test.local", "", "unused", user_id=owner)
+    return TestClient(app, headers={"Authorization": "Bearer " + create_token(owner)})

@@ -66,7 +66,41 @@ class TestUsageDocsAPI(unittest.TestCase):
         self.assertEqual(r.status_code, 200)
         data = r.json()
         self.assertEqual(data["status"], "ok")
-        self.assertIn("使用文档", data["markdown"])
+        self.assertIn("Next Tutor Agent", data["markdown"])
+
+    def test_english_guide_is_public_and_localized(self):
+        english = self.client.get("/api/v1/docs/content?lang=en")
+        self.assertEqual(english.status_code, 200)
+        self.assertIn("## Quick start", english.json()["markdown"])
+        self.assertNotIn("快速上手", english.json()["markdown"])
+        chinese = self.client.get("/api/v1/docs/content?lang=zh")
+        self.assertIn("## 快速上手", chinese.json()["markdown"])
+
+    def test_localized_edits_preserve_legacy_chinese_document(self):
+        zh = self.client.put("/api/v1/docs/content", json={"markdown": "# 中文定制"}, headers=self.admin_h)
+        self.assertEqual(zh.status_code, 200)
+        en = self.client.put("/api/v1/docs/content", json={"markdown": "# English custom", "lang": "en"}, headers=self.admin_h)
+        self.assertEqual(en.status_code, 200)
+        self.assertEqual(self.client.get("/api/v1/docs/content").json()["markdown"], "# 中文定制")
+        self.assertEqual(self.client.get("/api/v1/docs/content?lang=en").json()["markdown"], "# English custom")
+
+    def test_english_write_requires_admin(self):
+        response = self.client.put("/api/v1/docs/content", json={"markdown": "# English", "lang": "en"}, headers=self.user_h)
+        self.assertEqual(response.status_code, 403)
+
+    def test_unsupported_language_is_rejected(self):
+        self.assertEqual(self.client.get("/api/v1/docs/content?lang=fr").status_code, 422)
+        response = self.client.put("/api/v1/docs/content", json={"markdown": "# French", "lang": "fr"}, headers=self.admin_h)
+        self.assertEqual(response.status_code, 422)
+
+    def test_corrupt_english_doc_uses_english_default(self):
+        from app.core import usage_docs
+        english_file = usage_docs._DOCS_FILE.with_name("usage_docs.en.json")
+        english_file.parent.mkdir(parents=True, exist_ok=True)
+        english_file.write_text("{broken", encoding="utf-8")
+        response = self.client.get("/api/v1/docs/content?lang=en")
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("## Quick start", response.json()["markdown"])
 
     def test_put_requires_admin(self):
         body = {"markdown": "# 新文档"}
@@ -112,13 +146,13 @@ class TestUsageDocsStorage(unittest.TestCase):
 
     def test_missing_file_bootstraps(self):
         data = self.usage_docs.read_docs()
-        self.assertIn("使用文档", data["markdown"])
+        self.assertIn("Next Tutor Agent", data["markdown"])
         self.assertEqual(data["updated_at"], 0.0)
 
     def test_corrupt_file_bootstraps(self):
         self.usage_docs._DOCS_FILE.write_text("{not json", encoding="utf-8")
         data = self.usage_docs.read_docs()
-        self.assertIn("使用文档", data["markdown"])
+        self.assertIn("Next Tutor Agent", data["markdown"])
 
     def test_roundtrip_and_oversize(self):
         payload = self.usage_docs.write_docs("# 标题", updated_by="admin1")

@@ -1,30 +1,8 @@
+import { BookOpen, Layers, NotebookPen, Presentation } from "lucide-react";
 import type { LandingTr } from "./LandingNav";
+import styles from "./landing.module.css";
 
-const ITEMS = ["1", "2", "3", "4", "5", "6", "7", "8"] as const;
-
-/** 无限滚动词条带：核心能力关键词，悬停暂停。 */
+/** 静态能力索引，让首屏与功能区之间保持安静的阅读节奏。 */
 export function Marquee({ tr }: { tr: LandingTr }) {
-  const row = (hidden: boolean) => (
-    <div aria-hidden={hidden} className="flex shrink-0 items-center">
-      {ITEMS.map((k) => (
-        <span key={k} className="flex items-center">
-          <span className="whitespace-nowrap px-6 font-mono text-sm text-fg-secondary">
-            {tr(`landing.marquee.${k}`)}
-          </span>
-          <span aria-hidden className="text-xs text-accent2">
-            ✦
-          </span>
-        </span>
-      ))}
-    </div>
-  );
-
-  return (
-    <div className="marquee overflow-hidden border-y border-border/60 py-4">
-      <div className="marquee-track flex w-max">
-        {row(false)}
-        {row(true)}
-      </div>
-    </div>
-  );
+  return <div className={styles.capabilityStrip}>{[BookOpen, Presentation, Layers, NotebookPen].map((Icon, index) => <span key={index}><Icon size={17} strokeWidth={1.4} />{tr(`landing.marquee.${index + 1}`)}</span>)}</div>;
 }

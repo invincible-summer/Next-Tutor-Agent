@@ -303,7 +303,7 @@ export function GenerateWizard({
                 <PickRow key={t.id} picked={pickedTextbooks.has(t.id)}
                   onClick={() => toggle(pickedTextbooks, t.id, setPickedTextbooks)}
                   title={t.title || t.group_name || t.id}
-                  sub={`${t.subject || ""} · ${chapterLabel(t)}`} />
+                  sub={`${t.subject || ""} · ${chapterLabel(t, lang)}`} />
               ))}
             </SourceSection>
           )}
@@ -409,11 +409,12 @@ export function GenerateWizard({
   );
 }
 
-function chapterLabel(t: TextbookListItem): string {
+function chapterLabel(t: TextbookListItem, lang: "zh" | "en"): string {
   const chapters = t.chapter_count ?? 0;
   const volumes = (t.volumes ?? []).length;
-  const vols = volumes > 0 ? ` · ${volumes}卷` : "";
-  return `${chapters}章${vols} · ${t.scope === "public" ? "公用" : "私有"}`;
+  const vols = volumes > 0 ? ` · ${volumes} ${lang === "en" ? "volumes" : "卷"}` : "";
+  const scope = t.scope === "public" ? (lang === "en" ? "Public" : "公用") : (lang === "en" ? "Private" : "私有");
+  return `${chapters} ${lang === "en" ? "chapters" : "章"}${vols} · ${scope}`;
 }
 
 function SourceSection({

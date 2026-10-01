@@ -32,12 +32,14 @@ export function SubmissionOutcome({
   lang,
   onViewEvidence,
   className,
+  taskOnly = false,
 }: {
   data: SubmissionOutcomeData;
   lang: Lang;
   /** 「查看依据」入口（如 /memory）；不传则不渲染。 */
   onViewEvidence?: () => void;
   className?: string;
+  taskOnly?: boolean;
 }) {
   const t = (zh: string, en: string) => (lang === "en" ? en : zh);
   const verdict = data.taskResult?.verdict ?? null;
@@ -97,10 +99,12 @@ export function SubmissionOutcome({
       {/* ② 学习反馈：没有评价时如实说明状态，不用正误填补 */}
       <div className="mt-2 rounded-[8px] border border-border-light bg-surface px-3 py-2">
         <p className="mb-0.5 text-[0.7rem] font-medium text-fg-secondary">
-          {t("学习反馈", "Learning feedback")}
+          {taskOnly ? t("本题反馈", "Task feedback") : t("学习反馈", "Learning feedback")}
         </p>
         {learnerFb ? (
           <p className="text-xs leading-relaxed text-fg">{learnerFb}</p>
+        ) : taskOnly ? (
+          <p className="text-xs text-muted">{t("临时练习不计入学习评价。", "Temporary practice does not update your learning evaluation.")}</p>
         ) : evalStatus === "pending" ? (
           <p className="text-xs text-muted">{et(lang, "eval.status.pending")}…</p>
         ) : evalStatus && evalStatus !== "ready" ? (

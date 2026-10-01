@@ -3,6 +3,7 @@ import type { PageStrings } from "@/lib/i18n-page";
 export const STRINGS = {
   zh: {
     "mem.desc": "学习档案按工作区展示统一学习评价（主张、证据、变化与下一步）；AI 记忆与偏好管理跨对话记忆。",
+    "mem.deep.sectionMissing": "未找到该记忆分区。",
     "mem.region.archive": "学习档案",
     "mem.region.ai": "AI 记忆与偏好",
     "mem.tab.procedural": "程序性记忆",
@@ -64,6 +65,8 @@ export const STRINGS = {
     "arc.updated": "更新于",
     "arc.concepts.note": "这里的数字表示教材概念覆盖，不表示成绩。",
     "arc.tab.changes": "近期变化",
+    "arc.deep.sourceMissing": "未在已加载的近期记录中找到该来源，可加载更多后再试。",
+    "arc.deep.conceptMissing": "未在当前页找到该概念，可调整筛选或翻页查找。",
     "arc.tab.sessions": "对话记录",
     "arc.tab.concepts": "教材概念",
     "arc.synthesis.empty": "这个学习区还没有综合叙述——只有你的可观察学习表现（答题、练习、对话里的作答）才会更新学习档案；讲解本身不会。",
@@ -83,6 +86,7 @@ export const STRINGS = {
   },
   en: {
     "mem.desc": "The learning archive shows the unified evaluation per workspace (claims, evidence, change, next step); AI memory & preferences manages cross-chat memory.",
+    "mem.deep.sectionMissing": "Memory section not found.",
     "mem.region.archive": "Learning archive",
     "mem.region.ai": "AI memory & preferences",
     "mem.tab.procedural": "Procedural",
@@ -144,6 +148,8 @@ export const STRINGS = {
     "arc.updated": "Updated",
     "arc.concepts.note": "These numbers describe textbook concept coverage, not grades.",
     "arc.tab.changes": "Recent changes",
+    "arc.deep.sourceMissing": "Source not found in loaded recent records; load more and retry.",
+    "arc.deep.conceptMissing": "Concept not on this page; adjust filters or paginate to find it.",
     "arc.tab.sessions": "Chats",
     "arc.tab.concepts": "Textbook concepts",
     "arc.synthesis.empty": "No synthesis yet — only observable performance (answers, practice, replies in chat) updates the archive; explanations alone do not.",

@@ -120,7 +120,7 @@ Review the terms/privacy policy of the browser actually deployed, including
 [Google Privacy](https://policies.google.com/privacy),
 [Microsoft Services Agreement](https://www.microsoft.com/en-us/servicesagreement),
 and [Microsoft Privacy Statement](https://privacy.microsoft.com/privacystatement)
-where applicable. Edu_Agent does not grant access to or promise free
+where applicable. Next-Tutor-Agent does not grant access to or promise free
 commercial use of a browser vendor's recognition service.
 
 ---

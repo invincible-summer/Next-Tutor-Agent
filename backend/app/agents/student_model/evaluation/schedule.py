@@ -60,6 +60,9 @@ def close_due_day_windows(*, now: datetime | None = None) -> int:
     for path in store_mod.STUDENTS_DIR.glob(
             f"*{store_mod.JOURNAL_SUFFIX}"):
         sid = path.name[: -len(store_mod.JOURNAL_SUFFIX)]
+        from app.core.guest_runtime import is_guest
+        if sid == "student_default" or is_guest(sid):
+            continue
         try:
             if _close_windows_for(sid, tz_name, today_local):
                 closed += 1
@@ -131,6 +134,9 @@ def release_backlog() -> int:
     for path in store_mod.STUDENTS_DIR.glob(
             f"*{store_mod.JOURNAL_SUFFIX}"):
         sid = path.name[: -len(store_mod.JOURNAL_SUFFIX)]
+        from app.core.guest_runtime import is_guest
+        if sid == "student_default" or is_guest(sid):
+            continue
         try:
             journal = get_journal(sid)
             state = journal.state()
@@ -158,6 +164,9 @@ def pending_daily_status() -> dict[str, Any]:
         for path in store_mod.STUDENTS_DIR.glob(
                 f"*{store_mod.JOURNAL_SUFFIX}"):
             sid = path.name[: -len(store_mod.JOURNAL_SUFFIX)]
+            from app.core.guest_runtime import is_guest
+            if sid == "student_default" or is_guest(sid):
+                continue
             try:
                 state = get_journal(sid).state()
             except Exception:

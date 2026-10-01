@@ -139,15 +139,8 @@ def phone_provider() -> TTSProvider | None:
                 from .azure import AzureTTS
                 client = _cloud_guard(AzureTTS())
         elif provider == "auto":
-            # 云端优先：有凭证走 azure；否则本地 melo；都不行则关闭
-            if _azure_available():
-                from .azure import AzureTTS
-                client = _cloud_guard(AzureTTS())
-            elif settings.voice_tts_provider:
-                from .melotts import MeloTTS
-                client = _melo_guard(MeloTTS())
-            else:
-                client = None
+            from .melotts import MeloTTS
+            client = _melo_guard(MeloTTS())
         else:
             log.warning("未知 VOICE_TTS_PROVIDER=%r，语音 TTS 关闭", provider)
             client = None
@@ -182,11 +175,11 @@ class ClassroomVoiceProfile:
 
 def local_tts_enabled() -> bool:
     """课堂本地语音是否启用：显式 CLASSROOM_LOCAL_TTS_ENABLED 优先，
-    否则继承 VOICE_TTS_PROVIDER 是否为 melo。"""
+    否则继承 VOICE_TTS_PROVIDER 是否为 melo/auto。"""
     from app.core.config import settings
     if settings.classroom_local_tts_enabled is not None:
         return settings.classroom_local_tts_enabled
-    return settings.voice_tts_provider == "melo"
+    return settings.voice_tts_provider in ("melo", "auto")
 
 
 def approved_voices() -> dict[str, str]:
@@ -204,7 +197,7 @@ def resolve_classroom_tts(prefs: Any | None,
                           language: str = "zh") -> ClassroomVoiceProfile:
     """课堂有效选择顺序：run 显式 > 个人偏好 > 实例默认（§11.1）。
 
-    - auto：可用且已配置云端 → 已启用本地 → silent
+    - auto：已启用且支持当前语言的本地 → 已配置云端 → silent
     - cloud：云端；仅 ``allow_local_fallback=true`` 且本地可用才回退本地
     - local：仅本地 → silent
     - 无配置显示"文字课堂"，不伪装成本地语音成功
@@ -221,7 +214,7 @@ def resolve_classroom_tts(prefs: Any | None,
 
     provider = ""
     if policy == "auto":
-        provider = "azure" if cloud_ok else ("melo" if local_ok else "")
+        provider = "melo" if local_ok and locale == "zh-CN" else ("azure" if cloud_ok else "")
     elif policy == "cloud":
         if cloud_ok:
             provider = "azure"
@@ -363,3 +356,90 @@ def reset_tts_service() -> None:
     _VOICES_CACHE = None
     with _SEM_GUARD:
         _SEMS_BY_LOOP.clear()
+
+
+# ---------------------------------------------------------------------------
+# 通用档案解析（plan.md §24.2-3）：课堂/助手共用 provider 选择与音色约束；
+# 课堂入口（resolve_classroom_tts）保留为兼容包装。
+# ---------------------------------------------------------------------------
+
+@dataclass(frozen=True)
+class TTSProfile:
+    """按 feature 解析出的不可变合成档案（assistant 等）。"""
+
+    feature: str
+    policy: str
+    provider: str            # "azure" | "melo" | ""（silent/不可用）
+    voice_id: str
+    language: str            # BCP-47
+    allow_local_fallback: bool = True
+    cloud_configured: bool = False
+    local_enabled: bool = False
+
+
+def resolve_tts_profile(feature: str, prefs: Any | None,
+                        language: str = "zh",
+                        *, default_policy: str = "auto") -> TTSProfile:
+    """通用有效选择顺序（§11.1/§24.2）：请求策略 > 偏好 > 调用方默认。
+
+    - auto：已启用且支持当前语言的本地 → 已配置云端 → silent
+    - cloud：云端；仅 allow_local_fallback 且本地可用才回退
+    - local：仅本地（MeloTTS-Chinese 仅 zh-CN；英文 → 文字模式）
+    音色只来自管理员批准集合且必须匹配语言；不接受任意 endpoint/voice。
+    """
+    policy = str(getattr(prefs, "voice_policy", None)
+                 or getattr(prefs, "policy", None)
+                 or default_policy).strip().lower()
+    if policy not in ("auto", "cloud", "local", "silent"):
+        policy = "auto"
+    allow_fallback = bool(getattr(prefs, "allow_local_fallback", True))
+    locale = _locale_for_language(language)
+    cloud_ok = _azure_available()
+    local_ok = local_tts_enabled()
+
+    provider = ""
+    if policy == "silent":
+        provider = ""
+    elif policy == "auto":
+        provider = "melo" if local_ok and locale == "zh-CN" else ("azure" if cloud_ok else "")
+    elif policy == "cloud":
+        if cloud_ok:
+            provider = "azure"
+        elif allow_fallback and local_ok:
+            provider = "melo"
+    elif policy == "local":
+        provider = "melo" if local_ok else ""
+
+    voice_id = ""
+    if provider == "azure":
+        voice_id = _select_azure_voice(prefs, locale)
+    elif provider == "melo":
+        if locale == "zh-CN":
+            from .melotts import MeloTTS
+            voice_id = MeloTTS.VOICE_ID
+        else:
+            provider = ""  # 本地不支持该语言：保留文字，不暗中送云端
+
+    return TTSProfile(
+        feature=feature, policy=policy, provider=provider,
+        voice_id=voice_id, language=locale,
+        allow_local_fallback=allow_fallback,
+        cloud_configured=cloud_ok, local_enabled=local_ok)
+
+
+def tts_capabilities() -> dict[str, Any]:
+    """能力只读投影（§24.3 capabilities；零合成零请求）。"""
+    voices = approved_voices()
+    return {
+        "cloud": {"configured": _azure_available(),
+                  "voices": sorted(voices)},
+        "local": {"enabled": local_tts_enabled(),
+                  "languages": ["zh-CN"] if local_tts_enabled() else []},
+        "policies": ["auto", "cloud", "local", "silent"],
+        "limits": {
+            "max_chars_per_answer": 6000,
+            "max_clips_per_answer": 40,
+            "clip_target_chars": [100, 250],
+            "requests_per_minute": 10,
+        },
+    }

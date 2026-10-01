@@ -25,10 +25,9 @@ from app.agents.knowledge import manager as kn_manager  # noqa: E402
 from tests.storage_sandbox import patch_all_storage_roots, reset_shared_caches  # noqa: E402
 
 # M0 identity threading (DESIGN §1.5): projection endpoints resolve the
-# student namespace from Depends(resolve_student_id) -- guest mode always
-# yields DEFAULT_STUDENT_ID and the legacy student_id query param is dead.
-# Fixtures therefore seed under the default id.
-SID = "student_default"
+# student namespace from Depends(resolve_student_id). The authenticated
+# fixture and its seeded data share SID; query student_id cannot override it.
+SID = "usr_projection_fixture"
 
 _BLOB = {
     "profile": {
@@ -144,8 +143,7 @@ class _ProjectionTestBase(unittest.TestCase):
     """Shared isolation（AGENTS.md 测试规范）：全部存储根经
     patch_all_storage_roots 重定向进 TemporaryDirectory（tearDown 回收，
     不用裸 mkdtemp），fixture 落在 students/ 子目录；M2/M5 单例缓存每用例
-    重置。访客模式（不设 AUTH_MODE）——resolve_student_id 恒为
-    student_default，fixture 即锚定该 id。"""
+    重置。HTTP 使用有效 JWT，fixture 锚定同一账号命名空间。"""
 
     def setUp(self):
         self._tmp = tempfile.TemporaryDirectory(prefix="proj_api_test_")
@@ -156,7 +154,9 @@ class _ProjectionTestBase(unittest.TestCase):
         kn_manager._INSTANCE = None
         _seed(self._dir / "students")
         _seed_textbook_graph(self._dir)
-        self.client = TestClient(create_app())
+        from tests.storage_sandbox import authenticated_client
+        (self._dir / "users").mkdir(exist_ok=True)
+        self.client = authenticated_client(create_app(), SID)
 
     def tearDown(self):
         for p in reversed(self._patches):

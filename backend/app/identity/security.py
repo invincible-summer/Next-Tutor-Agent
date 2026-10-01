@@ -32,11 +32,17 @@ def verify_password(plain: str, hashed: str) -> bool:
 
 # --- JWT (sign / verify) ----------------------------------------------------
 
-def create_token(user_id: str, extra: dict[str, Any] | None = None) -> str:
-    """Sign a JWT carrying the user_id. Expiry is AUTH_TOKEN_EXPIRE_DAYS."""
+def create_token(user_id: str, token_version: int = 0,
+                 extra: dict[str, Any] | None = None) -> str:
+    """Sign a JWT carrying the user_id. Expiry is AUTH_TOKEN_EXPIRE_DAYS.
+
+    token_version 是无状态 JWT 的吊销锚点：验证侧会与账号当前版本比对，
+    改密码/重置凭证 bump 后，旧版本 token 立即失效。
+    """
     now = time.time()
     payload: dict[str, Any] = {
         "sub": user_id,           # standard claim: subject = user id
+        "ver": int(token_version),
         "iat": int(now),
         "exp": int(now) + config.AUTH_TOKEN_EXPIRE_DAYS * 86400,
     }

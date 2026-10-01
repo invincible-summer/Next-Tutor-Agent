@@ -12,6 +12,7 @@ import {
   ShieldCheck,
   Target,
   UserRound,
+  Settings,
   type LucideIcon,
 } from "lucide-react";
 
@@ -52,16 +53,21 @@ export const NAV: NavGroup[] = [
       { href: "/memory", i18nKey: "nav.memory", icon: Brain, module: "M6" },
       { href: "/resources", i18nKey: "nav.resources", icon: FolderOpen, module: "RAG" },
       { href: "/archive", i18nKey: "nav.archive", icon: Archive },
-      { href: "/profile", i18nKey: "nav.profile", icon: UserRound, module: "M2·M8" },
     ],
   },
   {
     i18nKey: "nav.group.system",
     items: [
-      { href: "/insights", i18nKey: "nav.insights", icon: Activity, module: "M7" },
       { href: "/admin", i18nKey: "nav.admin", icon: ShieldCheck, module: "M0", adminOnly: true },
     ],
   },
+];
+
+export const ACCOUNT_NAV: NavItem[] = [
+  { href: "/account", i18nKey: "nav.account", icon: UserRound },
+  { href: "/profile", i18nKey: "nav.profile", icon: UserRound },
+  { href: "/insights", i18nKey: "nav.insights", icon: Activity },
+  { href: "/settings", i18nKey: "settings.title", icon: Settings },
 ];
 
 /** 由路径反查当前导航项（TopBar 标题用）。 */
@@ -69,6 +75,8 @@ export function navItemByPath(pathname: string): NavItem | null {
   if (/^\/workspaces\/[^/]+\/classroom(?:\/|$)/.test(pathname)) {
     return NAV.flatMap((g) => g.items).find((item) => item.href === "/course") ?? null;
   }
+  const account = ACCOUNT_NAV.find((item) => pathname === item.href || pathname.startsWith(item.href + "/"));
+  if (account) return account;
   for (const g of NAV) {
     for (const it of g.items) {
       if (pathname === it.href || pathname.startsWith(it.href + "/")) return it;

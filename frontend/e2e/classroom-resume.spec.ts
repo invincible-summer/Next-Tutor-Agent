@@ -202,9 +202,10 @@ test("刷新恢复到上次游标且不自动发声", async ({ page }) => {
   await page.goto(`/workspaces/${WS}/classroom/${LESSON}/learn/${RUN}`);
 
   // 恢复位置 = 第二段；恢复播放必须用户手势（未点击前零合成请求）
+  await page.getByRole("button", { name: "字幕", exact: true }).click();
   const caption = page.locator(
-    "section[aria-label='字幕'] p[aria-live='polite']");
-  await expect(caption).toContainText(SEGS[1].text, { timeout: 10_000 });
+    "section[aria-label='字幕'] [aria-live='polite']");
+  await expect(caption).toContainText(SEGS[1].text, { timeout: 30_000 });
   await page.waitForTimeout(1200);
   expect(hooks.audioRequests).toBe(0);
 
@@ -215,6 +216,7 @@ test("刷新恢复到上次游标且不自动发声", async ({ page }) => {
 
   // 刷新：仍是同一 run（URL 不变），游标恢复自服务端
   await page.reload();
+  await page.getByRole("button", { name: "字幕", exact: true }).click();
   await expect(caption).toContainText(SEGS[1].text, { timeout: 10_000 });
   // client_id 在同标签页延续；事件 ID 必须跨刷新保持唯一，避免服务端去重误吞。
   const oldIds = new Set(hooks.progressCalls.map((call) => call.eventId));
@@ -231,17 +233,18 @@ test("进度上报失败不崩溃且重试收敛", async ({ page }) => {
                                leaseAcquires: [] };
   await routeResume(page, hooks, { cursorSeg: 1 });
   await page.goto(`/workspaces/${WS}/classroom/${LESSON}/learn/${RUN}`);
+  await page.getByRole("button", { name: "字幕", exact: true }).click();
   const caption = page.locator(
-    "section[aria-label='字幕'] p[aria-live='polite']");
+    "section[aria-label='字幕'] [aria-live='polite']");
 
   await page.click("button[aria-label='播放']");
   // 服务端 503 期间：播放器不崩溃（字幕推进或暂停均可接受，可观察）
   await expect(caption).toContainText(SEGS[1].text, { timeout: 10_000 });
+  await page.getByRole("button", { name: "暂停", exact: true }).click();
   await expect.poll(() => hooks.progressCalls.length).toBeGreaterThan(0);
-  // 失败被消费后：一次用户手势（目录跳页）即恢复成功上报（200）
+  // 失败被消费后：再次翻页即恢复成功上报（200），全屏控制条也可用。
   await expect.poll(() => hooks.progressFailures).toBe(0);
-  await page.getByRole("button", { name: "章节目录" }).click();
-  await page.click("nav[aria-label='章节目录'] li:nth-child(2) button");
+  await page.getByRole("button", { name: "上一页", exact: true }).click();
   await expect.poll(() => hooks.progressOk, { timeout: 20_000 })
     .toBeGreaterThan(0);
   await expect(page.locator("footer")).toBeVisible();

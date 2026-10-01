@@ -1,15 +1,29 @@
 import { create } from "zustand";
-import type { ChatMessage, Grade, SessionItem, AttachmentMeta, RetryState } from "./types";
+import { gradeFromApi, type ChatMessage, type Grade, type SessionItem, type AttachmentMeta, type RetryState } from "./types";
 import { type Lang, loadLang, saveLang } from "./i18n";
+
+function readPreference(key: string): string | null {
+  try { return localStorage.getItem(key); } catch { return null; }
+}
+
+function writePreference(key: string, value: string): void {
+  try { localStorage.setItem(key, value); } catch { /* In-memory preferences still work. */ }
+}
 
 interface UIState {
   grade: Grade;
   setGrade: (g: Grade) => void;
+  defaultGrade: Grade;
+  guestGrade: Grade;
+  setDefaultGrade: (g: Grade, persist?: boolean) => void;
   lang: Lang;
   setLang: (l: Lang) => void;
   outputLanguage: "auto" | "zh" | "en";
   setOutputLanguage: (o: "auto" | "zh" | "en") => void;
   theme: "light" | "dark";
+  themePreference: "system" | "light" | "dark";
+  setTheme: (value: "system" | "light" | "dark") => void;
+  syncTheme: () => void;
   toggleTheme: () => void;
   fontScale: number; // 1|1.25|1.5|1.75
   setFontScale: (n: number) => void;
@@ -26,6 +40,12 @@ export const useUIStore = create<UIState>((set, get) => ({
   // 「自动」仍可手动选择（后端空串语义不变）。
   grade: "本科",
   setGrade: (g) => set({ grade: g }),
+  defaultGrade: "本科",
+  guestGrade: "本科",
+  setDefaultGrade: (g, persist = true) => {
+    if (persist) writePreference("edu-agent-grade", g);
+    set({ defaultGrade: g, grade: g, ...(persist ? { guestGrade: g } : {}) });
+  },
   // SSR-safe defaults: do NOT read localStorage in the initializer, or the
   // first client render diverges from server HTML (hydration mismatch).
   // hydrateClient() reads persisted prefs AFTER mount.
@@ -36,37 +56,53 @@ export const useUIStore = create<UIState>((set, get) => ({
   },
   outputLanguage: "auto",
   setOutputLanguage: (o) => {
-    if (typeof window !== "undefined") localStorage.setItem("edu-agent-output-lang", o);
+    if (typeof window !== "undefined") writePreference("edu-agent-output-lang", o);
     set({ outputLanguage: o });
   },
   theme: "light",
+  themePreference: "system",
+  setTheme: (value) => {
+    writePreference("edu-agent-theme", value);
+    set({ themePreference: value });
+    get().syncTheme();
+  },
+  syncTheme: () => {
+    const preference = get().themePreference;
+    const theme = preference === "system"
+      ? (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light")
+      : preference;
+    document.documentElement.classList.toggle("dark", theme === "dark");
+    set({ theme });
+  },
   fontScale: 1,
   setFontScale: (n) => {
     if (typeof window !== "undefined") {
-      localStorage.setItem("edu-agent-fs", String(n));
+      writePreference("edu-agent-fs", String(n));
       document.documentElement.style.setProperty("--fs-scale", String(n));
     }
     set({ fontScale: n });
   },
   toggleTheme: () => {
     const next = get().theme === "dark" ? "light" : "dark";
-    if (typeof window !== "undefined") {
-      document.documentElement.classList.toggle("dark", next === "dark");
-      localStorage.setItem("edu-agent-theme", next);
-    }
-    set({ theme: next });
+    get().setTheme(next);
   },
   mounted: false,
   hydrateClient: () => {
+    if (get().mounted) return;
     // Runs once on mount (client only). The no-flash script already applied
     // the dark class to <html> before hydration, so reading it here is safe.
     const lang = typeof window !== "undefined" ? loadLang() : "zh";
-    const ol = (typeof window !== "undefined" ? localStorage.getItem("edu-agent-output-lang") : null) as "auto" | "zh" | "en" | null;
+    const ol = (typeof window !== "undefined" ? readPreference("edu-agent-output-lang") : null);
     const theme = typeof window !== "undefined" && document.documentElement.classList.contains("dark") ? "dark" : "light";
+    const storedTheme = new URLSearchParams(window.location.search).get("theme") || readPreference("edu-agent-theme");
+    const themePreference = storedTheme === "dark" || storedTheme === "light" ? storedTheme : "system";
+    const storedGrade = readPreference("edu-agent-grade");
+    const guestGrade = storedGrade && ["自动", "小学", "初中", "高中", "本科"].includes(storedGrade) ? gradeFromApi(storedGrade) : "本科";
     let fs = 1;
-    try { const v = parseFloat(localStorage.getItem("edu-agent-fs") || "1"); if (v) fs = v; } catch { /* ignore */ }
+    const v = parseFloat(readPreference("edu-agent-fs") || "1");
+    if ([1, 1.25, 1.5, 1.75].includes(v)) fs = v;
     if (typeof window !== "undefined") document.documentElement.style.setProperty("--fs-scale", String(fs));
-    set({ lang, outputLanguage: ol === "zh" || ol === "en" ? ol : "auto", theme, fontScale: fs, mounted: true });
+    set({ lang, outputLanguage: ol === "zh" || ol === "en" ? ol : "auto", theme, themePreference, grade: guestGrade, defaultGrade: guestGrade, guestGrade, fontScale: fs, mounted: true });
   },
   sidebarOpen: true,
   toggleSidebar: () => set((s) => ({ sidebarOpen: !s.sidebarOpen })),

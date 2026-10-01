@@ -30,6 +30,9 @@ import { Button } from "@/components/ui/Button";
 import { EmptyState, ErrorNote, PageSkeleton } from "@/components/ui/EmptyState";
 import { LessonCard } from "@/components/classroom/LessonCard";
 import { CreateLessonModal } from "@/components/classroom/CreateLessonModal";
+import { consumeAssistantDraft, getAssistantDraft } from "@/lib/assistant/api";
+import { useAssistantPage } from "@/lib/assistant/useAssistantPage";
+import { currentRouteEpoch } from "@/lib/assistant/page-context";
 import { STRINGS } from "./strings";
 
 const GROUP_PAGE_SIZE = 3;
@@ -63,8 +66,27 @@ export default function CourseHubPage() {
   const [resumeBusy, setResumeBusy] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
   const [createWsId, setCreateWsId] = useState<string | undefined>(undefined);
+  // A13 助手备课草稿：?assistant_draft= 打开表单并预填，不自动生成（§9.5）。
+  const [draftTopic, setDraftTopic] = useState<string | undefined>(undefined);
+  const [draftGoals, setDraftGoals] = useState<string[] | undefined>(undefined);
+  const [draftDuration, setDraftDuration] = useState<number | undefined>(undefined);
+  const draftIdRef = useRef<string | null>(null);
   /** 已请求过的分组（防重复拉取；失败后移除以允许重试）。 */
   const requestedRef = useRef<Set<string>>(new Set());
+  // §20.2 适配器：备课中心（课堂能力状态 + 创建表单打开中）。
+  useAssistantPage({
+    context: () => ({
+      schema_version: 1,
+      route_id: "course",
+      route_epoch: currentRouteEpoch(),
+      view: createOpen ? "lesson_form" : undefined,
+    }),
+    clientState: () => ({
+      dirty: createOpen,
+      blocking_activity: "none",
+      safe_bottom_px: 24,
+    }),
+  });
 
   const loadSnapshot = useCallback(() => {
     setLoadError(false);
@@ -183,12 +205,59 @@ export default function CourseHubPage() {
     if (!next.includes(wsId)) ensureGroupLoaded(wsId);
   };
 
+  useEffect(() => {
+    const draftId = new URLSearchParams(window.location.search)
+      .get("assistant_draft");
+    if (!draftId || draftIdRef.current) return;
+    draftIdRef.current = draftId;
+    getAssistantDraft(draftId)
+      .then((draft) => {
+        const prefill = (draft as {
+          prefill?: {
+            kind?: string; workspace_id?: string; topic?: string;
+            objectives?: string; duration_minutes?: number;
+          };
+          consumed?: boolean; expired?: boolean;
+        }).prefill;
+        if (prefill?.kind !== "lesson" || draft.consumed || draft.expired) {
+          return;
+        }
+        setDraftTopic(String(prefill.topic || ""));
+        // objectives（换行/分号分隔）→ 学习目标列表（§19.6，≤5 条）。
+        const goals = String(prefill.objectives || "")
+          .split(/[\n；;]+/)
+          .map((g) => g.trim())
+          .filter(Boolean)
+          .slice(0, 5);
+        setDraftGoals(goals.length ? goals : undefined);
+        const mins = Number(prefill.duration_minutes);
+        // 课件时长为离散枚举（5/10/15/20/30），非法值保留向导默认。
+        setDraftDuration(
+          [5, 10, 15, 20, 30].includes(mins) ? mins : undefined);
+        setCreateWsId(prefill.workspace_id || undefined);
+        setCreateOpen(true);
+        // 去除 assistant_draft 参数但保留其他定位参数（§19.5）。
+        const params = new URLSearchParams(window.location.search);
+        params.delete("assistant_draft");
+        const query = params.toString();
+        window.history.replaceState(null, "",
+          query ? `/course?${query}` : "/course");
+      })
+      .catch(() => undefined);
+  }, []);
+
   const openCreate = (wsId?: string) => {
     setCreateWsId(wsId);
     setCreateOpen(true);
   };
 
   const onCreated = (lessonId: string, wsId: string) => {
+    const draftId = draftIdRef.current;
+    if (draftId) {
+      // 提交成功才消费（§19.6）；失败/取消不消费。
+      consumeAssistantDraft(draftId, { kind: "lesson", id: lessonId })
+        .catch(() => undefined);
+    }
     router.push(lessonPath(wsId, lessonId));
   };
 
@@ -488,6 +557,9 @@ export default function CourseHubPage() {
               workspace_id: w.workspace_id, name: w.name,
             }))}
             initialWorkspaceId={createWsId}
+            initialTopic={draftTopic}
+            initialGoals={draftGoals}
+            initialDuration={draftDuration}
             onClose={() => setCreateOpen(false)}
             onCreated={onCreated}
           />

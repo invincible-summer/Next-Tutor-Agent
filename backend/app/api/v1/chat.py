@@ -74,6 +74,58 @@ def _build_tools(session: TutorSession, *, user_message: str = "",
 @router.post("/stream")
 async def chat_stream(req: ChatRequest, student_id: str = Depends(resolve_student_id)):
     """SSE endpoint for conversational chat with tool-calling."""
+    from app.core import guest_learning, guest_runtime
+    if guest_runtime.is_guest(student_id):
+        context = guest_runtime.context_for_owner(student_id)
+        if req.workspace_id or req.classroom_ref or req.attachments:
+            raise HTTPException(401, "游客仅可进行文字聊天和临时练习。")
+        if len(req.message.encode("utf-8")) > 32 * 1024:
+            raise HTTPException(413, "消息过长")
+        if req.session_id and (context.session is None or context.session.session_id != req.session_id):
+            raise HTTPException(404, "会话不存在")
+        knowledge = await asyncio.to_thread(guest_learning.public_knowledge, req.public_textbook_ids)
+
+        async def guest_stream():
+            queue: asyncio.Queue = asyncio.Queue()
+            async def produce():
+                try:
+                    async for event in guest_learning.chat_events(context, req, knowledge=knowledge):
+                        queue.put_nowait(event)
+                except asyncio.CancelledError:
+                    if context.revoked:
+                        queue.put_nowait({"type": "error", "code": "guest_session_expired",
+                                          "message": "临时体验已结束，请登录或重新开始。"})
+                    else:
+                        raise
+                except HTTPException:
+                    queue.put_nowait({"type": "error", "code": "guest_session_expired",
+                                      "message": "临时体验已结束，请重新开始或登录。"})
+                finally:
+                    queue.put_nowait(None)
+            task = asyncio.create_task(produce())
+            try:
+                while True:
+                    try:
+                        event = await asyncio.wait_for(queue.get(), timeout=15)
+                    except asyncio.TimeoutError:
+                        event = {"type": "heartbeat"}
+                    if event is None:
+                        break
+                    # Discard any buffered text that precedes a revocation.
+                    if context.revoked:
+                        event = {"type": "error", "code": "guest_session_expired",
+                                 "message": "临时体验已结束，请登录或重新开始。"}
+                    yield f"event: {event['type']}\ndata: {json.dumps(event, ensure_ascii=False, default=str)}\n\n"
+                    if context.revoked:
+                        break
+            finally:
+                task.cancel()
+                try:
+                    await task
+                except asyncio.CancelledError:
+                    pass
+        return StreamingResponse(guest_stream(), media_type="text/event-stream",
+                                 headers={"Cache-Control": "no-store", "X-Accel-Buffering": "no"})
     from app.agents.chat_agent import run_turn
     # P1: normalize 「自动」-> "" (auto) at the API boundary so the session
     # stores the canonical sentinel regardless of which client sent it.
@@ -104,8 +156,7 @@ async def chat_stream(req: ChatRequest, student_id: str = Depends(resolve_studen
         # Ownership: a stamped session belongs to its owner only. A foreign
         # id is invisible (404, no existence leak) and its student_id stamp
         # is NEVER overwritten with the caller's identity.
-        if session is not None and session.student_id \
-                and session.student_id != student_id:
+        if session is not None and not _session_owned_by(session, student_id):
             raise HTTPException(404, "会话不存在")
     if session is None:
         session = TutorSession(grade=req.grade)
@@ -224,8 +275,7 @@ async def upload_files(session_id: str | None = None, grade: str = "",
         session = load_session(session_id)
         # Ownership: never attach files to another user's session (404, no
         # existence leak), mirroring /chat/stream.
-        if session is not None and session.student_id \
-                and session.student_id != student_id:
+        if session is not None and not _session_owned_by(session, student_id):
             raise HTTPException(404, "会话不存在")
     if session is None:
         session = TutorSession(grade=grade)
@@ -484,6 +534,9 @@ async def ocr_upload(file: UploadFile = File(...),
 
 @router.get("/sessions", response_model=SessionListResponse)
 def get_sessions(student_id: str = Depends(resolve_student_id)):
+    from app.core.guest_runtime import is_guest
+    if is_guest(student_id):
+        return SessionListResponse(sessions=[])
     # M0: 历史记录按身份隔离——每个用户只看到自己的会话。
     # 无 student_id 戳的遗留会话（M0 之前创建）归属共享游客 student_default。
     visible = [s for s in list_sessions()

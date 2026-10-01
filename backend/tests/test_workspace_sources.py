@@ -12,6 +12,7 @@ No LLM, no network. Data dirs are redirected to temp dirs.
 """
 import json
 import sys
+from tests.storage_sandbox import patch_all_storage_roots, reset_shared_caches, authenticated_client
 import tempfile
 import unittest
 from pathlib import Path
@@ -52,6 +53,8 @@ class TestWorkspaceSources(unittest.TestCase):
         self._tmp = tempfile.TemporaryDirectory(prefix="ws_src_")
         root = Path(self._tmp.name)
         self.root = root
+        (root / "users").mkdir()
+        self._sandbox = patch_all_storage_roots(root)
         self._patches = [
             patch.object(library_mod, "_LIBRARY_DIR", root / "library"),
             patch.object(ws_mod, "_WORKSPACES_DIR", root / "workspaces"),
@@ -62,11 +65,14 @@ class TestWorkspaceSources(unittest.TestCase):
         ]
         for p in self._patches:
             p.start()
-        self.client = TestClient(create_app())
+        self.client = authenticated_client(create_app(), GUEST)
 
     def tearDown(self) -> None:
         for p in reversed(self._patches):
             p.stop()
+        for p in reversed(self._sandbox):
+            p.stop()
+        reset_shared_caches()
         self._tmp.cleanup()
 
     # --- helpers ---

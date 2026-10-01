@@ -140,7 +140,7 @@ export function FilterBar({
                 <option
                   key={v.file_id}
                   value={v.file_id}
-                  title={`${v.chapter_count} 章${v.section_count ? ` · ${v.section_count} 节` : ""} · ${v.concept_count} 概念${v.error ? ` · ${v.error}` : ""}`}
+                  title={`${v.chapter_count} ${tr("statChapters")}${v.section_count ? ` · ${v.section_count} ${tr("statSections")}` : ""} · ${v.concept_count} ${tr("statConcepts")}${v.error ? ` · ${v.error}` : ""}`}
                 >
                   {v.name}
                   {v.status === "failed" ? " ⚠" : v.truncated ? " …" : ""}

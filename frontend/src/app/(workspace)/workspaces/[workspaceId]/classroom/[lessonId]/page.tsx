@@ -1,9 +1,7 @@
 "use client";
-/* 课程详情/预览路由（plan.md §3.1 / §4.3；E01 骨架，E04 完整编辑器）。
- * ?revision=N 固定预览版本；缺省最新已发布版本。预览绝不创建 run、
- * 不触发 TTS。E01 展示已发布 revision 的首帧预览与生成中的任务状态；
- * 左缩略图/右侧讲稿栏与单页操作在 E04 落地。
- */
+import { navigationSucceeded, navigationMissing, navigationFailed } from "@/lib/assistant/navigation";
+
+/* 默认课程介绍；?edit=1 按需加载编辑器；?revision=N 固定预览版本。 */
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
@@ -21,8 +19,11 @@ import { Modal } from "@/components/ui/Modal";
 import { ClassroomBreadcrumb } from "@/components/classroom/Breadcrumb";
 import { GenerationProgress } from "@/components/classroom/GenerationProgress";
 import { LessonEditor, ExportButtons } from "@/components/classroom/LessonEditor";
+import { LessonOverview } from "@/components/classroom/LessonOverview";
 import SlideFrame from "@/components/classroom/SlideFrame";
 import { startLessonRun } from "@/lib/classroom/useClassroomPlayer";
+import { useAssistantPage } from "@/lib/assistant/useAssistantPage";
+import { currentRouteEpoch } from "@/lib/assistant/page-context";
 import { STRINGS } from "../strings";
 
 function LessonDetailInner() {
@@ -36,11 +37,14 @@ function LessonDetailInner() {
   };
   const workspaceId = safeDecode(params.workspaceId ?? "");
   const lessonId = safeDecode(params.lessonId ?? "");
+  const editing = searchParams.get("edit") === "1";
   const revParam = searchParams.get("revision");
   const fixedRevision = revParam && /^\d+$/.test(revParam) ? Number(revParam) : undefined;
 
   const [detail, setDetail] = useState<LessonDetailPublic | null>(null);
+  const [frameIdentity, setFrameIdentity] = useState("");
   const [frameHtml, setFrameHtml] = useState<string | null>(null);
+  const [frameFailed, setFrameFailed] = useState(false);
   const [draft, setDraft] = useState<JobPreviewResponse | null>(null);
   const [draftOpen, setDraftOpen] = useState(false);
   const [missing, setMissing] = useState(false);
@@ -49,6 +53,48 @@ function LessonDetailInner() {
   const [archiveOpen, setArchiveOpen] = useState(false);
   const [archiving, setArchiving] = useState(false);
   const [archiveError, setArchiveError] = useState("");
+  // 课件编辑器未保存信号（§5.4 导航保护：组件/讲稿表单修改未点保存）。
+  const [editorDirty, setEditorDirty] = useState(false);
+
+  // §20.2 页面适配器：课程介绍/编辑视图上下文 + 未保存保护。保存动作在
+  // 编辑器子表单内（按组件/按页提交），页面只能真实提供「放弃并前往/
+  // 留在此页」，不假装已自动保存。
+  useAssistantPage({
+    navigationStatus: (target) => {
+      if (loading) return null;
+      if (missing || !detail) return navigationMissing;
+      if (target.kind !== "lesson" || target.lesson_id !== detail.lesson_id || target.workspace_id !== detail.workspace_id) return null;
+      if ((target.view === "edit") !== editing) return null;
+      if (target.revision && detail.revision?.revision !== target.revision) return null;
+      if (editing && (!frameHtml || frameIdentity !== `${workspaceId}:${lessonId}:${detail.revision?.revision}`)) return frameFailed ? navigationFailed : null;
+      return navigationSucceeded;
+    },
+    context: () => ({
+      schema_version: 1,
+      route_id: "course" as const,
+      route_epoch: currentRouteEpoch(),
+      workspace_id: workspaceId || undefined,
+      entity: lessonId ? {
+        kind: "lesson" as const,
+        id: lessonId,
+        revision: detail?.revision
+          ? String(detail.revision.revision) : undefined,
+      } : undefined,
+      view: editing ? "edit" : "overview",
+    }),
+    clientState: () => ({
+      dirty: editorDirty,
+      blocking_activity: editorDirty
+        ? ("unsaved_editor" as const) : ("none" as const),
+      activity_label: detail?.title,
+      safe_bottom_px: 24,
+    }),
+    beforeNavigate: async () => {
+      if (!editorDirty) return "allow";
+      if (window.confirm(STRINGS[lang]["cls.edit.unsaved"])) return "allow";
+      return "stay";
+    },
+  });
 
   const learnHref = useCallback((runId: string) =>
     `/workspaces/${encodeURIComponent(workspaceId)}` +
@@ -57,16 +103,17 @@ function LessonDetailInner() {
   [workspaceId, lessonId]);
 
   // 开始/继续上课（§21.1）：预览本身不建 run（§3.1），点击才是用户手势
-  const onStart = useCallback(async () => {
+  const onStart = async () => {
     if (starting) return;
     setStarting(true);
     try {
-      const run = await startLessonRun(workspaceId, lessonId);
+      const run = await startLessonRun(workspaceId, lessonId, "resume_or_create", detail?.revision?.revision);
       router.push(learnHref(run));
-    } catch {
+    } catch (error) {
+      setArchiveError(error instanceof Error ? error.message : tr("cls.action.error"));
       setStarting(false);
     }
-  }, [starting, workspaceId, lessonId, learnHref, router]);
+  };
 
   const load = useCallback((explicitRevision?: number, background = false) => {
     if (!background) setLoading(true);
@@ -74,14 +121,7 @@ function LessonDetailInner() {
     getLesson(workspaceId, lessonId, explicitRevision ?? fixedRevision)
       .then((d) => {
         setDetail(d);
-        const rev = d.revision?.revision;
-        if (rev != null) {
-          return getRevisionFrame(workspaceId, lessonId, rev)
-            .then(setFrameHtml)
-            .catch(() => setFrameHtml(null));
-        }
-        setFrameHtml(null);
-        return undefined;
+
       })
       .catch((err) => {
         if (background) return;
@@ -100,6 +140,21 @@ function LessonDetailInner() {
     const id = setTimeout(() => load(), 0);
     return () => clearTimeout(id);
   }, [load]);
+
+  useEffect(() => {
+    if (!editing || !detail?.revision || detail.lesson_id !== lessonId || detail.workspace_id !== workspaceId) return;
+    let active = true;
+    getRevisionFrame(workspaceId, lessonId, detail.revision.revision)
+      .then((html) => { if (active) { setFrameHtml(html); setFrameIdentity(`${workspaceId}:${lessonId}:${detail.revision?.revision}`); setFrameFailed(false); } })
+      .catch(() => { if (active) { setFrameHtml(null); setFrameFailed(true); } });
+    return () => { active = false; };
+  }, [editing, detail, workspaceId, lessonId]);
+
+  const setEditMode = (on: boolean) => {
+    const query = new URLSearchParams(searchParams.toString());
+    if (on) query.set("edit", "1"); else query.delete("edit");
+    router.replace(`?${query.toString()}`);
+  };
 
   const backHref = `/workspaces/${encodeURIComponent(workspaceId)}/classroom`;
 
@@ -141,6 +196,7 @@ function LessonDetailInner() {
   const generating = detail.revision == null;
   // 未结束 run（§12.1 active/paused）直接续播；结束后“开始上课”开新 run
   const resumable = detail.recent_run != null
+    && detail.recent_run.lesson_revision === detail.revision?.revision
     && (detail.recent_run.status === "active"
         || detail.recent_run.status === "paused")
     ? detail.recent_run : null;
@@ -160,7 +216,8 @@ function LessonDetailInner() {
           <h1 className="mt-1 truncate text-lg font-semibold tracking-tight text-fg">{detail.title}</h1>
         </div>
         <div className="ml-auto flex flex-wrap items-center gap-2">
-          {!generating && detail.revision && (
+          {editing && <Button size="sm" variant="outline" onClick={() => setEditMode(false)}>{lang === "en" ? "Course overview" : "课程预览"}</Button>}
+          {editing && !generating && detail.revision && (
             <Button
               size="sm"
               icon={starting
@@ -199,7 +256,8 @@ function LessonDetailInner() {
         </div>
       </header>
 
-      <div className={generating
+      {archiveError && !archiveOpen && <p role="alert" className="px-6 py-2 text-sm text-danger">{archiveError}</p>}
+      <div className={generating || !editing
         ? "min-h-0 flex-1 overflow-y-auto p-5"
         : "min-h-0 flex-1 overflow-hidden"}>
         {generating ? (
@@ -273,14 +331,21 @@ function LessonDetailInner() {
               </div>
             )}
           </div>
+        ) : !editing ? (
+          <LessonOverview detail={detail} starting={starting} resumable={Boolean(resumable)}
+            onEdit={() => setEditMode(true)}
+            onStart={() => { if (resumable) router.push(learnHref(resumable.run_id)); else void onStart(); }} />
         ) : frameHtml ? (
           <LessonEditor
             workspaceId={workspaceId}
             lessonId={lessonId}
             detail={detail}
             frameHtml={frameHtml}
-            onReload={(rev) => load(rev)}
+            onReload={(rev) => load(rev, true)}
+            onDirtyChange={setEditorDirty}
           />
+        ) : !frameFailed ? (
+          <div role="status" className="flex h-full items-center justify-center gap-2 text-sm text-muted"><Loader2 size={18} className="animate-spin" />{lang === "en" ? "Loading course…" : "正在加载课件…"}</div>
         ) : (
           <EmptyState
             icon={<Presentation size={28} />}

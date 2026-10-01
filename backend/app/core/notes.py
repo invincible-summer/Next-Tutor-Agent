@@ -411,12 +411,16 @@ class NoteVault:
     def _write_content(self, note_id: str, content: str) -> None:
         path = self.note_path(note_id)
         path.parent.mkdir(parents=True, exist_ok=True)
-        atomic_write_text(path, content[:_MAX_CONTENT_CHARS])
-        try:
-            self._content_cache[note_id] = (path.stat().st_mtime,
-                                            content[:_MAX_CONTENT_CHARS])
-        except OSError:
-            pass
+        # 与 save_vault/agent state 等写路径一致：持路径锁再写。此前无锁时
+        # 两个并发保存（双开标签页）会交叉写坏内容或互相覆盖 mtime 缓存。
+        # RLock 可重入：外层已持同一把锁时（write_note 全程加锁）直接进入。
+        with file_lock(path):
+            atomic_write_text(path, content[:_MAX_CONTENT_CHARS])
+            try:
+                self._content_cache[note_id] = (path.stat().st_mtime,
+                                                content[:_MAX_CONTENT_CHARS])
+            except OSError:
+                pass
 
     def _snapshot_revision(self, meta: dict[str, Any], content: str, *,
                            author: str, summary: str) -> None:

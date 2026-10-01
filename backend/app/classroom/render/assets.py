@@ -13,7 +13,7 @@ from pathlib import Path
 
 GENERATED_DIR = Path(__file__).resolve().parent.parent / "static" / "generated"
 
-RUNTIME_VERSION = "2.0.0"
+RUNTIME_VERSION = "2.4.0"
 
 
 @dataclass(frozen=True)

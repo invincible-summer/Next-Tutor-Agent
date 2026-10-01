@@ -13,6 +13,8 @@ DEFAULT_STUDENT_ID (single-student system, same as M2-M8).
 """
 from __future__ import annotations
 
+import logging
+
 from typing import Any
 
 from fastapi import APIRouter, Depends, Query
@@ -23,6 +25,8 @@ from app.agents.student_model import store as _sm_store
 from app.agents.student_model.store import DEFAULT_STUDENT_ID
 from app.identity.deps import optional_user, resolve_student_id
 from app.identity.models import User
+
+log = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/student", tags=["student"])
 
@@ -124,8 +128,10 @@ def student_profile(student_id: str = Depends(resolve_student_id)) -> dict:
         for k in ("weak_points", "strong_points"):
             data.pop(k, None)
         return {"status": "ok", "profile": data}
-    except Exception as e:
-        return {"status": "error", "message": str(e)}
+    except Exception:
+        # 异常串可能带本地路径/库细节：日志留全量，对外只给通用降级。
+        log.exception("student projection failed")
+        return {"status": "error", "message": "投影暂时不可用，请稍后重试"}
 
 
 
@@ -155,8 +161,10 @@ def student_teaching_log(
                 "entries": [e.to_dict() for e in reversed(entries)][:limit_per_concept],
             }
         return {"status": "ok", "concepts": concepts}
-    except Exception as e:
-        return {"status": "error", "message": str(e)}
+    except Exception:
+        # 异常串可能带本地路径/库细节：日志留全量，对外只给通用降级。
+        log.exception("student projection failed")
+        return {"status": "error", "message": "投影暂时不可用，请稍后重试"}
 
 
 @router.get("/error-notebook")
@@ -175,8 +183,10 @@ def student_error_notebook(
             wrong_answer_items)
         items = wrong_answer_items(student_id, limit=limit)
         return {"status": "ok", "items": items, "count": len(items)}
-    except Exception as e:
-        return {"status": "error", "message": str(e)}
+    except Exception:
+        # 异常串可能带本地路径/库细节：日志留全量，对外只给通用降级。
+        log.exception("student projection failed")
+        return {"status": "error", "message": "投影暂时不可用，请稍后重试"}
 
 
 
@@ -224,5 +234,7 @@ def student_learning_path(student_id: str = Depends(resolve_student_id),
                 "review": [n.to_dict() for n in lp.review_nodes],
                 "difficulty": _current_difficulty(head, student_id),
                 "rationale": "；".join(rationale_parts) or "暂无可规划路径"}
-    except Exception as e:
-        return {"status": "error", "message": str(e)}
+    except Exception:
+        # 异常串可能带本地路径/库细节：日志留全量，对外只给通用降级。
+        log.exception("student projection failed")
+        return {"status": "error", "message": "投影暂时不可用，请稍后重试"}

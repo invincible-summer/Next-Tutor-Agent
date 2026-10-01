@@ -1,4 +1,6 @@
 "use client";
+import { t } from "@/lib/i18n";
+import { useUIStore } from "@/lib/store";
 /* 课堂插问 hook（plan.md §12.4/§12.5，阶段 H02）。
  *
  * 首条提问经 classroom_ref 由服务端创建/复用答疑 session；回答文字实时
@@ -224,7 +226,7 @@ export function useClassroomQA(deps: QADeps): QAApi {
             return;
           } else if (ev.type === "error") {
             const message = typeof ev.message === "string"
-              ? ev.message : "回答失败，请重试。";
+              ? ev.message : t(useUIStore.getState().lang, "classroom.qa.failed");
             setTurns((prev) => {
               const next = [...prev];
               const last = next[next.length - 1];
@@ -241,7 +243,7 @@ export function useClassroomQA(deps: QADeps): QAApi {
           const last = next[next.length - 1];
           if (last && !last.done) {
             next[next.length - 1] = { ...last, done: true,
-                                      error: "网络中断，请重试。" };
+                                      error: t(useUIStore.getState().lang, "classroom.qa.network") };
           }
           return next;
         });

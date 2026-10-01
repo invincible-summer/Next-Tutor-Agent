@@ -18,6 +18,8 @@ from __future__ import annotations
 
 import hashlib
 import json
+import logging
+import secrets
 import time
 import uuid
 from typing import Any
@@ -29,6 +31,8 @@ from pydantic import BaseModel
 from app.core.config import settings
 from app.core.context import estimate_tokens
 from app.core.ratelimit import rate_limit
+
+log = logging.getLogger(__name__)
 
 router = APIRouter(tags=["openai_compat"])
 
@@ -63,7 +67,10 @@ def _check_credential(authorization: str | None, x_api_key: str | None) -> None:
         token = authorization[7:].strip()
     elif x_api_key:
         token = x_api_key.strip()
-    if token != key:
+    # 常数时间比较（与 site_assistant.actions 的 ack token 校验同级）；
+    # encode 成 bytes 避免非 ASCII 头触发 TypeError。
+    if not token or not secrets.compare_digest(token.encode("utf-8"),
+                                               key.encode("utf-8")):
         raise HTTPException(401, "invalid_credential")
 
 
@@ -189,7 +196,9 @@ async def chat_completions(req: ChatCompletionsRequest,
                 elif ev.get("type") == "error":
                     finish = "stop"  # finish_reason 白名单：无 error 值
         except Exception as e:
-            raise HTTPException(502, f"agent 执行失败: {e}")
+            # 异常文本可能带内部路径/依赖细节：日志留全量，对外只给通用码。
+            log.exception("compat agent execution failed")
+            raise HTTPException(502, "agent 执行失败（详见服务端日志）")
         return {
             "id": cid, "object": "chat.completion", "created": created,
             "choices": [{"index": 0,
@@ -222,13 +231,16 @@ async def chat_completions(req: ChatCompletionsRequest,
                     yield _chunk(cid, created, {}, "stop",
                                  usage=_usage_from(ev.get("trace_summary")))
                 elif et == "error":
-                    # 流式中途出错：stop 帧 + error 字段，finish_reason 不用 error
+                    # 流式中途出错：stop 帧 + error 字段，finish_reason 不用 error。
+                    # 消息只透出通用码：内部异常文本可能含路径/依赖细节。
                     yield _chunk(cid, created, {}, "stop",
                                  error={"type": "upstream_error",
-                                        "message": str(ev.get("message", ""))[:200]})
-        except Exception as e:
+                                        "message": "upstream_error"})
+        except Exception:
+            log.exception("compat agent stream failed")
             yield _chunk(cid, created, {}, "stop",
-                         error={"type": "upstream_error", "message": str(e)[:200]})
+                         error={"type": "upstream_error",
+                                "message": "upstream_error"})
         # 3. 终止哨兵（必须）
         yield "data: [DONE]\n\n"
 

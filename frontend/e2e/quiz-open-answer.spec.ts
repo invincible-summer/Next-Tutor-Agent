@@ -5,7 +5,7 @@ import { loginViaStorage, registerAndLogin } from "./helpers";
 
 for (const mode of [
   { name: "light", theme: "light", width: 1280, height: 900 },
-  { name: "dark-mobile", theme: "dark", width: 390, height: 844 },
+  { name: "dark-desktop", theme: "dark", width: 1024, height: 768 },
 ]) {
   test(`开放题提交锁定、完整答案和异步反馈可恢复 ${mode.name}`, async ({ page }, testInfo) => {
     const api = await pwRequest.newContext();

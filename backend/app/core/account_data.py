@@ -76,6 +76,8 @@ def _empty_buckets() -> dict[str, Any]:
         "trash_bytes": 0,
         "classroom_bytes": 0,   # 课堂内容（不含音频）
         "audio_bytes": 0,       # 课堂音频（独立项，总量另加一次）
+        "assistant_bytes": 0,   # 站内助手会话/草稿/索引
+        "avatar_bytes": 0,
         "session_count": 0,
         "file_count": 0,
     }
@@ -85,7 +87,7 @@ def _total_of(buckets: dict[str, Any]) -> int:
     return int(sum(buckets.get(k, 0) for k in
                    ("chat_bytes", "uploads_bytes", "notes_bytes",
                     "students_bytes", "knowledge_bytes", "trash_bytes",
-                    "classroom_bytes", "audio_bytes")))
+                    "classroom_bytes", "audio_bytes", "assistant_bytes", "avatar_bytes")))
 
 
 def scan_storage(user_ids: list[str]) -> dict[str, dict[str, Any]]:
@@ -188,6 +190,17 @@ def scan_storage(user_ids: list[str]) -> dict[str, dict[str, Any]]:
                 buckets["students_bytes"] += _file_size(p)
         buckets["knowledge_bytes"] += _dir_size(kgs_mod._CUSTOM_DIR / kgs_mod._safe_name(uid))
 
+    # --- 站内助手：chat_history/assistant/<uid>/ 目录直取 ---
+    try:
+        from app.core import assistant_store as asst_mod
+        for uid, buckets in out.items():
+            buckets["assistant_bytes"] += asst_mod.assistant_storage_size(uid)
+    except Exception:
+        pass
+
+    from app.identity import avatars
+    for uid, buckets in out.items():
+        buckets["avatar_bytes"] += _dir_size(avatars.owner_dir(uid))
     for buckets in out.values():
         buckets["total_bytes"] = _total_of(buckets)
     return out
@@ -432,6 +445,14 @@ def clear_chat_data(user_id: str, scope: str = "all") -> dict[str, Any]:
             classroom_lifecycle.purge_owner_classroom(uid, tombstone=False)
         except Exception:
             pass
+        # 站内助手：先停在途任务（进程内 owner_generation 随之提升，
+        # 迟到写入会被拒），再删助手根（plan.md §12.3-1/11）。
+        try:
+            from app.core import assistant_store as asst_mod
+            asst_mod.stop_assistant_tasks(uid)
+            report["assistant_freed_bytes"] = asst_mod.purge_assistant_data(uid)
+        except Exception:
+            pass
         report["trash_items"] = _purge_trash_types(uid, _CHAT_TRASH_TYPES)
         # 聊天类条目清完后若 owner 目录已空则顺手移除（非聊天条目仍在时
         # rmdir 自然失败跳过）。
@@ -459,6 +480,13 @@ def clear_chat_data(user_id: str, scope: str = "all") -> dict[str, Any]:
 
 
 def purge_account(user_id: str) -> dict[str, Any]:
+    from app.identity.avatars import lifecycle_lock
+    # Late uploads wait until this account's final removal, then fail closed.
+    with lifecycle_lock(_safe(user_id)):
+        return _purge_account(user_id)
+
+
+def _purge_account(user_id: str) -> dict[str, Any]:
     """彻底删除账号：聊天侧全清 + 笔记/学习档案/知识图谱/回收站残留，
     最后删账号记录。不可恢复；调用方须确保目标不是管理员账号。"""
     from app.agents.knowledge import store as kgs_mod
@@ -506,6 +534,8 @@ def purge_account(user_id: str) -> dict[str, Any]:
     shutil.rmtree(kgs_mod._CUSTOM_DIR / kgs_mod._safe_name(uid), ignore_errors=True)
 
     # 账号记录最后删：中途任何失败都会留下可重试的账号（purge 幂等）。
+    from app.identity import avatars
+    avatars.purge(uid)
     id_store.delete_user(uid)
     report["freed_bytes"] = _total_of(before)
     return report

@@ -601,6 +601,7 @@ def reconcile_stale_builds() -> TextbookRecoveryReport:
     - 终态记录不动。幂等：queued 的 job 不会被二次恢复。
     """
     report = TextbookRecoveryReport()
+    from .guest_runtime import is_legacy_guest_owner
     try:
         files = list(_LIBRARY_DIR.glob("*.textbooks.json"))
     except Exception:
@@ -608,6 +609,8 @@ def reconcile_stale_builds() -> TextbookRecoveryReport:
     for fp in files:
         try:
             key = fp.name[: -len(".textbooks.json")]
+            if is_legacy_guest_owner(key):
+                continue
             records = load_textbooks(key)
             changed = False
             for r in records:
@@ -709,6 +712,7 @@ def interrupted_build_jobs() -> list[tuple[str, str, dict[str, Any]]]:
     """All (sid, tb_id, record) with build_job.state == "queued"（reconcile 后
     待重入队的恢复项）。"""
     out: list[tuple[str, str, dict[str, Any]]] = []
+    from .guest_runtime import is_legacy_guest_owner
     try:
         files = list(_LIBRARY_DIR.glob("*.textbooks.json"))
     except Exception:
@@ -716,6 +720,8 @@ def interrupted_build_jobs() -> list[tuple[str, str, dict[str, Any]]]:
     for fp in files:
         try:
             key = fp.name[: -len(".textbooks.json")]
+            if is_legacy_guest_owner(key):
+                continue
             for r in load_textbooks(key):
                 job = r.get("build_job") or {}
                 if (r.get("status") == "building"
@@ -745,12 +751,15 @@ def migrate_legacy_single_to_groups() -> int:
     explicit full rebuild because no complete per-volume spec cache exists.
     """
     migrated = 0
+    from .guest_runtime import is_legacy_guest_owner
     try:
         files = list(_LIBRARY_DIR.glob("*.textbooks.json"))
     except Exception:
         return 0
     for path in files:
         try:
+            if is_legacy_guest_owner(path.name[:-len(".textbooks.json")]):
+                continue
             raw = json.loads(path.read_text(encoding="utf-8"))
             records = raw.get("textbooks", []) if isinstance(raw, dict) else []
             changed = False

@@ -88,8 +88,9 @@ class TestAdminAndPublicTextbooks(unittest.TestCase):
 
     def test_ensure_admin_account_creates_and_promotes(self):
         from app.identity.store import ensure_admin_account, get_by_email
+        # ≥10 字符且非常见默认值：AUTH_MODE=1 下弱默认密码会被守卫拒绝。
         with patch.dict(os.environ, {"ADMIN_EMAIL": "boot@example.com",
-                                     "ADMIN_PASSWORD": "pw123456"}):
+                                     "ADMIN_PASSWORD": "pw1234567890"}):
             ensure_admin_account()
             u = get_by_email("boot@example.com")
             self.assertIsNotNone(u)

@@ -1,4 +1,6 @@
 "use client";
+import { navigationSucceeded, navigationMissing, navigationFailed } from "@/lib/assistant/navigation";
+
 // /knowledge 知识图谱页：M5 图谱画布 + 学习评价叠加（按学习区）+ M3 学习路径条 +
 // M3 教学计划区（原 /plan 页迁入，C13：/plan 保留 redirect 深链）。
 // 单学段单学科浏览（学段 segmented 单选默认账户学段，「自动」回落本科；学科必选，与教材组/卷
@@ -11,6 +13,8 @@ import { useSearchParams } from "next/navigation";
 import { useUIStore } from "@/lib/store";
 import { useAuthStore } from "@/lib/auth-store";
 import { makePageT } from "@/lib/i18n-page";
+import { useAssistantPage } from "@/lib/assistant/useAssistantPage";
+import { currentRouteEpoch } from "@/lib/assistant/page-context";
 import {
   deleteCustomGraph,
   getCustomGraphs,
@@ -61,7 +65,7 @@ function KnowledgePageInner() {
   // useSearchParams 要求静态预渲染页包 Suspense（见文件底部导出）。
   const searchParams = useSearchParams();
   const deepLinkParam = searchParams.get("concept");
-  const deepLinkDone = useRef(false);
+  const deepLinkDone = useRef("");
 
   const [graph, setGraph] = useState<KnowledgeGraphResp | null>(null);
   const [taxonomy, setTaxonomy] = useState<KnowledgeTaxonomyResp | null>(null);
@@ -77,6 +81,8 @@ function KnowledgePageInner() {
   const [subject, setSubject] = useState<string | null>(null);
   /** §14.4 toolbar 工作区选择："" = 仅浏览教材（无个人 overlay）。 */
   const [workspaceId, setWorkspaceId] = useState("");
+  // §20.2 适配器：图谱范围（学段/学科视图）、工作区与当前概念实体。
+
   const [wsOptions, setWsOptions] = useState<{ id: string; name: string }[]>([]);
   const [textbookId, setTextbookId] = useState<string | null>(null);
   const [fileId, setFileId] = useState<string | null>(null);
@@ -203,6 +209,17 @@ function KnowledgePageInner() {
     },
     [workspaceId, ownerId],
   );
+
+  // §8.3 助手深链 ?ws=：清单到达且本人可用才切换（不能假设已选）。
+  const deepWsDone = useRef("");
+  useEffect(() => {
+    const deepWs = searchParams.get("ws") || "";
+    if (deepWsDone.current === deepWs || !deepWs || wsOptions.length === 0) return;
+    deepWsDone.current = deepWs;
+    if (wsOptions.some((w) => w.id === deepWs)) {
+      void Promise.resolve().then(() => pickWorkspace(deepWs));
+    }
+  }, [searchParams, wsOptions, pickWorkspace]);
 
   const retryGraph = useCallback(() => {
     setGLoading(true);
@@ -426,16 +443,17 @@ function KnowledgePageInner() {
   // 等图谱与 taxonomy 就绪后一次性定位：切范围 + 下钻 + 高亮 + 打开抽屉。
   // setState 走微任务回调（effect 体内不做同步 setState 的仓库纪律）。
   useEffect(() => {
-    if (deepLinkDone.current || !deepLinkParam) return;
+    const key = `${workspaceId}:${deepLinkParam}`;
+    if (deepLinkDone.current === key || !deepLinkParam || gLoading) return;
     if (allNodes.length === 0 || !taxonomy) return;
-    deepLinkDone.current = true;
     const node = allNodes.find((n) => n.id === deepLinkParam);
     if (!node) return;
+    deepLinkDone.current = key;
     void Promise.resolve().then(() => {
       pickMatch(node);
       setSelectedId(node.id);
     });
-  }, [deepLinkParam, allNodes, taxonomy, pickMatch]);
+  }, [deepLinkParam, allNodes, taxonomy, pickMatch, workspaceId, gLoading]);
 
   // 概念抽屉的目标归属（L1 目标链反查）：属于目标链/目标概念时显示
   // "属于目标《X》· 距目标还差 N 个概念 · 当前第 L 层"。多目标下逐个
@@ -652,6 +670,27 @@ function KnowledgePageInner() {
   const isEmpty = graphStatus === "ok" && scopeNodes.length === 0;
   const isDisabled = graphStatus === "disabled";
   const isApiError = graphStatus != null && graphStatus !== "ok" && graphStatus !== "disabled";
+
+  useAssistantPage({
+    navigationStatus: (target) => {
+      if (gLoading) return null;
+      if (gErr) return navigationFailed;
+      if (target.kind === "module") return navigationSucceeded;
+      if (target.kind !== "concept" || selectedId !== target.concept_id) return null;
+      if (target.workspace_id && workspaceId !== target.workspace_id) return null;
+      return allNodes.some((node) => node.id === target.concept_id) ? navigationSucceeded : navigationMissing;
+    },
+    context: () => ({
+      schema_version: 1,
+      route_id: "knowledge",
+      route_epoch: currentRouteEpoch(),
+      ...(deepLinkParam ? {
+        entity: { kind: "concept" as const, id: deepLinkParam },
+      } : {}),
+      ...(workspaceId ? { workspace_id: workspaceId } : {}),
+      view: level && subject ? `${level}/${subject}` : undefined,
+    }),
+  });
 
   return (
     <div className="page-in h-full overflow-y-auto p-5">

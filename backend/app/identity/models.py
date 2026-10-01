@@ -58,6 +58,9 @@ class User:
     role: str = "student"
     created_at: float = field(default_factory=time.time)
     last_login_at: float = 0.0
+    # 无状态 JWT 的吊销锚点：token 携带签发时的 ver，验证时与账号的
+    # token_version 比对，不一致即失效。改密码/管理员重置凭证时 bump。
+    token_version: int = 0
     profile: UserProfile = field(default_factory=UserProfile)
 
     @property
@@ -78,11 +81,16 @@ class User:
         """Full serialization for the store (includes password_hash)."""
         d = self.to_public_dict()
         d["password_hash"] = self.password_hash
+        d["token_version"] = self.token_version
         return d
 
     @classmethod
     def from_dict(cls, d: dict[str, Any] | None) -> "User":
         d = d or {}
+        try:
+            token_version = int(d.get("token_version", 0) or 0)
+        except (TypeError, ValueError):
+            token_version = 0
         return cls(
             id=str(d.get("id", "")),
             email=str(d.get("email", "")),
@@ -91,5 +99,6 @@ class User:
             role=str(d.get("role", "student")),
             created_at=float(d.get("created_at", 0.0)),
             last_login_at=float(d.get("last_login_at", 0.0)),
+            token_version=token_version,
             profile=UserProfile.from_dict(d.get("profile")),
         )

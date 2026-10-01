@@ -1,11 +1,13 @@
 "use client";
+import { navigationAnchor, navigationSucceeded, navigationFailed } from "@/lib/assistant/navigation";
+
 // /memory 记忆中心（plan §14.1）：两个清晰区域——
 // ①学习档案：按工作区展示统一学习评价（学科叙述/覆盖/近期变化/下一步；
 //   Tabs：近期变化=证据时间线、对话记录=本区来源会话、教材概念=主张列表）。
 //   它取代旧学习评价/六维/Bloom 弱项展示，不是在旧区域下再加一张新卡。
 // ②AI 记忆与偏好：提示词记忆（跨对话画像）+ 工作区共同记忆 + 程序性记忆
 //   + 历史审计（旧版情景/语义只读陈列，C4 合并）。
-import { useCallback, useEffect, useState } from "react";
+import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -22,6 +24,9 @@ import { Card, CardHeader } from "@/components/ui/Card";
 import { Tabs } from "@/components/ui/Tabs";
 import { EmptyState, ErrorNote, PageSkeleton } from "@/components/ui/EmptyState";
 import { Pager } from "@/components/ui/Pager";
+import { useAssistantPage } from "@/lib/assistant/useAssistantPage";
+import { currentRouteEpoch } from "@/lib/assistant/page-context";
+import { DeepLinkQueryReader } from "@/lib/assistant/deep-link";
 import { EpisodeTimeline } from "@/components/pages/memory/EpisodeTimeline";
 import { SemanticFacts } from "@/components/pages/memory/SemanticFacts";
 import { StrategyBars } from "@/components/pages/memory/StrategyBars";
@@ -48,6 +53,7 @@ import {
   setPromptMemoryWindow,
 } from "@/lib/api";
 import { makePageT } from "@/lib/i18n-page";
+import { deepParams, focusDeepTarget, syncQueryParam } from "@/lib/assistant/deep-link";
 import { useUIStore } from "@/lib/store";
 import { et, evalStateTone, type Lang } from "@/lib/evaluation-labels";
 import { fmtDate, relTime } from "@/lib/format";
@@ -111,7 +117,7 @@ function PromptMemorySection({
   const gen = profile.compaction_generation ?? 0;
   const lastAt = profile.last_compacted_at ?? 0;
   return (
-    <Card>
+    <Card data-memory-section="preferences">
       <CardHeader
         icon={<Layers size={16} className="text-accent" />}
         title={tr("pm.title")}
@@ -279,7 +285,12 @@ function WorkspaceMemorySection({
  *  R09（update_plan §4）：四个区域（总览/时间线/会话/概念）独立加载与
  *  失败重试——一个子请求 422/失败不能把其他成功区域一起抹成空态；
  *  概念走服务端筛选 + 分页（统一 limit ≤100 上限），不拉全量。 */
-function LearningArchiveRegion({ tr, lang }: { tr: (k: string, f?: string) => string; lang: Lang }) {
+function LearningArchiveRegion({ tr, lang, deepSignal = 0 }: {
+  tr: (k: string, f?: string) => string;
+  lang: Lang;
+  /** 同页 query 变化信号（§8.3/AC-23）：已在 /memory 时新深链重放选择。 */
+  deepSignal?: number;
+}) {
   const router = useRouter();
   const [wss, setWss] = useState<WorkspaceEvaluationListItem[] | null>(null);
   const [wsId, setWsId] = useState("");
@@ -304,6 +315,31 @@ function LearningArchiveRegion({ tr, lang }: { tr: (k: string, f?: string) => st
   const [sessionItems, setSessionItems] = useState<EvalSessionEvidenceItem[] | null>(null);
 
   const CONCEPTS_PER_PAGE = 20;
+  const requestWorkspace = useRef(wsId);
+  useEffect(() => { requestWorkspace.current = wsId; }, [wsId]);
+
+  // 助手/跨页深链（§8.3）：?ws=&tab=&concept=&source=；定位目标在
+  // 数据加载后进行，找不到只给温和提示，不无限刷新。
+  const [deepFocus, setDeepFocus] = useState({ concept: "", source: "" });
+  const [deepNotice, setDeepNotice] = useState("");
+  const deepSourceDone = useRef(false);
+  const deepConceptDone = useRef(false);
+  const locatedConcept = useRef("");
+  // 深链参数应用（挂载与 deepSignal 变化时重放）。
+  const applyDeepParams = useCallback((items: WorkspaceEvaluationListItem[]) => {
+    const deep = deepParams("ws", "tab", "concept", "source");
+    const wanted = items.some((w) => w.workspace_id === deep.ws) ? deep.ws : "";
+    if (wanted) setWsId(wanted);
+    setTab(["changes", "sessions", "concepts"].includes(deep.tab) ? deep.tab : "changes");
+    if (deep.concept) setTab("concepts");
+    if (deep.source) setTab("changes");
+    {
+      deepConceptDone.current = false;
+      locatedConcept.current = "";
+      deepSourceDone.current = false;
+      setDeepFocus({ concept: deep.concept, source: deep.source });
+    }
+  }, []);
 
   useEffect(() => {
     let alive = true;
@@ -313,9 +349,10 @@ function LearningArchiveRegion({ tr, lang }: { tr: (k: string, f?: string) => st
         const items = r.items || [];
         setWss(items);
         // R12：Dashboard/图谱深链 ?ws= 优先于默认第一个学习区
-        const deepWs = new URLSearchParams(window.location.search).get("ws") || "";
-        const wanted = items.some((w) => w.workspace_id === deepWs) ? deepWs : "";
+        const deep = deepParams("ws", "tab", "concept", "source");
+        const wanted = items.some((w) => w.workspace_id === deep.ws) ? deep.ws : "";
         setWsId((prev) => prev || wanted || items[0]?.workspace_id || "");
+        applyDeepParams(items);
       })
       .catch(() => {
         if (!alive) return;
@@ -324,7 +361,24 @@ function LearningArchiveRegion({ tr, lang }: { tr: (k: string, f?: string) => st
     return () => {
       alive = false;
     };
-  }, []);
+  }, [applyDeepParams]);
+
+  // 同页深链重放（AC-23）：已在 /memory 时新 ?ws=&source= 等重新应用。
+  // 状态写入走微任务：避免 effect 体内同步 setState 的级联渲染
+  // （react-hooks/set-state-in-effect）。
+  useEffect(() => {
+    if (!deepSignal) return;
+    const items = wss;
+    let alive = true;
+    queueMicrotask(() => {
+      if (!alive) return;
+      if (items && items.length) applyDeepParams(items);
+    });
+    return () => {
+      alive = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [deepSignal]);
 
   // 工作区切换时在渲染期重置面板状态（React 官方 derive-state 模式，
   // 避免在 effect 内同步 setState 造成级联渲染）。
@@ -350,6 +404,27 @@ function LearningArchiveRegion({ tr, lang }: { tr: (k: string, f?: string) => st
     setSessionItems(null);
     setStateFilter("");
   }
+
+  // 深链定位（数据加载后；deepSignal 重放时允许再次定位）。
+  useEffect(() => {
+    if (deepSourceDone.current || !deepFocus.source) return;
+    if (tab !== "changes" || evidence === null) return;
+    deepSourceDone.current = true;
+    if (!focusDeepTarget("source-id", deepFocus.source)) {
+      const msg = tr("arc.deep.sourceMissing");
+      void Promise.resolve().then(() => setDeepNotice(msg));
+    }
+  }, [deepFocus.source, tab, evidence, tr]);
+
+  useEffect(() => {
+    if (deepConceptDone.current || !deepFocus.concept) return;
+    if (tab !== "concepts" || concepts === null) return;
+    deepConceptDone.current = true;
+    if (!focusDeepTarget("concept-id", deepFocus.concept)) {
+      const msg = tr("arc.deep.conceptMissing");
+      void Promise.resolve().then(() => setDeepNotice(msg));
+    }
+  }, [deepFocus.concept, tab, concepts, tr]);
 
   // 概念筛选变化 → 回到第一页（渲染期 derive-state，同上）。
   const [prevStateFilter, setPrevStateFilter] = useState(stateFilter);
@@ -381,15 +456,17 @@ function LearningArchiveRegion({ tr, lang }: { tr: (k: string, f?: string) => st
       setEvidenceErr(false);
       getEvalEvidence(wsId, { limit: 30, offset })
         .then((ev) => {
+          if (requestWorkspace.current !== wsId) return;
           const items = ev.items || [];
           setEvidence((prev) => (offset === 0 ? items : [...(prev || []), ...items]));
           setEvidenceDone(offset + items.length >= (ev.total || 0));
         })
         .catch(() => {
+          if (requestWorkspace.current !== wsId) return;
           setEvidenceErr(true);
           setEvidence((prev) => prev ?? []);
         })
-        .finally(() => setEvidenceMore(false));
+        .finally(() => { if (requestWorkspace.current === wsId) setEvidenceMore(false); });
     },
     [wsId],
   );
@@ -410,6 +487,13 @@ function LearningArchiveRegion({ tr, lang }: { tr: (k: string, f?: string) => st
     };
   }, [wsId, loadEvidencePage]);
 
+  useEffect(() => {
+    if (!deepFocus.source || !evidence || evidenceMore || evidenceDone || evidenceErr) return;
+    if (evidence.some((item) => item.source_id === deepFocus.source)) return;
+    const timer = window.setTimeout(() => loadEvidencePage(evidence.length), 0);
+    return () => window.clearTimeout(timer);
+  }, [deepFocus.source, evidence, evidenceMore, evidenceDone, evidenceErr, loadEvidencePage]);
+
   const loadSessionsPage = useCallback(
     (offset: number) => {
       if (!wsId) return;
@@ -417,15 +501,17 @@ function LearningArchiveRegion({ tr, lang }: { tr: (k: string, f?: string) => st
       setSessionsErr(false);
       getEvalSessions(wsId, offset, 50)
         .then((se) => {
+          if (requestWorkspace.current !== wsId) return;
           const items = se.items || [];
           setSessions((prev) => (offset === 0 ? items : [...(prev || []), ...items]));
           setSessionsDone(offset + items.length >= (se.total || 0));
         })
         .catch(() => {
+          if (requestWorkspace.current !== wsId) return;
           setSessionsErr(true);
           setSessions((prev) => prev ?? []);
         })
-        .finally(() => setSessionsMore(false));
+        .finally(() => { if (requestWorkspace.current === wsId) setSessionsMore(false); });
     },
     [wsId],
   );
@@ -449,11 +535,31 @@ function LearningArchiveRegion({ tr, lang }: { tr: (k: string, f?: string) => st
   useEffect(() => {
     if (!wsId) return;
     let alive = true;
-    getEvalConcepts(wsId, {
-      state: stateFilter || undefined,
-      offset: conceptPage * CONCEPTS_PER_PAGE,
-      limit: CONCEPTS_PER_PAGE,
-    })
+    const locateConcept = async () => {
+      let offset = conceptPage * CONCEPTS_PER_PAGE;
+      const key = `${wsId}:${deepFocus.concept}`;
+      const searching = !!deepFocus.concept && locatedConcept.current !== key;
+      if (searching) offset = 0;
+      while (alive) {
+        const result = await getEvalConcepts(wsId, {
+          state: searching ? undefined : stateFilter || undefined,
+          offset, limit: CONCEPTS_PER_PAGE,
+        });
+        if (!alive) return result;
+        const found = result.items.some((item) => (item.concept_ref.key || item.concept_ref.concept_id) === deepFocus.concept);
+        if (!searching || found || offset + result.items.length >= result.total || !result.items.length) {
+          if (searching) {
+            locatedConcept.current = key;
+            setStateFilter("");
+            setConceptPage(Math.floor(offset / CONCEPTS_PER_PAGE));
+          }
+          return result;
+        }
+        offset += CONCEPTS_PER_PAGE;
+      }
+      return { items: [], total: 0 };
+    };
+    locateConcept()
       .then((co) => {
         if (!alive) return;
         setConcepts(co.items || []);
@@ -464,7 +570,7 @@ function LearningArchiveRegion({ tr, lang }: { tr: (k: string, f?: string) => st
     return () => {
       alive = false;
     };
-  }, [wsId, stateFilter, conceptPage]);
+  }, [wsId, stateFilter, conceptPage, deepFocus.concept]);
 
   if (wss === null) {
     return <p className="py-2 text-xs text-muted">{tr("ws.loading")}</p>;
@@ -492,7 +598,9 @@ function LearningArchiveRegion({ tr, lang }: { tr: (k: string, f?: string) => st
   };
 
   return (
-    <div className="flex flex-col gap-4" data-testid="learning-archive">
+    <div className="flex flex-col gap-4" data-testid="learning-archive" data-workspace={wsId} data-tab={tab}
+      data-loading={summary === null || (tab === "changes" ? evidence === null : tab === "concepts" ? concepts === null : sessions === null)}
+      data-error={summaryErr || evidenceErr || conceptsErr || sessionsErr}>
       <Card>
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
           <label className="flex items-center gap-2 text-xs text-fg-secondary">
@@ -584,13 +692,20 @@ function LearningArchiveRegion({ tr, lang }: { tr: (k: string, f?: string) => st
 
       <Tabs
         active={tab}
-        onChange={setTab}
+        onChange={(next) => {
+          setTab(next);
+          // 主动切换 tab 同步 URL（§8.3）；默认 tab 不留在地址栏。
+          syncQueryParam(router, { tab: next === "changes" ? null : next }, "/memory");
+        }}
         items={[
           { key: "changes", label: tr("arc.tab.changes") },
           { key: "sessions", label: tr("arc.tab.sessions") },
           { key: "concepts", label: tr("arc.tab.concepts") },
         ]}
       />
+      {deepNotice && (
+        <p className="text-xs text-muted" role="status">{deepNotice}</p>
+      )}
 
       {tab === "changes" &&
         (evidence === null ? (
@@ -775,7 +890,7 @@ function LearningArchiveRegion({ tr, lang }: { tr: (k: string, f?: string) => st
                   const key = c.concept_ref.key || c.concept_ref.concept_id;
                   const isOpen = openConcept === key;
                   return (
-                    <li key={key} className="py-1">
+                    <li key={key} data-concept-id={key} className="py-1">
                       <button
                         type="button"
                         onClick={() => setOpenConcept(isOpen ? "" : key)}
@@ -841,6 +956,71 @@ export default function MemoryPage() {
   const [profile, setProfile] = useState<PromptMemoryProfile | null>(null);
   const [sessionTitles, setSessionTitles] = useState<Map<string, string>>(new Map());
   const [promptWindow, setPromptWindow] = useState(15);
+  // 助手深链（§20.1 记忆中心）：?section=preferences 切到 AI 记忆分区并
+  // 定位偏好卡；档案深链 ?ws=&tab=&concept=&source= 同页变化时重放。
+  const [deepSignal, setDeepSignal] = useState(0);
+  const [deepSection, setDeepSection] = useState("");
+  const [deepNotice, setDeepNotice] = useState("");
+  useAssistantPage({
+    navigationStatus: (target) => {
+      if (target.kind === "module") return navigationSucceeded;
+      if (target.kind === "memory_preferences") return navigationAnchor("memory-section", "preferences");
+      if (target.kind !== "learning_archive") return null;
+      const region = document.querySelector<HTMLElement>('[data-testid="learning-archive"]');
+      if (!region || region.dataset.loading === "true") return null;
+      if (region.dataset.error === "true") return navigationFailed;
+      if (target.workspace_id && region.dataset.workspace !== target.workspace_id) return null;
+      const tab = target.source_id ? "changes" : target.concept_key ? "concepts" : target.tab || "changes";
+      if (region.dataset.tab !== tab) return null;
+      if (target.source_id && !navigationAnchor("source-id", target.source_id, region)) return null;
+      if (target.concept_key && !navigationAnchor("concept-id", target.concept_key, region)) return null;
+      return navigationSucceeded;
+    },
+    context: () => ({
+      schema_version: 1,
+      route_id: "memory",
+      route_epoch: currentRouteEpoch(),
+      view: region,
+    }),
+  });
+  const applyDeepLink = useCallback((params: Record<string, string>) => {
+    if (params.section) {
+      setDeepSection(params.section);
+      return;
+    }
+    setRegion("archive");
+    setDeepSignal((n) => n + 1);
+  }, []);
+  useEffect(() => {
+    if (!deepSection) return;
+    const section = deepSection;
+    // 消费走微任务：避免 effect 体内同步 setState 的级联渲染
+    // （react-hooks/set-state-in-effect）。
+    let alive = true;
+    queueMicrotask(() => {
+      if (!alive) return;
+      setDeepSection("");
+      if (section === "preferences") {
+        setRegion("ai");
+        window.setTimeout(() => {
+          if (!focusDeepTarget("memory-section", "preferences")) {
+            // PromptMemorySection 挂载后即可定位；失败再等一拍（区域切换渲染）。
+            window.setTimeout(() => {
+              if (!focusDeepTarget("memory-section", "preferences")) {
+                setDeepNotice(tr("mem.deep.sectionMissing"));
+              }
+            }, 240);
+          }
+        }, 60);
+      } else {
+        setDeepNotice(tr("mem.deep.sectionMissing"));
+      }
+    });
+    return () => {
+      alive = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [deepSection]);
 
   const load = useCallback(async () => {
     try {
@@ -925,11 +1105,15 @@ export default function MemoryPage() {
 
   return (
     <div className="h-full overflow-y-auto p-6 page-in">
+      <Suspense><DeepLinkQueryReader keys={["section", "ws", "tab", "concept", "source"]} onParams={applyDeepLink} /></Suspense>
       <div className="mx-auto flex max-w-[1200px] flex-col gap-4">
         <header>
           <h1 className="font-serif text-xl font-bold text-fg">{tr("nav.memory")}</h1>
           <p className="mt-1 text-sm text-muted">{tr("mem.desc")}</p>
         </header>
+        {deepNotice && (
+          <div className="rounded-[8px] border border-border bg-surface px-3 py-2 text-xs text-muted">{deepNotice}</div>
+        )}
 
         <Tabs
           active={region}
@@ -941,7 +1125,7 @@ export default function MemoryPage() {
         />
 
         {region === "archive" ? (
-          <LearningArchiveRegion tr={tr} lang={lang} />
+          <LearningArchiveRegion tr={tr} lang={lang} deepSignal={deepSignal} />
         ) : loading ? (
           <PageSkeleton />
         ) : error ? (

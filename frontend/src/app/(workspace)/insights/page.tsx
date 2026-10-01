@@ -1,7 +1,14 @@
 "use client";
+import { navigationAnchor, navigationSucceeded } from "@/lib/assistant/navigation";
+
 
 // /insights 系统洞察：M7 评估与改进智能的观察与人工确认入口。
-import { useCallback, useEffect, useState } from "react";
+import { Suspense, useCallback, useEffect, useRef, useState } from "react";
+import {
+  DeepLinkQueryReader, deepParam, focusDeepTarget,
+} from "@/lib/assistant/deep-link";
+import { useAssistantPage } from "@/lib/assistant/useAssistantPage";
+import { currentRouteEpoch } from "@/lib/assistant/page-context";
 import { ModuleBadge } from "@/components/ui/Badge";
 import { EmptyState, ErrorNote, PageSkeleton } from "@/components/ui/EmptyState";
 import { getContextBudgetReport, getEvalGuidance, getEvalProposals, getEvalReport, getEvalTraces } from "@/lib/api-modules";
@@ -27,6 +34,26 @@ export default function InsightsPage() {
   const [contextBudget, setContextBudget] = useState<ContextBudgetReport | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  useAssistantPage({
+    navigationStatus: (target) => {
+      if (loading) return null;
+      if (target.kind === "module") return navigationSucceeded;
+      if (target.kind === "teaching_proposal") return navigationAnchor("proposal-id", target.proposal_id);
+      if (target.kind === "teaching_guidance") return navigationAnchor("guidance-id", target.guidance_id);
+      return null;
+    },
+    context: () => ({
+      schema_version: 1,
+      route_id: "insights",
+      route_epoch: currentRouteEpoch(),
+    }),
+  });
+  // §20.1 系统洞察：?proposal= 与 ?guidance= 双深链（同页变化均响应）。
+  const [deepFocus, setDeepFocus] = useState({ proposal: "", guidance: "" });
+  const applyDeepLink = useCallback((params: Record<string, string>) => {
+    setDeepFocus({ proposal: params.proposal || "", guidance: params.guidance || "" });
+  }, []);
 
   const fetchAll = useCallback(async () => {
     const [r, t, p, g, c] = await Promise.all([getEvalReport(), getEvalTraces(50), getEvalProposals(), getEvalGuidance(), getContextBudgetReport()]);
@@ -75,12 +102,37 @@ export default function InsightsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- 仅挂载时拉取一次
   }, []);
 
+  // §8.3 助手深链 ?proposal= / ?guidance=：数据加载后定位高亮（高亮不等于
+  // 批准/应用）；同页 query 变化同样响应；找不到给温和提示。
+  const [deepProposalMissing, setDeepProposalMissing] = useState(false);
+  const [deepGuidanceMissing, setDeepGuidanceMissing] = useState(false);
+  const deepProposalLast = useRef("");
+  const deepGuidanceLast = useRef("");
+  useEffect(() => {
+    if (loading) return;
+    const proposal = deepFocus.proposal
+      || (deepProposalLast.current ? "" : deepParam("proposal"));
+    if (proposal && deepProposalLast.current !== proposal) {
+      deepProposalLast.current = proposal;
+      const found = focusDeepTarget("proposal-id", proposal);
+      if (!found) void Promise.resolve().then(() => setDeepProposalMissing(true));
+    }
+    const guidanceId = deepFocus.guidance
+      || (deepGuidanceLast.current ? "" : deepParam("guidance"));
+    if (guidanceId && deepGuidanceLast.current !== guidanceId) {
+      deepGuidanceLast.current = guidanceId;
+      const found = focusDeepTarget("guidance-id", guidanceId);
+      if (!found) void Promise.resolve().then(() => setDeepGuidanceMissing(true));
+    }
+  }, [loading, proposals, guidance, deepFocus]);
+
   // 后端智能层被环境开关关闭时，端点会返回 { status: "disabled" }。
   const disabled =
     report != null && (report as unknown as { status?: string }).status === "disabled";
 
   return (
     <div className="h-full overflow-y-auto p-6 page-in">
+      <Suspense><DeepLinkQueryReader keys={["proposal", "guidance"]} onParams={applyDeepLink} /></Suspense>
       <div className="mx-auto flex max-w-[1200px] flex-col gap-4">
         <header>
           <div className="flex items-center gap-2.5">
@@ -117,7 +169,17 @@ export default function InsightsPage() {
             <OverviewStats report={report} tr={tr} />
             {contextBudget && <ContextBudgetPanel data={contextBudget} tr={tr} />}
             <DiagnosisCharts report={report} tr={tr} lang={lang} />
-            <ProposalsList proposals={proposals} tr={tr} onChanged={load} />
+            {deepProposalMissing && (
+              <p className="text-xs text-muted" role="status">
+                {tr("ins.deep.proposalMissing")}
+              </p>
+            )}
+            {deepGuidanceMissing && (
+              <p className="text-xs text-muted" role="status">
+                {tr("ins.deep.guidanceMissing")}
+              </p>
+            )}
+            <ProposalsList deepProposalId={deepFocus.proposal} proposals={proposals} tr={tr} onChanged={load} />
             <GuidancePanel entries={guidance} tr={tr} onChanged={load} />
             <TracesTable traces={traces} tr={tr} lang={lang} />
           </>

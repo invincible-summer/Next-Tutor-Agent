@@ -1,4 +1,4 @@
-# Edu_Agent 同源生产 Nginx 站点模板。
+# Next-Tutor-Agent 同源生产 Nginx 站点模板。
 #
 # 只安装为 /etc/nginx/sites-available/edu-agent，并软链接到
 # /etc/nginx/sites-enabled/edu-agent。不要删除或覆盖 default、Paper Agent、
@@ -33,12 +33,26 @@ server {
 server {
     listen 443 ssl;
     listen [::]:443 ssl;
+    http2 on;
     server_name edu-agent.invincible-summer.xyz;
 
     ssl_certificate     /etc/letsencrypt/live/edu-agent.invincible-summer.xyz/fullchain.pem;
     ssl_certificate_key /etc/letsencrypt/live/edu-agent.invincible-summer.xyz/privkey.pem;
 
-    client_max_body_size 300m;
+    # TLS 加固（Mozilla intermediate 档）：TLS1.2/1.3 + 前向保密套件。
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_ciphers ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384;
+    ssl_prefer_server_ciphers off;
+    ssl_session_cache shared:edu_agent_ssl:10m;
+    ssl_session_timeout 1d;
+    ssl_session_tickets off;
+
+    # HSTS：确认该域名（含子域）已全站 HTTPS 后保持启用。
+    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+
+    # 默认 10m：前端路由不接受上传。API 侧在 /api/ location 放宽到 300m
+    #（教材/资料上传），应用层另有逐端点大小上限与边读边截断兜底。
+    client_max_body_size 10m;
 
     # SSE：禁用 Nginx 缓冲、缓存和 gzip，并允许教材处理/教学长请求持续输出。
     location = /api/v1/chat/stream {
@@ -106,6 +120,8 @@ server {
         proxy_read_timeout 600s;
         proxy_send_timeout 600s;
         add_header X-Accel-Buffering no;
+        # 教材/资料上传走这里：放宽到 300m（应用层另有大小上限兜底）。
+        client_max_body_size 300m;
     }
 
     location / {

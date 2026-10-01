@@ -1,10 +1,17 @@
 "use client";
+import { navigationAnchor, navigationSucceeded, navigationMissing, navigationFailed, navigationUnavailable } from "@/lib/assistant/navigation";
+
 
 // /assessment 测评中心：M4 CAT 自适应测试全流程。
 // 状态机：idle（配置卡）→ asking（答题）→ feedback（即时判分）→ done（总结报告）。
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ModuleBadge } from "@/components/ui/Badge";
 import { EmptyState, ErrorNote, Skeleton } from "@/components/ui/EmptyState";
+import {
+  DeepLinkQueryReader, focusDeepTarget,
+} from "@/lib/assistant/deep-link";
+import { useAssistantPage } from "@/lib/assistant/useAssistantPage";
+import { currentRouteEpoch } from "@/lib/assistant/page-context";
 import {
   assessmentAbandon,
   assessmentActive,
@@ -33,10 +40,17 @@ import { RecentSessions } from "@/components/pages/assessment/RecentSessions";
 import { RecentQuestions } from "@/components/pages/assessment/RecentQuestions";
 import { ErrorNotebook } from "@/components/pages/assessment/ErrorNotebook";
 import { difficultyOf } from "@/components/pages/assessment/common";
+import { useAuthStore } from "@/lib/auth-store";
+import { GuestLearning } from "@/components/guest/GuestLearning";
 
 type Stage = "idle" | "asking" | "feedback" | "done";
 
 export default function AssessmentPage() {
+  const user = useAuthStore((s) => s.user);
+  return user ? <AuthenticatedAssessmentPage /> : <GuestLearning mode="practice" />;
+}
+
+function AuthenticatedAssessmentPage() {
   const lang = useUIStore((s) => s.lang);
   const grade = useUIStore((s) => s.grade);
   const tr = useMemo(() => makePageT(lang, STRINGS), [lang]);
@@ -56,6 +70,66 @@ export default function AssessmentPage() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [retryFn, setRetryFn] = useState<(() => void) | null>(null);
+
+  // §20.1 测评深链：?view=start|errors|recent（active/report 视图随 B07
+  // 页面实现开放，未实现前给温和提示，不假装定位）。
+  const [deepEntity, setDeepEntity] = useState({ source: "", question: "" });
+  const [deepView, setDeepView] = useState("");
+  const [deepNotice, setDeepNotice] = useState("");
+  const deepViewLast = useRef("");
+  useAssistantPage({
+    navigationStatus: (target) => {
+      if (probing) return null;
+      if (disabled) return navigationUnavailable;
+      if (target.kind === "module") return navigationSucceeded;
+      if (target.kind !== "assessment_view") return null;
+      const view = target.view || "start";
+      if (target.assessment_id && assessmentId !== target.assessment_id) return navigationMissing;
+      if (view === "active" || view === "report") {
+        if ((view === "active" && stage !== "asking" && stage !== "feedback") || (view === "report" && !summary)) return navigationMissing;
+        if (target.question_id && question?.question_id !== target.question_id) return navigationMissing;
+        if (target.source_id) return navigationUnavailable;
+        return navigationAnchor("assessment-view", "start");
+      }
+      if ((view === "recent" && quizLoading) || (view === "errors" && errorLoading)) return null;
+      if ((view === "recent" && quizError) || (view === "errors" && errorError)) return navigationFailed;
+      if (target.question_id && !navigationAnchor("question-id", target.question_id)) return null;
+      if (target.source_id && !navigationAnchor("assessment-source", target.source_id)) return null;
+      return navigationAnchor("assessment-view", view);
+    },
+    context: () => ({
+      schema_version: 1,
+      route_id: "assessment",
+      route_epoch: currentRouteEpoch(),
+      view: stage,
+    }),
+    clientState: () => ({
+      dirty: false,
+      blocking_activity: stage === "asking" || stage === "feedback"
+        ? ("assessment" as const) : ("none" as const),
+      safe_bottom_px: 24,
+    }),
+  });
+  const applyDeepLink = useCallback((params: Record<string, string>) => {
+    setDeepView(params.view || "");
+    setDeepEntity({ source: params.source || "", question: params.question || "" });
+  }, []);
+  useEffect(() => {
+    if (!deepView || probing) return;
+    const view = deepView;
+    if (deepViewLast.current === view) return;
+    deepViewLast.current = view;
+    if (["start", "errors", "recent"].includes(view)) {
+      window.setTimeout(() => {
+        if (!focusDeepTarget("assessment-view", view)) {
+          setDeepNotice(tr("deep.viewMissing"));
+        }
+      }, 60);
+      return;
+    }
+    void Promise.resolve().then(() => setDeepNotice(tr("deep.viewMissing")));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [deepView, probing]);
 
   // --- 近期练习会话 ---
   const [sessions, setSessions] = useState<SessionItem[] | null>(null);
@@ -346,6 +420,7 @@ export default function AssessmentPage() {
 
   return (
     <div className="h-full overflow-y-auto p-6 page-in">
+      <Suspense><DeepLinkQueryReader keys={["view", "assessment", "source", "question"]} onParams={applyDeepLink} /></Suspense>
       <div className="mx-auto flex max-w-[1200px] flex-col gap-4">
         {/* 页头 */}
         <div className="flex items-start gap-3">
@@ -357,8 +432,14 @@ export default function AssessmentPage() {
             <p className="mt-1 text-sm text-muted">{tr("page.desc")}</p>
           </div>
         </div>
+        {deepNotice && (
+          <div role="status" className="rounded-[8px] border border-border bg-surface px-3 py-2 text-xs text-muted">
+            {deepNotice}
+          </div>
+        )}
 
-        {/* CAT 流程卡 */}
+        {/* CAT 流程卡（start 视图锚点） */}
+        <div data-assessment-view="start">
         {probing ? (
           <Skeleton className="h-56" />
         ) : disabled ? (
@@ -419,26 +500,33 @@ export default function AssessmentPage() {
               ))}
           </>
         )}
+        </div>
 
         {/* 错题本（跨会话聚合，分页 + 重练深链） */}
-        <ErrorNotebook
-          tr={tr}
-          lang={lang}
-          items={errorItems}
-          loading={errorLoading}
-          error={errorError}
-          onRetry={retrySessions}
-        />
+        <div data-assessment-view="errors">
+          <ErrorNotebook
+            deepSourceId={deepEntity.source}
+            tr={tr}
+            lang={lang}
+            items={errorItems}
+            loading={errorLoading}
+            error={errorError}
+            onRetry={retrySessions}
+          />
+        </div>
 
         {/* 最近习题（跨会话，分页） */}
-        <RecentQuestions
-          tr={tr}
-          lang={lang}
-          questions={quizQuestions}
-          loading={quizLoading}
-          error={quizError}
-          onRetry={retrySessions}
-        />
+        <div data-assessment-view="recent">
+          <RecentQuestions
+            deepQuestionId={deepEntity.question}
+            tr={tr}
+            lang={lang}
+            questions={quizQuestions}
+            loading={quizLoading}
+            error={quizError}
+            onRetry={retrySessions}
+          />
+        </div>
 
         {/* 近期练习会话 */}
         <RecentSessions

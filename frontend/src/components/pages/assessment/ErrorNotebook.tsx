@@ -3,7 +3,7 @@
 // 错题本卡（plan §11.2/§14.6）：journal 投影 wrong/partial 题目，分页展示。
 // 展开行 = 打开证据详情（原始作答/原题/揭晓答案与解析/帮助记录）——原始
 // 材料与判分全部回源服务端，不在列表里复制一份；重练走 chat 深链变式。
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { BookX, RefreshCcw } from "lucide-react";
 import { Card, CardHeader } from "@/components/ui/Card";
@@ -12,17 +12,17 @@ import { EmptyState, ErrorNote, Skeleton } from "@/components/ui/EmptyState";
 import { Pager, paged, pageCount } from "@/components/ui/Pager";
 import { EvidenceDetailDrawer } from "@/components/learning-evaluation/EvidenceTimeline";
 import { dt, verdictTone } from "@/lib/labels";
-import type { Lang } from "@/lib/i18n";
+import { localeFor, type Lang } from "@/lib/i18n";
 import type { ErrorNotebookItem } from "@/lib/types-modules";
 import type { PageTr } from "./common";
 
 const PER_PAGE = 5;
 
-function fmtIso(iso: string): string {
+function fmtIso(iso: string, lang: Lang): string {
   if (!iso) return "";
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return iso;
-  return d.toLocaleDateString();
+  return d.toLocaleDateString(localeFor(lang));
 }
 
 export function ErrorNotebook({
@@ -32,6 +32,7 @@ export function ErrorNotebook({
   loading,
   error,
   onRetry,
+  deepSourceId,
 }: {
   tr: PageTr;
   lang: Lang;
@@ -39,10 +40,18 @@ export function ErrorNotebook({
   loading: boolean;
   error: string | null;
   onRetry: () => void;
+  deepSourceId?: string;
 }) {
   const [page, setPage] = useState(0);
   const [openSource, setOpenSource] = useState<string | null>(null);
   const list = items ?? [];
+  useEffect(() => {
+    if (!deepSourceId) return;
+    const index = (items ?? []).findIndex((item) => item.source_id === deepSourceId);
+    if (index < 0) return;
+    const timer = window.setTimeout(() => setPage(Math.floor(index / PER_PAGE)), 0);
+    return () => window.clearTimeout(timer);
+  }, [deepSourceId, items]);
   const cur = Math.min(page, pageCount(list.length, PER_PAGE) - 1);
   const rows = paged(list, cur, PER_PAGE);
 
@@ -67,7 +76,7 @@ export function ErrorNotebook({
         <>
           <div className="flex flex-col divide-y divide-border-light" data-testid="error-notebook">
             {rows.map((q, i) => (
-              <div key={q.source_id || i} className="flex items-start gap-3 px-2 py-2.5">
+              <div data-assessment-source={q.source_id} key={q.source_id || i} className="flex items-start gap-3 px-2 py-2.5">
                 <div className="min-w-0 flex-1">
                   <button
                     type="button"
@@ -81,7 +90,7 @@ export function ErrorNotebook({
                       {dt(lang, `verdict.${q.verdict}`, q.verdict)}
                     </Badge>
                     <span className="truncate">{q.knowledge_point || q.topic || "—"}</span>
-                    <span className="tnum shrink-0">{fmtIso(q.ts)}</span>
+                    <span className="tnum shrink-0">{fmtIso(q.ts, lang)}</span>
                   </div>
                 </div>
                 <button

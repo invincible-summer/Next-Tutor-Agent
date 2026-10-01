@@ -80,11 +80,12 @@ export function SettingsGear() {
               <Languages size={13} />
               <span>{tr("settings.language")}</span>
             </div>
-            <div className="grid grid-cols-2 gap-1">
+            <div className="grid grid-cols-2 gap-1" role="group" aria-label={tr("settings.language")}>
               {LANGS.map((l) => (
                 <button
                   key={l.code}
                   onClick={() => setLang(l.code)}
+                  aria-pressed={lang === l.code}
                   className={`flex items-center justify-center gap-1 rounded-md px-2 py-1.5 text-xs transition-colors ${
                     lang === l.code
                       ? "bg-accent-soft/40 text-accent"

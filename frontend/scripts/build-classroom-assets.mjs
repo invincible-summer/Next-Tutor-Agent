@@ -20,7 +20,7 @@ const runtimePath = resolve(
 const outDir = resolve(
   frontendRoot, "..", "backend", "app", "classroom", "static", "generated");
 
-const RUNTIME_VERSION = "2.0.0";
+const RUNTIME_VERSION = "2.4.0";
 const REQUIRED_FONT_WEIGHTS = ["Regular", "Bold", "Italic", "BoldItalic"];
 
 function fail(message) {

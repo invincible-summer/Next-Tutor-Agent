@@ -4,6 +4,9 @@
  * 课程同一张卡；失败卡显示具体阶段并可重试；空态双路径（教材章节 / 主题）。
  * ?create=1 或「一键备课」直接打开备课 Modal。ID 一律 encodeURIComponent。
  */
+import { useAssistantPage } from "@/lib/assistant/useAssistantPage";
+import { currentRouteEpoch } from "@/lib/assistant/page-context";
+import { navigationSucceeded, navigationMissing, navigationFailed, navigationUnavailable } from "@/lib/assistant/navigation";
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
@@ -52,6 +55,7 @@ function ClassroomListInner() {
   };
   const workspaceId = safeDecode(params.workspaceId ?? "");
 
+  const [loadedWorkspace, setLoadedWorkspace] = useState("");
   const [wsName, setWsName] = useState("");
   const [lessons, setLessons] = useState<LessonSummaryPublic[]>([]);
   const [total, setTotal] = useState(0);
@@ -70,6 +74,17 @@ function ClassroomListInner() {
   const [classroomDisabled, setClassroomDisabled] = useState(false);
   const [resume, setResume] = useState<ResumeCardPublic | null>(null);
   const [restarting, setRestarting] = useState(false);
+
+  useAssistantPage({
+    context: () => ({ schema_version: 1, route_id: "course", route_epoch: currentRouteEpoch(), workspace_id: workspaceId }),
+    navigationStatus: (target) => {
+      if (wsMissing) return navigationMissing;
+      if (classroomDisabled) return navigationUnavailable;
+      if (failed) return navigationFailed;
+      if (loading || loadedWorkspace !== workspaceId) return null;
+      return target.kind === "workspace_courses" && target.workspace_id === workspaceId ? navigationSucceeded : null;
+    },
+  });
 
   const refresh = useCallback(() => {
     setLoading(true);
@@ -105,9 +120,11 @@ function ClassroomListInner() {
 
   useEffect(() => {
     if (!workspaceId) return;
+    let alive = true;
     getWorkspace(workspaceId)
-      .then((ws) => { setWsName(ws.name); setWsMissing(false); })
-      .catch(() => setWsMissing(true));
+      .then((ws) => { if (alive) { setLoadedWorkspace(workspaceId); setWsName(ws.name); setWsMissing(false); } })
+      .catch(() => { if (alive) setWsMissing(true); });
+    return () => { alive = false; };
   }, [workspaceId]);
 
   // ?create=1：进入页面即打开备课 Modal（工作区菜单「一键备课」深链）。

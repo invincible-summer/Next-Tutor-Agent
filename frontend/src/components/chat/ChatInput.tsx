@@ -251,7 +251,7 @@ export function ChatInput({ onSend, disabled, onStop, prefill }: {
     const ocrTrimmed = ocrText.trim();
     if (!trimmed && !ocrTrimmed) return;
     const finalMsg = ocrTrimmed
-      ? `<ocr_material>${ocrTrimmed}</ocr_material>\n\n${trimmed || "请根据图片内容进行讲解。"}`
+      ? `<ocr_material>${ocrTrimmed}</ocr_material>\n\n${trimmed || tr("chat.input.image.prompt")}`
       : trimmed;
     const turnAttachments = [
       ...uploadedAttachments,

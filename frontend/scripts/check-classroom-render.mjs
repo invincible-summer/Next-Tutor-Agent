@@ -2,7 +2,7 @@
 /* 课堂排版检查 worker（plan.md §9.6）。
  *
  * 用 Playwright headless Chromium 打开编译产物的本地文件（禁止一切外网
- * 请求；内容自包含 data URI）。在 1280×720 / 960×540 / 390 阅读模式三档
+ * 请求；内容自包含 data URI）。在 1280×720 / 960×540 两档
  * 测量：每个 block 的 bounds 是否溢出 stage、图片是否解码成功、公式是否
  * 渲染。输出结构化 JSON 报告（只含 block_id/尺寸/错误码）。
  *
@@ -14,9 +14,8 @@ import { writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 const VIEWPORTS = [
-  { name: "desktop", width: 1280, height: 720, reading: false },
-  { name: "small", width: 960, height: 540, reading: false },
-  { name: "reading", width: 390, height: 844, reading: true },
+  { name: "desktop", width: 1280, height: 720 },
+  { name: "small", width: 960, height: 540 },
 ];
 
 function parseArgs() {
@@ -57,97 +56,85 @@ async function main() {
 
     for (const vp of VIEWPORTS) {
       await page.setViewportSize({ width: vp.width, height: vp.height });
-      await page.evaluate((reading) => {
-        document.documentElement.setAttribute(
-          "data-reading", reading ? "1" : "0");
-        window.dispatchEvent(new Event("resize"));
-      }, vp.reading);
+      await page.evaluate(() => window.dispatchEvent(new Event("resize")));
       await page.waitForTimeout(120);
 
       const slideCount = await page.evaluate(() =>
         document.querySelectorAll(".slide").length);
       for (let i = 1; i <= slideCount; i++) {
-        const issues = await page.evaluate((order) => {
-          const out = [];
-          const slides = document.querySelectorAll(".slide");
-          const slide = slides[order - 1];
-          if (!slide) return out;
-          for (const s of slides) s.classList.remove("current");
-          slide.classList.add("current");
+        await page.evaluate((order) => {
+          document.querySelectorAll(".slide").forEach((slide, j) => slide.classList.toggle("current", j === order - 1));
           window.dispatchEvent(new Event("resize"));
+        }, i);
+        await page.evaluate(() => document.fonts.ready);
+        await page.waitForTimeout(30);
+        const issues = await page.evaluate(() => {
+          const out = [];
+          const slide = document.querySelector(".slide.current");
           const stage = slide.querySelector(".stage");
-          if (stage) {
-            const vw = window.innerWidth || 1280;
-            const vh = window.innerHeight || 720;
-            const reading = document.documentElement
-              .getAttribute("data-reading") === "1";
-            const scale = reading ? 1
-              : Math.min(vw / 1280, vh / 720, 1.15);
-            stage.style.transform = reading ? "" : `scale(${scale})`;
+          const stageRect = stage.getBoundingClientRect();
+          const body = slide.querySelector(".body-area");
+          const v2 = document.documentElement.getAttribute("data-renderer-version")?.startsWith("2.");
+          if (v2 && slide.classList.contains('layout-overflow')) {
+            out.push({ block_id: "", code: "layout_overflow" });
           }
-          const stageRect = stage
-            ? stage.getBoundingClientRect()
-            : null;
-          const scrollArea = slide.querySelector(".body-area");
-          const v2 = document.documentElement
-            .getAttribute("data-renderer-version")?.startsWith("2.");
-          const bodyCanScroll = v2 && scrollArea
-            && ["auto", "scroll"].includes(getComputedStyle(scrollArea).overflowY)
-            && scrollArea.scrollHeight > scrollArea.clientHeight + 2;
-          if (v2 && scrollArea
-              && scrollArea.scrollWidth > scrollArea.clientWidth + 2) {
-            out.push({ block_id: "", code: "horizontal_overflow" });
+          if (v2 && body.scrollHeight > body.clientHeight + 2) {
+            out.push({ block_id: "", code: "vertical_overflow" });
           }
+          if (body.scrollWidth > body.clientWidth + 2) out.push({ block_id: "", code: "horizontal_overflow" });
+          const blocks = Array.from(body.children);
+          blocks.forEach((block, index) => {
+            const a = block.getBoundingClientRect();
+            for (const next of blocks.slice(index + 1)) {
+              const b = next.getBoundingClientRect();
+              if (Math.min(a.right, b.right) - Math.max(a.left, b.left) > 2 &&
+                  Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top) > 2) {
+                out.push({ block_id: block.getAttribute('data-block-id'), code: 'overlap_overflow' });
+              }
+            }
+          });
           slide.querySelectorAll("[data-block-id]").forEach((el) => {
+            if (getComputedStyle(el).display === "none") return;
             const id = el.getAttribute("data-block-id");
             const rect = el.getBoundingClientRect();
-            const overflow = stageRect && (
-              (!bodyCanScroll && rect.bottom > stageRect.bottom + 2) ||
-              rect.right > stageRect.right + 2 ||
-              (!bodyCanScroll && rect.top < stageRect.top - 2) ||
-              rect.left < stageRect.left - 2);
-            const visible = rect.height > 0 && rect.width > 0;
-            if (!visible || overflow) {
-              out.push({
-                block_id: id,
-                code: !visible ? "invisible" : "overflow",
-                top: Math.round(rect.top),
-                bottom: Math.round(rect.bottom),
-                left: Math.round(rect.left),
-                right: Math.round(rect.right),
-              });
+            if (!rect.width || !rect.height || rect.right > stageRect.right + 2 || rect.left < stageRect.left - 2
+                || (rect.bottom > stageRect.bottom + 2 || rect.top < stageRect.top - 2)) {
+              out.push({ block_id: id, code: "overflow" });
             }
+            if (el.scrollWidth > el.clientWidth + 2 || el.scrollHeight > el.clientHeight + 2) {
+              out.push({ block_id: id, code: "content_overflow" });
+            }
+            el.querySelectorAll('pre,.flow-card,.step-body,.step-label,.diagram-math-label,td,th').forEach(child => {
+              if (child.scrollWidth > child.clientWidth + 2 || child.scrollHeight > child.clientHeight + 2) {
+                out.push({ block_id: id, code: "nested_content_overflow" });
+              }
+            });
+            el.querySelectorAll('.flow-node-label').forEach(label => {
+              const node = label.previousElementSibling;
+              if (!node?.matches('rect.flow-node')) return;
+              const textBounds = label.getBoundingClientRect();
+              const nodeBounds = node.getBoundingClientRect();
+              if (textBounds.left < nodeBounds.left - 2 || textBounds.right > nodeBounds.right + 2
+                  || textBounds.top < nodeBounds.top - 2 || textBounds.bottom > nodeBounds.bottom + 2) {
+                out.push({ block_id: id, code: "diagram_label_overflow" });
+              }
+            });
           });
           slide.querySelectorAll("img").forEach((img) => {
-            if (!img.complete || img.naturalWidth === 0) {
-              out.push({
-                block_id: img.closest("[data-block-id]")
-                  ?.getAttribute("data-block-id") || "",
-                code: "image_decode_failed",
-              });
-            }
+            if (!img.complete || !img.naturalWidth) out.push({ block_id: img.closest("[data-block-id]")?.dataset.blockId || "", code: "image_decode_failed" });
           });
           slide.querySelectorAll("[data-katex]").forEach((el) => {
-            if (el.getAttribute("data-rendered") === "1" &&
-                !el.querySelector(".katex") && el.textContent.length > 0 &&
-                !el.textContent.match(/[a-zA-Z=^_\\]/)) {
-              // 渲染兜底为纯文本且不像公式 → 标记
-              out.push({
-                block_id: el.closest("[data-block-id]")
-                  ?.getAttribute("data-block-id") || "",
-                code: "katex_fallback",
-              });
+            if (el.getAttribute("data-rendered") !== "1" || !el.querySelector(".katex") || el.querySelector(".katex-error")) {
+              out.push({ block_id: el.closest("[data-block-id]")?.dataset.blockId || "", code: "katex_fallback" });
+            }
+            const minimum = v2 && el.classList.contains('formula-box') ? 20 : 16;
+            if (el.getBoundingClientRect().width && parseFloat(getComputedStyle(el).fontSize) < minimum) {
+              out.push({ block_id: el.closest("[data-block-id]")?.dataset.blockId || "", code: "formula_too_small" });
             }
           });
           return out;
-        }, i);
-        for (const issue of issues) {
-          report.issues.push({
-            viewport: vp.name,
-            slide_order: i,
-            ...issue,
-          });
-        }
+        });
+        for (const issue of issues) report.issues.push({ viewport: vp.name, slide_order: i, ...issue });
       }
       report.viewports.push({
         name: vp.name,

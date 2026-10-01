@@ -64,6 +64,9 @@ def add_job(lesson: sc.Lesson, state: sc.JobState) -> sc.GenerationJob:
 
 class LessonArchiveTests(StorageSandboxTestCase):
     def test_archive_restore_purge_cycle(self):
+        # restore_item 要求课程归属的工作区仍存在（§22.5 不能静默改挂）。
+        ws_mod.save_workspace(ws_mod.Workspace(
+            workspace_id=WS, name="物理工作区", student_id=OWNER))
         lesson = build_lesson()
         run = add_run(lesson, active=True, with_lease=True)
         add_job(lesson, sc.JobState.running)
@@ -637,9 +640,11 @@ class CrashInjectionTests(StorageSandboxTestCase):
         self.assertEqual(
             trash_mod.list_items(FULL_OWNER,
                                  resource_type="classroom_lesson"), [])
-        # 课程被冻结但仍在树上，可再次发起归档
+        # 快照前 crash：无 trash 条目；课程回滚 active（可正常使用并重试
+        # 归档）。预提交阶段无任何可观变更，保持 archiving 冻结反而会卡住
+        # 编辑/上课。
         frozen = store.load_lesson(FULL_OWNER, FULL_WS, lesson_id)
-        self.assertEqual(frozen.lifecycle, sc.LessonLifecycle.archiving)
+        self.assertEqual(frozen.lifecycle, sc.LessonLifecycle.active)
         manifest = trash_mod.archive_classroom_lesson(FULL_OWNER, FULL_WS,
                                                       lesson_id)
         self.assertFalse(store.lesson_root(FULL_OWNER, FULL_WS,

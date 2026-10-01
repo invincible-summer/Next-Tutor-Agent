@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/cn";
+import { useUIStore } from "@/lib/store";
+import { t } from "@/lib/i18n";
 
 /** 每页条数：所有任务类列表统一 5 条/页，防止页面无界拉长。 */
 export const PAGE_SIZE = 5;
@@ -33,6 +35,7 @@ export function Pager({
 }) {
   // draft=null 表示未在编辑，输入框跟随当前页；编辑中以 draft 为准。
   const [draft, setDraft] = useState<string | null>(null);
+  const lang = useUIStore((s) => s.lang);
   const pages = pageCount(total, per);
   if (pages <= 1) return null;
   const cur = Math.min(page, pages - 1);
@@ -49,7 +52,7 @@ export function Pager({
   return (
     <div className={cn("flex items-center justify-end gap-1 pt-1.5 text-[0.68rem] text-muted", className)}>
       <button type="button" className={btn} disabled={cur <= 0}
-        onClick={() => onPage(cur - 1)} aria-label="prev">
+        onClick={() => onPage(cur - 1)} aria-label={t(lang, "pager.prev")}>
         <ChevronLeft size={13} />
       </button>
       <input
@@ -67,12 +70,12 @@ export function Pager({
           }
         }}
         inputMode="numeric"
-        aria-label="页码"
+        aria-label={t(lang, "pager.page")}
         className="tnum w-9 rounded-[5px] border border-border bg-surface px-1 py-0.5 text-center text-[0.68rem] text-fg outline-none focus:border-accent"
       />
       <span className="tnum pr-1">/ {pages}</span>
       <button type="button" className={btn} disabled={cur >= pages - 1}
-        onClick={() => onPage(cur + 1)} aria-label="next">
+        onClick={() => onPage(cur + 1)} aria-label={t(lang, "pager.next")}>
         <ChevronRight size={13} />
       </button>
     </div>

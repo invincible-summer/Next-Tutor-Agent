@@ -1,11 +1,19 @@
 "use client";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { Suspense, useCallback, useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
+import { FilePagePreview } from "./FilePagePreview";
+import { navigationAnchor, navigationSucceeded, navigationMissing, navigationFailed, navigationUnavailable } from "@/lib/assistant/navigation";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import { FolderOpen, LibraryBig } from "lucide-react";
 import { useUIStore } from "@/lib/store";
 import { makePageT } from "@/lib/i18n-page";
 import { relTime } from "@/lib/format";
+import {
+  DeepLinkQueryReader, focusDeepTarget,
+} from "@/lib/assistant/deep-link";
+import { useAssistantPage } from "@/lib/assistant/useAssistantPage";
+import { currentRouteEpoch } from "@/lib/assistant/page-context";
 import {
   createLibraryFolder,
   deleteLibraryFile,
@@ -56,6 +64,8 @@ type SessionState = "idle" | "loading" | "error" | "ready";
 /** 资料中心主体：教材库 / 文件库双 Tab 由路由段承载
  *  （/resources/files | /resources/textbooks），tab 仅作展示态。 */
 export function ResourcesView({ tab }: { tab: "files" | "textbooks" }) {
+  const router = useRouter();
+  const [deep, setDeep] = useState<Record<string, string>>({});
   const lang = useUIStore((s) => s.lang);
   const tr = makePageT(lang, STRINGS);
 
@@ -128,12 +138,94 @@ export function ResourcesView({ tab }: { tab: "files" | "textbooks" }) {
   }, [tab]);
 
   // URL 卫生：旧深链 /resources?tab=textbooks 经 307 后 query 会残留在子路由
-  // 上（Next 默认透传未匹配参数）。进页后静默清掉，地址栏保持规范段形式。
+  // 上（Next 默认透传未匹配参数）。只清掉遗留 tab 参数；助手深链参数
+  // （folder/file/textbook/...）保留以便前进/后退恢复（§8.3）。
   useEffect(() => {
-    if (window.location.search) {
-      window.history.replaceState(null, "", window.location.pathname);
-    }
+    const params = new URLSearchParams(window.location.search);
+    if (!params.has("tab")) return;
+    params.delete("tab");
+    const query = params.toString();
+    window.history.replaceState(null, "",
+      query ? `${window.location.pathname}?${query}` : window.location.pathname);
   }, []);
+
+  // 深链保留到数据就绪后应用；同页/历史导航会重新选择文件和页码。
+  const [deepNotice, setDeepNotice] = useState("");
+  const previewFile = tree.files.find((file) => file.id === deep.file);
+  const previewSupported = !!previewFile?.has_original && /\.pdf$/i.test(previewFile.original_filename || previewFile.filename);
+  // Preview page is client-only query state. Native history keeps it in sync
+  // with useSearchParams without asking the server to reload the same route.
+  const updatePreviewPage = (page: number | null) => {
+    const params = new URLSearchParams(window.location.search);
+    if (page === null) params.delete("page");
+    else params.set("page", String(page));
+    window.history.replaceState(null, "", `/resources/files?${params}`);
+  };
+  useAssistantPage({
+    context: () => ({
+      schema_version: 1,
+      route_id: tab === "textbooks" ? "resources_textbooks" : "resources_files",
+      route_epoch: currentRouteEpoch(),
+      view: selected?.kind,
+    }),
+    navigationStatus: (target) => {
+      if (target.kind === "module") return tab === "files" && boot !== "ready" ? null : navigationSucceeded;
+      if (target.kind === "textbook") {
+        const drawer = document.querySelector(`[data-textbook-id="${CSS.escape(target.textbook_id)}"]`);
+        if (!drawer) return null;
+        if (target.volume_id && !navigationAnchor("volume-id", target.volume_id, drawer)) return null;
+        if (target.chapter_id && !navigationAnchor("chapter-id", target.chapter_id, drawer)) return null;
+        return navigationSucceeded;
+      }
+      if (boot === "loading") return null;
+      if (boot === "error") return navigationFailed;
+      if (target.kind === "file_folder") {
+        if (!tree.folders.some((folder) => folder.id === target.folder_id)) return navigationMissing;
+        return selected?.kind === "folder" && selected.id === target.folder_id ? navigationSucceeded : null;
+      }
+      if (target.kind !== "file") return null;
+      const file = tree.files.find((file) => file.id === target.file_id);
+      if (!file || (target.folder_id && file.folder_id !== target.folder_id)) return navigationMissing;
+      if (target.page != null) {
+        if (!previewSupported) return navigationUnavailable;
+        const preview = document.querySelector<HTMLElement>(`[data-file-preview="${CSS.escape(target.file_id)}"][data-page="${target.page}"]`);
+        if (preview?.dataset.previewState === "failed") return navigationMissing;
+        return preview?.dataset.previewState === "ready" ? navigationSucceeded : null;
+      }
+      return navigationAnchor("file-id", target.file_id);
+    },
+  });
+  const applyDeepLink = useCallback((params: Record<string, string>) => {
+    setDeep(params);
+    setDeepNotice("");
+    if (tab === "textbooks") setFocusTextbookId(params.textbook || null);
+  }, [tab]);
+  useEffect(() => {
+    if (tab !== "files" || boot !== "ready") return;
+    let alive = true;
+    queueMicrotask(() => {
+      if (!alive) return;
+      const file = tree.files.find((item) => item.id === deep.file);
+      const folder = deep.folder || file?.folder_id;
+      if ((deep.file && !file) || (folder && !tree.folders.some((item) => item.id === folder))
+          || (deep.folder && file && file.folder_id !== deep.folder)) {
+        setDeepNotice(tr("res.deep.missing"));
+        return;
+      }
+      setSelected(folder ? { kind: "folder", id: folder } : { kind: "all" });
+      if (deep.page && file && !previewSupported) {
+        setDeepNotice(lang === "en" ? "Page preview is available only for retained PDF originals." : "仅保留了 PDF 原件的文件支持指定页预览。");
+      }
+    });
+    return () => { alive = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab, boot, tree, deep, previewSupported, lang]);
+  useEffect(() => {
+    if (deep.file && !deep.page && boot === "ready") focusDeepTarget("file-id", deep.file);
+  }, [deep, selected, boot]);
+  const deepKeys = tab === "textbooks"
+    ? ["textbook", "volume", "chapter"]
+    : ["folder", "file", "page", "ws"];
 
   // 工作区设置弹窗 / 边栏的资料变更会广播事件 → 刷新资料库树。
   useEffect(() => {
@@ -291,6 +383,17 @@ export function ResourcesView({ tab }: { tab: "files" | "textbooks" }) {
 
   return (
     <div className="page-in flex h-full">
+      {deep.page && previewFile && previewSupported && (!deep.folder || previewFile.folder_id === deep.folder) && <FilePagePreview
+        key={`${deep.file}:${deep.page}`} fileId={deep.file} filename={previewFile.filename} page={deep.page} lang={lang}
+        onClose={() => updatePreviewPage(null)}
+        onPage={updatePreviewPage}
+      />}
+      <Suspense><DeepLinkQueryReader keys={deepKeys} onParams={applyDeepLink} /></Suspense>
+      {deepNotice && (
+        <div className="fixed left-1/2 top-4 z-30 -translate-x-1/2 rounded-[8px] border border-border bg-surface px-3 py-2 text-xs text-muted shadow-lg">
+          {deepNotice}
+        </div>
+      )}
       {tab === "textbooks" ? (
         <TextbookSidebar
           tr={tr}
@@ -437,12 +540,14 @@ export function ResourcesView({ tab }: { tab: "files" | "textbooks" }) {
                   ) : (
                     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
                       {currentFiles.map((f) => (
+                        <div key={f.id} data-file-id={f.id} className="min-w-0">
                         <FileCard
-                          key={f.id}
                           file={f}
                           lang={lang}
                           tr={tr}
                           moveTargets={isLibraryView ? moveTargets(f) : undefined}
+                          onPreview={isLibraryView && tree.files.some((file) => file.id === f.id && file.has_original && /\.pdf$/i.test(file.original_filename || file.filename))
+                            ? () => router.push(`/resources/files?file=${encodeURIComponent(f.id)}&page=1`) : undefined}
                           onDownload={
                             f.has_original
                               ? selected.kind === "session"
@@ -462,6 +567,7 @@ export function ResourcesView({ tab }: { tab: "files" | "textbooks" }) {
                           onRename={isLibraryView ? (filename) => handleRenameFile(f, filename) : undefined}
                           onDelete={isLibraryView ? () => setConfirmFile(f) : undefined}
                         />
+                        </div>
                       ))}
                     </div>
                   )}

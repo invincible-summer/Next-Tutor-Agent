@@ -1,7 +1,7 @@
 "use client";
 
 // 最近习题卡：跨会话汇集最近生成的题目（后端每学生上限 100 道），分页展示。
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { ChevronRight, ClipboardList } from "lucide-react";
 import { Card, CardHeader } from "@/components/ui/Card";
@@ -9,18 +9,18 @@ import { Badge } from "@/components/ui/Badge";
 import { EmptyState, ErrorNote, Skeleton } from "@/components/ui/EmptyState";
 import { Pager, paged, pageCount } from "@/components/ui/Pager";
 import { dt, verdictTone } from "@/lib/labels";
-import type { Lang } from "@/lib/i18n";
+import { localeFor, type Lang } from "@/lib/i18n";
 import type { RecentQuizQuestion } from "@/lib/types-modules";
 import type { PageTr } from "./common";
 
 /** 每页 8 条：行高约 52px，一页一屏内可读完。 */
 const PER_PAGE = 8;
 
-function fmtIso(iso: string): string {
+function fmtIso(iso: string, lang: Lang): string {
   if (!iso) return "";
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return iso;
-  return d.toLocaleDateString();
+  return d.toLocaleDateString(localeFor(lang));
 }
 
 /** 单行：可用会话→深链回对话；已删除/独立测评→纯行（§11.2 不编死深链）。 */
@@ -40,7 +40,7 @@ function RecentRow({
         <div className="truncate text-sm text-fg">{q.stem}</div>
         <div className="mt-0.5 flex items-center gap-2 text-xs text-muted">
           <span className="truncate">{q.knowledge_point || q.topic || "—"}</span>
-          <span className="tnum shrink-0">{fmtIso(q.ts)}</span>
+          <span className="tnum shrink-0">{fmtIso(q.ts, lang)}</span>
         </div>
         {dead && q.availability === "deleted" && (
           <div className="mt-1 text-[10px] text-danger">{tr("rq.source.deleted", "来源对话已删除，无法查看")}</div>
@@ -61,10 +61,11 @@ function RecentRow({
     </>
   );
   if (dead) {
-    return <div className="flex cursor-default items-center gap-3 rounded-[8px] px-2 py-2.5 opacity-70">{body}</div>;
+    return <div data-question-id={q.question_id} className="flex cursor-default items-center gap-3 rounded-[8px] px-2 py-2.5 opacity-70">{body}</div>;
   }
   return (
     <Link
+      data-question-id={q.question_id}
       href={`/chat/${encodeURIComponent(q.session_id)}`}
       className="group flex items-center gap-3 rounded-[8px] px-2 py-2.5 transition-colors hover:bg-surface-hover"
     >
@@ -84,6 +85,7 @@ export function RecentQuestions({
   loading,
   error,
   onRetry,
+  deepQuestionId,
 }: {
   tr: PageTr;
   lang: Lang;
@@ -91,10 +93,18 @@ export function RecentQuestions({
   loading: boolean;
   error: string | null;
   onRetry: () => void;
+  deepQuestionId?: string;
 }) {
   const [page, setPage] = useState(0);
   const list = questions ?? [];
   // 判分/出题回源后条数可能变化：先钳位页码，避免停在空白页。
+  useEffect(() => {
+    if (!deepQuestionId) return;
+    const index = (questions ?? []).findIndex((item) => item.question_id === deepQuestionId);
+    if (index < 0) return;
+    const timer = window.setTimeout(() => setPage(Math.floor(index / PER_PAGE)), 0);
+    return () => window.clearTimeout(timer);
+  }, [deepQuestionId, questions]);
   const cur = Math.min(page, pageCount(list.length, PER_PAGE) - 1);
   const rows = paged(list, cur, PER_PAGE);
 

@@ -10,7 +10,18 @@ export interface PageStrings {
   en: Dict;
 }
 
+type PageT = (key: string, fallback?: string) => string;
+const translators = new WeakMap<PageStrings, Partial<Record<Lang, PageT>>>();
+
 export function makePageT(lang: Lang, strings: PageStrings) {
-  return (key: string, fallback?: string): string =>
+  let cached = translators.get(strings);
+  if (!cached) {
+    cached = {};
+    translators.set(strings, cached);
+  }
+  if (cached[lang]) return cached[lang];
+  const translate: PageT = (key, fallback) =>
     strings[lang]?.[key] ?? getDict(lang)[key] ?? fallback ?? key;
+  cached[lang] = translate;
+  return translate;
 }

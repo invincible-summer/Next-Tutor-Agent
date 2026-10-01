@@ -69,7 +69,10 @@ def _translate_submission_error(exc: Exception) -> HTTPException:
     if isinstance(exc, ScopeRevisionConflict):
         return api_error(409, "scope_revision_conflict",
                          "教材范围已变化，请刷新后重试")
-    return api_error(500, "submission_error", str(exc))
+    # 未知异常串可能带本地路径/库细节：日志留全量，对外只给通用码。
+    import logging
+    logging.getLogger(__name__).exception("assessment submission failed")
+    return api_error(500, "submission_error", "提交处理失败，请稍后重试")
 
 
 @router.post("/submissions")
@@ -187,6 +190,10 @@ async def question_hint(qid: str, req: HintRequest,
                         _sid: str = Depends(resolve_student_id)):
     """服务端记录帮助事件后返回可展示提示（§11.4）；提示从冻结量规派生，
     不含答案。"""
+    from app.core import guest_learning, guest_runtime
+    if guest_runtime.is_guest(_sid):
+        task = guest_learning.question(guest_runtime.context_for_owner(_sid), qid, req.question_revision)
+        return {"status": "ok", "hint": "\n".join(c.description for c in task.rubric[:4])}
     qref = S.QuestionRef(question_id=qid,
                          question_revision=req.question_revision)
     from app.agents.assessment.manager import load_task_snapshot
@@ -213,6 +220,12 @@ async def question_reveal(qid: str, req: RevealRequest,
                           _sid: str = Depends(resolve_student_id)):
     """记录 reveal 后返回答案/解析；未作答时不生成 learner evidence
     （§11.4）。"""
+    from app.core import guest_learning, guest_runtime
+    if guest_runtime.is_guest(_sid):
+        context = guest_runtime.context_for_owner(_sid)
+        task = guest_learning.question(context, qid, req.question_revision)
+        return {"status": "ok", "answer": task.answer, "explanation": task.explanation,
+                "already_answered": qid in context.submissions}
     qref = S.QuestionRef(question_id=qid,
                          question_revision=req.question_revision)
     from app.agents.assessment.manager import load_task_snapshot
@@ -238,6 +251,14 @@ async def question_public(qid: str,
                           revision: int = Query(default=0, ge=0),
                           _sid: str = Depends(resolve_student_id)):
     """QuestionPublic 白名单投影（A07）；答案可见性由服务器判定。"""
+    from app.core import guest_learning, guest_runtime
+    if guest_runtime.is_guest(_sid):
+        context = guest_runtime.context_for_owner(_sid)
+        task = guest_learning.question(context, qid, revision or 1)
+        payload = {"question": task.public_view(hints_available=bool(task.rubric))}
+        if qid in context.submissions:
+            payload["revealed"] = {"answer": task.answer, "explanation": task.explanation}
+        return payload
     state = get_journal(_sid).state()
     revs = state.tasks.get(qid, {})
     rev = revision or (max(revs) if revs else 0)

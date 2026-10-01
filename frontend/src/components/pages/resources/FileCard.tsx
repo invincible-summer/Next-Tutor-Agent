@@ -1,6 +1,6 @@
 "use client";
 import { useRef, useState } from "react";
-import { Check, Download, FolderInput, Pencil, Trash2, X } from "lucide-react";
+import { Check, Download, Eye, FolderInput, Pencil, Trash2, X } from "lucide-react";
 import type { Lang } from "@/lib/i18n";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
@@ -23,6 +23,7 @@ export function FileCard({
   tr,
   moveTargets,
   onDownload,
+  onPreview,
   onMove,
   onRename,
   onDelete,
@@ -33,6 +34,7 @@ export function FileCard({
   /** 「移动到…」候选（不含当前所在文件夹）；不传则不显示移动按钮。 */
   moveTargets?: { id: string; name: string }[];
   onDownload?: () => void;
+  onPreview?: () => void;
   onMove?: (folderId: string) => void;
   onRename?: (filename: string) => Promise<void> | void;
   onDelete?: () => void;
@@ -78,6 +80,7 @@ export function FileCard({
           <div className="tnum mt-0.5 text-[11px] text-muted">{stats}</div>
         </div>
         <div className="flex shrink-0 items-center gap-0.5">
+          {onPreview && <button onClick={onPreview} title={lang === "en" ? "Preview PDF" : "预览 PDF"} className={`${iconBtn} hover:bg-accent-soft hover:text-accent`}><Eye size={14} /></button>}
           {onDownload && (
             <button
               onClick={(e) => {

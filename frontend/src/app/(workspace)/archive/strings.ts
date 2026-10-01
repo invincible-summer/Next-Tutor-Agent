@@ -1,5 +1,7 @@
 export const STRINGS = {
   zh: {
+    "memoryWillForget": "彻底删除后，会自动遗忘仍可归属于该对话的最近提示词影响。",
+    "memoryLegacyUnknown": "旧版只保留汇总计数，无法确定该对话的影响归属。",
     title: "归档中心", desc: "查看已归档的对话、资料、教材、课程与工作区；恢复或彻底删除全部可恢复副本。",
     all: "全部", session: "对话", library_file: "资料", library_folder: "文件夹", textbook: "教材", textbook_volume: "教材卷", classroom_lesson: "课程", workspace: "工作区", knowledge_graph: "知识谱系",
     empty: "归档中心为空", emptyDesc: "删除的内容会先进入这里，并按保留策略自动清理。", restore: "恢复", purge: "彻底删除",
@@ -13,6 +15,7 @@ export const STRINGS = {
     workspaceFiles: "包含专属资料", workspaceSessions: "包含成员对话", workspaceMemory: "包含工作区共同记忆",
     memoryForgotten: "该对话的提示词记忆影响已永久遗忘，恢复不会重建。", memoryCompacted: "该对话影响已合入压缩画像，无法单独撤销。",
     loadFail: "归档信息加载失败", actionFail: "操作失败，请重试", cancel: "取消", confirm: "确认",
+    "deep.itemMissing": "未找到该归档条目，可能已被恢复或彻底删除。",
   },
   en: {
     title: "Archive Center", desc: "Review archived chats, resources, textbooks, lessons and workspaces; restore them or permanently erase recoverable copies.",
@@ -28,5 +31,6 @@ export const STRINGS = {
     workspaceFiles: "Includes private files", workspaceSessions: "Includes member chats", workspaceMemory: "Includes workspace shared memory",
     memoryForgotten: "This chat's prompt-memory influence was permanently forgotten and will not return on restore.", memoryWillForget: "Permanent deletion will automatically forget this chat's still-attributable recent prompt influence.", memoryCompacted: "This influence is already in the compacted profile and cannot be removed individually.", memoryLegacyUnknown: "The legacy generation kept only an aggregate count, so attribution to this chat is unknown.",
     loadFail: "Failed to load archive", actionFail: "Action failed", cancel: "Cancel", confirm: "Confirm",
+    "deep.itemMissing": "Archived item not found; it may have been restored or permanently deleted.",
   },
 } as const;

@@ -1,23 +1,25 @@
 import { cn } from "@/lib/cn";
-import type { ReactNode } from "react";
+import type { HTMLAttributes, ReactNode } from "react";
 
-/** 纸面卡片：全站基础容器。 */
+/** 纸面卡片：全站基础容器（透传 data-* 等原生属性作深链锚点）。 */
 export function Card({
   children,
   className,
   pad = true,
   hover = false,
   onClick,
+  ...rest
 }: {
   children: ReactNode;
   className?: string;
   pad?: boolean;
   hover?: boolean;
   onClick?: () => void;
-}) {
+} & HTMLAttributes<HTMLDivElement>) {
   return (
     <div
       onClick={onClick}
+      {...rest}
       className={cn(
         "rounded-[10px] border border-border bg-surface shadow-sm",
         pad && "p-4",

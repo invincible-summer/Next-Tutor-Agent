@@ -22,6 +22,7 @@ Fake LLMs only, no network. Data dirs are redirected to temp dirs.
 import asyncio
 import json
 import sys
+from tests.storage_sandbox import patch_all_storage_roots, reset_shared_caches, authenticated_client
 import tempfile
 import unittest
 from pathlib import Path
@@ -44,6 +45,8 @@ class _TmpDirs:
         self._tmp = tempfile.TemporaryDirectory(prefix="notes_agent_")
         root = Path(self._tmp.name)
         self.root = root
+        (root / "users").mkdir(exist_ok=True)
+        self._sandbox = patch_all_storage_roots(root)
         from app.agents.learning_orchestration import store as orch_store
         from app.agents.memory import prompt_memory
         from app.core import library as library_mod
@@ -71,6 +74,9 @@ class _TmpDirs:
     def cleanup(self):
         for p in reversed(self._patches):
             p.stop()
+        for p in reversed(self._sandbox):
+            p.stop()
+        reset_shared_caches()
         self._tmp.cleanup()
 
 
@@ -158,7 +164,7 @@ def _run_chat(fake, **kwargs):
 class TestNotesAgent(unittest.TestCase):
     def setUp(self) -> None:
         _TmpDirs(self)
-        self.client = TestClient(create_app())
+        self.client = authenticated_client(create_app(), "student_default")
 
     def _make_session(self, title: str, messages: list[dict]) -> str:
         sid = session_mod.new_session_id(title)

@@ -106,6 +106,7 @@ class ClassroomWorker:
     # ------------------------------------------------------------------ 启动扫描
 
     async def _startup_scan(self) -> None:
+        from app.core.guest_runtime import is_legacy_guest_owner
         root = store.classroom_root()
         if not root.is_dir():
             return
@@ -114,6 +115,8 @@ class ClassroomWorker:
             if not owner_dir.is_dir() or owner_dir.name.startswith("."):
                 continue
             owner = owner_dir.name
+            if is_legacy_guest_owner(owner):
+                continue
             ws_root = owner_dir / "workspaces"
             if not ws_root.is_dir():
                 continue

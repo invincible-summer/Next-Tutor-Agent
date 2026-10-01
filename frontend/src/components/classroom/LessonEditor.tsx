@@ -17,8 +17,8 @@ import {
   ClassroomApiError, createRevision, getJob, imageSearch, retryJob,
 } from "@/lib/api-classroom";
 import type {
-  BulletsBlock, ImageBlock, ImageCandidate, JobPublic, LessonDetailPublic,
-  RevisionPublic, SlideSpec, ThemeTemplateInfo,
+  BulletsBlock, ChangeThemeOperation, ImageBlock, ImageCandidate, JobPublic, LessonDetailPublic,
+  RevisionOperation, RevisionPublic, SlideSpec, ThemeTemplateInfo,
 } from "@/lib/types-classroom.generated";
 import { Button } from "@/components/ui/Button";
 import { Input, Textarea, Field } from "@/components/ui/Input";
@@ -27,6 +27,7 @@ import { GenerationProgress } from "./GenerationProgress";
 import { TemplatePicker } from "./TemplatePicker";
 import { Markdown } from "@/components/chat/markdown";
 import { SlideThumbnail } from "./SlideThumbnail";
+import { BlockEditor } from "./BlockEditor";
 import { STRINGS } from "./strings";
 
 /** 纯文本 span 拼接；含 emphasis/math 的要点保持只读（§4.3 不破坏公式）。 */
@@ -45,10 +46,12 @@ const REGEN_PRESETS = [
   { key: "cls.regen.example", instrKey: "cls.regen.instr.example" },
 ] as const;
 
-type Tab = "script" | "sources" | "settings";
+function editKey() { return `edit_${crypto.randomUUID()}`; }
+
+type Tab = "content" | "script" | "sources" | "settings";
 
 export function LessonEditor({ workspaceId, lessonId, detail, frameHtml,
-  onReload }: {
+  onReload, onDirtyChange }: {
   workspaceId: string;
   lessonId: string;
   detail: LessonDetailPublic;
@@ -56,13 +59,15 @@ export function LessonEditor({ workspaceId, lessonId, detail, frameHtml,
   frameHtml: string;
   /** 重载课程（修订完成后拉最新 revision）。 */
   onReload: (revision?: number) => void;
+  /** 未保存修改信号（组件/讲稿表单；助手导航保护 §5.4）。 */
+  onDirtyChange?: (dirty: boolean) => void;
 }) {
   const { lang } = useUIStore();
   const tr = makePageT(lang, STRINGS);
   const revision = detail.revision;
   const frameRef = useRef<SlideFrameHandle>(null);
   const [page, setPage] = useState(0); // 0 基
-  const [tab, setTab] = useState<Tab>("script");
+  const [tab, setTab] = useState<Tab>("content");
   const [mobilePanel, setMobilePanel] = useState<"outline" | Tab | null>(null);
   const [editing, setEditing] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
@@ -70,17 +75,22 @@ export function LessonEditor({ workspaceId, lessonId, detail, frameHtml,
   const [notice, setNotice] = useState<string | null>(null);
   const [regenJob, setRegenJob] = useState<JobPublic | null>(null);
   const [candidates, setCandidates] = useState<ImageCandidate[] | null>(null);
-  const idemRef = useRef(0);
+  // 组件/讲稿表单的未保存信号（§5.4 导航保护）；setState 引用稳定可直传。
+  const [blockDirty, setBlockDirty] = useState(false);
+  const [scriptDirty, setScriptDirty] = useState(false);
+  useEffect(() => {
+    onDirtyChange?.(blockDirty || scriptDirty);
+  }, [blockDirty, scriptDirty, onDirtyChange]);
 
   const slides = useMemo(() => revision?.slides ?? [], [revision]);
   const current = slides[page];
+  const activeJob = regenJob ?? (detail.latest_job && ["queued", "running", "awaiting_outline", "needs_input"].includes(detail.latest_job.state) ? detail.latest_job : null);
+  const locked = Boolean(busy || activeJob);
+  const tabLabel = (entry: Tab) => entry === "content" ? (lang === "en" ? "Content" : "组件") : tr(`cls.tab.${entry}`);
   const baseRevision = revision?.revision ?? 1;
   useEffect(() => {
     frameRef.current?.gotoPage(page + 1);
-    if (typeof window !== "undefined"
-        && window.matchMedia("(max-width: 639px)").matches) {
-      frameRef.current?.setReading(true);
-    }
+    frameRef.current?.setBlockState(["*"], []);
   }, [page, frameHtml]);
 
   // 页码越界（删除页后）回到末页：渲染期派生重置（React 官方模式）。
@@ -90,15 +100,10 @@ export function LessonEditor({ workspaceId, lessonId, detail, frameHtml,
     if (page > slides.length - 1) setPage(Math.max(0, slides.length - 1));
   }
 
-  const nextIdem = () => {
-    idemRef.current += 1;
-    return `edit_${Date.now().toString(36)}_${idemRef.current}`;
-  };
-
   /** 提交修订操作；零 LLM 快速路径完成后自动重载最新版本。 */
-  const runOperation = useCallback(async (operation: Record<string, unknown>,
+  const runOperation = useCallback(async (operation: RevisionOperation,
     label: string, reloadRevision?: number) => {
-    if (busy) return;
+    if (busy || activeJob) return;
     setBusy(label);
     setConflict(false);
     setNotice(null);
@@ -106,8 +111,8 @@ export function LessonEditor({ workspaceId, lessonId, detail, frameHtml,
       const res = await createRevision(
         workspaceId, lessonId,
         { base_revision: reloadRevision ?? baseRevision,
-          operation: operation as never },
-        nextIdem());
+          operation },
+        editKey());
       // 轮询到终态（快速修订通常 <2s；重生成走 GenerationProgress）
       for (let i = 0; i < 300; i++) {
         const job = await getJob(workspaceId, lessonId, res.job_id).catch(() => null);
@@ -134,21 +139,19 @@ export function LessonEditor({ workspaceId, lessonId, detail, frameHtml,
       setBusy(null);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [busy, workspaceId, lessonId, baseRevision, onReload]);
+  }, [busy, activeJob, workspaceId, lessonId, baseRevision, onReload]);
 
   // 单页重生成：创建后交给 GenerationProgress 展示
-  const startRegenerate = async (instruction: string) => {
-    if (!current || busy) return;
+  const startRegenerate = async (instruction: string, blockId?: string) => {
+    if (!current || busy || activeJob) return;
     setBusy("regen");
     try {
       const res = await createRevision(workspaceId, lessonId, {
         base_revision: baseRevision,
-        operation: {
-          op: "regenerate_slide",
-          slide_id: current.slide_id,
-          instruction,
-        },
-      }, nextIdem());
+        operation: blockId
+          ? { op: "regenerate_block", slide_id: current.slide_id, block_id: blockId, instruction }
+          : { op: "regenerate_slide", slide_id: current.slide_id, instruction },
+      }, editKey());
       const job = await getJob(workspaceId, lessonId, res.job_id);
       setRegenJob(job);
     } catch (e) {
@@ -181,7 +184,7 @@ export function LessonEditor({ workspaceId, lessonId, detail, frameHtml,
   };
 
   const doSearchImages = async () => {
-    if (!current || busy) return;
+    if (!current || busy || activeJob) return;
     setBusy("images");
     setNotice(null);
     try {
@@ -193,7 +196,7 @@ export function LessonEditor({ workspaceId, lessonId, detail, frameHtml,
           query_terms: current.title.split(/[：:，,]/).slice(0, 3),
           orientation: "landscape",
         },
-      }, nextIdem());
+      }, editKey());
       setCandidates(res.candidates ?? []);
       if (!res.candidates?.length) setNotice(tr("cls.img.empty"));
     } catch (e) {
@@ -218,7 +221,7 @@ export function LessonEditor({ workspaceId, lessonId, detail, frameHtml,
   };
 
   const moveSlide = async (dir: -1 | 1) => {
-    if (!current || busy) return;
+    if (!current || busy || activeJob) return;
     const ids = slides.map((s) => s.slide_id);
     const i = page;
     const j = i + dir;
@@ -278,11 +281,11 @@ export function LessonEditor({ workspaceId, lessonId, detail, frameHtml,
                 className="classroom-header-action" aria-label={tr("cls.edit.outline")}>
           <List size={18} />
         </button>
-        {(["script", "sources", "settings"] as Tab[]).map((entry) => (
+        {(["content", "script", "sources", "settings"] as Tab[]).map((entry) => (
           <button key={entry} type="button"
                   onClick={() => { setTab(entry); setMobilePanel(entry); }}
                   className="min-h-11 rounded-lg px-3 text-sm text-fg-secondary hover:bg-surface-hover">
-            {tr(`cls.tab.${entry}`)}
+            {tabLabel(entry)}
           </button>
         ))}
       </div>
@@ -353,19 +356,19 @@ export function LessonEditor({ workspaceId, lessonId, detail, frameHtml,
         )}>
           {mobilePanel && mobilePanel !== "outline" && (
             <div className="flex items-center justify-between border-b border-border px-3 py-1 editor-panel-dismiss">
-              <span className="text-sm font-semibold text-fg">{tr(`cls.tab.${tab}`)}</span>
+              <span className="text-sm font-semibold text-fg">{tabLabel(tab)}</span>
               <button type="button" className="classroom-header-action"
                       aria-label={tr("cls.edit.close.panel")}
                       onClick={() => setMobilePanel(null)}><X size={18} /></button>
             </div>
           )}
           <div className="flex shrink-0 border-b border-border" role="tablist">
-            {(["script", "sources", "settings"] as Tab[]).map((t) => (
+            {(["content", "script", "sources", "settings"] as Tab[]).map((t) => (
               <button
                 key={t}
                 role="tab"
                 aria-selected={tab === t}
-                onClick={() => setTab(t)}
+                onClick={() => { setTab(t); frameRef.current?.setBlockState(["*"], []); }}
                 className={cn(
                   "flex-1 cursor-pointer border-b-2 px-3 py-4 text-xs font-medium transition-colors",
                   tab === t
@@ -373,21 +376,21 @@ export function LessonEditor({ workspaceId, lessonId, detail, frameHtml,
                     : "border-transparent text-muted hover:bg-surface-hover/60 hover:text-fg-secondary",
                 )}
               >
-                {tr(`cls.tab.${t}`)}
+                {tabLabel(t)}
               </button>
             ))}
           </div>
           <div className="min-h-0 flex-1 overflow-y-auto p-5">
-            {regenJob ? (
+            {activeJob ? (
               <div className="flex flex-col gap-3">
-                <p className="text-[0.75rem] font-medium text-fg">{tr("cls.regen.title")}</p>
-                {["failed", "cancelled"].includes(regenJob.state) && (
+                <p className="text-[0.75rem] font-medium text-fg">{lang === "en" ? "Updating courseware" : "正在更新课件"}</p>
+                {["failed", "cancelled"].includes(activeJob.state) && (
                   <Button size="sm" variant="ghost" onClick={() => { setRegenJob(null); onReload(); }}>
                     {tr("cls.edit.back")}
                   </Button>
                 )}
                 <GenerationProgress
-                  workspaceId={workspaceId} lessonId={lessonId} job={regenJob}
+                  workspaceId={workspaceId} lessonId={lessonId} job={activeJob}
                   onUpdated={(job) => {
                     if (job.state === "succeeded") {
                       setRegenJob(null);
@@ -398,12 +401,20 @@ export function LessonEditor({ workspaceId, lessonId, detail, frameHtml,
                   }}
                 />
               </div>
+            ) : tab === "content" ? (
+              <BlockEditor key={`${baseRevision}:${current.slide_id}`} slide={current} busy={locked}
+                onSelect={(id) => frameRef.current?.setBlockState(["*"], [id])}
+                onDirtyChange={setBlockDirty}
+                onSave={(block) => void runOperation({ op: "edit_content", changes: [
+                  { op: "replace_block", slide_id: current.slide_id, block_id: block.id, block }] }, "block")}
+                onOptimize={(id, instruction) => void startRegenerate(instruction, id)} />
             ) : tab === "script" ? (
-              <ScriptTab
+              <ScriptTab key={`${baseRevision}:${current.slide_id}`}
                 slide={current}
                 editing={editing}
                 onEditToggle={() => setEditing((v) => !v)}
-                busy={Boolean(busy)}
+                busy={locked}
+                onDirtyChange={setScriptDirty}
                 onSave={(updated) => {
                   setEditing(false);
                   void runOperation({ op: "edit_content", changes: [
@@ -416,9 +427,9 @@ export function LessonEditor({ workspaceId, lessonId, detail, frameHtml,
             ) : (
               <SettingsTab
                 revision={revision}
-                busy={Boolean(busy)}
+                busy={locked}
                 onTheme={(themeId) => void runOperation({
-                  op: "change_theme", theme_id: themeId }, "theme")}
+                  op: "change_theme", theme_id: themeId as ChangeThemeOperation["theme_id"] }, "theme")}
                 onRegen={(instruction) => void startRegenerate(instruction)}
                 onImages={() => void doSearchImages()}
                 candidates={candidates}
@@ -439,12 +450,14 @@ export function LessonEditor({ workspaceId, lessonId, detail, frameHtml,
 
 // ---------------------------------------------------------------------------
 
-function ScriptTab({ slide, editing, onEditToggle, busy, onSave }: {
+function ScriptTab({ slide, editing, onEditToggle, busy, onSave, onDirtyChange }: {
   slide: SlideSpec;
   editing: boolean;
   onEditToggle: () => void;
   busy: boolean;
   onSave: (updated: SlideSpec) => void;
+  /** 未保存修改信号（助手导航保护 §5.4）；切换页面时复位。 */
+  onDirtyChange?: (dirty: boolean) => void;
 }) {
   const { lang } = useUIStore();
   const tr = makePageT(lang, STRINGS);
@@ -462,6 +475,11 @@ function ScriptTab({ slide, editing, onEditToggle, busy, onSave }: {
   const [spokenSegments, setSpokenSegments] = useState<string[]>(
     () => slide.segments.map((s) => s.spoken_text));
   const [dirty, setDirty] = useState(false);
+  // 未保存信号上抛；切页/保存后重载由 resetFor 分支或组件重挂复位。
+  useEffect(() => {
+    onDirtyChange?.(dirty);
+    return () => onDirtyChange?.(false);
+  }, [dirty, onDirtyChange]);
   // 切页时重置编辑缓冲（渲染期派生，跟随 slide 标识）。
   const [resetFor, setResetFor] = useState(slide.slide_id);
   if (resetFor !== slide.slide_id) {
@@ -750,6 +768,49 @@ function ThemeSwitcher({ value, disabled, onPick }: {
   );
 }
 
+/** 打印桥脚本：注入后端课程 HTML 尾部（沙箱 iframe 内执行）。观察
+ * data-print-ready/-error 并自驱动 window.print()——沙箱内是 opaque
+ * origin，父窗口无法跨源调用 contentWindow.print()；错误经 postMessage
+ * 回传给外壳再中继回应用侧展示。 */
+const PRINT_BRIDGE_SCRIPT = `<script>(function(){
+var done=false;
+function send(m){try{parent.postMessage(m,"*")}catch(e){}}
+function check(){
+ if(done)return true;
+ var ds=document.documentElement.dataset;
+ if(ds.printError){done=true;send({eduPrint:"error",error:String(ds.printError)});return true}
+ if(ds.printReady==="1"){done=true;send({eduPrint:"ready"});try{window.focus();window.print()}catch(e){send({eduPrint:"error",error:String(e)})}return true}
+ return false}
+if(!check()){
+ var iv=null,ticks=0;
+ var mo=new MutationObserver(function(){if(check()){mo.disconnect();if(iv)clearInterval(iv)}});
+ mo.observe(document.documentElement,{attributes:true,attributeFilter:["data-print-ready","data-print-error"]});
+ iv=setInterval(function(){
+  if(check()){clearInterval(iv);mo.disconnect();return}
+  if(++ticks>120){clearInterval(iv);mo.disconnect();send({eduPrint:"error",error:"timeout"})}},250)}
+})();</${"script"}>`;
+
+/** 向打印弹窗写入受信外壳（常量模板，不含任何课程内容），课程 HTML 只
+ * 允许进入 sandbox iframe（与播放器 SlideFrame 同级防护）。旧实现把课程
+ * HTML document.write 进同源窗口：课程内容一旦夹带脚本即可读取应用
+ * origin 的 localStorage token。 */
+function writePrintShell(popup: Window, title: string): HTMLIFrameElement | null {
+  const safeTitle = title.replace(/[&<>"']/g, "");
+  popup.document.open();
+  popup.document.write(
+    `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${safeTitle}</title>` +
+    `<style>html,body{margin:0;padding:0;height:100%;overflow:hidden;background:#fff}` +
+    `iframe{border:0;display:block;width:100%;height:100%}</style></head><body>` +
+    `<iframe id="edu-print-frame" title="${safeTitle}" sandbox="allow-scripts allow-modals"></iframe>` +
+    `<script>(function(){var f=document.getElementById("edu-print-frame");` +
+    `window.addEventListener("message",function(ev){if(ev.source!==f.contentWindow)return;` +
+    `var d=ev.data||{};if(d.eduPrint==="error"){` +
+    `try{if(window.opener)window.opener.postMessage({eduPrintRelay:true,error:d.error||""},window.location.origin)}catch(e){}` +
+    `window.close()}})})();</${"script"}></body></html>`);
+  popup.document.close();
+  return popup.document.getElementById("edu-print-frame") as HTMLIFrameElement | null;
+}
+
 /** 下载入口（鉴权 fetch blob，页面头部渲染）。 */
 export function ExportButtons({ workspaceId, lessonId, revision, tr }: {
   workspaceId: string; lessonId: string; revision: number;
@@ -758,6 +819,22 @@ export function ExportButtons({ workspaceId, lessonId, revision, tr }: {
   const [busy, setBusy] = useState<string | null>(null);
   const [exportOpen, setExportOpen] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
+  const trRef = useRef(tr);
+  useEffect(() => { trRef.current = tr; }, [tr]);
+  useEffect(() => {
+    // 打印沙箱的错误中继（popup 同源转发）：只接受本源消息与既定标记。
+    const onRelay = (ev: MessageEvent) => {
+      if (ev.origin !== window.location.origin) return;
+      const data = ev.data as { eduPrintRelay?: boolean; error?: string } | null;
+      if (!data || data.eduPrintRelay !== true) return;
+      const err = data.error || "";
+      setExportError(!err || err === "timeout"
+        ? trRef.current("cls.export.print.failed")
+        : trRef.current("cls.export.print.overflow").replace("%s", err));
+    };
+    window.addEventListener("message", onRelay);
+    return () => window.removeEventListener("message", onRelay);
+  }, []);
   const download = async (format: "html_zip" | "notes_md") => {
     if (busy) return;
     setBusy(format);
@@ -804,16 +881,17 @@ export function ExportButtons({ workspaceId, lessonId, revision, tr }: {
     setBusy("print");
     setExportError(null);
     try {
+      // 先写受信外壳；课程 HTML 只进 sandbox iframe，就绪/错误经打印桥回传。
+      const frame = writePrintShell(popup, tr("cls.export.print"));
+      if (!frame) throw new Error("print shell unavailable");
       const { getRevisionFrame } = await import("@/lib/api-classroom");
       const html = await getRevisionFrame(workspaceId, lessonId, revision,
                                           "print");
-      popup.addEventListener("load", () => {
-        popup.focus();
-        popup.print();
-      }, { once: true });
-      popup.document.open();
-      popup.document.write(html);
-      popup.document.close();
+      const bodyClose = html.toLowerCase().lastIndexOf("</body>");
+      // srcdoc 属性赋值（非字符串拼进 HTML 属性），无需转义课程内容。
+      frame.srcdoc = bodyClose === -1
+        ? html + PRINT_BRIDGE_SCRIPT
+        : html.slice(0, bodyClose) + PRINT_BRIDGE_SCRIPT + html.slice(bodyClose);
     } catch {
       popup.close();
       setExportError(tr("cls.export.print.failed"));
@@ -823,7 +901,7 @@ export function ExportButtons({ workspaceId, lessonId, revision, tr }: {
   };
   return (
     <div className="relative">
-      <Button size="sm" variant="outline" icon={busy ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />} aria-expanded={exportOpen} onClick={() => setExportOpen((open) => !open)}>{tr("cls.export.title")}<ChevronDown size={12} /></Button>
+      <Button size="sm" variant="outline" icon={busy ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />} aria-expanded={exportOpen} onClick={() => { setExportError(null); setExportOpen((open) => !open); }}>{tr("cls.export.title")}<ChevronDown size={12} /></Button>
       {exportOpen && <>
         <div className="fixed inset-0 z-30" onClick={() => setExportOpen(false)} />
         <div className="motion-pop absolute right-0 top-full z-40 mt-2 w-48 rounded-xl border border-border bg-surface p-1.5 shadow-lg" onKeyDown={(e) => { if (e.key === "Escape") setExportOpen(false); }}>

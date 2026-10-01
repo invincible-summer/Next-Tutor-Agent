@@ -73,7 +73,8 @@ function Select({ value, onChange, options, className, disabled }: {
 }
 
 export function CreateLessonModal({ open, onClose, workspaceId, workspaceName,
-  workspaceOptions, initialWorkspaceId, initialTopic, onCreated }: {
+  workspaceOptions, initialWorkspaceId, initialTopic, initialGoals,
+  initialDuration, onCreated }: {
   open: boolean;
   onClose: () => void;
   /** 固定辅导区（课堂列表页现状）；缺省时由 workspaceOptions 提供选择器。 */
@@ -85,6 +86,10 @@ export function CreateLessonModal({ open, onClose, workspaceId, workspaceName,
   initialWorkspaceId?: string;
   /** 空态双路径/深链预填的主题。 */
   initialTopic?: string;
+  /** 助手备课草稿预填的学习目标（§19.6 lesson prefill objectives）。 */
+  initialGoals?: string[];
+  /** 助手备课草稿预填的时长；提供时不被模板默认值覆盖。 */
+  initialDuration?: number;
   /** 创建成功：跳转课程详情页（进度在详情页展示，E03 增强）。 */
   onCreated: (lessonId: string, workspaceId: string) => void;
 }) {
@@ -105,8 +110,9 @@ export function CreateLessonModal({ open, onClose, workspaceId, workspaceName,
   // 父组件仅在打开时渲染本 Modal，每次打开都是全新状态。
   const [topic, setTopic] = useState(initialTopic ?? "");
   const [topicDirty, setTopicDirty] = useState(Boolean(initialTopic));
-  const [goals, setGoals] = useState<string[]>([]);
-  const [duration, setDuration] = useState<number>(15);
+  const [goals, setGoals] = useState<string[]>(
+    (initialGoals ?? []).map((g) => g.trim()).filter(Boolean).slice(0, 5));
+  const [duration, setDuration] = useState<number>(initialDuration ?? 15);
   const [pagePlan, setPagePlan] = useState<string>("auto");
   const [language, setLanguage] = useState<string>("auto");
   const [gradeValue, setGradeValue] = useState<string>(
@@ -142,7 +148,9 @@ export function CreateLessonModal({ open, onClose, workspaceId, workspaceName,
         if (cancelled) return;
         setTemplates(tpl);
         const d = tpl.defaults ?? {};
-        if (d.duration_minutes) setDuration(d.duration_minutes);
+        if (d.duration_minutes && initialDuration == null) {
+          setDuration(d.duration_minutes);
+        }
         if (d.pedagogy_id) setPedagogy(d.pedagogy_id);
         if (d.theme_id) setTheme(d.theme_id);
         if (d.image_density) setImages(d.image_density);

@@ -141,18 +141,39 @@ class UXService:
     def activity(self, student_id: str, *, days: int = 14) -> dict[str, Any]:
         """Dashboard activity chart: per-day classified counts (answers /
         teachings / reviews) + the streak summary and its data source.
-        Never raises."""
+        plan.md §7.4：附 metric_version=2 与各数据源读取状态（旧字段保留，
+        新增字段不改变旧 UI 行为）。Never raises."""
         try:
             from .. import activity_aggregator
-            return {
+            base = {
                 "days": activity_aggregator.daily_counts(
                     student_id, days=days),
                 **activity_aggregator.activity_snapshot(student_id),
             }
+            try:
+                from datetime import datetime, timedelta, timezone as _tz
+                end = datetime.now(_tz.utc)
+                start = end - timedelta(days=max(1, min(int(days), 90)))
+                tz_name = end.astimezone().tzinfo and str(
+                    end.astimezone().tzinfo)
+                snap = activity_aggregator.learning_activity_snapshot(
+                    student_id, start_at=start, end_at=end,
+                    timezone=tz_name or "UTC")
+                base["metric_version"] = 2
+                base["source_status"] = {
+                    name: info.get("status")
+                    for name, info in snap.get("sources", {}).items()
+                    if isinstance(info, dict)}
+                base["recorded_learning_days"] = snap.get(
+                    "recorded_learning_days", 0)
+            except Exception:
+                base["metric_version"] = 2
+                base["source_status"] = None  # 快照失败时旧字段仍可用
+            return base
         except Exception:
             return {"days": [], "source": "none", "streak_days": 0,
                     "longest_streak": 0, "last_active_day": "",
-                    "active_days": 0}
+                    "active_days": 0, "metric_version": 2}
 
 
 _SERVICE = None

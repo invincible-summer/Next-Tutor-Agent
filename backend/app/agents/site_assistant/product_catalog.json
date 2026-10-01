@@ -1,0 +1,281 @@
+{
+  "catalog_version": "2026-09-30-account",
+  "modules": [
+    {
+      "route_id": "home",
+      "public": true,
+      "name": { "zh": "首页", "en": "Home" },
+      "summary": {
+        "zh": "网站入口页：快速了解学习智能体能为你做什么，并进入各模块。",
+        "en": "The landing page: see what the learning agent can do and enter each module."
+      },
+      "aliases": ["首页", "主页", "入口", "home", "landing"],
+      "steps": {
+        "zh": ["打开首页", "浏览功能概览", "点击任一模块卡片进入"],
+        "en": ["Open the home page", "Browse the feature overview", "Click any module card to enter"]
+      },
+      "prerequisites": { "zh": "无需登录即可浏览。", "en": "No login required to browse." }
+    },
+    {
+      "route_id": "chat",
+      "public": false,
+      "name": { "zh": "聊天辅导", "en": "Chat Tutoring" },
+      "summary": {
+        "zh": "与 AI 老师对话学习：针对你的教材提问、追问、获得讲解与练习，学习表现会进入评价。",
+        "en": "Learn by talking with the AI tutor: ask about your textbooks, follow up, get explanations and practice; real performance feeds the learner model."
+      },
+      "aliases": ["聊天", "辅导", "对话", "提问", "答疑", "tutor", "chat", "tutoring"],
+      "steps": {
+        "zh": ["进入聊天辅导", "选择或在当前学习区提问", "持续追问直到理解", "回顾本会话的学习记录"],
+        "en": ["Open Chat Tutoring", "Pick or stay in a workspace and ask", "Keep following up until it clicks", "Review the session's learning record"]
+      },
+      "prerequisites": { "zh": "需要登录；建议先在学习区绑定教材。", "en": "Login required; binding textbooks in a workspace is recommended." }
+    },
+    {
+      "route_id": "course",
+      "public": false,
+      "name": { "zh": "备课上课", "en": "Courses" },
+      "summary": {
+        "zh": "把教材变成一节课：生成课件与讲稿，在课程介绍页查看安排，可编辑组件与讲稿，再进入课堂播放器上课、插问、做随堂题并导出。",
+        "en": "Turn textbooks into a lesson: generate slides and narration, review the course overview, edit blocks and scripts, then teach, ask questions, run quizzes and export in the classroom player."
+      },
+      "aliases": ["备课", "上课", "做课件", "做PPT", "课件", "讲课", "课程", "课堂", "课程介绍", "编辑课件", "slides", "course", "lesson", "presentation"],
+      "steps": {
+        "zh": ["进入备课上课并点击备课，填写主题、时长与偏好", "等待课件生成，在课程介绍页查看时长、目标与逐页安排", "需要时进入编辑：手动改组件文字或让 AI 定向优化单个组件、讲稿、主题与配图", "点击开始上课：先选页预览，再全屏开课并按需配音", "课后查看讲稿、课堂记录或导出"],
+        "en": ["Open Courses and click prepare; fill topic, duration and preferences", "Wait for generation and review duration, objectives and page plan on the course overview", "Optionally edit: tweak block text manually or let AI refine a single block, script, theme or image", "Click start teaching: pick a page to preview, then go fullscreen and use voice as needed", "Review the script, classroom records or export after class"]
+      },
+      "prerequisites": { "zh": "需要登录且课堂功能已开启。", "en": "Login required and the classroom feature must be enabled." }
+    },
+    {
+      "route_id": "notes",
+      "public": false,
+      "name": { "zh": "笔记仓库", "en": "Notes Vault" },
+      "summary": {
+        "zh": "沉淀学习笔记：Markdown 编辑、双链、标签、版本历史与复习计划。",
+        "en": "Accumulate study notes: Markdown editing, backlinks, tags, revision history and review scheduling."
+      },
+      "aliases": ["笔记", "记录", "笔记仓库", "notes", "note"],
+      "steps": {
+        "zh": ["进入笔记仓库", "新建或打开一篇笔记", "编辑正文并保存", "需要时开启复习"],
+        "en": ["Open Notes Vault", "Create or open a note", "Edit and save", "Enable review when needed"]
+      },
+      "prerequisites": { "zh": "需要登录。", "en": "Login required." }
+    },
+    {
+      "route_id": "dashboard",
+      "public": false,
+      "name": { "zh": "学习总览", "en": "Dashboard" },
+      "summary": {
+        "zh": "查看学习活动概览：近期学习日、作答与任务完成情况，按学习区分组。",
+        "en": "See your learning activity overview: recent learning days, answers and completed tasks grouped by workspace."
+      },
+      "aliases": ["总览", "概览", "学习情况", "学习近况", "dashboard", "overview"],
+      "steps": {
+        "zh": ["进入学习总览", "选择学习区与时间范围", "查看活动与统计"],
+        "en": ["Open Dashboard", "Choose workspace and time range", "Review activity and stats"]
+      },
+      "prerequisites": { "zh": "需要登录。", "en": "Login required." }
+    },
+    {
+      "route_id": "knowledge",
+      "public": false,
+      "name": { "zh": "知识图谱", "en": "Knowledge Map" },
+      "summary": {
+        "zh": "浏览教材知识图谱：概念、先修关系与内容定位，可跳转辅导或测评。",
+        "en": "Browse the textbook knowledge map: concepts, prerequisite chains and content locators, with handoffs to tutoring or assessment."
+      },
+      "aliases": ["图谱", "知识图谱", "概念图", "知识", "graph", "knowledge", "map"],
+      "steps": {
+        "zh": ["进入知识图谱", "选择教材与学科筛选", "点击概念查看详情与先修路径"],
+        "en": ["Open Knowledge Map", "Filter by textbook and subject", "Click a concept for details and prerequisites"]
+      },
+      "prerequisites": { "zh": "需要登录；需已解析的教材。", "en": "Login required; parsed textbooks needed." }
+    },
+    {
+      "route_id": "orchestration",
+      "public": false,
+      "name": { "zh": "学习编排", "en": "Orchestration" },
+      "summary": {
+        "zh": "管理学习目标与每天的任务安排：创建目标、生成周计划、调整任务并启动辅导。",
+        "en": "Manage learning goals and daily tasks: create goals, generate weekly plans, adjust tasks and launch tutoring."
+      },
+      "aliases": ["计划", "学习计划", "任务", "安排", "编排", "plan", "tasks", "schedule"],
+      "steps": {
+        "zh": ["进入学习编排", "创建学习目标并设定可用时间", "查看生成的周任务", "开始某项任务进入辅导"],
+        "en": ["Open Orchestration", "Create a goal and set available time", "Review generated weekly tasks", "Launch a task into tutoring"]
+      },
+      "prerequisites": { "zh": "需要登录。", "en": "Login required." }
+    },
+    {
+      "route_id": "assessment",
+      "public": false,
+      "name": { "zh": "测评中心", "en": "Assessment" },
+      "summary": {
+        "zh": "进行结构化测评与练习：按概念出题、作答判分、查看报告与错题记录。",
+        "en": "Take structured assessments and practice: question selection by concept, graded answers, reports and the error notebook."
+      },
+      "aliases": ["测评", "测试", "测验", "练习", "错题", "做题", "quiz", "assessment", "test"],
+      "steps": {
+        "zh": ["进入测评中心", "选择概念范围开始测评", "作答并提交", "查看报告与错题"],
+        "en": ["Open Assessment", "Start with a concept scope", "Answer and submit", "Review the report and errors"]
+      },
+      "prerequisites": { "zh": "需要登录；建议在学习区中选定教材范围。", "en": "Login required; a textbook scope in a workspace is recommended." }
+    },
+    {
+      "route_id": "memory",
+      "public": false,
+      "name": { "zh": "记忆中心", "en": "Memory Center" },
+      "summary": {
+        "zh": "查看 AI 记住了什么：学习档案、概念状态、证据时间线与跨会话记忆，可发起证据复核。",
+        "en": "See what the AI remembers: learning archive, concept states, the evidence timeline and cross-session memory; request evidence reviews."
+      },
+      "aliases": ["记忆", "档案", "学习档案", "证据", "memory", "archive of learning"],
+      "steps": {
+        "zh": ["进入记忆中心", "选择学习区", "按变化/会话/概念查看", "点开证据查看依据"],
+        "en": ["Open Memory Center", "Choose a workspace", "Browse changes/sessions/concepts", "Open evidence for the basis"]
+      },
+      "prerequisites": { "zh": "需要登录且有学习记录。", "en": "Login required with learning records." }
+    },
+    {
+      "route_id": "resources_files",
+      "public": false,
+      "name": { "zh": "资料中心·文件", "en": "Resources · Files" },
+      "summary": {
+        "zh": "管理个人文件：上传、文件夹整理、绑定到学习区供辅导和备课使用。",
+        "en": "Manage personal files: upload, organize into folders, and bind them to workspaces for tutoring and lessons."
+      },
+      "aliases": ["文件", "上传", "资料", "文件库", "files", "uploads"],
+      "steps": {
+        "zh": ["进入资料中心·文件", "上传文件或新建文件夹", "在工作区设置中绑定资料"],
+        "en": ["Open Resources · Files", "Upload files or create folders", "Bind them in workspace settings"]
+      },
+      "prerequisites": { "zh": "需要登录。", "en": "Login required." }
+    },
+    {
+      "route_id": "resources_textbooks",
+      "public": false,
+      "name": { "zh": "资料中心·教材", "en": "Resources · Textbooks" },
+      "summary": {
+        "zh": "上传与管理教材：解析进度、卷册章节、图谱质量，并可重建。",
+        "en": "Upload and manage textbooks: parsing progress, volumes and chapters, graph quality and rebuilds."
+      },
+      "aliases": ["教材", "教科书", "课本", "textbook", "textbooks"],
+      "steps": {
+        "zh": ["进入资料中心·教材", "上传教材并等待解析", "查看卷册章节与图谱状态"],
+        "en": ["Open Resources · Textbooks", "Upload and wait for parsing", "Review volumes, chapters and graph status"]
+      },
+      "prerequisites": { "zh": "需要登录。", "en": "Login required." }
+    },
+    {
+      "route_id": "archive",
+      "public": false,
+      "name": { "zh": "归档中心", "en": "Archive Center" },
+      "summary": {
+        "zh": "找回被归档的内容：按类型浏览、恢复到目标学习区；彻底清除在确认界面完成。",
+        "en": "Recover archived items: browse by type and restore into a target workspace; permanent purge happens on its own confirm page."
+      },
+      "aliases": ["归档", "回收站", "已删除", "恢复", "archive", "trash"],
+      "steps": {
+        "zh": ["进入归档中心", "按类型筛选归档项", "选择恢复目标并恢复"],
+        "en": ["Open Archive Center", "Filter archived items by type", "Choose a restore target and restore"]
+      },
+      "prerequisites": { "zh": "需要登录。", "en": "Login required." }
+    },
+    {
+      "route_id": "account",
+      "public": false,
+      "name": {"zh": "账户资料", "en": "Account details"},
+      "summary": {"zh": "从右上角我的账户查看账户信息，编辑姓名、学校、关注学科与上传裁剪头像；学段在设置中调整。", "en": "View account information and edit your name, school and subjects, and upload a cropped avatar from My account. Adjust stage in Settings."},
+      "aliases": ["我的账户", "账户资料", "账户信息", "个人信息", "个人资料", "编辑资料", "my account", "account details"],
+      "steps": {"zh": ["展开右上角我的账户", "进入账户资料", "查看账户信息或编辑个人资料"], "en": ["Open My account in the top bar", "Choose Account details", "Review account information or edit personal details"]},
+      "prerequisites": {"zh": "登录后可查看和编辑。", "en": "Sign in to view and edit."}
+    },
+    {
+      "route_id": "settings",
+      "public": true,
+      "name": {"zh": "设置", "en": "Settings"},
+      "summary": {"zh": "右上角头像左侧的设置页面：通用、学习与回答、语音与课堂、助手、资料处理、账户与数据、关于。", "en": "Settings to the left of the account avatar: general, learning and answers, voice and classroom, assistant, document processing, account and data, and about."},
+      "aliases": ["设置", "偏好", "界面偏好", "语音设置", "助手设置", "settings", "preferences"],
+      "steps": {"zh": ["点击右上角头像左侧设置", "选择对应分类", "调整偏好或保存账户配置"], "en": ["Open Settings next to the account avatar", "Choose a category", "Adjust preferences or save account configuration"]},
+      "prerequisites": {"zh": "本地偏好无需登录；账户偏好需要登录。", "en": "Browser preferences work for guests; account preferences require sign-in."}
+    },
+    {
+      "route_id": "profile",
+      "public": false,
+      "name": {"zh": "学习画像", "en": "Learning Profile"},
+      "summary": {"zh": "查看从学习互动派生的学术画像、交互特点与学习激励。", "en": "View your academic profile, interaction patterns and learning motivation."},
+      "aliases": ["学习画像", "我的画像", "画像", "学术画像", "交互画像", "profile", "my profile", "learning profile"],
+      "steps": {"zh": ["从右上角我的账户进入学习画像", "查看学术与交互画像", "查看学习激励与连续学习天数"], "en": ["Open Learning Profile from My account", "Review academic and interaction profiles", "Review motivation and learning streaks"]},
+      "prerequisites": {"zh": "需要登录。", "en": "Login required."}
+    },
+    {
+      "route_id": "insights",
+      "public": false,
+      "name": { "zh": "系统洞察", "en": "Insights" },
+      "summary": {
+        "zh": "查看 AI 教学效果评价：教学诊断、策略统计与改进提案；批准或应用由你确认。",
+        "en": "Review AI teaching-effectiveness: diagnostics, strategy stats and improvement proposals; approvals are yours to confirm."
+      },
+      "aliases": ["系统洞察", "教学评价", "AI教学", "洞察", "教学建议", "insights", "teaching evaluation"],
+      "steps": {
+        "zh": ["进入系统洞察", "查看教学诊断与策略统计", "阅读提案并决定是否批准/应用"],
+        "en": ["Open Insights", "Review diagnostics and strategy stats", "Read proposals and decide whether to approve/apply"]
+      },
+      "prerequisites": { "zh": "需要登录且有教学交互记录。", "en": "Login required with teaching interaction records." }
+    },
+    {
+      "route_id": "docs",
+      "public": true,
+      "name": { "zh": "使用文档", "en": "Docs" },
+      "summary": {
+        "zh": "网站使用说明：各功能的作用、步骤与注意事项。",
+        "en": "Usage documentation: what each feature does, its steps and caveats."
+      },
+      "aliases": ["文档", "帮助", "使用说明", "使用文档", "说明书", "help", "docs", "documentation"],
+      "steps": {
+        "zh": ["进入使用文档", "按目录查找功能说明"],
+        "en": ["Open Docs", "Find the feature section in the table of contents"]
+      },
+      "prerequisites": { "zh": "无需登录。", "en": "No login required." }
+    },
+    {
+      "route_id": "admin",
+      "public": false,
+      "name": { "zh": "管理台", "en": "Admin" },
+      "summary": {
+        "zh": "管理员后台：账号、孤儿数据清理、解析服务与教材策略等系统配置。",
+        "en": "Admin console: accounts, orphan-data cleanup, parsing services and textbook policies."
+      },
+      "aliases": ["管理", "管理台", "后台", "管理员", "admin", "console"],
+      "steps": {
+        "zh": ["进入管理台", "按卡片打开对应管理功能"],
+        "en": ["Open Admin", "Open the matching admin card"]
+      },
+      "prerequisites": { "zh": "需要管理员账号登录。", "en": "An admin account is required." }
+    },
+    {
+      "route_id": "login",
+      "public": true,
+      "name": { "zh": "登录", "en": "Sign In" },
+      "summary": {
+        "zh": "登录已有账号，继续你的学习记录与设置。",
+        "en": "Sign in to an existing account to continue your records and settings."
+      },
+      "aliases": ["登录", "登陆", "login", "sign in"],
+      "steps": { "zh": ["打开登录页", "输入邮箱与密码登录"], "en": ["Open the sign-in page", "Enter email and password"] },
+      "prerequisites": { "zh": "需要已有账号。", "en": "An existing account is required." }
+    },
+    {
+      "route_id": "register",
+      "public": true,
+      "name": { "zh": "注册", "en": "Register" },
+      "summary": {
+        "zh": "创建新账号，开始使用全部学习功能。",
+        "en": "Create a new account to start using all learning features."
+      },
+      "aliases": ["注册", "注册账号", "新账号", "register", "sign up"],
+      "steps": { "zh": ["打开注册页", "填写信息完成注册"], "en": ["Open the register page", "Fill in the form to register"] },
+      "prerequisites": { "zh": "无需登录。", "en": "No login required." }
+    }
+  ]
+}

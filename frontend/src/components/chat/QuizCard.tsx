@@ -10,7 +10,9 @@ import { BookOpen, ChevronDown, Eye, Lightbulb, Loader2, Send } from "lucide-rea
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/cn";
 import { useUIStore } from "@/lib/store";
-import { t } from "@/lib/i18n";
+import { useAuthStore } from "@/lib/auth-store";
+import { quizAnswerDrafts } from "@/lib/quiz-drafts";
+import { t, type Lang } from "@/lib/i18n";
 import { fetchQuizHint, fetchQuizSubmission, revealQuizAnswer, submitQuizAnswer, type QuizSubmitOutcome, type QuizSubmissionState } from "@/lib/api";
 import { Badge } from "@/components/ui/Badge";
 import { Textarea } from "@/components/ui/Input";
@@ -53,7 +55,6 @@ const defaultTransport: QuizCardTransport = {
 // question identity so that remounts do not turn an enabled submit button into
 // a disabled empty card. Server submission remains the only persisted answer.
 const QUIZ_DRAFT_LIMIT = 100;
-const quizAnswerDrafts = new Map<string, string>();
 
 function rememberQuizDraft(key: string, value: string): void {
   if (!key) return;
@@ -69,13 +70,13 @@ function rememberQuizDraft(key: string, value: string): void {
 }
 
 /** 教材依据定位行：filename · 章节路径 · 页码（只展示学习者可理解的信息）。 */
-function sourceLocation(ref: QuizSourceRef): string {
+function sourceLocation(ref: QuizSourceRef, lang: Lang): string {
   const parts: string[] = [];
   if (ref.filename) parts.push(ref.filename);
   const section = (ref.section_path || []).filter(Boolean).join(" · ");
   if (section) parts.push(section);
-  if (ref.printed_page != null) parts.push(`教材第 ${ref.printed_page} 页`);
-  else if (ref.page != null) parts.push(`PDF 第 ${ref.page} 页`);
+  if (ref.printed_page != null) parts.push(t(lang, "tool.knowledge.textbookPage").replace("%n", String(ref.printed_page)));
+  else if (ref.page != null) parts.push(t(lang, "tool.knowledge.pdfPage").replace("%n", String(ref.page)));
   return parts.join(" · ");
 }
 
@@ -92,6 +93,7 @@ export function QuizQuestionCard({
   transport?: QuizCardTransport;
 }) {
   const { lang } = useUIStore();
+  const authenticated = useAuthStore((s) => !!s.user);
   const router = useRouter();
   const tr = (k: string, fb?: string) => t(lang, k, fb);
   // 服务端身份：无 question_id 的旧题只读陈列（不允许本地判分提交）。
@@ -359,6 +361,7 @@ export function QuizQuestionCard({
           </p>
           <SubmissionOutcome
             lang={lang}
+            taskOnly={!authenticated}
             data={{
               taskResult: outcome?.task_result ?? {
                 verdict: savedResult?.verdict ?? null,
@@ -366,7 +369,7 @@ export function QuizQuestionCard({
               evaluationStatus: outcome?.evaluation?.status || savedResult?.evaluation?.status || "pending",
               learnerFeedback: outcome?.feedback || "",
             }}
-            onViewEvidence={() => router.push("/memory")}
+            onViewEvidence={authenticated ? () => router.push("/memory") : undefined}
           />
           {canRefresh && (
             <button
@@ -402,7 +405,7 @@ export function QuizQuestionCard({
                     <div key={`${ref.chunk_id}-${i}`} className="rounded-[6px] border border-border-light bg-bg/60 px-2.5 py-1.5">
                       <p className="flex items-center gap-1 text-[0.68rem] font-medium text-accent-strong">
                         <BookOpen size={11} className="shrink-0" />
-                        {sourceLocation(ref)}
+                        {sourceLocation(ref, lang)}
                       </p>
                       {ref.excerpt && (
                         <p className="mt-0.5 line-clamp-3 whitespace-pre-wrap text-[0.7rem] leading-relaxed text-muted">{ref.excerpt}</p>

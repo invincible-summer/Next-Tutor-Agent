@@ -1,6 +1,6 @@
 """M4 × M0 身份回归（新版统一受理契约，plan §11.1/§11.4）。
 
-- JWT 键定每用户的评价 journal；游客回退共享 ``student_default``。
+- JWT 键定每用户的评价 journal；游客不能进入完整学习评价入口。
 - 请求体未知字段（student_id/raw_grade/mastery 等历史字段）一律 422
   拒绝——不再有“兼容保留但忽略”的旁路。
 """
@@ -74,7 +74,7 @@ class AssessmentIdentityTest(unittest.TestCase):
         if self._env_old is None:
             os.environ.pop("AUTH_MODE", None)
         else:
-            os.environ[self._env_old] = self._env_old
+            os.environ["AUTH_MODE"] = self._env_old
         learner_runtime.reset_learner_runtime()
         self.tmp.cleanup()
 
@@ -99,12 +99,11 @@ class AssessmentIdentityTest(unittest.TestCase):
         self.assertTrue(st.journal_path("usr_alice").exists())
         self.assertFalse(st.journal_path("usr_bob").exists())
 
-    def test_guest_falls_back_to_default_student(self):
+    def test_guest_cannot_submit_learning_evidence(self):
         r = self.client.post("/api/v1/assessment/submissions", json={
             "question_id": "q_none", "question_revision": 1,
             "student_answer": "A"})
-        # 未注册题目 → 404，但游客身份解析不报 401
-        self.assertEqual(r.status_code, 404)
+        self.assertEqual(r.status_code, 401)
 
     def test_body_student_id_rejected_as_unknown_field(self):
         """§11.1：未知 JSON 字段拒绝——body student_id 不再被“忽略”，

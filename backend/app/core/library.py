@@ -24,11 +24,12 @@ from __future__ import annotations
 import json
 import time
 import uuid
+from collections import OrderedDict
 from pathlib import Path
 from typing import Any
 
 from .atomic import atomic_write_text, file_lock
-from .knowledge_store import KnowledgeStore
+from .knowledge_store import KnowledgeStore, _validate_file_id, _validate_orig_ext
 from .retriever import Chunk, chunk_text
 
 _PROJECT_ROOT = Path(__file__).resolve().parents[3]
@@ -65,10 +66,13 @@ def file_scope(f: dict[str, Any]) -> str:
     return f"folder:{folder_id}" if folder_id else f"file:{f.get('id', '')}"
 
 
-# 进程级 chunk 缓存：(namespace, file_id) -> (txt mtime, chunks)。
-# 切块是 CPU 密集操作（V2 尤甚）；文本未变时跨 Library 实例复用。
-# dict 读写 GIL 原子，竞态最坏是重复切块一次。
-_chunk_cache: dict[tuple[str, str], tuple[float, list[Chunk]]] = {}
+# 进程级 chunk 缓存（LRU，上限 _CHUNK_CACHE_MAX）：(namespace, file_id) ->
+# (txt mtime, chunks)。切块是 CPU 密集操作（V2 尤甚）；文本未变时跨
+# Library 实例复用。dict/OrderedDict 读写 GIL 原子，竞态最坏是重复切块
+# 一次。容量上限防大库长寿命进程下无界驻留。
+_CHUNK_CACHE_MAX = 256
+_chunk_cache: "OrderedDict[tuple[str, str], tuple[float, list[Chunk]]]" = (
+    OrderedDict())
 
 
 def _cached_chunks(namespace: str, meta: dict[str, Any]) -> list[Chunk]:
@@ -80,12 +84,15 @@ def _cached_chunks(namespace: str, meta: dict[str, Any]) -> list[Chunk]:
     key = (namespace, meta["id"])
     hit = _chunk_cache.get(key)
     if hit is not None and hit[0] == mtime:
+        _chunk_cache.move_to_end(key)  # LRU touch
         return hit[1]
     text = fp.read_text(encoding="utf-8")
     from .structured_chunker import chunks_from_meta
     chunks = chunks_from_meta(text, source=meta.get("filename", ""),
                               file_id=meta["id"], meta=meta)
     _chunk_cache[key] = (mtime, chunks)
+    while len(_chunk_cache) > _CHUNK_CACHE_MAX:
+        _chunk_cache.popitem(last=False)  # evict 最久未用
     return chunks
 
 
@@ -172,7 +179,8 @@ class Library:
         ids stay stable across the move). A requested id that is already taken
         falls back to a fresh uuid — duplicate ids across folders break
         find/remove semantics and React keys."""
-        fid = file_id or uuid.uuid4().hex[:12]
+        fid = _validate_file_id(file_id or uuid.uuid4().hex[:12])
+        _validate_orig_ext(orig_ext)
         if self.find_file(fid) is not None:
             fid = uuid.uuid4().hex[:12]
         data = library_data_dir(self.student_id)
@@ -235,6 +243,10 @@ class Library:
         _invalidate_chunk_cache(self.student_id, file_id)
         data = library_data_dir(self.student_id)
         orig_ext = f.get("orig_ext") or ""
+        try:
+            _validate_orig_ext(orig_ext)
+        except ValueError:
+            orig_ext = ""  # 磁盘元数据被篡改时宁可丢弃原件也不拼出逃逸路径
         for suffix in (".txt", f".orig{orig_ext}" if orig_ext else ""):
             if not suffix:
                 continue

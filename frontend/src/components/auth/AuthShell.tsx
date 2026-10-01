@@ -1,8 +1,8 @@
 "use client";
-import { useEffect, type ReactNode } from "react";
+import { type ReactNode } from "react";
 import { GraduationCap } from "lucide-react";
 import { useUIStore } from "@/lib/store";
-import { t } from "@/lib/i18n";
+import { t, LANGS } from "@/lib/i18n";
 import { ModuleBadge } from "@/components/ui/Badge";
 
 const FEATURES = [
@@ -14,7 +14,7 @@ const FEATURES = [
 /**
  * 认证页共享骨架（登录/注册）：桌面端左黛青品牌栏 + 右表单栏，移动端收起品牌栏。
  * 全 token 配色，自动适配浅/深主题；登录页不在 workspace layout 内，
- * 这里自行 hydrateClient() 以读取持久化的语言偏好。
+ * 语言偏好由根布局的 UIProvider 恢复。
  */
 export function AuthShell({
   title,
@@ -27,12 +27,8 @@ export function AuthShell({
   children: ReactNode;
   footer?: ReactNode;
 }) {
-  const { lang, mounted, hydrateClient } = useUIStore();
+  const { lang, setLang } = useUIStore();
   const tr = (k: string) => t(lang, k);
-
-  useEffect(() => {
-    if (!mounted) hydrateClient();
-  }, [mounted, hydrateClient]);
 
   const brand = (
     <>
@@ -94,7 +90,16 @@ export function AuthShell({
       </aside>
 
       {/* 表单栏 */}
-      <main className="flex flex-1 items-center justify-center px-4 py-10">
+      <main className="relative flex flex-1 items-center justify-center px-4 py-16">
+        <div className="absolute right-6 top-5 flex gap-1" role="group" aria-label={tr("settings.language")}>
+          {LANGS.map((entry) => (
+            <button key={entry.code} type="button" aria-pressed={lang === entry.code}
+              onClick={() => setLang(entry.code)}
+              className={`cursor-pointer rounded-full px-3 py-1.5 text-xs transition-colors ${lang === entry.code ? "bg-accent-soft text-accent-strong" : "text-muted hover:bg-surface-hover"}`}>
+              {entry.label}
+            </button>
+          ))}
+        </div>
         <div className="w-full max-w-sm">
           {/* 移动端紧凑品牌头 */}
           <div className="mb-8 flex items-center justify-center gap-2.5 lg:hidden">

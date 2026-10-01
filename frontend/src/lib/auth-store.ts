@@ -2,7 +2,10 @@
 import { create } from "zustand";
 import { API_BASE } from "./api";
 import { clearAllDrafts } from "./chat-drafts";
-import { useEvaluationCacheStore } from "./store";
+import { useChatStore, useEvaluationCacheStore } from "./store";
+import { endGuestSession } from "./guest-session";
+import { clearQuizAnswerDrafts } from "./quiz-drafts";
+import { apiFetch } from "./api-fetch";
 
 // --- types ------------------------------------------------------------------
 
@@ -28,7 +31,8 @@ export interface AuthUser {
 interface AuthState {
   token: string | null;
   user: AuthUser | null;
-  authRequired: boolean; // AUTH_MODE=1 on the backend
+  authRequired: boolean;
+  guestAllowed: boolean;
   loaded: boolean; // hydrate complete?
   statusLoaded: boolean; // authRequired 已确定？（并行水合下防未登录闪屏）
   loading: boolean; // request in flight?
@@ -41,8 +45,6 @@ interface AuthState {
 }
 
 const TOKEN_KEY = "edu-agent-token";
-const AUTH_STATUS_CACHE_KEY = "edu-agent-auth-status";
-const AUTH_STATUS_TTL_MS = 5 * 60 * 1000;
 
 // --- helpers ----------------------------------------------------------------
 
@@ -80,18 +82,26 @@ export async function authFetch(input: string, init?: RequestInit): Promise<Resp
 export const useAuthStore = create<AuthState>((set, get) => ({
   token: null,
   user: null,
-  authRequired: false,
+  authRequired: true,
+  guestAllowed: false,
   loaded: false,
   statusLoaded: false,
   loading: false,
   error: null,
   setAuth: (token, user) => {
+    clearQuizAnswerDrafts();
+    endGuestSession();
+    clearAllDrafts();
+    useChatStore.getState().newChat();
     // 换账号登录：清空上一账号的评价查询缓存并 abort 在途请求（§15.3）。
     useEvaluationCacheStore.getState().clearAll();
     setToken(token);
     set({ token, user, error: null });
   },
   clearAuth: () => {
+    clearQuizAnswerDrafts();
+    endGuestSession();
+    useChatStore.getState().newChat();
     useEvaluationCacheStore.getState().clearAll();
     // 登出清除聊天草稿仓（§3.2：含 sessionStorage 正文，不留给下一账号）。
     clearAllDrafts();
@@ -104,28 +114,16 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     get().clearAuth();
   },
   fetchStatus: async () => {
-    // authRequired（后端 AUTH_MODE）只有后端换配置重启才会变：结果缓存
-    // sessionStorage（5 分钟 TTL），重复加载跳过这趟往返，白屏时间减半。
     try {
-      const raw = sessionStorage.getItem(AUTH_STATUS_CACHE_KEY);
-      if (raw) {
-        const cached = JSON.parse(raw) as { required: boolean; at: number };
-        if (Date.now() - cached.at < AUTH_STATUS_TTL_MS) {
-          set({ authRequired: cached.required, statusLoaded: true });
-          return;
-        }
-      }
-    } catch { /* cache miss only */ }
-    try {
-      const res = await fetch(`${API_BASE}/auth/status`);
+      const res = await apiFetch(`${API_BASE}/auth/status`, { cache: "no-store" });
+      if (!res.ok) throw new Error("status_unavailable");
       const data = await res.json();
-      const required = !!data.auth_required;
-      set({ authRequired: required, statusLoaded: true });
-      try {
-        sessionStorage.setItem(AUTH_STATUS_CACHE_KEY, JSON.stringify({ required, at: Date.now() }));
-      } catch { /* storage unavailable */ }
+      const allowed = data.guest_allowed === true;
+      set({ authRequired: !allowed, guestAllowed: allowed, statusLoaded: true });
+      if (!allowed) endGuestSession();
     } catch {
-      set({ authRequired: false, statusLoaded: true });
+      set({ authRequired: true, guestAllowed: false, statusLoaded: true });
+      endGuestSession();
     }
   },
   fetchMe: async () => {
@@ -138,11 +136,14 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       const res = await authFetch(`${API_BASE}/auth/me`);
       if (res.ok) {
         const data = await res.json();
+        if (getToken() !== token) return;
+        if (get().user && get().user?.id !== data.user.id) get().setAuth(token, data.user);
         set({ token, user: data.user, loaded: true });
       } else {
+        if (getToken() !== token) return;
         // token expired or invalid
-        clearToken();
-        set({ token: null, user: null, loaded: true });
+        get().clearAuth();
+        set({ loaded: true });
       }
     } catch {
       set({ loaded: true });
@@ -153,10 +154,21 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 /** Hydrate the auth store on client mount: fetch backend auth mode + validate
  *  token. The two requests fly in parallel (they used to be a serial waterfall
  *  gating the first workspace render). Render gating additionally waits for
- *  `statusLoaded` so an unauthenticated user never sees a workspace flash. */
-export async function hydrateAuth() {
-  const { fetchStatus, fetchMe } = useAuthStore.getState();
-  await Promise.all([fetchStatus(), fetchMe()]);
+ *  `statusLoaded` so an unauthenticated user never sees a workspace flash.
+ *  In-flight dedup（plan.md §5.1）：根助手 Provider 与 WorkspaceLayout 并发
+ *  mount 时共享同一次水合，不重复请求。 */
+let _hydrateInFlight: Promise<void> | null = null;
+
+export function hydrateAuth(): Promise<void> {
+  if (!_hydrateInFlight) {
+    const { fetchStatus, fetchMe } = useAuthStore.getState();
+    _hydrateInFlight = Promise.all([fetchStatus(), fetchMe()])
+      .then(() => undefined)
+      .finally(() => {
+        _hydrateInFlight = null;
+      });
+  }
+  return _hydrateInFlight;
 }
 
 /** Convenience: is the user currently authenticated? */

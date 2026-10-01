@@ -1,7 +1,7 @@
-/* 课堂播放器 E2E：真实 <audio> 管线 + 伪造 API（plan.md §18 G05、§19.3）。
+/* 课堂播放器 E2E：真实 <audio> 管线 + 伪造 API。
  *
  * page.route 拦截课堂 API（无需后端数据），音频内容返回真实的小 WAV
- * （8kHz PCM16，~300ms），验证整课推进只由媒体 ended 驱动：
+ * （8kHz PCM16，700ms），验证整课推进只由媒体 ended 驱动：
  * - 播放后字幕随段推进，翻页指示 1/2 → 2/2；
  * - 暂停立即停声（字幕停在当前段，不因时间流逝推进）；
  * - 末段结束后出现完成层，最后一次 progress 上报 action=complete；
@@ -26,7 +26,7 @@ const SLIDES = [
 
 /** 真实可解码 WAV：8kHz 单声道 PCM16 静音。
  * 700ms/段：段推进间隔必须大于 Playwright 轮询间隔，字幕窗口才稳定
- * 可观察（300ms 在 dev 模式下会被跳过）。 */
+ * 可观察（短于轮询间隔的字幕窗口会被跳过）。 */
 function tinyWav(ms = 700): Buffer {
   const rate = 8000;
   const samples = Math.floor((rate * ms) / 1000);
@@ -191,25 +191,23 @@ test("整课经真实音频 ended 推进到完成", async ({ page }) => {
   await page.goto(
     `/workspaces/${WS}/classroom/${LESSON}/learn/${RUN}`);
 
-  const caption = page.locator("section[aria-label='字幕'] p[aria-live='polite']");
+  await page.getByRole("button", { name: "字幕", exact: true }).click();
+  const caption = page.locator("section[aria-label='字幕'] [aria-live='polite']");
   // 初始（恢复）位置：第一段
   await expect(caption).toContainText(SEGS[0].text);
-  await expect(page.locator("footer span", { hasText: "1 / 2" }))
-    .toBeVisible();
+  await expect(page.locator(".player-page-count")).toHaveText("1/2");
 
-  // 用户手势开始播放（真实 WAV 300ms/段）
+  // 用户手势开始播放（真实 WAV 700ms/段）
   await page.click("button[aria-label='播放']");
   await expect(page.locator("button[aria-label='暂停']")).toBeVisible();
 
-  // 段推进只由 ended 驱动：第二段出现（约 300ms 后），仍在第 1 页
+  // 段推进只由 ended 驱动：第二段出现（约 700ms 后），仍在第 1 页
   await expect(caption).toContainText(SEGS[1].text, { timeout: 8_000 });
-  await expect(page.locator("footer span", { hasText: "1 / 2" }))
-    .toBeVisible();
+  await expect(page.locator(".player-page-count")).toHaveText("1/2");
 
   // 跨页：第三段出现后翻页指示变 2 / 2
   await expect(caption).toContainText(SEGS[2].text, { timeout: 8_000 });
-  await expect(page.locator("footer span", { hasText: "2 / 2" }))
-    .toBeVisible();
+  await expect(page.locator(".player-page-count")).toHaveText("2/2");
 
   // 末段结束后出现完成层；progress 最终上报 complete
   await expect(page.getByText("本节课已完成")).toBeVisible({
@@ -224,13 +222,14 @@ test("暂停立即停声，恢复后从当前段继续", async ({ page }) => {
   await routeClassroomApi(page, { withVoice: true });
   await page.goto(
     `/workspaces/${WS}/classroom/${LESSON}/learn/${RUN}`);
-  const caption = page.locator("section[aria-label='字幕'] p[aria-live='polite']");
+  await page.getByRole("button", { name: "字幕", exact: true }).click();
+  const caption = page.locator("section[aria-label='字幕'] [aria-live='polite']");
 
   await page.click("button[aria-label='播放']");
   // 等到第二段（第一段已 ended）
   await expect(caption).toContainText(SEGS[1].text, { timeout: 8_000 });
 
-  // 暂停：静音 WAV 本应在 ~300ms 内放完并推进；停住即证明停声
+  // 暂停：静音 WAV 本应在 ~700ms 内放完并推进；停住即证明停声
   await page.click("button[aria-label='暂停']");
   await page.waitForTimeout(900);
   await expect(caption).toContainText(SEGS[1].text);
@@ -273,8 +272,9 @@ test("插问暂停讲授，回答后继续原课", async ({ page }) => {
   });
 
   await page.goto(`/workspaces/${WS}/classroom/${LESSON}/learn/${RUN}`);
+  await page.getByRole("button", { name: "字幕", exact: true }).click();
   const caption = page.locator(
-    "section[aria-label='字幕'] p[aria-live='polite']");
+    "section[aria-label='字幕'] [aria-live='polite']");
   await expect(caption).toContainText(SEGS[0].text);
   await page.click("button[aria-label='播放']");
 
@@ -308,20 +308,23 @@ test("无语音时进入文字课堂，讲稿仍可完整阅读", async ({ page 
     `/workspaces/${WS}/classroom/${LESSON}/learn/${RUN}`);
 
   // provider 为空 → 文字课堂徽标 + 讲稿侧栏可见，播放不发声不报错
-  await expect(page.getByText("文字课堂")).toBeVisible({ timeout: 8_000 });
-  await expect(page.locator("section[aria-label='字幕'] p[aria-live='polite']"))
+  await expect(page.getByRole("button", { name: "继续阅读", exact: true })).toBeEnabled();
+  await page.getByRole("button", { name: "字幕", exact: true }).click();
+  await expect(page.locator("section[aria-label='字幕'] [aria-live='polite']"))
     .toContainText(SEGS[0].text);
   // 按需打开讲稿，全稿可滚动阅读
-  await page.getByRole("button", { name: "讲稿" }).click();
+  await page.getByRole("tab", { name: "课程讲稿", exact: true }).click();
+  await expect(page.locator("[data-script-page]")).toHaveCount(2);
+  for (const summary of await page.locator("[data-script-page] summary").all()) {
+    await summary.click();
+  }
   for (const seg of SEGS) {
     await expect(page.locator("aside").getByText(seg.text, { exact: false }))
       .toBeVisible();
   }
-  await page.getByRole("button", { name: "关闭面板" }).click();
+  await page.getByRole("tab", { name: "对话", exact: true }).click();
   // 手动翻页（目录第 2 页）不依赖音频
-  await page.getByRole("button", { name: "章节目录" }).click();
   await page.click(
-    "nav[aria-label='章节目录'] li:nth-child(2) button");
-  await expect(page.locator("footer span", { hasText: "2 / 2" }))
-    .toBeVisible();
+    "nav[aria-label='课件列表'] li:nth-child(2) button");
+  await expect(page.locator(".player-page-count")).toHaveText("2/2");
 });

@@ -21,6 +21,8 @@ from typing import Any
 _MAX_TASKS_PER_DAY = 20
 _MAX_PLAN_CONCEPTS = 30
 _MAX_EVENTS_REPLAY = 200
+# 严格读取路径的行数预算（plan.md A03）：超出时返回最近事件并标记 truncated
+_MAX_EVENTS_STRICT_BUDGET = 20000
 _MAX_GAPS = 40
 _MAX_PROJECTION_WEEKS = 52
 _MAX_WEEK_TASKS = 12      # per weekly plan
@@ -444,6 +446,9 @@ class DailyTask:
     session_id: str = ""      # the pre-created chat session of that episode
     completion_source: str = ""   # "" | quiz_evidence | self_report
     evidence_attempt_id: str = ""  # the committed attempt that completed it
+    # §22.2-1（B08）：随机稳定实例 ID；旧任务迁移时补齐并随下次保存持久
+    # 化。task_id 保留公开语义；instance_id 用于事件去重与历史推导。
+    task_instance_id: str = ""
     created_at: float = field(default_factory=time.time)
     completed_at: float = 0.0
 
@@ -459,6 +464,7 @@ class DailyTask:
             "episode_id": self.episode_id, "session_id": self.session_id,
             "completion_source": self.completion_source,
             "evidence_attempt_id": self.evidence_attempt_id,
+            "task_instance_id": self.task_instance_id,
             "created_at": self.created_at, "completed_at": self.completed_at}
 
     @classmethod
@@ -482,6 +488,7 @@ class DailyTask:
             session_id=str(d.get("session_id", "")),
             completion_source=str(d.get("completion_source", "")),
             evidence_attempt_id=str(d.get("evidence_attempt_id", "")),
+            task_instance_id=str(d.get("task_instance_id", "") or ""),
             created_at=float(d.get("created_at", time.time())),
             completed_at=float(d.get("completed_at", 0.0)))
 
@@ -639,6 +646,13 @@ class OrchestrationState:
     # last regenerate attempt (success or empty). Distinguishes "never planned"
     # from "planned but nothing to schedule" so needs_replan cannot loop.
     last_plan_attempt: float = 0.0
+    # §21.6.3 两阶段重规划候选（助手预览用）：candidate_id → 序列化周计划
+    # 与参数指纹。只在 commit 时应用；过期未提交由 prune 清理，不自动生效。
+    plan_candidates: dict[str, dict[str, Any]] = field(default_factory=dict)
+    # §22.2-3（B08）事件 outbox：task_status_changed 等领域事实与 state 同
+    # 一事务落盘；flush 成功追加到 orchestration_events.jsonl（按 event_id
+    # 去重）后确认移除；重启后未确认项补发。
+    event_outbox: list[dict[str, Any]] = field(default_factory=list)
 
     # --- multi-goal read helpers (single-goal legacy call sites) ----------
 
@@ -677,7 +691,10 @@ class OrchestrationState:
             "events_processed": self.events_processed,
             "last_streak_reported": self.last_streak_reported,
             "last_progress_reported": self.last_progress_reported,
-            "last_plan_attempt": self.last_plan_attempt}
+            "last_plan_attempt": self.last_plan_attempt,
+            "plan_candidates": {
+                str(k): dict(v) for k, v in self.plan_candidates.items()},
+            "event_outbox": [dict(e) for e in self.event_outbox]}
 
     @classmethod
     def from_dict(cls, d: dict[str, Any] | None) -> "OrchestrationState":
@@ -709,7 +726,12 @@ class OrchestrationState:
             events_processed=int(d.get("events_processed", 0)),
             last_streak_reported=int(d.get("last_streak_reported", 0)),
             last_progress_reported=float(d.get("last_progress_reported", -1.0)),
-            last_plan_attempt=float(d.get("last_plan_attempt", 0.0)))
+            last_plan_attempt=float(d.get("last_plan_attempt", 0.0)),
+            plan_candidates={
+                str(k): dict(v)
+                for k, v in (d.get("plan_candidates") or {}).items()},
+            event_outbox=[
+                dict(e) for e in (d.get("event_outbox") or [])])
 
 
 @dataclass

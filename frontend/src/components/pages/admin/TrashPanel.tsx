@@ -8,8 +8,11 @@ import { Card, CardHeader } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { ConfirmModal } from "@/components/ui/Modal";
 import type { Tr } from "./Field";
+import { localeFor } from "@/lib/i18n";
+import { useUIStore } from "@/lib/store";
 
 export function TrashPanel({ tr, onCount }: { tr: Tr; onCount?: (n: number) => void }) {
+  const lang = useUIStore((s) => s.lang);
   const [items, setItems] = useState<TrashItem[]>([]);
   const [purgeTarget, setPurgeTarget] = useState<TrashItem | null>(null);
 
@@ -50,7 +53,7 @@ export function TrashPanel({ tr, onCount }: { tr: Tr; onCount?: (n: number) => v
             <div key={item.id} className="flex items-center justify-between gap-3 rounded-[8px] border border-border px-3 py-2">
               <div className="min-w-0">
                 <div className="truncate text-xs font-medium text-fg">{item.title}</div>
-                <div className="mt-0.5 text-[10px] text-muted">{item.resource_type} · {new Date(item.deleted_at * 1000).toLocaleString()}</div>
+                <div className="mt-0.5 text-[10px] text-muted">{item.resource_type} · {new Date(item.deleted_at * 1000).toLocaleString(localeFor(lang))}</div>
               </div>
               <div className="flex shrink-0 gap-1.5">
                 <Button size="sm" variant="outline" icon={<RotateCcw size={12} />}

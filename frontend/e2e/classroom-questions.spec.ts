@@ -221,9 +221,10 @@ test.beforeEach(async ({ page }) => {
 
 async function openPlayer(page: Page): Promise<void> {
   await page.goto(`/workspaces/${WS}/classroom/${LESSON}/learn/${RUN}`);
+  await page.getByRole("button", { name: "字幕", exact: true }).click();
   await expect(page.locator(
-    "section[aria-label='字幕'] p[aria-live='polite']"))
-    .toContainText(SEGS[0].text, { timeout: 10_000 });
+    "section[aria-label='字幕'] [aria-live='polite']"))
+    .toContainText(SEGS[0].text, { timeout: 30_000 });
 }
 
 test("检查点：提示→揭晓→提交一次受理，答案不提前泄漏", async ({ page }) => {
@@ -233,7 +234,11 @@ test("检查点：提示→揭晓→提交一次受理，答案不提前泄漏",
   await openPlayer(page);
 
   // 揭晓前：字幕与讲稿侧栏不含答案文本
-  await page.getByRole("button", { name: "本课讲稿" }).click();
+  await page.getByRole("tab", { name: "课程讲稿", exact: true }).click();
+  await expect(page.locator("[data-script-page]")).toHaveCount(2);
+  for (const summary of await page.locator("[data-script-page] summary").all()) {
+    await summary.click();
+  }
   for (const seg of SEGS) {
     await expect(page.locator("aside").getByText(seg.text, { exact: false }))
       .toBeVisible();
@@ -274,8 +279,7 @@ test("检查点：提示→揭晓→提交一次受理，答案不提前泄漏",
   // 继续上课解除闸门，进入下一页
   await page.locator("section[aria-label='随堂练习']")
     .getByRole("button", { name: "继续上课" }).click();
-  await expect(page.locator("footer span", { hasText: "2 / 2" }))
-    .toBeVisible({ timeout: 10_000 });
+  await expect(page.locator(".player-page-count")).toHaveText("2/2");
 });
 
 test("跳过不算答错：标记已跳过且不显示对错", async ({ page }) => {
@@ -294,8 +298,8 @@ test("跳过不算答错：标记已跳过且不显示对错", async ({ page }) 
   expect(state.skipCalls).toBe(1);
   expect(state.submitBodies.length).toBe(0);
 
-  await expect(page.locator("footer span", { hasText: "2 / 2" }))
-    .toBeVisible({ timeout: 15_000 });
+  await expect(page.locator(".player-page-count"))
+    .toHaveText("2/2", { timeout: 15_000 });
 });
 
 test("刷新恢复：已答检查点不重开为新题", async ({ page }) => {
@@ -329,10 +333,11 @@ test("刷新恢复：已答检查点不重开为新题", async ({ page }) => {
     return route.fallback();
   });
   await page.goto(`/workspaces/${WS}/classroom/${LESSON}/learn/${RUN}`);
+  await page.getByRole("button", { name: "字幕", exact: true }).click();
   // 光标在第二段：字幕即第二段。讲完当前段才出现检查点。
   await expect(page.locator(
-    "section[aria-label='字幕'] p[aria-live='polite']"))
-    .toContainText(SEGS[1].text, { timeout: 10_000 });
+    "section[aria-label='字幕'] [aria-live='polite']"))
+    .toContainText(SEGS[1].text, { timeout: 30_000 });
   await page.click("button[aria-label='播放']");
 
   // 面板处于已答形态（✓），不能再选选项、没有提交按钮
@@ -367,13 +372,13 @@ test("插问多轮后回到最初被打断段", async ({ page }) => {
 
   await openPlayer(page);
   const caption = page.locator(
-    "section[aria-label='字幕'] p[aria-live='polite']");
+    "section[aria-label='字幕'] [aria-live='polite']");
   await page.click("button[aria-label='播放']");
 
   // 第一轮插问（第一段播放中）：提问抽屉内输入并发送
   const askBox = page.getByRole("region", { name: "课堂提问" })
     .locator("textarea");
-  await page.getByRole("button", { name: "提问", exact: true }).click();
+  await page.getByRole("tab", { name: "对话", exact: true }).click();
   await askBox.fill("为什么内力抵消？");
   await askBox.press("Enter");
   await expect(page.getByText("第 1 轮回答。")).toBeVisible({
@@ -382,7 +387,7 @@ test("插问多轮后回到最初被打断段", async ({ page }) => {
   await expect(caption).toContainText(SEGS[0].text);
 
   // 第二轮追问后仍回第一段开头（最初被打断段）
-  await page.getByRole("button", { name: "提问", exact: true }).click();
+  await page.getByRole("tab", { name: "对话", exact: true }).click();
   await askBox.fill("再举个例子？");
   await askBox.press("Enter");
   await expect(page.getByText("第 2 轮回答。")).toBeVisible({

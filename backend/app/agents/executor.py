@@ -42,6 +42,11 @@ def _register_quiz_tasks(session: TutorSession, quiz_data: dict) -> None:
     """G2：quiz_history 题目注册为 journal TaskSnapshot（幂等，失败不交付未注册题卡）。concept_refs 严格匹配会话工作区 scope（§7.2）。
     注册后把 question_id/question_revision 写回题 dict——quiz_history 与
     tool_result SSE 负载携带同一身份，题卡提交不再以题干定位（§11.4）。"""
+    from ..core.execution_policy import current_policy
+    policy = current_policy()
+    if policy.register_quiz is not None:
+        policy.register_quiz(session, quiz_data)
+        return
     student_id = getattr(session, "student_id", "") or "student_default"
     workspace_id = getattr(session, "workspace_id", "") or ""
     from ..agents.assessment.manager import register_quiz_payload
@@ -141,9 +146,13 @@ def _build_tool_result_message(result: ToolResult) -> str:
     if result.text:
         text = result.text
         if len(text) > _TOOL_MSG_MAX_CHARS:
-            spill_path = trace_dir_path() / f"tool_spill_{result.tool}_{int(time.time())}.txt"
-            spill_path.write_text(text, encoding="utf-8")
-            parts.append(f"摘要: {text[:_TOOL_MSG_MAX_CHARS]}\n...[已截断，完整 {len(text)} 字存于 {spill_path}]")
+            from ..core.execution_policy import current_policy
+            if current_policy().persistent:
+                spill_path = trace_dir_path() / f"tool_spill_{result.tool}_{int(time.time())}.txt"
+                spill_path.write_text(text, encoding="utf-8")
+                parts.append(f"摘要: {text[:_TOOL_MSG_MAX_CHARS]}\n...[已截断，完整 {len(text)} 字存于 {spill_path}]")
+            else:
+                parts.append(f"摘要: {text[:_TOOL_MSG_MAX_CHARS]}\n...[已截断]")
         else:
             parts.append(f"摘要: {result.text}")
     if not parts[1:] and result.data:
@@ -1034,7 +1043,9 @@ async def execute(
                              "题目未能保存，可能插图生成已关闭，请重新出题。")
             else:
                 session.quiz_history.append(result.data)
-                record_generated_quiz(session.session_id, result.data)
+                from ..core.execution_policy import current_policy
+                if current_policy().persistent:
+                    record_generated_quiz(session.session_id, result.data)
                 from ..core.quiz_illustration import illustration_telemetry
                 trace.log("quiz_illustration", **illustration_telemetry(result.data))
 

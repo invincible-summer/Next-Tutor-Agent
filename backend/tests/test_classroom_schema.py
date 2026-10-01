@@ -39,6 +39,16 @@ class InlineSpanAndBlockTests(unittest.TestCase):
             sc.BulletsBlock(id=fx.hex_id("blk"),
                             items=[[sc.SpanText(text="超" * 41)]])
 
+    def test_mixed_prose_math_does_not_hit_old_eight_span_limit(self):
+        spans = [span for _ in range(8) for span in (
+            sc.SpanText(text="变化量"), sc.SpanMath(latex=r"\Delta t", spoken="时间增量"))]
+        for cls in (sc.ParagraphBlock, sc.CalloutBlock):
+            self.assertEqual(len(cls(id=fx.hex_id('blk'), spans=spans).spans), 16)
+            with self.assertRaises(ValidationError):
+                cls(id=fx.hex_id('blk'), spans=spans * 3)
+        self.assertEqual(len(sc.StepItem(label='比较', spans=spans).spans), 16)
+        sc.BulletsBlock(id=fx.hex_id('blk'), items=[spans])
+
     def test_bullets_mixed_text_english_words(self):
         ok = [[sc.SpanText(text=" ".join(["word"] * 22))]]
         sc.BulletsBlock(id=fx.hex_id("blk"), items=ok)

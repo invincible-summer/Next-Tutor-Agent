@@ -23,6 +23,7 @@ const CATEGORY_KEYS: Record<string, string> = {
   trash: "adm.cleanup.cat.trash",
   notes: "adm.cleanup.cat.notes",
   knowledge: "adm.cleanup.cat.knowledge",
+  avatars: "adm.cleanup.cat.avatars",
 };
 
 export function CleanupPanel({ tr, refresh }: { tr: Tr; refresh: () => void }) {

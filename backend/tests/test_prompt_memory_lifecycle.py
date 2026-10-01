@@ -1,36 +1,36 @@
 from __future__ import annotations
 
+
 import asyncio
 import json
 import tempfile
 import unittest
 from pathlib import Path
 from unittest.mock import patch
+import sys
 
+_BACKEND = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(_BACKEND))
+
+from tests.storage_sandbox import StorageSandboxTestCase
 from app.agents.memory import prompt_memory
 from app.agents.memory.manager import MemoryService
 from app.core import trash
+from app.core.memory_safety import memory_safe_text
+from app.core.workspace_memory import _render_turn_for_memory
+from app.agents import chat_agent
+from app.core.session import TutorSession
+from app.api.v1 import memory as memory_api
+from app.api.v1 import trash as trash_api
+from app.api.v1.memory import PromptMemoryWindowRequest
+from app.api.v1.trash import RestoreRequest
 
 
-class PromptMemoryFixture(unittest.TestCase):
+class PromptMemoryFixture(StorageSandboxTestCase):
     def setUp(self):
-        self.tmp = tempfile.TemporaryDirectory(prefix="prompt_memory_")
-        self.root = Path(self.tmp.name)
-        self.patches = [
-            patch.object(prompt_memory, "_STUDENTS_DIR", self.root / "students"),
-            patch.object(prompt_memory, "_POLICY_PATH", self.root / "students" / "policy.json"),
-            patch.object(trash, "_TRASH_DIR", self.root / "trash"),
-            patch.object(trash, "_GLOBAL_POLICY", self.root / "trash" / "policy.json"),
-        ]
-        for p in self.patches:
-            p.start()
+        super().setUp()
         prompt_memory.set_policy(default_window=5, max_window=30,
                                  core_char_limit=900, directive_char_limit=1100)
-
-    def tearDown(self):
-        for p in reversed(self.patches):
-            p.stop()
-        self.tmp.cleanup()
 
 
 class TestPromptMemoryWindow(PromptMemoryFixture):
@@ -122,5 +122,74 @@ class TestPromptMemoryWindow(PromptMemoryFixture):
         self.assertNotIn("积分换元法", directive)
         self.assertNotIn("具体错题细节", directive)
 
+# Related memory safety regressions.
 
 
+class TestMemorySafety(unittest.TestCase):
+    def test_ocr_body_removed_but_instruction_kept(self):
+        raw = "<ocr_material>秘密扫描正文\n公式很多</ocr_material>\n\n请讲解第二问"
+        safe = memory_safe_text(raw)
+        self.assertNotIn("秘密扫描正文", safe)
+        self.assertIn("请讲解第二问", safe)
+
+    def test_material_excerpt_removed_from_answer(self):
+        safe = memory_safe_text("结论如下 <material_excerpt>教材大段原文</material_excerpt> 学生尚未掌握")
+        self.assertNotIn("教材大段原文", safe)
+        self.assertIn("学生尚未掌握", safe)
+
+    def test_workspace_memory_render_uses_safe_projection(self):
+        rendered = _render_turn_for_memory(
+            "<ocr_material>不可跨会话的 OCR</ocr_material>\n\n帮我分析",
+            "<material_excerpt>不可持久化的教材原文</material_excerpt>需要复习",
+        )
+        self.assertNotIn("不可跨会话的 OCR", rendered)
+        self.assertNotIn("不可持久化的教材原文", rendered)
+        self.assertIn("帮我分析", rendered)
+        self.assertIn("需要复习", rendered)
+
+
+# Related legacy prompt memory regressions.
+
+
+class TestLegacyPromptMemory(StorageSandboxTestCase):
+    def test_legacy_path_reads_and_writes_same_bounded_profile(self):
+        with tempfile.TemporaryDirectory() as tmp, \
+                patch.object(prompt_memory, "_STUDENTS_DIR", Path(tmp)), \
+                patch.object(prompt_memory, "_POLICY_PATH", Path(tmp) / "policy.json"):
+            s = TutorSession(session_id="legacy-chat", student_id="stu")
+            chat_agent._legacy_record_prompt_memory(s, "请一步一步讲", [])
+            block = chat_agent._legacy_prompt_memory_block(s)
+            self.assertIn("分步骤", block)
+            self.assertNotIn("一步一步讲", block)
+
+
+# Related lifecycle contracts regressions.
+
+
+class TestLifecycleContracts(unittest.TestCase):
+    def test_routes_are_registered_once_and_policy_precedes_dynamic_item_route(self):
+        from fastapi.routing import APIRoute
+        paths = [(r.path, tuple(sorted(getattr(r, "methods", set()))))
+                 for r in trash_api.router.routes if isinstance(r, APIRoute)]
+        self.assertIn(("/trash/policy", ("GET",)), paths)
+        self.assertIn(("/trash/policy", ("PUT",)), paths)
+        self.assertIn(("/trash/{item_id}", ("GET",)), paths)
+        policy_index = next(i for i, x in enumerate(paths)
+                            if x == ("/trash/policy", ("GET",)))
+        item_index = next(i for i, x in enumerate(paths)
+                          if x == ("/trash/{item_id}", ("GET",)))
+        self.assertLess(policy_index, item_index)
+        memory_paths = [r.path for r in memory_api.router.routes if isinstance(r, APIRoute)]
+        self.assertEqual(memory_paths.count("/memory/prompt-profile"), 1)
+
+    def test_request_bounds_match_product_policy(self):
+        self.assertEqual(PromptMemoryWindowRequest(window_size=15).window_size, 15)
+        self.assertEqual(RestoreRequest(workspace_ids=[]).workspace_ids, [])
+        with self.assertRaises(Exception):
+            PromptMemoryWindowRequest(window_size=4)
+        with self.assertRaises(Exception):
+            RestoreRequest(workspace_ids=["x"] * 101)
+
+
+if __name__ == "__main__":
+    unittest.main()

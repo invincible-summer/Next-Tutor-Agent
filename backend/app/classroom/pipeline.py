@@ -66,6 +66,39 @@ class _Budgets:
     downloads_bytes: int = 0
 
 
+def _outline_prompt_version(job: sc.GenerationJob) -> str:
+    if not job.renderer_version.startswith("2."):
+        return "1.0.0"
+    if job.slide_prompt_version == "2.6.0":
+        return "2.4.0"
+    if job.slide_prompt_version == "2.5.0":
+        return "2.3.0"
+    if job.slide_prompt_version == "2.4.0":
+        return "2.2.0"
+    return "2.1.0" if job.slide_prompt_version == "2.3.0" else "2.0.0"
+
+
+def _slide_schema_hint(job: sc.GenerationJob) -> dict:
+    if not job.renderer_version.startswith("2."):
+        return _SLIDE_SCHEMA_HINT
+    if job.slide_prompt_version in {"2.5.0", "2.6.0"}:
+        return {**_SLIDE_SCHEMA_HINT_V23,
+                **({"block_kinds_allowed": [kind for kind in _SLIDE_SCHEMA_HINT_V23["block_kinds_allowed"]
+                                            if kind != "checkpoint"]}
+                   if job.slide_prompt_version == "2.6.0" else {}),
+                "slide": {**_SLIDE_SCHEMA_HINT_V23["slide"],
+                          **({"composition": {"mode": "auto", "density": "balanced",
+                               "surface": "plain", "focal_block_id": "b2",
+                               "emphasis_block_id": None, "wide_block_ids": []}}
+                             if job.slide_prompt_version == "2.6.0" else {}),
+                          "blocks": [{**b, "label": None} if b["kind"] == "formula" else b
+                                     for b in _SLIDE_SCHEMA_HINT_V23["slide"]["blocks"]]},
+                "note": "blocks 是组件语法目录，不是页面模板。只选择本页需要的组件；"
+                        "按本页分工呈现必要知识，解释性展开放讲稿；图表、公式均需有教学目的。"
+                        "checkpoint 由服务端生成，写作阶段不要输出该块或自行签发 checkpoint_id。"}
+    return _SLIDE_SCHEMA_HINT_V23 if job.slide_prompt_version in {"2.3.0", "2.4.0", "2.5.0", "2.6.0"} else _SLIDE_SCHEMA_HINT_V2
+
+
 def _dump_json(model: Any) -> dict[str, Any]:
     return model.model_dump(mode="json", by_alias=True)
 
@@ -469,9 +502,9 @@ class ClassroomPipeline:
         }, ensure_ascii=False) + "\n\n" + evidence
         plan, _ = await generate_json(
             self.deps.llm, prompt_id="classroom_outline",
-            prompt_version="2.0.0" if job.renderer_version.startswith("2.")
-            else "1.0.0",
-            user_text=user_text, model_cls=_OutlineModel)
+            prompt_version=_outline_prompt_version(job),
+            user_text=user_text,
+            model_cls=_OutlineModelV24 if job.slide_prompt_version == "2.6.0" else _OutlineModel)
         # 旧版本保留既有页数裁剪；新版不静默丢弃已规划的知识页。
         clamped = clamp_pages(len(plan.pages), brief.duration_minutes,
                               int(str(brief.page_plan))
@@ -539,9 +572,16 @@ class ClassroomPipeline:
         page_assets: dict[str, list[str]] = {}
         semaphore = asyncio.Semaphore(limits.IMAGE_DOWNLOAD_CONCURRENCY)
         used_bytes = 0
+        # A preference is a ceiling, never a requirement to illustrate every page.
+        image_page_limit = max(1, len(plan.pages) // (
+            2 if self._load_brief().image_density == sc.ImageDensity.rich else 3))
         for page in plan.pages:
             intent = page.visual_intent
             if intent is None or not intent.query_terms:
+                continue
+            if job.slide_prompt_version in {"2.3.0", "2.4.0", "2.5.0", "2.6.0"} and intent.role not in {"scene", "object", "process"}:
+                continue
+            if job.slide_prompt_version in {"2.3.0", "2.4.0", "2.5.0", "2.6.0"} and len(page_assets) >= image_page_limit:
                 continue
             key = " ".join(intent.query_terms)
             if key in seen_intents:  # 合并同主题意图，仍记住每页对应资产
@@ -663,6 +703,18 @@ class ClassroomPipeline:
             slide_id = store.new_slide_id()
             user_text = json.dumps({
                 **author_context,
+                **({"prior_visual_choices": [
+                    {"title": item["slide"]["title"],
+                     "composition": item["slide"].get("composition"),
+                     "block_kinds": [block["kind"] for block in item["slide"]["blocks"]]}
+                    for item in pages[-3:]]}
+                   if job.slide_prompt_version == "2.6.0" else {}),
+                **({"allowed_source_ids": [r.source_id for r in records],
+                    "course_story": [{"order": p.order, "title": p.title,
+                                      "key_points": p.key_points} for p in plan.pages],
+                    "previous_page": ({"title": pages[-1]["slide"]["title"],
+                                       "blocks": pages[-1]["slide"]["blocks"]} if pages else None)}
+                   if job.slide_prompt_version in {"2.5.0", "2.6.0"} else {}),
                 "slide_id": slide_id,
                 "order": page.order,
                 "page_plan": _dump_json(page),
@@ -675,13 +727,20 @@ class ClassroomPipeline:
                 "allowed_actions": ["reveal", "highlight", "advance"],
                 # SlideSpec 输出契约（§10）：系统提示词锁定原文未展开块语法，
                 # 由输入数据携带，模型不得自创 block kind / 字段。
-                "slide_schema": _SLIDE_SCHEMA_HINT_V2 if is_v2
-                else _SLIDE_SCHEMA_HINT,
-                "layout_slots": layout_spec(page.layout.value).slots,
+                "slide_schema": _slide_schema_hint(job),
+                "layout_slots": ("自由组合已定义的 block；composition 控制构图"
+                                 if job.slide_prompt_version in {"2.3.0", "2.4.0", "2.5.0", "2.6.0"}
+                                 else layout_spec(page.layout.value).slots),
                 "output_guidance": {
                     "max_output_tokens": output_limit,
                     "format": "紧凑 JSON；ID 可用 b1/s1 等页内短引用；省略未用可选字段",
-                    "content": "完整保留本页知识，用正文承载长解释；讲稿按句分段，每段≤240字；不要重复整页正文",
+                    "content": ("一个视觉主角，加至多两个短解释。多行推导不要再叠完整steps和总结，图表页不要复述标签；保留条件与关键理由，没有自动分页"
+                                if job.slide_prompt_version == "2.6.0" else
+                                "按本页教学任务选择2–4个必要组件，图表为主的页面减少文字；无字数下限，保留条件与关键理由；没有自动分页"
+                                if job.slide_prompt_version in {"2.5.0", "2.6.0"} else
+                                "一页一个核心结论，2–4个短组件，正文约180–280字；保留必要条件与理由，解释性展开放讲稿；没有自动分页"
+                                if job.slide_prompt_version in {"2.4.0", "2.5.0", "2.6.0"} else
+                                "完整保留本页知识，用正文承载长解释；讲稿按句分段，每段≤240字；不要重复整页正文"),
                 },
             }, ensure_ascii=False) + "\n\n" + evidence
 
@@ -690,6 +749,8 @@ class ClassroomPipeline:
                 if isinstance(data, dict) and isinstance(data.get("slide"), dict):
                     data["slide"]["slide_id"] = slide_id
                     data["slide"]["order"] = page.order
+                    if job.slide_prompt_version in {"2.3.0", "2.4.0", "2.5.0", "2.6.0"} and not data["slide"].get("composition"):
+                        data["slide"]["composition"] = {}
                 return data
 
             result, _ = await generate_json(
@@ -702,9 +763,12 @@ class ClassroomPipeline:
             slide.order = page.order
             # LLM 的 claims 对照 → 服务端 TeachingClaim（claim_id 服务端签发）
             teaching_claims = []
+            known_sources = {r.source_id for r in records}
             for claim in result.claims:
                 if claim.block_id not in {b.id for b in slide.blocks}:
                     continue
+                if claim.source_id and claim.source_id not in known_sources:
+                    self.warnings.append("已移除模型生成的未知来源引用，请检查相关内容依据")
                 teaching_claims.append(sc.TeachingClaim(
                     claim_id=store.new_id("claim")[:30],
                     text=claim.text[:600],
@@ -712,7 +776,7 @@ class ClassroomPipeline:
                     block_ids=[claim.block_id],
                     segment_ids=[],
                     source_ids=([claim.source_id]
-                                if claim.source_id else [])))
+                                if claim.source_id in known_sources else [])))
             slide.claims = teaching_claims[:sc.MAX_CLAIMS_PER_SLIDE]
             pages.append({"slide": _dump_json(slide)})
             self._save_stage("author_slides_partial", {
@@ -958,10 +1022,25 @@ class ClassroomPipeline:
             if hasattr(report, "__await__"):
                 report = await report
             if report is not None and not report.ok:
-                warnings.append("排版检查有提示，课件已保留；可滚动阅读或在预览中调整")
+                if job.slide_prompt_version in {"2.4.0", "2.5.0", "2.6.0"}:
+                    overflow_pages = sorted({i.get("slide_order") for i in report.issues
+                                             if "overflow" in i.get("code", "")
+                                             and isinstance(i.get("slide_order"), int)})
+                    if overflow_pages:
+                        raise ClassroomError(
+                            "content_invalid", "第 " + "、".join(map(str, overflow_pages))
+                            + " 页内容超过单张幻灯片容量，请在大纲中拆分推导或减少每页要点后重新生成；不会截断正文或自动切页")
+                math_pages = sorted({i.get("slide_order") for i in report.issues
+                                     if i.get("code") in {"katex_fallback", "formula_too_small"}
+                                     and isinstance(i.get("slide_order"), int)})
+                if math_pages:
+                    warnings.append("第 " + "、".join(map(str, math_pages))
+                                    + " 页公式需检查 LaTeX 或拆分过长推导，请在组件编辑器中调整")
+                if any(i.get("code") not in {"katex_fallback", "formula_too_small"} for i in report.issues):
+                    warnings.append("部分组件仍有排版提示，请在预览中检查或编辑对应组件")
         except (LayoutCheckError, OSError, asyncio.TimeoutError):
             warnings.append("排版检查暂不可用，课件已编译，可在预览中检查")
-        # 排版诊断不调用 LLM；长内容使用编译器的滚动区域保留全文。
+        # 一张逻辑页对应一张物理幻灯片；不在浏览器内拆页或截断正文。
         self._save_stage(sc.JobPhase.render, {
             "html_chars": len(html),
             "layout_ok": report.ok if report is not None else None,
@@ -1060,8 +1139,7 @@ class ClassroomPipeline:
             prompt_versions={
                 **{k: v for k, v in active_versions().items()
                    if k.startswith("classroom_")},
-                "classroom_outline": "2.0.0" if job.renderer_version.startswith("2.")
-                else "1.0.0",
+                "classroom_outline": _outline_prompt_version(job),
                 "classroom_slide": job.slide_prompt_version if job.renderer_version.startswith("2.")
                 else "1.0.0",
             },
@@ -1129,6 +1207,11 @@ class ClassroomPipeline:
             return
         if op.op == "regenerate_slide":
             await self._prepare_regenerate(job, base, budgets)
+            return
+        if op.op == "regenerate_block":
+            from .block_edit import regenerate_block
+            draft = await regenerate_block(self.deps.llm, base, op)
+            await self._finalize_fast_revision(job, draft)
             return
         raise ClassroomError("content_invalid", "未知修订操作")
 
@@ -1325,6 +1408,18 @@ class ClassroomPipeline:
         user_text = json.dumps({
             "slide_id": target.slide_id,
             "order": target.order,
+            **({"prior_visual_choices": [
+                {"title": s.title, "composition": _dump_json(s.composition) if s.composition else None,
+                 "block_kinds": [b.kind for b in s.blocks]}
+                for s in orders[max(0, position - 3):position]]}
+               if job.slide_prompt_version == "2.6.0" else {}),
+            **({"allowed_source_ids": [r.source_id for r in records],
+                "course_story": [{"order": s.order, "title": s.title} for s in orders],
+                "previous_page": ({"title": orders[position - 1].title,
+                                   "blocks": [_dump_json(b) for b in orders[position - 1].blocks]}
+                                  if position else None),
+                "custom_requirements": base.brief.custom_requirements}
+               if job.slide_prompt_version in {"2.5.0", "2.6.0"} else {}),
             "page_plan": {
                 "order": target.order, "title": target.title,
                 "layout": target.layout.value,
@@ -1340,8 +1435,7 @@ class ClassroomPipeline:
                         "caption": a.caption, "width": a.width,
                         "height": a.height} for a in page_assets],
             "allowed_actions": ["reveal", "highlight", "advance"],
-            "slide_schema": _SLIDE_SCHEMA_HINT_V2
-            if job.renderer_version.startswith("2.") else _SLIDE_SCHEMA_HINT,
+            "slide_schema": _slide_schema_hint(job),
         }, ensure_ascii=False) + "\n\n" + evidence
         result, _ = await generate_json(
             self.deps.llm, prompt_id="classroom_slide",
@@ -1352,6 +1446,8 @@ class ClassroomPipeline:
             pre_validate=normalize_authored_slide,
             max_tokens=budgets.llm.page_output_limit(1))
         slide = result.slide
+        if job.slide_prompt_version in {"2.3.0", "2.4.0", "2.5.0", "2.6.0"} and slide.composition is None:
+            slide = sc.SlideSpec.model_validate({**_dump_json(slide), "composition": {}})
         slide.slide_id = target.slide_id
         slide.order = target.order
         # 保留原页的 checkpoint 块与模板绑定（布局必需块不可丢）
@@ -1362,15 +1458,18 @@ class ClassroomPipeline:
                             for b in slide.blocks):
                 slide.blocks.append(block)
         teaching_claims = []
+        known_sources = {r.source_id for r in records}
         for claim in result.claims:
             if claim.block_id not in {b.id for b in slide.blocks}:
                 continue
+            if claim.source_id and claim.source_id not in known_sources:
+                self.warnings.append("已移除模型生成的未知来源引用，请检查相关内容依据")
             teaching_claims.append(sc.TeachingClaim(
                 claim_id=store.new_id("claim")[:30],
                 text=claim.text[:600],
                 kind=sc.ClaimKind(claim.claim_kind),
                 block_ids=[claim.block_id], segment_ids=[],
-                source_ids=([claim.source_id] if claim.source_id else [])))
+                source_ids=([claim.source_id] if claim.source_id in known_sources else [])))
         slide.claims = teaching_claims[:sc.MAX_CLAIMS_PER_SLIDE]
         # 与新课共用后续本地布局/模板校验；检查点模板不能在此丢失。
         slides = [slide if s.slide_id == op.slide_id else s
@@ -1503,6 +1602,12 @@ _SLIDE_SCHEMA_HINT = {
 
 _SLIDE_SCHEMA_HINT_V2 = {
     **_SLIDE_SCHEMA_HINT,
+    "field_limits": {
+        **_SLIDE_SCHEMA_HINT["field_limits"],
+        "diagram": "所有label/x_label/y_label≤40字符（含LaTeX源码与空格）；"
+                   "flow的nodes≤10、edges≤12，节点id唯一且边只能引用已有节点；"
+                   "节点宜用≤16字短标签，长解释放paragraph/steps；alt≤500字符",
+    },
     "slide": {
         **_SLIDE_SCHEMA_HINT["slide"],
         "blocks": [*_SLIDE_SCHEMA_HINT["slide"]["blocks"],
@@ -1536,6 +1641,25 @@ _SLIDE_SCHEMA_HINT_V2 = {
     "note": "完整知识必须放入页面 blocks；讲稿作原因与过渡。"
             "diagram 仅使用输入 schema 的 flow/cartesian_plot/force_diagram，"
             "checkpoint 由服务端生成。",
+}
+
+
+_SLIDE_SCHEMA_HINT_V23 = {
+    **_SLIDE_SCHEMA_HINT_V2,
+    "slide": {
+        **_SLIDE_SCHEMA_HINT_V2["slide"],
+        "layout": "可按内容选择已定义的教学页型",
+        "composition": {
+            "mode": "auto|stack|columns|sidebar|editorial",
+            "density": "balanced|compact|airy", "surface": "plain|soft|outlined",
+            "emphasis_block_id": "本页重点块ID，可省略",
+            "wide_block_ids": ["需要通栏的本页块ID，可为空"],
+        },
+        "blocks": [*_SLIDE_SCHEMA_HINT_V2["slide"]["blocks"],
+                   {"kind": "code", "id": "b1", "language": "python",
+                    "code": "def square(x):\n    return x * x", "caption": "可选说明"}],
+    },
+    "block_kinds_allowed": [*_SLIDE_SCHEMA_HINT_V2["block_kinds_allowed"], "code"],
 }
 
 
@@ -1652,6 +1776,14 @@ class _OutlineModel(_LLMModel):
             out["scope_note"] = str(out.pop("budget_note"))[:600]
         out.pop("prerequisites", None)  # 提示性输出，管线不消费
         return out
+
+
+class _OutlineModelV24(_OutlineModel):
+    @model_validator(mode="after")
+    def _page_assignments(self) -> "_OutlineModelV24":
+        if any(not any(point.strip() for point in page.key_points) for page in self.pages):
+            raise ValueError("每页 key_points 必须说明新增认识、视觉主角与止步位置，不能只给标题")
+        return self
 
 
 class _ClaimItem(_LLMModel):

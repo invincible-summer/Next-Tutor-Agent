@@ -11,7 +11,7 @@ import { fmtTime } from "@/lib/format";
 
 export function RevisionDrawer({
   open, onClose, noteId, currentRevision, tr,
-  onRestored,
+  onRestored, initialPreviewRevision,
 }: {
   open: boolean;
   onClose: () => void;
@@ -19,6 +19,8 @@ export function RevisionDrawer({
   currentRevision: number;
   tr: (k: string, fallback?: string) => string;
   onRestored: () => void;
+  /** §20.1 note_revision 深链：加载后自动预览该版本。 */
+  initialPreviewRevision?: number;
 }) {
   const [revisions, setRevisions] = useState<NoteRevision[]>([]);
   const [busy, setBusy] = useState(false);
@@ -29,10 +31,24 @@ export function RevisionDrawer({
     if (!open || !noteId) return;
     let alive = true;
     getNoteRevisions(noteId)
-      .then((r) => { if (alive) setRevisions(r.revisions); })
+      .then((r) => {
+        if (!alive) return;
+        setRevisions(r.revisions);
+        // 深链自动预览：仅当该版本存在时执行一次。
+        if (initialPreviewRevision
+            && r.revisions.some((x) => x.revision === initialPreviewRevision)) {
+          readNoteRevision(noteId, initialPreviewRevision)
+            .then(({ content }) => {
+              if (!alive) return;
+              setPreviewRev(initialPreviewRevision);
+              setPreviewContent(content);
+            })
+            .catch(() => undefined);
+        }
+      })
       .catch(() => { if (alive) setRevisions([]); });
     return () => { alive = false; };
-  }, [open, noteId]);
+  }, [open, noteId, initialPreviewRevision]);
   const preview = previewRev === null ? null : { rev: previewRev, content: previewContent };
 
   const view = async (rev: number) => {
@@ -113,7 +129,7 @@ export function RevisionDrawer({
               </div>
               {preview?.rev === r.revision && (
                 <div className="mt-2 max-h-56 overflow-y-auto rounded-md border border-border bg-bg p-2">
-                  <MiniMarkdown className="text-[11px]">{preview.content}</MiniMarkdown>
+                  <div data-note-revision={`${noteId}:${preview.rev}`}><MiniMarkdown className="text-[11px]">{preview.content}</MiniMarkdown></div>
                 </div>
               )}
             </div>

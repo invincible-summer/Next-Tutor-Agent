@@ -196,7 +196,7 @@ async def voice_ws(websocket: WebSocket):
         student_id = user.id
     else:
         student_id = _consume_ticket(websocket.query_params.get("ticket", ""))
-        if student_id is None:
+        if student_id is None or student_id == "student_default" or student_id.startswith("guest_"):
             await websocket.close(code=4401)
             return
     await websocket.accept()
@@ -545,10 +545,12 @@ class _VoiceCall:
             await worker
         except asyncio.CancelledError:
             raise
-        except Exception as exc:
-            log.warning("voice agent turn failed: %s", exc)
+        except Exception:
+            # 异常串可能带本地路径/上游报错细节：日志留全量，对客户端只
+            # 给通用错误码（与 compat 门面的错误治理同款）。
+            log.exception("voice agent turn failed")
             await self._send({"type": "error", "code": "agent_error",
-                              "message": str(exc)})
+                              "message": "语音对话处理失败，请重试"})
             return
         finally:
             # Early returns and cancellation must not leak a live worker.

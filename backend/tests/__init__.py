@@ -47,6 +47,11 @@ def _force_keyless() -> None:
 
 _force_keyless()
 
+# Password tests verify hashing/verification, not production work-factor speed.
+# Keep the real bcrypt implementation while avoiding hundreds of 12-round
+# hashes on shared CI runners. Production defaults remain in identity/config.py.
+os.environ["AUTH_BCRYPT_ROUNDS"] = "4"
+
 # LLM 运行参数策略文件默认指向仓库内 chat_history/settings/llm_policy.json：
 # 本机管理页写过的值会泄漏进测试默认值（CI 无此文件，本地与 CI 行为分叉）。
 # 重定向进测试进程生命周期的临时目录（TemporaryDirectory 析构时清理），
@@ -58,5 +63,7 @@ try:
     from app.core import llm_policy as _llm_policy
     _llm_policy.POLICY_FILE = Path(_POLICY_DIR.name) / "llm_policy.json"
     _llm_policy.reset_policy_cache()
+    from app.core import guest_policy as _guest_policy
+    _guest_policy.POLICY_FILE = Path(_POLICY_DIR.name) / "guest_policy.json"
 except Exception:  # pragma: no cover - app 导入失败由具体测试兜底报错
     pass

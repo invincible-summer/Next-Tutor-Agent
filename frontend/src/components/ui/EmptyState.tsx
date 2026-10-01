@@ -1,4 +1,7 @@
+"use client";
 import type { ReactNode } from "react";
+import { useUIStore } from "@/lib/store";
+import { t } from "@/lib/i18n";
 import { cn } from "@/lib/cn";
 
 /** 空状态：图标 + 标题 + 描述 + 可选操作。 */
@@ -57,12 +60,13 @@ export function PageSkeleton() {
 
 /** 错误提示条。 */
 export function ErrorNote({ message, retry }: { message: string; retry?: () => void }) {
+  const lang = useUIStore((s) => s.lang);
   return (
     <div className="flex items-center justify-between gap-3 rounded-[8px] border border-danger/30 bg-danger/8 px-3 py-2 text-sm text-danger">
       <span>{message}</span>
       {retry && (
         <button onClick={retry} className="cursor-pointer text-xs font-medium underline">
-          重试
+          {t(lang, "common.retry")}
         </button>
       )}
     </div>

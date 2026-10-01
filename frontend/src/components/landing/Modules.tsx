@@ -1,49 +1,26 @@
-import { ModuleBadge } from "@/components/ui/Badge";
+import { ArrowDown, Check, FileText, Network } from "lucide-react";
 import { Reveal } from "./Reveal";
 import type { LandingTr } from "./LandingNav";
+import styles from "./landing.module.css";
 
-const MODULES = ["m0", "m1", "m2", "m3", "m4", "m5", "m6", "m7", "m8", "m9", "m10"] as const;
-
-/** 模块分节：M0–M10 编排流水线一览（无边框文字网格 + 徽章）。 */
 export function Modules({ tr }: { tr: LandingTr }) {
   return (
-    <section id="modules" className="scroll-mt-24 border-y border-border/60 bg-surface-sunken">
-      <div className="mx-auto max-w-6xl px-4 py-24 md:py-36">
-        <Reveal>
-          <p className="font-mono text-[11px] uppercase tracking-[0.3em] text-accent">
-            {tr("landing.modules.kicker")}
-          </p>
-          <h2 className="mt-4 max-w-2xl font-serif text-4xl font-bold leading-tight tracking-tight text-fg md:text-5xl">
-            {tr("landing.modules.title")}
-          </h2>
-          <p className="mt-5 max-w-xl leading-relaxed text-fg-secondary">
-            {tr("landing.modules.subtitle")}
-          </p>
+    <section id="modules" className={styles.principles}>
+      <div className={styles.principleInner}>
+        <Reveal className={styles.evidenceArt}>
+          <p className={styles.eyebrow}>{tr("landing.modules.artLabel")}</p>
+          <div className={styles.sourceCard}><FileText size={21} /><div><strong>{tr("landing.modules.source")}</strong><p>{tr("landing.modules.sourceDesc")}</p></div><span>01</span></div>
+          <ArrowDown className={styles.flowArrow} size={20} />
+          <div className={styles.evidenceCenter}><Network size={28} strokeWidth={1.4} /><h3>{tr("landing.modules.center")}</h3><p>{tr("landing.modules.centerDesc")}</p><div><span>{tr("landing.modules.chip1")}</span><span>{tr("landing.modules.chip2")}</span><span>{tr("landing.modules.chip3")}</span></div></div>
+          <ArrowDown className={styles.flowArrow} size={20} />
+          <div className={styles.sourceCard}><Check size={21} /><div><strong>{tr("landing.modules.next")}</strong><p>{tr("landing.modules.nextDesc")}</p></div><span>03</span></div>
+          <p className={styles.artCaption}>{tr("landing.modules.caption")}</p>
         </Reveal>
-
-        <div className="mt-16 grid gap-x-10 gap-y-8 sm:grid-cols-2 lg:grid-cols-3">
-          {MODULES.map((key, i) => (
-            <Reveal key={key} delay={Math.min(i * 40, 320)}>
-              <div className="group relative pt-4">
-                {/* 顶部发线：hover 时黛青扫入 */}
-                <span aria-hidden className="absolute inset-x-0 top-0 h-px bg-border" />
-                <span
-                  aria-hidden
-                  className="absolute inset-x-0 top-0 h-px origin-left scale-x-0 bg-accent transition-transform duration-500 ease-out group-hover:scale-x-100"
-                />
-                <div className="flex items-center gap-2.5 transition-transform duration-300 group-hover:translate-x-1">
-                  <ModuleBadge id={key.toUpperCase()} />
-                  <h3 className="text-sm font-semibold text-fg transition-colors duration-300 group-hover:text-accent">
-                    {tr(`landing.modules.${key}.name`)}
-                  </h3>
-                </div>
-                <p className="mt-2 text-xs leading-relaxed text-muted">
-                  {tr(`landing.modules.${key}.desc`)}
-                </p>
-              </div>
-            </Reveal>
-          ))}
-        </div>
+        <Reveal className={styles.principleCopy}>
+          <p className={styles.eyebrow}>{tr("landing.modules.kicker")}</p>
+          <h2>{tr("landing.modules.title")}</h2><p className={styles.intro}>{tr("landing.modules.subtitle")}</p>
+          {["1", "2", "3"].map((key) => <div className={styles.principleRow} key={key}><span>0{key}</span><div><h3>{tr(`landing.modules.${key}.title`)}</h3><p>{tr(`landing.modules.${key}.desc`)}</p></div></div>)}
+        </Reveal>
       </div>
     </section>
   );

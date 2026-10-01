@@ -14,6 +14,7 @@ import { Drawer } from "@/components/ui/Drawer";
 import { Modal, ConfirmModal } from "@/components/ui/Modal";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { et, type Lang } from "@/lib/evaluation-labels";
+import { localeFor } from "@/lib/i18n";
 import { verdictTone } from "@/lib/labels";
 import {
   createEvalReview,
@@ -359,7 +360,7 @@ export function EvidenceDetailDrawer({
                       {r.reason}
                       {label && r.decided_at && (
                         <span className="ml-1 text-muted">
-                          {new Date(r.decided_at).toLocaleDateString()}
+                          {new Date(r.decided_at).toLocaleDateString(localeFor(lang))}
                         </span>
                       )}
                     </li>
@@ -468,7 +469,7 @@ export function EvidenceTimeline({
     <>
       <ul className="space-y-2" data-testid="evidence-timeline">
         {items.map((it) => (
-          <li key={it.source_id} className="rounded-[10px] border border-border-light bg-surface px-3 py-2.5">
+          <li key={it.source_id} data-source-id={it.source_id} className="rounded-[10px] border border-border-light bg-surface px-3 py-2.5">
             <div className="mb-1 flex flex-wrap items-center gap-1.5">
               <Badge tone={it.kind === "dialogue" ? "info" : "accent"}>
                 {et(lang, `eval.source.${it.kind || "dialogue"}`)}

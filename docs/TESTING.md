@@ -1,0 +1,109 @@
+# 测试与 CI 维护
+
+## 执行分层
+
+普通提交只运行一套必需检查，耗时较大的可选能力放在独立回归中。两套工作流都不使用真实模型凭证，也不向生产存储写入数据。
+
+| 工作流 / 检查 | 触发条件 | 内容 | 是否阻止合并 |
+| --- | --- | --- | --- |
+| `CI` / `Backend` | PR → main、main push、`v*` tag、手动 | 仓库数据安全检查；BM25 环境的全部后端 unittest，包括鉴权、数据隔离、课堂渲染和 API 行为 | 是 |
+| `CI` / `Frontend and smoke` | 同上 | TypeScript、ESLint、三个 Node 单元测试脚本、生产构建、关键浏览器旅程 | 是 |
+| `CI` / `CI result` | 上述两个 job 完成后 | 仅当两个 job 都成功才成功；失败、取消、跳过均不能冒充通过 | **main 唯一 required check** |
+| `Extended regression` / `Optional vector backend` | 每周一 02:17（UTC+8）、手动 | 安装 Chroma 向量依赖，运行 local RAG / hybrid RAG 回归 | 否，发布更新前检查 |
+| `Extended regression` / `Full browser regression` | 同上 | 生产构建上的完整浏览器套件，包含编辑、恢复、冲突、语音、助手等路径 | 否，发布更新前检查 |
+
+主流程的两个执行 job 各限时 25 分钟。冒烟自身最多 8 分钟；完整浏览器套件最多 25 分钟，其 job 连同安装和构建最多 35 分钟。超时是故障信号，应查看具体步骤和 trace，不能靠无限延长上限解决。
+
+主分支保护使用 `CI result`，要求 PR，但不要求人工批准；管理员保留应急绕过能力。不要求每个 PR 都同步到 main 最新提交，不增加覆盖率百分比、操作系统矩阵或新的静态检查工具。
+
+## 环境与准备
+
+CI 使用 Ubuntu 24.04、Python 3.11、Node.js 22，pnpm 版本由 `frontend/package.json` 的 `packageManager` 固定。Python 约束在 `backend/constraints.txt`，前端依赖按 `pnpm-lock.yaml` 安装。共享准备步骤在 `.github/actions/setup-project/action.yml`，避免后端和浏览器 job 的环境漂移。
+
+从仓库根目录准备一个独立 Python 环境（以下以 Linux 为例，需要 `rsync`）：
+
+```bash
+python3.11 -m venv .venv
+source .venv/bin/activate
+python -m pip install -r backend/requirements.txt -r backend/requirements-test.txt
+cd frontend
+pnpm install --frozen-lockfile
+pnpm exec playwright install --with-deps chromium
+pnpm build:classroom
+```
+
+后端课堂回归也会调用真实 Node/Chromium 渲染器，必须先准备浏览器与离线课堂资源。缺失资源曾导致大量 `renderer_unavailable` 和级联发布失败。`requirements-test.txt` 只包含轻量测试依赖；运行向量回归时额外安装 `requirements-vector.txt`。
+
+## 本地命令
+
+在已激活的 Python 环境中，从仓库根目录执行：
+
+```bash
+python scripts/check_repository_invariants.py
+cd backend
+python -m tests
+# 按模块或类运行，仍保留完整存储沙箱：
+python -m tests tests.test_orchestration.TestAPIContracts
+```
+
+`python -m tests` 基于标准库 unittest，增加进程级临时存储兜底，并在退出时清理临时文件。每个涉及存储的测试仍须使用 `StorageSandboxTestCase`，或在有自定义基类时调用 `patch_all_storage_roots`；兜底不能替代用例之间的隔离。不要直接对运行中的服务执行测试。
+
+前端检查与 CI 一致：
+
+```bash
+cd frontend
+pnpm check
+NEXT_PUBLIC_BACKEND_URL=http://127.0.0.1:8124 pnpm build
+E2E_PRODUCTION=1 E2E_FRESH=1 pnpm test:e2e:ci
+# 完整浏览器回归：
+E2E_PRODUCTION=1 E2E_FRESH=1 pnpm test:e2e
+```
+
+`pnpm check` 包含类型检查、lint，以及播放器、i18n、助手导航三个轻量单元测试。`pnpm build` 统一使用 webpack 生产构建。生产模式的后端地址必须在**构建时**设置，不能仅在 `next start` 时改变。
+
+Playwright 自动启动 fake LLM（8199）、隔离后端（8124）和前端（3030），等待后端 `/ready` 成功后再运行。开发调试可不设置 `E2E_PRODUCTION`，使用 Next dev。端口冲突时调整 `E2E_BACKEND_PORT` / `E2E_FRONTEND_PORT`，并重新用相同后端地址构建。`E2E_PYTHON` 可指定 Python 可执行文件；`E2E_BACKEND_HOME` 可指定专用临时副本目录，`E2E_FRESH=1` 会删除该目录后重建，不能指向项目或其他有用数据。
+
+向量回归：
+
+```bash
+python -m pip install -r backend/requirements-vector.txt
+cd backend
+python -m tests tests.test_local_rag tests.test_rag_hybrid
+```
+
+浏览器失败后查看 `frontend/playwright-report/` 和 `frontend/test-results/`。GitHub 上传 HTML 报告、截图和 trace，保留 7 天。CI 最多重试一次浏览器用例；诊断抖动时加 `--retries=0`，不要用重试掩盖稳定复现的失败。
+
+## 保留与删减规则
+
+- 保留鉴权、越权、跨用户/工作区隔离、持久化、核心教学链路、课堂发布/恢复/冲突和降级行为。测试数量不设人为上限。
+- 按行为领域组织文件。同一领域的小文件合并，但保留不同边界条件；同样的 fixture、调用、断言才视为重复用例。
+- 日常浏览器冒烟只包含 `auth-isolation`、`textbook-bm25`、`strict-qa`、`grounded-quiz`、`notes`、`classroom-workflow` 六个文件。新增 spec 默认进入完整回归；只有关键用户旅程才加入冒烟白名单。
+- 删除只检验过时迁移完成状态、私人且未提交的运维文档、手写假界面样式或旧调试截图的测试。仓库安全检查继续保护运行数据边界（任何教材/派生数据不得入库）和单 worker 部署约束。
+- 暂不维护手机端适配矩阵。真实课堂 HTML 的浅色/深色与桌面窄窗口检查继续保留。
+- 浏览器模拟接口须遵循当前路由和数据状态；等待可见状态/响应，避免立即读取异步数组或动画中间值。真实身份测试使用真实 JWT；模拟身份只能用于明确模拟了接口的用例。
+
+本次整理合并了 12 个后端文件：prompt memory 生命周期相关的 3 个文件、workspace memory boundary、model info、navigation file preview、round count、session material cleanup、material retrieval、quiz strict relevance，以及教材 OCR/quality API。删除一个重复的无目标计划用例、两项依赖未提交运维文档的断言、重复的本人教材浏览用例、旧课堂假 HTML 视觉套件和 7 个硬编码调试脚本。对应的领域行为断言迁入现有领域文件；可选向量回归不再重复整套鉴权/部署检查。
+
+| 保留的后端文件 | 合并进入的旧文件（均在 `backend/tests/`） |
+| --- | --- |
+| `test_prompt_memory_lifecycle.py` | `test_memory_safety.py`、`test_legacy_prompt_memory.py`、`test_lifecycle_contracts.py` |
+| `test_workspace_isolation.py` | `test_workspace_memory_boundary.py` |
+| `test_bootstrap_readiness.py` | `test_model_info.py` |
+| `test_library.py` | `test_navigation_file_preview.py` |
+| `test_session_isolation.py` | `test_round_count.py`、`test_session_material_cleanup.py` |
+| `test_rag_v2.py` | `test_material_retrieval.py` |
+| `test_quiz_grounding.py` | `test_quiz_grounding_strict_relevance.py` |
+| `test_textbook_api.py` | `test_textbook_ocr_api.py`、`test_textbook_quality_api.py` |
+
+完整回归还修复了生产模式下 PDF 预览关闭/翻页时查询状态不同步、导出错误提示遮挡重试菜单两处界面问题。预览页码使用与 `useSearchParams` 同步的原生 history 更新（[Next.js 官方说明](https://nextjs.org/docs/app/getting-started/linking-and-navigating#native-history-api)）；真实交互回归继续检查关闭、重新导航和浏览器历史。
+
+## GitHub 与 v2.1.0 更新顺序
+
+1. 先运行修改领域的测试，再运行后端完整套件、前端检查/生产构建、冒烟、完整浏览器和向量回归；最后检查 `git diff --check`。
+2. 提交改动，确认目标提交的 GitHub `CI` 成功。在默认分支上手动运行 `Extended regression`，核对它与目标提交 SHA 一致。
+3. 停用旧的 one-shot design consistency、publish-v1.0.0、publish-v1.1.0 工作流。保留运行历史和已发布版本，不让历史发布工具承担当前 CI。
+4. main 只绑定 `CI result`，避免已删除的旧 job 名称留下永远 pending 的 required checks。
+5. 仅在上述检查通过后，将**现有 `v2.1.0`** 移到该提交，同时更新现有 Release 的说明与 target。移动前核对远端旧 tag，使用带 lease 的推送防止覆盖其他人的同步更新。不创建新版本，不删除旧发布历史。
+6. 核对 `v2.1.0` 触发的 CI 也成功，并记录最终提交与运行链接。版本号仍为 2.1.0。
+
+上述步骤适用于本次明确授权的现有版本更新；日常开发不自动移动发布标签。

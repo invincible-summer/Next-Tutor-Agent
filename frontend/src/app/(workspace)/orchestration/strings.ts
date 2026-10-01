@@ -3,6 +3,10 @@ import type { PageStrings } from "@/lib/i18n-page";
 
 export const STRINGS = {
   zh: {
+    "goal.gap.layer": "第 %n 层",
+    "goal.skills.supported": "已支持",
+    "form.desc.ph": "例如：期末物理上册考到 85 分，重点补力学",
+    "lt.suggesting": "建议生成中…",
     "page.title": "学习编排",
     "page.desc": "M9 学习编排智能 · 多长期目标 → 周计划 → 今日任务 + 间隔复习",
     "action.dismiss": "关闭",
@@ -93,6 +97,8 @@ export const STRINGS = {
     "catalog.anySubject": "（不限）",
     "catalog.loading": "目录加载中…",
 
+    "orch.deep.taskMissing": "未在今日任务中找到该任务，可能已被完成或移除。",
+    "orch.deep.goalMissing": "未找到该学习目标，可能已被删除。",
     "today.title": "今日任务",
     "today.desc": "由周计划与 SRS 到期队列生成",
     "today.pending": "待完成",
@@ -202,6 +208,12 @@ export const STRINGS = {
     "err.load": "学习编排数据加载失败，请确认后端服务已启动。",
   },
   en: {
+    "goal.gap.layer": "Layer %n",
+    "goal.skills.supported": "supported",
+    "form.desc.ph": "e.g. Score 85 on the physics final, focusing on mechanics",
+    "lt.suggesting": "Generating suggestions…",
+    "orch.deep.taskMissing": "Task not found in today's list; it may be completed or removed.",
+    "orch.deep.goalMissing": "Goal not found; it may have been deleted.",
     "page.title": "Orchestration",
     "page.desc": "M9 learning orchestration · goals → weekly plan → daily tasks + spaced review",
     "action.dismiss": "Dismiss",

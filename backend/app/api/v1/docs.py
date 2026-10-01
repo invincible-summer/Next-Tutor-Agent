@@ -23,9 +23,9 @@ _PAGE_RE = re.compile(r"^p-\d{1,4}\.png$")
 
 
 @router.get("/content")
-def docs_content() -> dict:
+def docs_content(lang: usage_docs.DocsLang = "zh") -> dict:
     """The usage document (markdown + last-edit metadata). Public read."""
-    data = usage_docs.read_docs()
+    data = usage_docs.read_docs(lang)
     return {"status": "ok", "show_manual": usage_docs.show_manual_available(), **data}
 
 
@@ -51,6 +51,7 @@ def docs_show_manual_page(page: str) -> FileResponse:
 
 class DocsContentBody(BaseModel):
     markdown: str
+    lang: usage_docs.DocsLang = "zh"
 
 
 @router.put("/content")
@@ -58,7 +59,7 @@ def docs_update(body: DocsContentBody,
                 admin: User = Depends(require_admin)) -> dict:
     """Replace the usage document (markdown). Admin only."""
     try:
-        payload = usage_docs.write_docs(body.markdown, updated_by=admin.username)
+        payload = usage_docs.write_docs(body.markdown, updated_by=admin.username, lang=body.lang)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except OSError:

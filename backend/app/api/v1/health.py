@@ -56,8 +56,17 @@ def model_info():
     2026-09 起视觉与主通道合一：multimodal_configured 即主 LLM 通道已配置，
     multimodal_model 恒等于 llm_model（字段保留以兼容前端）。
     """
+    from app.voice.tts.service import azure_available, local_tts_enabled
     return {
         "llm_model": settings.llm_model,
         "multimodal_configured": bool(settings.llm_api_key),
         "multimodal_model": settings.llm_model,
+        "voice_models": {
+            "cloud": {"model": "Azure Speech", "configured": azure_available(),
+                      "voices": [settings.classroom_tts_voice_zh, settings.classroom_tts_voice_en]},
+            "local": {"model": "MeloTTS-Chinese", "enabled": local_tts_enabled(),
+                      "voice": "melo-zh", "languages": ["zh-CN"]},
+            "phone_provider": settings.voice_tts_provider,
+            "automatic_priority": "local",
+        },
     }

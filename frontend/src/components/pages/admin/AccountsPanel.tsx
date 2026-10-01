@@ -109,6 +109,7 @@ export function AccountsPanel({
     [tr("adm.users.storage.students"), fmtBytes(st.students_bytes)],
     [tr("adm.users.storage.knowledge"), fmtBytes(st.knowledge_bytes)],
     [tr("adm.users.storage.trashB"), fmtBytes(st.trash_bytes)],
+    [tr("adm.users.storage.avatars"), fmtBytes(st.avatar_bytes ?? 0)],
     [tr("adm.users.storage.sessions"), String(st.session_count)],
     [tr("adm.users.storage.files"), String(st.file_count)],
   ] as const);

@@ -12,15 +12,17 @@ import type { Tr } from "./shared";
  * 档案；Dashboard 不另算指标、不展示总体能力等级。 */
 export function AttentionCard({
   workspaces,
+  deepWorkspaceId,
   lang,
   tr,
 }: {
   workspaces: WorkspaceEvaluationListItem[];
+  deepWorkspaceId?: string;
   lang: Lang;
   tr: Tr;
 }) {
   const [open, setOpen] = useState(false);
-  const rows = open ? workspaces : workspaces.slice(0, 4);
+  const rows = open || deepWorkspaceId ? workspaces : workspaces.slice(0, 4);
   return (
     <Card>
       <CardHeader
@@ -39,6 +41,7 @@ export function AttentionCard({
             return (
               <Link
                 key={w.workspace_id}
+                data-dashboard-ws={w.workspace_id}
                 href={"/memory?ws=" + encodeURIComponent(w.workspace_id)}
                 className="block rounded-[8px] px-2 py-2 transition-colors hover:bg-surface-hover"
               >

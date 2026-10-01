@@ -8,8 +8,11 @@ import { Card, CardHeader } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { cn } from "@/lib/cn";
 import { Field, inputCls, type Tr } from "./Field";
+import { localeFor } from "@/lib/i18n";
+import { useUIStore } from "@/lib/store";
 
 export function OcrPanel({ tr }: { tr: Tr }) {
+  const lang = useUIStore((s) => s.lang);
   const [busy, setBusy] = useState(false);
   const [applied, setApplied] = useState(false);
   const [showDetail, setShowDetail] = useState(false);
@@ -60,7 +63,7 @@ export function OcrPanel({ tr }: { tr: Tr }) {
     { label: tr("adm.ocr.stat.pages"), value: String(ocrPolicy?.active_ocr_pages ?? 0) },
     { label: tr("adm.ocr.stat.waiting"), value: String(ocrPolicy?.retry_waiting_pages ?? 0) },
     { label: tr("adm.ocr.stat.failureMode"), value: ocrPolicy ? failureModeLabels[ocrPolicy.failure_mode] : "—" },
-    { label: tr("adm.ocr.stat.nextRetry"), value: ocrPolicy?.next_retry_at ? new Date(ocrPolicy.next_retry_at * 1000).toLocaleTimeString() : "—" },
+    { label: tr("adm.ocr.stat.nextRetry"), value: ocrPolicy?.next_retry_at ? new Date(ocrPolicy.next_retry_at * 1000).toLocaleTimeString(localeFor(lang)) : "—" },
     { label: tr("adm.ocr.stat.generation"), value: String(ocrPolicy?.generation ?? "—") },
     { label: tr("adm.ocr.stat.version"), value: ocrPolicy ? `v${ocrPolicy.policy_version}` : "—" },
   ];

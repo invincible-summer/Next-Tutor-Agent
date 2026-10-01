@@ -103,6 +103,12 @@ export async function getModelInfo(): Promise<{
   llm_model: string;
   multimodal_configured: boolean;
   multimodal_model: string;
+  voice_models?: {
+    cloud: { model: string; configured: boolean; voices: string[] };
+    local: { model: string; enabled: boolean; voice: string; languages: string[] };
+    phone_provider: string;
+    automatic_priority: string;
+  };
 }> {
   const res = await apiFetch(`${BASE}/model-info`);
   if (!res.ok) throw new Error(`model-info failed: ${res.status}`);
@@ -300,6 +306,7 @@ export interface AdminUserStorage {
   students_bytes: number;
   knowledge_bytes: number;
   trash_bytes: number;
+  avatar_bytes?: number;
   total_bytes: number;
   session_count: number;
   file_count: number;
@@ -388,6 +395,32 @@ export interface AdminOrphanCategory {
   bytes: number;
   samples: string[];
 }
+
+export interface AdminGuestPolicy { allow_guests: boolean; updated_at: number }
+export interface AdminGuestData {
+  active: { visitors: number; sessions: number; questions: number; tasks: number };
+  categories: Record<string, { items: number; bytes: number }>;
+  total_items: number;
+  total_bytes: number;
+}
+export interface AdminGuestPurge {
+  status: "purged" | "partial";
+  active: { visitors: number; cancelled_tasks: number };
+  total_deleted: number;
+  total_bytes: number;
+  failed: number;
+}
+async function guestAdminRequest<T>(path: string, init?: RequestInit): Promise<T> {
+  const res = await apiFetch(`${BASE}/admin/${path}`, init);
+  if (!res.ok) throw new Error(`Guest administration failed: ${res.status}`);
+  return res.json();
+}
+export const getAdminGuestPolicy = () => guestAdminRequest<AdminGuestPolicy>("guest-policy");
+export const setAdminGuestPolicy = (allowGuests: boolean) => guestAdminRequest<AdminGuestPolicy>("guest-policy", {
+  method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ allow_guests: allowGuests }),
+});
+export const scanAdminGuestData = () => guestAdminRequest<AdminGuestData>("guest-data");
+export const purgeAdminGuestData = () => guestAdminRequest<AdminGuestPurge>("guest-data/purge", { method: "POST" });
 
 export interface AdminOrphanReport {
   protected_ids: string[];
@@ -710,7 +743,7 @@ export async function voiceTicket(): Promise<{ ticket: string; expires_in: numbe
 }
 
 export async function* chatStream(
-  body: { message: string; session_id?: string | null; workspace_id?: string | null; grade?: string; lang?: string; output_language?: string | null; attachments?: unknown[]; classroom_ref?: unknown },
+  body: { message: string; session_id?: string | null; workspace_id?: string | null; grade?: string; lang?: string; output_language?: string | null; attachments?: unknown[]; classroom_ref?: unknown; public_textbook_ids?: string[] },
   signal?: AbortSignal,
 ): AsyncGenerator<ChatSSEEvent> {
   const res = await apiFetch(`${BASE}/chat/stream`, {

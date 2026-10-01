@@ -132,6 +132,15 @@ class ClassroomApiTests(StorageSandboxTestCase):
         resp = self.client.get("/api/v1/classroom/templates")
         self.assertEqual(resp.status_code, 403)
 
+    def test_frame_rejects_removed_reading_mode(self):
+        from app.core.config import settings
+        with patch.object(settings, "classroom_enabled", True):
+            response = self.client.get(
+                f"/api/v1/workspaces/{WS_A}/classroom/lessons/les_test"
+                "/revisions/1/frame?mode=reading")
+        self.assertEqual(response.status_code, 422)
+        self.assertEqual(response.json()["error"]["code"], "content_invalid")
+
     def test_create_idempotent_and_conflict(self):
         key = "idem-" + "a" * 16
         from app.core.config import settings as real_settings
@@ -145,7 +154,7 @@ class ClassroomApiTests(StorageSandboxTestCase):
             job = classroom_store.load_job(
                 self.user_a.id, WS_A, first["lesson_id"], first["job_id"])
             self.assertEqual(job.renderer_version, "2.0.0")
-            self.assertEqual(job.slide_prompt_version, "2.1.0")
+            self.assertEqual(job.slide_prompt_version, "2.6.0")
             brief = json.loads((classroom_store.job_root(
                 self.user_a.id, WS_A, first["lesson_id"], first["job_id"])
                 / "brief.json").read_text(encoding="utf-8"))

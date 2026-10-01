@@ -16,7 +16,7 @@ from unittest import mock
 _BACKEND = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(_BACKEND))
 
-from tests.storage_sandbox import StorageSandboxTestCase  # noqa: E402
+from tests.storage_sandbox import StorageSandboxTestCase, authenticated_client  # noqa: E402
 
 from app.classroom import runs as runs_mod  # noqa: E402
 from app.classroom.chat_context import (  # noqa: E402
@@ -246,7 +246,7 @@ class ClassroomChatTests(RevisionTestBase):
 
         app = create_app()
         app.dependency_overrides[id_deps.resolve_student_id] = lambda: OWNER
-        client = TestClient(app)
+        client = authenticated_client(app, OWNER)
         ref = _ref(self.run, self.first_slide)
         with mock.patch("app.api.v1.chat._build_tools", _tools), \
              mock.patch("app.agents.chat_agent.run_turn", _fake_run_turn), \
@@ -271,7 +271,7 @@ class ClassroomChatTests(RevisionTestBase):
 
         app = create_app()
         app.dependency_overrides[id_deps.resolve_student_id] = lambda: OWNER
-        client = TestClient(app)
+        client = authenticated_client(app, OWNER)
         ref = _ref(self.run, self.first_slide)
         r = client.post("/api/v1/chat/stream", json={
             "message": "提问", "session_id": "sess_someone_else",
@@ -374,7 +374,7 @@ class ClassroomChatTests(RevisionTestBase):
         ctx = self._resolve()
         app = create_app()
         app.dependency_overrides[id_deps.resolve_student_id] = lambda: OWNER
-        client = TestClient(app)
+        client = authenticated_client(app, OWNER)
         lease = runs_mod.acquire_lease(
             OWNER, WS, self.lesson_id, self.run.run_id,
             sc.LeaseAcquireRequest(client_id="client-qa-00002"))
@@ -450,7 +450,7 @@ class ClassroomChatTests(RevisionTestBase):
 
         app = create_app()
         app.dependency_overrides[id_deps.resolve_student_id] = lambda: OWNER
-        client = TestClient(app)
+        client = authenticated_client(app, OWNER)
         url = (f"/api/v1/workspaces/{WS}/classroom/lessons/{self.lesson_id}"
                f"/runs/{self.run.run_id}/qa-session")
         r1 = client.post(url, headers={"Idempotency-Key": "k-qa-ep-0000000001"})

@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="320" viewBox="0 0 1200 320" role="img" aria-labelledby="title desc">
+  <title id="title">Next Tutor Agent</title>
+  <desc id="desc">A textbook-centered learning journey: read, explore, practice, reflect.</desc>
+  <defs>
+    <linearGradient id="bg" x2="1" y2="1"><stop stop-color="#102e2b"/><stop offset="1" stop-color="#1e4842"/></linearGradient>
+    <pattern id="grid" width="32" height="32" patternUnits="userSpaceOnUse"><path d="M32 0H0V32" fill="none" stroke="#fff" stroke-opacity=".04"/></pattern>
+  </defs>
+  <rect width="1200" height="320" rx="24" fill="url(#bg)"/>
+  <rect width="1200" height="320" rx="24" fill="url(#grid)"/>
+  <circle cx="1100" cy="35" r="215" fill="none" stroke="#b6d7c6" stroke-opacity=".13"/>
+  <circle cx="1100" cy="35" r="155" fill="none" stroke="#b6d7c6" stroke-opacity=".13"/>
+  <g font-family="Arial, sans-serif">
+    <text x="62" y="65" font-size="13" letter-spacing="4" fill="#b6d7c6">A SPACE FOR UNDERSTANDING</text>
+    <text x="60" y="135" font-size="53" font-weight="600" fill="#fffdf5">Next Tutor Agent</text>
+    <text x="63" y="173" font-size="18" fill="#c1d5cc">Your textbook. Your questions. Your next step.</text>
+    <path d="M76 251H1070" stroke="#b6d7c6" stroke-opacity=".3"/>
+    <g fill="#efc98c"><circle cx="76" cy="251" r="5"/><circle cx="352" cy="251" r="5"/><circle cx="628" cy="251" r="5"/><circle cx="904" cy="251" r="5"/></g>
+    <g font-size="14" fill="#fffdf5"><text x="93" y="256">01 / READ</text><text x="369" y="256">02 / EXPLORE</text><text x="645" y="256">03 / PRACTICE</text><text x="921" y="256">04 / REFLECT</text></g>
+  </g>
+  <g transform="translate(890 85)" fill="none" stroke="#efc98c" stroke-width="2.5" stroke-linejoin="round">
+    <path d="M0 0Q42-12 78 8V104Q42 84 0 96ZM78 8Q114-12 156 0V96Q114 84 78 104Z"/>
+    <path d="M18 24Q40 20 59 30M18 42Q40 38 59 48M97 30Q119 20 138 24M97 48Q119 38 138 42" opacity=".55"/>
+  </g>
+</svg>

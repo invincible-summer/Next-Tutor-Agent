@@ -115,6 +115,42 @@ def read_events(student_id: str, limit: int = _MAX_EVENTS_REPLAY) -> list[Orches
     return out
 
 
+def read_events_with_coverage(student_id: str) -> tuple[list[OrchestrationEvent], dict]:
+    """严格读取全部事件并区分文件缺失/损坏（plan.md §7.4-10）。
+
+    返回 (events, coverage)：coverage = {exists, readable, invalid_count,
+    total_lines, truncated}。坏行不吞成成功；读取失败时 events 为空且
+    readable=False，调用方必须按 error 而非 empty 处理。不会截断——
+    超出读取预算时 truncated=True 且仅返回最近的事件。
+    """
+    from .schema import _MAX_EVENTS_STRICT_BUDGET
+
+    path = _resolve(student_id, ext=".orchestration_events.jsonl")
+    coverage = {"exists": path.exists(), "readable": True,
+                "invalid_count": 0, "total_lines": 0, "truncated": False}
+    if not path.exists():
+        return [], coverage
+    out: list[OrchestrationEvent] = []
+    try:
+        with path.open("r", encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                coverage["total_lines"] += 1
+                try:
+                    out.append(OrchestrationEvent.from_dict(json.loads(line)))
+                except Exception:
+                    coverage["invalid_count"] += 1
+    except Exception:
+        coverage["readable"] = False
+        return [], coverage
+    if len(out) > _MAX_EVENTS_STRICT_BUDGET:
+        out = out[-_MAX_EVENTS_STRICT_BUDGET:]
+        coverage["truncated"] = True
+    return out, coverage
+
+
 def state_summary(student_id: str) -> dict[str, Any]:
     """A flattened read for the orchestration API (state + derived signals).
     Never raises; returns a minimal dict on any failure."""

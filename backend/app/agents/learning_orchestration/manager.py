@@ -47,6 +47,8 @@ Design contract (mirrors M2/M3/M4/M5/M6/M7/M8):
 from __future__ import annotations
 
 import asyncio
+import hashlib
+import json
 import os
 import time
 from typing import Any
@@ -91,13 +93,30 @@ class LearningOrchestrationService:
     # --- internal helpers ------------------------------------------------
 
     def _load(self, student_id: str) -> OrchestrationState:
-        return store.load_state(student_id)
+        state = store.load_state(student_id)
+        if state.event_outbox:
+            # §22.2-3：重启/中断后补发未确认事件（按 event_id 去重）。
+            try:
+                from . import history
+                history.flush_outbox(student_id, state=state)
+            except Exception:
+                pass
+        return state
 
     def _save(self, student_id: str, state: OrchestrationState,
               *, event: OrchestrationEvent | None = None) -> bool:
+        # §22.2-1：保存前补齐缺失的 task_instance_id（迁移随写持久化）。
+        from . import history as _history
+        _history.ensure_task_instance_ids(state)
         ok = store.save_state(student_id, state)
         if event:
             store.append_event(student_id, event)
+        if state.event_outbox:
+            # §22.2-3：同一事务已随 state 落盘；投递成功后确认移除。
+            try:
+                _history.flush_outbox(student_id, state=state)
+            except Exception:
+                pass  # 保留 outbox，下次加载补发
         return ok
 
     # --- READ SIDE: JIT analysis -> directive string --------------------
@@ -332,10 +351,17 @@ class LearningOrchestrationService:
             task = next((t for t in state.daily_tasks if t.id == task_id), None)
             if task is None or task.status.value == "completed":
                 return emitted, ""
+            from_status = task.status
             task.status = DailyTaskStatus.COMPLETED
             task.completed_at = now
             task.completion_source = "quiz_evidence"
             task.evidence_attempt_id = attempt_id
+            # §22.2-2：证据绑定完成也记状态事件（quiz_evidence + attempt）。
+            from . import history as _history
+            _history.note_status_change(
+                state, task, from_status,
+                completion_source="quiz_evidence",
+                evidence_attempt_id=attempt_id, now=now)
             todays = [t for t in state.daily_tasks if t.day == task.day]
             if todays and all(t.status.value == "completed" for t in todays):
                 emitted.append(event_emitter.task_batch_completed_event(
@@ -599,6 +625,169 @@ class LearningOrchestrationService:
         except Exception:
             return False
 
+    async def _compute_plan_weeks(self, student_id: str,
+                                  state: OrchestrationState, *,
+                                  num_weeks: int = 4,
+                                  now: float | None = None) -> list[WeeklyPlan]:
+        """周计划计算本体（regenerate 与候选构建共用，§21.6.3）。
+
+        LLM-first：一次 weekly_planner_llm 调用排出 N 周 action 级
+        WeekTask + SubTask；校验门（概念子集/不重复/全覆盖/上限）任何
+        失败都回落确定性 learning_planner + derive_tasks_fallback。
+        """
+        now = now if now is not None else time.time()
+        weeks: list[WeeklyPlan] | None = None
+        # LLM weekly planner (validated; deterministic fallback below).
+        # Big syllabi (100+ required concepts) are planned in a near-term
+        # WINDOW: the gate's full-coverage rule applies to the window,
+        # not the whole gap list -- later replans schedule the rest.
+        # Multi-goal: every goal's required chain is merged (goal order,
+        # deduped) into one shared window.
+        if is_enabled():
+            try:
+                if not any(gs.required_skills
+                           for gs in state.goal_states):
+                    self._analyze_goals_safe(state, student_id=student_id)
+                required: list[str] = []
+                seen: set[str] = set()
+                for gs in state.goal_states:
+                    for sid in (gs.required_skills or []):
+                        if sid not in seen:
+                            seen.add(sid)
+                            required.append(sid)
+                window = required[:num_weeks * learning_planner._MAX_CONCEPTS_PER_WEEK]
+                if window:
+                    evaluation_view = self._evaluation_view_safe(
+                        student_id, self._shared_goal_workspace(state))
+                    # concept-bound goals span subjects: look names up
+                    # across the whole graph, not just the first subject
+                    name_subject = ("" if any(g.target_concept_ids
+                                              for g in state.goals)
+                                    else state.primary_subject)
+                    names = self._concept_names_safe(
+                        name_subject, student_id=student_id)
+                    content, _usage = await self._get_llm().complete(
+                        weekly_planner_llm.build_weekly_prompt(
+                            state.goals_label, window, names,
+                            evaluation_view, num_weeks,
+                            state.schedule.daily_minutes),
+                        max_tokens=3000, disable_thinking=True)
+                    skeletons = weekly_planner_llm.parse_weekly_response(
+                        content, window, num_weeks)
+                    if skeletons:
+                        weeks = weekly_planner_llm.weeks_from_skeletons(
+                            skeletons, names, now=now)
+            except Exception:
+                weeks = None
+
+        if weeks is None:
+            # deterministic fallback: graph topo-sort + schedule split
+            inputs = self._assemble_plan_inputs(student_id, state, now)
+            weeks = learning_planner.generate_weekly_plan(
+                state, next_learnable=inputs["next_learnable"],
+                review_candidates=inputs["review_candidates"],
+                evaluation_view=inputs["evaluation_view"],
+                prereq_map=inputs["prereq_map"],
+                num_weeks=num_weeks, now=now)
+            weekly_planner_llm.derive_tasks_fallback(weeks)
+        return weeks
+
+    def _apply_plan_weeks(self, student_id: str, state: OrchestrationState,
+                          weeks: list[WeeklyPlan], *,
+                          now: float | None = None) -> tuple[bool, str]:
+        """把计算好的周计划合并落盘（user 来源内容原样保留）。"""
+        now = now if now is not None else time.time()
+        state.last_plan_attempt = now
+        state.weekly_plan = _merge_user_plan(state.weekly_plan, weeks)
+        self._save(student_id, state,
+                   event=OrchestrationEvent(type="plan_regenerated",
+                       payload={"weeks": len(state.weekly_plan)}))
+        if state.weekly_plan:
+            return True, ""
+        return True, "empty_plan"
+
+    @staticmethod
+    def _goals_fingerprint(state: OrchestrationState) -> str:
+        """影响规划的目标/日程字段指纹；变化使未提交候选失效。"""
+        payload = {
+            "goals": [{
+                "id": g.id, "title": g.title, "goal_type": g.goal_type,
+                "subjects": list(g.subjects),
+                "target_concept_ids": list(g.target_concept_ids),
+                "workspace_id": getattr(g, "workspace_id", ""),
+                "deadline": float(g.deadline or 0.0),
+            } for g in state.goals],
+            "daily_minutes": state.schedule.daily_minutes,
+        }
+        return hashlib.sha1(json.dumps(payload, ensure_ascii=False,
+                                       sort_keys=True).encode(
+            "utf-8")).hexdigest()[:16]
+
+    async def build_plan_candidate(self, student_id: str, *,
+                                   num_weeks: int = 4,
+                                   now: float | None = None) -> dict[str, Any]:
+        """§21.6.3 两阶段重规划·阶段一：计算并持久化候选（不应用）。
+
+        候选内容哈希即 candidate_id：同状态重复预览得到同一候选；
+        提交阶段不再调用模型，逐字应用本候选。候选 10 分钟未提交过期。
+        """
+        now = now if now is not None else time.time()
+        state = self._load(student_id)
+        if not state.has_goals:
+            raise ValueError("no_goal")
+        weeks = await self._compute_plan_weeks(
+            student_id, state, num_weeks=num_weeks, now=now)
+        candidate: dict[str, Any] = {
+            "weeks": [w.to_dict() for w in weeks],
+            "num_weeks": int(num_weeks),
+            "created_at": float(now),
+            "goals_fingerprint": self._goals_fingerprint(state),
+        }
+        candidate_id = "pc_" + hashlib.sha1(
+            json.dumps(candidate["weeks"], ensure_ascii=False,
+                       sort_keys=True).encode("utf-8")).hexdigest()[:16]
+        # 过期清理（10 分钟）+ 最多保留 3 份未提交候选。
+        kept = {k: v for k, v in state.plan_candidates.items()
+                if now - float(v.get("created_at") or 0) < 600.0}
+        if len(kept) >= 3:
+            for old_id in sorted(kept, key=lambda k: float(
+                    kept[k].get("created_at") or 0))[:len(kept) - 2]:
+                del kept[old_id]
+        kept[candidate_id] = candidate
+        state.plan_candidates = kept
+        self._save(student_id, state)
+        return {
+            "candidate_id": candidate_id,
+            "num_weeks": int(num_weeks),
+            "created_at": float(now),
+            "weeks": [{
+                "week": w.week_index, "focus": w.focus,
+                "concepts": len(w.concepts),
+                "tasks": sum(len(t.subtasks or []) for t in w.tasks)
+                         or len(w.tasks),
+            } for w in weeks],
+        }
+
+    def commit_plan_candidate(self, student_id: str, candidate_id: str, *,
+                              now: float | None = None) -> tuple[bool, str]:
+        """§21.6.3 阶段二：逐字应用已存储候选；无模型调用、无二次生成。
+
+        候选缺失/过期/目标指纹变化 → (False, reason)，由调用方按
+        409/preview_stale 语义回退到重新预览。
+        """
+        now = now if now is not None else time.time()
+        state = self._load(student_id)
+        cand = state.plan_candidates.get(str(candidate_id))
+        if cand is None:
+            return False, "candidate_expired"
+        if cand.get("goals_fingerprint") != self._goals_fingerprint(state):
+            state.plan_candidates.pop(str(candidate_id), None)
+            self._save(student_id, state)
+            return False, "goals_changed"
+        weeks = [WeeklyPlan.from_dict(w) for w in (cand.get("weeks") or [])]
+        state.plan_candidates.pop(str(candidate_id), None)
+        return self._apply_plan_weeks(student_id, state, weeks, now=now)
+
     async def regenerate_plan(self, student_id: str, *, num_weeks: int = 4,
                               now: float | None = None) -> tuple[bool, str]:
         """Regenerate the weekly plan from current goal + mastery + graph.
@@ -624,70 +813,9 @@ class LearningOrchestrationService:
             state = self._load(student_id)
             if not state.has_goals:
                 return False, "no_goal"
-
-            weeks: list[WeeklyPlan] | None = None
-            # LLM weekly planner (validated; deterministic fallback below).
-            # Big syllabi (100+ required concepts) are planned in a near-term
-            # WINDOW: the gate's full-coverage rule applies to the window,
-            # not the whole gap list -- later replans schedule the rest.
-            # Multi-goal: every goal's required chain is merged (goal order,
-            # deduped) into one shared window.
-            if is_enabled():
-                try:
-                    if not any(gs.required_skills
-                               for gs in state.goal_states):
-                        self._analyze_goals_safe(state, student_id=student_id)
-                    required: list[str] = []
-                    seen: set[str] = set()
-                    for gs in state.goal_states:
-                        for sid in (gs.required_skills or []):
-                            if sid not in seen:
-                                seen.add(sid)
-                                required.append(sid)
-                    window = required[:num_weeks * learning_planner._MAX_CONCEPTS_PER_WEEK]
-                    if window:
-                        evaluation_view = self._evaluation_view_safe(
-                            student_id, self._shared_goal_workspace(state))
-                        # concept-bound goals span subjects: look names up
-                        # across the whole graph, not just the first subject
-                        name_subject = ("" if any(g.target_concept_ids
-                                                  for g in state.goals)
-                                        else state.primary_subject)
-                        names = self._concept_names_safe(
-                            name_subject, student_id=student_id)
-                        content, _usage = await self._get_llm().complete(
-                            weekly_planner_llm.build_weekly_prompt(
-                                state.goals_label, window, names,
-                                evaluation_view, num_weeks,
-                                state.schedule.daily_minutes),
-                            max_tokens=3000, disable_thinking=True)
-                        skeletons = weekly_planner_llm.parse_weekly_response(
-                            content, window, num_weeks)
-                        if skeletons:
-                            weeks = weekly_planner_llm.weeks_from_skeletons(
-                                skeletons, names, now=now)
-                except Exception:
-                    weeks = None
-
-            if weeks is None:
-                # deterministic fallback: graph topo-sort + schedule split
-                inputs = self._assemble_plan_inputs(student_id, state, now)
-                weeks = learning_planner.generate_weekly_plan(
-                    state, next_learnable=inputs["next_learnable"],
-                    review_candidates=inputs["review_candidates"],
-                    evaluation_view=inputs["evaluation_view"],
-                    prereq_map=inputs["prereq_map"],
-                    num_weeks=num_weeks, now=now)
-                weekly_planner_llm.derive_tasks_fallback(weeks)
-
-            state.last_plan_attempt = now
-            state.weekly_plan = _merge_user_plan(state.weekly_plan, weeks)
-            self._save(student_id, state,
-                       event=OrchestrationEvent(type="plan_regenerated",
-                           payload={"weeks": len(state.weekly_plan)}))
-            if state.weekly_plan:
-                return True, ""
-            return True, "empty_plan"
+            weeks = await self._compute_plan_weeks(
+                student_id, state, num_weeks=num_weeks, now=now)
+            return self._apply_plan_weeks(student_id, state, weeks, now=now)
         except Exception:
             return False, ""
 
@@ -724,6 +852,39 @@ class LearningOrchestrationService:
             return [t.to_dict() for t in carryover + todays]
         except Exception:
             return []
+
+    async def saved_tasks_snapshot(self, student_id: str, *,
+                                   now: float | None = None) -> dict[str, Any]:
+        """只读任务快照（plan.md GAP-04）：不物化、不标记逾期、不重规划、
+        不落盘。供站内助手等只读消费方使用；`today_tasks` 的物化路径继续
+        服务原有页面。返回值带覆盖说明——当前任务集合不能证明完整历史
+        （GAP-10：from_dict 对 daily_tasks 有数量截断）。
+        """
+        now = now if now is not None else time.time()
+        state = await asyncio.to_thread(self._load, student_id)
+        day = task_executor._day_str(now)
+        todays = [t for t in state.daily_tasks if t.day == day]
+        open_tasks = [t for t in state.daily_tasks
+                      if t.status not in (DailyTaskStatus.COMPLETED,
+                                          DailyTaskStatus.SKIPPED)
+                      and t.day <= day]
+        completed_recent = [
+            t for t in state.daily_tasks
+            if t.status == DailyTaskStatus.COMPLETED and t.completed_at > 0]
+        completed_recent.sort(key=lambda t: t.completed_at, reverse=True)
+        return {
+            "today": [t.to_dict() for t in todays],
+            "open": [t.to_dict() for t in open_tasks],
+            "recently_completed": [t.to_dict() for t in completed_recent[:20]],
+            "state_updated_at": state.updated_at,
+            "read_only": True,
+            "coverage": {
+                # GAP-10：当前集合可能被 from_dict 截断，不能当完整历史。
+                "history_complete": False,
+                "note": "任务集合为当前快照，可能不含更早历史；月度统计"
+                        "需说明保留范围。",
+            },
+        }
 
     async def _compose_today_safe(self, state: OrchestrationState,
                                   now: float, *, student_id: str = "",
@@ -803,13 +964,18 @@ class LearningOrchestrationService:
                 return emitted, False
             day = task_executor._day_str(now)
             changed = False
+            from . import history as _history
             for t in state.daily_tasks:
                 if t.day != day:
                     continue
                 if t.concept_id != cid and t.concept_name != cid:
                     continue
                 if t.status.value == "pending":
+                    from_status = t.status
                     t.status = DailyTaskStatus.IN_PROGRESS
+                    # §22.2-2：pending → in_progress 迁移同样记事件。
+                    _history.note_status_change(state, t, from_status,
+                                                now=now)
                     changed = True
             return emitted, changed
         except Exception:
@@ -832,7 +998,18 @@ class LearningOrchestrationService:
         try:
             now = time.time()
             state = self._load(student_id)
+            from . import history as _history
+            _history.ensure_task_instance_ids(state)
+            prior = next((t for t in state.daily_tasks
+                          if t.id == task_id), None)
+            from_status = prior.status if prior is not None \
+                else DailyTaskStatus.PENDING
             ok = task_executor.complete_task(state, task_id)
+            if ok and prior is not None:
+                # §22.2-2：状态变化记 task_status_changed（self_report）。
+                _history.note_status_change(
+                    state, prior, from_status,
+                    completion_source="self_report", now=now)
             if ok:
                 # subtask write-back: a daily task materialised from a week
                 # subtask completes that subtask (the plan hierarchy reacts
@@ -870,10 +1047,10 @@ class LearningOrchestrationService:
                     subj = state.primary_subject
                     emitted.append(event_emitter.task_batch_completed_event(
                         day, len(todays), subject=subj))
-                self._save(student_id, state,
-                           event=OrchestrationEvent(type="task_completed",
-                               payload={"task_id": task_id,
-                                        "batch_complete": bool(emitted)}))
+                # §22.2-2（B08）：完成事实由 outbox 中的 task_status_changed
+                # 承载（含 instance/source/attempt）；不再另发旧版
+                # task_completed 事件，旧文件仍按 legacy 路径只读推导。
+                self._save(student_id, state)
             return ok, event_emitter.valid_events(emitted)
         except Exception:
             return False, []
@@ -945,9 +1122,12 @@ class LearningOrchestrationService:
                 s.value for s in DailyTaskStatus}:
             raise ValueError(f"illegal task status: {status}")
         state = self._load(student_id)
+        from . import history as _history
+        _history.ensure_task_instance_ids(state)
         task = next((t for t in state.daily_tasks if t.id == task_id), None)
         if task is None:
             return False
+        from_status = task.status
         if day is not None and day != task.day:
             if sum(1 for t in state.daily_tasks
                    if t.day == day) >= _MAX_TASKS_PER_DAY:
@@ -971,6 +1151,9 @@ class LearningOrchestrationService:
                 task.completed_at = time.time()
             elif status == "pending":
                 task.completed_at = 0.0
+            if task.status != from_status:
+                # §22.2-2：经 PATCH 的状态迁移（含撤销完成）也记事件。
+                _history.note_status_change(state, task, from_status)
         self._save(student_id, state,
                    event=OrchestrationEvent(type="task_updated",
                        payload={"task_id": task_id}))

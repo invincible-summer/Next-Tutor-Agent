@@ -126,6 +126,9 @@ class EvaluationWorker:
         for path in store_mod.STUDENTS_DIR.glob(
                 f"*{store_mod.JOURNAL_SUFFIX}"):
             sid = path.name[: -len(store_mod.JOURNAL_SUFFIX)]
+            from app.core.guest_runtime import is_guest
+            if sid == "student_default" or is_guest(sid):
+                continue
             try:
                 state = get_journal(sid).state()
             except Exception:

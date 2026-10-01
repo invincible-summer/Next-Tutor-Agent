@@ -1,7 +1,7 @@
 "use client";
 import { BookOpen, Download, RefreshCw, Trash2, AlertTriangle, FileText, Square, CheckSquare } from "lucide-react";
 import type { TextbookListItem } from "@/lib/api";
-import type { Lang } from "@/lib/i18n";
+import { gradeLabel, localeFor, type Lang } from "@/lib/i18n";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { relTime } from "@/lib/format";
@@ -82,7 +82,7 @@ export function TextbookCard({
           </div>
           <div className="mt-0.5 flex flex-wrap items-center gap-1 text-[11px] text-muted">
             {tb.subject && <span className="tnum">{tb.subject}</span>}
-            {tb.level && <span className="tnum">· {tb.level}</span>}
+            {tb.level && <span className="tnum">· {gradeLabel(lang, tb.level)}</span>}
             {!tb.subject && !tb.level && <span className="tnum">{tb.filename}</span>}
           </div>
           {tb.kind === "group" && (tb.volumes || []).length > 0 && (
@@ -157,7 +157,7 @@ export function TextbookCard({
           <div className="rounded-[6px] bg-accent-soft/20 px-2 py-1.5 text-[11px] text-muted">
             {blocked ? tr("res.tb.ocr.blocked", "多模态配置阻塞") : tr("res.tb.ocr.waiting", "等待下一次多模态 OCR")}
             {` · ${tr("res.tb.ocr.attempt", "第")}${attempts}${tr("res.tb.ocr.attempt.suffix", "次")} · ${pending} ${tr("res.tb.ocr.pages", "页待处理")}`}
-            {nextAt ? ` · ${new Date(nextAt * 1000).toLocaleTimeString()}` : ""}
+            {nextAt ? ` · ${new Date(nextAt * 1000).toLocaleTimeString(localeFor(lang))}` : ""}
           </div>
         );
       })()}

@@ -12,7 +12,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from test_pdf_ocr import _make_pdf
+from tests.test_pdf_ocr import _make_pdf
 
 
 class TestPageAlignment(unittest.TestCase):

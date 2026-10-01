@@ -1,5 +1,9 @@
 export type Lang = "zh" | "en";
 
+export function localeFor(lang: Lang): "zh-CN" | "en-US" {
+  return lang === "en" ? "en-US" : "zh-CN";
+}
+
 export const LANGS: { code: Lang; label: string }[] = [
   { code: "zh", label: "中文" },
   { code: "en", label: "English" },
@@ -8,6 +12,38 @@ export const LANGS: { code: Lang; label: string }[] = [
 type Dict = Record<string, string>;
 
 const ZH: Dict = {
+  "chat.input.image.prompt": "请根据图片内容进行讲解。",
+  "chat.stopped": "（已中断）",
+  "classroom.error.progress": "课堂进度连接已断开",
+  "classroom.error.revision": "课堂记录与课件版本不一致",
+  "classroom.qa.failed": "回答失败，请重试。",
+  "classroom.qa.network": "网络中断，请重试。",
+  "notes.error.load": "加载失败",
+  "notes.error.open": "打开失败",
+  "notes.error.save": "保存失败",
+  "common.request.failed": "请求失败",
+  "chat.deep.messageMissing": "未找到该消息，可能已删除或不在当前对话中。",
+  "chat.libref.public": "公用教材库",
+  "chat.libref.mine": "我的教材",
+  "quiz.legacy.note": "旧题目仅供回看，新练习请让教练重新出题",
+  "tool.knowledge.filtered": "已过滤",
+  "tool.knowledge.items": "条",
+  "tool.knowledge.conf.high": "高置信",
+  "tool.knowledge.conf.medium": "中置信",
+  "tool.knowledge.pdfPage": "PDF 第 %n 页",
+  "tool.knowledge.textbookPage": "教材第 %n 页",
+  "tool.knowledge.resource": "资料",
+  "common.retry": "重试",
+  "common.other": "其他",
+  "pager.prev": "上一页",
+  "pager.next": "下一页",
+  "pager.page": "页码",
+  "catalog.subject": "学科",
+  "catalog.subjectPh": "如：数学",
+  "catalog.level": "学段",
+  "catalog.loading": "加载中…",
+  "catalog.levelPh": "选择学段",
+  "catalog.anySubject": "（不限）",
   "app.name": "Next Tutor Agent",
   "app.tagline": "你的私人学习智能体 · 讲解 · 出题 · 答疑 · 基于教材的 RAG 检索",
   "app.role": "学习工作区",
@@ -27,8 +63,12 @@ const ZH: Dict = {
   "nav.archive": "归档中心",
   "nav.insights": "系统洞察",
   "nav.admin": "管理台",
-  "nav.profile": "我的画像",
+  "nav.profile": "学习画像",
+  "nav.account": "账户资料",
+  "account.menu": "我的账户",
   "nav.collapse": "收起导航",
+  "nav.expand": "展开导航",
+  "nav.label": "主导航",
   "chat.title.existing": "学习对话",
   "chat.title.new": "新对话",
   "chat.load.earlier": "加载更早消息",
@@ -204,6 +244,7 @@ const ZH: Dict = {
   "settings.theme": "主题",
   "settings.theme.light": "浅色",
   "settings.theme.dark": "深色",
+  "settings.theme.system": "跟随系统",
   "settings.font": "字号",
   "settings.font.sm": "小",
   "settings.font.md": "中",
@@ -319,7 +360,7 @@ const ZH: Dict = {
   "auth.toRegister": "注册新账号",
   "auth.haveAccount": "已有账号？",
   "auth.toLogin": "直接登录",
-  "auth.guestHint": "未登录也可直接学习；登录后获得独立的学习档案与长期记忆。",
+  "auth.guestHint": "游客仅可临时聊天与练习，刷新即清空；登录后可保存记录并使用完整功能。",
   "auth.register.title": "创建账号",
   "auth.register.subtitle": "创建你的私人 AI 学习账号",
   "auth.register.step1": "账号",
@@ -345,6 +386,38 @@ const ZH: Dict = {
 };
 
 const EN: Dict = {
+  "chat.input.image.prompt": "Please explain the content of this image.",
+  "chat.stopped": "(Stopped)",
+  "classroom.error.progress": "The classroom progress connection was lost",
+  "classroom.error.revision": "The class record and lesson revision do not match",
+  "classroom.qa.failed": "Could not answer. Please try again.",
+  "classroom.qa.network": "Connection lost. Please try again.",
+  "notes.error.load": "Failed to load notes",
+  "notes.error.open": "Failed to open note",
+  "notes.error.save": "Failed to save note",
+  "common.request.failed": "Request failed",
+  "chat.deep.messageMissing": "Message not found; it may have been deleted or belong to another chat.",
+  "chat.libref.public": "Public textbooks",
+  "chat.libref.mine": "My textbooks",
+  "quiz.legacy.note": "This older question is view-only. Ask your tutor for a new practice question.",
+  "tool.knowledge.filtered": "Filtered",
+  "tool.knowledge.items": "items",
+  "tool.knowledge.conf.high": "High confidence",
+  "tool.knowledge.conf.medium": "Medium confidence",
+  "tool.knowledge.pdfPage": "PDF page %n",
+  "tool.knowledge.textbookPage": "Textbook page %n",
+  "tool.knowledge.resource": "Resource",
+  "common.retry": "Retry",
+  "common.other": "Other",
+  "pager.prev": "Previous page",
+  "pager.next": "Next page",
+  "pager.page": "Page number",
+  "catalog.subject": "Subject",
+  "catalog.subjectPh": "e.g. Mathematics",
+  "catalog.level": "Grade level",
+  "catalog.loading": "Loading…",
+  "catalog.levelPh": "Choose a grade level",
+  "catalog.anySubject": "Any subject",
   "app.name": "Next Tutor Agent",
   "app.tagline": "Your private tutor agent · explain · quiz · Q&A · textbook RAG",
   "app.role": "Learning Workspace",
@@ -364,8 +437,12 @@ const EN: Dict = {
   "nav.archive": "Archive Center",
   "nav.insights": "Insights",
   "nav.admin": "Admin",
-  "nav.profile": "My Profile",
+  "nav.profile": "Learning Profile",
+  "nav.account": "Account details",
+  "account.menu": "My account",
   "nav.collapse": "Collapse",
+  "nav.expand": "Expand navigation",
+  "nav.label": "Main navigation",
   "chat.title.existing": "Session",
   "chat.title.new": "New chat",
   "chat.load.earlier": "Load earlier messages",
@@ -541,6 +618,7 @@ const EN: Dict = {
   "settings.theme": "Theme",
   "settings.theme.light": "Light",
   "settings.theme.dark": "Dark",
+  "settings.theme.system": "System",
   "settings.font": "Font size",
   "settings.font.sm": "S",
   "settings.font.md": "M",
@@ -656,7 +734,7 @@ const EN: Dict = {
   "auth.toRegister": "Create one",
   "auth.haveAccount": "Already have an account?",
   "auth.toLogin": "Sign in",
-  "auth.guestHint": "You can learn without signing in; an account gives you a private learning profile and long-term memory.",
+  "auth.guestHint": "Guests can chat and practise temporarily; refreshing clears the page. Sign in to save your work and use all features.",
   "auth.register.title": "Create account",
   "auth.register.subtitle": "Create your private AI learning account",
   "auth.register.step1": "Account",
@@ -696,14 +774,18 @@ const STORAGE_KEY = "edu-agent-lang";
 
 export function loadLang(): Lang {
   if (typeof window === "undefined") return "zh";
-  const stored = localStorage.getItem(STORAGE_KEY);
-  if (stored === "zh" || stored === "en") return stored;
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (stored === "zh" || stored === "en") return stored;
+  } catch { /* Storage can be disabled by the browser. */ }
   return "zh";
 }
 
 export function saveLang(lang: Lang): void {
   if (typeof window === "undefined") return;
-  localStorage.setItem(STORAGE_KEY, lang);
+  try {
+    localStorage.setItem(STORAGE_KEY, lang);
+  } catch { /* Keep language switching available without persistence. */ }
 }
 
 export const GRADE_LABELS: Record<Lang, { token: string; label: string }[]> = {
@@ -722,3 +804,9 @@ export const GRADE_LABELS: Record<Lang, { token: string; label: string }[]> = {
     { token: "本科", label: "Undergrad" },
   ],
 };
+
+/** Keep API grade tokens unchanged and translate only their display labels. */
+export function gradeLabel(lang: Lang, token: string): string {
+  if (token === "其他") return t(lang, "common.other");
+  return GRADE_LABELS[lang].find((entry) => entry.token === token)?.label ?? token;
+}

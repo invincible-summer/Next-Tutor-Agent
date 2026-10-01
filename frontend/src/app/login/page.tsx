@@ -1,4 +1,6 @@
 "use client";
+import { useAssistantPage } from "@/lib/assistant/useAssistantPage";
+import { currentRouteEpoch } from "@/lib/assistant/page-context";
 import { useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
@@ -11,6 +13,7 @@ import { Field, Input } from "@/components/ui/Input";
 import { AuthShell } from "@/components/auth/AuthShell";
 
 function LoginForm() {
+  useAssistantPage({ context: () => ({ schema_version: 1, route_id: "login", route_epoch: currentRouteEpoch() }) });
   const router = useRouter();
   const params = useSearchParams();
   const { setAuth, authRequired } = useAuthStore();
@@ -21,7 +24,11 @@ function LoginForm() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  const redirect = params.get("redirect") || "/chat";
+  // 只允许站内路径：外链与协议相对 //evil.com 会把刚登录的用户重定向到钓鱼站。
+  const rawRedirect = params.get("redirect");
+  const redirect = rawRedirect && rawRedirect.startsWith("/")
+    && !rawRedirect.startsWith("//") && !rawRedirect.startsWith("/\\")
+    ? rawRedirect : "/chat";
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();

@@ -246,6 +246,12 @@ def file_page_snapshot(file_id: str, page: int,
             break
     if data_dir is None or orig_ext.lower() != ".pdf":
         raise HTTPException(404, "未找到可渲染的 PDF 原件")
+    # 纵深防御：file_id/orig_ext 虽取自服务端索引，拼磁盘路径前仍过与
+    # knowledge_store 相同的白名单，避免未来调用链变化时变成任意路径读。
+    from app.core.knowledge_store import _FILE_ID_RE, _ORIG_EXT_RE
+    if (not _FILE_ID_RE.fullmatch(str(file_id or ""))
+            or (orig_ext and not _ORIG_EXT_RE.fullmatch(orig_ext))):
+        raise HTTPException(404, "未找到可渲染的 PDF 原件")
     raw_path = data_dir / f"{file_id}.orig{orig_ext}"
     try:
         raw = raw_path.read_bytes()

@@ -327,12 +327,23 @@ class TestClassroomProfileResolution(unittest.TestCase):
         return VoicePreferences(policy=policy, voice_id=voice_id,
                                 allow_local_fallback=allow_local)
 
-    def test_auto_prefers_cloud(self):
+    def test_auto_uses_cloud_when_local_disabled(self):
         profile = self.service.resolve_classroom_tts(self.prefs(), "zh")
         self.assertEqual(profile.provider, "azure")
         self.assertEqual(profile.voice_id, "zh-CN-XiaoxiaoNeural")
         self.assertEqual(profile.language, "zh-CN")
         self.assertEqual(profile.synthesis_speed, 1.0)
+
+    def test_auto_prefers_local_with_cloud_configured_for_classroom_and_assistant(self):
+        from types import SimpleNamespace
+        with patch.object(self.service, "local_tts_enabled", return_value=True):
+            classroom = self.service.resolve_classroom_tts(self.prefs(), "zh")
+            assistant = self.service.resolve_tts_profile("assistant", SimpleNamespace(voice_policy="auto"), "zh")
+            self.assertEqual(classroom.provider, "melo")
+            self.assertEqual(assistant.provider, "melo")
+            self.assertEqual(classroom.voice_id, "melo-zh")
+            self.assertEqual(self.service.resolve_classroom_tts(self.prefs(), "en").provider, "azure")
+            self.assertEqual(self.service.resolve_tts_profile("assistant", None, "en").provider, "azure")
 
     def test_english_lesson_gets_english_voice(self):
         profile = self.service.resolve_classroom_tts(self.prefs(), "en")
@@ -517,10 +528,10 @@ class TestPhoneFactory(unittest.TestCase):
         self._set("azure", key="k", region="eastasia")
         self.assertEqual(get_tts_provider().name, "azure")
 
-    def test_auto_prefers_cloud_then_local(self):
+    def test_auto_defaults_local_even_with_cloud_configured(self):
         from app.voice.tts import get_tts_provider
         self._set("auto", key="k", region="eastasia")
-        self.assertEqual(get_tts_provider().name, "azure")
+        self.assertEqual(get_tts_provider().name, "melo")
         self._set("auto", key="", region="")
         self.assertEqual(get_tts_provider().name, "melo")
 

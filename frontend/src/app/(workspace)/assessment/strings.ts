@@ -3,6 +3,21 @@ import type { PageStrings } from "@/lib/i18n-page";
 /** 测评中心（/assessment）页面词条。 */
 export const STRINGS = {
   zh: {
+    "eb.detail": "看原题与答案",
+    "ask.hint": "关键步骤提示",
+    "ask.reveal": "看答案",
+    "ask.revealed.answer": "答案",
+    "ask.assistance.error": "暂时无法读取提示或答案，请稍后再试。",
+    "ask.draft": "自检草稿",
+    "ask.draft.desc": "正式题目未完成审核，先保留这一版供自检。本页不会提交草稿答案、自动评分或把它当作已审核题。输入内容仅保留在当前页面，离开前请自行复制。",
+    "ask.illustration.pending": "文字题已可作答，正在生成并审核配图…",
+    "ask.illustration.failed": "文字题仍可正常作答，但本次配图未完成。",
+    "ask.illustration.retry": "重试配图",
+    "ask.back.config": "返回配置",
+    "rq.source.deleted": "来源对话已删除，无法查看",
+    "sum.graded": "已判分",
+    "sum.pending": "评价中",
+    "sum.scope.note": "以上是本次测评的真实观察；整体学习评价以学习档案中的证据主张为准。",
     "illustration.review": "回看题目",
     "illustration.title": "题目插图",
     "illustration.optionsTitle": "出题插图选项",
@@ -30,6 +45,7 @@ export const STRINGS = {
     "review.off": "关闭",
 
     "page.desc": "自适应诊断：根据你的作答动态调整题目难度，帮助了解你在本概念上的当前表现；结论仅反映本轮作答，不等同于长期掌握。",
+    "deep.viewMissing": "该测评视图暂不可用。",
 
     "config.title": "发起自适应测评",
     "config.desc": "选择工作区与概念，系统将生成一组难度自适应的题目。",
@@ -106,6 +122,21 @@ export const STRINGS = {
     "err.noActive": "没有进行中的测评，请重新开始",
   },
   en: {
+    "eb.detail": "View question and answer",
+    "ask.hint": "Step hint",
+    "ask.reveal": "Reveal answer",
+    "ask.revealed.answer": "Answer",
+    "ask.assistance.error": "Unable to load the hint or answer. Please try again.",
+    "ask.draft": "Self-check draft",
+    "ask.draft.desc": "The question is still awaiting review. Use this draft for self-checking; answers are kept on this page without submission or grading. Copy your work before leaving.",
+    "ask.illustration.pending": "You can answer the question while its illustration is being generated and reviewed…",
+    "ask.illustration.failed": "You can still answer the question. Its illustration could not be completed.",
+    "ask.illustration.retry": "Retry illustration",
+    "ask.back.config": "Back to configuration",
+    "rq.source.deleted": "The source chat was deleted and cannot be opened",
+    "sum.graded": "Graded",
+    "sum.pending": "Evaluating",
+    "sum.scope.note": "These observations apply to this assessment. See the learning archive for evidence about your overall learning.",
     "illustration.review": "Review question",
     "illustration.title": "Question illustration",
     "illustration.optionsTitle": "Question illustration options",
@@ -133,6 +164,7 @@ export const STRINGS = {
     "review.off": "Off",
 
     "page.desc": "Adaptive diagnosis: difficulty adapts to your answers to probe your current performance on a concept; the result reflects only this round, not long-term mastery.",
+    "deep.viewMissing": "Assessment view not available yet.",
 
     "config.title": "Start an adaptive assessment",
     "config.desc": "Pick a workspace and concepts; the system generates a set of difficulty-adaptive questions.",

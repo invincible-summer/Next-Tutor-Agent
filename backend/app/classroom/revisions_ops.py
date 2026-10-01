@@ -7,6 +7,34 @@ from ..schemas import classroom as sc
 from .errors import ClassroomError
 
 
+def find_editable_block(base: sc.LessonRevision, slide_id: str, block_id: str):
+    slide = next((s for s in base.slides if s.slide_id == slide_id), None)
+    block = next((b for b in slide.blocks if b.id == block_id), None) if slide else None
+    if block is None or block.kind == "checkpoint":
+        raise ClassroomError("content_invalid", "目标组件不存在或为受保护的随堂题")
+    return slide, block
+
+
+def apply_block_change(base: sc.LessonRevision, slide_id: str,
+                       block_id: str, replacement) -> sc.LessonRevision:
+    slide, block = find_editable_block(base, slide_id, block_id)
+    if replacement.id != block.id or replacement.kind != block.kind:
+        raise ClassroomError("content_invalid", "组件 ID 和类型不得改变")
+    if block.kind == "image" and replacement.asset_id != block.asset_id:
+        raise ClassroomError("content_invalid", "更换图片请使用换图操作")
+    # 组件编辑不允许伪造来源；原有来源只能保留或缩小。
+    old_data = block.diagram if block.kind == "diagram" else block
+    new_data = replacement.diagram if replacement.kind == "diagram" else replacement
+    if not set(getattr(new_data, "source_ids", [])) <= set(getattr(old_data, "source_ids", [])):
+        raise ClassroomError("content_invalid", "组件编辑不得添加来源引用")
+    updated = slide.model_copy(update={"blocks": [
+        replacement if b.id == block_id else b for b in slide.blocks]})
+    # 重新验证跨组件引用与布局，仍使用原有讲稿/题目/来源。
+    updated = sc.SlideSpec.model_validate(updated.model_dump(mode="json", by_alias=True))
+    return base.model_copy(update={"slides": [
+        updated if s.slide_id == slide_id else s for s in base.slides]})
+
+
 def _renumber(slides: list[sc.SlideSpec]) -> list[sc.SlideSpec]:
     for index, slide in enumerate(slides, start=1):
         slide.order = index
@@ -27,7 +55,11 @@ def apply_edit_changes(base: sc.LessonRevision,
     """edit_content：整页替换 / 删除页 / 重排序（顺序应用，最后统一重编号）。"""
     slides = list(base.slides)
     for change in changes:
-        if change.op == "replace_slide":
+        if change.op == "replace_block":
+            draft = apply_block_change(base.model_copy(update={"slides": slides}),
+                                       change.slide_id, change.block_id, change.block)
+            slides = draft.slides
+        elif change.op == "replace_slide":
             positions = [i for i, s in enumerate(slides)
                          if s.slide_id == change.slide_id]
             if not positions:

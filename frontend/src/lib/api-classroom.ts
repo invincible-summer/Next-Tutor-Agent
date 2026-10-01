@@ -1,3 +1,5 @@
+import { t } from "@/lib/i18n";
+import { useUIStore } from "@/lib/store";
 // 课堂模式 API 客户端（plan.md §14.1）。
 // 全部走 apiFetch（带 Authorization）；SSE 用 ReadableStream 手解析——
 // 原生 EventSource 不能设置 Authorization 头（§14.4）。
@@ -211,7 +213,7 @@ export async function patchBrief(
 /** 受鉴权的课件 HTML 文本（父页面写入 iframe srcdoc）。 */
 export async function getRevisionFrame(
   workspaceId: string, lessonId: string, revision: number,
-  mode: "presentation" | "reading" | "print" = "presentation",
+  mode: "presentation" | "print" = "presentation",
 ): Promise<string> {
   const res = await apiFetch(
     `${BASE}${W(workspaceId)}/lessons/${encodeURIComponent(lessonId)}` +
@@ -287,7 +289,7 @@ export function subscribeJobEvents(
         else handlers.onSnapshot(data);
         if (TERMINAL_STATES.has(data.state) || frame.event === "terminal") return;
       }
-      if (!signal.aborted) handlers.onError?.(new Error("课堂进度连接已断开"));
+      if (!signal.aborted) handlers.onError?.(new Error(t(useUIStore.getState().lang, "classroom.error.progress")));
     } catch (err) {
       if (signal.aborted) return;
       handlers.onError?.(err);

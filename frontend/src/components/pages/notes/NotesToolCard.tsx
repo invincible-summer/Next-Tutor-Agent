@@ -8,16 +8,18 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/cn";
+import { useUIStore } from "@/lib/store";
+import type { Lang } from "@/lib/i18n";
 
-const TOOL_META: Record<string, { icon: LucideIcon; label: string }> = {
-  knowledge_search: { icon: BookOpen, label: "检索教材资料" },
-  notes_search: { icon: Search, label: "检索笔记仓库" },
-  notes_read: { icon: FileText, label: "读取笔记" },
-  notes_write: { icon: Pencil, label: "修改笔记" },
+const TOOL_META: Record<string, { icon: LucideIcon; zh: string; en: string }> = {
+  knowledge_search: { icon: BookOpen, zh: "检索教材资料", en: "Search textbooks" },
+  notes_search: { icon: Search, zh: "检索笔记仓库", en: "Search note vault" },
+  notes_read: { icon: FileText, zh: "读取笔记", en: "Read note" },
+  notes_write: { icon: Pencil, zh: "修改笔记", en: "Update note" },
 };
 
-export function toolDisplayName(name: string): string {
-  return TOOL_META[name]?.label ?? name;
+export function toolDisplayName(name: string, lang: Lang = "zh"): string {
+  return TOOL_META[name]?.[lang] ?? name;
 }
 
 export function NotesToolCard({
@@ -27,6 +29,7 @@ export function NotesToolCard({
   status: string;
   text?: string;
 }) {
+  const lang = useUIStore((s) => s.lang);
   const [open, setOpen] = useState(false);
   // 直接映射取组件（与 chat/ToolCallCard 的 TOOL_ICONS 同一模式），
   // 不在渲染期通过函数调用创建组件。
@@ -47,7 +50,7 @@ export function NotesToolCard({
       >
         <Icon size={12} className={cn("shrink-0", isError ? "text-danger" : "text-accent")} />
         <span className="min-w-0 flex-1 truncate text-fg-secondary">
-          {toolDisplayName(name)}
+          {toolDisplayName(name, lang)}
         </span>
         {isError
           ? <X size={12} className="shrink-0 text-danger" />

@@ -30,7 +30,6 @@ export interface FrameBlockMeasure {
 export interface SlideFrameHandle {
   gotoPage: (order: number) => void;
   setBlockState: (visible: string[], focus: string[]) => void;
-  setReading: (on: boolean) => void;
   requestMeasure: () => void;
 }
 
@@ -58,8 +57,7 @@ const SlideFrame = forwardRef<SlideFrameHandle, SlideFrameProps>(
     const desiredRef = useRef<{
       order: number | null;
       blocks: { visible: string[]; focus: string[] } | null;
-      reading: boolean | null;
-    }>({ order: null, blocks: null, reading: null });
+    }>({ order: null, blocks: null });
     const callbacksRef = useRef({ onReady, onPageSelected, onSourceClick,
       onHotkey, onMeasure });
     callbacksRef.current = { onReady, onPageSelected, onSourceClick,
@@ -114,10 +112,6 @@ const SlideFrame = forwardRef<SlideFrameHandle, SlideFrameProps>(
             channel.port1.postMessage({ type: "set_block_state",
               ...desired.blocks });
           }
-          if (desired.reading !== null) {
-            channel.port1.postMessage({ type: "set_reading",
-              reading: desired.reading });
-          }
           callbacksRef.current.onReady?.();
         }
       };
@@ -143,10 +137,6 @@ const SlideFrame = forwardRef<SlideFrameHandle, SlideFrameProps>(
         setBlockState: (visible: string[], focus: string[]) => {
           desiredRef.current.blocks = { visible, focus };
           post({ type: "set_block_state", visible, focus });
-        },
-        setReading: (on: boolean) => {
-          desiredRef.current.reading = on;
-          post({ type: "set_reading", reading: on });
         },
         requestMeasure: () => post({ type: "measure" }),
       }),

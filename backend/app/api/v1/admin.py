@@ -14,7 +14,7 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, StrictBool
 
 from app.core import account_data, orphan_cleanup
 from app.identity import store as id_store
@@ -22,6 +22,35 @@ from app.identity.deps import require_admin
 from app.identity.models import User
 
 router = APIRouter(prefix="/admin", tags=["admin"])
+
+
+class GuestPolicyRequest(BaseModel):
+    model_config = {"extra": "forbid"}
+    allow_guests: StrictBool
+
+
+@router.get("/guest-policy")
+def get_guest_policy(admin: User = Depends(require_admin)):
+    from app.core.guest_policy import get_policy
+    return get_policy()
+
+
+@router.put("/guest-policy")
+def update_guest_policy(req: GuestPolicyRequest, admin: User = Depends(require_admin)):
+    from app.core.guest_policy import set_policy
+    return set_policy(req.allow_guests)
+
+
+@router.get("/guest-data")
+def scan_guest_data(admin: User = Depends(require_admin)):
+    from app.core.guest_cleanup import scan
+    return scan()
+
+
+@router.post("/guest-data/purge")
+def purge_guest_data(admin: User = Depends(require_admin)):
+    from app.core.guest_cleanup import purge
+    return purge()
 
 
 class RetentionPolicyRequest(BaseModel):

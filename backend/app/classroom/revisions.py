@@ -22,7 +22,8 @@ from . import sources
 from .errors import ClassroomError
 from .pipeline import ClassroomPipeline  # noqa: F401  (类型引用)
 from .revisions_ops import (apply_edit_changes, apply_replace_image,
-                            apply_theme_change)
+                            apply_theme_change, apply_block_change,
+                            find_editable_block)
 
 
 def _dump(model: Any) -> dict[str, Any]:
@@ -62,6 +63,8 @@ def validate_operation(base: sc.LessonRevision, operation: Any, *,
                     raise ClassroomError(
                         "content_invalid",
                         "page_ids 必须恰好是当前页集合的一个排列")
+            elif kind == "replace_block":
+                apply_block_change(base, change.slide_id, change.block_id, change.block)
             elif kind == "replace_slide":
                 if change.slide_id not in slides:
                     raise ClassroomError(
@@ -81,6 +84,8 @@ def validate_operation(base: sc.LessonRevision, operation: Any, *,
         if theme_by_id(operation.theme_id) is None:
             raise ClassroomError("content_invalid",
                                  f"未知视觉主题 {operation.theme_id}")
+    elif op_name == "regenerate_block":
+        find_editable_block(base, operation.slide_id, operation.block_id)
     elif op_name == "regenerate_slide":
         if operation.slide_id not in slides:
             raise ClassroomError("content_invalid",

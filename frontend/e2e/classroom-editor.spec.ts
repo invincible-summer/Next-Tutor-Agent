@@ -1,4 +1,4 @@
-/* 课堂编辑器 E2E（plan.md §19.3 classroom-editor）。
+/* 课堂编辑器 E2E。
  *
  * 覆盖：逐页讲稿、换主题、换图、单页重生成、双窗口编辑 409（修订冲突
  * 提示 + 重载）、删除页后页码钳位、最后一页不可删、继续上课深链。
@@ -53,8 +53,13 @@ async function routeEditor(
           message: "base_revision 已被更新", retryable: true,
           request_id: "req_e2e" } }, 409);
       }
+      const targetRevision = state.revision + 1;
+      if (op.op !== "regenerate_slide") {
+        state.revision = targetRevision;
+        if (op.op === "change_theme") state.themeId = String(op.theme_id);
+      }
       return json({ job_id: JOB_ID, lesson_id: LESSON_ID,
-                    target_revision: state.revision + 1,
+                    target_revision: targetRevision,
                     status_url: "/s", events_url: "/e" }, 201);
     }
     const jobMatch = path.match(/\/jobs\/([\w-]+)$/);
@@ -86,11 +91,12 @@ test.beforeEach(async ({ page }) => {
 test("逐页讲稿可见并可通过编辑生成新版本", async ({ page }) => {
   const state = freshState();
   const cap = await routeEditor(page, state);
-  await page.goto(`/workspaces/${WS_ID}/classroom/${LESSON_ID}`);
+  await page.goto(`/workspaces/${WS_ID}/classroom/${LESSON_ID}?edit=1`);
 
-  // 讲稿 tab 默认打开：显示当前页讲稿段（role 徽标 + 文本）
+  // 当前编辑器默认展示组件，切到讲稿后验证内容。
+  await page.getByRole("tab", { name: "讲稿", exact: true }).click();
   await expect(page.getByText("本页讲稿")).toBeVisible({ timeout: 10_000 });
-  await expect(page.getByText("第一段：把两个碰撞的小车看成一个系统。"))
+  await expect(page.getByRole("list").getByText("第一段：把两个碰撞的小车看成一个系统。"))
     .toBeVisible();
 
   // 编辑讲稿并保存 → edit_content/replace_slide 修订 → 重载到 v2
@@ -99,7 +105,7 @@ test("逐页讲稿可见并可通过编辑生成新版本", async ({ page }) => 
   await segBoxes.nth(0).fill("页面字幕：先选系统边界。");
   await segBoxes.nth(1).fill("改写后的第一段：先选定系统边界。");
   await page.getByRole("button", { name: "保存并生成新版本" }).click();
-  await expect(cap.ops.length).toBeGreaterThan(0);
+  await expect.poll(() => cap.ops.length).toBeGreaterThan(0);
   const op = cap.ops[0] as { op?: string; changes?: [{
     op?: string; slide?: { segments?: { display_text?: string;
       spoken_text?: string }[] } }] };
@@ -110,8 +116,7 @@ test("逐页讲稿可见并可通过编辑生成新版本", async ({ page }) => 
     .toBe("改写后的第一段：先选定系统边界。");
 
   // 修订成功后自动重载（GET lesson 再次返回 v2 frame）
-  state.revision = 2;
-  await expect(page.locator("header span").filter({ hasText: "版本 2" }))
+  await expect(page.getByText("版本 2", { exact: true }))
     .toBeVisible({ timeout: 15_000 });
 });
 
@@ -119,26 +124,23 @@ test("换主题与换图走确定性快速修订", async ({ page }) => {
   const state = freshState();
   state.slides[0].withImage = true; // 换图流程需要 image block
   const cap = await routeEditor(page, state);
-  await page.goto(`/workspaces/${WS_ID}/classroom/${LESSON_ID}`);
-  await expect(page.getByText("本页讲稿")).toBeVisible({ timeout: 10_000 });
+  await page.goto(`/workspaces/${WS_ID}/classroom/${LESSON_ID}?edit=1`);
+  await expect(page.getByRole("tab", { name: "组件", exact: true })).toBeVisible();
 
   // 设置 tab：换主题（第二个主题 = 暖粉笔记）
   await page.getByRole("tab", { name: "设置" }).click();
   await page.getByRole("radio", { name: /暖粉笔记/ }).click();
-  await expect(cap.ops.some((o) => (o as { op?: string }).op
+  await expect.poll(() => cap.ops.some((o) => (o as { op?: string }).op
     === "change_theme")).toBe(true);
-  state.revision += 1;
-  state.themeId = "warm_chalk@1";
-  await expect(page.locator("header span")
-    .filter({ hasText: `版本 ${state.revision}` }))
+  await expect(page.getByText("版本 2", { exact: true }))
     .toBeVisible({ timeout: 15_000 });
 
-  // 换图：修订重载后回到讲稿 tab，先切回设置
+  // 换图：修订重载后回到组件 tab，先切回设置
   await page.getByRole("tab", { name: "设置" }).click();
   await page.getByRole("button", { name: "搜索候选图" }).click();
   await expect(page.getByText("E2E 摄影师")).toBeVisible();
   await page.getByRole("button", { name: /E2E 摄影师/ }).click();
-  await expect(cap.ops.some((o) => (o as { op?: string }).op
+  await expect.poll(() => cap.ops.some((o) => (o as { op?: string }).op
     === "replace_image")).toBe(true);
   expect(cap.imageSearches).toBe(1);
 });
@@ -157,11 +159,12 @@ test("单页重生成展示生成进度", async ({ page }) => {
     }
     return route.fallback();
   });
-  await page.goto(`/workspaces/${WS_ID}/classroom/${LESSON_ID}`);
-  await expect(page.getByText("本页讲稿")).toBeVisible({ timeout: 10_000 });
+  await page.goto(`/workspaces/${WS_ID}/classroom/${LESSON_ID}?edit=1`);
+  await expect(page.getByRole("tab", { name: "组件", exact: true })).toBeVisible();
 
   await page.getByRole("tab", { name: "设置" }).click();
   await page.getByRole("button", { name: "更详细" }).click();
+  await expect.poll(() => cap.ops.some((op) => op.op === "regenerate_slide")).toBe(true);
   const regenOp = cap.ops.find((o) => (o as { op?: string }).op
     === "regenerate_slide") as { slide_id?: string; instruction?: string };
   expect(regenOp?.slide_id).toBe(SLIDES_2[0].id);
@@ -175,21 +178,21 @@ test("双窗口编辑 409 提示冲突并支持重载", async ({ page }) => {
   const state = freshState();
   const cap = await routeEditor(page, state);
   cap.conflictOnce = true; // 第一个非重生成 op 返回 409
-  await page.goto(`/workspaces/${WS_ID}/classroom/${LESSON_ID}`);
-  await expect(page.getByText("本页讲稿")).toBeVisible({ timeout: 10_000 });
+  await page.goto(`/workspaces/${WS_ID}/classroom/${LESSON_ID}?edit=1`);
+  await expect(page.getByRole("tab", { name: "组件", exact: true })).toBeVisible();
 
   await page.getByRole("tab", { name: "设置" }).click();
   await page.getByRole("radio", { name: /墨色极简/ }).click();
   await expect(page.getByText("内容已更新：有人（或另一个标签页）已先生成新版本。"))
     .toBeVisible({ timeout: 10_000 });
 
-  // 重新载入：恢复编辑能力（此时不再 409）；重载后回到讲稿 tab，再切设置
+  // 重新载入：恢复编辑能力（此时不再 409）；重载后回到组件 tab，再切设置
   await page.getByRole("button", { name: "重新载入" }).click();
-  await expect(page.getByText("本页讲稿")).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByRole("tab", { name: "组件", exact: true })).toBeVisible();
   await page.getByRole("tab", { name: "设置" }).click();
   await page.getByRole("radio", { name: /墨色极简/ }).click();
-  await expect(cap.ops.some((o) => (o as { op?: string }).op
-    === "change_theme")).toBe(true);
+  await expect.poll(() => cap.ops.filter((o) => o.op === "change_theme").length).toBe(2);
+  await expect(page.getByText("版本 2", { exact: true })).toBeVisible();
 });
 
 test("删除页后页码钳位且最后一页不可删", async ({ page }) => {
@@ -208,19 +211,19 @@ test("删除页后页码钳位且最后一页不可删", async ({ page }) => {
     }
     return route.fallback();
   });
-  await page.goto(`/workspaces/${WS_ID}/classroom/${LESSON_ID}`);
-  await expect(page.getByText("本页讲稿")).toBeVisible({ timeout: 10_000 });
+  await page.goto(`/workspaces/${WS_ID}/classroom/${LESSON_ID}?edit=1`);
+  await expect(page.getByRole("tab", { name: "组件", exact: true })).toBeVisible();
   await expect(page.getByText("1 / 2")).toBeVisible();
 
   // 跳到末页（第 2 页）并删除
   await page.getByRole("button", { name: "下一页" }).click();
   await page.getByRole("tab", { name: "设置" }).click();
   await page.getByRole("button", { name: "删除本页" }).click();
-  await expect(cap.ops.some((o) => {
+  await expect.poll(() => cap.ops.some((o) => {
     const c = o as { op?: string; changes?: [{ op?: string }] };
     return c.op === "edit_content" && c.changes?.[0].op === "delete_slide";
   })).toBe(true);
-  // 重载后只剩 1 页且页码钳位到末页；重载回到讲稿 tab，切回设置断言禁用
+  // 重载后只剩 1 页且页码钳位到末页；重载回到组件 tab，切回设置断言禁用
   await expect(page.getByText("1 / 1")).toBeVisible({ timeout: 15_000 });
   await page.getByRole("tab", { name: "设置" }).click();
   await expect(page.getByRole("button", { name: "删除本页" })).toBeDisabled();
@@ -230,8 +233,8 @@ test("删除页后页码钳位且最后一页不可删", async ({ page }) => {
 test("继续上课直达既有 run，不换版本", async ({ page }) => {
   const state = freshState();
   await routeEditor(page, state);
-  await page.goto(`/workspaces/${WS_ID}/classroom/${LESSON_ID}`);
-  await expect(page.getByText("本页讲稿")).toBeVisible({ timeout: 10_000 });
+  await page.goto(`/workspaces/${WS_ID}/classroom/${LESSON_ID}?edit=1`);
+  await expect(page.getByRole("tab", { name: "组件", exact: true })).toBeVisible();
 
   // recent_run 为 paused → 按钮文案「继续上课」，点击直达 learn 路由
   await page.getByRole("button", { name: "继续上课" }).click();

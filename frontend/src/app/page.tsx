@@ -5,6 +5,8 @@ import "@fontsource/playfair-display/700.css";
 import { useUIStore } from "@/lib/store";
 import { useAuthStore, hydrateAuth } from "@/lib/auth-store";
 import { makePageT } from "@/lib/i18n-page";
+import { useAssistantPage } from "@/lib/assistant/useAssistantPage";
+import { currentRouteEpoch } from "@/lib/assistant/page-context";
 import { LANDING_STRINGS } from "./landing-strings";
 import { LandingNav } from "@/components/landing/LandingNav";
 import { Hero } from "@/components/landing/Hero";
@@ -18,20 +20,28 @@ import { useLandingSnap } from "@/components/landing/useLandingSnap";
 
 /**
  * 项目主页面（/）：介绍 + 开始使用 + 登录/注册入口。
- * 不在 (workspace) layout 内，需自行 hydrateClient()（语言偏好）与
- * hydrateAuth()（登录态，决定主 CTA 指向 /register 还是 /chat）。
+ * UIProvider 恢复语言偏好；这里恢复登录态，决定主 CTA 的目标。
  */
 export default function Home() {
-  const { lang, mounted, hydrateClient } = useUIStore();
+  const lang = useUIStore((s) => s.lang);
   const user = useAuthStore((s) => s.user);
+  // §20.2 上下文适配器（首页无表单字段，§19.9）。
+  useAssistantPage({
+    context: () => ({
+      schema_version: 1,
+      route_id: "home",
+      route_epoch: currentRouteEpoch(),
+    }),
+  });
 
   useEffect(() => {
-    if (!mounted) hydrateClient();
     void hydrateAuth();
     // 锚点平滑滚动仅在本页生效，离开时还原
-    document.documentElement.classList.add("scroll-smooth");
+    if (!window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      document.documentElement.classList.add("scroll-smooth");
+    }
     return () => document.documentElement.classList.remove("scroll-smooth");
-  }, [mounted, hydrateClient]);
+  }, []);
 
   const tr = makePageT(lang, LANDING_STRINGS);
   useLandingSnap();

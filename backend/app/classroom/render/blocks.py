@@ -8,11 +8,15 @@ from __future__ import annotations
 
 import html
 import math
+import re
 from typing import Iterable
+
+from .inline_math import math_parts
 
 from ...schemas.classroom import (
     BulletsBlock,
     CalloutBlock,
+    CodeBlock,
     CartesianPlot,
     CheckpointBlock,
     DiagramBlock,
@@ -39,17 +43,28 @@ def _num(value: float) -> str:
     return f"{value:.4f}".rstrip("0").rstrip(".")
 
 
+def render_text(text: str) -> str:
+    parts: list[str] = []
+    for is_math, source in math_parts(text):
+        if is_math:
+            parts.append(f'<span class="span-math" data-katex="{_esc(source)}" '
+                         f'role="math" aria-label="{_esc(source)}"></span>')
+        else:
+            parts.append(_esc(source))
+    return "".join(parts)
+
+
 def render_spans(spans: Iterable[InlineSpan]) -> str:
     parts: list[str] = []
     for span in spans:
         if span.kind == "emphasis":
-            parts.append(f'<em class="span-em">{_esc(span.text)}</em>')
+            parts.append(f'<em class="span-em">{render_text(span.text)}</em>')
         elif span.kind == "math":
             parts.append(
                 f'<span class="span-math" data-katex="{_esc(span.latex)}" '
                 f'role="math" aria-label="{_esc(span.spoken)}"></span>')
         else:
-            parts.append(_esc(span.text))
+            parts.append(render_text(span.text))
     return "".join(parts)
 
 
@@ -61,15 +76,54 @@ _DIAGRAM_W = 960
 _DIAGRAM_H = 420
 
 
-def _svg_wrap(inner: str, alt: str) -> str:
+def _svg_wrap(inner: str, alt: str, *, width: int = _DIAGRAM_W, height: int = _DIAGRAM_H) -> str:
     return (
-        f'<svg class="diagram" viewBox="0 0 {_DIAGRAM_W} {_DIAGRAM_H}" '
+        f'<svg class="diagram" viewBox="0 0 {width} {height}" '
         f'role="img" aria-label="{_esc(alt)}" '
         f'focusable="false">{inner}</svg>')
 
 
+def _svg_label(text: str, x: float, y: float, css_class: str, *,
+               anchor: str = "middle", width: float = 240,
+               color: str = "", rotate: bool = False) -> str:
+    """SVG text for prose; HTML islands let the shared KaTeX runtime render math."""
+    transform = f' transform="rotate(-90 {_num(x)} {_num(y)})"' if rotate else ""
+    fill = f' fill="{color}"' if color else ""
+    if not any(is_math for is_math, _ in math_parts(text)):
+        return (f'<text x="{_num(x)}" y="{_num(y)}" class="{css_class}"'
+                f'{fill} text-anchor="{anchor}"{transform}>{_esc(text)}</text>')
+    height = 56
+    left = x - (width if anchor == "end" else width / 2 if anchor == "middle" else 0)
+    if not rotate:
+        left = max(0, min(left, _DIAGRAM_W - width))
+    top = max(0, min(y - 36, _DIAGRAM_H - height))
+    align = {"middle": "center", "end": "right", "start": "left"}[anchor]
+    return (f'<foreignObject x="{_num(left)}" y="{_num(top)}" '
+            f'width="{_num(width)}" height="{height}"{transform}>'
+            f'<div xmlns="http://www.w3.org/1999/xhtml" class="diagram-math-label {css_class}" '
+            f'style="height:100%;display:flex;align-items:center;font-size:20px;line-height:1.3;text-align:{align};'
+            f'color:{color or "var(--cc-text)"}"><span style="width:100%">{render_text(text)}</span></div></foreignObject>')
+
+
 def _layout_flow(diagram: FlowDiagram) -> str:
     """确定性分层布局：Kahn 拓扑分层；环内节点并入最后一层。"""
+    # Dense/long-label graphs use linked flow cards. Labels remain selectable,
+    # wrap at readable size, and can continue by node instead of shrinking to 6px.
+    if (len(diagram.nodes) > 4 or any(len(n.label) > 16 for n in diagram.nodes)
+            or any(len(e.label or "") > 6 for e in diagram.edges)
+            or any(is_math for text in [n.label for n in diagram.nodes]
+                   + [e.label or "" for e in diagram.edges]
+                   for is_math, _ in math_parts(text))):
+        labels = {n.id: n.label for n in diagram.nodes}
+        cards = []
+        for node in diagram.nodes:
+            links = [f'<li>→ {render_text(edge.label + "：" if edge.label else "")}'
+                     f'{render_text(labels[edge.to])}</li>'
+                     for edge in diagram.edges if edge.from_ == node.id]
+            cards.append(f'<div class="flow-card"><strong>{render_text(node.label)}</strong>'
+                         + (f'<ul>{"".join(links)}</ul>' if links else "") + '</div>')
+        return (f'<div class="flow-map" role="group" aria-label="{_esc(diagram.alt)}">'
+                + "".join(cards) + '</div>')
     ids = [n.id for n in diagram.nodes]
     incoming = {i: 0 for i in ids}
     children: dict[str, list[str]] = {i: [] for i in ids}
@@ -94,33 +148,40 @@ def _layout_flow(diagram: FlowDiagram) -> str:
         layers.append(leftover)
 
     label = {n.id: n.label for n in diagram.nodes}
-    pad, node_w, node_h = 40, 170, 54
+    # Size the graph around its nodes; the old fixed 960px canvas made short
+    # relationships mostly empty space and shrank their labels on half slides.
+    pad, node_w, node_h = 24, 220, 124
+    gap_x, gap_y = 64, 24
+    max_len = max(map(len, layers))
     if diagram.direction.value == "horizontal":
-        max_len = max(len(layer) for layer in layers)
-        col_w = (_DIAGRAM_H - 2 * pad) / max(1, max_len)
-        row_w = (_DIAGRAM_W - 2 * pad) / max(1, len(layers))
+        width = 2 * pad + len(layers) * node_w + (len(layers) - 1) * gap_x
+        height = 2 * pad + max_len * node_h + (max_len - 1) * gap_y
         pos: dict[str, tuple[float, float]] = {}
         for li, layer in enumerate(layers):
-            span = col_w * len(layer)
-            start = (_DIAGRAM_H - span) / 2 if len(layers) > 1 else pad
             for ni, node in enumerate(layer):
-                cx = pad + row_w * li + row_w / 2
-                cy = start + col_w * ni + min(col_w, 96) / 2 + 8
+                cx = pad + node_w / 2 + (node_w + gap_x) * li
+                cy = height / 2 + (ni - (len(layer) - 1) / 2) * (node_h + gap_y)
                 pos[node] = (cx, cy)
     else:
-        row_h = (_DIAGRAM_H - 2 * pad) / max(1, len(layers))
+        width = 2 * pad + max_len * node_w + (max_len - 1) * gap_x
+        height = 2 * pad + len(layers) * node_h + (len(layers) - 1) * gap_y
         pos = {}
         for li, layer in enumerate(layers):
-            col_w = (_DIAGRAM_W - 2 * pad) / max(1, len(layer))
             for ni, node in enumerate(layer):
-                cx = pad + col_w * ni + col_w / 2
-                cy = pad + row_h * li + row_h / 2
+                cx = width / 2 + (ni - (len(layer) - 1) / 2) * (node_w + gap_x)
+                cy = pad + node_h / 2 + (node_h + gap_y) * li
                 pos[node] = (cx, cy)
 
     parts: list[str] = []
     for edge in diagram.edges:
         x1, y1 = pos[edge.from_]
         x2, y2 = pos[edge.to]
+        dx, dy = x2 - x1, y2 - y1
+        if dx or dy:
+            factor = min(node_w / (2 * abs(dx)) if dx else float("inf"),
+                         node_h / (2 * abs(dy)) if dy else float("inf"))
+            x1, y1 = x1 + dx * factor, y1 + dy * factor
+            x2, y2 = x2 - dx * factor, y2 - dy * factor
         parts.append(
             f'<line x1="{_num(x1)}" y1="{_num(y1)}" x2="{_num(x2)}" '
             f'y2="{_num(y2)}" class="edge" marker-end="url(#arrow)"/>')
@@ -136,13 +197,21 @@ def _layout_flow(diagram: FlowDiagram) -> str:
         parts.append(
             f'<rect x="{_num(x)}" y="{_num(y)}" width="{node_w}" '
             f'height="{node_h}" rx="10" class="flow-node"/>')
+        # Wrap long labels inside their node, not across neighboring nodes.
+        chars_per_line = max(2, int((node_w - 18) / 32))
+        lines = [node.label[i:i + chars_per_line]
+                 for i in range(0, len(node.label), chars_per_line)]
+        size = min(32, (node_h - 12) / max(1, len(lines)))
+        tspans = "".join(
+            f'<tspan x="{_num(cx)}" y="{_num(cy + (i - (len(lines) - 1) / 2) * size + size * .35)}">{_esc(line)}</tspan>'
+            for i, line in enumerate(lines))
         parts.append(
-            f'<text x="{_num(cx)}" y="{_num(cy + 5)}" class="flow-node-label" '
-            f'text-anchor="middle">{_esc(node.label)}</text>')
+            f'<text class="flow-node-label" data-flow-label="{_esc(node.label)}" style="font-size:{_num(size)}px" '
+            f'text-anchor="middle">{tspans}</text>')
     defs = ('<defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" '
             'markerWidth="7" markerHeight="7" orient="auto-start-reverse">'
             '<path d="M 0 0 L 10 5 L 0 10 z" class="edge-arrow"/></marker></defs>')
-    return _svg_wrap(defs + "".join(parts), diagram.alt)
+    return _svg_wrap(defs + "".join(parts), diagram.alt, width=width, height=height)
 
 
 def _nice_ticks(lo: float, hi: float, count: int = 5) -> list[float]:
@@ -178,11 +247,8 @@ def _layout_cartesian_plot(diagram: CartesianPlot) -> str:
     parts = [
         f'<rect x="{pad}" y="{pad}" width="{_num(w)}" height="{_num(h)}" '
         f'class="plot-frame"/>',
-        f'<text x="{_num(_DIAGRAM_W / 2)}" y="{_DIAGRAM_H - 16}" '
-        f'class="axis-label" text-anchor="middle">{_esc(diagram.x_label)}</text>',
-        f'<text x="18" y="{_num(_DIAGRAM_H / 2)}" class="axis-label" '
-        f'text-anchor="middle" transform="rotate(-90 18 '
-        f'{_num(_DIAGRAM_H / 2)})">{_esc(diagram.y_label)}</text>',
+        _svg_label(diagram.x_label, _DIAGRAM_W / 2, _DIAGRAM_H - 16, "axis-label"),
+        _svg_label(diagram.y_label, 18, _DIAGRAM_H / 2, "axis-label", rotate=True),
     ]
     for t in _nice_ticks(x0, x1):
         parts.append(
@@ -198,18 +264,17 @@ def _layout_cartesian_plot(diagram: CartesianPlot) -> str:
         parts.append(
             f'<text x="{pad - 12}" y="{_num(py(t) + 4)}" class="tick-label" '
             f'text-anchor="end">{_num(t)}</text>')
-    colors = ["var(--cc-accent)", "#2D6A4F", "#B45309"]
+    colors = ["var(--cc-accent)", "var(--cc-series-2,#2D6A4F)", "var(--cc-series-3,#B45309)"]
+    legend = []
     for si, series in enumerate(diagram.series):
         color = colors[si % len(colors)]
         pts = " ".join(f"{_num(px(x))},{_num(py(y))}" for x, y in series.points)
         parts.append(f'<polyline points="{pts}" fill="none" stroke="{color}" '
                      f'stroke-width="3" class="series"/>')
-        lx, ly = series.points[-1]
-        parts.append(
-            f'<text x="{_num(px(lx))}" y="{_num(py(ly) - 10)}" '
-            f'class="series-label" fill="{color}" '
-            f'text-anchor="end">{_esc(series.label)}</text>')
-    return _svg_wrap("".join(parts), diagram.alt)
+        legend.append(f'<span class="plot-legend-item"><i style="background:{color}" aria-hidden="true"></i>'
+                      f'<span>{render_text(series.label)}</span></span>')
+    return (_svg_wrap("".join(parts), diagram.alt)
+            + '<div class="plot-legend">' + ''.join(legend) + '</div>')
 
 
 def _layout_force_diagram(diagram: ForceDiagram) -> str:
@@ -232,9 +297,7 @@ def _layout_force_diagram(diagram: ForceDiagram) -> str:
             parts.append(
                 f'<circle cx="{_num(cx)}" cy="{_num(cy)}" r="14" '
                 f'class="body-point"/>')
-        parts.append(
-            f'<text x="{_num(cx)}" y="{_num(cy - 40)}" class="body-label" '
-            f'text-anchor="middle">{_esc(body.label)}</text>')
+        parts.append(_svg_label(body.label, cx, cy - 40, "body-label"))
     arrow_scale = 150
     defs = ('<defs><marker id="farrow" viewBox="0 0 10 10" refX="9" refY="5" '
             'markerWidth="8" markerHeight="8" orient="auto-start-reverse">'
@@ -248,9 +311,8 @@ def _layout_force_diagram(diagram: ForceDiagram) -> str:
         parts.append(
             f'<line x1="{_num(cx)}" y1="{_num(cy)}" x2="{_num(cx + dx)}" '
             f'y2="{_num(cy - dy)}" class="force" marker-end="url(#farrow)"/>')
-        parts.append(
-            f'<text x="{_num(cx + dx + 8)}" y="{_num(cy - dy - 6)}" '
-            f'class="force-label">{_esc(arrow.label)}</text>')
+        parts.append(_svg_label(arrow.label, cx + dx + 8, cy - dy - 6,
+                                "force-label", anchor="start"))
     return _svg_wrap(defs + "".join(parts), diagram.alt)
 
 
@@ -286,7 +348,7 @@ def render_bullets(block: BulletsBlock) -> str:
 
 
 def render_formula(block: FormulaBlock) -> str:
-    label = (f'<span class="formula-label">{_esc(block.label)}</span>'
+    label = (f'<span class="formula-label">{render_text(block.label)}</span>'
              if block.label else "")
     return (
         f'<div class="block formula" data-block-id="{_esc(block.id)}">'
@@ -305,13 +367,17 @@ def render_image(block: ImageBlock, *, data_uri: str) -> str:
     return (
         f'<figure class="block image" data-block-id="{_esc(block.id)}">'
         f"{media}"
-        f'<figcaption>{_esc(block.caption)}</figcaption></figure>')
+        f'<figcaption>{render_text(block.caption)}</figcaption></figure>')
 
 
 def render_table(block: TableBlock) -> str:
-    head = "".join(f"<th>{_esc(h)}</th>" for h in block.headers)
+    def cell_html(cell: str) -> str:
+        numeric = ' class="numeric"' if re.fullmatch(r'[+−-]?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?%?', cell.strip()) else ''
+        return f'<td{numeric}>{render_text(cell)}</td>'
+
+    head = "".join(f"<th>{render_text(h)}</th>" for h in block.headers)
     rows = "".join(
-        "<tr>" + "".join(f"<td>{_esc(cell)}</td>" for cell in row) + "</tr>"
+        "<tr>" + "".join(cell_html(cell) for cell in row) + "</tr>"
         for row in block.rows)
     mark = ('<span class="constructed-mark">示例数据</span>'
             if block.constructed else "")
@@ -323,7 +389,7 @@ def render_table(block: TableBlock) -> str:
 
 def render_steps(block: StepsBlock) -> str:
     items = "".join(
-        f'<li><span class="step-label">{_esc(step.label)}</span>'
+        f'<li><span class="step-label">{render_text(step.label)}</span>'
         f'<span class="step-body">{render_spans(step.spans)}</span></li>'
         for step in block.steps)
     return (f'<div class="block steps" data-block-id="{_esc(block.id)}">'
@@ -338,7 +404,7 @@ def render_checkpoint(block: CheckpointBlock, *, prompt: str,
         f'data-checkpoint-id="{_esc(block.checkpoint_id)}" '
         f'data-kind="{_esc(kind)}">'
         f'<div class="checkpoint-badge">{_esc(badge)}</div>'
-        f'<p class="checkpoint-prompt">{_esc(prompt)}</p>'
+        f'<p class="checkpoint-prompt">{render_text(prompt)}</p>'
         f'<div class="checkpoint-slot" data-checkpoint-slot="1"></div>'
         f"</div>")
 
@@ -359,6 +425,13 @@ def render_block(block: SlideBlock, *, assets_data: dict[str, str],
         return render_bullets(block)
     if isinstance(block, FormulaBlock):
         return render_formula(block)
+    if isinstance(block, CodeBlock):
+        caption = f'<figcaption>{render_text(block.caption)}</figcaption>' if block.caption else ""
+        lines = "".join(f'<span class="code-line">{_esc(line)}</span>'
+                        for line in block.code.splitlines(keepends=True))
+        return (f'<figure class="block code" data-block-id="{_esc(block.id)}">'
+                f'<div class="code-language">{_esc(block.language)}</div>'
+                f'<pre><code>{lines}</code></pre>{caption}</figure>')
     if isinstance(block, ImageBlock):
         data_uri = assets_data.get(block.asset_id, "")
         return render_image(block, data_uri=data_uri)

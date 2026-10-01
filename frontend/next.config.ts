@@ -1,8 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  // Hide the Next.js dev/build floating indicator (replaced by our own
-  // settings gear in the top-right corner).
+  // Hide the Next.js dev/build floating indicator.
   devIndicators: false,
   // Fallback rewrite for same-origin requests when NEXT_PUBLIC_BACKEND_URL
   // is unset. Despite the name, rewrites are NOT dev-only: they are baked into
@@ -28,6 +27,57 @@ const nextConfig: NextConfig = {
       { source: "/resources", has: [{ type: "query", key: "tab", value: "textbooks" }], destination: "/resources/textbooks", permanent: false },
       { source: "/resources", destination: "/resources/files", permanent: false },
     ];
+  },
+  // 基础安全响应头 + 基础 CSP。
+  //
+  // CSP 是"阻断外域脚本/数据外连"的一层（与 localStorage 中的 token 组合
+  // 成纵深）：script-src 保留 'unsafe-inline'（Next 引导脚本与主题初始化
+  // 无 nonce 机制，见原注释），但外域脚本/样式/连接一律拒绝。开发模式额
+  // 外放开 'unsafe-eval'（react-refresh 需要）。各项资源指令按现有功能
+  // 实测配置：blob:（TTS 音频/上传预览）、data:（KaTeX 字体/quiz SVG）、
+  // ws://localhost|127.0.0.1（语音 WS 开发直连；同源 wss 由 'self' 覆盖）。
+  //
+  // 其余每条都验证过不影响现有功能：
+  //  - frame-ancestors 'self' + XFO：防点击劫持（应用自身嵌入 sandbox
+  //    iframe 走 frame-src，不受影响）
+  //  - object-src 'none'：封死 <object>/<embed> 插件嵌入
+  //  - base-uri 'self' / form-action 'self'：防 <base> 劫持与跨站表单提交
+  //  - microphone=(self)：语音功能只在同源上下文可用
+  async headers() {
+    let backendOrigin = "";
+    if (process.env.NEXT_PUBLIC_BACKEND_URL) {
+      try { backendOrigin = new URL(process.env.NEXT_PUBLIC_BACKEND_URL).origin; } catch { backendOrigin = ""; }
+    }
+    const connectSrc = [
+      "'self'",
+      ...(backendOrigin ? [backendOrigin] : []),
+      "ws://localhost:*", "ws://127.0.0.1:*",
+    ].join(" ");
+    const isDev = process.env.NODE_ENV === "development";
+    const csp = [
+      `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ""}`,
+      "style-src 'self' 'unsafe-inline'",
+      "img-src 'self' data: blob:",
+      "font-src 'self' data:",
+      `connect-src ${connectSrc}`,
+      "frame-src 'self' blob:",
+      "worker-src 'self' blob:",
+      "media-src 'self' blob:",
+      "frame-ancestors 'self'",
+      "object-src 'none'",
+      "base-uri 'self'",
+      "form-action 'self'",
+    ].join("; ");
+    return [{
+      source: "/:path*",
+      headers: [
+        { key: "X-Content-Type-Options", value: "nosniff" },
+        { key: "X-Frame-Options", value: "SAMEORIGIN" },
+        { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+        { key: "Permissions-Policy", value: "camera=(), geolocation=(), microphone=(self)" },
+        { key: "Content-Security-Policy", value: csp },
+      ],
+    }];
   },
 };
 

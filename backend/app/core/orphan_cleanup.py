@@ -30,7 +30,7 @@ _PROTECTED_STUDENT_FILES = frozenset({"prompt_memory_policy.json"})
 
 CATEGORIES = ("students", "sessions", "transcripts", "traces", "uploads",
               "workspaces", "library", "trash", "notes", "knowledge",
-              "classroom")
+              "classroom", "assistant", "avatars")
 
 _SAMPLE_LIMIT = 6
 
@@ -243,6 +243,18 @@ def _collect_orphans(protected_ids) -> dict[str, list[Path]]:
         for d in sorted(kgs_mod._CUSTOM_DIR.iterdir()):
             if d.is_dir() and d.name not in protected:
                 out["knowledge"].append(d)
+
+    # --- 站内助手：chat_history/assistant/<uid>/ 目录名归属 ---
+    from app.core import assistant_store as asst_mod
+    if asst_mod._ASSISTANT_DIR.is_dir():
+        for d in sorted(asst_mod._ASSISTANT_DIR.iterdir()):
+            if d.is_dir() and d.name not in protected:
+                out["assistant"].append(d)
+    from app.identity import avatars
+    if avatars._AVATARS_DIR.is_dir():
+        for d in sorted(avatars._AVATARS_DIR.iterdir()):
+            if d.is_dir() and d.name not in protected:
+                out["avatars"].append(d)
     return out
 
 

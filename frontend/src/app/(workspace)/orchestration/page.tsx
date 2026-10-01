@@ -1,6 +1,13 @@
 "use client";
+import { navigationAnchor, navigationSucceeded, navigationFailed } from "@/lib/assistant/navigation";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  DeepLinkQueryReader, deepParam, focusDeepTarget,
+} from "@/lib/assistant/deep-link";
+import { useAssistantPage } from "@/lib/assistant/useAssistantPage";
+import { currentRouteEpoch } from "@/lib/assistant/page-context";
 import Link from "next/link";
 import { AlertTriangle, MessagesSquare, Play, Plus, Target, X } from "lucide-react";
 import { useUIStore } from "@/lib/store";
@@ -106,6 +113,58 @@ export default function OrchestrationPage() {
   useEffect(() => {
     void fetchData();
   }, [fetchData]);
+
+  // §8.3 助手深链 ?task= / ?goal= / ?week=（B01 扩展 §20.1 学习编排）：
+  // 任务加载后定位高亮；同页 query 变化同样响应；找不到给温和提示。
+  const [deepTaskMissing, setDeepTaskMissing] = useState(false);
+  const [deepGoalMissing, setDeepGoalMissing] = useState(false);
+  const [deepFocus, setDeepFocus] = useState({ task: "", goal: "" });
+  const [deepWeek, setDeepWeek] = useState(-1);
+  const deepTaskLast = useRef("");
+  const deepGoalLast = useRef("");
+  useAssistantPage({
+    navigationStatus: (target) => {
+      if (state === "loading") return null;
+      if (state === "error") return navigationFailed;
+      if (target.kind === "module") return navigationSucceeded;
+      if (target.kind === "task") return navigationAnchor("task-id", target.task_id);
+      if (target.kind === "goal") return navigationAnchor("goal-id", target.goal_id);
+      if (target.kind === "week_task") {
+        const week = document.querySelector(`[data-selected-week="${target.week_index}"]`);
+        return week ? navigationAnchor("task-id", target.week_task_id, week) : null;
+      }
+      return null;
+    },
+    context: () => ({
+      schema_version: 1,
+      route_id: "orchestration",
+      route_epoch: currentRouteEpoch(),
+    }),
+  });
+  const applyDeepLink = useCallback((params: Record<string, string>) => {
+    const week = Number.parseInt(params.week || "", 10);
+    setDeepWeek(Number.isFinite(week) && week >= 0 ? week : -1);
+    setDeepFocus({ task: params.task || "", goal: params.goal || "" });
+  }, []);
+  useEffect(() => {
+    if (state !== "ok") return;
+    const task = deepFocus.task
+      || (deepTaskLast.current ? "" : deepParam("task"));
+    if (task && deepTaskLast.current !== task) {
+      deepTaskLast.current = task;
+      if (!focusDeepTarget("task-id", task)) {
+        void Promise.resolve().then(() => setDeepTaskMissing(true));
+      }
+    }
+    const goal = deepFocus.goal
+      || (deepGoalLast.current ? "" : deepParam("goal"));
+    if (goal && deepGoalLast.current !== goal) {
+      deepGoalLast.current = goal;
+      if (!focusDeepTarget("goal-id", goal)) {
+        void Promise.resolve().then(() => setDeepGoalMissing(true));
+      }
+    }
+  }, [state, today, plan, deepFocus]);
 
   // 任务状态会随对话中的学习行为被后端自动推进：页面重新聚焦时回源。
   useEffect(() => {
@@ -349,6 +408,7 @@ export default function OrchestrationPage() {
 
   return (
     <div className="h-full overflow-y-auto p-6 page-in">
+      <Suspense><DeepLinkQueryReader keys={["task", "goal", "week"]} onParams={applyDeepLink} /></Suspense>
       <div className="mx-auto flex max-w-[1200px] flex-col gap-4">
         <header className="flex flex-wrap items-start justify-between gap-3">
           <div>
@@ -359,6 +419,11 @@ export default function OrchestrationPage() {
             <p className="mt-0.5 text-xs text-muted">{tr("page.desc")}</p>
           </div>
         </header>
+        {deepGoalMissing && (
+          <div role="status" className="rounded-[8px] border border-border bg-surface px-3 py-2 text-xs text-muted">
+            {tr("orch.deep.goalMissing")}
+          </div>
+        )}
 
         {state === "loading" ? (
           <PageSkeleton />
@@ -439,10 +504,12 @@ export default function OrchestrationPage() {
             <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
               <div className="flex min-w-0 flex-col gap-4">
                 {goals.map((g, i) => (
-                  <GoalCard key={g.id ?? i} goal={g} gs={statesByGoal[i]} tr={tr}
-                    onEdit={() => { setFormFailed(false); setEditingGoal(g); }}
-                    onDelete={() => { setFormFailed(false); setDeletingGoal(g); }}
-                  />
+                  <div key={g.id ?? i} data-goal-id={g.id ?? ""}>
+                    <GoalCard goal={g} gs={statesByGoal[i]} tr={tr}
+                      onEdit={() => { setFormFailed(false); setEditingGoal(g); }}
+                      onDelete={() => { setFormFailed(false); setDeletingGoal(g); }}
+                    />
+                  </div>
                 ))}
                 {goals.length < MAX_GOALS && (
                   <button
@@ -455,7 +522,13 @@ export default function OrchestrationPage() {
                   </button>
                 )}
               </div>
+              {deepTaskMissing && (
+                <p className="text-xs text-muted" role="status">
+                  {tr("orch.deep.taskMissing")}
+                </p>
+              )}
               <TodayCard
+                deepTaskId={deepWeek < 0 ? deepFocus.task : undefined}
                 tasks={today}
                 pendingCount={plan!.pending_today ?? today.filter((t) => t.status === "pending").length}
                 tr={tr}
@@ -474,6 +547,8 @@ export default function OrchestrationPage() {
               reviewHref={weekReviewHref}
               conceptOptions={conceptOptions}
               nowTs={nowTs}
+              deepWeekIndex={deepWeek >= 0 ? deepWeek : undefined}
+              deepTaskId={deepFocus.task}
               onAddWeek={handleAddWeek}
               onDeleteWeek={handleDeleteWeek}
               onAddConcept={handleAddWeekConcept}

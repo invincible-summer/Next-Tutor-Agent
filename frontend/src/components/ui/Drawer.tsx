@@ -1,9 +1,11 @@
 "use client";
 import { X } from "lucide-react";
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useId, type ReactNode } from "react";
 import { cn } from "@/lib/cn";
+import { MODAL_LAYER, isTopmost, registerOverlay } from "@/lib/assistant/overlay";
 
-/** 右侧抽屉：详情展示（知识节点/文件/记忆详情）。 */
+/** 右侧抽屉：详情展示（知识节点/文件/记忆详情）。
+ *  Escape 只关最上层覆盖层（OverlayCoordinator，AC-30）。 */
 export function Drawer({
   open,
   onClose,
@@ -17,12 +19,21 @@ export function Drawer({
   children: ReactNode;
   width?: number;
 }) {
+  const overlayId = useId();
   useEffect(() => {
     if (!open) return;
-    const fn = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    const unregister = registerOverlay({
+      id: overlayId, kind: "drawer", layer: MODAL_LAYER, onClose,
+    });
+    const fn = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && isTopmost(overlayId)) onClose();
+    };
     window.addEventListener("keydown", fn);
-    return () => window.removeEventListener("keydown", fn);
-  }, [open, onClose]);
+    return () => {
+      window.removeEventListener("keydown", fn);
+      unregister();
+    };
+  }, [open, onClose, overlayId]);
 
   if (!open) return null;
   return (

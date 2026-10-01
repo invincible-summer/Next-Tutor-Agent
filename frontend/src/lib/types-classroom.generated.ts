@@ -221,6 +221,14 @@ export interface CalloutBlock {
   spans: Array<SpanText | SpanEmphasis | SpanMath>;
 }
 
+export interface CodeBlock {
+  kind?: "code";
+  id: string;
+  code: string;
+  language?: string;
+  caption?: string;
+}
+
 export interface TeachingClaim {
   claim_id: string;
   text: string;
@@ -243,13 +251,23 @@ export interface NarrationSegment {
   estimated_ms?: number;
 }
 
+export interface SlideComposition {
+  mode?: "auto" | "stack" | "columns" | "sidebar" | "editorial";
+  density?: "balanced" | "compact" | "airy";
+  surface?: "plain" | "soft" | "outlined";
+  focal_block_id?: string | null;
+  emphasis_block_id?: string | null;
+  wide_block_ids?: Array<string>;
+}
+
 export interface SlideSpec {
   slide_id: string;
   order: number;
   title: string;
   learning_objective_ids?: Array<string>;
   layout: SlideLayout;
-  blocks: Array<ParagraphBlock | BulletsBlock | FormulaBlock | ImageBlock | TableBlock | StepsBlock | DiagramBlock | CheckpointBlock | CalloutBlock>;
+  composition?: SlideComposition | null;
+  blocks: Array<ParagraphBlock | BulletsBlock | FormulaBlock | ImageBlock | TableBlock | StepsBlock | DiagramBlock | CheckpointBlock | CalloutBlock | CodeBlock>;
   segments: Array<NarrationSegment>;
   claims?: Array<TeachingClaim>;
   source_ids?: Array<string>;
@@ -497,7 +515,7 @@ export interface GenerationJob {
   next_retry_at?: string | null;
   epoch?: number;
   start_mode?: StartMode;
-  operation?: EditContentOperation | ChangeThemeOperation | RegenerateSlideOperation | ReplaceImageOperation | RefreshResearchOperation | null;
+  operation?: EditContentOperation | ChangeThemeOperation | RegenerateSlideOperation | ReplaceImageOperation | RefreshResearchOperation | RegenerateBlockOperation | null;
   created_at: string;
   updated_at: string;
 }
@@ -624,6 +642,13 @@ export interface ReplaceSlideChange {
   slide: SlideSpec;
 }
 
+export interface ReplaceBlockChange {
+  op?: "replace_block";
+  slide_id: string;
+  block_id: string;
+  block: ParagraphBlock | BulletsBlock | FormulaBlock | ImageBlock | TableBlock | StepsBlock | DiagramBlock | CheckpointBlock | CalloutBlock | CodeBlock;
+}
+
 export interface DeleteSlideChange {
   op?: "delete_slide";
   slide_id: string;
@@ -636,7 +661,7 @@ export interface ReorderSlidesChange {
 
 export interface EditContentOperation {
   op?: "edit_content";
-  changes: Array<ReplaceSlideChange | DeleteSlideChange | ReorderSlidesChange>;
+  changes: Array<ReplaceSlideChange | ReplaceBlockChange | DeleteSlideChange | ReorderSlidesChange>;
 }
 
 export interface ChangeThemeOperation {
@@ -661,6 +686,13 @@ export interface ReplaceImageOperation {
 export interface RefreshResearchOperation {
   op?: "refresh_research";
   scope?: RefreshScope;
+}
+
+export interface RegenerateBlockOperation {
+  op?: "regenerate_block";
+  slide_id: string;
+  block_id: string;
+  instruction: string;
 }
 
 export interface ErrorBody {
@@ -955,7 +987,7 @@ export interface CreateLessonResponse {
 
 export interface CreateRevisionRequest {
   base_revision: number;
-  operation: EditContentOperation | ChangeThemeOperation | RegenerateSlideOperation | ReplaceImageOperation | RefreshResearchOperation;
+  operation: EditContentOperation | ChangeThemeOperation | RegenerateSlideOperation | ReplaceImageOperation | RefreshResearchOperation | RegenerateBlockOperation;
 }
 
 export interface CreateRevisionResponse {
@@ -1000,7 +1032,7 @@ export interface ContinueJobRequest {
 
 export interface RevisionOpRequest {
   base_revision: number;
-  operation: EditContentOperation | ChangeThemeOperation | RegenerateSlideOperation | ReplaceImageOperation | RefreshResearchOperation;
+  operation: EditContentOperation | ChangeThemeOperation | RegenerateSlideOperation | ReplaceImageOperation | RefreshResearchOperation | RegenerateBlockOperation;
 }
 
 export interface ImageSearchRequest {
@@ -1194,10 +1226,10 @@ export type InlineSpan = SpanText | SpanEmphasis | SpanMath;
 
 export type DiagramSpec = FlowDiagram | CartesianPlot | ForceDiagram;
 
-export type SlideBlock = ParagraphBlock | BulletsBlock | FormulaBlock | ImageBlock | TableBlock | StepsBlock | DiagramBlock | CheckpointBlock | CalloutBlock;
+export type SlideBlock = ParagraphBlock | BulletsBlock | FormulaBlock | ImageBlock | TableBlock | StepsBlock | DiagramBlock | CheckpointBlock | CalloutBlock | CodeBlock;
 
 export type SourceLocator = FileLocator | WebLocator;
 
-export type EditChange = ReplaceSlideChange | DeleteSlideChange | ReorderSlidesChange;
+export type EditChange = ReplaceSlideChange | ReplaceBlockChange | DeleteSlideChange | ReorderSlidesChange;
 
-export type RevisionOperation = EditContentOperation | ChangeThemeOperation | RegenerateSlideOperation | ReplaceImageOperation | RefreshResearchOperation;
+export type RevisionOperation = EditContentOperation | ChangeThemeOperation | RegenerateSlideOperation | ReplaceImageOperation | RefreshResearchOperation | RegenerateBlockOperation;

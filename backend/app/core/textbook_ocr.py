@@ -511,6 +511,7 @@ def resume_pending_textbook_ocr() -> int:
     文件记录顺序即构建顺序。
     """
     from . import textbook as tb_store
+    from .guest_runtime import is_legacy_guest_owner
     from app.agents.knowledge.textbook_builder import enqueue_textbook_build
     count = 0
     try:
@@ -519,6 +520,8 @@ def resume_pending_textbook_ocr() -> int:
         return 0
     for path in paths:
         owner = path.name[:-len(".textbooks.json")]
+        if is_legacy_guest_owner(owner):
+            continue
         for rec in tb_store.load_textbooks(owner):
             if rec.get("status") != "ocr_waiting":
                 continue

@@ -21,7 +21,7 @@ export function ContextBudgetPanel({ data, tr }: { data: ContextBudgetReport; tr
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         {[
           [tr("ins.context.window"), fmt(data.profile.context_window), tr("ins.context.tokens")],
-          [tr("ins.context.avgInput"), fmt(data.usage.avg_prompt_tokens), `${data.llm_calls} calls`],
+          [tr("ins.context.avgInput"), fmt(data.usage.avg_prompt_tokens), tr("ins.context.calls").replace("%n", String(data.llm_calls))],
           [tr("ins.context.avgOutput"), fmt(data.usage.avg_completion_tokens), tr("ins.context.tokens")],
           [tr("ins.context.saved"), fmt(data.tool_projection.estimated_saved_tokens + data.compaction.estimated_saved_tokens), tr("ins.context.tokens")],
         ].map(([label, value, foot]) => (

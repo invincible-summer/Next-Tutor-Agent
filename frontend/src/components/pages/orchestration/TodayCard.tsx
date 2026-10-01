@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   BookOpen, Check, CheckCircle2, ListChecks, ListTodo, Network, Pencil, PencilLine, Plus,
   RotateCcw, Trash2, Undo2,
@@ -272,6 +272,7 @@ function TaskRow({
 /** 今日任务卡：「学习计划 / 间隔复习」双子栏 + 结转区置顶 + 分页（5/页）
  * + 全交互（完成/行动/编辑/删除/重置/添加）。 */
 export function TodayCard({
+  deepTaskId,
   tasks,
   pendingCount,
   tr,
@@ -282,6 +283,7 @@ export function TodayCard({
   onUpdate,
   onDelete,
 }: {
+  deepTaskId?: string;
   tasks: OrchDailyTask[];
   pendingCount: number;
   tr: Tr;
@@ -313,6 +315,18 @@ export function TodayCard({
   const open = rest.filter((t) => t.status !== "completed");
   const done = rest.filter((t) => t.status === "completed");
   const ordered = [...carryover, ...open, ...done];
+
+  const deepTask = tasks.find((task) => task.id === deepTaskId);
+  const deepTab = deepTask?.kind === "review" ? "review" : "plan";
+  const deepIndex = ordered.findIndex((task) => task.id === deepTaskId);
+  useEffect(() => {
+    if (!deepTaskId) return;
+    const timer = window.setTimeout(() => {
+      if (tab !== deepTab) setTab(deepTab);
+      else if (deepIndex >= 0) setPage(Math.floor(deepIndex / 5));
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [deepTaskId, deepTab, deepIndex, tab]);
 
   // W4 容量可行性：今日超载 advisory。渲染纯净——day 取自任务行自身
   //（无任务的天不可能超载，不引入渲染期时钟）。
@@ -396,8 +410,8 @@ export function TodayCard({
           )}
           <div className="divide-y divide-border-light">
             {paged(ordered, page).map((t) => (
+              <div key={t.id} data-task-id={t.id}>
               <TaskRow
-                key={t.id}
                 task={t}
                 tr={tr}
                 completing={completingId === t.id}
@@ -409,6 +423,7 @@ export function TodayCard({
                 onDelete={setDeleting}
                 onReset={(id) => void onUpdate(id, { status: "pending" })}
               />
+              </div>
             ))}
           </div>
           <Pager page={page} total={ordered.length} onPage={setPage} />

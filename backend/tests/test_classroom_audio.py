@@ -574,10 +574,11 @@ class VoicePreviewTests(AudioTestBase):
         prefs = VoicePreferences()
         first = asyncio.run(self.engine.voice_preview(OWNER, "zh", prefs))
         self.assertTrue(first["clip_id"].startswith("vp_"))
-        self.assertEqual(first["provider"], "azure")
+        self.assertEqual(first["provider"], "melo")
         second = asyncio.run(self.engine.voice_preview(OWNER, "zh", prefs))
         self.assertEqual(first["clip_id"], second["clip_id"])
-        self.assertEqual(self.cloud.calls, 1)   # 命中 owner 级缓存
+        self.assertEqual(self.local.calls, 1)   # 命中 owner 级缓存
+        self.assertEqual(self.cloud.calls, 0)
         data = self.engine.voice_preview_content(OWNER, first["clip_id"])
         self.assertTrue(data.startswith(b"RIFF"))
 
@@ -592,7 +593,7 @@ class VoicePreviewTests(AudioTestBase):
         from app.schemas.classroom import VoicePreferences
         self.cloud.fail = True
         result = asyncio.run(self.engine.voice_preview(
-            OWNER, "zh", VoicePreferences()))
+            OWNER, "zh", VoicePreferences(policy="cloud")))
         self.assertEqual(result["provider"], "melo")
         self.assertEqual(self.local.calls, 1)
 

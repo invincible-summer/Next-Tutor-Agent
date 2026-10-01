@@ -136,7 +136,7 @@ export function Hero({ tr, loggedIn }: { tr: LandingTr; loggedIn: boolean }) {
           <Magnetic>
             <Link
               href={loggedIn ? "/chat" : "/register"}
-              className="inline-flex h-12 items-center gap-2 rounded-full bg-accent px-8 text-[15px] font-medium text-white shadow-md transition-colors hover:bg-accent-strong"
+              className="inline-flex h-12 items-center gap-2 rounded-full bg-[#256d66] px-8 text-[15px] font-medium text-white shadow-md transition-colors hover:bg-accent-strong"
             >
               {tr(loggedIn ? "landing.hero.workspace" : "landing.hero.primary")}
               <ArrowRight size={16} />

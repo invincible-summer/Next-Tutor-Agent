@@ -41,7 +41,6 @@ export interface PlayerState {
   playbackRate: number;        // 0.5–1.5（播放倍速，不重新计费）
   captions: boolean;
   lowStimulus: boolean;
-  readingMode: boolean;
   fullscreen: boolean;
   notice: string | null;       // 一次性提示（如“已切换本地语音”）
   error: string | null;
@@ -65,7 +64,7 @@ export type PlayerAction =
   | { type: "seek"; slideOrder: number; segmentSeq: number;
       cursor: PlayerCursor; token: GenerationToken }
   | { type: "settings"; volume?: number; playbackRate?: number;
-      captions?: boolean; lowStimulus?: boolean; readingMode?: boolean;
+      captions?: boolean; lowStimulus?: boolean;
       fullscreen?: boolean }
   | { type: "caption_follow"; paused: boolean }
   | { type: "lease"; token: GenerationToken };
@@ -97,9 +96,8 @@ export function initialPlayerState(token: GenerationToken): PlayerState {
     cursor: { slideId: "", segmentId: "", offsetMs: 0 },
     volume: 1,
     playbackRate: 0.9,
-    captions: true,
+    captions: false,
     lowStimulus: false,
-    readingMode: false,
     fullscreen: false,
     notice: null,
     error: null,
@@ -115,7 +113,7 @@ export function playerReducer(
 ): PlayerState {
   if (TERMINAL.has(state.status)) {
     // ended 之后只允许覆盖 notice/error 之外的显式恢复动作
-    if (action.type !== "loaded" && action.type !== "notice") {
+    if (action.type !== "loaded" && action.type !== "notice" && action.type !== "settings") {
       return state;
     }
   }
@@ -153,7 +151,6 @@ export function playerReducer(
         playbackRate: action.playbackRate ?? state.playbackRate,
         captions: action.captions ?? state.captions,
         lowStimulus: action.lowStimulus ?? state.lowStimulus,
-        readingMode: action.readingMode ?? state.readingMode,
         fullscreen: action.fullscreen ?? state.fullscreen,
       };
     case "caption_follow":

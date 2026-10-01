@@ -9,6 +9,8 @@ import {
   RotateCcw,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
+import { useUIStore } from "@/lib/store";
+import { localeFor } from "@/lib/i18n";
 import type { LessonSummaryPublic } from "@/lib/types-classroom.generated";
 import { classroomPath } from "@/lib/classroom/paths";
 import { cardPaletteFor } from "./theme-palette";
@@ -49,12 +51,13 @@ export function LessonCard({ wsId, lesson, tr, hrefBase, onRetry, retrying,
   retrying?: boolean;
   onArchive?: (lesson: LessonSummaryPublic) => void;
 }) {
+  const lang = useUIStore((s) => s.lang);
   const href = `${hrefBase ?? classroomPath(wsId)}/${encodeURIComponent(lesson.lesson_id)}`;
   const updated = useMemo(() => {
     const d = new Date(lesson.updated_at);
     return Number.isNaN(d.getTime()) ? "" :
-      d.toLocaleString(undefined, { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" });
-  }, [lesson.updated_at]);
+      d.toLocaleString(localeFor(lang), { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" });
+  }, [lesson.updated_at, lang]);
   const generating = lesson.status === "generating";
   const failed = lesson.status === "failed";
   const job = lesson.latest_job;

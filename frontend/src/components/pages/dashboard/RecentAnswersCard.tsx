@@ -1,4 +1,7 @@
+"use client";
 import { Badge } from "@/components/ui/Badge";
+import { useUIStore } from "@/lib/store";
+import { localeFor, type Lang } from "@/lib/i18n";
 import { Card, CardHeader } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { verdictTone } from "@/lib/labels";
@@ -12,11 +15,11 @@ function verdictLabel(tr: Tr, verdict: string): string {
   return tr("answers.verdict.unknown");
 }
 
-function fmtIso(iso: string): string {
+function fmtIso(iso: string, lang: Lang): string {
   if (!iso) return "";
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return iso;
-  return d.toLocaleDateString();
+  return d.toLocaleDateString(localeFor(lang));
 }
 
 /** 最近作答（plan §15.3：原始作答投影——journal /quiz/recent，题目与判定
@@ -28,6 +31,7 @@ export function RecentAnswersCard({
   items: RecentQuizQuestion[];
   tr: Tr;
 }) {
+  const lang = useUIStore((s) => s.lang);
   const rows = items.slice(0, 10);
   return (
     <Card>
@@ -52,7 +56,7 @@ export function RecentAnswersCard({
                 <div className="mt-0.5 truncate text-[11px] text-muted">{r.stem}</div>
               </div>
               <div className="shrink-0 text-right">
-                <div className="tnum text-[11px] text-muted">{fmtIso(r.ts)}</div>
+                <div className="tnum text-[11px] text-muted">{fmtIso(r.ts, lang)}</div>
                 {r.evaluation_status && r.evaluation_status !== "ready" && (
                   <div className="text-[11px] text-info">{tr("answers.evaluating")}</div>
                 )}

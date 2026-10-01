@@ -1,7 +1,6 @@
-# Optional dependencies for vector/public-artifact regression tests.
-# Production BM25 deployments must not install this file.
+# Lightweight test dependencies shared by the BM25 and vector suites.
+# Install requirements-vector.txt separately for the optional vector suite.
 -c constraints.txt
--r requirements-vector.txt
 # Starlette 1.3+ 的 TestClient 使用独立 httpx2 包；旧 httpx 兼容回退
 # 在当前版本组合中会挂起 API 回归。
 httpx2>=2.13

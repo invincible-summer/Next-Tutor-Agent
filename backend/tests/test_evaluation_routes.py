@@ -121,7 +121,7 @@ class TestReadRoutes(RouteFixture):
         r2 = self.client.get(
             f"/api/v1/learner-evaluation/evidence/{src}")
         # 未登录游客（student_default 命名空间）看不到他人证据
-        self.assertEqual(r2.status_code, 404)
+        self.assertEqual(r2.status_code, 401)
 
     def test_reads_never_call_llm(self):
         """§10.4：GET 图谱/列表/视图零模型调用。"""

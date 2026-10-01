@@ -49,7 +49,7 @@ SSE 为前端直连后端的流式通道（`POST /chat/stream`、`POST /quiz/gra
 
 | 开关 | 默认 | 关闭后行为 |
 |------|------|-----------|
-| `AUTH_MODE` | `0` | `0`=游客宽容（未登录共享 `student_default`，登录后 JWT 始终绑定独立命名空间）；`1`=登录必选 |
+| `AUTH_MODE` | `0` | 保留部署安全检查；生产设 `1`。游客访问由管理员策略独立控制，默认关闭，不再回退共享身份 |
 | `SUPERVISOR_MODE` | `v2` | `legacy` 走 V1 `chat_turn` 单函数路径；v2 运行时异常默认显式返回错误；仅当 `SUPERVISOR_LEGACY_FALLBACK=1` 时回退 legacy |
 | `STUDENT_MODEL_MODE` | `1` | `0` 关闭 M2：无画像/学习评价/策略注入（评价层按 §10.3 显式 disabled，不静默假装已评价） |
 | `TEACHING_ENGINE_MODE` | `1` | `0` 退回 M2 内置轻量 adapt 路径 |
@@ -81,29 +81,37 @@ SSE 为前端直连后端的流式通道（`POST /chat/stream`、`POST /quiz/gra
 ### 2.1 核心模型
 
 - `user_id == student_id`：注册用户的 user_id 直接作为 student_id，自动获得独立的 M2-M9 数据命名空间（`students/<user_id>.*`），无需显式「创建学生」。
-- 未登录身份为游客，共享 `student_default` 命名空间。
-- `resolve_student_id()`（`identity/deps.py`）：FastAPI 依赖，从 `Authorization: Bearer` JWT 解出 user_id；**任何 AUTH_MODE 下 JWT 均生效**（AUTH_MODE=0 时登录同样获得隔离空间），无 token 回退游客。所有投影 API 经 `Depends(resolve_student_id)` 注入。
+- 未登录默认不可使用学习功能；管理员 `GET/PUT /admin/guest-policy` 可开启临时体验，策略存于 `chat_history/settings/guest_policy.json`，缺失或损坏时拒绝游客。
+- `resolve_student_id()`（`identity/deps.py`）：有效 JWT 解出账号身份；无 JWT 时须满足游客策略且带有效 `X-Guest-Token`，解析为独立 `guest_<uuid>`。无效或过期 JWT 返回 401，禁止降级游客。API 总路由的 `require_api_access` 默认拒绝，仅白名单允许游客文字聊天、临时出题及本题批改。导航助手（含原公共 guide）、语音、上传、私有材料与完整学习模块均须登录。WebSocket 在 accept 前验证登录票据。
 
 ### 2.2 数据隔离边界
 
 - 学习数据：`students/<student_id>.*` 全部按 id 物理分文件（画像/学习证据账本/教学日志/记忆/编排/UX/评估）。
-- 会话历史：`GET /chat/sessions` 只返回当前身份的会话（无 student_id 戳的遗留会话归游客）。新账号从空白历史开始。
+- 会话历史：`GET /chat/sessions` 只返回登录账号本人的会话；游客始终返回空列表，不能读取旧 `student_default` 或未盖身份戳的遗留会话。
 - 工作区：创建打 `student_id` 戳、列表过滤、按 id 端点对外人 404（不泄露存在性），移入会话也校验归属。「共享」指同一 owner 的多个对话间共享，而非跨用户。
 - 资料库：每用户一份（`chat_history/library/<student_id>.json` + `data/<student_id>/`），互不可见。
 - **JWT 唯一事实源（铁律）**：任何端点的 student_id 只来自 `resolve_student_id()`，请求体/query 里的 student_id 字段仅为旧客户端兼容保留、一律忽略。回归实案：CAT 测评 5 个端点曾信任 body 的 `req.student_id`，登录用户的测评数据错落到游客命名空间且可跨用户读写——已修复并加 `test_assessment_identity` 回归（伪造他人 id 无效、游客伪造同样无效）。
 
 ### 2.3 账户 API 与安全
 
-- 端点：`GET /auth/status`、`POST /auth/register`、`POST /auth/login`、`POST /auth/logout`、`GET /auth/me`、`GET/PUT /user/profile`、`DELETE /user/account`（自助注销，需密码二次确认；名下全部数据随账号不可恢复清除——`account_data.purge_account` 语义：会话/转写/trace/上传/工作区/资料库/回收站/笔记/学习档案/知识图谱逐层清空且不留空目录，账号记录最后删、中途失败可重试；记录删除后 JWT 即失效）。
-- **管理员（P6-B）**：`User.role` 含 `admin`；`.env` 的 `ADMIN_EMAIL`/`ADMIN_PASSWORD` 在启动 lifespan 引导（不存在则创建、存在则提升）。`require_admin` 依赖（401/403）。管理端点：`GET /admin/users`（账号列表，公开字段）、`POST /admin/users/{id}/clear-chat`、`DELETE /admin/users/{id}`（注销，不可删 admin 含自己）、`GET /admin/orphan-data` + `POST /admin/orphan-data/purge`（孤儿数据扫描/清理：测试残留、注销遗物、无引用 trace、失会话转写、空回收站目录；注册账号与 `public`/`student_default` 共享命名空间受保护）。公用教材库写操作（上传 scope=public / PATCH / DELETE / rebuild）全部仅 admin。
+- 端点：`GET /auth/status`、`POST /auth/register`、`POST /auth/login`、`POST /auth/logout`、`GET /auth/me`、`GET/PUT /user/profile`、`GET/PUT/DELETE /user/avatar`（认证本人读取/上传/移除）、`DELETE /user/account`（自助注销，需密码二次确认；名下全部数据随账号不可恢复清除——`account_data.purge_account` 语义：会话/转写/trace/上传/工作区/资料库/回收站/笔记/学习档案/知识图谱逐层清空且不留空目录，账号记录最后删、中途失败可重试；记录删除后 JWT 即失效）。
+- **管理员（P6-B）**：`User.role` 含 `admin`；`.env` 的 `ADMIN_EMAIL`/`ADMIN_PASSWORD` 在启动 lifespan 引导（不存在则创建；已存在则仅当 `ADMIN_PASSWORD` 通过该账号 bcrypt 校验才提升——防开放注册下抢注 `ADMIN_EMAIL` 的静默提权）。`require_admin` 依赖（401/403）。管理端点：`GET /admin/users`（账号列表，公开字段）、`POST /admin/users/{id}/clear-chat`、`DELETE /admin/users/{id}`（注销，不可删 admin 含自己）、`GET /admin/orphan-data` + `POST /admin/orphan-data/purge`（孤儿数据扫描/清理：测试残留、注销遗物、无引用 trace、失会话转写、空回收站目录；注册账号与 `public`/`student_default` 共享命名空间受保护）。公用教材库写操作（上传 scope=public / PATCH / DELETE / rebuild）全部仅 admin。
 - 密码 bcrypt 哈希（`AUTH_BCRYPT_ROUNDS`），`to_public_dict` 绝不返回 `password_hash`。
-- JWT secret 仅在 `identity/config.py` / `security.py` 使用；默认值仅开发用，前端会警告，生产必须替换（`AUTH_JWT_SECRET`）。
-- 登录接口限流（`core/ratelimit.py`）。
+- JWT secret 仅在 `identity/config.py` / `security.py` 使用。未显式配置 `AUTH_JWT_SECRET` 时：测试/keyless 环境用固定默认值；本地部署在 `.runtime/auth_jwt_secret`（0600）生成并持久化本机随机开发密钥，公共默认值仅在 `.runtime` 不可写时兜底并大声告警；`AUTH_MODE=1` 下使用默认值拒绝启动。`GET /auth/status` 的 `using_default_secret` 只对已登录管理员如实披露。
+- 登录/注册限流（`core/ratelimit.py`）：按 IP 固定窗口 + 登录失败按账号独立节流（每账号 10 次/5 分钟，只计失败）。客户端 IP 只取 uvicorn 按可信代理解析后的 peer（`--proxy-headers` 默认仅信 127.0.0.1），应用层不解析原始 `X-Forwarded-For`——伪造 XFF 不能刷新限流桶。
 - `users/`、`students/` 均被 `.gitignore` 覆盖。
 
 ### 2.4 前端耦合
 
-品牌认证页（`AuthShell` 分栏：品牌栏 + 表单栏，中英双语）：登录页 + 两步注册页（账号 → 学习信息，`?redirect=` 回跳且登录↔注册互跳不丢）；注册**不采集学科**（学科之后经学习行为沉淀）。TopBar 全模式可见登录入口与用户名/登出；路由守卫（AUTH_MODE=1 时重定向 `/login`）；`apiFetch` 全局 token 注入（REST + SSE）；我的画像页账户卡（登录态查看/编辑 UserProfile）与危险区自助注销（密码 + 输入「注销」双重确认）。
+品牌认证页（`AuthShell` 分栏：品牌栏 + 表单栏，中英双语）：登录页 + 两步注册页（账号 → 学习信息，`?redirect=` 回跳且登录↔注册互跳不丢）；注册**不采集学科**（学科之后经学习行为沉淀）。TopBar 全模式提供「我的账户」菜单，包含登录/退出；路由守卫（根据实时游客策略和页面白名单重定向 `/login` 并保留查询参数）；`apiFetch` 全局 token 注入（REST + SSE）；账户资料页查看/编辑 UserProfile，设置页账户与数据分类提供自助注销（密码 + 输入「注销」双重确认）。
+
+### 2.5 游客临时学习与清理
+
+- 前端只放行 `/chat` 和 `/assessment` 的独立游客页面（产品文档仍公开）；认证状态从实时 `/auth/status` 的 `guest_allowed` 读取，禁止五分钟策略缓存。游客令牌、聊天、题卡与作答只在当前浏览器文档内存中；不写 localStorage、sessionStorage 或历史 URL。刷新/关闭通过 keepalive 释放，登录/退出清除临时数据与题卡草稿；请求 401、页面重新可见及定期检查更新权限。
+- `POST/DELETE /guest/session` 管理不透明令牌；后端 `guest_runtime` 仅在单 worker 内存中保存会话、冻结题目和本题反馈，最多 512 位游客，每位最多 100 道题，闲置 30 分钟回收。关闭策略、管理员清理及服务关闭均撤销令牌并取消在途任务；提交与撤销共享锁，拒绝迟到写回。
+- `GET /guest/textbooks`、`POST /guest/quiz/generate` 只接受服务器确认的可用公共教材 id。材料层 `KnowledgeStore(memory_only=True)` 只读公共文本；禁止私有文件、工作区绑定、附件及上传。聊天复用执行器，`ExecutionPolicy(persistent=False)` 关闭题目持久化、生成记录、工具长结果落盘和 trace，题目注册改写为游客内存快照；不经过 Supervisor 的长期学习管线。
+- 选择题确定性判分，开放题仅对冻结题目及量规调用批改器。`/quiz/record|grade` 返回本题结果和 `evaluation.unavailable(guest_temporary)`；重复提交幂等，不写证据账本，不创建评价 job，也不更新画像、知识图谱、记忆、教学或计划。评价 worker 跳过旧 `student_default` 及游客前缀。
+- 管理台「账号与数据」控制游客策略，「数据清理」通过 `GET /admin/guest-data`、`POST /admin/guest-data/purge` 清空活跃游客和可归属的旧游客文件（会话/转写/trace/上传/工作区/资料库/回收站/笔记/学习档案/图谱/课堂/助手/头像），并失效旧游客模型、图谱及资料缓存。清理保护实际账号、示例账号、公用教材及其引用的共享文件；汇报实际删除量和部分失败，可重复执行。后台教材/OCR/课堂恢复和助手调度跳过未关联账号的旧游客命名空间，防止重新生成残留。游客无独立磁盘根；测试政策文件已登记存储沙箱。
 
 ---
 
@@ -210,7 +218,7 @@ M10 Registry 将 Agent Skill 投影为能力 → 工具子集，收窄 LLM 每�
 - `core/tool_context.py` 按工具语义生成模型上下文投影：quiz/fit 只给题目数、ID、考点和“前端已渲染”边界，检索/历史结果按长度截断并保留 spill 引用；完整 ToolResult 仍通过 SSE、quiz_history 和业务存储流转。默认 `on` 用于模型上下文，但完整 SSE/quiz_history/业务存储不变；可一键退回 shadow。
 - `core/message_protocol.py` 生成 assistant tool_call + tool result 的内部标准消息影子，保留 call ID、工具名和参数；`TOOL_MESSAGE_MODE=native` 已切换当前回合为 assistant tool_calls + tool result；Provider 返回 400 时自动将本轮消息转换回 legacy 并重试。历史会话仍以普通教学回答 + SessionLearningCard 恢复，不重放旧工具 payload。
 - `core/context_telemetry.py` 按当前用户 Session 关联的 trace_id 聚合 context_budget、llm_usage、reasoning/answer 通道、compaction、tool projection 与 fallback，只返回统计不返回 Prompt、用户正文、工具原文或隐藏 reasoning；`GET /evaluation/context-budget` 投影到现有系统洞察页。
-- `start.sh` 默认启动完整运行时：Supervisor v2、Skill gated、LLM adapter、Tool Context on、Tool Message native；读取显式 shell 或 `.env` 中对应非敏感模式作为覆盖，并优先使用 Edu 专用端口 8123/3001 和 pnpm。stop 只终止记录为本项目的 PID，不再扫描杀死 Paper_Agent 端口。
+- `start.sh` 默认启动完整运行时：Supervisor v2、Skill gated、LLM adapter、Tool Context on、Tool Message native；读取显式 shell 或 `.env` 中对应非敏感模式作为覆盖，并优先使用 Edu 专用端口 8123/3001 和 pnpm。stop 与退出清理通过 `deploy/process_cleanup.py` 校验项目目录并快照进程树；先 TERM 等待退出，再按 PID 与启动时间校验仅强制终止残留进程，不按端口执行 `fuser -k`，避免旧实例误杀复用端口的新服务。前端直接启动本地 Next Node 入口，语音进程作为启动脚本的直接子进程管理；前台 INT/TERM/HUP 转为带原因的退出码并只执行一次 EXIT 清理；清理 helper 忽略在途重复外部信号，避免 KeyboardInterrupt 中断退出。非交互启动自动通过 nohup+setsid 进入独立后台会话（ATTACHED=1 可显式保留前台），./start.sh daemon 可显式后台启动；私有日志与 PID:starttime 登记位于 gitignored .runtime/。stop 只处理登记的服务与旧 PID 文件，不再扫描仓库内所有同名进程；启动时间校验拒绝复用 PID。
 - `recall_history` 工具提供 JIT 检索：对 transcript 做 BM25，找回被压缩省略的细节——有损压缩因此可恢复。**P4 起支持跨会话**：工具携带 student_id，检索索引连带该生名下最近 8 个其它会话的 transcript 尾部（各 600 行），命中条目标注来源会话（`会话《标题》(MM-DD)`），「之前/上次讲过什么」不再丢；仍全程定界包裹。transcript 除师生对话外还包含两类系统记录（`core/quiz_attempts.py`）：出题成功时的【出题记录】（题干/答案/考点摘要，模型经 tool 投影与历史剥离后仍能找回自己出的题）与每次批改后的【作答记录】（题目/学生作答/判定），作答不再只存在于不可检索的 quiz API 黑洞里。
 - 工具结果 truncate-then-persist（§3.5 R4），避免大 payload 反复进上下文。
 
@@ -682,12 +690,12 @@ frontend/src/
 
 ### 20.2 「纸墨书院」设计体系
 
-- 三层令牌：基础色板 → 语义令牌（CSS 变量，`globals.css` + `@theme inline`）→ 组件类。宣纸底 / 黛青 / 朱砂主色，浅深双主题（`data-theme` 切换，偏好持久化 localStorage）。
+- 三层令牌：基础色板 → 语义令牌（CSS 变量，`globals.css` + `@theme inline`）→ 组件类。宣纸底 / 黛青 / 朱砂主色，浅深双主题（`html.dark` 切换，偏好 light/dark/system 持久化 localStorage；system 跟随 prefers-color-scheme 并监听变化，预水合脚本避免闪白）。
 - 证据四态色（未观察/初现/有支持/需复核）贯穿图谱、总览、测评，颜色语义与统一评价投影一致。
 - `font-serif` 标题气质；字号 S/M/L/XL 四档（`--fs-scale` 驱动根字号，默认 M）；`page-in` 页面入场动效。
 - 页面三态规范：加载骨架 / 空态（引导行动）/ 数据态；卡片化 + 徽标 + 克制留白。
 
-### 20.3 十大模块页
+### 20.3 模块与账户页面
 
 | 路由 | 页面 | 体现模块 |
 |------|------|---------|
@@ -700,15 +708,21 @@ frontend/src/
 | `/memory` | 记忆中心 | M6（情景时间线按日分页/语义事实与策略条形分页）|
 | `/resources/files` `/resources/textbooks`（`/resources` 重定向落点） | 资料中心 | 资料库（教材库/文件库双 Tab 路由段化：教材卡片含构建状态/进度/详情抽屉章节大纲且懒加载分包，文件库=文件夹树/下载/来源选择/会话附件）|
 | `/insights` | 系统洞察 | M7（失败分布/策略排名/改进建议人工确认）+ 上下文/推理预算观测 |
-| `/profile` | 我的画像 | M2 学术画像 + M8 UX 画像 + M0 账户卡与注销 |
+| `/profile` | 学习画像 | M2 学术画像 + M8 UX 画像与学习激励 |
+| `/account` | 账户资料 | M0 个人资料编辑 + 用户名/邮箱/角色/账户 ID/注册时间/最近登录时间 |
+| `/settings` | 设置 | 通用/学习与回答/语音与课堂/助手/资料处理/账户与数据/关于，`?section=` 分类深链 |
 
 外加 `/login`、`/register` 认证页（M0）。
 
 ### 20.4 关键机制
 
-- **AppShell**：SideNav（工作区树 + 会话列表 + 批量管理）+ TopBar（设置齿轮：中英双语 / 回答语言 auto-zh-en / 主题 / 学段 / 字号；模型信息；登录入口）。左侧模块导航每次进入站点默认收起为图标轨（开合不持久化，仅会话内手动展开）。
+- **设置反馈与说明**：`UIProvider` 提供共享 `ToastProvider`；设置及资料保存的成功反馈通过 `useToast` 显示在右上角，portal 到 body，不参与页面布局。成功通知 3 秒后关闭，失败通知 6 秒后关闭，均可手动关闭；连续操作替换当前通知并重新计时。设置标签、选项及操作旁复用 `ui/Hint` 问号按钮，鼠标悬停与键盘聚焦显示中英双语说明。
+
+- **AppShell**：左侧模块导航保留学习/资料模块与管理员入口；设置入口在右上角头像左侧；工作区树与会话列表仍在对话侧栏。顶栏保留连续学习天数与文档，并通过「我的账户」菜单进入账户资料、学习画像、系统洞察及登录/退出；总览无顶栏重复入口。页面标题元数据独立于侧栏可见项目。左侧模块导航每次进入站点默认收起为图标轨（开合不持久化，仅会话内手动展开）。
+- **账户与设置**：`/account` 复用 `/auth/me` 的身份字段及 `/user/profile` 资料编辑，新增认证头像上传与裁剪。`/settings?section=general|learning|voice|assistant|processing|account|about` 逐分类呈现；本地偏好即时生效、服务端偏好保留原保存语义；游客账户设置显示登录入口。注销保留密码与确认短语。多字段表单未保存时保护页面链接、浏览器历史及助手导航。旧 `/profile?section=account` 跳 `/account`，voice/assistant 跳设置分类，learning 保留画像定位；助手 `profile_section` 映射直接指向新页面，新增 `settings_section` 目标并以实际分类内容确认回执。系统洞察原实体深链与权限不变。
+- **学段与头像**：设置中的默认学段登录后经 /user/profile 保存（只接受四学段与空串自动），同步 StudentModel 与 UI defaultGrade；guestGrade 单独保存在浏览器，既有会话 grade 只影响当前对话，新对话重新应用 defaultGrade。账户资料不再重复编辑学段。头像客户端以拖动/缩放/可键盘定位的滑杆裁剪成 256×256 PNG；服务端限 5MB/2000 万像素、仅 JPEG/PNG/WebP、拒绝动画与 SVG、重新解码居中裁剪并剥离元数据，原子写入按可信 resolve_student_id 分区的私有根。profile.avatar 仅存内容版本标识，/user/profile 不接受任意头像地址；读取 no-store，前端通过 apiFetch 认证后使用临时 blob URL，换账号/退出/卸载时撤销。每用户生命周期锁防账户删除后迟到上传重建目录，沙箱/占用统计/注销/孤儿清理已登记。/model-info 仅公开本地与云端语音模型名、音色与配置布尔值，不公开凭证或地址。
 - **状态**：zustand 双 store（chat-store / auth-store）+ SSR 水合安全；localStorage 持久化偏好与 token。
-- **i18n 双层**：`i18n.ts` 全局词条 + `strings.ts` `makePageT` 页面级词条，zh/en 全覆盖。
+- **i18n 双层**：`i18n.ts` 全局词条 + `strings.ts` `makePageT` 页面级词条。`makePageT` 按词典对象与语言缓存函数引用，避免依赖翻译函数的加载 effect 反复请求。根布局 `UIProvider` 统一恢复偏好、同步 `<html lang>` 与跨标签页语言切换；localStorage 不可用时仍可在当前页面切换语言。学段只翻译显示标签，API token 保持原值。`pnpm test:i18n` 校验词典键、插值与翻译函数契约；`pnpm test:e2e:i18n` 验证切换、持久化和主要页面。
 - **列表分页约定**：所有条目列表统一走 `ui/Pager`（客户端切片 `paged()`，默认 5 条/页，密行/表格 8-10 条/页）；页码为可输入框，直接输数字跳页（Enter/失焦提交、自动钳位、Esc 取消）；回源后条数变少时组件先钳位页码再切片，不停留在空白页。情景记忆时间线按日分组、一页一天，「加载更多」继续向服务器取更早分组。
 - **API 层**：`apiFetch`（JWT 注入、REST + SSE 统一）、`uploadFailures`（上传失败明确提示）、`downloadViaFetch`（原件下载保留文件名）。
 - **chat URL 唯一事实源**：`/chat/[[...sessionId]]` catch-all，世代号防串会话（切换会话时丢弃迟到的上一会话流）。
@@ -781,6 +795,7 @@ frontend/src/
 | `chat_history/trash/items/<sid>/<trash_id>/` | 统一归档包（manifest + payload） | 账号 / 公用 |
 | `chat_history/classroom/<owner>/...` | 课堂模式全部私有运行数据（owner.json、搜索/试听缓存、lessons/<les>/ 的 revisions/jobs/assets/runs/audio/exports；purge tombstone 在根外 .tombstones/） | 账号 |
 | `users/accounts.json` | 账户（bcrypt hash） | 全局 |
+| `users/avatars/<sid>/avatar.png` | 256×256 PNG 头像，仅认证本人 GET /user/avatar 可读，无公开静态 URL；account_data 删除及 orphan_cleanup avatars 类别覆盖 | 账号 |
 | `students/<sid>.json` | M2 画像（身份/学段/偏好；无能力数值） | 账号 |
 | `students/<sid>.learning_evidence.jsonl` | M2 统一学习证据 journal（唯一事实源；tasks/sources/jobs/判断/scope） | 账号 |
 | `students/<sid>.teaching.json` | M3 教学日志 | 账号 |
@@ -817,7 +832,7 @@ frontend/src/
 - **笔记仓库（M-Notes）**：`GET/notes/{vault,search,graph,reviews/due}`、notes/folders/revisions/templates CRUD、每笔记智能体 `GET/PATCH/DELETE /notes/{id}/agent`、`POST /notes/{id}/review`、`GET /notes/{id}/export`、`GET /notes/export`、SSE `POST /notes/{generate,chat/stream}`（详见文末 M-Notes 章节）
 - **健康/模型**：`GET /health`、`GET /model-info`
 - **语音通话（P10，默认 off）**：`GET /voice/status`（provider 可用性）、`POST /voice/ticket`（header JWT 换单次 60s 握手凭证）、`WS /voice/ws?ticket=`（push-to-talk 通话协议，见文末 P10 章节）
-- **认证/账户**：`GET /auth/status`、`POST /auth/register`、`POST /auth/login`、`POST /auth/logout`、`GET /auth/me`、`GET/PUT /user/profile`、`DELETE /user/account`
+- **认证/账户**：`GET /auth/status`、`POST /auth/register`、`POST /auth/login`、`POST /auth/logout`、`GET /auth/me`、`GET/PUT /user/profile`、`GET/PUT/DELETE /user/avatar`（认证本人读取/上传/移除）、`DELETE /user/account`
 - **对话**：`POST /chat/stream`（SSE，`grade` 默认 `""`=自动）、`POST /chat/upload`（`grade` 默认 `""`）、`POST /chat/ocr`、`GET /chat/sessions`、`GET/PATCH/DELETE /chat/sessions/{id}`（PATCH 支持 `{title?, grade?}` 会话内切换学段）、`GET /chat/sessions/{sid}/files/{fid}/download`、`POST /chat/sessions/{sid}/attach_library`（`grade` 默认 `""`）
 - **测评交互**：`POST /quiz/grade`（SSE）、`POST /quiz/record`、`GET /quiz/hint`、`POST /quiz/dispute`、`GET /quiz/recent`（journal 投影，跨会话最近习题）、`POST /assessment/{start,answer,next,abandon}`、`GET /assessment/{report,active}`
 - **OpenAI 兼容门面**：`GET /models`、`POST /chat/completions`（COMPAT_API_KEY 鉴权，未配置=503；供第三方平台接入，见 §21.6）
@@ -828,7 +843,7 @@ frontend/src/
 - **记忆**：`GET /memory/{episodes,semantic,procedural}`
 - **评估**：`GET /evaluation/{report,traces,proposals,guidance,context-budget}`、`PATCH /evaluation/proposals/{id}`（applied=部署教学指导）、`DELETE /evaluation/guidance/{id}`（吊销回滚）
 - **UX**：`GET /ux/{profile,engagement,motivation,greeting,activity}`（activity=五源按日活动聚合）
-- **使用文档**：`GET /docs/content`（公开读）、`PUT /docs/content`（require_admin）
+- **使用文档**：`GET /docs/content?lang=zh|en`（公开读）、`PUT /docs/content`（require_admin，body 可选 `lang`，默认 `zh`）。中文保留 `chat_history/settings/usage_docs.json`，英文独立使用同目录 `usage_docs.en.json`，各自原子写入；缺失或损坏时回退对应语言的默认手册。前端切换语言重新加载正文并丢弃过时响应，编辑草稿始终保存到开始编辑时的语言版本。
 - **编排**：`GET /orchestration/{plan,today,habit,review}`、`POST /orchestration/{goal,regenerate,task,task/{id}/complete,task/{id}/launch,week,week/{i}/concept,week/{i}/task,week/{i}/task/{tid}/subtask,week/{i}/task/{tid}/suggest}`、`PATCH /orchestration/{goal/{goal_id},task/{id},week/{i}/task/{tid}/subtask/{sid},schedule}`、`DELETE /orchestration/{goal/{goal_id},task/{id},week/{i},week/{i}/concept/{cid},week/{i}/task/{tid},week/{i}/task/{tid}/subtask/{sid}}`（/simulation 已删除——死端点，见台账 C7；长期任务 /longtask* 端点随长期任务层一并移除；W4 新增 `POST /task/{id}/launch` 任务启动绑定 + 各写端点容量 advisory 附载）
 - **工作区**：`GET/POST /workspaces`、`GET/PATCH/DELETE /workspaces/{id}`、`POST/DELETE /workspaces/{id}/sessions[/{sid}]`、`POST /workspaces/{id}/upload`、`DELETE /workspaces/{id}/files/{fid}`
 - **资料库**：`GET /library`、`POST /library/folders`、`PATCH/DELETE /library/folders/{id}`、`POST /library/upload`、`POST /library/files/{id}/move`、`DELETE /library/files/{id}`（级联清孤儿 Textbook 记录）、`GET /library/files/{id}/download`
@@ -1644,7 +1659,7 @@ chat_agent intent 分类同源。M5 知识指令旁路（ContentResolver 直消�
   （之后继续驻留，直到新公式/新表格需要板面才清空），语音合成流水线
   不停顿（见 P10.2）。语速默认 0.9，个人可在设置页调整（见 P10.2）。
 - **隐私/许可边界**：浏览器识别可能调用浏览器厂商在线服务。该平台 API 和厂商
-  服务不是 Edu_Agent 的 MIT 发行物，商业、隐私、地域和可用性条款由实际浏览器
+  服务不是 Next-Tutor-Agent 的 MIT 发行物，商业、隐私、地域和可用性条款由实际浏览器
   厂商决定；详细组件许可证见 `docs/VOICE_LICENSES.md`。
 
 ### P10.2 后端语音模块
@@ -1653,7 +1668,7 @@ chat_agent intent 分类同源。M5 知识指令旁路（ContentResolver 直消�
   事件、`stt_start` / `stt_result` / `answer_delta` / 工具进度 / TTS / `turn_end`。
   二进制上行帧返回 `binary_audio_unsupported`，不会缓存、转码或触发 STT。
 - **朗读语速**（2026-08-31）：实例默认 `VOICE_TTS_SPEED=0.9`（略慢于原速）；个人
-  可在设置页（profile 页 AccountCard 滑杆，0.5–1.5）调整 `user.profile.prefs.
+  可在设置页（`/settings?section=voice` 滑杆，0.5–1.5）调整 `user.profile.prefs.
   tts_speed`，经既有 `PUT /user/profile` 浅合并落盘。WS 建连时按身份查
   `identity.store.get_by_id` 解析（`_resolve_tts_speed`：夹取到 sidecar 合法区间
   0.5–2.0，非法值/游客回落实例默认），逐片 `synthesize(chunk, speed=…)` 覆盖；
@@ -1915,13 +1930,20 @@ public textbooks / public graph / public vector artifacts 属于部署实例的
 
 ### P11.7 CI 与 E2E
 
-`.github/workflows/ci.yml` 四个 job（名字固定供 required checks）：
-backend-core（BM25-only 全量单测，vector 测试 feature-skip）、
-backend-vector-regression（+requirements-test，vector/公共资产回归）、
-frontend-checks（pnpm frozen install + tsc + lint + build）、
-repository-invariants。Playwright E2E（frontend/e2e/）真实起
-backend（隔离副本）+ frontend + fake LLM，覆盖身份隔离、教材到 BM25、严格
-教材问答、grounded quiz、NOT_FOUND、笔记私有、学习计划与语音协议冒烟。
+`.github/workflows/ci.yml` 为 PR/main 提供两个必需执行 job：
+`Backend`（仓库安全 + BM25-only 全量 unittest，向量专属测试 feature-skip）
+与 `Frontend and smoke`（类型/lint/轻量单元测试 + 生产构建 + 六个文件的关键
+浏览器旅程）；`CI result` 汇总两者，是 main 唯一 required check。
+共享 composite action 固定 Python 3.11 / Node 22，安装锁定依赖，并为后端
+真实课堂渲染准备 Chromium 和离线资源。每个执行 job 限时 25 分钟。
+
+`.github/workflows/regression.yml` 每周/手动运行可选向量检索与完整浏览器
+回归，不阻塞日常 PR，发布更新前验证。E2E 运行生产 frontend + 隔离 backend
+副本 + fake LLM；冒烟白名单仅覆盖身份隔离、教材 BM25、严格问答、grounded
+quiz、私有笔记和真实课堂 HTML 工作流。报告/trace 保留 7 天。
+
+本地命令、测试保留规则、GitHub 保护和现有版本更新顺序见
+[测试与 CI 维护](TESTING.md)。
 
 ### P11.8 零凭证测试环境（本地=CI 奇偶）
 
@@ -1939,9 +1961,11 @@ CI runner 没有根目录 `.env`，测试套件必须在**零凭证**下自洽�
   秒死、`busy` 事件永不到来而无限阻塞；所有走 turn/端点的测试必须
   patch `get_llm`/`_build_tools`（见 test_voice / test_compat_api /
   test_assessment_identity 的 setUp 模式）；
-- backend-core 安装使用 `-c backend/constraints.txt` 锁定解析集（与
-  本地一致，防 openai 等主版本漂移），timeout 45min 匹配 2 核 runner
-  上 ~1900 测试的实际耗时。
+- requirements 文件统一引用 `backend/constraints.txt`，锁定解析集；
+  `requirements-test.txt` 仅含轻量测试依赖，可选向量库独立安装；
+- `python -m tests` 用进程级沙箱包住 unittest（包括临时文件），单个用例
+  继续通过 `StorageSandboxTestCase` 隔离。测试中 bcrypt 使用 4 轮以减少
+  无意义的重复计算，仍调用真实散列/校验算法，生产默认配置不变。
 
 ## P12 课堂模式：一键备课 → HTML 课件 → AI 讲授（2026-09-26 已实现）
 
@@ -1955,8 +1979,8 @@ CI runner 没有根目录 `.env`，测试套件必须在**零凭证**下自洽�
 
 - `/workspaces/{workspaceId}/classroom`：课程列表（三态筛选 + Pager(5)
   + 置顶「继续上课」卡 + 失败卡重试）；`?create=1` 直开备课 Modal。
-- `/workspaces/{workspaceId}/classroom/{lessonId}`：详情/预览/编辑器
-  （`?revision=N` 固定版本；预览不建 run、不触发 TTS）。
+- `/workspaces/{workspaceId}/classroom/{lessonId}`：课程介绍/编辑器
+  （`?edit=1` 编辑；`?revision=N` 固定版本；预览不建 run、不触发 TTS）。
 - `/workspaces/{workspaceId}/classroom/{lessonId}/learn/{runId}`：
   播放器（刷新不重建 run）。
 - 独立入口 `/course`「备课上课」，与「聊天辅导」并列；课程按工作学习区
@@ -2029,8 +2053,9 @@ deadline、provider retry 有界。fake LLM（tests/classroom_fake_llm.py）
 
 ### P12.5 渲染（classroom/render/）
 
-5 主题 × 9 布局的 token/slot 编译器；Block 判别联合（paragraph/bullets/
-formula(KaTeX)/image/diagram/checkpoint）；HTML 全量 escaping、CSP、
+5 主题 + 教学页型 + 内容构图编译器；旧页型保留 slot 兼容，新页的 composition
+控制栏式、密度、表面和重点，不限制合法组件的混排。Block 判别联合含
+paragraph/bullets/formula(KaTeX)/code/image/diagram/checkpoint 等；HTML 全量 escaping、CSP、
 无 raw SVG/JS 执行。排版检查：受控 Node+Playwright 子进程
 （`classroom/render/check.py`，全局单实例 + 硬超时），**子进程只继承
 最小环境白名单（PATH/HOME/XDG_CACHE_HOME 等），供应商密钥与代理变量
@@ -2040,14 +2065,15 @@ formula(KaTeX)/image/diagram/checkpoint）；HTML 全量 escaping、CSP、
 `renderer_unavailable`，旧聊天不受影响。应用内经 SlideFrame：iframe
 `sandbox="allow-scripts"` + srcdoc（URL 无 token），握手
 classroom_ready{nonce}（校验 event.source）→ MessagePort 通道。
-长内容在画布正文区域可滚动阅读，窄屏按阅读模式重排；排版检查的溢出或
-检查器环境故障只产生提示，不调用模型修复。缺编译静态资源或结构无法
+v2 每个 SlideSpec 固定为一张 1280×720 画布，没有阅读模式或截断 HTML 的
+子页。新生成的超量页面停止发布，超量历史内容完整保留并提示；检查器环境
+故障产生提示，不调用模型修复。缺编译静态资源或结构无法
 编译仍返回明确错误，不发布不可打开的课件。
 
-### P12.6 云端优先 TTS（classroom/audio.py + voice/tts/）
+### P12.6 本地优先 TTS（classroom/audio.py + voice/tts/）
 
-Azure Speech REST 标准音色首发（音色 allowlist + 区域 voices 校验）；
-本地 MeloTTS sidecar 保留为回退（云失败一次即锁本地、每 run 只提示
+自动策略优先使用已启用且支持当前语言的本地 MeloTTS sidecar，否则选择已配置的 Azure Speech REST 标准音色（音色 allowlist + 区域 voices 校验）；
+显式 cloud/local/silent 策略保持含义，云端模式可回退本地（云失败一次即锁本地、每 run 只提示
 一次）；无语音降级为文字课堂（讲稿全文可读）。段级 synthesis key
 （owner/文本 hash/provider/voice/speed/normalizer）+ single-flight +
 WAV 原子写 + 认证内容端点；预取当前+后 2 段，0.5/1/2s 退避轮询；
@@ -2161,15 +2187,15 @@ audio ended 驱动）；确定性播放器套件 `pnpm test:player`。验收产�
 继承其基版 renderer，播放器始终按 `run.lesson_revision` 取固定课件。
 
 `compiler_v2.py` 只给新版注入布局和主题样式；`compiler.py` 的 block
-escaping、CSP、iframe 协议保持共用。新版九布局保留正文可滚动区域，
-阅读模式改为单列，打印模式允许长内容自然展开；排版诊断允许有意的
-纵向滚动，仍检查水平溢出。`classroom_outline`/`classroom_slide` 的
+escaping、CSP、iframe 协议保持共用。v2 正文按固定画布实测续排，
+阅读模式改为单列，打印模式将每个展示步骤物化为等尺寸页面；排版诊断
+检查水平和纵向溢出。`classroom_outline`/`classroom_slide` 的
 `2.0.0` 提示词随 Job 冻结；每页证据按本页主题排序，素材按页关联。
 新版大纲超过目标页数时保留规划页并给出警告，超过 schema 的 24 页
 上限则明确失败，避免无声丢失知识页。结构修正先切换通用布局，保留
 已验证的 block。
 
-课堂 learn 页使用独立的沉浸布局和按需侧栏；刷新先读取 Run 再取其
+课堂 learn 页使用独立布局和共用右侧栏（交互见 P12.17）；刷新先读取 Run 再取其
 revision。租约接管需用户点击。完成时服务端只在全部段确实记录为听完
 时标 `listened`，其余为 `browsed`。`GET revisions/{n}/frame?mode=print`
 提供授权打印页，浏览器打印对话框可保存为 PDF；现有 HTML ZIP 和
@@ -2229,3 +2255,426 @@ schema 与来源校验，失败则保留已完成页并报告明确的续写错�
 重试入口根据持久化账本和未完成页数判断可行性，即使上一轮报的是
 `content_invalid`，剩余额度不足时也不再入队空转。修订任务若只重写
 一页，按一页估算，而非按整份课件估算。
+
+### P12.17 课程介绍、组件编辑与课堂播放器（2026-09-28）
+
+课程详情默认展示学习目标、预计时长和课程内容安排，不请求课件 HTML、
+不创建 Run。并列入口「编辑课程」通过 `?edit=1` 按需加载编辑器；
+「开始/继续上课」进入 Run 的选页预览。编辑器默认组件面板，按页选择
+文字、要点、公式、表格、步骤、图示和图片说明；讲稿、来源和页面设置
+分 Tab 查看。
+
+`edit_content` 新增 `replace_block`，只替换指定页的指定组件，零 LLM。
+`regenerate_block` 使用 `classroom_block@1.0.0`：仅发送目标组件及其
+类型 schema、当前页目标、最多三段关联讲稿和三条来源摘录。输入最多
+24,000 字符，单次输出最多 3,000 token，不做结构修复重试，也不额外
+调用全课复核。组件 ID/类型、图片资产绑定、来源引用与随堂题受服务端
+约束；其他页、其他组件及原讲稿保留。两种操作复用版本 CAS、授权检查、
+预算账本、确定性校验与渲染发布，旧版本和已开始的 Run 不变。
+
+上课初始保留左侧课件缩略列表，选页不自动播放。点击「从本页开始上课」
+或播放键后才申请全屏（不可用时采用窗口内全屏）。全屏隐藏顶部与左侧
+列表，保留课件、底部控制条和右侧工具栏。右栏共用「对话 / 课程讲稿 /
+课堂笔记」；快捷补讲和提问均在对话中。字幕默认关闭，开启后悬浮于课件
+内，使用暗色半透明背景；控制条持续提供暂停、退出全屏、字幕、音量和
+倍速。退出全屏后恢复左侧列表，播放进度不重置。
+
+课程讲稿按逻辑课件页列出全课内容，每页默认收起，可独立展开；将该页全部
+spoken_text（为空时才取 display_text）拼接为一个连续正文，不按语音片段
+显示卡片。按页跟随只定位标题，不强制展开；切换侧栏保留展开状态，每页
+提供一个「从本页开始听」入口。
+
+### P12.18 单张幻灯片与公式容错（2026-09-29）
+
+v2 的每个 SlideSpec 对应一张固定 1280×720 幻灯片。frame runtime 不拆分
+文本、列表、步骤、代码或表格，不创建隐藏子页，不通过几何缩放压扁组件。
+翻页、讲稿定位和打印均使用相同的逻辑页。阅读模式的按钮、状态、消息、
+CSS 与 frame API 参数已移除；窄桌面窗口只等比缩放整张画布。
+
+新任务冻结 `classroom_slide@2.4.0` 与 `classroom_outline@2.2.0`：大纲先按
+教学语义分配复杂推导到相邻页，正文通常 2–4 个短组件，完整保留必要条件、
+理由与结论；解释性展开放讲稿。旧任务保留已冻结提示版本。新任务实际测得
+内容溢出时，render 阶段报告问题页并停止发布；渲染检查器不可用仍按既有
+策略给出降级提示，不假称已经通过检查。
+
+旧版内容 spec 与历史 Run 绑定不变。重新请求 frame 可获得新的排版；仍然
+超量的旧页保留完整 DOM，以页内滚动作为兼容兜底，并由检查器报告溢出，
+不伪装成已合格的完整幻灯片。这些页需要精简或重新生成；打印前检查会拒绝
+裁切导出并提示具体页码。
+
+编译器识别文字、表格等文本字段中的成对数学定界符并安全转义；runtime
+去掉 latex 字段误带的外围定界符/展示环境，使用离线 KaTeX（trust=false、
+有界展开）渲染。长公式按容器宽度适配；标题换行、步骤标签/正文约束宽度、
+表格固定列宽、流程节点标签换行，避免文字越出组件。失败公式标记 error，
+排版检查逐一检查所有逻辑页，不再把原始 LaTeX 当作成功，
+也不再豁免 v2 正文的纵向滚动溢出；生成结果附具体公式问题页码。
+
+针对性验证：`tests.test_classroom_overflow` 与
+`frontend/scripts/test-classroom-layout.mjs`，覆盖文本无丢失、组件不被克隆、
+讲稿定位、公式失败检测、溢出检测，以及浅/深色和较窄桌面画布。
+
+### P12.19 自主构图、代码与等尺寸导出（2026-09-28）
+
+新备课固定 `classroom_slide@2.4.0` 和 `classroom_outline@2.2.0`；旧 Job
+保持冻结的提示版本。`SlideSpec.composition` 是可选的受控设计意图：
+`auto/stack/columns/sidebar/editorial`、`balanced/compact/airy` 密度、
+`plain/soft/outlined` 表面、重点组件和通栏组件 ID。教学页型与视觉构图
+分开，显式 composition 的页可混排所有受支持组件，仍执行 schema、引用、
+来源与 checkpoint 检查；不接受模型 HTML/CSS/JS。页内短 ID 规范化同步
+映射构图引用。新模型漏填 composition 时按 auto 补齐，既有页面读取时
+也可用自动构图，不修改已发布内容。
+
+`compiler_v2.py` 与 frame runtime 统一负责展示、离线 HTML、打印。
+宿主不再覆盖 v2 的栏宽、字号与间距。实际测量在字体、图片就绪后进行：
+先保留能容纳内容的模型构图；稀疏时适度增加字号/间距；拥挤时在可读字号
+范围内收紧间距、尝试双栏与侧栏，必要时将完整组件排入独立双栏，消除等高
+网格行造成的空洞。侧栏跨行数按实际组件数确定，不预留空行。普通段落不套
+底色卡片，重点结论保留强调。画布始终 1280×720，不裁掉正文、不执行模型
+代码、不靠装饰图片填空。每张合格 SlideSpec 打印为一张 1280×720 物理页；
+超量源页不会被裁成看似完整的 PDF，在线打印给出页码，离线打印输出明确
+错误提示。在线打印等待字体、图片及打印布局就绪。
+渲染资产 runtime 版本为 2.2.0；启动脚本在 runtime 源码、构建脚本或依赖锁
+更新后重建静态包，开发模式与复用生产构建时同样检查。
+
+新增 `code` 块（源码、语言、可选说明）：纯文本转义、保留缩进换行、
+长行软换行、长块保留为完整组件并检查容量，支持组件手工/AI 编辑。完整围栏代码段可无损
+规范化为代码块，代码内 `$` 不解析为公式。公式离线 KaTeX 渲染，去除
+误带围栏、外层定界符、编号环境，兼容 align→aligned；宽度取外框与
+实际滚动内容的最大值，构图或页面切换重新适配，极长式优先在
+运算关系边界换行。检查器报告渲染失败与过小公式，并给出问题页码。
+复杂或长标签流程用可换行的关系卡片保留全部节点/边，简单流程仍为 SVG，
+箭头连接节点边界；检查器检查内层代码、文本、表格及 SVG 节点文字越界。
+
+用图默认无需求不检索，排除 decoration/diagram/data 图库意图。新任务
+balanced 最多约三分之一页、rich 最多二分之一页关联插图（至少允许一页，
+复用素材同样计入页数）；这只是上限，不是生成配额。新构图每页最多一张
+插图且必须有同页解释，图片限制为正文中的局部区域，不支持整页插图。
+
+定向回归：`test_classroom_composition`、`test_classroom_overflow`、
+`test_classroom_render` 与生成/API/修订契约；浏览器验收
+`frontend/scripts/test-classroom-composition.mjs` 覆盖五构图浅/深色、960×540、
+长代码逐字保留及完整 PDF 等尺寸分页。未运行后端全量测试。
+
+### P12.20 非代码公式与真实生成验收（2026-09-30）
+
+`classroom_slide@2.5.0` / `classroom_outline@2.3.0` 的提示文本
+与已排队任务仍按冻结版本运行。单页写作、重写收到整课分工、前页实际内容、
+术语表与允许的来源编号。新版写作提示不再叠加多代互相冲突的要求：组件
+schema 是语法目录，不要求每页重复段落、列表、总结；无正文最低字数，
+由观察、推导、对照、迁移等具体教学任务决定内容与构图。
+
+所有非代码文本字段共享 `render_text`：标题、页脚、正文、强调、要点、
+步骤、表格、图注、代码说明、题目提示、流程标签及坐标/受力图标签均支持
+显式数学定界符。`inline_math.py` 还识别常见裸写 TeX 命令（如 `\delta`、
+`\Delta t`、`\triangle`、`\frac{a}{b}`）；文件路径、未知命令、残缺命令
+不猜测修补。任意复杂表达式仍应显式定界或使用 math/formula 字段。
+代码源码始终原样转义，不解析数学。文字与公式交替不再受旧 6/8 个 span
+限制，统一最多 32 个；单片段长度与整页测量约束保留。
+
+SVG 数学标签通过受控 foreignObject 接入同一离线 KaTeX；坐标图使用独立、
+可换行的文字图例，轴刻度按画布上的实际宽度补偿字号。数值表的小数不允许
+在数字中间换行。深分式/极限预留实测的下伸空间。runtime 2.3.0 先尝试
+正常字号的构图及完整组件双栏，再按需收紧字号；修复 diagram 容器继承
+百分比 max-height 后在细网格中塌缩的问题。检查器同时检查组件内溢出与
+相邻组件重叠，不以外层画布未溢出代替内容检查。
+
+模型的未知 claim 来源在转换成严格实体前移除并产生提示；不猜测真实
+来源。生成草稿的坐标范围若小于实际数据范围则向外扩展，数据点不变；
+严格 schema 对非法点、无效范围、NaN 等仍拒绝。该修正不验证模型的数学
+计算，不能把“渲染通过”当作“内容正确”。
+
+手工触发真实模型验收：`backend/scripts/accept_classroom_live.py --output
+/tmp/course-live`（在 backend 下运行，使用已配置模型，会产生真实调用）。
+通过 StorageSandboxTestCase 隔离全部应用存储，默认不联网搜图、不读取
+私人资料，产物留在指定目录；`--resume` 可复用同一 brief 的已完成阶段。
+`frontend/scripts/inspect-classroom-course.mjs` 对保存的 revision 生成浅/深色、
+1280/960 画布截图及等尺寸 PDF。自动回归不调用真实模型；非代码公式与
+图形容器的浏览器回归见 `test-classroom-inline-math.mjs`。
+
+### P12.21 视觉主次与完整组件排版（2026-09-30）
+
+新任务冻结 `classroom_slide@2.6.0` / `classroom_outline@2.4.0`，旧版本仍可
+读取、执行。新版大纲的 JSON 契约显式包含 key_points，必须填写本页新增
+认识、视觉主角与止步位置；缺失分工在写作前通过结构校验拒绝，不只把
+标题传给后续模型。单页写作和重写额外收到前三页的实际构图与组件种类，按教学
+动作选择视觉主角，通常一个主角配一到两个短解释；多行推导不再同时重复
+完整步骤和结果卡。写作目录排除由服务端生成的 checkpoint 字段。
+
+`SlideComposition.focal_block_id` 是可选的本页组件引用，独立于
+`emphasis_block_id` 的颜色强调。主角可出现在任意 DOM 位置；sidebar 给它
+较宽一栏，讲稿、组件 ID 和 DOM 顺序不变。普通公式和 callout 表面默认
+保持安静；主公式可增大字号，紧凑档仍会合理收紧。服务端规范化短引用，
+schema 拒绝悬空的主角 ID，编译器只输出固定属性，模型不能生成 CSS。
+
+runtime 2.4.0 的 sidebar 按主角与解释分别测量、排列完整组件，避免高主图
+把右侧短解释所在的等高网格行撑开。备用构图优先考虑主角和通栏需求；完整组件双栏排列也保留
+wide 的全宽及后续位置。排版尝试包含 editorial，减少前置说明占半栏而
+留下整块空白的问题。数学只按作者显式的 aligned 等环境拆行，取消 CSS
+在等号处换行；显示公式至少 20px，否则尝试更宽构图，并诊断超量。
+检查器识别 runtime 的失败标记，避免外层尺寸正常而公式不可读时仍发布。
+
+简单 SVG 流程图按节点和层数计算画布，减少固定大画布内的空白；节点标签
+依据实际缩放重排行，保留至少 16px 的画布字号。坐标/图形标签的缩放计算
+同时考虑 SVG 的宽和高。长文字或数学标签仍使用可换行的受控 HTML 节点。
+公式识别范围、固定画布、播放器翻页和等尺寸打印契约保持一致。
+
+`accept_classroom_live.py --brief /tmp/synthetic-brief.json` 可对其他主题运行
+真实生成，拒绝私人来源引用，应用存储仍隔离；`inspect-classroom-course.mjs`
+另外记录主角、组件组合、显示公式最小字号、内部溢出与重叠。
+`test-classroom-hierarchy.mjs` 覆盖非首个主角、备用排版保留通栏、完整公式行、
+浅/深色和反复缩放；真实生成的内容建议仍不触发自动重写循环。
+
+### P12.22 备课流程图标签超长的无损兜底（2026-09-30）
+
+单页写作与重新生成共用 `normalize_authored_slide`。flow 的节点或边标签
+超过 40 字符时，先验证除长度外的图结构，再将同一组件转为编号正文：保留
+全部节点文字、替代说明及每条边的起点、终点和关系标签，分支与回环不改成
+线性步骤。组件 ID 不变，讲稿、构图和 claims 引用继续有效，不追加模型调用。
+正文按单 span 上限拆分且不丢字符；仍接受正常的整页容量检查。
+
+正常短标签保留流程图。悬空边、重复节点、未知字段、无效方向等结构错误
+仍走严格校验与一次有界修复。生成输入的 diagram 字段限制明确所有图标签
+最多 40 字符，LaTeX 源码和空格也计数，长解释放正文或步骤。提示词冻结版本、
+持久化 schema 与手工编辑的严格校验契约不变。
+
+回归 `test_classroom_generation_normalize` 覆盖多节点超长、英文边标签、
+分支回环、完整文字与公式、非法结构，以及新备课和单页重写发布。
+
+### P12.23 主段落的实测紧凑排版（2026-09-30）
+
+主段落正常字号为 32px；排版尝试进入 compact 时降为 27px，进入 dense 时
+使用该档的 22px 正文字号。主内容仍由 focal 引用与较宽一栏确定，不再因
+固定 32px 而使可容纳的多行正文被误判为超量。段落文字、显式换行、数学、
+组件与讲稿引用均不变；实际仍超量的内容继续由原容量检查拒绝。
+
+该规则在编译器共享 CSS 中生效，生成重试、预览、播放和导出使用相同排版，
+无需重新生成缓存正文。`test_classroom_overflow` 以合成的十二行主段落配
+侧边要点与提示覆盖浅/深色及 1280×720、960×540，并验证内容不变；过量正文
+和非法公式的检测回归仍保留。
+
+## P13 站内学习助手（悬浮面板，2026-09-28 A01–A14 / v2.1.0-P1）
+
+全站右下角悬浮「学习助手」：功能导览、受控导航、有依据的学习/教学报告与
+课程任务交接。与教学链路完全隔离——不写学习证据、不触发 `evaluate_turn`、
+不经 `/chat/stream`。
+
+### 架构与分层
+
+- **契约**：`app/schemas/assistant.py`（Pydantic `extra="forbid"`）是唯一
+  契约源；前端类型由 `scripts/generate_assistant_types.py` 生成
+  （`--check` 进 CI，GAP-09）。
+- **目录**：`agents/site_assistant/product_catalog.json`（catalog_version）
+  是功能事实源；`/capabilities`、`/guide`（须登录的功能导览）由它驱动。
+- **数据投影**：`activity_aggregator.learning_activity_snapshot`（规范化
+  统计口径 metric_version=2，GAP-03）、`evaluation/window.teaching_window_report`
+  （GAP-05）、`learning_orchestration.saved_tasks_snapshot`（只读不物化，
+  GAP-04）。empty ≠ error；关闭返回 disabled。
+- **会话存储**：`core/assistant_store.py`，根 `chat_history/assistant/<uid>/`
+  （conversations/drafts/index/references/invalidations）；200 条消息或
+  2 MiB 上限；受理幂等（client_message_id + body hash）；原子写经
+  `core/atomic.py`；四处登记（sandbox/orphan_cleanup/account_data/.gitignore）。
+- **轮运行时**：`agents/site_assistant/runtime.py` 单 worker 进程内模型——
+  先落盘 running 再 spawn asyncio task；事件环 512 条/终态保留 10 分钟；
+  SSE 15s 心跳、`{turn_id}:{seq}` 游标、断线 1/2/4s 退避；取消同时取消
+  该轮未 execute 的 proposed 动作；重启标记 interrupted 不重放。
+- **编排**：`intent.py`（精确别名零 LLM 快路 + 一次低预算结构化意图，
+  九类闭集；§6.4 时区窗口夏令时安全）→ `tools.py`（§10.3 八工具、每轮
+  ≤4 工具/≤2 模型/60s 墙钟/并发 ≤3）→ `presenters.py`（确定性事实卡；
+  学习报告 §7.2 五段固定结构、教学报告 §7.6 样本 <5 只列现象）→
+  文字回答（模型不可用/超预算回落确定性文字）。模型故障不拒轮（§17-5）。
+- **动作协议**：`policy.py`（§9.2 automatic/user_click 判定）+ `actions.py`
+  （proposed→executing→awaiting_ack→succeeded 状态机；invocation 锁同
+  invocation 幂等/异 invocation 409；ack_token 绑定用户+动作+标签页；
+  15s 未 ack → needs_attention 读时惰性推进；课堂恢复用 action_id 派生
+  Idempotency-Key 复用 `runs.create_run`；目标已变化 409/target_changed
+  不悄悄 restart）。
+- **交接草稿**：服务端 30 分钟 TTL，URL 只带随机 draft id；读取不消耗，
+  原模块提交成功后 consume（同实体幂等/异实体 409）；备课/聊天/课堂插问
+  只预填不自动提交。
+
+### 前端
+
+- `components/assistant/`：Launcher（56×56 右下、未读点、运行环）、Panel
+  （420/放大 720、OverlayCoordinator 层 40/50/60 + Escape 最上层）、
+  Composer（输入法 composition 安全）、报告/动作/选择/来源卡；
+  `lib/assistant/store.ts`（PanelMode 与 TurnState 独立、turn_done 后
+  仅活跃标签页可自动执行 automatic，epoch/可见性/面板收起时降级 user_click）。
+- `lib/assistant/routes.ts`：NavigationTarget → URL 的唯一白名单拼装
+  （深链：/memory?ws&tab&concept&source、/knowledge?concept&ws、
+  /orchestration?task=、/insights?proposal=、/notes/{id}）。
+
+### 开关与验收
+
+- `SITE_ASSISTANT_ENABLED`（默认 0）。E2E：`e2e/assistant-panel.spec.ts`
+  覆盖示例 A（自动导航 ack 闭环）/B（学习报告）/C（教学报告）。
+- 已知限制：笔记临时编辑器（handoff_note 前端预填）留 P2 B06；
+  `继续刚才的`类指代消解依赖模型可用。
+
+### P2 领域写动作（B03–B05，plan.md §21）
+
+- **预览/审批/执行**：`agents/site_assistant/previews.py` 按 §21.3 操作
+  目录确定性构造 `ActionPreview`（字段差异、影响、可逆性、parameter_hash
+  与 source_revisions）；review_required 操作必须持 10 分钟内 approve
+  许可才可 execute，参数或业务版本变化使许可失效（409/preview_stale）。
+  执行策略单一来源 `policy_for()`（含 update_sources 移除升级预览）。
+- **B05 操作目录**：workspace.create/update_sources、chat.rename/
+  move_workspace/archive、library.create_folder/rename_file/move_file、
+  textbook.cancel/rebuild、archive.restore 共 11 操作（加 B03 首批
+  task/note/schedule）。公共教材写需 admin；创建类带 §21.6.1
+  `client_request_id` 幂等（去重标记与创建共用一次原子写）；
+  textbook.rebuild 经事件循环桥接提交构建队列。
+- **撤销（§21.5）**：`agents/site_assistant/undo.py`；执行时
+  business_result.undo 记录前值快照，撤销窗口 10 分钟。补偿只回滚
+  自己的变更：创建类要求目标未被编辑/无依赖（否则 409 指引原模块），
+  重命名/移动校验仍处本动作结果后反向写，update_sources 以执行后
+  updated_at 版本门+增量反演，归档撤销调用真实 trash restore。
+  `POST /assistant/actions/{aid}/undo` 按 client_request_id 幂等；
+  撤销后 state 保持 succeeded，记录 undo_result，UI 显示「已撤销」。
+- **开关**：`SITE_ASSISTANT_ACTIONS_ENABLED`（默认 1）单独门控提案、
+  预览与执行；capabilities.action_kinds 同步反映。
+- **验收**：`tests/test_assistant_b05_actions.py`（28 用例：执行/预览/
+  幂等/归属/开关/提案）、`tests/test_assistant_undo.py`（21 用例：各操作
+  补偿与 409/410/422/幂等）；e2e 覆盖 note.create 预览确认与
+  workspace.create 自动执行→真实回执→撤销闭环。
+
+### P2 领域写动作扩展（B06–B11，plan.md §21.3/§22/§24）
+
+在 B03–B05 的预览/审批/执行/撤销链上按白名单逐步扩展：
+
+- **B06 笔记与学习编排**：note.append/replace/move/set_review/
+  restore_revision、goal.create/update、task.create/update/complete、
+  subtask.create、schedule.update；plan.regenerate 走「候选→验证→提交」
+  两阶段（M9 共用服务），AI 生成内容一律 review_required 预览。
+  task.complete 仅响应明确自报，completion_source=self_report。
+- **B07 测评/评价/教学**：assessment.start/practice、
+  evaluation.request_review/retry/synthesize、teaching.approve/apply/
+  revoke；apply 校验 guidance 实际生效（不只读状态字符串），部分失败
+  标 needs_attention。
+- **B08 学习历史补齐**：DailyTask 增 task_instance_id/workspace_id 与
+  task_status_changed 事件 outbox（与 M9 state 原子写入、按 event_id
+  去重）；月度完成数按窗口内有效完成推导，历史覆盖不足时
+  history_incomplete/known_minimum 如实呈现（GAP-10）。
+- **B09 画像/记忆/偏好**：profile.update 白名单、memory.set_window、
+  assistant.preferences（prefs.assistant 分支 + base_revision 合并）与
+  set_local_preference（主题/字号/语言，客户端执行不经服务端）。
+- **B10 课程高级动作**：lesson.generate（CreateLessonRequest 含
+  start_mode）/retry/cancel/export 复用课堂 job 服务；对齐 2026-09-28
+  自主构图：composition 由模型在 schema 枚举内自选，助手参数不含
+  构图字段；单张画布排版为播放器运行时行为，助手不感知。
+- **B11 完整语音**：`agents/site_assistant/voice.py` 句切分（100–250
+  字符、单条 ≤40 片、24h TTL、10 次/分钟、内容 hash 去重、local
+  策略绝不送云）；POST /assistant/audio/jobs → 轮询 → clip 播放；
+  AssistantVoiceControls 接入既有 audio-focus。
+
+### P3 跨模块工作流与主动服务（C01–C05，plan.md §23/§25）
+
+- **C01 工作流执行器**：`agents/site_assistant/workflows.py`——
+  `chat_history/assistant/<uid>/workflows/<id>.json` 持久状态机
+  （draft→awaiting_approval→queued→running→waiting_domain_job/
+  paused_for_user→succeeded|partially_succeeded|failed|cancelled|
+  interrupted），revision 乐观并发；步骤 ≤8（写 ≤5），读 ≤2 并发、写
+  串行，依赖未成功不执行后续写；幂等键 workflow_id+step_id+
+  approved_plan_hash（步骤动作 `astw_step:` 前缀复用 §21 动作链，重试
+  不重复创建实体）；领域长作业 30 秒等待后持久化、20 分钟无终态转
+  paused_for_user；恢复按 DomainJobRef 回查原 job。终态判定遵循
+  §23.4-10：必要步骤零完成（零产物）为 failed，部分完成为
+  partially_succeeded。业务准备失败落盘 failed（§19.3），不留悬挂
+  executing。API §23.5 全量（create/approve/start/cancel/retry/resume/
+  events SSE）。
+- **C02 六模板**：`workflow_templates.py` 固定编排（setup_learning_
+  space / weekly_review_to_plan / weak_point_to_practice /
+  material_to_course / organize_materials / continue_learning_session），
+  输出绑定由模板代码完成；handoff 落点对齐 NavigationTarget 联合
+  （lesson/classroom_run/chat_session/module），不自动开课或发送。
+- **C03 办理事项**：面板「办理事项」视图（AssistantTaskCenter）分组
+  展示（进行中/等待我处理/已完成），进度只用「n/m 步骤」；计划预览
+  （将创建/修改对象）→批准→启动→取消/失败步骤重试/恢复；对话侧
+  start_workflow 动作（intent.WORKFLOW_TEMPLATE_PATTERNS 单一事实源
+  零 LLM 快路）execute 只建 draft，幂等复用 workflow_id。
+- **C04 订阅调度**：`agents/site_assistant/notifications.py`——四类
+  订阅默认关闭、`SITE_ASSISTANT_PROACTIVE_ENABLED` 独立开关（默认
+  0）；AssistantRuntime 一分钟粒度 tick（每批 ≤20）；执行 key =
+  subscription_id+本地计划日期+schedule_revision，delivery_ledger
+  原子认领防重复投递；停机只补 48 小时内最新一次；quiet_hours 内
+  只准备（pending_delivery 出窗释放）；每日主动上限 3；weekly_brief
+  用确定性事实模板（不调用模型）；manage_subscription 对话动作闭环
+  （§25.1 自然语言订阅，幂等 client_request_id=action_id）。
+- **C05 简报与收件箱**：`agents/site_assistant/reports.py`（astr_
+  报告 90 天保留、删除只删助手副本不删原业务证据）；面板「收件箱」
+  视图（AssistantInbox：未读点、已读/忽略、mute 未完成课程提醒、
+  简报固定统计窗口）；设置页 AssistantSettings（偏好白名单
+  base_revision 乐观并发 + 订阅管理 + 最近投递入口）。
+- **开关（§26.5）**：SITE_ASSISTANT_ENABLED（总）/ ACTIONS（默认1）/
+  WORKFLOWS（默认1）/ VOICE / PROACTIVE（默认0，须用户逐项开启）；
+  capabilities.action_kinds 与 disabled_reasons 如实反映。
+- **验收**：`tests/test_assistant_workflows.py`（11 用例：全流程/来源
+  失败/重试幂等/取消/恢复/开关/start_workflow 动作）、
+  `tests/test_assistant_notifications.py`（10 用例：CRUD/去重/catch-up/
+  静默释放/每日上限/无内容跳过/报告生命周期/对话订阅动作）。
+
+### 导航回执与资料页预览（2026-09-29，NAV-01–03）
+
+站内助手 `navigate` 的成功条件为精确 URL 到达且当前页面适配器的
+`navigationStatus(target)` 确认实际内容已经应用；主页 `/` 只匹配主页。
+查询参数、工作区、实体、分页/版本和锚点不能仅由地址栏推定成功。
+返回 null 等待加载；缺失、不可用、失败分别返回已有 PageCommandResult
+错误码。当前挂载路径限定适配器的作用范围，新命令使旧等待失效，
+到达后用户离开会取消回执。客户端最长等待 12 秒，超时允许手动重试，
+不在服务端 15 秒 ack 窗口后继续声称成功。
+
+资料文件页码复用 `/library/files/{id}/page/{page}` 的鉴权 PDF 原页渲染，
+不新增存储或 API。预览经 apiFetch 下载 Blob，在图片加载完成后发布
+文件 ID + 页码就绪标记；非 PDF、原件缺失、越界或无权限不会产生成功
+定位回执。execute/ack 回包同步会话版本，保证连续导航可继续对话。
+回归范围见 `acceptance-reports/navigation-2026-09-29.md`。
+
+### 实体深链生产路径与自然语言检索（2026-09-29，P1 修复）
+
+NAV-01–03 的页面/协议层落地后，独立验收发现会话侧生产者缺失：自然
+语言整句检索 0 结果、resolve_destination 不搜实体、无任何代码产出
+file+page 目标。修复全部在后端，前端协议层零改动。
+
+- **检索净化与双向匹配**（`search.py`）：`clean_query` 把整句净化成
+  实体检索词——书名号《…》内文优先，否则剥离导航/查找动词、填充词、
+  `第N页` 与疑问尾词；实体类词（笔记/课程/讲义…）提供两个力度
+  （激进剥离 / 保守保留），`expand_query` + `search_with_expanded_query`
+  同时检索并按档位合并去重（exact 优先），兼顾「我的高数笔记」与
+  「微积分讲义.pdf」两类表达。`_norm` 两侧对称剥离中英标点；
+  `_match_tier` 增加反向包含（≥2 字标题含于查询），摘要只保留正向；
+  文件以去扩展名的文件名作别名，使「微积分讲义」可精确命中
+  「微积分讲义.pdf」。`tools.py` 的 search_site_entities 消费合并检索。
+- **意图层**（`intent.py`）：`extract_page` 从原文确定性提取页码
+  （中文数字含「二十三/一百零三」，1..5000 与预览渲染上限一致），
+  `ParsedIntent.page` 与解析路径无关；快路补两条——明确导航动词且非
+  疑问但目录无命中时仍按 navigate（具名实体深链入口），`_SEARCH_RE`
+  实体类词补文件/资料/讲义/课件，`_NAVIGATE_VERBS` 补回到/回去/
+  回一次/返回。
+- **resolve_destination 实体候选**（`readers.py`）：目录未强命中时以
+  合并检索解析具名实体（仅 exact/title 档）；**最佳档位唯一者顶替
+  目录弱命中**（exact 命中的笔记《定积分与可积性》不被反向包含弱
+  命中的课程《定积分》稀释），工作区/页面实体在场时不顶替（如实给
+  choices）；**模块强命中**（原始得分 ≥80，或净化词与模块名/别名
+  精确相等，如「带我去记忆中心」净化后即「记忆中心」）时跳过实体
+  候选，防模糊标题劫持模块导航。file 候选消费 `page` 参数写入目标
+  （§20.3）。
+- **policy 裁决顺序**：`_unique_navigate_target` 改为 resolve_destination
+  唯一候选优先（它是实际查询的权威解析），无候选回落意图阶段模块；
+  返回标题提示，实体卡标签「打开笔记「X」」。choices 的实体选项用
+  entity_id 保证 option_id 唯一，点击标题重入意图闭环。
+- **搜索来源可点击**（`tools.py` + schema）：search_site_entities 对
+  每个结果 `registry.mint(kind="site_search", locator=target)` 并把
+  source_id 回填结果项；`AssistantSource.kind` 闭集新增 `site_search`，
+  前端类型再生成，SourceStrip/SourceList 点击只导航（§20.4/§7.7）。
+- **测试基建**：`tests/storage_sandbox.reset_shared_caches` 补清站内
+  检索的 30s 进程级结果缓存（按 student_id+query 键，跨沙箱会命中
+  上一用例的实体数据）。
+- **start.sh**：`build_classroom_assets` 的 manifest 检查与 `cd` 改用
+  `$ROOT` 锚定（此前 `start_frontend` 已 cd 到 frontend/，相对路径使
+  构建必然失败且跳过检查失效，新克隆首启缺课堂渲染资产）。
+- 回归：`test_assistant_search.py` 自然语言 7 例、
+  `test_assistant_orchestration.py` 实体候选/页码/轮次 7 例、
+  `test_assistant_actions.py` 裁决顺序 3 例、e2e
+  `assistant-panel.spec.ts` 实体检索深链 1 例；真实 LLM 栈上复验
+  P1-1/2/3 + 模块防劫持 + 首页措辞共 10 项全过（见验收报告复验
+  小节）。`get_concept_explanation` 仍不派发（无工作区账号会产生
+  notice 污染，留待专门设计）。

@@ -11,6 +11,8 @@
  * ref 间接调用。
  */
 "use client";
+import { t } from "@/lib/i18n";
+import { useUIStore } from "@/lib/store";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -504,7 +506,7 @@ export function useClassroomPlayer(
       try {
         const loaded = initialRun;
         if (loaded.lesson_revision !== detail.revision?.revision) {
-          throw new Error("课堂记录与课件版本不一致");
+          throw new Error(t(useUIStore.getState().lang, "classroom.error.revision"));
         }
         if (cancelled) return;
         runRef.current = loaded;
@@ -832,10 +834,11 @@ export function useClassroomPlayer(
 export async function startLessonRun(
   workspaceId: string, lessonId: string,
   mode: "resume_or_create" | "restart" = "resume_or_create",
+  lessonRevision?: number,
 ): Promise<string> {
   const { createRun: create } = await import("@/lib/api-classroom");
   const resp = await create(workspaceId, lessonId,
-    { mode, lesson_revision: null, voice_preferences: null },
+    { mode, lesson_revision: lessonRevision ?? null, voice_preferences: null },
     `run-${lessonId}-${Date.now().toString(36)}`);
   return resp.run_id;
 }

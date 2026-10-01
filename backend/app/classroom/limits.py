@@ -91,7 +91,7 @@ VOICE_PREVIEW_DEADLINE_SECONDS = 25
 # 渲染
 RENDER_CONCURRENCY = 1
 RENDER_TIMEOUT_SECONDS = settings.classroom_render_timeout_seconds
-RENDER_VIEWPORTS = ((1280, 720), (960, 540), (390, 0))  # 0 = 阅读模式重排
+RENDER_VIEWPORTS = ((1280, 720), (960, 540))
 
 # 导出
 EXPORT_TTL_HOURS = settings.classroom_export_ttl_hours

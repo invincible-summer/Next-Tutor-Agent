@@ -32,7 +32,13 @@ try {
   );
   const require_ = createRequire(import.meta.url);
   const { ClassroomAudioController } = require_(join(outDir, "audio-controller.js"));
-  const { makeToken, bumpToken } = require_(join(outDir, "player-reducer.js"));
+  const { makeToken, bumpToken, initialPlayerState, playerReducer } = require_(join(outDir, "player-reducer.js"));
+  const initial = initialPlayerState(makeToken("run-test", 1, 1));
+  if (initial.captions || initial.fullscreen) throw new Error("Classroom must start with captions and fullscreen off");
+  const ended = { ...initial, status: "ended", fullscreen: true };
+  if (playerReducer(ended, { type: "settings", fullscreen: false }).fullscreen) {
+    throw new Error("Fullscreen must remain escapable after the lesson ends");
+  }
   await run(makeToken, bumpToken, ClassroomAudioController);
 } finally {
   rmSync(outDir, { recursive: true, force: true });
