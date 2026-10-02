@@ -6,7 +6,7 @@
 # or uploaded by this script. The backend receives final text only; this
 # script installs the local TTS service used for spoken replies.
 #
-#   1. Create backend/voice_sidecar/.venv
+#   1. Create services/voice/.venv
 #   2. Install CPU-only PyTorch and the audited Chinese TTS dependencies
 #   3. Checkout the pinned MeloTTS source
 #   4. Warm up the MeloTTS-Chinese model cache
@@ -14,10 +14,9 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-BACKEND="$ROOT/backend"
-VENDOR="$BACKEND/vendor"
-MODELS="$BACKEND/models/voice"
-SIDECAR="$BACKEND/voice_sidecar"
+SIDECAR="$ROOT/services/voice"
+VENDOR="$SIDECAR/vendor"
+MODELS="$SIDECAR/models"
 MELO_REF="${VOICE_MELO_REF:-209145371cff8fc3bd60d7be902ea69cbdb7965a}"
 MELO_MODEL_REF="${VOICE_MELO_MODEL_REF:-af5d207a364ea4208c6f589c89f57f88414bdd16}"
 BERT_MULTI_REF="${VOICE_BERT_MULTI_REF:-7cbf9a625e29989f6b9c6c2fa68234c304f7e38f}"

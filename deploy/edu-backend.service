@@ -6,8 +6,8 @@ After=network-online.target
 # 课堂模式（可选）：renderer 依赖 Node + Playwright Chromium，以本服务账号
 # （非 root）+ 内核 sandbox 运行，禁止 --no-sandbox；浏览器缓存走
 # XDG_CACHE_HOME=/var/lib/edu-agent/cache（ReadWritePaths 已含）。渲染静态
-# 资源需部署期在 frontend/ 目录执行 `pnpm install && pnpm build:classroom`
-# 生成 backend/app/classroom/static/generated/；缺失时
+# 资源需部署期在 apps/web 目录执行 `pnpm install && pnpm build:classroom`
+# 生成 services/api/app/classroom/static/generated/；缺失时
 # 课堂能力端点显式 renderer_unavailable，旧聊天不受影响。详见
 # docs/The_Website_deployment_plan.md §7.1。
 [Service]
@@ -19,8 +19,9 @@ WorkingDirectory=/opt/edu-agent
 EnvironmentFile=/opt/edu-agent/.env
 Environment=HOME=/var/lib/edu-agent
 Environment=XDG_CACHE_HOME=/var/lib/edu-agent/cache
-Environment=PYTHONPATH=/opt/edu-agent/backend
-ExecStart=/opt/edu-agent/.venv/bin/python -m uvicorn app.main:app --app-dir /opt/edu-agent/backend --host 127.0.0.1 --port 8123 --workers 1 --proxy-headers
+Environment=PYTHONPATH=/opt/edu-agent/services/api
+Environment=NEXT_TUTOR_DATA_DIR=/var/lib/edu-agent/data
+ExecStart=/opt/edu-agent/.venv/bin/python -m uvicorn app.main:app --app-dir /opt/edu-agent/services/api --host 127.0.0.1 --port 8123 --workers 1 --proxy-headers
 Restart=always
 RestartSec=3
 TimeoutStopSec=30
@@ -28,7 +29,7 @@ NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=strict
 ProtectHome=true
-ReadWritePaths=/opt/edu-agent/students /opt/edu-agent/users /opt/edu-agent/notes /opt/edu-agent/chat_history /opt/edu-agent/knowledge /opt/edu-agent/backend/traces /opt/edu-agent/backend/uploads /var/lib/edu-agent
+ReadWritePaths=/var/lib/edu-agent
 
 [Install]
 WantedBy=multi-user.target

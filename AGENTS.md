@@ -2,20 +2,23 @@
 
 ## Project Structure & Module Organization
 
-暂时不做手机端适配
+暂时不做手机端适配，Github Page 上的展示页面在无要求时不必时时更新；
 
-Next-Tutor-Agent is a textbook-driven AI teaching workspace. The FastAPI backend lives in `backend/app/`: routes are under `api/v1/`, identity handling under `identity/`, orchestration layers M1–M10 under `agents/`, and shared utilities under `core/`. Tests are in `backend/tests/test_*.py`.
+在没有明确要求且不需要 commit push 时，对于小的修复和更新不需要运行全量测试.
 
-The Next.js frontend is in `frontend/src/`: pages under `app/`, reusable UI under `components/`, and API, state, i18n, and types under `lib/`. Deployment templates live in `deploy/`. Runtime data, private uploads, conversations, traces, and `.env` files must never be committed. The repository ships no textbook or derived data assets: public textbook namespaces, parsed text, chunks, knowledge graphs and demo runtime data are deployment-local runtime state. Account deletion (self-service or admin) purges all account data via `core/account_data.purge_account` with no empty-dir residue; the admin "数据清理" page (`GET/POST /admin/orphan-data`) scans and purges orphan runtime data left by tests or legacy deletions. Read `docs/DESIGN.md` before changing architecture, storage, APIs, or agent pipelines.
+Next-Tutor-Agent is a textbook-driven AI teaching workspace. The FastAPI backend lives in `services/api/app/`: routes are under `api/v1/`, identity handling under `identity/`, orchestration layers M1–M10 under `agents/`, and shared utilities under `core/`. Tests are in `services/api/tests/test_*.py`. The MeloTTS voice sidecar is `services/voice/`.
+
+The Next.js frontend is in `apps/web/src/`: pages under `app/`, reusable UI under `components/`, and API, state, i18n, and types under `lib/`. Deployment templates live in `deploy/`. All runtime state lives under a single data root (`NEXT_TUTOR_DATA_DIR`, default `.runtime/data`; see `services/api/app/core/paths.py`) — runtime data, private uploads, conversations, traces, and `.env` files must never be committed. The repository ships no textbook or derived data assets: public textbook namespaces, parsed text, chunks, knowledge graphs and demo runtime data are deployment-local runtime state; the only demo content source is the synthetic `fixtures/demo/` corpus. `scripts/repo/check_repository_hygiene.py` (CI's first blocking job) enforces this over tracked files and full history; large-file exceptions go in `scripts/repo/repo-policy.toml`. Account deletion (self-service or admin) purges all account data via `core/account_data.purge_account` with no empty-dir residue; the admin "数据清理" page (`GET/POST /admin/orphan-data`) scans and purges orphan runtime data left by tests or legacy deletions. Read `docs/DESIGN.md` before changing architecture, storage, APIs, or agent pipelines.
 
 ## Build, Test, and Development Commands
 
 - `./start.sh`: start the complete production-style runtime with automatic port fallback.
 - `./start.sh dev`: run the frontend in hot-reload mode.
-- `cd backend && python -m tests`: run all backend tests.
-- `cd backend && python -m tests tests.test_<module>`: run a focused backend regression.
-- `cd frontend && pnpm check`: run frontend type, lint, and unit checks.
-- `cd frontend && pnpm build`: validate the production frontend build.
+- `cd services/api && python -m tests`: run all backend tests.
+- `cd services/api && python -m tests tests.test_<module>`: run a focused backend regression.
+- `cd apps/web && pnpm check`: run frontend type, lint, and unit checks.
+- `cd apps/web && pnpm build`: validate the production frontend build.
+- `python scripts/repo/check_repository_hygiene.py`: run the copyright/hygiene guard locally.
 
 See `docs/TESTING.md` for environment setup, browser smoke/full regression, and CI ownership.
 
@@ -27,7 +30,7 @@ Use four-space Python indentation and `snake_case` names. TypeScript uses two sp
 
 Use Python `unittest`; name files `test_<module>.py` and add route regressions for new APIs. Disabled intelligence layers must degrade without breaking chat. Run focused tests first, then broader checks and `git diff --check`. Frontend changes require typecheck, ESLint, and a production build; visual work also needs light/dark and narrow-screen verification.
 
-Tests must never write to production storage roots (`students/`, `chat_history/`, `backend/traces`, `backend/uploads`, `notes/`, `knowledge/custom/`, `users/`) — synthetic IDs leaking there were the source of thousands of orphan files. Inherit `tests/storage_sandbox.py::StorageSandboxTestCase` (or call its `patch_all_storage_roots` when a custom fixture is unavoidable) so every storage-root constant, the sessions/transcript dirs, `prompt_memory`, `settings.trace_dir`/`chroma_dir`, and the StudentModel/vector-store caches are redirected into a `TemporaryDirectory`. Never use a bare `tempfile.mkdtemp` without cleanup in `tearDown`. When adding a new per-user storage root, register it in the sandbox patch list AND in `core/orphan_cleanup.py`'s scan categories in the same change.
+Tests must never write to production storage roots — everything resolves through the runtime data root (`students/`, `chat_history/`, `traces/`, `uploads/`, `notes/`, `knowledge/`, `users/` under it); synthetic IDs leaking into a live data root were the source of thousands of orphan files. Inherit `tests/storage_sandbox.py::StorageSandboxTestCase` (or call its `patch_all_storage_roots` when a custom fixture is unavoidable) so the runtime root override, every storage-root binding, `prompt_memory`, `settings.trace_dir`/`chroma_dir`, and the StudentModel/vector-store caches are redirected into a `TemporaryDirectory`. Never use a bare `tempfile.mkdtemp` without cleanup in `tearDown`. When adding a new per-user storage root, bind it via `core/paths.py::bind_storage_path` AND register it in `core/orphan_cleanup.py`'s scan categories in the same change.
 
 ## Security & Configuration
 

@@ -1,0 +1,16 @@
+{
+  "workspaces": [
+    {
+      "key": "ws-calculus",
+      "name": "微积分学习（示例）",
+      "textbook": "fxcalc",
+      "public_memory": "示例同学正在跟着《微积分示范讲义（合成演示）》复习第一、二章；导数定义已经掌握，正在攻坚定积分与基本定理。"
+    },
+    {
+      "key": "ws-physics",
+      "name": "物理复习（示例）",
+      "textbook": "fxphys",
+      "public_memory": "示例同学在物理复习工作区里以动量与能量为主线串联力学概念，目标是期末前完成第二章。"
+    }
+  ]
+}

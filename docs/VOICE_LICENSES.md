@@ -27,7 +27,7 @@
 | bert-base-multilingual-uncased | `7cbf9a625e29989f6b9c6c2fa68234c304f7e38f` | Apache-2.0 |
 | bert-base-uncased（tokenizer） | `86b5e0934494bd15c9632b12f734a8a67f723594` | Apache-2.0 |
 
-sidecar venv 依赖（CPU torch 等）钉住在 `backend/voice_sidecar/requirements.txt`；
+sidecar venv 依赖（CPU torch 等）钉住在 `services/voice/requirements.txt`；
 许可边界表见 THIRD-PARTY-NOTICES「Voice sidecar dependencies」。
 
 **运行约束（与 §11.6 一致）**：CPU-only、`HF_HUB_OFFLINE=1`、
@@ -58,7 +58,7 @@ sidecar venv 依赖（CPU torch 等）钉住在 `backend/voice_sidecar/requireme
 1. `deploy/install_voice.sh` 全新环境安装，记录实际下载的 revision 哈希
    与模型缓存清单，与本文件 §2 一致。
 2. `python3 -m unittest tests.test_voice tests.test_voice_azure
-   tests.test_classroom_audio`（backend/ 下）全绿。
+   tests.test_classroom_audio`（services/api/ 下）全绿。
 3. 需要再分发时：保留上游 LICENSE/NOTICE/model card 与 revision 哈希，
    按实际安装版本生成 SBOM；Torch 等 multi-license 打包以 wheel 内
    NOTICE 为准，不得只标 MIT。

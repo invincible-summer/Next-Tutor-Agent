@@ -10,7 +10,7 @@
 
 **简体中文** · [English](docs/README.en.md)
 
-[快速开始](#快速开始) · [功能一览](#功能一览) · [项目展示](https://invincible-summer.github.io/Next-Tutor-Agent/)
+[快速开始](#快速开始) · [功能一览](#功能一览) · [项目展示](https://invincible-summer.github.io/The-Next-Tutor-Agent/)
 
 </div>
 
@@ -35,7 +35,7 @@ Next Tutor Agent 把教材、讲解、练习与复习放进同一个学习空间
 
 界面支持中英文与浅色 / 深色主题，目前以桌面浏览器使用为主。课堂、语音、助手等能力取决于实例配置，页面会提示可用状态。
 
-游客访问默认关闭，管理员可在「账号与数据」中开启。开启后，未登录用户仅可文字聊天、临时出题与本题批改，并可选公共教材；上传、历史记录、完整学习模块和导航助手须登录。游客内容只放在内存，刷新、关闭页面或登录后清空，不进入学习评价闭环。管理台「数据清理」提供游客专用清理入口，可结束临时体验并清除旧版游客残留，保留注册账号、示例账号和公共教材。
+游客访问默认关闭，管理员可在「账号与数据」中开启。开启后，未登录用户仅可文字聊天、临时出题与本题批改，并可选公共教材；上传、历史记录、完整学习模块和导航助手须登录。游客内容只放在内存，刷新、关闭页面或登录后清空，不进入学习评价闭环。管理台「数据清理」提供游客专用清理入口，可结束临时体验并清除旧版游客残留，保留注册账号与公共教材。
 
 ## 一次学习，可以这样展开
 
@@ -74,14 +74,14 @@ Next Tutor Agent 把教材、讲解、练习与复习放进同一个学习空间
 建议使用 Linux / WSL，安装 **Python 3.11、Node.js 22 LTS 和 pnpm 11**，并准备一个可用的 OpenAI 兼容模型服务。
 
 ```bash
-git clone https://github.com/Invincible-Summer/Next-Tutor-Agent.git
-cd Next-Tutor-Agent
+git clone https://github.com/invincible-summer/The-Next-Tutor-Agent.git
+cd The-Next-Tutor-Agent
 
 python3.11 -m venv .venv
 source .venv/bin/activate
-pip install -r backend/requirements.txt
+pip install -r services/api/requirements.txt
 
-cd frontend
+cd apps/web
 pnpm install
 cd ..
 ```
@@ -112,7 +112,7 @@ ADMIN_PASSWORD=replace-with-your-own-password
 首次使用课堂功能，先准备课件资源与排版检查浏览器：
 
 ```bash
-cd frontend
+cd apps/web
 pnpm run build:classroom
 pnpm exec playwright install --with-deps chromium
 cd ..
@@ -150,9 +150,19 @@ cd ..
 ## 项目结构
 
 ```text
-frontend/src/       页面、学习交互与共享组件
-backend/app/       API、教学智能体、教材处理与学习数据
-backend/tests/     后端回归测试
+apps/web/           Next.js 前端（页面、学习交互与共享组件）
+services/api/       FastAPI 后端（API、教学智能体、教材处理与学习数据）
+services/voice/     本地 MeloTTS 语音 sidecar（可选）
+fixtures/demo/      GitHub Pages 演示的合成数据源（synthetic-only）
+scripts/            repo 卫生 guard / demo 导出 / dev 工具
+deploy/             systemd、nginx 等部署模板
 ```
 
-希望先看产品体验？打开 [项目展示](https://invincible-summer.github.io/Next-Tutor-Agent/)，或启动应用阅读「使用手册」。
+仓库只包含源码、测试、部署模板与合成演示数据：教材原件、解析文本、切片、
+知识图谱与用户运行数据均为部署本地状态（`.runtime/data`，见
+`services/api/app/core/paths.py`），不随版本发布。
+
+希望先看产品体验？打开 [GitHub Pages 只读演示站](https://invincible-summer.github.io/The-Next-Tutor-Agent/)，
+用 `example@example.com / example` 查看合成示范数据的对话、笔记、学习档案、虚构教材知识图谱和课程。
+演示内容全部为项目自写的合成数据（虚构教材库），不包含真实教材；AI、编辑与新建操作已关闭；
+构建说明见 [docs/GITHUB_PAGES.md](docs/GITHUB_PAGES.md)。

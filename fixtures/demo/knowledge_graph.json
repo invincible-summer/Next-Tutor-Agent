@@ -1,0 +1,65 @@
+{
+  "topic": "示例综合复习图谱（合成演示）",
+  "subject": "综合",
+  "level": "本科",
+  "concepts": [
+    {
+      "key": "fxg_limit_idea",
+      "name": "极限思想",
+      "difficulty": 3,
+      "aliases": ["无限逼近"],
+      "definition": "用可以严格验证的逼近过程刻画“无限接近”，是微积分与许多物理建模的共同起点。",
+      "example": "瞬时速度、曲边面积都由同一类极限过程定义。"
+    },
+    {
+      "key": "fxg_rate",
+      "name": "变化率视角",
+      "difficulty": 3,
+      "aliases": ["变化率"],
+      "definition": "关注一个量随另一个量改变的快慢，导数与速度、加速度是同一视角在不同学科的名字。",
+      "example": "位移对时间的导数是速度，速度对时间的导数是加速度。"
+    },
+    {
+      "key": "fxg_accumulation",
+      "name": "累积视角",
+      "difficulty": 4,
+      "aliases": ["累积量"],
+      "definition": "把连续分布的微小贡献加总：积分面积、功、冲量都是累积量。",
+      "example": "力对位移累积是功，力对时间累积是冲量。"
+    },
+    {
+      "key": "fxg_conserve",
+      "name": "守恒结构",
+      "difficulty": 4,
+      "aliases": ["守恒律"],
+      "definition": "在特定条件下保持不变的总量，为复杂过程提供前后两端的约束。",
+      "example": "动量守恒与机械能守恒在分阶段问题中接力使用。"
+    },
+    {
+      "key": "fxg_vector",
+      "name": "向量与线性",
+      "difficulty": 3,
+      "aliases": ["线性结构"],
+      "definition": "用线性运算组织对象，向量空间与线性变换提供了统一语言。",
+      "example": "状态随时间的演化常可写成线性代数形式。"
+    },
+    {
+      "key": "fxg_modeling",
+      "name": "数学建模循环",
+      "difficulty": 5,
+      "aliases": ["建模"],
+      "definition": "从现象抽象结构、用数学工具求解、再回到现象检验的循环。",
+      "example": "碰撞问题：建模系统边界 → 动量守恒求解 → 数值模拟检验。"
+    }
+  ],
+  "edges": [
+    {"from": "fxg_limit_idea", "to": "fxg_rate", "type": "prerequisite"},
+    {"from": "fxg_limit_idea", "to": "fxg_accumulation", "type": "prerequisite"},
+    {"from": "fxg_rate", "to": "fxg_conserve", "type": "related"},
+    {"from": "fxg_accumulation", "to": "fxg_conserve", "type": "related"},
+    {"from": "fxg_vector", "to": "fxg_modeling", "type": "prerequisite"},
+    {"from": "fxg_conserve", "to": "fxg_modeling", "type": "prerequisite"},
+    {"from": "fxg_rate", "to": "fxg_modeling", "type": "application"},
+    {"from": "fxg_accumulation", "to": "fxg_modeling", "type": "application"}
+  ]
+}

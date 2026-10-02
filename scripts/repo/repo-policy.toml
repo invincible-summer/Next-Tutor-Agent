@@ -1,0 +1,8 @@
+# Repository distribution policy, consumed by scripts/repo/check_repository_hygiene.py.
+#
+# [large_file_allowlist]: tracked files larger than 5 MB fail the hygiene gate
+# unless listed here with a `reason`. The repository is source-only by design;
+# keep this empty. Generated demo artifacts, textbook data, vector indexes and
+# per-user runtime state are ignored/forbidden outright and can never be
+# allowlisted through this file.
+[large_file_allowlist]

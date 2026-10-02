@@ -12,7 +12,7 @@ permissions:
 
 concurrency:
   group: ci-${{ github.ref }}
-  cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/') }}
+  cancel-in-progress: true
 
 env:
   EDU_TEST_KEYLESS: "1"
@@ -20,34 +20,46 @@ env:
   NEXT_PUBLIC_BACKEND_URL: http://127.0.0.1:8124
 
 jobs:
+  repo-hygiene:
+    # Copyright/distribution guard: runs first and blocks everything below.
+    name: Repository hygiene
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Scan tracked files and full history
+        run: python scripts/repo/check_repository_hygiene.py
+
   backend:
     name: Backend
+    needs: repo-hygiene
     runs-on: ubuntu-24.04
     timeout-minutes: 25
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-project
-      - name: Repository safety
-        run: python scripts/check_repository_invariants.py
       - name: Backend tests (isolated, BM25)
-        working-directory: backend
+        working-directory: services/api
         run: python -m tests
 
   frontend:
     name: Frontend and smoke
+    needs: repo-hygiene
     runs-on: ubuntu-24.04
     timeout-minutes: 25
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-project
       - name: Typecheck, lint and unit tests
-        working-directory: frontend
+        working-directory: apps/web
         run: pnpm check
       - name: Production build
-        working-directory: frontend
+        working-directory: apps/web
         run: pnpm build
       - name: Critical browser journeys
-        working-directory: frontend
+        working-directory: apps/web
         env:
           E2E_PRODUCTION: "1"
           E2E_FRESH: "1"
@@ -62,8 +74,8 @@ jobs:
         with:
           name: smoke-report
           path: |
-            frontend/playwright-report
-            frontend/test-results
+            apps/web/playwright-report
+            apps/web/test-results
           if-no-files-found: ignore
           retention-days: 7
 
@@ -71,14 +83,16 @@ jobs:
     # The single required check in main's branch protection.
     name: CI result
     if: always()
-    needs: [backend, frontend]
+    needs: [repo-hygiene, backend, frontend]
     runs-on: ubuntu-24.04
     timeout-minutes: 2
     steps:
       - name: Require every core job to pass
         env:
+          HYGIENE_RESULT: ${{ needs.repo-hygiene.result }}
           BACKEND_RESULT: ${{ needs.backend.result }}
           FRONTEND_RESULT: ${{ needs.frontend.result }}
         run: |
+          test "$HYGIENE_RESULT" = success
           test "$BACKEND_RESULT" = success
           test "$FRONTEND_RESULT" = success

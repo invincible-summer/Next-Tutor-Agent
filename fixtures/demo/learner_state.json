@@ -1,0 +1,54 @@
+{
+  "concept_states": [
+    {"textbook": "fxcalc", "concept": "limit", "state": "supported_in_scope", "statement": "能用 ε-N 语言解释并验证具体数列的收敛性。"},
+    {"textbook": "fxcalc", "concept": "derivative", "state": "supported_in_scope", "statement": "能从极限角度复述导数定义并说明瞬时变化率的来源。"},
+    {"textbook": "fxcalc", "concept": "diff_rules", "state": "emerging", "statement": "链式法则使用尚不稳定，偶尔漏乘内层导数。"},
+    {"textbook": "fxcalc", "concept": "mvt", "state": "emerging", "statement": "能复述条件与结论，但尚未独立完成证明思路。"},
+    {"textbook": "fxcalc", "concept": "definite_integral", "state": "fragile", "statement": "四步定义能复述，但“与取法无关”的理由说不清楚。"},
+    {"textbook": "fxcalc", "concept": "ftc", "state": "fragile", "statement": "会套用公式计算，定理两层含义的理解仍浅。"},
+    {"textbook": "fxphys", "concept": "kinematics", "state": "supported_in_scope", "statement": "运动学量之间的关系掌握牢固。"},
+    {"textbook": "fxphys", "concept": "newton2", "state": "supported_in_scope", "statement": "能正确进行受力分析并写出方程。"},
+    {"textbook": "fxphys", "concept": "momentum", "state": "emerging", "statement": "已建立“先选系统再判内外力”的习惯，矢量投影仍会出错。"},
+    {"textbook": "fxphys", "concept": "energy_conserve", "state": "emerging", "statement": "能判断守恒条件，分阶段使用还不熟练。"},
+    {"textbook": "fxalg", "concept": "linear_system", "state": "supported_in_scope", "statement": "能用秩判断解的结构并完成消元求解。"},
+    {"textbook": "fxalg", "concept": "eigenvalue", "state": "fragile", "statement": "会算特征值，几何意义还不清楚。"}
+  ],
+  "quizzes": [
+    {
+      "stem": "数列 aₙ=1/n 对 ε=0.01，下列哪个 N 满足极限定义？",
+      "verdict": "correct",
+      "concept_textbook": "fxcalc",
+      "concept": "limit"
+    },
+    {
+      "stem": "f(x)=|x| 在 x=0 处的导数是多少？",
+      "verdict": "correct",
+      "concept_textbook": "fxcalc",
+      "concept": "derivative"
+    },
+    {
+      "stem": "复合函数 sin(x²) 的导数是 cos(x²) 吗？",
+      "verdict": "wrong",
+      "concept_textbook": "fxcalc",
+      "concept": "diff_rules"
+    },
+    {
+      "stem": "系统动量守恒的条件是什么？",
+      "verdict": "correct",
+      "concept_textbook": "fxphys",
+      "concept": "momentum"
+    },
+    {
+      "stem": "存在摩擦的斜面下滑过程可以直接用机械能守恒吗？",
+      "verdict": "wrong",
+      "concept_textbook": "fxphys",
+      "concept": "energy_conserve"
+    },
+    {
+      "stem": "增广矩阵秩小于系数矩阵秩时方程组解的情况是？",
+      "verdict": "correct",
+      "concept_textbook": "fxalg",
+      "concept": "linear_system"
+    }
+  ]
+}

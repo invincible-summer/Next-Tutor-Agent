@@ -9,6 +9,9 @@ dist/
 .ruff_cache/
 .venv/
 venv/
+node_modules/
+.next/
+.pnpm-store/
 
 .env
 .env.*
@@ -20,15 +23,20 @@ secrets.json
 auth.json
 docs/administrator.txt
 
-# Runtime data roots: this repository intentionally ships no textbook source,
-# parsed text, chunks, graphs, indexes or per-user runtime state. The public
-# textbook namespace is deployment-local and must never be committed.
+# Runtime data: the single runtime root (NEXT_TUTOR_DATA_DIR, default
+# .runtime/) plus the legacy per-directory roots must never be committed.
+# The repository ships source, tests, deployment templates and synthetic
+# fixtures only — no textbook sources, parsed text, chunks, knowledge
+# graphs, vector indexes or per-user state.
+# NOTE: these rules are deliberately anchored (/) — unanchored `knowledge/`
+# or `notes/` would also ignore the source packages app/agents/knowledge/
+# and the frontend pages/components of the same name.
+.runtime/
 /traces/
-backend/traces/
 /uploads/
-*.log
 /tool-output/
 /chroma_db/
+/vector_db/
 /chat_history/
 /knowledge/
 /notes/
@@ -37,9 +45,15 @@ backend/traces/
 /acceptance-reports/
 /docs/show/
 /deploy/pages-demo-extra/
-/frontend/public/demo/
-/frontend/out/
-.runtime/
+/apps/web/public/demo/
+/services/api/traces/
+/services/api/uploads/
+*.log
+
+# Generated demo/website build output (produced by CI, never committed).
+/apps/web/out/
+/apps/web/dist/classroom/
+/services/api/app/classroom/static/generated/
 
 # Local planning documents stay out of version control.
 plan.md
@@ -58,11 +72,10 @@ docs/The_Website_deployment_plan.md
 *.db
 
 # Voice sidecar deployment-local assets (MeloTTS checkout, weights, caches).
-/backend/vendor/
-/backend/models/
-/backend/voice_sidecar/.venv/
-/backend/.cache/
-/backend/.huggingface/
+services/voice/vendor/
+services/voice/models/
+services/voice/.cache/
+services/voice/.huggingface/
 *.ckpt
 *.gguf
 *.onnx
@@ -74,12 +87,15 @@ docs/The_Website_deployment_plan.md
 *.mlpackage
 *.params
 *.weights
-/backend/vendor/**/*.bin
-/backend/models/**/*.bin
 
-node_modules/
-.next/
-.pnpm-store/
+# Legacy layout names (pre-restructure) kept so stale checkouts stay clean.
+backend/traces/
+frontend/public/demo/
+frontend/out/
+frontend/test-results/
+frontend/playwright-report/
+backend/vendor/
+backend/models/
 
 .vscode/
 .idea/
@@ -88,11 +104,6 @@ node_modules/
 .zcode/
 
 # Playwright E2E artifacts
-frontend/test-results/
-frontend/playwright-report/
-frontend/.playwright/
-
-# Classroom render assets: sources and build scripts are versioned, generated
-# output is produced on demand.
-backend/app/classroom/static/generated/
-frontend/dist/classroom/
+test-results/
+playwright-report/
+apps/web/.playwright/

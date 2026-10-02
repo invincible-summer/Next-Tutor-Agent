@@ -336,15 +336,17 @@ journal 纯读恢复受理、当前本题判分和学习反馈（未提交为 nu
 404，版本不匹配 409），不触发模型或追加受理。前端按返回的 `pending`
 有限轮询，独立于长期评价状态，支持无学习区的 task-only 判分；失败或
 未判定仍保留只读答案。旧会话丢失 result 缓存也可由题目身份恢复。
-SVG 题图代码已接入；自动化测试记录见 backend/tests/test_quiz_illustration*.py（验收以测试为准）。默认部署开关为 `1`，运维可设置为 `0` 立即关闭所有新图生成。
+组件题图链路已接入；自动化测试记录见 services/api/tests/test_quiz_illustration*.py（验收以测试为准）。默认部署开关为 `1`，运维可设置为 `0` 立即关闭所有新图生成。
 
-**结构化题目 SVG（2026-09-16）**：沿用三条出题路径，题图与题面同次生成、同次审核、先冻结再交付。`QUIZ_SVG_ENABLED` 是默认 `1` 的运维总闸，设为 `0` 时所有入口 fail-closed；登录账户 `profile.prefs.quiz_svg_enabled` 缺省 true，读取失败或无可信账户则禁止新图。`/user/profile` 的 GET/PUT 响应增加 `quiz_svg_available`，PUT 在账户锁内浅合并偏好并严格校验新偏好为 bool。`illustration_request=auto|none|required` 是本次意图：关闭总闸时 auto/none 为 off、required 返回 `illustration_disabled`；开启后 auto 按题必要性选择，required 每题必须带图。Chat provider 绑定可信账户与当前用户意图，模型工具参数不能自行开启开关或伪造强制要求。CAT start 接收该枚举并在实例持久化，next/恢复复用，409 不终止已有实例。
+**结构化题目 SVG 与教学素材库**：普通出题先声明素材需求，由项目本地检索，再生成题面和组件场景、编译、独立审核、冻结后交付；CAT 的自足文字题先冻结，随后独立补图，不改冻结内容。`QUIZ_DIAGRAM_MODE` 仅保留配置兼容字段，运行时始终使用项目组件素材链路，不再支持旧的模型直接生成 SVG。`QUIZ_SVG_ENABLED` 是默认 `1` 的运维总闸，设为 `0` 时所有入口 fail-closed；登录账户 `profile.prefs.quiz_svg_enabled` 缺省 true，读取失败或无可信账户则禁止新图。`/user/profile` 的 GET/PUT 响应增加 `quiz_svg_available`，PUT 在账户锁内浅合并偏好并严格校验新偏好为 bool。`illustration_request=auto|none|required` 是本次意图：关闭总闸时 auto/none 为 off、required 返回 `illustration_disabled`；开启后 auto 按题必要性选择，required 每题必须带图。Chat provider 绑定可信账户与当前用户意图，模型工具参数不能自行开启开关或伪造强制要求。CAT start 接收该枚举并在实例持久化，next/恢复复用，409 不终止已有实例。
 
-`core/quiz_illustration.py` 以 defusedxml 解析后按闭合白名单重建黑白 SVG（最多 24KiB、180 节点、深度 10、800 路径段）。禁止脚本、HTML、CSS、外链、引用、动画和 DTD/实体；不把非法图删掉后原样交付依图题。规范化对象 `{kind,schema_version,sanitizer_version,svg,alt,caption,width,height,content_hash}` 沿 `Question → TaskSnapshot → QuestionPublic` 保存与投影，并进入本题评分上下文。模型提供的审核/内部字段不受信任；即使校验模式为 `off/basic`，带图题也必须独立审题并得到 `illustration_check=passed`。Chat/Fit 等普通生成入口继续使用蓝图、生成、审核共享 7 次逻辑调用/180 秒预算、最多一次整题修订；CAT 首题使用 `get_llm("quiz")` 快速通道（2026-09 起同一主模型，SDK 重试关闭避免 provider 与应用层重试相乘；provider 内部网络重试仍受统一期限约束）。
+`app/diagrams/` 提供 1,079 个原创教材矢量素材、显式参数、具名锚点与完整构图模板。模型没有素材检索工具；名称/别名/功能约束由项目确定性模糊检索，每类需求最多三个候选。模型返回受限 `diagram_scene`，编译器只接受该题候选 ID，按真实数据生成统计/函数几何，再交给 `core/quiz_illustration.py` 的 defusedxml 闭合白名单。旧图 schema 1 / sanitizer 1、2 保留最多 24KiB、180 节点、800 路径段；组件图 schema 2 / sanitizer 3 最多 128KiB、1200 节点、4000 路径段，深度均为 10。禁止脚本、HTML、样式表、外链、可执行引用、动画和 DTD/实体；不把非法图删掉后原样交付依图题。规范化对象 `{kind,schema_version,sanitizer_version,svg,alt,caption,width,height,content_hash}` 沿 `Question → TaskSnapshot → QuestionPublic` 保存与投影，并进入本题评分上下文；来源场景、需求和素材版本仅保存于私有快照。模型提供的审核/内部字段不受信任；确定性组件编译始终校验素材、参数、锚点和画布；生成审查默认关闭，开启后才增加一次独立题图一致性审查。Chat/Fit 的蓝图可同时声明素材需求，项目本地检索后再生成构图，统一共享配置的调用次数/截止时间；CAT 补图最多三次调用/30 秒，不重生成文字题。CAT 首题使用 `get_llm("quiz")` 快速通道（同一主模型，SDK 重试关闭避免 provider 与应用层重试相乘；provider 内部网络重试仍受统一期限约束）。
 
 题组注册在账户锁与 journal 锁内复查图生成权限、检查同题同 revision 材料不可变，再一次事务写入整组。账户开关变化不修改历史图；重练同一冻结题图仍可复用。journal 重放使用 `JournalTransaction.from_persisted_json`，先校验磁盘原始 envelope 再解析新增默认字段，避免将历史记录误判为 checksum 损坏；不批量迁移或重写旧行。
 
-前端共用 `QuestionIllustration`：仅接收规范化版本对象，以 `img` 的 SVG data URI 图片上下文展示，不启用 Markdown raw HTML，不用 DOM 内联 SVG/object/iframe。题图自适应至 720px，深色模式反转黑白，支持放大、Esc 与焦点返回；失败显示图意说明。出题中心把账户开关和“本次必须配图”直接放在习题生成 `ConfigCard` 内（无学习区/加载态也显示），不再单独创建插图模块；“本次必须配图”仅在有效开关开启时可选。聊天结构化题卡、测评答题/反馈、报告回看与证据详情均复用该组件，保证题图始终位于结构化卡片内。源码摘要仅保存短 alt，trace 仅新增 hash/大小/版本/调用统计，不回灌完整 SVG。
+前端共用 `QuestionIllustration`：仅接收规范化版本对象，以 `img` 的 SVG data URI 图片上下文展示，不启用 Markdown raw HTML，不用 DOM 内联 SVG/object/iframe。题图自适应至 720px，旧黑白图在深色模式反转，彩色组件图保留白纸与原配色，支持放大、Esc 与焦点返回；失败显示图意说明。出题中心把账户开关和“本次必须配图”直接放在习题生成 `ConfigCard` 内（无学习区/加载态也显示），不再单独创建插图模块；“本次必须配图”仅在有效开关开启时可选。聊天结构化题卡、测评答题/反馈、报告回看与证据详情均复用该组件，保证题图始终位于结构化卡片内。源码摘要仅保存短 alt，trace 仅新增 hash/大小/版本/调用统计，不回灌完整 SVG。
+
+Workspace 左侧「教学素材库」进入 `/diagram-library`，可分页观看全部素材、筛选学科/类型、模糊搜索、放大、调节真实参数和切换黑白印刷。`GET /api/v1/diagram-assets`、`GET /api/v1/diagram-assets/{asset_id}` 与 `POST /api/v1/diagram-assets/{asset_id}/preview` 沿用既有 API 访问门；预览不调用模型、不写公共资源或学生记录。资源目录在 `services/api/assets/diagram_library/catalog.json`，生成与完整库存见 [DIAGRAM_LIBRARY.md](DIAGRAM_LIBRARY.md) 和 [DIAGRAM_ASSETS.md](DIAGRAM_ASSETS.md)。账户补图缓存沿用原有 students 根，纳入测试存储沙箱，不新增清理类别。
 
 - 前端渲染可交互卡片：MC 可点选（选中即高亮，揭晓后正确绿/错误红）、填空/简答可作答；先答后揭晓；出题后正文不复述题干。
 - **MC**：本地判对错，揭晓即 `POST /quiz/record` 回传 → 统一受理（MC 确定性判定随受理事务落 journal；修复了 MC 不回传的闭环缺口）。
@@ -671,7 +673,7 @@ M10 是横向能力控制层，包路径 `agents/skill_runtime/`。它不替代 
 Next.js 16（App Router, Turbopack）+ React + TypeScript + Tailwind CSS v4 + Zustand + lucide-react。
 
 ```
-frontend/src/
+apps/web/src/
 ├── app/                 # layout / globals.css(设计令牌) / login / register
 │   └── (workspace)/     # 路由组：chat / dashboard / knowledge / plan /
 │                        #   orchestration / assessment / memory / resources /
@@ -737,6 +739,22 @@ frontend/src/
 
 ## 21. 工业化与运维
 
+### GitHub Pages 静态演示部署
+
+完整前端另有只读发布形态：`NEXT_PUBLIC_DEMO_MODE=1` +
+`NEXT_PUBLIC_BASE_PATH=/The-Next-Tutor-Agent`，Next `output: export` 输出到 `apps/web/out/`，
+不使用 rewrites/redirects/headers 服务端钩子。动态会话、笔记、课堂、Run 路由由构建时
+`demoRoutes()` 枚举公开示范 id，支持 Pages 子路径和深链刷新。
+`apiFetch` 在此模式下进入 `demo-fetch.ts`，读取按需静态响应快照；仅 example 本地登录/退出
+允许 POST，其余修改和 AI 请求在发网前拒绝。演示 token 与正常后端 token 使用不同存储键。
+浏览操作、主题、语言和筛选仍可用；笔记预览、课堂冻结课件浏览不写状态。
+界面不添加常驻演示横幅。修改/AI 操作通过 `guardDemoAction` 或共享按钮在执行前拦截，
+统一触发 `DemoReadOnlyDialog`；请求层的只读校验仍是最终边界。
+导出器复用 `tests/storage_sandbox.py::patch_all_storage_roots` 在临时目录读取 git 跟踪的
+public/example 数据，不启动 worker；补充课堂公开视图位于 `deploy/pages-demo-extra/`。
+内部推理、trace、密码哈希和模型凭证不进入导出；产物不入库。未被 example 引用的公共 PDF
+下载指向固定提交的 GitHub 源文件，以遵守 Pages 容量限制。配置与发布见 [`GITHUB_PAGES.md`](GITHUB_PAGES.md)。
+
 ### 21.1 可靠性基建
 
 - **原子写 + 文件锁**（`core/atomic.py`）：所有 JSON 持久化（session/workspace/library/students/*）tmp+replace，防半截写入；腐坏文件按空处理不崩。
@@ -754,7 +772,7 @@ frontend/src/
 
 ### 21.3 Trace 可观测
 
-每轮 trace 落盘 `traces/`（`TRACE_DIR`，默认锚定 `<root>/backend/traces`，cwd 无关）：决策链（understanding/TaskFrame/Skill 候选与拒绝原因/plan/tool 调用/Skill 后置条件）+ prompt/skill 版本 + token 用量。`GET /trace/{run_id}`（JSON）+ `GET /trace/{run_id}/html`（可折叠视图）。
+每轮 trace 落盘数据根下 `traces/`（`NEXT_TUTOR_DATA_DIR`，默认 `.runtime/data/traces`，cwd 无关）：决策链（understanding/TaskFrame/Skill 候选与拒绝原因/plan/tool 调用/Skill 后置条件）+ prompt/skill 版本 + token 用量。`GET /trace/{run_id}`（JSON）+ `GET /trace/{run_id}/html`（可折叠视图）。
 
 ### 21.4 部署三形态（`NEXT_PUBLIC_BACKEND_URL` 单一真相源）
 
@@ -762,7 +780,7 @@ frontend/src/
 2. **同源生产**：不设该变量 → 相对路径 `/api/v1`，nginx 反代 `/api/*` 到后端（SSE 需 `proxy_buffering off`）。模板见 `deploy/`。
 3. **本地一键**：`./start.sh` 先探测后端/前端实际端口，再同步 `NEXT_PUBLIC_BACKEND_URL` 与本地 `CORS_ORIGINS`；子进程统一直连网络，不继承 shell 代理。前端默认生产模式（构建时烤入后端端口并记录于 `.next/edu-build-port`，端口漂移自动重建）。
 
-生产清单（`.env.example` 尾部）：`AUTH_MODE=1` + 替换 `AUTH_JWT_SECRET` + `CORS_ORIGINS` 白名单 + `chmod 600 .env`。Python 生产依赖采用 `backend/requirements.txt` + `backend/constraints.txt` 约束；BM25 基础环境不安装可选向量/本地模型 requirements。**同机生产部署手册**（固定域名/端口、干净克隆、systemd、ACME/HTTPS、同机回归、备份与回滚）见 [`docs/The_Website_deployment_plan.md`](The_Website_deployment_plan.md)。
+生产清单（`.env.example` 尾部）：`AUTH_MODE=1` + 替换 `AUTH_JWT_SECRET` + `CORS_ORIGINS` 白名单 + `chmod 600 .env`。Python 生产依赖采用 `services/api/requirements.txt` + `services/api/constraints.txt` 约束；BM25 基础环境不安装可选向量/本地模型 requirements。**同机生产部署手册**（固定域名/端口、干净克隆、systemd、ACME/HTTPS、同机回归、备份与回滚）见 [`docs/The_Website_deployment_plan.md`](The_Website_deployment_plan.md)。
 生产 systemd 与 Paper Agent 使用同一账号模型：专用系统用户/组 `edu-agent`，home `/var/lib/edu-agent`，shell `/usr/sbin/nologin`；源码位于 `/opt/edu-agent`。后端和前端 unit 均启用 `NoNewPrivileges`、`PrivateTmp`、`ProtectSystem=strict`、`ProtectHome=true`，只通过 `ReadWritePaths` 放行 §22 的运行存储根、前端 `.next` 与 `/var/lib/edu-agent`。`/opt/edu-agent` 可读不代表私人数据可读：`.env`/Deploy Key 为 0600，运行数据目录为 0700。
 
 ### 21.6 OpenAI 兼容门面（第三方平台接入）
@@ -811,13 +829,13 @@ frontend/src/
 | `knowledge/custom/<sid>/<topic>.json` | 活动教材图谱（topic_key=`tb-<id>`；sid=`public` 为公用教材图谱） | 账号 / 公用 |
 | `knowledge/custom/<sid>/<topic>.chunks.json` | 概念→chunks 预索引（P6-C2，随图谱删除联动） | 账号 / 公用 |
 | `knowledge/vector_db/` | Chroma 向量索引 | 全局 |
-| `backend/uploads/` | 会话上传解析文本（`<id>.txt`）+ 原件 | 会话 |
-| `backend/traces/` | 每轮 trace | 全局 |
+| `<数据根>/uploads/` | 会话上传解析文本（`<id>.txt`）+ 原件 | 会话 |
+| `<数据根>/traces/` | 每轮 trace | 全局 |
 | `notes/<sid>/vault.json` + `notes/<sid>/notes/*.md` + `revisions/` + `agent/*.json` + `uploads/` | M-Notes 笔记仓库（索引/正文/修订/每笔记专属智能体/附件，见文末 M-Notes 章节） | 账号 |
 | `chat_history/settings/ocr_policy.json` | 教材 OCR 运行策略（管理员） | 全局 |
 | `chat_history/settings/usage_docs.json` | /docs 使用文档（管理员编辑、全员读） | 全局 |
-| `backend/models/voice/` | P10 MeloTTS/HF 模型缓存。gitignored 部署侧资源，非用户数据：不进 orphan 扫描，也不入测试沙箱清单 | 全局（本地资源） |
-| `backend/vendor/` + `backend/voice_sidecar/.venv/` | P10 MeloTTS 源码与独立 TTS sidecar venv（CPU torch）。gitignored | 全局（本地资源） |
+| `services/voice/models/` | P10 MeloTTS/HF 模型缓存。gitignored 部署侧资源，非用户数据：不进 orphan 扫描，也不入测试沙箱清单 | 全局（本地资源） |
+| `services/voice/vendor/` + `services/voice/.venv/` | P10 MeloTTS 源码与独立 TTS sidecar venv（CPU torch）。gitignored | 全局（本地资源） |
 
 以上账号/运行数据默认全部由 `.gitignore` 覆盖；公共教材库不随版本发布：教材原件、解析文本与图谱均为部署本地运行数据。共享 Chroma 数据库同样不提交。
 
@@ -854,7 +872,7 @@ frontend/src/
 
 ## 24. 测试概览
 
-后端 `backend/tests/` 使用 unittest（`python -m unittest discover -s tests`，当前 1818 项通过、skip=4），核心覆盖面：统一学习评价域（journal 事务/校验和/损坏隔离/幂等重放、SourceReceipt 受理与答案指纹判重、MC 确定性判分、语义 job 生命周期与 §10.3 状态映射、scope 解析与公用教材全选上限、复核/撤销、删除与 generation 重写、learer-evaluation API 投影与鉴权隔离）、CAT 生命周期（start/answer/next/abandon/report/active、next 未答幂等重发、评价失败不阻塞出题、刷新恢复）、quiz 信任边界（越权 404 与存储零变化、unverified_practice 零写入、attempt 链与 M9 归因幂等）、量规冻结与 hint/dispute、出题质量门与两轮化、Chat 模糊出题语义与 `auto_invoke` 题卡护栏、检索融合与证据门、学段去僵化、教材库/OCR/知识谱系（P2–P7 各批次回归）、M6 记忆生命周期、M7 诊断/提案/部署与无增益字段（BANNED_KEYS）、M8 滞后与单真相源、M9 SM-2/计划/任务/复习闭环、M-Notes 笔记仓库与智能体、M0 鉴权/限流/账号清除级联、P10 语音票据与 WS 协议、OpenAI 兼容门面、prompt 注册表版本钉扎。每关验收记录见 `docs/plan-gates/`。前端 `tsc --noEmit` 零错误 + eslint + `next build`（默认与 --webpack 双轨）通过，Playwright e2e 10/10。
+后端 `services/api/tests/` 使用 unittest（`python -m unittest discover -s tests`，当前 1818 项通过、skip=4），核心覆盖面：统一学习评价域（journal 事务/校验和/损坏隔离/幂等重放、SourceReceipt 受理与答案指纹判重、MC 确定性判分、语义 job 生命周期与 §10.3 状态映射、scope 解析与公用教材全选上限、复核/撤销、删除与 generation 重写、learer-evaluation API 投影与鉴权隔离）、CAT 生命周期（start/answer/next/abandon/report/active、next 未答幂等重发、评价失败不阻塞出题、刷新恢复）、quiz 信任边界（越权 404 与存储零变化、unverified_practice 零写入、attempt 链与 M9 归因幂等）、量规冻结与 hint/dispute、出题质量门与两轮化、Chat 模糊出题语义与 `auto_invoke` 题卡护栏、检索融合与证据门、学段去僵化、教材库/OCR/知识谱系（P2–P7 各批次回归）、M6 记忆生命周期、M7 诊断/提案/部署与无增益字段（BANNED_KEYS）、M8 滞后与单真相源、M9 SM-2/计划/任务/复习闭环、M-Notes 笔记仓库与智能体、M0 鉴权/限流/账号清除级联、P10 语音票据与 WS 协议、OpenAI 兼容门面、prompt 注册表版本钉扎。每关验收记录见 `docs/plan-gates/`。前端 `tsc --noEmit` 零错误 + eslint + `next build`（默认与 --webpack 双轨）通过，Playwright e2e 10/10。
 
 ---
 
@@ -1230,7 +1248,7 @@ PyMuPDF 非线程安全（MuPDF 共享全局上下文）：教材 OCR 并发调�
 AI 面板，两侧栏可折叠、边缘拖宽，宽度持久化）。
 
 **存储布局**（根目录 `notes/<safe_sid>/`，`.gitignore` 以 `/notes/` 根锚定，
-避免误伤 `frontend/src/components/pages/notes/`）：
+避免误伤 `apps/web/src/components/pages/notes/`）：
 
 - `vault.json`：仓库索引（folders / notes 元数据 / custom_templates）；folder 使用 `parent_id` 组成多层树，旧索引加载时自动补根级空值。元数据（标题、
   文件夹、标签、template_id、status、source 溯源、review 调度镜像、revision 版本号）
@@ -1664,7 +1682,7 @@ chat_agent intent 分类同源。M5 知识指令旁路（ContentResolver 直消�
 
 ### P10.2 后端语音模块
 
-- `backend/app/api/v1/voice.py`：一次性 ticket、WebSocket 会话绑定、浏览器最终文本
+- `services/api/app/api/v1/voice.py`：一次性 ticket、WebSocket 会话绑定、浏览器最终文本
   事件、`stt_start` / `stt_result` / `answer_delta` / 工具进度 / TTS / `turn_end`。
   二进制上行帧返回 `binary_audio_unsupported`，不会缓存、转码或触发 STT。
 - **朗读语速**（2026-08-31）：实例默认 `VOICE_TTS_SPEED=0.9`（略慢于原速）；个人
@@ -1696,9 +1714,9 @@ chat_agent intent 分类同源。M5 知识指令旁路（ContentResolver 直消�
   worker 保证。单 worker 保证每轮同时最多一个在途 sidecar 请求（sidecar
   模型无并发保护）、`seq` 严格递增。失败策略不变：一次合成失败发送
   `tts_error`，本轮其余子句跳过合成仅保留文字，worker 继续排水清空队列。
-- `backend/app/voice/base.py`：仅保留 TTS provider contract、`VoiceProviderError`
+- `services/api/app/voice/base.py`：仅保留 TTS provider contract、`VoiceProviderError`
   和 `TTSResult`。
-- `backend/app/voice/tts/`：`stub` 用于回归测试，`melo` 通过 localhost HTTP
+- `services/api/app/voice/tts/`：`stub` 用于回归测试，`melo` 通过 localhost HTTP
   调用 sidecar；`sentences.py`、`speak_text.py`、`loudness.py` 和 `wav.py` 分别负责
   流式切句、Markdown/LaTeX 朗读清洗、响度归一和 sidecar WAV 解码。
 - **公式朗读链路**（`speak_text.py` / `sentences.py` 协同）：
@@ -1763,8 +1781,8 @@ C→S {"type":"end"}  S→C {"type":"bye"}
 
 ### P10.4 MeloTTS sidecar
 
-`backend/voice_sidecar/` 是独立 FastAPI 进程，挂载固定 revision 的
-`backend/vendor/MeloTTS`，调用 `TTS(language="ZH", device="cpu")`。接口为：
+`services/voice/` 是独立 FastAPI 进程，挂载固定 revision 的
+`services/voice/vendor/MeloTTS`，调用 `TTS(language="ZH", device="cpu")`。接口为：
 
 - `GET /health`：sidecar 健康检查；
 - `POST /tts`，请求 `{ "text": string, "speed": number }`，返回 WAV(44.1 kHz)。
@@ -1777,7 +1795,7 @@ MeloTTS 源码和模型缓存，并执行一次中文 warmup。`melo_bootstrap.p
 会混进 start.sh 并行进行的前端构建输出、被误读成构建报错（非按类别一刀切，
 新的弃用告警仍会正常出现）。主服务在
 `VOICE_TTS_PROVIDER=melo` 时自动拉起 sidecar；主服务本身不包含 ML/STT 依赖。
-安装和许可证边界分别见 `backend/voice_sidecar/requirements.txt` 与
+安装和许可证边界分别见 `services/voice/requirements.txt` 与
 根目录 `THIRD-PARTY-NOTICES.md`（许可全文在 `licenses/`）。
 
 ### P10.5 前端
@@ -1819,9 +1837,9 @@ MeloTTS 源码和模型缓存，并执行一次中文 warmup。`melo_bootstrap.p
 - 浏览器 STT 不占用服务器语音识别模型内存，也不需要服务器录音缓存；部署侧仅需
   MeloTTS sidecar 的 CPU venv 与 Hugging Face 模型缓存。
 - 仓库只提交 sidecar 集成代码、固定依赖和许可证声明。`deploy/install_voice.sh`
-  在部署时把固定 revision 的 MeloTTS 源码放入 `backend/vendor/`，把
-  MeloTTS-Chinese/BERT 权重与 tokenizer 放入 `backend/models/voice/`，并把 venv
-  放入 `backend/voice_sidecar/.venv/`；三者均 gitignored，不属于用户运行数据。
+  在部署时把固定 revision 的 MeloTTS 源码放入 `services/voice/vendor/`，把
+  MeloTTS-Chinese/BERT 权重与 tokenizer 放入 `services/voice/models/`，并把 venv
+  放入 `services/voice/.venv/`；三者均 gitignored，不属于用户运行数据。
 - 安装脚本预取已审计 revision 后切换 HF/Transformers offline 执行 warmup，避免模型
   `main` 漂移。部署时下载仅避免 Git 仓库直接携带模型；容器、VM 或离线包若包含
   下载结果，仍须保留模型卡、LICENSE/NOTICE 和实际 SBOM。
@@ -1833,7 +1851,7 @@ MeloTTS 源码和模型缓存，并执行一次中文 warmup。`melo_bootstrap.p
 
 ### P10.7 测试
 
-`backend/tests/test_voice.py` 覆盖切句、朗读清洗、TTS WAV 解码、响度归一、ticket、
+`services/api/tests/test_voice.py` 覆盖切句、朗读清洗、TTS WAV 解码、响度归一、ticket、
 鉴权、会话所有权、会话持久化和 TTS fail-open；WebSocket 回归使用 stub TTS 与
 canned `run_turn`，验证：
 
@@ -1950,7 +1968,7 @@ quiz、私有笔记和真实课堂 HTML 工作流。报告/trace 保留 7 天。
 CI runner 没有根目录 `.env`，测试套件必须在**零凭证**下自洽；本地默认
 与 CI 完全同环境，防止"本地被真实凭证掩护、CI 才暴露"的假绿：
 
-- `backend/tests/__init__.py` 在导入任何 app 模块前，清除根 `.env`
+- `services/api/tests/__init__.py` 在导入任何 app 模块前，清除根 `.env`
   定义的全部变量与 shell 里的 LLM/凭证变量（`OPENAI_API_KEY`、
   `LLM_API_KEY`、`LLM_BASE_URL` 等），并设置 `EDU_TEST_KEYLESS=1`；
 - `app/core/config.py` 与 `app/identity/config.py` 在该标志下跳过
@@ -1961,7 +1979,7 @@ CI runner 没有根目录 `.env`，测试套件必须在**零凭证**下自洽�
   秒死、`busy` 事件永不到来而无限阻塞；所有走 turn/端点的测试必须
   patch `get_llm`/`_build_tools`（见 test_voice / test_compat_api /
   test_assessment_identity 的 setUp 模式）；
-- requirements 文件统一引用 `backend/constraints.txt`，锁定解析集；
+- requirements 文件统一引用 `services/api/constraints.txt`，锁定解析集；
   `requirements-test.txt` 仅含轻量测试依赖，可选向量库独立安装；
 - `python -m tests` 用进程级沙箱包住 unittest（包括临时文件），单个用例
   继续通过 `StorageSandboxTestCase` 隔离。测试中 bcrypt 使用 4 轮以减少
@@ -1997,7 +2015,7 @@ CI runner 没有根目录 `.env`，测试套件必须在**零凭证**下自洽�
   `false`（旧 Brief 缺字段也按关闭处理）；开启后单轮提供建议，不自动重写
   或阻止发布。检查结果及降级提示可在编辑器「生成提示与检查建议」查看。
 
-### P12.2 数据与存储（backend/app/core/classroom_store.py）
+### P12.2 数据与存储（services/api/app/core/classroom_store.py）
 
 唯一根 `chat_history/classroom/`；`<owner>/{owner.json,image-search-cache/,
 voice-previews/,workspaces/<ws>/{index.json,operations/,lessons/<les>/}}`；
@@ -2060,7 +2078,7 @@ paragraph/bullets/formula(KaTeX)/code/image/diagram/checkpoint 等；HTML 全量
 （`classroom/render/check.py`，全局单实例 + 硬超时），**子进程只继承
 最小环境白名单（PATH/HOME/XDG_CACHE_HOME 等），供应商密钥与代理变量
 不透传**；Chromium 以服务账号 + 内核 sandbox 运行（禁 --no-sandbox）。
-渲染静态资源 `backend/app/classroom/static/generated/` 为部署期构建
+渲染静态资源 `services/api/app/classroom/static/generated/` 为部署期构建
 （`pnpm run build:classroom`，gitignore）；缺失时 capabilities 显式
 `renderer_unavailable`，旧聊天不受影响。应用内经 SlideFrame：iframe
 `sandbox="allow-scripts"` + srcdoc（URL 无 token），握手
@@ -2154,7 +2172,7 @@ checkpoints/{cid}(+hint/reveal/skip/submit/submission)、summary)。
 模型覆盖均已移除（quiz/classroom 车道保留各自时延/重试语义，模型恒为
 主模型）。课堂保留：`CLASSROOM_ENABLED`(默认 0)、`CLASSROOM_WEB_PROVIDER`+
 `TAVILY_API_KEY`/`PEXELS_API_KEY`+`PIXABAY_API_KEY`、Azure 语音、
-调度/缓存/渲染路径等部署项（完整清单见 `backend/app/core/config.py` 注释）。
+调度/缓存/渲染路径等部署项（完整清单见 `services/api/app/core/config.py` 注释）。
 **运行参数**（上下文窗口、最大输出预算、温度、agent 步数、单次调用
 上限、出题校验模式）以内置默认值运行（默认值=2026-09 实例实际值：
 165536/20000/0.3/6/4000/critic），管理员经 `GET/PUT /admin/llm-policy`
@@ -2173,7 +2191,7 @@ pause_on_hidden）经 /user/profile 严格校验。
 research/images/network/render/generation/jobs/audio/runs/chat/
 assessment/lifecycle/exports/checkpoints/pipeline/prompts/sidebar/
 revisions/worker/api/typegen/health）+ `test_voice_azure`；
-E2E `frontend/e2e/classroom-*.spec.ts` 八件套（create/editor/player/
+E2E `apps/web/e2e/classroom-*.spec.ts` 八件套（create/editor/player/
 resume/questions/security/export/visual，route 级 API mock + 真实
 audio ended 驱动）；确定性播放器套件 `pnpm test:player`。验收产物在
 `acceptance-reports/`（后端全量 2237 通过、E2E 36+7 通过、视觉截图、
@@ -2310,7 +2328,7 @@ CSS 与 frame API 参数已移除；窄桌面窗口只等比缩放整张画布�
 也不再豁免 v2 正文的纵向滚动溢出；生成结果附具体公式问题页码。
 
 针对性验证：`tests.test_classroom_overflow` 与
-`frontend/scripts/test-classroom-layout.mjs`，覆盖文本无丢失、组件不被克隆、
+`apps/web/scripts/test-classroom-layout.mjs`，覆盖文本无丢失、组件不被克隆、
 讲稿定位、公式失败检测、溢出检测，以及浅/深色和较窄桌面画布。
 
 ### P12.19 自主构图、代码与等尺寸导出（2026-09-28）
@@ -2352,7 +2370,7 @@ balanced 最多约三分之一页、rich 最多二分之一页关联插图（至
 
 定向回归：`test_classroom_composition`、`test_classroom_overflow`、
 `test_classroom_render` 与生成/API/修订契约；浏览器验收
-`frontend/scripts/test-classroom-composition.mjs` 覆盖五构图浅/深色、960×540、
+`apps/web/scripts/test-classroom-composition.mjs` 覆盖五构图浅/深色、960×540、
 长代码逐字保留及完整 PDF 等尺寸分页。未运行后端全量测试。
 
 ### P12.20 非代码公式与真实生成验收（2026-09-30）
@@ -2383,11 +2401,11 @@ SVG 数学标签通过受控 foreignObject 接入同一离线 KaTeX；坐标图�
 严格 schema 对非法点、无效范围、NaN 等仍拒绝。该修正不验证模型的数学
 计算，不能把“渲染通过”当作“内容正确”。
 
-手工触发真实模型验收：`backend/scripts/accept_classroom_live.py --output
+手工触发真实模型验收：`services/api/scripts/accept_classroom_live.py --output
 /tmp/course-live`（在 backend 下运行，使用已配置模型，会产生真实调用）。
 通过 StorageSandboxTestCase 隔离全部应用存储，默认不联网搜图、不读取
 私人资料，产物留在指定目录；`--resume` 可复用同一 brief 的已完成阶段。
-`frontend/scripts/inspect-classroom-course.mjs` 对保存的 revision 生成浅/深色、
+`apps/web/scripts/inspect-classroom-course.mjs` 对保存的 revision 生成浅/深色、
 1280/960 画布截图及等尺寸 PDF。自动回归不调用真实模型；非代码公式与
 图形容器的浏览器回归见 `test-classroom-inline-math.mjs`。
 
@@ -2669,7 +2687,7 @@ file+page 目标。修复全部在后端，前端协议层零改动。
   检索的 30s 进程级结果缓存（按 student_id+query 键，跨沙箱会命中
   上一用例的实体数据）。
 - **start.sh**：`build_classroom_assets` 的 manifest 检查与 `cd` 改用
-  `$ROOT` 锚定（此前 `start_frontend` 已 cd 到 frontend/，相对路径使
+  `$ROOT` 锚定（此前 `start_frontend` 已 cd 到 apps/web/，相对路径使
   构建必然失败且跳过检查失效，新克隆首启缺课堂渲染资产）。
 - 回归：`test_assistant_search.py` 自然语言 7 例、
   `test_assistant_orchestration.py` 实体候选/页码/轮次 7 例、

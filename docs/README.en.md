@@ -10,7 +10,7 @@ A textbook-driven AI workspace · Tutoring · Lessons · Assessment · Notes & r
 
 [简体中文](../README.md) · **English**
 
-[Quick start](#quick-start) · [Features](#features) · [Project showcase](https://invincible-summer.github.io/Next-Tutor-Agent/)
+[Quick start](#quick-start) · [Features](#features) · [Project showcase](https://invincible-summer.github.io/The-Next-Tutor-Agent/)
 
 </div>
 
@@ -72,14 +72,14 @@ BM25 retrieval works without an embedding model; vector retrieval is optional. A
 Linux / WSL is recommended. Install **Python 3.11, Node.js 22 LTS, and pnpm 11**, and have an OpenAI-compatible model service available.
 
 ```bash
-git clone https://github.com/Invincible-Summer/Next-Tutor-Agent.git
-cd Next-Tutor-Agent
+git clone https://github.com/invincible-summer/The-Next-Tutor-Agent.git
+cd The-Next-Tutor-Agent
 
 python3.11 -m venv .venv
 source .venv/bin/activate
-pip install -r backend/requirements.txt
+pip install -r services/api/requirements.txt
 
-cd frontend
+cd apps/web
 pnpm install
 cd ..
 ```
@@ -110,7 +110,7 @@ The administrator credentials create the initial admin account. Image understand
 Before using classroom features for the first time, prepare the lesson assets and browser used for layout checks:
 
 ```bash
-cd frontend
+cd apps/web
 pnpm run build:classroom
 pnpm exec playwright install --with-deps chromium
 cd ..
@@ -146,9 +146,19 @@ See [Testing and CI maintenance](TESTING.md) for setup, local checks, extended r
 ## Project layout
 
 ```text
-frontend/src/       Pages, learning interactions, and shared components
-backend/app/       APIs, teaching agents, textbook processing, and learning data
-backend/tests/     Backend regression tests
+apps/web/           Next.js frontend (pages, learning interactions, shared components)
+services/api/       FastAPI backend (APIs, teaching agents, textbook processing, learning data)
+services/voice/     Local MeloTTS voice sidecar (optional)
+fixtures/demo/      Synthetic-only data source for the GitHub Pages demo
+scripts/            Repo hygiene guard / demo export / dev tooling
+deploy/             Deployment templates (systemd, nginx, ...)
 ```
 
-Explore the [project showcase](https://invincible-summer.github.io/Next-Tutor-Agent/) or launch the app and open the user guide.
+The repository ships source, tests, deployment templates, and synthetic demo data only:
+textbook files, parsed text, chunks, knowledge graphs, and user runtime state are
+deployment-local (`.runtime/data`, see `services/api/app/core/paths.py`) and never
+published with the repository.
+
+Explore the [project showcase](https://invincible-summer.github.io/The-Next-Tutor-Agent/) —
+built entirely from project-authored synthetic data (a fictional textbook library) —
+or launch the app and open the user guide.

@@ -6,7 +6,7 @@ BM25 始终常驻；本地模型或 Chroma 故障时检索自动回退 BM25。
 **本仓库不内置、不固定、不默认分发任何本地向量大模型。** 曾捆绑的本地 embedding
 模型运行时（sentence-transformers、CPU PyTorch wheel 及其版本 pin）已从依赖与
 constraints 中彻底移除，仓库与远端历史中也从未包含过任何模型参数权重或模型代码
-文件。保留下来的只有模型无关的通用本地向量模型 RAG 接口（`backend/app/core/embedding.py`
+文件。保留下来的只有模型无关的通用本地向量模型 RAG 接口（`services/api/app/core/embedding.py`
 的 `LocalEmbeddingClient`）：部署方自带具备许可的模型与推理运行时，接口负责懒加载、
 单槽串行、离线约束与归一化输出。
 
@@ -17,7 +17,7 @@ constraints 中彻底移除，仓库与远端历史中也从未包含过任何�
 ```bash
 python3.11 -m venv .venv
 .venv/bin/python -m pip install --upgrade pip
-.venv/bin/python -m pip -r backend/requirements.txt -r backend/requirements-vector.txt
+.venv/bin/python -m pip -r services/api/requirements.txt -r services/api/requirements-vector.txt
 .venv/bin/python -m pip check
 ```
 
@@ -59,7 +59,7 @@ MKL_NUM_THREADS=2
 chunks，使用当前配置的 embedding client：
 
 ```bash
-cd backend
+cd services/api
 python scripts/build_public_vector_pack.py
 ```
 
@@ -77,7 +77,7 @@ checksum 和确定性随机自查询。全部通过后才原子替换旧目录�
 在部署机上获得经过验证的向量包后，在重启 backend **之前**执行：
 
 ```bash
-cd backend
+cd services/api
 python scripts/import_public_vector_pack.py
 ```
 

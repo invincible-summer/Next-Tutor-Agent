@@ -57,8 +57,8 @@ CLT 建立在工作记忆容量有限、长期记忆中的知识结构会显著�
 
 RBT 已经是当前仓库的正式组成部分，而不是待引入概念：
 
-- `backend/app/core/bloom.py` 定义 `remember / understand / apply / analyze / evaluate / create`；
-- `backend/app/core/bloom_profile.py` 从学习账本确定性聚合学生在不同认知过程上的表现；
+- `services/api/app/core/bloom.py` 定义 `remember / understand / apply / analyze / evaluate / create`；
+- `services/api/app/core/bloom_profile.py` 从学习账本确定性聚合学生在不同认知过程上的表现；
 - M4 generator、chat quiz、两轮命题蓝图、测评页与画像页都已经消费 `bloom_level`。
 
 因此没有理由再引入另一套认知目标分类体系与它竞争。正确做法是把现有 Bloom 从“命题标签”进一步规范为 ECDL Task Model 中的**认知任务目标**，并补齐“目标认知过程是否真的被题目要求出来”的验证。

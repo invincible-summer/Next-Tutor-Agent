@@ -22,13 +22,13 @@ Type=simple
 User=edu-agent
 Group=edu-agent
 UMask=0077
-WorkingDirectory=/opt/edu-agent/backend/voice_sidecar
+WorkingDirectory=/opt/edu-agent/services/voice
 Environment=HF_HUB_OFFLINE=1
 Environment=TRANSFORMERS_OFFLINE=1
-Environment=HF_HOME=/opt/edu-agent/backend/models/voice/hf
+Environment=HF_HOME=/opt/edu-agent/services/voice/models/hf
 Environment=OMP_NUM_THREADS=2
 Environment=MKL_NUM_THREADS=2
-ExecStart=/opt/edu-agent/backend/voice_sidecar/.venv/bin/python -m uvicorn app:app --host 127.0.0.1 --port 8130
+ExecStart=/opt/edu-agent/services/voice/.venv/bin/python -m uvicorn app:app --host 127.0.0.1 --port 8130
 Restart=on-failure
 RestartSec=5
 TimeoutStopSec=30
@@ -36,7 +36,7 @@ NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=strict
 ProtectHome=true
-ReadWritePaths=/opt/edu-agent/backend/models/voice
+ReadWritePaths=/opt/edu-agent/services/voice/models
 
 [Install]
 WantedBy=multi-user.target

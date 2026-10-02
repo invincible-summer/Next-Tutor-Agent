@@ -13,7 +13,7 @@ revision history and release checklist remain in
 
 - This repository bundles **no model weights**: the local RAG embedding-model
   runtime was removed entirely (a model-agnostic interface remains in
-  `backend/app/core/embedding.py`), and the voice models below are downloaded
+  `services/api/app/core/embedding.py`), and the voice models below are downloaded
   at deployment time into gitignored directories. Redistribution obligations
   for those models still apply once you deploy or re-distribute them.
 - Speech input uses the browser `SpeechRecognition` / `webkitSpeechRecognition`
@@ -24,7 +24,7 @@ revision history and release checklist remain in
 ## MeloTTS
 
 Purpose: local Chinese TTS inference source (vendored at
-`backend/vendor/MeloTTS`, mounted by the voice sidecar).
+`services/voice/vendor/MeloTTS`, mounted by the voice sidecar).
 
 Pinned revision: `209145371cff8fc3bd60d7be902ea69cbdb7965a`
 
@@ -78,7 +78,7 @@ Full text: [`licenses/Apache-2.0.txt`](licenses/Apache-2.0.txt)
 
 ## Voice sidecar dependencies
 
-Exact versions are pinned in `backend/voice_sidecar/requirements.txt` (CPU
+Exact versions are pinned in `services/voice/requirements.txt` (CPU
 PyTorch wheels are installed by `deploy/install_voice.sh`). License full
 texts kept in this repository are linked below; for everything else, preserve
 the notices shipped inside the actual wheels.
@@ -102,9 +102,9 @@ README/attribution when redistributing it.
 
 ## Core backend runtime dependencies
 
-The BM25/API production runtime (`backend/requirements.txt`, versions
-constrained by `backend/constraints.txt`) and the optional vector lane
-(`backend/requirements-vector.txt`) install standard PyPI packages whose
+The BM25/API production runtime (`services/api/requirements.txt`, versions
+constrained by `services/api/constraints.txt`) and the optional vector lane
+(`services/api/requirements-vector.txt`) install standard PyPI packages whose
 license and copyright notices are carried by the packages themselves
 (`*.dist-info` / `LICENSE` / `NOTICE`). Before shipping a venv, container, or
 offline bundle, preserve those files for the actually installed versions and

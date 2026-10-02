@@ -30,12 +30,12 @@ jobs:
           python-version: "3.11"
           cache: pip
           cache-dependency-path: |
-            backend/requirements*.txt
-            backend/constraints.txt
+            services/api/requirements*.txt
+            services/api/constraints.txt
       - name: Install optional vector dependencies
-        run: python -m pip install -r backend/requirements.txt -r backend/requirements-test.txt -r backend/requirements-vector.txt
+        run: python -m pip install -r services/api/requirements.txt -r services/api/requirements-test.txt -r services/api/requirements-vector.txt
       - name: Vector and public-artifact regressions
-        working-directory: backend
+        working-directory: services/api
         run: python -m tests tests.test_local_rag tests.test_rag_hybrid
 
   browser:
@@ -46,10 +46,10 @@ jobs:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-project
       - name: Production build
-        working-directory: frontend
+        working-directory: apps/web
         run: pnpm build
       - name: Browser regressions
-        working-directory: frontend
+        working-directory: apps/web
         env:
           E2E_PRODUCTION: "1"
           E2E_FRESH: "1"
@@ -63,7 +63,7 @@ jobs:
         with:
           name: regression-report
           path: |
-            frontend/playwright-report
-            frontend/test-results
+            apps/web/playwright-report
+            apps/web/test-results
           if-no-files-found: ignore
           retention-days: 7

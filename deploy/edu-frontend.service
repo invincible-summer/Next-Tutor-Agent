@@ -8,7 +8,7 @@ Type=simple
 User=edu-agent
 Group=edu-agent
 UMask=0077
-WorkingDirectory=/opt/edu-agent/frontend
+WorkingDirectory=/opt/edu-agent/apps/web
 Environment=NODE_ENV=production
 Environment=HOME=/var/lib/edu-agent
 Environment=BACKEND_URL=http://127.0.0.1:8123
@@ -21,7 +21,7 @@ NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=strict
 ProtectHome=true
-ReadWritePaths=/opt/edu-agent/frontend/.next /var/lib/edu-agent
+ReadWritePaths=/opt/edu-agent/apps/web/.next
 
 [Install]
 WantedBy=multi-user.target
