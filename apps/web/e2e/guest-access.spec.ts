@@ -135,20 +135,20 @@ for (const theme of ["light", "dark"]) {
     await page.getByRole("button", { name: "清理全部游客数据", exact: true }).click();
     await page.getByRole("button", { name: "清理全部游客数据", exact: true }).last().click();
     await expect(page.getByText(/已结束 2 位游客体验/)).toBeVisible();
-    await mkdir("../acceptance-reports/screenshots", { recursive: true });
-    await page.screenshot({ path: `../acceptance-reports/screenshots/guest-admin-${theme}-1440.png`, fullPage: true });
+    await mkdir("../../acceptance-reports/screenshots", { recursive: true });
+    await page.screenshot({ path: `../../acceptance-reports/screenshots/guest-admin-${theme}-1440.png`, fullPage: true });
     expect(errors).toEqual([]);
   });
   for (const width of [1440, 1024]) {
     test(`guest pages fit ${theme} at ${width}`, async ({ page }) => {
       const { errors } = await mockSite(page, { theme });
       await page.setViewportSize({ width, height: 900 });
-      await mkdir("../acceptance-reports/screenshots", { recursive: true });
+      await mkdir("../../acceptance-reports/screenshots", { recursive: true });
       for (const [path, mode] of [["/chat", "chat"], ["/assessment", "practice"]]) {
         await page.goto(path);
         await expect(page.getByTestId(`guest-${mode}`)).toBeVisible();
         expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-        await page.screenshot({ path: `../acceptance-reports/screenshots/guest-${mode}-${theme}-${width}.png`, fullPage: true });
+        await page.screenshot({ path: `../../acceptance-reports/screenshots/guest-${mode}-${theme}-${width}.png`, fullPage: true });
       }
       expect(errors).toEqual([]);
     });

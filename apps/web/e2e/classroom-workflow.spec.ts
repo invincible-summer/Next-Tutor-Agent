@@ -4,7 +4,7 @@ import { loginViaStorage } from "./helpers";
 import { JOB_ID, LESSON_ID, RUN_ID, SLIDES_2, WS_ID, jobPublic, lessonDetail, routeBase, type MutableLessonState } from "./classroom-helpers";
 
 const lessonUrl = `/workspaces/${WS_ID}/classroom/${LESSON_ID}`;
-const shotDir = "../acceptance-reports/screenshots";
+const shotDir = "../../acceptance-reports/screenshots";
 test.use({ contextOptions: { reducedMotion: "reduce" } });
 // Render real courseware from synthetic data, so screenshots exercise the frame
 // sizing and theme instead of a simplified HTML stand-in.
@@ -25,7 +25,7 @@ html = compile_html(revision)
 for n in (1, 2):
     html = html.replace(f"blk_{n:024x}", f"blk-e2e-{n}1")
 print(html)
-`], { cwd: "../backend", encoding: "utf8", maxBuffer: 8 * 1024 * 1024 });
+`], { cwd: "../../services/api", encoding: "utf8", maxBuffer: 8 * 1024 * 1024 });
 
 async function setup(page: Page, dark = false) {
   await page.setViewportSize({ width: 1440, height: 900 });

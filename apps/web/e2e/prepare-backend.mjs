@@ -24,6 +24,9 @@ if (process.env.E2E_FRESH === "1" && existsSync(DEST)) {
   rmSync(DEST, { recursive: true, force: true });
 }
 mkdirSync(DEST, { recursive: true });
+// rsync's receiver only mkdirs the final path component, so the nested
+// services/api destination must exist beforehand.
+mkdirSync(backendSrc, { recursive: true });
 
 // Backend sources only; runtime data goes to <DEST>/data via
 // NEXT_TUTOR_DATA_DIR (single runtime root owned by app/core/paths.py).

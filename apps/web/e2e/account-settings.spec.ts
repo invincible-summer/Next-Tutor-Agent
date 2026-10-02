@@ -140,7 +140,7 @@ test("avatar crop uploads the selected square, updates private displays and remo
   await page.getByLabel("上传头像", { exact: true }).setInputFiles(await avatarFile(page));
   await expect(page.getByText("裁剪头像", { exact: true })).toBeVisible();
   await page.getByRole("slider", { name: "水平位置", exact: true }).focus(); await page.keyboard.press("Home");
-  await page.screenshot({ animations: "disabled", path: "../acceptance-reports/screenshots/avatar-crop-light-1440.png" });
+  await page.screenshot({ animations: "disabled", path: "../../acceptance-reports/screenshots/avatar-crop-light-1440.png" });
   await page.getByRole("button", { name: "保存头像", exact: true }).click();
   await expect(page.locator("header img[src^='blob:']")).toBeVisible();
   expect(avatarWrites).toHaveLength(1);
@@ -168,7 +168,7 @@ test("invalid avatar is rejected and failed uploads keep the crop for retry", as
   await expect(page.getByText("请选择 5 MB 以内", { exact: false })).toBeVisible();
   await page.getByLabel("上传头像", { exact: true }).setInputFiles(await avatarFile(page));
   await expect(page.getByText("裁剪头像", { exact: true })).toBeVisible();
-  await page.screenshot({ animations: "disabled", path: "../acceptance-reports/screenshots/avatar-crop-dark-1440.png" });
+  await page.screenshot({ animations: "disabled", path: "../../acceptance-reports/screenshots/avatar-crop-dark-1440.png" });
   failNextSave(); await page.getByRole("button", { name: "保存头像", exact: true }).click();
   await expect(page.getByRole("alert").filter({ hasText: "保存失败" })).toBeVisible();
   expect(avatarWrites).toHaveLength(0);
@@ -240,7 +240,7 @@ for (const theme of ["light", "dark"]) {
     await expect(page.getByRole("tooltip", { name: "新对话按初中阶段组织讲解与练习。", exact: true })).toBeVisible();
     await optionHelp.click();
     expect(writes).toHaveLength(1);
-    await page.screenshot({ animations: "disabled", style: "nextjs-portal { display: none; }", path: `../acceptance-reports/screenshots/settings-feedback-${theme}-1440.png` });
+    await page.screenshot({ animations: "disabled", style: "nextjs-portal { display: none; }", path: `../../acceptance-reports/screenshots/settings-feedback-${theme}-1440.png` });
     failNextSave();
     await grades.getByRole("button", { name: "高中", exact: true }).click();
     await expect(page.getByRole("alert").filter({ hasText: "保存失败，请重试" })).toBeVisible();
@@ -265,7 +265,7 @@ for (const theme of ["light", "dark"]) {
     await page.getByRole("button", { name: "说明：只看讲稿", exact: true }).hover();
     await expect(page.getByRole("tooltip", { name: "只显示课堂讲稿，不生成朗读音频。", exact: true })).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-    await page.screenshot({ animations: "disabled", style: "nextjs-portal { display: none; }", path: `../acceptance-reports/screenshots/settings-feedback-${theme}-1024.png` });
+    await page.screenshot({ animations: "disabled", style: "nextjs-portal { display: none; }", path: `../../acceptance-reports/screenshots/settings-feedback-${theme}-1024.png` });
     await expect(page.getByRole("status")).toHaveCount(0, { timeout: 5000 });
     expect(errors).toEqual([]);
   });
@@ -403,19 +403,19 @@ for (const theme of ["light", "dark"]) {
     const { errors } = await mockSite(page, { role: "admin", theme });
     await page.goto("/account");
     await expect(page.getByRole("main").getByRole("heading", { name: "账户资料", exact: true })).toBeVisible();
-    await page.screenshot({ animations: "disabled", path: `../acceptance-reports/screenshots/account-preferences-details-${theme}-1440.png` });
+    await page.screenshot({ animations: "disabled", path: `../../acceptance-reports/screenshots/account-preferences-details-${theme}-1440.png` });
     await page.goto("/settings");
     // The Next.js issues badge overlaps this control in dev; use its keyboard path.
     await page.getByRole("button", { name: "展开导航" }).focus();
     await page.keyboard.press("Enter");
     await menu(page).click();
-    await page.screenshot({ animations: "disabled", path: `../acceptance-reports/screenshots/account-preferences-menu-${theme}-1440.png` });
+    await page.screenshot({ animations: "disabled", path: `../../acceptance-reports/screenshots/account-preferences-menu-${theme}-1440.png` });
     await page.keyboard.press("Escape");
     await page.setViewportSize({ width: 1024, height: 768 });
     await page.getByRole("group", { name: "字号", exact: true }).getByRole("button", { name: "特大", exact: true }).click();
     await expect(page.locator("header a[href='/settings']")).toBeInViewport();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-    await page.screenshot({ animations: "disabled", path: `../acceptance-reports/screenshots/account-preferences-settings-${theme}-1024.png` });
+    await page.screenshot({ animations: "disabled", path: `../../acceptance-reports/screenshots/account-preferences-settings-${theme}-1024.png` });
     expect(errors).toEqual([]);
   });
 }
