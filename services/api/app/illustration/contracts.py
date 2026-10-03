@@ -28,8 +28,9 @@ FailureCode = Literal["invalid_contract", "no_meaningful_visual", "missing_mater
 
 
 class IllustrationError(ValueError):
-    def __init__(self, code: FailureCode, *, target: str = "canvas", repairable=False):
+    def __init__(self, code: FailureCode, *, target: str = "canvas", repairable=False, details=None):
         self.code, self.target, self.repairable = code, target, repairable
+        self.details = details or {}
         super().__init__(code)
 
 
@@ -59,6 +60,20 @@ def literal_number_supported(value, quote):
     return False
 
 
+def canonical_function_expression(value):
+    """Normalize mathematical exponent notation; the safe AST still runs."""
+    if isinstance(value, str):
+        value = re.sub(r"^\s*y\s*=\s*(?!=)", "", value, count=1).strip().replace("^", "**")
+        return re.sub(r"[⁰¹²³⁴⁵⁶⁷⁸⁹]+", lambda match: "**"+match[0].translate(
+            str.maketrans("⁰¹²³⁴⁵⁶⁷⁸⁹", "0123456789")), value)
+    return value
+
+
+def purely_qualitative_quote(quote):
+    """Only normalize existence, never a misquoted amount or fill fraction."""
+    return not re.search(r"\d|[零〇一二两三四五六七八九十百千万半满]|%|％|分之|比例", quote)
+
+
 class Entity(StrictModel):
     id: str = Field(pattern=r"^[A-Za-z][\w:-]{0,63}$")
     name: str = Field(min_length=1, max_length=80)
@@ -81,6 +96,8 @@ class MaterialFact(StrictModel):
 
     @model_validator(mode="after")
     def value_type(self):
+        if self.type == "function":
+            self.value = canonical_function_expression(self.value)
         import math
         def finite(value):
             if isinstance(value, float) and not math.isfinite(value):
@@ -93,10 +110,10 @@ class MaterialFact(StrictModel):
         if not finite(self.value):
             raise ValueError("nonfinite fact")
         if self.type == "scalar" and (not isinstance(self.value, (int, float)) or isinstance(self.value, bool)):
-            raise ValueError("scalar must be numeric")
+            raise IllustrationError("invalid_contract", target=self.id+":type")
         if self.type == "state" and not isinstance(self.value, bool) or (
                 self.predicate in {"liquid_present", "lit", "closed"} and self.type != "state"):
-            raise ValueError("state predicate must be boolean")
+            raise IllustrationError("invalid_contract", target=self.id+":type")
         return self
 
 
@@ -180,16 +197,20 @@ class QuestionMaterialContract(StrictModel):
     entities: list[Entity] = Field(default_factory=list, max_length=24)
     facts: list[MaterialFact] = Field(default_factory=list, max_length=48)
     required_relations: list[MaterialRelation] = Field(default_factory=list, max_length=48)
+    internal_relations: list[MaterialRelation] = Field(default_factory=list, max_length=48)
     required_marks: list[str] = Field(default_factory=list, max_length=24)
     unknowns: list[Unknown] = Field(default_factory=list, max_length=12)
     prohibited_additions: list[str] = Field(default_factory=list, max_length=24)
     presentation_constraints: Presentation = Field(default_factory=Presentation)
+    # Creative direction supplied by the question author.  It is deliberately
+    # separate from facts/gold so it cannot add a teaching condition.
+    illustration_guidance: str = Field(default="", max_length=1200)
     authoring_gold: dict[str, JsonValue] = Field(default_factory=dict)
     frozen_question: bool = False
 
     @model_validator(mode="after")
     def validate_contract(self):
-        for rows in (self.entities, self.facts, self.required_relations, self.unknowns):
+        for rows in (self.entities, self.facts, [*self.required_relations, *self.internal_relations], self.unknowns):
             if len({row.id for row in rows}) != len(rows):
                 raise ValueError("duplicate material id")
         entities = {row.id for row in self.entities}
@@ -199,6 +220,14 @@ class QuestionMaterialContract(StrictModel):
         for relation in self.required_relations:
             if {relation.from_entity, relation.to_entity} - entities or set(relation.fact_refs) - facts:
                 raise ValueError("unknown relation reference")
+            if relation.from_entity == relation.to_entity:
+                # One material's internal construction belongs to its SVG,
+                # rather than to the inter-object connection solver. Reject
+                # this before retrieval spends the shared generation budget.
+                raise IllustrationError("invalid_contract", target=relation.id+":self_relation")
+        for relation in self.internal_relations:
+            if relation.from_entity != relation.to_entity or relation.from_entity not in entities or set(relation.fact_refs) - facts:
+                raise IllustrationError("invalid_contract", target=relation.id+":internal_relation")
         if self.visual_role == "none" and (self.entities or self.required_relations):
             raise ValueError("none has visual material")
         for text in self.required_marks + self.prohibited_additions:
@@ -206,8 +235,12 @@ class QuestionMaterialContract(StrictModel):
                 raise ValueError("unbounded mark")
         if self.frozen_question and self.visual_role == "essential":
             raise IllustrationError("question_material_incomplete")
-        if self.frozen_question or self.visual_role == "supplemental":
-            for row in [*self.entities, *self.facts, *self.required_relations]:
+        for row in [*self.entities, *self.facts, *self.required_relations, *self.internal_relations]:
+            if not self.frozen_question and self.visual_role == "essential" and (
+                    row.source_ref == "blueprint" or
+                    (isinstance(row, Entity) and not row.source_quote)):
+                continue
+            if self.frozen_question or self.visual_role in {"essential", "supplemental"}:
                 source = self.source_text(row.source_ref)
                 if row.source_quote and row.source_quote not in source and len(row.source_quote) >= 6:
                     # Resolve a unique literal span when the model omitted a
@@ -228,10 +261,17 @@ class QuestionMaterialContract(StrictModel):
                             return all(supported(item) for item in value.values())
                         if isinstance(value, (int, float)) and not isinstance(value, bool):
                             return literal_number_supported(value, row.source_quote)
+                        if row.type == "function":
+                            return canonical_function_expression(value) in canonical_function_expression(row.source_quote)
                         return str(value) in row.source_quote
                     if not supported(row.value):
                         raise IllustrationError("invalid_contract", target=row.id+":value")
-        expected = digest(self.model_dump(mode="json", exclude={"contract_hash"}))
+        # Creative direction does not change the scientific material identity;
+        # keep it outside the hash so older persisted contracts remain valid
+        # when this optional field is introduced or edited.
+        expected = digest(self.model_dump(mode="json",
+                                          exclude={"contract_hash",
+                                                   "illustration_guidance"}))
         if self.contract_hash and self.contract_hash != expected:
             raise ValueError("contract hash mismatch")
         self.contract_hash = expected
@@ -366,6 +406,15 @@ class Target(StrictModel):
     instance: str = Field(max_length=96)
     port: str = Field(default="", max_length=40)
     region: str = Field(default="", max_length=40)
+    local_point: tuple[float, float] | None = None
+
+    @model_validator(mode="after")
+    def valid_local_point(self):
+        import math
+        if self.local_point is not None and (self.port or self.region or any(
+                not math.isfinite(value) or not 0 <= value <= 4096 for value in self.local_point)):
+            raise ValueError("invalid annotation point")
+        return self
 
 
 class SceneRelation(StrictModel):
@@ -381,15 +430,25 @@ class SceneRelation(StrictModel):
 
 
 Placement = Literal["outside_top", "outside_bottom", "outside_right", "outside_left",
-    "outside_top_right", "outside_right_lower"]
+    "outside_top_right", "outside_right_lower", "near_point"]
 
 
 class Annotation(StrictModel):
     annotation_id: str = Field(pattern=r"^[A-Za-z][\w-]{0,39}$")
     text: str = Field(min_length=1, max_length=100)
     target: Target
+    leader: bool = False
     placement: Placement = "outside_right"
     fact_refs: list[str] = Field(default_factory=list, max_length=12)
+
+    @model_validator(mode="after")
+    def located_leader(self):
+        if self.leader and self.target.local_point is None and not self.target.port:
+            raise ValueError("leader needs a real point or port")
+        if self.placement == "near_point" and (
+                self.target.local_point is None and not self.target.port or self.leader):
+            raise ValueError("near_point needs a real point without a leader")
+        return self
 
 
 class SceneGroup(StrictModel):
@@ -437,9 +496,12 @@ class PatchOperation(StrictModel):
     rotation: float | None = None
     key: str = ""
     fact_id: str = ""
+    value: JsonValue = None
     asset_id: str = ""
     version: int | None = None
     placement: Placement | None = None
+    target: Target | None = None
+    leader: bool | None = None
     route: Literal["straight", "orthogonal"] | None = None
 
 
@@ -466,6 +528,7 @@ class ReviewResult(StrictModel):
     score: dict[str, float] = Field(default_factory=dict, max_length=5)
     issues: list[ReviewIssue] = Field(default_factory=list, max_length=24)
     verified_facts: list[str] = Field(default_factory=list, max_length=48)
+    verified_relations: list[str] = Field(default_factory=list, max_length=48)
     rationale_codes: list[str] = Field(default_factory=list, max_length=12)
 
     @model_validator(mode="after")
@@ -497,6 +560,8 @@ class DiagramSourceV2(StrictModel):
     scene_hash: str
     asset_versions: dict[str, int]
     guidance_versions: dict[str, str] = Field(default_factory=dict)
+    interface_hashes: dict[str, str] = Field(default_factory=dict)
+    resolved_parameters: dict[str, JsonValue] = Field(default_factory=dict)
     scene: SceneDraftV2
     fact_bindings: dict[str, JsonValue]
     layout_report: LayoutReport
@@ -523,31 +588,84 @@ def public_question(question: dict, *, grade="") -> PublicQuestion:
 
 
 def material_contract(question: dict, *, question_ref: str, revision=1, frozen=False,
-                      grade="") -> QuestionMaterialContract:
+                      grade="", illustration_guidance: str = "",
+                      normalize_public_projection=False) -> QuestionMaterialContract:
     """Bind identity/gold on the server; never trust model hashes or review metadata."""
     raw = question.get("material_contract") or {}
-    fields = {"visual_role", "entities", "facts", "required_relations", "required_marks",
+    fields = {"visual_role", "entities", "facts", "required_relations", "internal_relations", "required_marks",
         "unknowns", "prohibited_additions", "presentation_constraints"}
     projected = {key: value for key, value in raw.items() if key in fields}
-    if not frozen and not projected.get("presentation_constraints", {}).get("to_scale", False):
+    if not frozen or normalize_public_projection:
+        # Preserve same-entity structural conditions in a separately audited
+        # list. They cannot create extra wires/ports or rearrange the material.
+        relations = projected.get("required_relations", [])
+        intrinsic = [row for row in relations if isinstance(row, dict) and
+            row.get("from_entity") and row.get("from_entity") == row.get("to_entity")]
+        projected["internal_relations"] = [*projected.get("internal_relations", []), *intrinsic]
+        projected["required_relations"] = [row for row in relations if row not in intrinsic]
+        # Values sourced from the public question are already given to the
+        # learner. Depicted unknowns must come from an authoring blueprint.
+        projected["facts"] = [{**fact, "display_policy": "explicit"} if isinstance(fact, dict)
+            and fact.get("display_policy") == "depict_only" and (fact.get("source_ref") == "stem"
+                or str(fact.get("source_ref", "")).startswith("options:")) else fact
+            for fact in [dict(row) if isinstance(row, dict) else row for row in projected.get("facts", [])]]
         # Some providers put explicitly non-quantitative pixel dimensions in
         # facts. They are presentation proposals, never teaching conditions.
         # Drop only this provable class, retaining every physical/unit fact.
-        cosmetic = {fact["id"] for fact in projected.get("facts", []) if isinstance(fact, dict)
+        cosmetic = {fact["id"] for fact in projected.get("facts", []) if isinstance(fact, dict) and "id" in fact
+            and not projected.get("presentation_constraints", {}).get("to_scale", False)
             and fact.get("unit") in {"diagram_px", "height_fraction"} and (
                 fact.get("source_ref") == "blueprint" and (
                     fact.get("unit") == "diagram_px" and not fact.get("source_quote") or re.search(
                     r"非定量|示意|not.to.scale|qualitative", fact.get("source_quote", ""), re.I)) or
                 fact.get("type") == "geometry" and isinstance(fact.get("value"), str) and re.search(
                     r"非定量|示意|not.to.scale|qualitative", fact["value"], re.I))}
+        from .requirements import capability_guide
+        context = " ".join(projected.get("presentation_constraints", {}).get("preferred_material_names", []))
+        context = context or question["stem"]
+        related = capability_guide(context)["relevant_materials"]
+        specs = {}
+        for row in related:
+            for key, spec in row["parameters"].items():
+                specs.setdefault(key, []).append(spec)
+        for fact in projected.get("facts", []):
+            if not isinstance(fact, dict) or "id" not in fact:
+                continue
+            options = specs.get(fact.get("predicate"), [])
+            # A public qualitative quote cannot establish a numeric amount.
+            # Project it only to the material's explicitly declared state;
+            # retain real numbers and every authoring-blueprint condition.
+            public_source = question["stem"] if fact.get("source_ref") == "stem" else (
+                (question.get("options") or {}).get(str(fact.get("source_ref", "")).removeprefix("options:"), "")
+                if str(fact.get("source_ref", "")).startswith("options:") else "")
+            states = {spec.get("qualitative_state") for spec in options}
+            if options and len(states) == 1 and None not in states and all(
+                    spec.get("non_quantitative_allowed") for spec in options) and not projected.get(
+                    "presentation_constraints", {}).get("to_scale", False) and fact.get("type") == "scalar" and (
+                    type(fact.get("value")) in {int, float}) and fact.get("source_quote") in public_source and (
+                    fact.get("source_quote")) and purely_qualitative_quote(fact["source_quote"]) and not literal_number_supported(fact["value"], fact["source_quote"]):
+                fact.update(type="state", value=True, unit="", predicate=next(iter(states)), symbol="")
+            if options and not projected.get("presentation_constraints", {}).get("to_scale", False) and (
+                    fact.get("source_ref") == "blueprint" and fact.get("unit") == "diagram_px") and all(
+                    spec.get("role") == "schematic" for spec in options):
+                cosmetic.add(fact["id"])
+            if options and not fact.get("unit") and all(
+                    spec.get("role") in {"display", "appearance"} or spec.get("role") == "text"
+                    and spec.get("default_rule") in {"canonical", "derived"}
+                    and "canonical_value" in spec and type(fact.get("value")) is type(spec["canonical_value"])
+                    and fact.get("value") == spec["canonical_value"]
+                    for spec in options):
+                cosmetic.add(fact["id"])
         if cosmetic:
             projected["facts"] = [fact for fact in projected["facts"] if fact["id"] not in cosmetic]
-            projected["required_relations"] = [{**relation, "fact_refs": [ref for ref in relation.get("fact_refs", [])
-                if ref not in cosmetic]} for relation in projected.get("required_relations", [])]
+            for field in ("required_relations", "internal_relations"):
+                projected[field] = [{**relation, "fact_refs": [ref for ref in relation.get("fact_refs", [])
+                    if ref not in cosmetic]} for relation in projected.get(field, [])]
     if not raw:
         dependent = bool(re.search(r"如图|图中|下图|读图|看图|as shown|figure below|read.*graph",
                                   question["stem"], re.I))
         projected["visual_role"] = "essential" if dependent else "supplemental"
+    projected["illustration_guidance"] = str(illustration_guidance or "").strip()[:1200]
     return QuestionMaterialContract(**projected, question_ref=question_ref,
         question_revision=revision, public_question=public_question(question, grade=grade),
         frozen_question=frozen, authoring_gold={key: question.get(key) for key in

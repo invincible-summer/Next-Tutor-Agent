@@ -180,9 +180,8 @@ class CatLifecycleTest(StorageSandboxTestCase):
         # 同题同答案重放：重复提交语义（不产生第二份观察）
         self.assertEqual(r.status_code, 202)
         state = st.get_journal("usr_life").state()
-        count = sum(1 for s in state.sources.values()
-                    if s.receipt.assessment_id == aid)
-        self.assertEqual(count, 1)
+        self.assertEqual(len(state.sources), 0)
+        self.assertEqual(len(state.assessments[aid].get("temporary_results", {})), 1)
 
     def test_abandon_idempotent_and_report_persists(self):
         start = self._start()
@@ -227,45 +226,32 @@ class CatLifecycleTest(StorageSandboxTestCase):
         self.assertNotIn("rubric", dumped)
         self.assertIn("question_id", dumped)
 
-    def test_next_not_blocked_after_failed_evaluation(self):
-        """语义评价硬失败（schema_invalid，终态）不得让 next 永远 409。
-
-        409 evaluation_pending 只表示"评价仍在途"（queued/running/
-        retry_wait）；终态 failed 时按 §10.3 评价层是 unavailable，
-        CAT 应继续出题而不是卡死在“评价仍在进行”。"""
+    def test_workspace_less_run_is_temporary_and_next_is_not_blocked(self):
+        """未绑定工作区的出题不进入评价闭环，且仍可继续取下一题。"""
         start = self._start()
         aid = start["assessment_id"]
         q1 = start["question"]
-        # 两次 run_structured 都返回错误码 → 语义 job 终态 failed
         self.runner.outputs = ["schema_invalid", "schema_invalid"]
         r1 = self._answer_raw(aid, q1, "A")
         self.assertEqual(r1.status_code, 202, r1.text)
-        # R02：HTTP 不再同步评价——worker 驱动语义作业到失败终态
-        import asyncio
-        from app.agents.student_model.evaluation.worker import EvaluationWorker
-        asyncio.run(EvaluationWorker(
-            runner_provider=lambda: self.runner).process_pass())
         self.assertEqual(r1.json()["task_result"]["verdict"], "correct")
-        # §10.3：硬故障 → unavailable，不冒充 pending
-        self.assertEqual(r1.json()["evaluation"]["status"], "unavailable")
+        self.assertEqual(r1.json()["evaluation_mode"], "temporary")
+        self.assertEqual(r1.json()["evaluation"]["status"], "skipped")
         state = st.get_journal("usr_life").state()
-        from app.agents.student_model.evaluation.schema import JobState
-        failed_jobs = [rt for rt in state.jobs.values()
-                       if rt.job.state == JobState.FAILED]
-        self.assertTrue(failed_jobs, "语义评价作业应已失败")
+        self.assertFalse(state.jobs)
         with patch("app.api.v1.assessment.get_llm", return_value=_GenLLM()):
             r2 = self.client.post("/api/v1/assessment/next", json={
                 "assessment_id": aid}, headers=self._headers())
         self.assertEqual(r2.status_code, 200, r2.text)
         self.assertIsNotNone(r2.json()["question"],
                              "评价失败后 next 必须照常出下一题")
-        # 报告：MC 局部判分不受语义失败影响（§11.5 分清 pending 与局部结果）
+        # 报告保留本地 MC 判分，同时明确跳过评价闭环。
         rep = self.client.get("/api/v1/assessment/report", params={
             "assessment_id": aid}, headers=self._headers()).json()
         self.assertEqual(rep["summary"]["graded"], 1, rep)
         self.assertEqual(rep["summary"]["counts"]["correct"], 1, rep)
         self.assertEqual(rep["summary"]["items"][0]["evaluation_status"],
-                         "unavailable", rep["summary"]["items"][0])
+                         "skipped", rep["summary"]["items"][0])
 
 
 class ConceptLabelAndAttributionTest(StorageSandboxTestCase):
@@ -294,9 +280,9 @@ class ConceptLabelAndAttributionTest(StorageSandboxTestCase):
         self.assertEqual(_concept_label(None, [ref.key]), ref.key)
         # 命中 → 概念名进提示词，LLM 可读
         self.assertEqual(_concept_label(_Scope(), [ref.key]), "曲线坐标")
-        # 未命中 → key；空 keys → 空
+        # 未命中 → key；工作区无概念时使用可检索的综合诊断目标
         self.assertEqual(_concept_label(_Scope(), ["deadbeefcafe"]), "deadbeefcafe")
-        self.assertEqual(_concept_label(_Scope(), []), "")
+        self.assertEqual(_concept_label(_Scope(), []), "工作区综合诊断")
 
     def test_match_concept_refs_by_key_not_concept_id(self):
         from app.api.v1.assessment import _match_concept_refs

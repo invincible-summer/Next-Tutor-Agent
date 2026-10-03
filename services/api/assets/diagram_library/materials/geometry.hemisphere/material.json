@@ -66,7 +66,28 @@
         "review_note": "Both re-rendered SVGs are byte-identical to reviewed baseline; prior visual evidence preserved."
       },
       "revalidation": "/tmp/diagram-rebind",
-      "revalidation_note": "Phase D scripts unification: generator moved to scripts/diagrams/build_catalog.py (renderer sources unchanged); full Chromium re-render of all 1119 assets in both profiles clean (bounds=0, textIssues=0, rejected=0)."
+      "revalidation_note": "Phase D scripts unification: generator moved to scripts/diagrams/build_catalog.py (renderer sources unchanged); full Chromium re-render of all 1119 assets in both profiles clean (bounds=0, textIssues=0, rejected=0).",
+      "current_source_review": {
+        "directory": "/tmp/next-tutor-instruments-all-assets-review",
+        "baseline": "/tmp/next-tutor-universal-all-assets-final",
+        "unchanged_actual_svg": true,
+        "svg_hashes": {
+          "geometry.hemisphere.svg": "sha256:c61311e07bff87c5412c13b4657de7f084ad391a61b9bef7ce760b26e85b3b88",
+          "geometry.hemisphere-monochrome.svg": "sha256:a0b31b7f771e8fa6f0ae677506145fff610e076b8eb84add78fce9448ed241ab"
+        },
+        "visual_review": "/tmp/next-tutor-universal-all-assets-final"
+      }
+    }
+  },
+  "interface": {
+    "schema_version": "1.0.0",
+    "parameters": {},
+    "layout": {
+      "origin": "top_left",
+      "uniform_scale": true,
+      "annotations": "measured_outside_placement",
+      "relations": "declared_ports_only",
+      "rotation_allowed": true
     }
   },
   "svg_file": "asset.svg",

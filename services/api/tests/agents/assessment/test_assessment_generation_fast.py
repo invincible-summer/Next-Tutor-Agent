@@ -250,11 +250,10 @@ class CatDraftRetryTest(unittest.TestCase):
         self.assertIsNotNone(task)
         self.assertFalse(task.question_id.startswith("q_draft_"))
 
-    def test_draft_is_accepted_only_on_final_attempt(self):
+    def test_draft_is_rejected_even_on_final_attempt(self):
         task, calls = self._run(["draft", "draft"])
         self.assertEqual(calls, 2)
-        self.assertIsNotNone(task)
-        self.assertTrue(task.question_id.startswith("q_draft_"))
+        self.assertIsNone(task)
 
     def test_empty_result_still_retries(self):
         task, calls = self._run([None, "ok"])

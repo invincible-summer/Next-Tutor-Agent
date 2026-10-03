@@ -5,6 +5,9 @@ const demo = process.env.NEXT_PUBLIC_DEMO_MODE === "1";
 const nextConfig: NextConfig = {
   // Hide the Next.js dev/build floating indicator.
   devIndicators: false,
+  // The fallback API proxy must cover V1's 90-second illustration budget
+  // and the browser's 120-second POST watchdog.
+  experimental: { proxyTimeout: 150_000 },
   ...(demo ? {
     output: "export" as const,
     distDir: "out",

@@ -15,7 +15,7 @@ from typing import Any
 from .schema import DiagramError, VisualRequirements, finite
 
 CATALOG_PATH = Path(__file__).resolve().parents[2] / "assets" / "diagram_library" / "catalog.json"
-RENDERER_VERSION = "1.1.0"
+RENDERER_VERSION = "1.2.0"
 
 
 def _normalize(text: str) -> str:
@@ -218,6 +218,8 @@ class AssetSpec:
                 controls.add("count")
         elif self.renderer == "template":
             return parameter_schema(variant)
+        if self.renderer == "chart" and self.variant in {"pie", "donut"}:
+            common["show_values"]["description"] = "开启时打印每类占总量的百分比（派生量），默认关闭。"
         return {key: value for key, value in common.items() if key in controls}
 
     def parameters(self, raw: dict) -> dict:

@@ -66,7 +66,50 @@
         "review_note": "Both re-rendered SVGs are byte-identical to reviewed baseline; prior visual evidence preserved."
       },
       "revalidation": "/tmp/diagram-rebind",
-      "revalidation_note": "Phase D scripts unification: generator moved to scripts/diagrams/build_catalog.py (renderer sources unchanged); full Chromium re-render of all 1119 assets in both profiles clean (bounds=0, textIssues=0, rejected=0)."
+      "revalidation_note": "Phase D scripts unification: generator moved to scripts/diagrams/build_catalog.py (renderer sources unchanged); full Chromium re-render of all 1119 assets in both profiles clean (bounds=0, textIssues=0, rejected=0).",
+      "current_source_review": {
+        "directory": "/tmp/next-tutor-instruments-all-assets-review",
+        "baseline": "/tmp/next-tutor-universal-all-assets-final",
+        "unchanged_actual_svg": true,
+        "svg_hashes": {
+          "geometry.equilateral_triangle.svg": "sha256:69a0ac2fa663a7860669394636f980779f3fcd01c20fd26109e0eab9e3965199",
+          "geometry.equilateral_triangle-monochrome.svg": "sha256:55f5dc4b11246cdab610b8388fbe9fec053a7b1b748e4d356b889a64c288788b"
+        },
+        "visual_review": "/tmp/next-tutor-universal-all-assets-final"
+      }
+    }
+  },
+  "interface": {
+    "schema_version": "1.0.0",
+    "parameters": {
+      "construction": {
+        "type": "enum",
+        "choices": [
+          "none",
+          "altitude",
+          "median",
+          "bisector"
+        ],
+        "default": "none",
+        "condition_bearing": true,
+        "non_quantitative_allowed": false,
+        "affects_geometry": true,
+        "unit": "",
+        "canonical_value": "none",
+        "role": "text",
+        "fact_types": [
+          "label"
+        ],
+        "default_rule": "canonical",
+        "derived_from": []
+      }
+    },
+    "layout": {
+      "origin": "top_left",
+      "uniform_scale": true,
+      "annotations": "measured_outside_placement",
+      "relations": "declared_ports_only",
+      "rotation_allowed": true
     }
   },
   "svg_file": "asset.svg",

@@ -1,8 +1,9 @@
 {
-  "version": "1.0.0",
+  "version": "1.3.0",
   "hints": {
-    "authoring": "导管末端伸入烧杯并贴内壁，用connected表达端部连接。漏斗整体在杯上方，不用inside。只列题文明示器材。",
-    "requirements": "完整漏斗过滤装置包含funnel、beaker，单个need覆盖两个实体。",
-    "compose": "复用内部connected关系，relations=[]。定性滤液fill绑定liquid_present，non_quantitative声明fill。不要加铁架台或过滤步骤文字。"
+    "authoring": "漏斗末端紧贴接收烧杯内壁，液体可作定性示意；不提供滤纸或过滤效率参数。",
+    "requirements": "漏斗末端紧贴接收烧杯内壁，液体可作定性示意；不提供滤纸或过滤效率参数。",
+    "compose": "漏斗末端紧贴接收烧杯内壁，液体可作定性示意；不提供滤纸或过滤效率参数。",
+    "review": "斜切导管口的贴壁侧管缘对应wall_contact，与烧杯内壁相接；另一管缘朝杯内形成出液口，不要求整个截面贴墙。核对实际PNG接触位置，悬空或不贴壁仍拒绝。"
   }
 }

@@ -79,7 +79,8 @@ def entries():
             family = subject + "_extended"
             rows.append({"id": family + "." + variant, "renderer": family,
                 "variant": variant, "category": subject, "title": title,
-                "english": english, "aliases": aliases.split(","), "version": 1,
+                "english": english, "aliases": aliases.split(","),
+                "version": 2 if variant in {"redshift_lines", "closed_pipe_modes"} else 1,
                 "features": [], "sample_params": {}, "license": "original-project-artwork"})
     return rows
 
@@ -215,7 +216,9 @@ def draw(v, p, mono=False):
         d.line(60, 95, 60, 225, width=5)
         d.line(60, 160, 430, 160, color=d.muted, width=1, dashed=True)
         # Displacement is zero at the closed end and extremal at the open end.
-        pts = [(60+370*i/150, 160-54*math.sin(odd*math.pi*i/300)) for i in range(151)]
+        # An amplitude envelope stays above/below the axis. Signed snapshots
+        # cross it and can be mistaken for two different modes.
+        pts = [(60+370*i/150, 160-54*abs(math.sin(odd*math.pi*i/300))) for i in range(151)]
         d.poly(pts, color=d.blue)
         d.poly([(x, 320-y) for x, y in pts], color=d.muted)
         d.text("闭端", 60, 265, size=15)
@@ -465,12 +468,17 @@ def draw(v, p, mono=False):
         for y, offset, label in [(92, 0, "参考"), (194, p["shift"], "观测")]:
             d.rect(60, y-30, 360, 60, fill=d.surface, color=d.muted, width=1)
             for x in [95, 139, 218, 289]:
-                d.line(x+offset, y-25, x+offset, y+25, color=d.blue, width=3)
+                # On a linear wavelength axis every wavelength stretches by
+                # the same factor, rather than receiving the same increment.
+                # The control is only the last line's pixel displacement.
+                shifted_x = 60 + (x-60)*(1+offset/229)
+                d.line(shifted_x, y-25, shifted_x, y+25, color=d.blue, width=3)
             d.text(label, 30, y+5, size=13)
         d.arrow(70, 267, 410, 267, color=d.muted)
         d.text("波长 λ", 240, 300, size=15)
         d.facts["shift"] = p["shift"]
     elif v == "unit_circle_projection":
+        d.facts["supported_views"] = ["front_orthographic", "coordinate_plane"]
         angle = math.radians(p["angle"])
         x, y = 240+99*math.cos(angle), 159-99*math.sin(angle)
         d.arrow(45, 159, 440, 159)

@@ -1,8 +1,8 @@
 {
-  "version": "1.0.0",
+  "version": "1.2.0",
   "hints": {
-    "authoring": "自定义静态SVG只列一个完整实体，不拆内部结构或物理关系；原图数值和标签须与题文一致。",
-    "requirements": "need.name逐字使用preferred_material_names中可见名称，只有static_illustration、front_orthographic；没有数值参数、物理端口或内部寻址。",
-    "compose": "仅用entity_id，entity_map={}、params={}、fact_bindings={}、non_quantitative=[]。x/y是左上原点位置，不是中心。按nominal_geometry.size控制尺寸与留白。"
+    "authoring": "素材仅具备其声明的SVG控件，不自带科学刻度或物理装配端口。科学含义和位置须经最终题图审核。",
+    "requirements": "素材仅具备其声明的SVG控件，不自带科学刻度或物理装配端口。科学含义和位置须经最终题图审核。",
+    "compose": "素材仅具备其声明的SVG控件，不自带科学刻度或物理装配端口。科学含义和位置须经最终题图审核。"
   }
 }

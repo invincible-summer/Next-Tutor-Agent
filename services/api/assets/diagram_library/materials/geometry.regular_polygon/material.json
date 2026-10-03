@@ -66,7 +66,45 @@
         "review_note": "Both re-rendered SVGs are byte-identical to reviewed baseline; prior visual evidence preserved."
       },
       "revalidation": "/tmp/diagram-rebind",
-      "revalidation_note": "Phase D scripts unification: generator moved to scripts/diagrams/build_catalog.py (renderer sources unchanged); full Chromium re-render of all 1119 assets in both profiles clean (bounds=0, textIssues=0, rejected=0)."
+      "revalidation_note": "Phase D scripts unification: generator moved to scripts/diagrams/build_catalog.py (renderer sources unchanged); full Chromium re-render of all 1119 assets in both profiles clean (bounds=0, textIssues=0, rejected=0).",
+      "current_source_review": {
+        "directory": "/tmp/next-tutor-instruments-all-assets-review",
+        "baseline": "/tmp/next-tutor-universal-all-assets-final",
+        "unchanged_actual_svg": true,
+        "svg_hashes": {
+          "geometry.regular_polygon.svg": "sha256:ab5609da038f25a7ddecc997648dc1daa00837138f5fbd050c0eb57c7b0b7886",
+          "geometry.regular_polygon-monochrome.svg": "sha256:74cd81bbfb35ce3aad3fd76e7a24d00241cc392d17a196a65ed9a798b799de69"
+        },
+        "visual_review": "/tmp/next-tutor-universal-all-assets-final"
+      }
+    }
+  },
+  "interface": {
+    "schema_version": "1.0.0",
+    "parameters": {
+      "sides": {
+        "type": "integer",
+        "minimum": 3,
+        "maximum": 12,
+        "default": 6,
+        "condition_bearing": true,
+        "non_quantitative_allowed": false,
+        "affects_geometry": true,
+        "unit": "",
+        "role": "quantity",
+        "fact_types": [
+          "scalar"
+        ],
+        "default_rule": "fact",
+        "derived_from": []
+      }
+    },
+    "layout": {
+      "origin": "top_left",
+      "uniform_scale": true,
+      "annotations": "measured_outside_placement",
+      "relations": "declared_ports_only",
+      "rotation_allowed": true
     }
   },
   "svg_file": "asset.svg",

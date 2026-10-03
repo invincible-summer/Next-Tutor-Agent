@@ -11,7 +11,7 @@ from .catalog import catalog
 from .schema import DiagramError
 
 DOMAIN = {"vessel": "chemistry", "apparatus": "chemistry", "mechanics": "physics",
-    "waves": "physics", "function": "chart", "graph": "graph",
+    "waves": "physics", "function": "chart", "chart": "chart", "graph": "graph",
     "geometry": "geometry", "statistics": "chart", "biology": "biology", "earth": "earth"}
 APPEARANCE = {"color", "liquid_color", "stroke", "line_width", "font_size"}
 QUALITATIVE = {"radius", "length", "fill", "columns", "x_label", "y_label", "show_ticks"}
@@ -35,7 +35,8 @@ def parameter_semantics(asset_id):
             "affects_geometry": spec["type"] != "color",
             "unit": spec.get("unit", "diagram_px" if key in {"radius", "length"} else
                 "height_fraction" if key == "fill" else "")}
-    return result
+    from .interface import parameter_contract
+    return parameter_contract(result)
 
 
 def capabilities(asset_id):
@@ -104,9 +105,9 @@ def asset_card(asset_id, *, audit=False):
         "kind": "construction" if domain in {"geometry", "chart", "graph"} or not any(
             port["kind"] != "position" for port in geometry.ports.values()) else "component",
         "semantic_type": domain, "capabilities": sorted(capabilities(asset_id)),
-        "supported_views": ["coordinate_plane"] if asset.renderer == "function" else
+        "supported_views": geometry.derived_facts.get("supported_views") or (["coordinate_plane"] if asset.renderer == "function" else
             ["front_orthographic", "top_orthographic"] if domain == "geometry" else
-            ["front_orthographic", "section"] if asset.renderer in {"biology", "biology_extended"} else ["front_orthographic"],
+            ["front_orthographic", "section"] if asset.renderer in {"biology", "biology_extended"} else ["front_orthographic"]),
         "style_family": "textbook_line", "parameters": parameter_semantics(asset_id),
         "nominal_geometry": {"size": [geometry.drawing.width, geometry.drawing.height],
             "ports": geometry.ports, "regions": geometry.regions},

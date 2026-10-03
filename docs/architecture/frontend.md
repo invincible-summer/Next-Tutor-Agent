@@ -51,6 +51,7 @@
 
 - 一切请求经 `apiFetch`（仓库规则）：JWT `Authorization` 注入、同飞行中请求去重、幂等 GET 30s 超时护栏、评价写 409 语义等待重试、`trustedRequestUrl` 目标校验。
 - `API_BASE` 三形态单一事实源：`NEXT_PUBLIC_BACKEND_URL` 直连 / 同源相对 `/api/v1`（nginx 反代）/ demo basePath。
+- 未设 `NEXT_PUBLIC_BACKEND_URL` 且请求经过 Next.js 时，`/api/*` 回退 rewrite 使用 `experimental.proxyTimeout=150_000`，覆盖 V1 配图 90 秒服务端预算及客户端 120 秒 POST 等待；`next dev` 与 `next start` 均适用。
 - 流式：`api.ts::streamChat`（fetch reader 解析 SSE，原生 EventSource 不能带 Authorization）；课堂进度复用同一 SSE 帧解析器；语音通话为 WebSocket JSON 控制帧 + 二进制音频帧（协议见 [voice.md](./voice.md)、[conversation.md](./conversation.md)）。
 - 后端契约文档：REST/SSE/WS 端点由各后端模块文档拥有（[backend-runtime.md](./backend-runtime.md) 及各域文档）；前端 `types*.ts` 与后端 schema 保持同步（assistant/classroom 为生成文件）。
 
@@ -62,7 +63,7 @@
 
 前端不拥有任何服务端存储；状态分三层：
 
-- **zustand store**：`lib/store.ts`（`useUIStore` 学段/语言/主题/字号/侧栏、`useChatStore` 会话与消息、`useEvaluationCacheStore`）、`lib/auth-store.ts`（token/user/authRequired，水合并行）、`lib/ws-settings.ts`（工作区设置弹窗目标 + `WS_CHANGED_EVENT`/`SESSION_CHANGED_EVENT` 广播）、`lib/store-notes.ts`、`lib/assistant/store.ts`。store 初始化器不读 localStorage（SSR 水合安全），mount 后 `hydrateClient()` 恢复。
+- **zustand store**：`lib/store.ts`（`useUIStore` 学段/语言/主题/字号/侧栏、`useChatStore` 会话与消息、`useEvaluationCacheStore`）、`lib/auth-store.ts`（token/user/authRequired，水合并行；账户默认配图方式 `quiz_illustration_mode` 缺省 V1）、`lib/ws-settings.ts`（工作区设置弹窗目标 + `WS_CHANGED_EVENT`/`SESSION_CHANGED_EVENT` 广播）、`lib/store-notes.ts`、`lib/assistant/store.ts`。store 初始化器不读 localStorage（SSR 水合安全），mount 后 `hydrateClient()` 恢复。
 - **浏览器持久化**：localStorage——`edu-agent-token`（demo 模式换用独立 `edu-agent-pages-demo-token`）、`edu-agent-lang`、`edu-agent-theme`、`edu-agent-fs`（字号倍率，经 `--fs-scale` 驱动根字号）、`edu-agent-grade`/`edu-agent-output-lang` 等偏好、对话与答题草稿（`chat-drafts`/`quiz-drafts`，登出清空）、课堂折叠分组等页面级 UI 状态；sessionStorage——对话草稿正文（登出/换账号时随 `clearAllDrafts` 清空）。头像经 apiFetch 认证后转临时 blob URL，换号/退出/卸载时撤销，不做本地持久化。
 - **运行数据**：全部由后端落在 `NEXT_TUTOR_DATA_DIR` 单根（ADR-0002）；E2E 用隔离 scratch 目录，绝不落仓库。Pages 演示快照由后端导出流程在 storage sandbox 中读取 git 跟踪的 synthetic fixtures 生成（ADR-0001/0005），产物不入库。
 
@@ -148,3 +149,7 @@ apps/web 下的 Playwright E2E 与 node 单测（环境搭建、浏览器回归�
 - ADR-0001 source-only——仓库不分发教材及派生数据；前端演示内容只能来自 synthetic fixtures。
 - ADR-0002 运行数据单根——前端不拥有服务端存储，一切运行数据由后端落在统一数据根。
 - ADR-0005 Pages demo 仅 synthetic——静态演示站由 synthetic fixtures 快照构建，只读边界在请求层。
+
+图示素材创作 Modal 支持声明式参数规范 JSON、模板控件及独立预览值，AI 草稿可返回同一规范；测评配置支持 V1/V2 单次覆盖、出题提示词、工作区无概念自动检索和临时出题；保存与题图实例化规则由 [diagrams-illustration.md](./diagrams-illustration.md) 拥有。
+
+测评配图使用按账户/题号/revision 共享的请求，POST 最多 120 秒、整个任务观察最多 150 秒；轮询 GET 不超过剩余时间。进行中缓存不会被淘汰，换号或迟到请求不能覆盖新状态。服务端 `retryable=false` 保持不可重试；可重试失败先读取原任务，已经 ready 直接恢复冻结图，仍运行则继续观察，真正 failed 才发起新运行，避免网络超时后重复生图。

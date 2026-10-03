@@ -12,7 +12,9 @@ from app.core.quiz_generation_budget import BudgetedLLM, GenerationBudget
 from app.core.quiz_illustration import QuestionIllustration, normalize_illustration
 from app.diagrams.catalog import CandidateBundle, catalog, retrieve, search
 from app.diagrams.compiler import compile_scene, preview_asset
-from app.diagrams.pipeline import compile_questions, fallback_requirements, retrieve_declaration
+from app.diagrams.pipeline import (compile_questions, declare_and_retrieve, fallback_requirements,
+                                   retrieve_declaration, scene_geometry, scene_condition_issues,
+                                   _wire_topology_issues)
 from app.diagrams.schema import DiagramError, VisualRequirements
 from tests.support.storage_sandbox import StorageSandboxTestCase
 
@@ -28,6 +30,8 @@ AUDIT = {"items": [{"question_ref": "1", "proposed_status": "passed", "illustrat
 
 
 class FakeLLM:
+    supports_images = True
+
     def __init__(self, *responses):
         self.responses = list(responses)
         self.calls = []
@@ -105,15 +109,132 @@ class DiagramLibraryTest(StorageSandboxTestCase):
         self.assertIsNone(result["illustration"])
         self.assertNotIn("diagram_source", result)
 
-    def test_invalid_scene_preserves_its_error_instead_of_substituting_candidates(self):
+    def test_display_overflow_fits_the_original_scene_without_substitution(self):
         bundle = retrieve_declaration(REQUIREMENTS, policy="required")
         raw = copy.deepcopy(QUESTION)
         raw["diagram_scene"]["nodes"][0]["x"] = 0
+        original = copy.deepcopy(raw)
         result = compile_questions([raw], bundle, "required")[0]
-        self.assertEqual(result["_diagram_error"], "diagram_component_out_of_bounds")
-        self.assertIsNone(result["illustration"])
-        self.assertNotIn("diagram_source", result)
+        self.assertNotIn("_diagram_error", result)
+        self.assertIsNotNone(result["illustration"])
+        self.assertEqual(raw, original)
+        actual = result["diagram_source"]["scene"]["nodes"][0]
+        expected = raw["diagram_scene"]["nodes"][0]
+        self.assertEqual(actual["asset_id"], expected["asset_id"])
+        self.assertEqual(actual["params"], expected.get("params", {}))
+        self.assertGreaterEqual(actual["x"], 4)
+        self.assertGreaterEqual(actual["y"], 4)
         self.assertNotIn("diagram_recovery", result)
+
+    def test_requirements_fallback_reads_question_text_without_json_field_names(self):
+        context = "冻结文字题：" + json.dumps({"question_id": "q_question", "question_revision": 1,
+            "stem": "用烧杯盛水观察。", "options": None})
+        declaration = fallback_requirements(context, policy="required")
+        names = [need["name"] for need in declaration["requirements"][0]["needs"]]
+        self.assertIn("烧杯", names)
+        self.assertNotIn("stem", names)
+        self.assertNotIn("ion", names)
+
+    def test_empty_feature_match_is_corrected_using_real_name_candidates(self):
+        rejected = {"requirements": [{"question_slot": "q1", "illustration_needed": True,
+            "needs": [{"key": "function", "name": "二次函数", "features": ["刻度"]}]}]}
+        corrected = copy.deepcopy(rejected)
+        corrected["requirements"][0]["needs"][0]["features"] = []
+        model = FakeLLM(rejected, corrected)
+        budget = GenerationBudget(max_calls=2)
+        bundle = asyncio.run(declare_and_retrieve(BudgetedLLM(model, budget),
+            context="已知二次函数y=x²，画出函数图像。", policy="required", count=1))
+        self.assertIn("function.quadratic", bundle.assets)
+        self.assertEqual(budget.calls, 2)
+        first_context = json.loads(model.calls[0]["messages"][1]["content"])
+        self.assertEqual(first_context["question_slots"], ["q1"])
+        feedback = json.loads(model.calls[1]["messages"][-1]["content"])
+        self.assertTrue(feedback["declaration_repair"])
+        self.assertEqual(feedback["machine_feedback"]["missing_needs"][0]["name_matches"][0]["features"], [])
+
+    def test_public_control_filter_recovers_partially_missing_need(self):
+        rejected = {"requirements": [{"question_slot": "q1", "illustration_needed": True,
+            "needs": [{"key": "power", "name": "电池"},
+                      {"key": "meter", "name": "电流表", "features": ["刻度"]}]}]}
+        corrected = copy.deepcopy(rejected)
+        corrected["requirements"][0]["needs"][1].update(name="电流表符号", features=[])
+        model = FakeLLM(rejected, corrected)
+        public = "电池和电流表组成闭合回路，讨论连接方式。"
+        budget = GenerationBudget(max_calls=2)
+        bundle = asyncio.run(declare_and_retrieve(BudgetedLLM(model, budget), context=public,
+            public_source=public, policy="required", count=1))
+        self.assertEqual(budget.calls, 2)
+        self.assertIn("circuit.ammeter", bundle.assets)
+        self.assertNotIn("measurement.ammeter_real", bundle.assets)
+        feedback = json.loads(model.calls[1]["messages"][-1]["content"])
+        rows = feedback["machine_feedback"]["missing_needs"][1]["name_matches"]
+        self.assertTrue(any("reading" in row["unsupported_quantity_controls"] for row in rows))
+
+    def test_numeric_controls_require_matching_unit_and_role(self):
+        bundle = retrieve_declaration({"requirements": [{"question_slot": "q1", "illustration_needed": True,
+            "needs": [{"key": "measure", "name": "温度计"}]}]}, policy="required")
+        scene = {"alt": "测量器示意", "nodes": [{"id": "measure", "asset_id": "apparatus.thermometer",
+            "version": catalog()[1]["apparatus.thermometer"].version, "x": 120, "y": 60,
+            "params": {"reading": 45, "scale_labels": True}}]}
+        geometry = scene_geometry(scene, bundle)
+        for public in ("温度计固定在45厘米长的支架上，观察温度变化。",
+                       "环境温度45℃。用温度计测量正在加热的水温。"):
+            with self.subTest(public=public):
+                issues = scene_condition_issues(geometry, public)
+                self.assertIn("unsupported_reading", [issue["code"] for issue in issues])
+        self.assertEqual(scene_condition_issues(geometry, "温度计示数为45 °C。"), [])
+
+    def test_range_and_reading_cannot_borrow_each_others_public_values(self):
+        bundle = retrieve_declaration({"requirements": [{"question_slot": "q1", "illustration_needed": True,
+            "needs": [{"key": "measure", "name": "电流表"}]}]}, policy="required")
+        scene = {"alt": "定量仪表", "nodes": [{"id": "measure", "asset_id": "measurement.ammeter_real",
+            "x": 120, "y": 60, "params": {"reading": 2, "maximum": 5, "scale_labels": True}}]}
+        public = "电流表量程为5 A，示数为2 A。"
+        self.assertEqual(scene_condition_issues(scene_geometry(scene, bundle), public), [])
+        for params, parameter in (({"reading": 5, "maximum": 5}, "reading"),
+                                  ({"reading": 2, "maximum": 2}, "maximum")):
+            with self.subTest(parameter=parameter):
+                scene["nodes"][0]["params"].update(params)
+                issues = scene_condition_issues(scene_geometry(scene, bundle), public)
+                self.assertEqual({issue["parameter"] for issue in issues}, {parameter})
+
+    def test_wires_cannot_merge_distinct_terminal_networks_on_the_canvas(self):
+        first = {"kind": "wire", "start_node": "a", "start_anchor": "terminal_left",
+            "end_node": "b", "end_anchor": "terminal_left", "points": [[10, 10], [30, 10]]}
+        second = {"kind": "wire", "start_node": "c", "start_anchor": "terminal_left",
+            "end_node": "d", "end_anchor": "terminal_left"}
+        for points in ([[20, 0], [20, 20]], [[20, 10], [40, 10]], [[30, 10], [40, 20]]):
+            with self.subTest(points=points):
+                issues = _wire_topology_issues([first, {**second, "points": points}])
+                self.assertEqual(issues, [{"code": "connection_crosses_connection", "connections": [0, 1]}])
+        self.assertEqual(_wire_topology_issues([first, {**second, "points": [[10, 20], [30, 20]]}]), [])
+
+    def test_wires_in_one_explicit_terminal_network_may_share_a_branch(self):
+        first = {"kind": "wire", "start_node": "a", "start_anchor": "terminal_left",
+            "end_node": "b", "end_anchor": "terminal_left", "points": [[10, 10], [30, 10]]}
+        branch = {"kind": "wire", "start_node": "b", "start_anchor": "terminal_left",
+            "end_node": "c", "end_anchor": "terminal_left", "points": [[30, 10], [40, 10]]}
+        continuation = {"kind": "wire", "start_node": "c", "start_anchor": "terminal_left",
+            "end_node": "d", "end_anchor": "terminal_left", "points": [[40, 10], [20, 10], [20, 20]]}
+        self.assertEqual(_wire_topology_issues([first, branch, continuation]), [])
+
+    def test_support_uses_physical_contact_ports_instead_of_padded_body(self):
+        public = "烧杯放在支撑板上。"
+        bundle = retrieve_declaration({"requirements": [{"question_slot": "q1", "illustration_needed": True,
+            "needs": [{"key": "a", "name": "烧杯"}, {"key": "b", "name": "石棉网"}]}]}, policy="required")
+        scene = {"alt": "主体得到支撑", "nodes": [
+            {"id": "a", "asset_id": "vessel.beaker", "x": 200, "y": 55, "params": {"fill": .5}},
+            {"id": "b", "asset_id": "apparatus.wire_mesh", "x": 200, "y": 140}],
+            "layout_relations": [{"type": "supported_by", "source": {"node": "a", "region": "body"},
+                "target": {"node": "b", "region": "body"}, "source_quote": "烧杯放在支撑板上"}]}
+        issues = scene_condition_issues(scene_geometry(scene, bundle), public)
+        contacts = [issue for issue in issues if issue["code"] == "relation_contact_port_required"]
+        self.assertEqual(len(contacts), 2)
+        self.assertEqual(set(contacts[0]["allowed_anchors"]), {"support_bottom"})
+        self.assertEqual(set(contacts[1]["allowed_anchors"]), {"support_top"})
+        scene["layout_relations"][0].update(source={"node": "a", "anchor": "support_bottom"},
+                                            target={"node": "b", "anchor": "support_top"})
+        self.assertEqual(scene_condition_issues(scene_geometry(scene, bundle), public), [])
 
     def test_new_scenes_must_explicitly_choose_condition_parameters(self):
         assets = catalog()[1]
@@ -245,7 +366,7 @@ class DiagramLibraryTest(StorageSandboxTestCase):
         from tests.illustration.test_quiz_illustration_enrichment import _task
         task = _task("q_component")
         before = task.model_dump_json()
-        llm = FakeLLM(REQUIREMENTS, {"questions": [{"diagram_scene": SCENE}]}, {"status": "passed"})
+        llm = FakeLLM(REQUIREMENTS, {"questions": [{"diagram_scene": SCENE}]}, {"status": "passed", "issues": []})
         with patch.object(settings, "quiz_diagram_mode", "components"), patch.object(policy, "account_allows_illustration_review", return_value=True):
             result = asyncio.run(enrichment.generate_assessment_illustration(student_id="usr_component", task=task, policy="required", llm=llm))
         self.assertEqual(result["status"], "ready")

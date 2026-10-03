@@ -25,6 +25,7 @@ export interface AuthUser {
     avatar: string;
     /** 通用每用户偏好（ocr_parallel OCR 并行、tts_speed 朗读语速、classroom 课堂默认）。 */
     prefs?: { ocr_parallel?: boolean; tts_speed?: number; quiz_svg_enabled?: boolean;
+      quiz_illustration_mode?: "v1" | "v2";
       classroom?: import("./types-modules").ClassroomPrefs };
   };
 }

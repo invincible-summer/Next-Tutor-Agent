@@ -135,7 +135,7 @@
     "creation_method": "ai_assisted_vector_code",
     "source_module": "app/diagrams/extended_chemistry.py",
     "source_symbol": "draw:titration_curve",
-    "source_hash": "sha256:0c8777508e7e0dbbef52d317f8c4abebc4e4ed40b69163ce80856aec6a347c0c",
+    "source_hash": "sha256:2ebce9cb9ea0e36d08267ddaf613606b25adcc357a6eb34b725a86f9b7df2147",
     "external_graphics": [],
     "derived_from": [],
     "knowledge_references": [],
@@ -148,7 +148,7 @@
     "visual": "passed",
     "reviewer_type": "agent",
     "reviewed_at": "2026-10-03",
-    "source_hash": "sha256:0c8777508e7e0dbbef52d317f8c4abebc4e4ed40b69163ce80856aec6a347c0c",
+    "source_hash": "sha256:2ebce9cb9ea0e36d08267ddaf613606b25adcc357a6eb34b725a86f9b7df2147",
     "evidence": {
       "profiles": [
         "textbook",
@@ -172,9 +172,75 @@
         "review_note": "Both re-rendered SVGs are byte-identical to reviewed baseline; prior visual evidence preserved."
       },
       "revalidation": "/tmp/diagram-rebind",
-      "revalidation_note": "Phase D scripts unification: generator moved to scripts/diagrams/build_catalog.py (renderer sources unchanged); full Chromium re-render of all 1119 assets in both profiles clean (bounds=0, textIssues=0, rejected=0)."
+      "revalidation_note": "Phase D scripts unification: generator moved to scripts/diagrams/build_catalog.py (renderer sources unchanged); full Chromium re-render of all 1119 assets in both profiles clean (bounds=0, textIssues=0, rejected=0).",
+      "current_source_review": {
+        "directory": "/tmp/next-tutor-instruments-all-assets-review",
+        "baseline": "/tmp/next-tutor-universal-all-assets-final",
+        "unchanged_actual_svg": true,
+        "svg_hashes": {
+          "chemistry_extended.titration_curve.svg": "sha256:30edbcb58c8d1d268f4f310371577cdfcc514c71f4dca9fac4a94b79d6f4397e",
+          "chemistry_extended.titration_curve-monochrome.svg": "sha256:26e94183974d727030e650abdd02d080e2d0740451b078231a667098568d10ff"
+        },
+        "visual_review": "/tmp/next-tutor-universal-all-assets-final"
+      }
     },
     "notes": "全目录双风格重新渲染无越界/文字碰撞，与前轮逐SVG字节核对仅墙体变化；墙体接触面双风格实图已审阅。"
+  },
+  "interface": {
+    "schema_version": "1.0.0",
+    "parameters": {
+      "points": {
+        "type": "list",
+        "required": true,
+        "condition_bearing": true,
+        "non_quantitative_allowed": false,
+        "affects_geometry": true,
+        "unit": "",
+        "role": "data",
+        "fact_types": [
+          "data"
+        ],
+        "default_rule": "fact",
+        "derived_from": []
+      },
+      "x_label": {
+        "type": "string",
+        "default": "x",
+        "max_length": 16,
+        "condition_bearing": true,
+        "non_quantitative_allowed": true,
+        "affects_geometry": true,
+        "unit": "",
+        "role": "text",
+        "fact_types": [
+          "label"
+        ],
+        "default_rule": "fact",
+        "derived_from": []
+      },
+      "y_label": {
+        "type": "string",
+        "default": "y",
+        "max_length": 16,
+        "condition_bearing": true,
+        "non_quantitative_allowed": true,
+        "affects_geometry": true,
+        "unit": "",
+        "role": "text",
+        "fact_types": [
+          "label"
+        ],
+        "default_rule": "fact",
+        "derived_from": []
+      }
+    },
+    "layout": {
+      "origin": "top_left",
+      "uniform_scale": true,
+      "annotations": "measured_outside_placement",
+      "relations": "declared_ports_only",
+      "rotation_allowed": false
+    }
   },
   "svg_file": "asset.svg",
   "guidance_file": "usage_guide.json",

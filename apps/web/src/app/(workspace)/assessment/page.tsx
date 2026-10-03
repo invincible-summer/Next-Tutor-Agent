@@ -300,6 +300,9 @@ function AuthenticatedAssessmentPage() {
         goal: { purpose: intent.purpose },
         count: intent.count,
         illustration_request: intent.illustrationRequest,
+        illustration_mode: intent.illustrationMode,
+        generation_hint: intent.generationHint,
+        evaluation_mode: intent.evaluationMode,
         grade,
       });
       if (res.status === "disabled") {

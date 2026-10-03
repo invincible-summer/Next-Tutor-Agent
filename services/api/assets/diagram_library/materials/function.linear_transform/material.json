@@ -65,7 +65,150 @@
         "review_note": "Both re-rendered SVGs are byte-identical to reviewed baseline; prior visual evidence preserved."
       },
       "revalidation": "/tmp/diagram-rebind",
-      "revalidation_note": "Phase D scripts unification: generator moved to scripts/diagrams/build_catalog.py (renderer sources unchanged); full Chromium re-render of all 1119 assets in both profiles clean (bounds=0, textIssues=0, rejected=0)."
+      "revalidation_note": "Phase D scripts unification: generator moved to scripts/diagrams/build_catalog.py (renderer sources unchanged); full Chromium re-render of all 1119 assets in both profiles clean (bounds=0, textIssues=0, rejected=0).",
+      "current_source_review": {
+        "directory": "/tmp/next-tutor-instruments-all-assets-review",
+        "baseline": "/tmp/next-tutor-universal-all-assets-final",
+        "unchanged_actual_svg": true,
+        "svg_hashes": {
+          "function.linear_transform.svg": "sha256:b944eb712813ac3f5a3cd7c1cc031338967b6b685bc345ad677cf34a10b53607",
+          "function.linear_transform-monochrome.svg": "sha256:149541584f56af5c9e195e17608e52a9a7af0d8a888c40e4dcdcaafab34936e4"
+        },
+        "visual_review": "/tmp/next-tutor-universal-all-assets-final"
+      }
+    }
+  },
+  "interface": {
+    "schema_version": "1.0.0",
+    "parameters": {
+      "x_range": {
+        "type": "list",
+        "default": [
+          -4,
+          4
+        ],
+        "condition_bearing": true,
+        "non_quantitative_allowed": false,
+        "affects_geometry": true,
+        "unit": "",
+        "role": "range",
+        "fact_types": [
+          "range",
+          "data"
+        ],
+        "default_rule": "fact",
+        "derived_from": []
+      },
+      "y_range": {
+        "type": "list",
+        "default": [
+          -3,
+          5
+        ],
+        "condition_bearing": true,
+        "non_quantitative_allowed": false,
+        "affects_geometry": true,
+        "unit": "",
+        "role": "range",
+        "fact_types": [
+          "range",
+          "data"
+        ],
+        "default_rule": "fact",
+        "derived_from": []
+      },
+      "x_label": {
+        "type": "string",
+        "default": "x",
+        "max_length": 30,
+        "condition_bearing": true,
+        "non_quantitative_allowed": true,
+        "affects_geometry": true,
+        "unit": "",
+        "canonical_value": "x",
+        "role": "text",
+        "fact_types": [
+          "label"
+        ],
+        "default_rule": "derived",
+        "derived_from": [
+          [
+            "x_range",
+            "y_range"
+          ]
+        ]
+      },
+      "y_label": {
+        "type": "string",
+        "default": "y",
+        "max_length": 30,
+        "condition_bearing": true,
+        "non_quantitative_allowed": true,
+        "affects_geometry": true,
+        "unit": "",
+        "canonical_value": "y",
+        "role": "text",
+        "fact_types": [
+          "label"
+        ],
+        "default_rule": "derived",
+        "derived_from": [
+          [
+            "x_range",
+            "y_range"
+          ]
+        ]
+      },
+      "show_ticks": {
+        "type": "boolean",
+        "default": true,
+        "condition_bearing": true,
+        "non_quantitative_allowed": true,
+        "affects_geometry": true,
+        "unit": "",
+        "canonical_value": true,
+        "role": "display",
+        "fact_types": [
+          "state"
+        ],
+        "default_rule": "derived",
+        "derived_from": [
+          [
+            "x_range",
+            "y_range"
+          ]
+        ]
+      },
+      "matrix": {
+        "type": "list",
+        "default": [
+          [
+            1,
+            0.5
+          ],
+          [
+            0.2,
+            1
+          ]
+        ],
+        "condition_bearing": true,
+        "non_quantitative_allowed": false,
+        "affects_geometry": true,
+        "unit": "",
+        "role": "data",
+        "fact_types": [
+          "data"
+        ],
+        "default_rule": "fact",
+        "derived_from": []
+      }
+    },
+    "layout": {
+      "origin": "top_left",
+      "uniform_scale": true,
+      "annotations": "measured_outside_placement",
+      "relations": "declared_ports_only",
+      "rotation_allowed": false
     }
   },
   "svg_file": "asset.svg",

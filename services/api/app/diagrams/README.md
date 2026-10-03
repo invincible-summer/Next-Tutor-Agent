@@ -8,7 +8,7 @@
 
 - 参数化渲染器（drawing 模块）：`mathematics.py`、`physics.py`、`instruments.py`、`life_earth.py`、`systems.py`、`templates.py` 与 `extended_*.py` 系列（math / physics / chemistry / biology / earth / humanities / creative / statistics / systems / engineering / experiments / inventory / deferred），共 17 学科 34 素材族；`curriculum_expansion.py` 为最近一轮扩充构图的登记模块。
 - v2 装配语义层：`semantics.py`（31 个组件 + 10 个装配配方的领域几何、动态端口/区域）、`adapters.py`（全部登记素材统一适配为实际参数几何）。
-- 目录与登记：`catalog.py`（检索与 source_hash 校验）、`registry.py`、`schema.py`、`taxonomy.py`、`materials.py`（运行新增素材卡片）、`material_templates.py`、`guidance.py`、`pipeline.py`。
+- 目录与登记：`catalog.py`（检索与 source_hash 校验）、`registry.py`、`schema.py`、`taxonomy.py`、`materials.py`（运行新增素材卡片）、`material_templates.py`、`guidance.py`、`pipeline.py`；`legacy_layout.py` 提供 V1 通用区域关系与真实端子路由。
 - 溯源与审核台账（review ledger）：`provenance.py` 维护 `services/api/assets/diagram_library/review.json` —— 逐素材 provenance / `source_hash`（绑定渲染器源码哈希）与事实核对引用；`catalog.py` 启动校验目录条目与台账 hash 一致，不一致即拒绝。
 - 素材资产：`services/api/assets/diagram_library/`（`catalog.json` + `materials/<asset_id>/`，随仓库发布的源码资产，ADR-0001）。
 
@@ -25,7 +25,7 @@
 
 ## Tests
 
-`services/api/tests/`：`test_diagram_library.py`（目录/参数/规范化）、`test_diagram_adapters.py`（全库适配器）、`test_diagram_expansion.py`（扩充登记）、`test_diagram_guidance.py`（阶段提示）、`test_diagram_materials.py`（公私创作与版本）。题图侧回归（`test_illustration_v2.py` 等）属 `app/illustration/` 域。
+`services/api/tests/diagrams/`：`test_diagram_library.py`（目录/参数/规范化）、`test_diagram_adapters.py`（全库适配器）、`test_diagram_expansion.py`（扩充登记）、`test_diagram_guidance.py`（阶段提示）、`test_diagram_materials.py`（公私创作与版本）。题图侧回归位于 `tests/illustration/`，属 `app/illustration/` 域。
 
 ## Key entry points
 

@@ -6,6 +6,8 @@
 |------|----------|----------|
 | `classroom/live.py` | 课堂课件生成全链路（brief → run → revision → 离线 HTML） | `/tmp/course-live/` |
 | `illustration/live.py` | 题图/图库真实模型逐轮输出（模型 JSON、SVG、实际 PNG、report） | `/tmp/illustration-review/` |
+| `illustration/cat.py` | 冻结文字题 V1/V2 补图与数值变化验收（含实际审核与 PNG） | `/tmp/cat-illustration-review/` |
+| `illustration/interfaces.py` | 完整 SVG 输入、无情景修补提示的统一接口（既有跨学科、变化数值、新私有参数化素材） | `/tmp/interface-live/` |
 | `illustration/materials.py` | 素材服务全流程（容器/几何/流程草稿、手动修改、冻结版本、用指定素材出题，两项审图看真实 PNG） | `/tmp/material-live-acceptance/` |
 
 ## 契约

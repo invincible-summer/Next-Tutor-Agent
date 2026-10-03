@@ -753,6 +753,8 @@ export interface AssessmentStartResp {
   session_id?: string;
   /** W2/A03：本次 CAT 的独立 id（session_id 字段历史上回显的是学生 id）。 */
   assessment_id?: string;
+  illustration_mode?: "v1" | "v2";
+  evaluation_mode?: "closed_loop" | "temporary";
   difficulty?: number;
   question?: AssessmentQuestion;
   message?: string;
@@ -771,6 +773,7 @@ export interface AssessmentStartResp {
 export interface AssessmentAnswerResp {
   status: string;
   assessment_id?: string;
+  evaluation_mode?: "closed_loop" | "temporary";
   task_result?: {
     verdict?: string | null;
     grading_status?: string;
@@ -788,6 +791,8 @@ export interface AssessmentAnswerResp {
 export interface AssessmentNextResp {
   status: string;
   assessment_id?: string;
+  illustration_mode?: "v1" | "v2";
+  evaluation_mode?: "closed_loop" | "temporary";
   question?: AssessmentQuestion | null;
   difficulty?: number;
   stop_reason?: string | null;
@@ -799,6 +804,8 @@ export interface AssessmentActiveResp {
   /** ok（有会话）| none（无会话）| disabled | error */
   status: string;
   assessment_id?: string;
+  illustration_mode?: "v1" | "v2";
+  evaluation_mode?: "closed_loop" | "temporary";
   /** active | mastered | stopped | abandoned */
   session_status?: string;
   answered?: number;
@@ -854,6 +861,7 @@ export interface UserProfileData {
     quiz_svg_enabled?: boolean;
     quiz_critic_enabled?: boolean;
     quiz_illustration_review_enabled?: boolean;
+    quiz_illustration_mode?: "v1" | "v2";
     classroom?: ClassroomPrefs;
   };
 }

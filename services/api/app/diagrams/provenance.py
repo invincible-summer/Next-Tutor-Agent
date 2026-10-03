@@ -12,6 +12,16 @@ ROOT = Path(__file__).resolve().parents[2]
 REPO_ROOT = ROOT.parents[1]
 REVIEW_PATH = ROOT / "assets" / "diagram_library" / "review.json"
 FACT_REFERENCES = {
+    "earth.water_cycle": ("https://www.usgs.gov/centers/new-york-water-science-center/science/hydrologic-cycle",
+        "太阳能驱动蒸发，凝结、降水及径流闭合循环；未使用外部图形"),
+    "template.water_cycle": ("https://www.usgs.gov/centers/new-york-water-science-center/science/hydrologic-cycle",
+        "太阳能与蒸发、降水及径流的关系；未使用外部图形"),
+    "geography_extended.glacier": ("https://www.nps.gov/articles/ushapedvalleysfjordshangingvalleys.htm",
+        "冰川侵蚀谷横断面宽底陡壁的U形；未使用外部图形"),
+    "astronomy_extended.redshift_lines": (
+        "https://science.nasa.gov/mission/webb/science-overview/science-explainers/spectroscopy-101-beyond-temperature-and-composition/",
+        "红移拉伸波长，线性波长轴不可等量平移；仅核对事实，未使用外部图形",
+    ),
     "chemistry.water": (
         "https://openstax.org/books/chemistry/pages/8-2-hybrid-atomic-orbitals",
         "水分子104.5°弯曲键角；仅核对事实，未使用外部图形",
@@ -158,6 +168,7 @@ def source_record(asset_id, renderer, variant):
                     "chemistry.water", "biology.chloroplast", "chemistry_extended.hydration_shell",
                     "geography_extended.artesian_aquifer", "geography_extended.coastal_upwelling",
                     "geography_extended.inversion_layer", "physics_extended.closed_pipe_modes",
+                    "astronomy_extended.redshift_lines",
                 } else "2026-10-02",
                 "type": "fact_only",
             }
@@ -176,6 +187,12 @@ def source_record(asset_id, renderer, variant):
 
 
 def enrich(asset):
+    from .registry import extension
+    item = extension(asset["id"])
+    if asset["id"] in {"apparatus.funnel", "apparatus.thermometer", "template.filtration"}:
+        asset["version"] = max(asset.get("version", 1), 2)
+    if item:
+        asset["version"] = max(asset.get("version", 1), item.version)
     subject = asset["category"]
     renderer = asset["renderer"]
     variant = asset["variant"]

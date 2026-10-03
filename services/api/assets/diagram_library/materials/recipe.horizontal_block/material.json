@@ -8,7 +8,18 @@
   "kind": "recipe",
   "renderer": "registered_v2_recipe",
   "preview_only": true,
+  "interface": {
+    "schema_version": "1.0.0",
+    "parameters": {},
+    "layout": {
+      "origin": "top_left",
+      "uniform_scale": true,
+      "annotations": "measured_outside_placement",
+      "relations": "declared_ports_only",
+      "rotation_allowed": false
+    }
+  },
   "svg_file": "asset.svg",
   "guidance_file": "usage_guide.json",
-  "svg_hash": "sha256:b1b1eaac8de8abe80f707d0e85d3a7b8d5179c2fc08f4d749c3e310b520c2d89"
+  "svg_hash": "sha256:e90e04cf318e3f78bac7bbd893c674562a2a39dc9cf21db89615953030c085be"
 }

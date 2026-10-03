@@ -65,7 +65,144 @@
         "review_note": "Both re-rendered SVGs are byte-identical to reviewed baseline; prior visual evidence preserved."
       },
       "revalidation": "/tmp/diagram-rebind",
-      "revalidation_note": "Phase D scripts unification: generator moved to scripts/diagrams/build_catalog.py (renderer sources unchanged); full Chromium re-render of all 1119 assets in both profiles clean (bounds=0, textIssues=0, rejected=0)."
+      "revalidation_note": "Phase D scripts unification: generator moved to scripts/diagrams/build_catalog.py (renderer sources unchanged); full Chromium re-render of all 1119 assets in both profiles clean (bounds=0, textIssues=0, rejected=0).",
+      "current_source_review": {
+        "directory": "/tmp/next-tutor-instruments-all-assets-review",
+        "baseline": "/tmp/next-tutor-universal-all-assets-final",
+        "unchanged_actual_svg": true,
+        "svg_hashes": {
+          "function.cosine.svg": "sha256:dc2785f2a1449334b924e4034bed1d721dacc676bc740db199162b979adbdcb3",
+          "function.cosine-monochrome.svg": "sha256:e0744d38ee735b6f1829239c10d3ba5c606937ae9857d4383720b91558dc9f59"
+        },
+        "visual_review": "/tmp/next-tutor-universal-all-assets-final"
+      }
+    }
+  },
+  "interface": {
+    "schema_version": "1.0.0",
+    "parameters": {
+      "function": {
+        "type": "string",
+        "max_length": 160,
+        "condition_bearing": true,
+        "non_quantitative_allowed": false,
+        "affects_geometry": true,
+        "unit": "",
+        "role": "function",
+        "fact_types": [
+          "function"
+        ],
+        "default_rule": "fact",
+        "derived_from": []
+      },
+      "x_range": {
+        "type": "list",
+        "default": [
+          -4,
+          4
+        ],
+        "condition_bearing": true,
+        "non_quantitative_allowed": false,
+        "affects_geometry": true,
+        "unit": "",
+        "role": "range",
+        "fact_types": [
+          "range",
+          "data"
+        ],
+        "default_rule": "fact",
+        "derived_from": []
+      },
+      "y_range": {
+        "type": "list",
+        "default": [
+          -3,
+          5
+        ],
+        "condition_bearing": true,
+        "non_quantitative_allowed": false,
+        "affects_geometry": true,
+        "unit": "",
+        "role": "range",
+        "fact_types": [
+          "range",
+          "data"
+        ],
+        "default_rule": "fact",
+        "derived_from": []
+      },
+      "x_label": {
+        "type": "string",
+        "default": "x",
+        "max_length": 30,
+        "condition_bearing": true,
+        "non_quantitative_allowed": true,
+        "affects_geometry": true,
+        "unit": "",
+        "canonical_value": "x",
+        "role": "text",
+        "fact_types": [
+          "label"
+        ],
+        "default_rule": "derived",
+        "derived_from": [
+          [
+            "function",
+            "x_range",
+            "y_range"
+          ]
+        ]
+      },
+      "y_label": {
+        "type": "string",
+        "default": "y",
+        "max_length": 30,
+        "condition_bearing": true,
+        "non_quantitative_allowed": true,
+        "affects_geometry": true,
+        "unit": "",
+        "canonical_value": "y",
+        "role": "text",
+        "fact_types": [
+          "label"
+        ],
+        "default_rule": "derived",
+        "derived_from": [
+          [
+            "function",
+            "x_range",
+            "y_range"
+          ]
+        ]
+      },
+      "show_ticks": {
+        "type": "boolean",
+        "default": true,
+        "condition_bearing": true,
+        "non_quantitative_allowed": true,
+        "affects_geometry": true,
+        "unit": "",
+        "canonical_value": true,
+        "role": "display",
+        "fact_types": [
+          "state"
+        ],
+        "default_rule": "derived",
+        "derived_from": [
+          [
+            "function",
+            "x_range",
+            "y_range"
+          ]
+        ]
+      }
+    },
+    "layout": {
+      "origin": "top_left",
+      "uniform_scale": true,
+      "annotations": "measured_outside_placement",
+      "relations": "declared_ports_only",
+      "rotation_allowed": false
     }
   },
   "svg_file": "asset.svg",

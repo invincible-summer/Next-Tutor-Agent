@@ -28,7 +28,7 @@
     "creation_method": "ai_assisted_vector_code",
     "source_module": "app/diagrams/extended_chemistry.py",
     "source_symbol": "draw:periodic_table",
-    "source_hash": "sha256:0c8777508e7e0dbbef52d317f8c4abebc4e4ed40b69163ce80856aec6a347c0c",
+    "source_hash": "sha256:2ebce9cb9ea0e36d08267ddaf613606b25adcc357a6eb34b725a86f9b7df2147",
     "external_graphics": [],
     "derived_from": [],
     "knowledge_references": [],
@@ -41,7 +41,7 @@
     "visual": "passed",
     "reviewer_type": "agent",
     "reviewed_at": "2026-10-03",
-    "source_hash": "sha256:0c8777508e7e0dbbef52d317f8c4abebc4e4ed40b69163ce80856aec6a347c0c",
+    "source_hash": "sha256:2ebce9cb9ea0e36d08267ddaf613606b25adcc357a6eb34b725a86f9b7df2147",
     "evidence": {
       "profiles": [
         "textbook",
@@ -65,9 +65,30 @@
         "review_note": "Both re-rendered SVGs are byte-identical to reviewed baseline; prior visual evidence preserved."
       },
       "revalidation": "/tmp/diagram-rebind",
-      "revalidation_note": "Phase D scripts unification: generator moved to scripts/diagrams/build_catalog.py (renderer sources unchanged); full Chromium re-render of all 1119 assets in both profiles clean (bounds=0, textIssues=0, rejected=0)."
+      "revalidation_note": "Phase D scripts unification: generator moved to scripts/diagrams/build_catalog.py (renderer sources unchanged); full Chromium re-render of all 1119 assets in both profiles clean (bounds=0, textIssues=0, rejected=0).",
+      "current_source_review": {
+        "directory": "/tmp/next-tutor-instruments-all-assets-review",
+        "baseline": "/tmp/next-tutor-universal-all-assets-final",
+        "unchanged_actual_svg": true,
+        "svg_hashes": {
+          "chemistry_extended.periodic_table.svg": "sha256:dedcea104efc36bce1cde59a6b66295115997302c72e7c1a104aae02cf0857ea",
+          "chemistry_extended.periodic_table-monochrome.svg": "sha256:0807c365b6705539890fc7fa750593f27fe2b88243be11974c2836d0c94eb0f7"
+        },
+        "visual_review": "/tmp/next-tutor-universal-all-assets-final"
+      }
     },
     "notes": "全目录双风格重新渲染无越界/文字碰撞，与前轮逐SVG字节核对仅墙体变化；墙体接触面双风格实图已审阅。"
+  },
+  "interface": {
+    "schema_version": "1.0.0",
+    "parameters": {},
+    "layout": {
+      "origin": "top_left",
+      "uniform_scale": true,
+      "annotations": "measured_outside_placement",
+      "relations": "declared_ports_only",
+      "rotation_allowed": false
+    }
   },
   "svg_file": "asset.svg",
   "guidance_file": "usage_guide.json",

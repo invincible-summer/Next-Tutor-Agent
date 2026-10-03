@@ -9,6 +9,21 @@ from tests.support.storage_sandbox import StorageSandboxTestCase
 
 
 class DiagramExpansionTest(StorageSandboxTestCase):
+    def test_redshift_stretches_all_wavelengths_by_the_same_ratio(self):
+        asset = catalog()[1]["astronomy_extended.redshift_lines"]
+        self.assertEqual(asset.version, 2)
+        for shift in [0, 35, 60]:
+            drawing = asset.draw({"shift": shift})
+            lines = [part for part in drawing.parts if part.tag.endswith("line")
+                and part.get("stroke") == drawing.blue and part.get("x1") == part.get("x2")]
+            reference, observed = lines[:4], lines[4:]
+            ratios = [(float(second.get("x1"))-60)/(float(first.get("x1"))-60)
+                for first, second in zip(reference, observed)]
+            self.assertEqual(len(ratios), 4)
+            for ratio in ratios:
+                self.assertAlmostEqual(ratio, 1+shift/229, places=4)
+            self.assertAlmostEqual(float(observed[-1].get("x1"))-float(reference[-1].get("x1")), shift, places=2)
+
     def test_intrinsic_labels_are_reused_without_bypassing_target_validation(self):
         from xml.etree import ElementTree as ET
         from app.illustration.contracts import Annotation, IllustrationError
@@ -51,12 +66,18 @@ class DiagramExpansionTest(StorageSandboxTestCase):
 
     def test_displacement_boundary_is_open_closed_and_odd_harmonics(self):
         asset = catalog()[1]["physics_extended.closed_pipe_modes"]
+        self.assertEqual(asset.version, 2)
         for mode in [1, 2, 3]:
             d = asset.draw({"mode": mode})
             wave = [part for part in d.parts if part.tag.endswith("polyline")][1]
             points = [list(map(float, xy.split(","))) for xy in wave.get("points").split()]
             # Long paths split at 100 points; use all sections for the endpoint.
             sections = [part for part in d.parts if part.tag.endswith("polyline") and part.get("stroke") == d.blue]
+            envelope = [list(map(float, xy.split(","))) for section in sections for xy in section.get("points").split()]
+            self.assertTrue(all(y <= 160 for _, y in envelope))
+            nodes = {round(x, 2) for x, y in envelope if abs(y-160) < .01}
+            expected_nodes = {round(60+370*2*k/(2*mode-1), 2) for k in range(mode)}
+            self.assertEqual(nodes, expected_nodes)
             end = list(map(float, sections[-1].get("points").split()[-1].split(",")))
             self.assertEqual(points[0], [60, 160])
             self.assertAlmostEqual(abs(end[1]-160), 54, places=2)

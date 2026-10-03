@@ -68,6 +68,9 @@ class UpdateProfileRequest(BaseModel):
                     "quiz_illustration_review_enabled"):
             if prefs is not None and key in prefs and type(prefs[key]) is not bool:
                 raise ValueError(f"{key} must be a boolean")
+        if prefs is not None and "quiz_illustration_mode" in prefs:
+            if prefs["quiz_illustration_mode"] not in {"v1", "v2"}:
+                raise ValueError("quiz_illustration_mode must be v1 or v2")
         if prefs is not None and "classroom" in prefs:
             prefs["classroom"] = _validate_classroom_prefs(prefs["classroom"])
         return prefs

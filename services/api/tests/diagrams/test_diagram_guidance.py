@@ -10,6 +10,47 @@ from tests.support.storage_sandbox import StorageSandboxTestCase
 
 
 class DiagramGuidanceTest(StorageSandboxTestCase):
+    def test_dependent_variable_prefix_does_not_change_bound_function(self):
+        from app.illustration.layout import _parameters, compile_scene
+        from app.illustration.contracts import IllustrationError
+        from tests.illustration.test_illustration_v2 import fixture
+        contract, brief, bundle, scene = fixture("function.quadratic", parameters={
+            "function": ("y = x**2", ""), "x_range": ([-3, 3], ""), "y_range": ([-1, 9], "")}, essential=True)
+        self.assertEqual(contract.facts[0].value, "x**2")
+        node = scene.asset_instances[0]
+        node.params["function"] = "y=x**2"
+        self.assertEqual(_parameters(node, contract)[0]["function"], "x**2")
+        compile_scene(scene, contract=contract, brief=brief, bundle=bundle)
+        node.params["function"] = "y=x**2+1"
+        with self.assertRaises(IllustrationError):
+            _parameters(node, contract)
+        node.params.clear()
+        contract.facts[0].value = "__import__('os')"
+        with self.assertRaises(IllustrationError):
+            compile_scene(scene, contract=contract, brief=brief, bundle=bundle)
+
+    def test_function_facts_are_not_offered_as_unrelated_label_bindings(self):
+        from app.illustration.composition import compatible_parameter_fact
+        from app.illustration.contracts import MaterialFact
+        fact = MaterialFact(id="curve", type="function", value="x**2", source_ref="stem", display_policy="explicit")
+        self.assertTrue(compatible_parameter_fact(fact, {"type": "string"}, "function"))
+        for key in ["x_label", "y_label", "title", "label"]:
+            self.assertFalse(compatible_parameter_fact(fact, {"type": "string"}, key))
+        label = fact.model_copy(update={"type": "label", "value": "x"})
+        self.assertTrue(compatible_parameter_fact(label, {"type": "string"}, "x_label"))
+        self.assertFalse(compatible_parameter_fact(label, {"type": "string"}, "function"))
+        hidden = fact.model_copy(update={"display_policy": "hidden"})
+        self.assertFalse(compatible_parameter_fact(hidden, {"type": "string"}, "function"))
+
+    def test_recipe_children_match_across_relationship_clauses(self):
+        rows = capability_guide("水平弹簧左端固定在墙上，右端连接滑块，光滑水平支撑面承托滑块。")['relevant_materials']
+        row = next(row for row in rows if row['name'] == '水平弹簧滑块')
+        self.assertEqual(row['entity_policy'], 'recipe_children')
+        self.assertEqual(set(row['entities']), {'wall', 'spring', 'block', 'plane'})
+        self.assertIn('长度非定量', row['usage_guidance']['text'])
+        unrelated = capability_guide('水分子的氢原子和氧原子构成弯曲结构。')
+        self.assertNotIn('水平弹簧滑块', [row['name'] for row in unrelated['relevant_materials']])
+
     def test_literal_chinese_counts_do_not_infer_science_facts(self):
         from app.illustration.contracts import literal_number_supported
         for value, quote in [(2, "两个子代双链"), (1, "一条旧链"), (23, "二十三个球"), (10, "十次实验")]:
@@ -69,7 +110,7 @@ class DiagramGuidanceTest(StorageSandboxTestCase):
         guide = capability_guide()
         self.assertEqual(guide["relevant_materials"], [])
         for name in ["quiz_illustration_composer", "quiz_illustration_requirements", "quiz_illustration_review"]:
-            text = get(name, "2.2.0" if name == "quiz_illustration_requirements" else "2.1.0").text
+            text = get(name, "2.3.0" if name == "quiz_illustration_requirements" else "2.1.0").text
             for forbidden in ["5°C", "35°C", "漏斗", "recipe.thermal", "maximum/10"]:
                 self.assertNotIn(forbidden, text)
         related = capability_guide("烧杯水中的温度计读取温度")
@@ -93,7 +134,7 @@ class DiagramGuidanceTest(StorageSandboxTestCase):
     def test_local_match_terms_select_relevant_protocol_without_inventory_hints(self):
         cases = [
             ("正三角形内接于圆", "circle", "maximum/10"),
-            ("y=x**2函数图像", "函数表达式", "导管末端"),
+            ("y=x**2函数图像", "function", "导管末端"),
             ("电池开关闭合组成串联回路", "battery", "5°C"),
         ]
         for context, expected, unrelated in cases:

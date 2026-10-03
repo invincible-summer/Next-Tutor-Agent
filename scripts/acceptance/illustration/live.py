@@ -40,7 +40,7 @@ EXPANSION_SCENARIOS = {
     "new_hydration": ("阳离子水合壳示意", "高中化学：Na⁺在水中形成水合壳，已知水分子氧端朝向Na⁺、氢端朝外，每个水分子有2H/1O。图为截面定性示意，不把图上水分子个数当作真实配位数。问为什么该图不能确定离子的真实配位数。允许Na⁺、O、H和水合层截面示意标识。"),
     "new_upwelling": ("沿岸上升流剖面", "高中地理：陆地在右，海水表层向左离岸，深层补偿流沿岸坡上升。已知深层水富含营养盐，问此环流为何有助于海洋生产力。图只表示题文明示离岸表层流、深层补偿流和陆地，没有风向或速度条件。"),
     "new_replication": ("半保留复制子代双链", "高中生物：DNA复制为半保留复制，亲代两个旧链，两个子代双链各有一个旧链和一个新链，旧链实线、新链虚线。问为何两个子代都保留亲代遗传信息。图只示意旧链和新链，不给碱基序列或新增数量。"),
-    "new_redshift": ("谱线红移对照", "高中天文：参考与观测各四条谱线间距相同，观测谱线向波长λ增大方向整体平移，问为何识别谱线时应比较整组间距和整体移位。shift=35 diagram_px只用于非定量显示，不是nm或物理红移值，图无需标出35。允许参考、观测、波长λ标识。"),
+    "new_redshift": ("谱线红移对照", "高中天文：参考与观测各四条谱线一一对应，观测波长按同一比例增大，谱线间距也相应伸展。问为何识别谱线时应核对整组波长的比例伸展，而不能仅凭一条线的位置。shift=35 diagram_px仅为最右谱线的示意位移，非题目条件，不建立shift事实、不标出35，不能推算nm或红移z。允许参考、观测、波长λ标识。"),
     "new_unitcircle": ("单位圆正弦投影", "高中数学：单位圆上P对应角度30°，有x、y轴、半径1及水平/竖直投影线，求P的纵坐标。angle=30°必须绑定题文事实。图不直接标出坐标答案或sin数值。允许x、y、P和1。"),
     "new_probability": ("条件概率两层树", "高中数学统计：样本空间S先分A和Ā，P(A)=0.3，P(Ā)=0.7；仅A再分为B、B̄，P(B|A)=0.8、P(B̄|A)=0.2。问P(A∩B)。p_a=0.3、p_b_given_a=0.8为无量纲事实，两个事实属于完整概率树实体。图可写已知概率及条件分支：A，不能写0.24或联合概率答案，也不要画Ā下未知分支。"),
     "new_bridge": ("惠斯通电桥整体电路", "工程基础：四个电阻R₁、R₂、R₃、R₄构成菱形，G检流计接左右中点，电源接上下端。已知装置用检流计观察中点电势差，问为什么它能用于检验电桥平衡。题干完整表达关系，没有阻值或电压数值。不要画额外接线，不把整个电桥拆为未声明器件实体。"),
@@ -116,7 +116,8 @@ async def run(output, selected, variation=0):
                     "difficulty=0.5。rubric_criteria 为 [{id,description,weight,critical}]，必须覆盖读图/关系和解答。"
                     "未按比例的图中半径/长度参数是图形像素，不能用 cm 值直接驱动像素；声明非定量示意。"
                     "补充图事实 source_ref=stem 且 source_quote 逐字出自题干。必要图隐藏的条件 source_ref=blueprint，数值真实且单位正确。",
-                parse=parse, topic=name, grade="初中", temperature=.2, max_tokens=4500,
+                parse=parse, topic=name, grade="高中" if name in EXPANSION_SCENARIOS else "初中",
+                temperature=.2, max_tokens=4500,
                 illustration_policy="required", verify_mode="critic", max_attempts=2)
             row = {"case": name, "passed": bool(questions), "calls": client.calls,
                 "elapsed_seconds": round(time.monotonic()-started, 2),

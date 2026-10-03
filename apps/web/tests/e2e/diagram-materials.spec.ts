@@ -114,3 +114,35 @@ test("管理员界面添加公有素材，普通用户可读历史但不能写�
     await expect(learnerPage.getByTestId("custom-material")).toHaveCount(0);
   } finally { await learnerContext.close(); await api.dispose(); }
 });
+
+
+test("新素材的通用控件可改文字，预览值不改变模板默认值", async ({ page }) => {
+  const api = await pwRequest.newContext();
+  try {
+    const user = await registerAndLogin(api);
+    await loginViaStorage(page, user.token);
+    await page.goto("/diagram-library?theme=light");
+    await page.getByRole("button", { name: "我的素材", exact: true }).click();
+    await page.getByTestId("new-material").click();
+    const dialog = page.getByRole("dialog");
+    await dialog.getByRole("textbox", { name: "素材标题", exact: true }).fill("可调文字流程");
+    await dialog.getByRole("combobox", { name: "设计模板", exact: true }).selectOption("flow");
+    await dialog.getByRole("textbox", { name: "preview parameter left_text", exact: true }).fill("过滤");
+    await dialog.getByRole("textbox", { name: "preview parameter right_text", exact: true }).fill("回收");
+    await dialog.getByRole("button", { name: "检查并预览", exact: true }).click();
+    const src = await dialog.getByTestId("material-preview").locator("img").getAttribute("src");
+    expect(decodeURIComponent(src ?? "")).toContain("过滤");
+    await expect(dialog.getByRole("textbox", { name: "参数规范 JSON", exact: true })).toHaveValue(/过程一/);
+    await dialog.getByTestId("material-parameters").scrollIntoViewIfNeeded();
+    await page.screenshot({ path: "test-results/diagram-material-parameters-light.png", animations: "disabled" });
+    await dialog.getByRole("button", { name: "保存素材", exact: true }).click();
+    await expect(dialog).toHaveCount(0);
+    await page.getByTestId("custom-material").click();
+    await expect(dialog.getByRole("textbox", { name: "参数规范 JSON", exact: true })).toHaveValue(/left_text/);
+    await page.setViewportSize({ width: 1024, height: 900 });
+    await page.evaluate(() => document.documentElement.classList.add("dark"));
+    await dialog.getByTestId("material-parameters").scrollIntoViewIfNeeded();
+    await expect.poll(() => dialog.evaluate(node => node.scrollWidth <= node.clientWidth)).toBe(true);
+    await page.screenshot({ path: "test-results/diagram-material-parameters-dark-narrow.png", animations: "disabled" });
+  } finally { await api.dispose(); }
+});

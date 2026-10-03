@@ -1,9 +1,9 @@
 {
-  "version": "1.0.3",
+  "version": "1.2.0",
   "hints": {
-    "authoring": "温度计范围-20至80°C，最小分度5°C；不要声称1°C分度。只有beaker、thermometer，水是烧杯liquid_present状态，玻璃泡浸没用immersed_in。事实只需液体状态与reading，分度已由素材标定，不创建隐含分度/单位label事实。数值reading、maximum的predicate分别写reading、maximum（有该参数时），以明确绑定用途。",
-    "requirements": "烧杯温度测量一个need覆盖beaker、thermometer，labels_to_show只复制required_marks，默认[]；刻度及°C自带，不另加。",
-    "compose": "必须fact_bindings.reading绑定server_binding=true读数事实，省略params.reading。fill绑定beaker的liquid_present；scale_labels=true不绑定。entity_map完整绑定两个子实例，relations=[]复用浸没；默认scale=1。",
-    "review": "标定范围-20至80°C，每短格5°C，数字间隔20°C。两相邻数字之间有3条中间短线，加上两端长线形成4个间隔（不是3格）。白色数字底不遮挡左侧刻度；读液柱顶端并按实际PNG核对合同读数，不能根据短线条数误改分度。"
+    "authoring": "温度计固定摄氏标定：范围-20..80°C，最小分度5°C；玻璃泡为测温部，不能碰底或容器壁。",
+    "requirements": "温度计固定摄氏标定：范围-20..80°C，最小分度5°C；玻璃泡为测温部，不能碰底或容器壁。",
+    "compose": "温度计固定摄氏标定：范围-20..80°C，最小分度5°C；玻璃泡为测温部，不能碰底或容器壁。",
+    "review": "温度计固定摄氏标定：范围-20..80°C，最小分度5°C；玻璃泡为测温部，不能碰底或容器壁。"
   }
 }

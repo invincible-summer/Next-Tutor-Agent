@@ -157,6 +157,25 @@ class MaterialApiTest(StorageSandboxTestCase, unittest.IsolatedAsyncioTestCase):
         self.assertEqual(materials.visible(self.alice), [])
         self.assertFalse(materials.owner_dir(self.alice).exists())
 
+    async def test_parameterized_preview_save_and_private_roundtrip(self):
+        template = TEMPLATES[2]
+        response = await self.request("POST", "/preview", body={"svg": template["svg"],
+            "parameterization": template["parameterization"], "params": {"left_text": "过滤", "right_text": "回收"}})
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertIn("过滤", response.json()["illustration"]["svg"])
+        self.assertIn("过程一", response.json()["svg"])
+        asset = await self.create(svg=template["svg"], parameterization=template["parameterization"])
+        fetched = await self.request("GET", "/"+asset["id"])
+        self.assertEqual(fetched.json()["interface"]["parameters"]["left_text"]["role"], "text")
+        self.assertEqual(fetched.json()["parameterization"], asset["parameterization"])
+        with materials.owner_context(self.alice):
+            card = materials.card(materials.detail(self.alice, asset["id"]))
+            self.assertNotIn("过程一", card["fixed_marks"])
+        self.assertEqual((await self.request("POST", "/preview", body={"svg": template["svg"],
+            "parameterization": template["parameterization"], "params": {"fake": 1}})).status_code, 422)
+        self.assertEqual((await self.request("POST", body={**self.body,
+            "parameterization": {"parameters": {}, "bindings": [], "code": "eval(1)"}})).status_code, 422)
+
     async def test_purge_cancels_delayed_save_and_preserves_public(self):
         asset = await self.create()
         public = await self.request("POST", owner=self.admin, body={**self.body, "scope": "public"})

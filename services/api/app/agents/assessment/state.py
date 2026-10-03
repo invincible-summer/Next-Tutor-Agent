@@ -119,6 +119,7 @@ class AssessmentGoal:
     difficulty: int = 0      # 0 = derive from context (M3 difficulty engine)
     count: int = 1           # 1 for single checks; upper bound for adaptive
     illustration_request: str = "auto"
+    generation_hint: str = ""  # user guidance: style/background/type preference
     q_type: str = ""         # "" = auto-select (MC for fast checks)
     assesses: list[str] = field(default_factory=list)   # sub-abilities to probe
     forbidden: list[str] = field(default_factory=list)  # methods disallowed
@@ -138,6 +139,7 @@ class AssessmentGoal:
             "count": self.count,
             "q_type": self.q_type,
             "illustration_request": self.illustration_request,
+            "generation_hint": self.generation_hint,
             "assesses": list(self.assesses),
             "forbidden": list(self.forbidden),
             "bloom_focus": self.bloom_focus,

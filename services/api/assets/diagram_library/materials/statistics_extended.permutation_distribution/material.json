@@ -44,7 +44,7 @@
     "creation_method": "ai_assisted_vector_code",
     "source_module": "app/diagrams/extended_statistics.py",
     "source_symbol": "draw:permutation_distribution",
-    "source_hash": "sha256:689638aa68e4ac709cc7ebdd6ac5057507811c0403de952337b93915ff31db56",
+    "source_hash": "sha256:528be3fe3f1ddc05ba51243cdabd1ba6c577c7e031220ebc2d2fbda57cf54bf7",
     "external_graphics": [],
     "derived_from": [],
     "knowledge_references": [],
@@ -57,7 +57,7 @@
     "visual": "passed",
     "reviewer_type": "agent",
     "reviewed_at": "2026-10-03",
-    "source_hash": "sha256:689638aa68e4ac709cc7ebdd6ac5057507811c0403de952337b93915ff31db56",
+    "source_hash": "sha256:528be3fe3f1ddc05ba51243cdabd1ba6c577c7e031220ebc2d2fbda57cf54bf7",
     "evidence": {
       "profiles": [
         "textbook",
@@ -81,9 +81,45 @@
         "review_note": "Both re-rendered SVGs are byte-identical to reviewed baseline; prior visual evidence preserved."
       },
       "revalidation": "/tmp/diagram-rebind",
-      "revalidation_note": "Phase D scripts unification: generator moved to scripts/diagrams/build_catalog.py (renderer sources unchanged); full Chromium re-render of all 1119 assets in both profiles clean (bounds=0, textIssues=0, rejected=0)."
+      "revalidation_note": "Phase D scripts unification: generator moved to scripts/diagrams/build_catalog.py (renderer sources unchanged); full Chromium re-render of all 1119 assets in both profiles clean (bounds=0, textIssues=0, rejected=0).",
+      "current_source_review": {
+        "directory": "/tmp/next-tutor-instruments-all-assets-review",
+        "baseline": "/tmp/next-tutor-universal-all-assets-final",
+        "unchanged_actual_svg": true,
+        "svg_hashes": {
+          "statistics_extended.permutation_distribution.svg": "sha256:d8c45526413295354d1b1fb976ab2a0e82dcbb944e9a3ab48f6a84797371a5ec",
+          "statistics_extended.permutation_distribution-monochrome.svg": "sha256:455206db8f89067b195aed9add01a225e7e7238c399220ac779199714bb1d5c7"
+        },
+        "visual_review": "/tmp/next-tutor-universal-all-assets-final"
+      }
     },
     "notes": "全目录双风格重新渲染无越界/文字碰撞，与前轮逐SVG字节核对仅墙体变化；墙体接触面双风格实图已审阅。"
+  },
+  "interface": {
+    "schema_version": "1.0.0",
+    "parameters": {
+      "groups": {
+        "type": "list",
+        "required": true,
+        "condition_bearing": true,
+        "non_quantitative_allowed": false,
+        "affects_geometry": true,
+        "unit": "",
+        "role": "data",
+        "fact_types": [
+          "data"
+        ],
+        "default_rule": "fact",
+        "derived_from": []
+      }
+    },
+    "layout": {
+      "origin": "top_left",
+      "uniform_scale": true,
+      "annotations": "measured_outside_placement",
+      "relations": "declared_ports_only",
+      "rotation_allowed": false
+    }
   },
   "svg_file": "asset.svg",
   "guidance_file": "usage_guide.json",

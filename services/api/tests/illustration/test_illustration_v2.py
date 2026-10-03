@@ -95,6 +95,67 @@ class QueueLLM:
 
 
 class IllustrationV2Test(StorageSandboxTestCase):
+    def test_essential_public_fact_requires_literal_value_support(self):
+        contract, _, _, _ = cases()["buoyancy"]
+        raw = contract.model_dump(mode="json", exclude={"contract_hash"})
+        raw["facts"].append({"id": "invented_fill", "entity_id": "beaker", "type": "scalar",
+            "value": .5, "unit": "height_fraction", "source_ref": "stem", "source_quote": "beaker",
+            "display_policy": "explicit", "predicate": "fill"})
+        with self.assertRaises(ValueError):
+            QuestionMaterialContract.model_validate(raw)
+        raw["facts"][-1].update(source_ref="blueprint", source_quote="设计液面高度0.5")
+        self.assertEqual(QuestionMaterialContract.model_validate(raw).facts[-1].value, .5)
+
+    def test_qualitative_projection_preserves_public_state_and_real_numeric_conditions(self):
+        from app.illustration.contracts import material_contract
+        stem = "烧杯中的水用于温度测量。"
+        raw = {"visual_role": "essential", "entities": [{"id": "beaker", "name": "烧杯",
+            "source_quote": "烧杯"}], "facts": [{"id": "liquid", "type": "scalar", "entity_id": "beaker",
+            "value": .5, "unit": "height_fraction", "predicate": "fill", "source_ref": "stem",
+            "source_quote": "烧杯中的水", "display_policy": "explicit"}],
+            "presentation_constraints": {"preferred_material_names": ["烧杯温度测量"]}}
+        contract = material_contract({"stem": stem, "material_contract": raw}, question_ref="qualitative")
+        self.assertEqual((contract.facts[0].type, contract.facts[0].predicate, contract.facts[0].value),
+            ("state", "liquid_present", True))
+        raw["facts"][0].update(type="scalar", value=.5, unit="height_fraction", predicate="fill",
+            source_ref="blueprint", source_quote="设计液位0.5")
+        self.assertEqual(material_contract({"stem": stem, "material_contract": raw}, question_ref="blueprint").facts[0].value, .5)
+        raw["facts"][0].update(source_ref="stem", source_quote="液面高度占比0.5")
+        self.assertEqual(material_contract({"stem": stem+"液面高度占比0.5", "material_contract": raw}, question_ref="quantitative").facts[0].type, "scalar")
+
+    def test_self_relation_is_rejected_before_retrieval(self):
+        data = fixture("mathematics_extended.unit_circle_projection")[0].model_dump(mode="json", exclude={"contract_hash"})
+        data["required_relations"] = [{"id": "internal", "type": "inside",
+            "from_entity": "object", "to_entity": "object", "source_quote": "object"}]
+        with self.assertRaises(ValueError) as caught:
+            QuestionMaterialContract.model_validate(data)
+        errors = caught.exception.errors()
+        cause = errors[0]["ctx"]["error"]
+        self.assertEqual(cause.code, "invalid_contract")
+        self.assertEqual(cause.target, "internal:self_relation")
+
+    def test_internal_structure_is_preserved_and_requires_independent_png_review(self):
+        from app.illustration.contracts import material_contract
+        from app.illustration.review import review
+        contract, brief, bundle, scene = fixture("biology.stomata")
+        raw = contract.model_dump(mode="json", exclude={"contract_hash"})
+        raw["required_relations"] = [{"id": "structure", "type": "inside",
+            "from_entity": "object", "to_entity": "object", "source_ref": "stem", "source_quote": "object"}]
+        contract = material_contract({"stem": contract.public_question.stem, "material_contract": raw}, question_ref="synthetic_internal")
+        self.assertEqual(contract.required_relations, [])
+        self.assertEqual([row.id for row in contract.internal_relations], ["structure"])
+        compiled = compile_scene(scene, contract=contract, brief=brief, bundle=bundle)
+        self.assertNotIn("structure", compiled.source.layout_report.verified_relations)
+        png = preview.render(compiled.illustration)
+        for joint in (False, True):
+            with self.assertRaises(IllustrationError):
+                asyncio.run(review(QueueLLM({"status": "passed"}), contract, compiled, png, joint=joint))
+            result = asyncio.run(review(QueueLLM({"status": "passed", "verified_relations": ["structure"]}),
+                contract, compiled, png, joint=joint))
+            self.assertEqual(result.verified_relations, ["structure"])
+        with self.assertRaises(ValueError):
+            material_contract({"stem": "object", "material_contract": raw}, question_ref="frozen_internal", frozen=True)
+
     def test_terminal_annotations_keep_their_actual_ports_clear_of_wires(self):
         from app.illustration.layout import overlaps
         contract, brief, bundle, scene = cases()["series"]
@@ -125,13 +186,23 @@ class IllustrationV2Test(StorageSandboxTestCase):
         scene.relations = [SceneRelation(relation_id="fixed", type="connected", medium="rope",
             start={"instance": "main", "port": "spring_start"},
             end={"instance": "main", "port": "fixed_end"})]
-        compile_scene(scene, contract=contract, brief=brief, bundle=bundle)
-        self.assertEqual(scene.relations[0].start.instance, "main:spring")
-        self.assertEqual(scene.relations[0].end.instance, "main:wall")
+        compiled = compile_scene(scene, contract=contract, brief=brief, bundle=bundle)
+        self.assertEqual(compiled.source.scene.relations[0].start.instance, "main:spring")
+        self.assertEqual(compiled.source.scene.relations[0].end.instance, "main:wall")
         contract, brief, bundle, scene = cases()["series"]
         scene.relations = [SceneRelation(relation_id="ambiguous", type="series", medium="wire",
             start={"instance": "main", "port": "terminal_left"},
             end={"instance": "main", "port": "terminal_right"})]
+        with self.assertRaises(IllustrationError):
+            compile_scene(scene, contract=contract, brief=brief, bundle=bundle)
+        contract, brief, bundle, scene = cases()["thermal"]
+        scene.relations = [SceneRelation(relation_id="immersed", type="immersed_in",
+            contract_relation_id="r0", start={"instance": "main", "region": "thermometer:bulb"},
+            end={"instance": "main", "region": "beaker:liquid"})]
+        compiled = compile_scene(scene, contract=contract, brief=brief, bundle=bundle)
+        self.assertEqual(compiled.source.scene.relations[0].start.instance, "main:thermometer")
+        self.assertEqual(compiled.source.scene.relations[0].start.region, "bulb")
+        scene.relations[0].end.instance, scene.relations[0].end.region = "main", "beaker:fake_region"
         with self.assertRaises(IllustrationError):
             compile_scene(scene, contract=contract, brief=brief, bundle=bundle)
 
@@ -144,6 +215,20 @@ class IllustrationV2Test(StorageSandboxTestCase):
         self.assertIn("vessel.beaker", bundle.needs[0].candidate_ids)
         self.assertLessEqual(len(bundle.needs[0].candidate_ids), 6)
         self.assertTrue(all({"liquid_fill", "open_top"} <= set(a["capabilities"]) for a in bundle.assets))
+
+    def test_requirements_schema_uses_the_explicit_material_interface(self):
+        from app.illustration.requirements import declare
+        contract, brief, _bundle, _scene = fixture("geography_extended.glacier")
+        contract.presentation_constraints.preferred_material_names = ["冰川地貌"]
+        llm = QueueLLM(brief.model_dump(mode="json"))
+        asyncio.run(declare(llm, contract, "required"))
+        payload = json.loads(llm.requests[0]["messages"][1]["content"])
+        schema = payload["schema"]
+        self.assertEqual(schema["properties"]["visual_role"], {"const": "supplemental"})
+        self.assertEqual(schema["$defs"]["MaterialNeed"]["properties"]["name"]["enum"], ["冰川地貌"])
+        self.assertIn("section", schema["properties"]["view"]["enum"])
+        choices = schema["$defs"]["MaterialNeed"]["allOf"][0]["then"]["properties"]["capabilities"]["items"]["enum"]
+        self.assertEqual(choices, ["static_illustration"])
 
     def test_scientific_scenes_real_png(self):
         for name, (contract, brief, bundle, scene) in cases().items():
@@ -186,6 +271,39 @@ class IllustrationV2Test(StorageSandboxTestCase):
             composition.apply_patch(updated, ScenePatchV2.model_validate(patch_data), contract=contract, brief=brief, bundle=bundle)
         self.assertEqual(result.exception.code, "patch_conflict")
 
+    def test_containment_repair_changes_only_an_unbound_schematic_dimension(self):
+        contract, brief, bundle, scene = fixture("recipe.buoyancy_measurement",
+            parameters={"reading": (3, "N"), "maximum": (5, "N"), "fill": (.5, "height_fraction")},
+            qualitative=["radius"], essential=True,
+            relations=[("immersed_in", "ball", "beaker"), ("suspended_from", "ball", "dynamometer")])
+        from app.illustration.layout import instantiate_scene
+        from app.illustration.validators import validate_relations
+        from app.illustration.contracts import LayoutReport
+        placed, _bindings, relations = instantiate_scene(scene, contract)
+        with self.assertRaises(IllustrationError) as caught:
+            validate_relations(placed, relations, contract, LayoutReport())
+        self.assertEqual(caught.exception.details["type"], "immersed_in")
+        self.assertEqual(len(caught.exception.details["container_bounds"]), 4)
+        fitted = compile_scene(scene, contract=contract, brief=brief, bundle=bundle)
+        self.assertEqual(fitted.source.resolved_parameters["main:beaker"]["fill"], .5)
+        self.assertLess(fitted.source.resolved_parameters["main:ball"]["radius"], 34)
+        self.assertIn("fit_schematic_containment", [row["reason"] for row in fitted.source.layout_report.adjustments])
+        self.assertEqual(scene.asset_instances[0].params, {})
+        raw = {"base_scene_hash": digest(scene.model_dump(mode="json")), "operations": [
+            {"op": "set_param", "instance_id": "main", "key": "radius", "value": 20}]}
+        updated = composition.apply_patch(scene, ScenePatchV2.model_validate(raw),
+            contract=contract, brief=brief, bundle=bundle)
+        compiled = compile_scene(updated, contract=contract, brief=brief, bundle=bundle)
+        self.assertEqual(compiled.source.resolved_parameters["main:beaker"]["fill"], .5)
+        self.assertEqual(compiled.source.resolved_parameters["main:ball"]["radius"], 20)
+        for key, fact, value in [("reading", "f_reading", 4), ("fill", "f_fill", .7), ("radius", "", 100)]:
+            invalid = {**raw, "operations": [{"op": "set_param", "instance_id": "main", "key": key,
+                "fact_id": fact, "value": value}]}
+            with self.assertRaises(IllustrationError):
+                updated = composition.apply_patch(scene, ScenePatchV2.model_validate(invalid),
+                    contract=contract, brief=brief, bundle=bundle)
+                compile_scene(updated, contract=contract, brief=brief, bundle=bundle)
+
     def test_composer_never_sees_gold_or_depicted_value(self):
         contract, _, _, _ = cases()["dynamometer"]
         public = contract.composer_view()
@@ -203,6 +321,194 @@ class IllustrationV2Test(StorageSandboxTestCase):
         self.assertEqual(result["metrics"]["generation_calls"], 4)
         self.assertEqual(result["compiled"].source.review_gates["visual"], "passed")
         self.assertEqual(llm.requests[2]["messages"][1]["content"][1]["type"], "image_url")
+
+    def test_frozen_text_extraction_and_internal_protocol_recovery(self):
+        from app.illustration.contracts import material_contract
+        contract, brief, _, scene = cases()["horizontal_block"]
+        frozen = material_contract({"stem": contract.public_question.stem},
+            question_ref="q_frozen", frozen=True)
+        material = contract.model_dump(mode="json", include={"visual_role", "entities", "facts", "required_relations"})
+        good = {"material": material, "brief": brief.model_dump(mode="json")}
+        bad = brief.model_dump(mode="json")
+        review = {"status": "passed"}
+        llm = QueueLLM(bad, good, scene.model_dump(mode="json"), review, review)
+        result = asyncio.run(orchestrator.workflow(llm, frozen, "required", frozen=True))
+        self.assertEqual(result["status"], "ready")
+        self.assertEqual(result["metrics"]["illustration_repairs"], 1)
+        self.assertEqual(result["metrics"]["generation_calls"], 5)
+        self.assertEqual(result["contract"].public_question, frozen.public_question)
+        payload = json.loads(llm.requests[0]["messages"][1]["content"])
+        self.assertTrue(payload["extract_material_from_public_question"])
+        self.assertEqual(payload["schema"]["required"], ["material", "brief"])
+        self.assertIn("Entity", payload["schema"]["$defs"])
+        self.assertNotIn("presentation_constraints", payload["schema"]["properties"]["material"]["properties"])
+        feedback = json.loads(llm.requests[1]["messages"][1]["content"])["repair_feedback"]
+        self.assertEqual(feedback["target"], "main:references")
+
+    def test_extraction_rejects_unquoted_facts_and_role_changes(self):
+        from app.illustration.contracts import material_contract
+        from app.illustration.requirements import accept_declaration
+        contract, brief, _, _ = cases()["horizontal_block"]
+        frozen = material_contract({"stem": contract.public_question.stem}, question_ref="q_frozen", frozen=True)
+        material = contract.model_dump(mode="json", include={"visual_role", "entities", "facts", "required_relations"})
+        material["entities"][0]["source_quote"] = "题面不存在的物体"
+        with self.assertRaises(IllustrationError):
+            accept_declaration(json.dumps({"material": material, "brief": brief.model_dump(mode="json")}), frozen, "required")
+        material["visual_role"] = "essential"
+        with self.assertRaises(IllustrationError):
+            accept_declaration(json.dumps({"material": material, "brief": brief.model_dump(mode="json")}), frozen, "required")
+
+    def test_new_frozen_projection_keeps_qualitative_water_and_rejects_wrong_direction(self):
+        from app.illustration.contracts import material_contract, canonical_function_expression
+        from app.illustration.requirements import accept_declaration, capability_guide
+        stem = "烧杯中有水，酒精灯放在三脚架下方。"
+        frozen = material_contract({"stem": stem}, question_ref="q_water", frozen=True)
+        material = {"visual_role": "supplemental", "entities": [{"id": "beaker", "name": "烧杯",
+            "source_ref": "stem", "source_quote": "烧杯中有水"}], "facts": [
+            {"id": "water", "entity_id": "beaker", "type": "scalar", "predicate": "fill",
+             "value": .5, "unit": "height_fraction", "display_policy": "depict_only",
+             "source_ref": "stem", "source_quote": "烧杯中有水"}]}
+        brief = VisualBriefV2(visual_role="supplemental", purpose="水存在的定性示意",
+            needs=[{"need_id": "water", "name": "烧杯", "entity_ids": ["beaker"], "fact_bindings": ["water"]}])
+        contract, _ = accept_declaration(json.dumps({"material": material, "brief": brief.model_dump(mode="json")}), frozen, "required")
+        self.assertEqual(contract.facts[0].type, "state")
+        self.assertEqual(contract.facts[0].predicate, "liquid_present")
+        self.assertIs(contract.facts[0].value, True)
+        self.assertEqual(contract.facts[0].display_policy, "explicit")
+        for quote in ("烧杯内有水，液面占高度的0.8", "烧杯内有半杯水"):
+            numeric_question = material_contract({"stem": quote}, question_ref="q_numeric_water", frozen=True)
+            numeric_material = copy.deepcopy(material)
+            numeric_material["entities"][0]["source_quote"] = quote
+            numeric_material["facts"][0]["source_quote"] = quote
+            with self.assertRaises(IllustrationError):
+                accept_declaration(json.dumps({"material": numeric_material, "brief": brief.model_dump(mode="json")}), numeric_question, "required")
+        frozen.presentation_constraints.to_scale = True
+        with self.assertRaises(IllustrationError):
+            accept_declaration(json.dumps({"material": material, "brief": brief.model_dump(mode="json")}), frozen, "required")
+        frozen.presentation_constraints.to_scale = False
+        partially_bound = frozen.model_copy(deep=True)
+        partially_bound.facts = [fact.model_copy(update={"entity_id": ""}) for fact in contract.facts]
+        partially_bound.contract_hash = ""
+        partially_bound = QuestionMaterialContract.model_validate(partially_bound.model_dump(mode="json"))
+        original_facts = copy.deepcopy(partially_bound.facts)
+        with self.assertRaises(IllustrationError):
+            accept_declaration(json.dumps({"material": {"visual_role": "supplemental", "entities": [], "facts": []},
+                "brief": brief.model_dump(mode="json")}), partially_bound, "required")
+        self.assertEqual(partially_bound.facts, original_facts)
+        material["required_relations"] = [{"id": "bad_direction", "type": "ordered_left_to_right",
+            "from_entity": "beaker", "to_entity": "beaker", "source_ref": "stem",
+            "source_quote": "酒精灯放在三脚架下方"}]
+        with self.assertRaises(IllustrationError) as failure:
+            accept_declaration(json.dumps({"material": material, "brief": brief.model_dump(mode="json")}), frozen, "required")
+        self.assertEqual(failure.exception.target, "bad_direction:type")
+        self.assertEqual(canonical_function_expression("y=x²"), "x**2")
+        guide = capability_guide("甲、乙、丙分别收集10、20、15份问卷。")
+        self.assertIn("柱状图", [row["name"] for row in guide["relevant_materials"]])
+
+    def test_composition_schema_mistake_recovers_with_same_authorized_bundle(self):
+        contract, brief, _, scene = cases()["horizontal_block"]
+        bad = scene.model_dump(mode="json")
+        bad["asset_instances"][0]["entity_map"]["block"] = "foreign_entity"
+        review = {"status": "passed"}
+        llm = QueueLLM(brief.model_dump(mode="json"), bad, scene.model_dump(mode="json"), review, review)
+        result = asyncio.run(orchestrator.workflow(llm, contract, "required"))
+        self.assertEqual(result["status"], "ready")
+        self.assertEqual(result["metrics"]["generation_calls"], 5)
+        payload = json.loads(llm.requests[2]["messages"][1]["content"])
+        self.assertEqual(payload["repair_feedback"]["code"], "scene_asset_not_authorized")
+        self.assertEqual(payload["visual_contract"], json.loads(llm.requests[1]["messages"][1]["content"])["visual_contract"])
+
+    def test_joint_repair_stays_in_same_request_and_cosmetic_warnings_pass(self):
+        contract, brief, _, scene = cases()["horizontal_block"]
+        visual = {"status": "passed"}
+        private = "synthetic_gold_feedback_secret"
+        joint = {"status": "failed", "issues": [
+            {"code": "label_layout", "target": "main", "repairable": True,
+                "description": private, "suggested_operation": private},
+            {"code": private, "target": private, "repairable": True, "description": private}]}
+        patch_data = {"action": "patch", "base_scene_hash": digest(scene.model_dump(mode="json")),
+            "operations": [{"op": "move_instance", "instance_id": "main", "x": 32, "y": 16}]}
+        warning = {"status": "failed", "issues": [{"code": "extra_whitespace", "target": "canvas", "severity": "warning"}]}
+        llm = QueueLLM(brief.model_dump(mode="json"), scene.model_dump(mode="json"), visual, joint,
+            patch_data, warning, visual)
+        result = asyncio.run(orchestrator.workflow(llm, contract, "required"))
+        self.assertEqual(result["status"], "ready")
+        self.assertEqual(result["metrics"]["generation_calls"], 7)
+        self.assertEqual(result["reviews"]["visual"]["status"], "passed")
+        self.assertIn("warning_only_failed_status_normalized", result["reviews"]["visual"]["rationale_codes"])
+        content = llm.requests[4]["messages"][1]["content"]
+        self.assertNotIn(private, json.dumps(content))
+        feedback = json.loads(content[0]["text"])["issues"]
+        self.assertEqual(feedback[0]["target"], "main")
+        self.assertEqual(feedback[1]["target"], "canvas")
+        self.assertEqual(feedback[1]["code"], "scientific_mismatch")
+
+    def test_invalid_persisted_contract_is_not_reported_as_provider_failure(self):
+        contract, _, _, _ = cases()["horizontal_block"]
+        job = orchestrator._new_job(contract, "required")
+        job["owner_epoch"] = persistence.epoch("usr_invalid_contract")
+        job["contract"]["entities"][0]["source_quote"] = "不存在的引用"
+        llm = QueueLLM()
+        asyncio.run(orchestrator._run("usr_invalid_contract", job, llm))
+        self.assertEqual(job["failure"]["code"], "invalid_contract")
+        self.assertFalse(llm.requests)
+
+    def test_point_names_use_actual_ink_clearance_inside_hollow_figures(self):
+        from app.illustration.contracts import Annotation
+        contract, brief, bundle, scene = cases()["circumcircle"]
+        contract.public_question.stem += "圆心O。"
+        contract.required_marks = ["O"]
+        scene.annotations = [Annotation(annotation_id="center", text="O",
+            target={"instance": "main:circle", "local_point": [80, 80]}, placement="near_point")]
+        compiled = compile_scene(scene, contract=contract, brief=brief, bundle=bundle)
+        label = compiled.source.layout_report.bounds["center"]
+        circle = compiled.source.layout_report.bounds["main:circle"]
+        self.assertLess(abs(label[0]-circle[0]-circle[2]/2), 40)
+        self.assertLess(abs(label[1]-circle[1]-circle[3]/2), 40)
+        self.assertNotIn('stroke-dasharray', compiled.illustration.svg)
+        self.assertTrue(preview.render(compiled.illustration).startswith(b"\x89PNG"))
+
+    def test_recipe_label_resolves_only_the_unique_fact_owner(self):
+        from app.illustration.contracts import Annotation
+        contract, brief, bundle, scene = cases()["thermal"]
+        scene.annotations = [Annotation(annotation_id="reading", text="45",
+            target={"instance": "main", "region": "body"}, fact_refs=["f_reading"])]
+        compiled = compile_scene(scene, contract=contract, brief=brief, bundle=bundle)
+        self.assertEqual(compiled.source.scene.annotations[0].target.instance, "main:thermometer")
+        scene.annotations[0].fact_refs = []
+        valid = cases()["thermal"][3]
+        review = {"status": "passed"}
+        llm = QueueLLM(brief.model_dump(mode="json"), scene.model_dump(mode="json"),
+            valid.model_dump(mode="json"), review, review)
+        result = asyncio.run(orchestrator.workflow(llm, contract, "required"))
+        self.assertEqual(result["status"], "ready")
+        self.assertEqual(result["metrics"]["illustration_repairs"], 1)
+        self.assertEqual(result["metrics"]["generation_calls"], 5)
+
+        invalid = copy.deepcopy(valid)
+        invalid.asset_instances[0].entity_map["invalid_registered_child"] = invalid.asset_instances[0].entity_map.pop("thermometer")
+        invalid.annotations = [Annotation(annotation_id="reading", text="45",
+            target={"instance": "main", "region": "body"}, fact_refs=["f_reading"])]
+        with self.assertRaises(IllustrationError) as failure:
+            composition.validate_scene(invalid, contract, brief, bundle)
+        self.assertEqual(failure.exception.code, "scene_schema_invalid")
+        llm = QueueLLM(brief.model_dump(mode="json"), invalid.model_dump(mode="json"),
+            valid.model_dump(mode="json"), review, review)
+        result = asyncio.run(orchestrator.workflow(llm, contract, "required"))
+        self.assertEqual(result["status"], "ready")
+        self.assertEqual(result["metrics"]["generation_calls"], 5)
+
+    def test_review_resolves_recipe_scale_from_actual_child_parameters(self):
+        from app.illustration.review import review
+        contract, brief, bundle, scene = cases()["buoyancy"]
+        compiled = compile_scene(scene, contract=contract, brief=brief, bundle=bundle)
+        llm = QueueLLM({"status": "passed", "verified_facts": ["f_reading", "f_maximum"]})
+        asyncio.run(review(llm, contract, compiled, preview.render(compiled.illustration)))
+        payload = json.loads(llm.requests[0]["messages"][1]["content"][0]["text"])
+        calibration = payload["calibration_instances"]["main"]["children"]["dynamometer"]
+        self.assertEqual(calibration["range"], [0, 5])
+        self.assertEqual(calibration["smallest_division"], .5)
+        self.assertEqual(calibration["numbered_interval"], 1)
 
     def test_image_unsupported_never_publishes(self):
         contract, brief, _, scene = cases()["horizontal_block"]

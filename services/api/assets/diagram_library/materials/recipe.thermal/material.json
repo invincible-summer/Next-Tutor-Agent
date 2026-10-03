@@ -9,7 +9,71 @@
   "kind": "recipe",
   "renderer": "registered_v2_recipe",
   "preview_only": true,
+  "interface": {
+    "schema_version": "1.0.0",
+    "parameters": {
+      "fill": {
+        "type": "number",
+        "minimum": 0,
+        "maximum": 1,
+        "default": 0.7,
+        "condition_bearing": true,
+        "non_quantitative_allowed": true,
+        "affects_geometry": true,
+        "unit": "height_fraction",
+        "role": "quantity",
+        "fact_types": [
+          "scalar"
+        ],
+        "default_rule": "fact",
+        "derived_from": [],
+        "qualitative_state": "liquid_present"
+      },
+      "reading": {
+        "type": "number",
+        "minimum": -20,
+        "maximum": 80,
+        "default": 25,
+        "condition_bearing": true,
+        "non_quantitative_allowed": false,
+        "affects_geometry": true,
+        "unit": "°C",
+        "role": "quantity",
+        "fact_types": [
+          "scalar"
+        ],
+        "default_rule": "fact",
+        "derived_from": []
+      },
+      "scale_labels": {
+        "type": "boolean",
+        "default": true,
+        "condition_bearing": true,
+        "non_quantitative_allowed": true,
+        "affects_geometry": true,
+        "unit": "",
+        "canonical_value": true,
+        "role": "display",
+        "fact_types": [
+          "state"
+        ],
+        "default_rule": "derived",
+        "derived_from": [
+          [
+            "reading"
+          ]
+        ]
+      }
+    },
+    "layout": {
+      "origin": "top_left",
+      "uniform_scale": true,
+      "annotations": "measured_outside_placement",
+      "relations": "declared_ports_only",
+      "rotation_allowed": false
+    }
+  },
   "svg_file": "asset.svg",
   "guidance_file": "usage_guide.json",
-  "svg_hash": "sha256:aa011d7ba107bd292749e63be10474edb00d50a7daaf2ee2a32ba33bf85a971c"
+  "svg_hash": "sha256:e8ff069824156d8fe3b5bb0c589f0847966f896ba4fe4f0608b34da07cadce8a"
 }

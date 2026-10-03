@@ -29,8 +29,8 @@ def recipe_svg(aid):
             "unit": parameters[key].get("unit", ""), "source_ref": "blueprint", "display_policy": "explicit"})
     roles = [role for role, *_ in recipe.children]
     contract = QuestionMaterialContract(question_ref="material_preview", visual_role="essential",
-        public_question={"stem": "完整配方外观预览：" + "；".join(recipe.aliases)},
-        entities=[{"id": role, "name": role} for role in roles], facts=facts)
+        public_question={"stem": "完整配方外观预览：" + "；".join([*recipe.aliases, *roles])},
+        entities=[{"id": role, "name": role, "source_ref": "stem", "source_quote": role} for role in roles], facts=facts)
     brief = VisualBriefV2(visual_role="essential", purpose="素材预览，样例参数不是题目事实",
         needs=[{"need_id": "preview", "name": recipe.title, "entity_ids": roles,
             "fact_bindings": [fact["id"] for fact in facts]}])
@@ -49,7 +49,8 @@ def main():
     from app.core.quiz_illustration import normalize_svg
     from app.diagrams.catalog import catalog
     from app.diagrams.guidance import GUIDE_DIR
-    from app.diagrams.semantics import RECIPES
+    from app.diagrams.semantics import RECIPES, asset_card
+    from app.diagrams.interface import material_interface
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--check", action="store_true")
     args = parser.parse_args()
@@ -74,7 +75,8 @@ def main():
         else:
             asset = catalog()[1][aid]
             svg = normalize_svg(asset.draw(preview=True).svg(), components=True).svg
-        metadata = {**row, "svg_file": "asset.svg", "guidance_file": "usage_guide.json",
+        card = asset_card(aid) if aid != "material.static" else {"parameters": {}, "rotation_allowed": False}
+        metadata = {**row, "interface": material_interface(card["parameters"], rotation_allowed=card["rotation_allowed"]), "svg_file": "asset.svg", "guidance_file": "usage_guide.json",
             "svg_hash": "sha256:"+hashlib.sha256(svg.encode()).hexdigest()}
         contents = {"asset.svg": svg + "\n", "material.json": json.dumps(metadata, ensure_ascii=False, indent=2)+"\n"}
         if not (directory / "usage_guide.json").exists():

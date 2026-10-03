@@ -12,10 +12,10 @@
 - **联网**：否（只读本仓库渲染器源码，不下载、不调用模型）。
 - **真实 LLM 费用**：无。
 - **输入**：仓库内项目自绘渲染器代码（synthetic，无外部素材）。
-- **输出**：全部为 tracked 生成物，允许且必须入库；生成文件头注明来源脚本，禁止手改。
+- **输出**：SVG、元数据与目录为 tracked 生成物，允许且必须入库，须通过生成器重建。`usage_guide.json` 是每份素材独立维护的短提示词源码；生成器仅在缺少它时创建空指南，保留已有内容，修改提示文字须更新指南版本。
 - **推荐调用位置**：改动 `app/diagrams/` 任何渲染器后本地手工运行重建；CI 由 `scripts/repo/check_documentation.py --check-generated` 调用 `build_catalog.py --check` 守护目录与源一致。
 - **对应文档**：[docs/architecture/diagrams-illustration.md](../../docs/architecture/diagrams-illustration.md)、验收记录 [docs/validation/diagram-library.md](../../docs/validation/diagram-library.md)。
 
 ## 审核 ledger（review.json）
 
-`assets/diagram_library/review.json` 按素材记录审核状态与 `source_hash`；`source_hash` 绑定渲染器源码与本目录生成脚本。任何渲染器字节变化都会使全部素材审核转为 pending——此时需按 [docs/validation/diagram-library.md](../../docs/validation/diagram-library.md) 的流程用 `apps/web/scripts/check-diagram-library.mjs` 全量 Chromium 重渲染验证后重绑 ledger，再运行 `build_catalog.py` 重建。
+`assets/diagram_library/review.json` 按素材记录审核状态与 `source_hash`；`source_hash` 绑定渲染器源码与本目录生成脚本。源码变化会使依赖该来源的素材审核过期；按 [docs/validation/diagram-library.md](../../docs/validation/diagram-library.md) 重渲染检查默认图和参数边界，审阅变化的实图，复核未变化图与已有审查证据一致后重绑 ledger，再运行 `build_catalog.py` 重建。只调整指南不改变 SVG 时无需重绑绘制来源。

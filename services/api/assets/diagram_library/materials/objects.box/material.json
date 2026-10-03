@@ -66,7 +66,28 @@
         },
         "unchanged_actual_svg": true,
         "review_note": "Both re-rendered SVGs are byte-identical to reviewed baseline; prior visual evidence preserved."
+      },
+      "current_source_review": {
+        "directory": "/tmp/next-tutor-instruments-all-assets-review",
+        "baseline": "/tmp/next-tutor-universal-all-assets-final",
+        "unchanged_actual_svg": true,
+        "svg_hashes": {
+          "objects.box.svg": "sha256:a5a4bbf8bfd20603fd9dd9f0eb8bac2b346eed795197f9d804e1d9e319b4f5cf",
+          "objects.box-monochrome.svg": "sha256:bee9abf3d8c79ad8f9a36bda390df2bc32399b1cece06d649dba50780792a114"
+        },
+        "visual_review": "/tmp/next-tutor-universal-all-assets-final"
       }
+    }
+  },
+  "interface": {
+    "schema_version": "1.0.0",
+    "parameters": {},
+    "layout": {
+      "origin": "top_left",
+      "uniform_scale": true,
+      "annotations": "measured_outside_placement",
+      "relations": "declared_ports_only",
+      "rotation_allowed": true
     }
   },
   "svg_file": "asset.svg",

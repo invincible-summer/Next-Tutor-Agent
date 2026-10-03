@@ -36,6 +36,18 @@ class CatInstance:
     grade: str = "本科"
     subject: str = ""
     illustration_request: str = "auto"
+    illustration_mode: str = "v1"
+    generation_hint: str = ""
+    # closed_loop questions contribute observations to the learner model;
+    # temporary questions are only for this run.  A workspace-less run is
+    # always normalized to temporary by the API layer.
+    evaluation_mode: str = "closed_loop"
+    grounding_required: bool = False
+    grounding_mode: str = "generic"
+    grounding_tier: str = "not_found"
+    grounding_query: str = ""
+    grounding_sources: list[dict[str, Any]] = field(default_factory=list)
+    temporary_results: dict[str, dict[str, Any]] = field(default_factory=dict)
     count_limit: int = 1
     difficulty: int = 2
     status: str = STATUS_ACTIVE
@@ -56,6 +68,15 @@ class CatInstance:
             "concept": self.concept,
             "grade": self.grade, "subject": self.subject,
             "illustration_request": self.illustration_request,
+            "illustration_mode": self.illustration_mode,
+            "generation_hint": self.generation_hint,
+            "evaluation_mode": self.evaluation_mode,
+            "grounding_required": self.grounding_required,
+            "grounding_mode": self.grounding_mode,
+            "grounding_tier": self.grounding_tier,
+            "grounding_query": self.grounding_query,
+            "grounding_sources": [dict(s) for s in self.grounding_sources],
+            "temporary_results": {str(k): dict(v) for k, v in self.temporary_results.items()},
             "count_limit": self.count_limit, "difficulty": self.difficulty,
             "status": self.status, "stop_reason": self.stop_reason,
             "stop_code": self.stop_code,
@@ -77,6 +98,22 @@ class CatInstance:
             grade=str(d.get("grade") or "本科"),
             subject=str(d.get("subject") or ""),
             illustration_request=str(d.get("illustration_request") or "auto"),
+            illustration_mode=str(d.get("illustration_mode") or "v1"),
+            generation_hint=str(d.get("generation_hint") or "")[:1200],
+            # Legacy workspace-less instances are normalized to temporary as
+            # well, preserving the invariant that free generation never writes
+            # into the evaluation loop.
+            evaluation_mode=("temporary" if not str(d.get("workspace_id") or "")
+                             or str(d.get("evaluation_mode") or "") == "temporary"
+                             else "closed_loop"),
+            grounding_required=bool(d.get("grounding_required", False)),
+            grounding_mode=str(d.get("grounding_mode") or "generic"),
+            grounding_tier=str(d.get("grounding_tier") or "not_found"),
+            grounding_query=str(d.get("grounding_query") or "")[:600],
+            grounding_sources=[dict(s) for s in (d.get("grounding_sources") or [])
+                               if isinstance(s, dict)][:8],
+            temporary_results={str(k): dict(v) for k, v in (d.get("temporary_results") or {}).items()
+                               if isinstance(v, dict)},
             count_limit=int(d.get("count_limit") or 1),
             difficulty=int(d.get("difficulty") or 2),
             status=str(d.get("status") or STATUS_ACTIVE),
@@ -223,12 +260,14 @@ def report(state: JournalState, assessment_id: str) -> dict[str, Any] | None:
         return None
     items: list[dict[str, Any]] = []
     for qref in instance.question_refs:
+        found_source = False
         for src in state.sources.values():
             ref = src.receipt.task_ref
             if ref is None or ref.question_id != qref.question_id:
                 continue
             if src.receipt.assessment_id != assessment_id:
                 continue
+            found_source = True
             interp_id = src.current_interpretation_id
             meta = src.interpretations.get(interp_id, {}) if interp_id else {}
             raw_interp = meta.get("raw_interpretation") or {}
@@ -244,6 +283,18 @@ def report(state: JournalState, assessment_id: str) -> dict[str, Any] | None:
                 "evaluation_status": _evaluation_status(state, src),
                 "feedback": (raw_interp.get("feedback") or "")
                 if isinstance(raw_interp, dict) else "",
+            })
+        if not found_source and instance.evaluation_mode == "temporary":
+            task = state.tasks.get(qref.question_id, {}).get(qref.question_revision)
+            items.append({
+                "question_id": qref.question_id,
+                "question_revision": qref.question_revision,
+                "question": task.public_view().model_dump(mode="json") if task else None,
+                "attempt_id": "",
+                "observed_at": instance.created_at,
+                "task_result": instance.temporary_results.get(qref.question_id),
+                "evaluation_status": "skipped",
+                "feedback": "",
             })
     graded = [i for i in items
               if (i["task_result"] or {}).get("verdict") is not None]
@@ -265,5 +316,6 @@ def report(state: JournalState, assessment_id: str) -> dict[str, Any] | None:
         "pending": len(items) - len(graded),
         "counts": counts,
         "difficulty": instance.difficulty,
+        "evaluation_mode": instance.evaluation_mode,
         "items": items,
     }

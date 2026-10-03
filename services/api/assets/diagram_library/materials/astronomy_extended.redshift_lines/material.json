@@ -9,7 +9,7 @@
     "光谱",
     "波长"
   ],
-  "version": 1,
+  "version": 2,
   "features": [],
   "sample_params": {},
   "license": "original-project-artwork",
@@ -31,10 +31,17 @@
     "creation_method": "ai_assisted_vector_code",
     "source_module": "app/diagrams/curriculum_expansion.py",
     "source_symbol": "draw:redshift_lines",
-    "source_hash": "sha256:c307134be2636a4c48f9a1e04ccd8e37be37b192d82343589930df3a95ba3340",
+    "source_hash": "sha256:52096eab1c1b342f38606bd7520a52132a7dbd44630a0dbf7980387ec0513107",
     "external_graphics": [],
     "derived_from": [],
-    "knowledge_references": [],
+    "knowledge_references": [
+      {
+        "url": "https://science.nasa.gov/mission/webb/science-overview/science-explainers/spectroscopy-101-beyond-temperature-and-composition/",
+        "purpose": "红移拉伸波长，线性波长轴不可等量平移；仅核对事实，未使用外部图形",
+        "checked_at": "2026-10-03",
+        "type": "fact_only"
+      }
+    ],
     "statement": "项目独立编写矢量路径；通用符号与知识事实不代表独占造型。"
   },
   "review": {
@@ -44,7 +51,7 @@
     "visual": "passed",
     "reviewer_type": "agent",
     "reviewed_at": "2026-10-03",
-    "source_hash": "sha256:c307134be2636a4c48f9a1e04ccd8e37be37b192d82343589930df3a95ba3340",
+    "source_hash": "sha256:52096eab1c1b342f38606bd7520a52132a7dbd44630a0dbf7980387ec0513107",
     "evidence": {
       "profiles": [
         "textbook",
@@ -53,18 +60,59 @@
       "preview_rendered": true,
       "parameter_boundary_checked": true,
       "parameter_cases": 2,
-      "sheet_review": "/tmp/next-tutor-expansion-scoped-final",
-      "correction_review": "/tmp/next-tutor-expansion-corrections",
+      "sheet_review": "/tmp/next-tutor-redshift-audit",
+      "correction_review": "/tmp/next-tutor-redshift-audit",
       "svg_hashes": {
-        "textbook": "sha256:65fc43af1804ec85d1cc93661d4c8f69cb1f8db24472d59316f083aeb68a05d7",
-        "monochrome": "sha256:4ef2de7181c210a3e0cf4a4d2ad953b3fa70f59684c2c41986f4affcf3e827b1"
+        "textbook": "sha256:498144d42e088e40371e8d5510006a34dfe7ccf321fe8ba0cc29df72a5bfa448",
+        "monochrome": "sha256:848168a39c972544af1000add678fe0fa6f72f369657ca3a3bdf49ab6f7ba988"
       },
-      "review_note": "All 12 large paired sheets and both correction sheets inspected. Closed-pipe ends, electrode/ion directions, daylight, membrane layers, actual numeric controls checked. Final XML matches selected evidence.",
-      "revalidation": "/tmp/diagram-rebind",
-      "revalidation_note": "Phase D scripts unification: generator moved to scripts/diagrams/build_catalog.py (renderer sources unchanged); full Chromium re-render of all 1119 assets in both profiles clean (bounds=0, textIssues=0, rejected=0)."
+      "review_note": "Version 2 on linear wavelength axis: all wavelengths stretch by one factor; no equal additive shifts. Default and both endpoints individually inspected in color and monochrome; no physical scale inferred from pixels.",
+      "revalidation": "/tmp/next-tutor-envelope-audit",
+      "revalidation_note": "62 default/endpoint cases in both styles passed bounds/text checks. All default SVGs match previous evidence; 122/124 SVGs unchanged. Two mode=3 endpoint SVGs plus intermediate mode=2 inspected individually in both styles; envelopes are +/- absolute amplitude, not signed snapshots.",
+      "view_metadata_revalidation": {
+        "directory": "/tmp/next-tutor-views-all-scoped",
+        "unchanged_svg_count": 124,
+        "note": "Defaults and valid endpoints in both styles are byte-identical to inspected envelope audit; only declared coordinate view metadata changed."
+      },
+      "current_source_review": {
+        "directory": "/tmp/next-tutor-instruments-all-assets-review",
+        "baseline": "/tmp/next-tutor-universal-all-assets-final",
+        "unchanged_actual_svg": true,
+        "svg_hashes": {
+          "astronomy_extended.redshift_lines.svg": "sha256:498144d42e088e40371e8d5510006a34dfe7ccf321fe8ba0cc29df72a5bfa448",
+          "astronomy_extended.redshift_lines-monochrome.svg": "sha256:848168a39c972544af1000add678fe0fa6f72f369657ca3a3bdf49ab6f7ba988"
+        },
+        "visual_review": "/tmp/next-tutor-universal-all-assets-final"
+      }
+    }
+  },
+  "interface": {
+    "schema_version": "1.0.0",
+    "parameters": {
+      "shift": {
+        "type": "number",
+        "default": 35,
+        "minimum": 0,
+        "maximum": 60,
+        "unit": "diagram_px",
+        "non_quantitative_allowed": true,
+        "condition_bearing": true,
+        "affects_geometry": true,
+        "role": "schematic",
+        "fact_types": [],
+        "default_rule": "schematic",
+        "derived_from": []
+      }
+    },
+    "layout": {
+      "origin": "top_left",
+      "uniform_scale": true,
+      "annotations": "measured_outside_placement",
+      "relations": "declared_ports_only",
+      "rotation_allowed": true
     }
   },
   "svg_file": "asset.svg",
   "guidance_file": "usage_guide.json",
-  "svg_hash": "sha256:335960e400293b77e9b087860be270b51c643c1e864e0726de6659fd6d2d2929"
+  "svg_hash": "sha256:982cd890bd55b1a777aae07edc43b4929e71186d285208df253aad38d0765c50"
 }

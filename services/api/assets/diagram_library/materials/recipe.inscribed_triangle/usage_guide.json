@@ -1,9 +1,9 @@
 {
-  "version": "1.0.3",
+  "version": "1.2.0",
   "hints": {
-    "authoring": "内置构造仅适用于正三角形内接圆，配方声明circle、triangle两个实体及inside关系。题文明示性质不再设depict_only事实。",
-    "compose": "使用同一构造，entity_id为空、entity_map完整绑定circle和triangle。未按比例时严格fact_bindings={}、non_quantitative=[\"radius\"]，params.radius可留默认。题文cm半径不能绑定该diagram_px参数。relations=[]复用内接关系，不加辅助线、圆心、半径线或答案。",
-    "requirements": "圆内接三角形完整配方覆盖circle和triangle，用geometry_construction即可，不加static_illustration。"
+    "authoring": "圆与正三角形同一构造联动；示意半径使用diagram_px，不能用cm驱动像素。无半径线、圆心或解题辅助线。",
+    "compose": "圆与正三角形同一构造联动；示意半径使用diagram_px，不能用cm驱动像素。无半径线、圆心或解题辅助线。",
+    "requirements": "圆与正三角形同一构造联动；示意半径使用diagram_px，不能用cm驱动像素。无半径线、圆心或解题辅助线。"
   },
   "match_terms": [
     "正三角形内接",

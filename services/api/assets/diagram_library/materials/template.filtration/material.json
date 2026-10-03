@@ -5,7 +5,7 @@
   "category": "chemistry",
   "renderer": "template",
   "variant": "filtration",
-  "version": 1,
+  "version": 2,
   "aliases": [],
   "features": [],
   "sample_params": {},
@@ -28,7 +28,7 @@
     "creation_method": "ai_assisted_vector_code",
     "source_module": "app/diagrams/templates.py",
     "source_symbol": "template:filtration",
-    "source_hash": "sha256:201c7d25b25794d04d593f5d7c2f4c2a665d7da667cb690a728387ed7b61c9b8",
+    "source_hash": "sha256:bfe0c0b3902b240dc2b2ccc764f4b77ecec7a3bc41f60fe2bf708eccf0be0616",
     "external_graphics": [],
     "derived_from": [
       "apparatus.stand",
@@ -45,7 +45,7 @@
     "visual": "passed",
     "reviewer_type": "agent",
     "reviewed_at": "2026-10-03",
-    "source_hash": "sha256:201c7d25b25794d04d593f5d7c2f4c2a665d7da667cb690a728387ed7b61c9b8",
+    "source_hash": "sha256:bfe0c0b3902b240dc2b2ccc764f4b77ecec7a3bc41f60fe2bf708eccf0be0616",
     "evidence": {
       "profiles": [
         "textbook",
@@ -69,11 +69,50 @@
         },
         "unchanged_actual_svg": true,
         "review_note": "Both re-rendered SVGs are byte-identical to reviewed baseline; prior visual evidence preserved."
+      },
+      "current_source_review": {
+        "directory": "/tmp/next-tutor-instruments-all-assets-review",
+        "baseline": "/tmp/next-tutor-universal-all-assets-final",
+        "unchanged_actual_svg": false,
+        "svg_hashes": {
+          "template.filtration.svg": "sha256:321cf02d1dfd2eba6dce6fd9867d7c2dae099ad51f9bec82475cef191c0a273b",
+          "template.filtration-monochrome.svg": "sha256:454a628f8787984f30fa1d7aec42649a00ff716ff400b90af5b944b0362189df"
+        },
+        "visual_review": "/tmp/next-tutor-instruments-visual-review"
       }
     },
     "notes": "全目录双风格重新渲染无越界/文字碰撞，与前轮逐SVG字节核对仅墙体变化；墙体接触面双风格实图已审阅。"
   },
+  "interface": {
+    "schema_version": "1.0.0",
+    "parameters": {
+      "fill": {
+        "type": "number",
+        "minimum": 0,
+        "maximum": 1,
+        "default": 0,
+        "condition_bearing": true,
+        "non_quantitative_allowed": true,
+        "affects_geometry": true,
+        "unit": "height_fraction",
+        "role": "quantity",
+        "fact_types": [
+          "scalar"
+        ],
+        "default_rule": "fact",
+        "derived_from": [],
+        "qualitative_state": "liquid_present"
+      }
+    },
+    "layout": {
+      "origin": "top_left",
+      "uniform_scale": true,
+      "annotations": "measured_outside_placement",
+      "relations": "declared_ports_only",
+      "rotation_allowed": false
+    }
+  },
   "svg_file": "asset.svg",
   "guidance_file": "usage_guide.json",
-  "svg_hash": "sha256:74f73aa4f088b6bf42e916a7a488a84c31519935e92ef2d81e2bf2171c18d57c"
+  "svg_hash": "sha256:e33faf2285d10f26e2cd0ef35df02ddeedf688e4e20ab610345eecc8909d4776"
 }

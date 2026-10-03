@@ -12,8 +12,8 @@ from .catalog import catalog, digest
 from .drawing import Drawing
 from .schema import DiagramError
 
-METADATA_VERSION = "2.0.0"
-V2_RENDERER_VERSION = "2.0.0"
+METADATA_VERSION = "2.1.0"
+V2_RENDERER_VERSION = "2.4.0"
 
 # Explicitly registered, no family-wide promise of scientific validation.
 COMPONENTS = {
@@ -129,9 +129,10 @@ QUALITATIVE = {"fill", "radius", "length", "show_scale", "scale_labels", "show_t
     "x_range", "y_range", "x_label", "y_label", "show_angle", "show_values", "construction"}
 
 
-def parameter_semantics(asset_id: str) -> dict:
+def parameter_semantics(asset_id: str, version=None) -> dict:
     if asset_id.startswith("material."):
-        return {}
+        from .materials import detail, current_owner
+        return detail(current_owner(), asset_id.removeprefix("material."), version, enabled_only=True).get("interface", {}).get("parameters", {})
     if asset_id not in COMPONENTS and asset_id not in RECIPES:
         from .adapters import parameter_semantics as adapt
         return adapt(asset_id)
@@ -154,7 +155,8 @@ def parameter_semantics(asset_id: str) -> dict:
                     "V" if key == "reading" and "voltmeter" in asset_id else
                     "°C" if key == "reading" and "thermometer" in asset_id else
                     "height_fraction" if key == "fill" else "diagram_px" if key in {"radius", "length"} else ""}
-    return out
+    from .interface import parameter_contract
+    return parameter_contract(out)
 
 
 @dataclass
@@ -242,8 +244,6 @@ def instantiate_asset(asset_id: str, version: int, params: dict, *, monochrome=F
         regions["dial"] = {"bounds": [36, 35, 88, 74], "occlusion": "never_cover"}
     elif asset_id == "apparatus.thermometer":
         drawing.text("°C", 80, 10, size=11)
-        for i in range(10):
-            drawing.line(88, 112-i*8, 92, 112-i*8, width=.8)
         regions["dial"] = {"bounds": [64, 14, 44, 130], "occlusion": "never_cover"}
         regions["bulb"] = {"bounds": [68, 120, 24, 24], "occlusion": "forbidden"}
     if asset.renderer == "vessel":
@@ -275,17 +275,23 @@ def instantiate_asset(asset_id: str, version: int, params: dict, *, monochrome=F
     parts = {"body": drawing.parts}
     if asset.renderer == "vessel" and asset.variant in {"beaker", "tall_beaker"}:
         back_count = 3 if resolved.get("fill", 0) else 1
-        parts = {"background": drawing.parts[:back_count], "front": drawing.parts[back_count:]}
+        highlights = [part for part in drawing.parts[back_count:]
+            if part.tag.rsplit("}", 1)[-1] == "line" and part.get("stroke") == "#fff"]
+        parts = {"background": drawing.parts[:back_count]+highlights,
+            "front": [part for part in drawing.parts[back_count:] if part not in highlights]}
     if asset_id == "apparatus.thermometer":
+        # The scale must remain in front of container rims and liquid strokes.
+        # Its small opaque backing keeps surrounding apparatus from looking
+        # like additional graduations, without changing the calibrated marks.
+        drawing.parts[2].set("stroke-linecap", "butt")
+        plate = Drawing(monochrome=monochrome)
+        plate.rect(87, 31, 46, 91, fill="#fff", color="#fff", width=0)
+        drawing.parts[3:3] = plate.parts
         labels = [part for part in drawing.parts if part.tag.rsplit("}", 1)[-1] == "text"]
         label_art = Drawing(monochrome=monochrome)
         for label in labels:
-            width = len(label.text or "")*7+4
-            x, y = float(label.get("x")), float(label.get("y"))
-            left = x-width/2 if label.get("text-anchor") == "middle" else x-2
-            label_art.rect(left, y-12, width, 14, fill="#fff", color="#fff", width=0)
             label_art.parts.append(label)
-        parts = {"body": [part for part in drawing.parts if part not in labels], "labels": label_art.parts}
+        parts = {"front": [part for part in drawing.parts if part not in labels], "labels": label_art.parts}
     marks = [e.text for p in drawing.parts for e in p.iter() if e.text]
     return InstanceGeometry(asset_id, version, drawing, resolved, COMPONENTS[asset_id][0],
         ports, regions, parts, marks, drawing.facts)
@@ -308,7 +314,30 @@ def capabilities(asset_id: str) -> set[str]:
 
 def asset_card(asset_id: str) -> dict:
     from .guidance import for_asset
-    return {**_asset_card(asset_id), "usage_guidance": for_asset(asset_id)}
+    from .interface import material_interface
+    card = _asset_card(asset_id)
+    if card.get("semantic_type") == "measurement" and {"reading", "maximum"} <= set(card["parameters"]):
+        card["calibration"] = {"minimum": 0, "maximum_parameter": "maximum", "division_count": 10,
+            "numbered_every": 2, "unit": card["parameters"]["reading"].get("unit", "")}
+    return {**card, "interface": {key: value for key, value in material_interface(
+        card["parameters"], rotation_allowed=card["rotation_allowed"]).items() if key != "parameters"},
+        "usage_guidance": for_asset(asset_id)}
+
+
+def resolved_calibration(card, params):
+    """Resolve declared scale rules, without interpreting or exposing a reading."""
+    result = dict(card.get("calibration") or {})
+    key = result.get("maximum_parameter")
+    maximum = params.get(key, result.get("maximum"))
+    if maximum is not None and "division_count" in result:
+        result.update(range=[result["minimum"], maximum],
+            smallest_division=(maximum-result["minimum"])/result["division_count"],
+            numbered_interval=(maximum-result["minimum"])/result["division_count"]*result["numbered_every"])
+    if card.get("children"):
+        result["children"] = {child["child_id"]: resolved_calibration(asset_card(child["asset_id"]),
+            {key: params[parent] for parent, (role, key) in card["parameter_bindings"].items()
+                if role == child["child_id"] and parent in params}) for child in card["children"]}
+    return result
 
 
 def _asset_card(asset_id: str) -> dict:
@@ -325,8 +354,8 @@ def _asset_card(asset_id: str) -> dict:
             "kind": "recipe", "capabilities": sorted(capabilities(asset_id)), "semantic_type": "apparatus",
             "supported_views": ["front_orthographic", "top_orthographic"] if asset_id == "recipe.inscribed_triangle" else ["front_orthographic"], "style_family": "textbook_line",
             "parameters": parameter_semantics(asset_id),
-            "calibration": {"thermometer": {"range": [-20, 80], "unit": "°C", "smallest_division": 5}}
-                if asset_id == "recipe.thermal" else {},
+            "calibration": {role: child["calibration"] for (role, *_), child in zip(recipe.children, children)
+                if child.get("calibration")},
             "parameter_bindings": {key: list(value) for key, value in recipe.bindings.items()},
             "children": [{"child_id": role, "asset_id": child, "version": catalog()[1][child].version,
                 "layout": {"x": x, "y": y, "scale": scale},
@@ -346,7 +375,8 @@ def _asset_card(asset_id: str) -> dict:
         "supported_views": ["coordinate_plane"] if asset.renderer == "function" else
             ["front_orthographic", "top_orthographic"] if sample.domain == "geometry" else ["front_orthographic"],
         "style_family": "textbook_line", "parameters": parameter_semantics(asset_id),
-        "calibration": {"range": [-20, 80], "unit": "°C", "smallest_division": 5}
+        "calibration": {"range": [-20, 80], "minimum": -20, "maximum": 80, "unit": "°C",
+            "smallest_division": 5, "division_count": 20, "numbered_every": 4}
             if asset_id == "apparatus.thermometer" else {},
         "nominal_geometry": {"size": [sample.drawing.width, sample.drawing.height],
             "ports": sample.ports, "regions": sample.regions},
@@ -361,7 +391,8 @@ def semantic_hash() -> str:
     from pathlib import Path
     from .guidance import GUIDE_DIR
     return digest({str(path.relative_to(Path(__file__).resolve().parents[2])): path.read_text("utf-8") for path in
-        [Path(__file__), Path(__file__).with_name("adapters.py"), Path(__file__).with_name("guidance.py"),
+        [Path(__file__), Path(__file__).with_name("adapters.py"), Path(__file__).with_name("interface.py"),
+         Path(__file__).with_name("svg_bindings.py"), Path(__file__).with_name("guidance.py"),
          *sorted(GUIDE_DIR.glob("*/usage_guide.json"))]})
 
 

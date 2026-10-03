@@ -9,6 +9,7 @@ from app.core.quiz_illustration import QuestionIllustration, _hash, normalize_sv
 from .catalog import RENDERER_VERSION, catalog, digest
 from .drawing import Drawing, NS, num
 from .schema import DiagramError, DiagramSource, SceneSpec
+from .legacy_layout import wire_networks, wire_route
 
 
 @dataclass
@@ -25,13 +26,16 @@ def compile_scene(raw, *, allowed_assets: set[str] | None = None) -> CompiledDia
         raise DiagramError("diagram_invalid_scene") from exc
     version, library = catalog()
     drawing = Drawing(scene.width, scene.height, scene.profile == "monochrome")
+    annotations = Drawing(scene.width, scene.height, drawing.monochrome)
+    layers = {key: [] for key in ("background", "body", "front", "labels")}
     def label(text, x, y, size=18, anchor="middle"):
         width = len(text)*size
         left = x-(width/2 if anchor == "middle" else width if anchor == "end" else 0)
         if left < 4 or left+width > scene.width-4 or not size+2 <= y <= scene.height-8:
             raise DiagramError("diagram_label_out_of_bounds")
-        drawing.text(text, x, y, size=size, anchor=anchor)
-    anchors, versions, facts = {}, {}, []
+        annotations.text(text, x, y, size=size, anchor=anchor)
+    anchors, versions, facts, protected, bodies, port_kinds = {}, {}, [], [], {}, {}
+    from .semantics import instantiate_asset
     for node in scene.nodes:
         if allowed_assets is not None and node.asset_id not in allowed_assets:
             raise DiagramError("diagram_asset_not_retrieved")
@@ -43,7 +47,8 @@ def compile_scene(raw, *, allowed_assets: set[str] | None = None) -> CompiledDia
         if node.rotation and not asset.card()["rotation_allowed"]:
             raise DiagramError("diagram_rotation_not_allowed")
         try:
-            part = asset.draw(node.params, monochrome=drawing.monochrome)
+            geometry = instantiate_asset(node.asset_id, node.version, node.params, monochrome=drawing.monochrome)
+            part = geometry.drawing
         except DiagramError:
             raise
         except (ValueError, TypeError, KeyError, IndexError, OverflowError, ZeroDivisionError) as exc:
@@ -60,10 +65,28 @@ def compile_scene(raw, *, allowed_assets: set[str] | None = None) -> CompiledDia
             px, py = point(x, y)
             if not 4 <= px <= scene.width-4 or not 4 <= py <= scene.height-4:
                 raise DiagramError("diagram_component_out_of_bounds")
-        group = drawing.element("g", transform=(f"translate({num(node.x)} {num(node.y)}) "
-            f"scale({num(node.scale)}) rotate({num(node.rotation)} {num(cx)} {num(cy)})"))
-        group.extend(part.parts)
+        transform = (f"translate({num(node.x)} {num(node.y)}) "
+                     f"scale({num(node.scale)}) rotate({num(node.rotation)} {num(cx)} {num(cy)})")
+        for name, parts in geometry.parts.items():
+            group = drawing.element("g", transform=transform)
+            drawing.parts.remove(group)
+            group.extend(parts)
+            layer = name if name in {"background", "front", "labels"} else "body"
+            layers[layer].append((node.id, group))
         anchors[node.id] = {key: point(*xy) for key, xy in part.anchors.items()}
+        anchors[node.id].update({key: point(*value["point"]) for key, value in geometry.ports.items()})
+        if any(connection.kind == "wire" for connection in scene.connections):
+            port_kinds[node.id] = {key: value["kind"] for key, value in geometry.ports.items()}
+            for name, region in geometry.regions.items():
+                if region.get("occlusion") not in {"never_cover", "forbidden"} or name != "body" and region.get("occlusion") != "never_cover":
+                    continue
+                x, y, w, h = region["bounds"]
+                corners = [point(px, py) for px, py in ((x, y), (x+w, y), (x+w, y+h), (x, y+h))]
+                left, top = min(p[0] for p in corners), min(p[1] for p in corners)
+                bounds = [left, top, max(p[0] for p in corners)-left, max(p[1] for p in corners)-top]
+                protected.append({"node": node.id, "region": name, "bounds": bounds})
+                if name == "body":
+                    bodies[node.id] = bounds
         if node.label:
             px, py = point(cx, part.height)
             if py+22 > scene.height-4:
@@ -72,7 +95,12 @@ def compile_scene(raw, *, allowed_assets: set[str] | None = None) -> CompiledDia
         versions[asset.id] = asset.version
         facts.append({"node": node.id, "asset_id": asset.id, "parameters": asset.parameters(node.params),
                       "computed": part.facts})
+    networks = wire_networks([row.model_dump(mode="json") for row in scene.connections])
+    occupied = []
     for connection in scene.connections:
+        if connection.kind == "wire" and any(port_kinds.get(endpoint.node, {}).get(endpoint.anchor) != "wire"
+                for endpoint in (connection.start, connection.end)):
+            raise DiagramError("diagram_anchor_missing")
         try:
             start = anchors[connection.start.node][connection.start.anchor]
             end = anchors[connection.end.node][connection.end.anchor]
@@ -82,7 +110,15 @@ def compile_scene(raw, *, allowed_assets: set[str] | None = None) -> CompiledDia
             raise DiagramError("diagram_empty_connection")
         color = drawing.blue if connection.kind == "tube" else drawing.ink
         width = 3 if connection.kind in {"rope", "tube"} else 2
-        if connection.route == "orthogonal":
+        if connection.kind == "wire":
+            points = wire_route(start, end, route=connection.route, blockers=protected,
+                width=scene.width, height=scene.height,
+                endpoint_bodies=[(connection.start.node, bodies[connection.start.node]),
+                                 (connection.end.node, bodies[connection.end.node])],
+                occupied=occupied, network=networks[(connection.start.node, connection.start.anchor)])
+            occupied.append({"network": networks[(connection.start.node, connection.start.anchor)], "points": points})
+            drawing.poly(points, color=color, width=width)
+        elif connection.route == "orthogonal":
             middle = (start[0]+end[0])/2
             points = [start, (middle, start[1]), (middle, end[1]), end]
             drawing.poly(points, color=color, width=width)
@@ -98,6 +134,29 @@ def compile_scene(raw, *, allowed_assets: set[str] | None = None) -> CompiledDia
         # Reserve room for the text at the selected anchor, rather than
         # permitting baseline coordinates right on the page border.
         label(item.text, item.x, item.y, anchor=item.anchor)
+    # Actual material part layers keep container fills behind their contents.
+    # A target is painted before its dependant, so its rim cannot erase the
+    # foreground marks of a contained measuring part, regardless of node order.
+    dependencies = {}
+    for relation in scene.layout_relations:
+        dependencies.setdefault(relation.source.node, []).append(relation.target.node)
+    ordered, visited, active = [], set(), set()
+    def visit(node):
+        if node in visited or node in active:
+            return
+        active.add(node)
+        for target in dependencies.get(node, []):
+            visit(target)
+        active.remove(node)
+        visited.add(node)
+        ordered.append(node)
+    for node in scene.nodes:
+        visit(node.id)
+    order = {node: index for index, node in enumerate(ordered)}
+    def painted(name):
+        return [part for _, part in sorted(layers[name], key=lambda row: order[row[0]])]
+    drawing.parts = [*painted("background"), *painted("body"), *drawing.parts,
+                     *painted("front"), *painted("labels"), *annotations.parts]
     normalized = normalize_svg(drawing.svg(), alt=scene.alt, caption=scene.caption, components=True)
     illustration = QuestionIllustration(kind="svg", schema_version=2, sanitizer_version=3,
         svg=normalized.svg, alt=scene.alt, caption=scene.caption,
@@ -112,7 +171,9 @@ def preview_asset(asset_id: str, params: dict | None = None, profile="textbook")
     asset = catalog()[1].get(asset_id)
     if asset is None:
         raise DiagramError("diagram_asset_missing")
-    part = asset.draw(params, preview=True, monochrome=profile == "monochrome")
+    from .semantics import instantiate_asset
+    part = instantiate_asset(asset_id, asset.version, {**asset.sample_params, **(params or {})},
+                             monochrome=profile == "monochrome").drawing
     if part.width <= 200 and part.height <= 200:
         sheet = Drawing(320, 320, part.monochrome)
         sheet.add(part, 16, 16, 1.8)

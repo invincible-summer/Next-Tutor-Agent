@@ -1,8 +1,8 @@
 {
-  "version": "1.0.1",
+  "version": "1.2.0",
   "hints": {
-    "authoring": "柱状图一个整体实体，values数字数组、labels文本数组作为data事实；标签来自题干。只有原数据，不创建平均值事实。",
-    "requirements": "优先题目数据柱状图，capabilities用data_binding即可。",
-    "compose": "values和labels分别绑定对应数组。show_values=false不绑定；chart子实例有自带类目标签，不重复annotations。"
+    "authoring": "柱状图的类目标签与数据一一对应；不自动显示平均值或其他统计结论。",
+    "requirements": "柱状图的类目标签与数据一一对应；不自动显示平均值或其他统计结论。",
+    "compose": "柱状图的类目标签与数据一一对应；不自动显示平均值或其他统计结论。"
   }
 }

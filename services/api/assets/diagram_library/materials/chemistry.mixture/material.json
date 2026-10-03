@@ -65,7 +65,45 @@
         },
         "unchanged_actual_svg": true,
         "review_note": "Both re-rendered SVGs are byte-identical to reviewed baseline; prior visual evidence preserved."
+      },
+      "current_source_review": {
+        "directory": "/tmp/next-tutor-instruments-all-assets-review",
+        "baseline": "/tmp/next-tutor-universal-all-assets-final",
+        "unchanged_actual_svg": true,
+        "svg_hashes": {
+          "chemistry.mixture.svg": "sha256:bcdbfd5e838bef43e321b980491ceef89e7ec06f7c03aff49f4266a15a30d5ed",
+          "chemistry.mixture-monochrome.svg": "sha256:39f0507ee69551f695ad15ec111688ac2fb68058e71b06120bfcbbb9d969dc4c"
+        },
+        "visual_review": "/tmp/next-tutor-universal-all-assets-final"
       }
+    }
+  },
+  "interface": {
+    "schema_version": "1.0.0",
+    "parameters": {
+      "count": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 16,
+        "default": 12,
+        "condition_bearing": true,
+        "non_quantitative_allowed": false,
+        "affects_geometry": true,
+        "unit": "",
+        "role": "quantity",
+        "fact_types": [
+          "scalar"
+        ],
+        "default_rule": "fact",
+        "derived_from": []
+      }
+    },
+    "layout": {
+      "origin": "top_left",
+      "uniform_scale": true,
+      "annotations": "measured_outside_placement",
+      "relations": "declared_ports_only",
+      "rotation_allowed": false
     }
   },
   "svg_file": "asset.svg",

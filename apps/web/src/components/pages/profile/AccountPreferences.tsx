@@ -38,15 +38,16 @@ export function AccountPreferences({ tr, section, onDirtyChange }: { tr: Tr; sec
   const [delError, setDelError] = useState<string | null>(null);
   // OCR 并行偏好开关
   const [ocrBusy, setOcrBusy] = useState(false);
+  const [illustrationModeBusy, setIllustrationModeBusy] = useState(false);
   // 朗读语速偏好（语音通话 TTS）：拖动是本地草稿，抬手才提交。
   const [speedDraft, setSpeedDraft] = useState<number | null>(null);
   const [speedBusy, setSpeedBusy] = useState(false);
   const [speedFailed, setSpeedFailed] = useState(false);
 
   useEffect(() => {
-    onDirtyChange?.(speedDraft !== null || speedBusy || ocrBusy || delBusy);
+    onDirtyChange?.(speedDraft !== null || speedBusy || ocrBusy || illustrationModeBusy || delBusy);
     return () => onDirtyChange?.(false);
-  }, [speedDraft, speedBusy, ocrBusy, delBusy, onDirtyChange]);
+  }, [speedDraft, speedBusy, ocrBusy, illustrationModeBusy, delBusy, onDirtyChange]);
 
   if (!user) return null;
   const p = user.profile;
@@ -55,6 +56,7 @@ export function AccountPreferences({ tr, section, onDirtyChange }: { tr: Tr; sec
   const canDelete = delPwd.length > 0 && delPhrase === phrase && !delBusy;
   // 未显式设置时与后端实例默认（PDF_OCR_CONCURRENCY>1）一致：视为开。
   const ocrParallel = p.prefs?.ocr_parallel ?? true;
+  const illustrationMode = p.prefs?.quiz_illustration_mode === "v2" ? "v2" : "v1";
   // 未显式设置时与后端实例默认（VOICE_TTS_SPEED=0.9）一致：视为 0.9。
   const ttsSpeed = speedDraft ?? p.prefs?.tts_speed ?? 0.9;
 
@@ -90,6 +92,20 @@ export function AccountPreferences({ tr, section, onDirtyChange }: { tr: Tr; sec
       notify(tr("account.ocrParallel.failed"), "error");
     } finally {
       setOcrBusy(false);
+    }
+  };
+
+  const changeIllustrationMode = async (next: "v1" | "v2") => {
+    if (next === illustrationMode) return;
+    setIllustrationModeBusy(true);
+    try {
+      const profile = await updateUserProfile({ prefs: { quiz_illustration_mode: next } });
+      useAuthStore.setState((state) => state.user?.id === user.id ? { user: { ...state.user, profile } } : {});
+      notify(tr("account.saved"));
+    } catch {
+      notify(tr("account.illustrationMode.failed"), "error");
+    } finally {
+      setIllustrationModeBusy(false);
     }
   };
 
@@ -147,6 +163,22 @@ export function AccountPreferences({ tr, section, onDirtyChange }: { tr: Tr; sec
             )}
           />
         </button>
+      </div>
+
+      <div className="mt-4 flex items-center justify-between gap-4">
+        <div className="min-w-0">
+          <div className="flex items-center gap-2 text-xs font-medium text-fg">
+            {tr("account.illustrationMode")}{help(tr("account.illustrationMode"), tr("account.illustrationMode.desc"))}
+          </div>
+          <p className="mt-1 text-xs leading-5 text-muted">{tr("account.illustrationMode.desc")}</p>
+        </div>
+        <select className="h-8 shrink-0 rounded-md border border-border bg-surface px-2 text-xs text-fg"
+          aria-label={tr("account.illustrationMode")} value={illustrationMode}
+          disabled={illustrationModeBusy || ocrBusy || speedBusy}
+          onChange={(event) => void changeIllustrationMode(event.target.value as "v1" | "v2")}>
+          <option value="v1">V1 · {tr("account.illustrationMode.v1")}</option>
+          <option value="v2">V2 · {tr("account.illustrationMode.v2")}</option>
+        </select>
       </div>
 
 </>}

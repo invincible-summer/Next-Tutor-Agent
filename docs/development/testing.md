@@ -9,6 +9,8 @@
 python3 -m tests tests.diagrams.test_diagram_library tests.illustration.test_quiz_illustration tests.illustration.test_quiz_illustration_enrichment
 # v2 语义装配、真实浏览器 PNG、发布门和鉴权任务生命周期：
 python3 -m tests tests.illustration.test_illustration_v2 tests.illustration.test_illustration_jobs
+# 全库适配、科学模型与素材子提示词：
+python3 -m tests tests.diagrams.test_diagram_adapters tests.diagrams.test_diagram_expansion tests.diagrams.test_diagram_guidance
 ```
 
 这些测试使用合成材料、fake LLM 和临时存储，v2 的测量与 PNG 仍调用实际 Node/Chromium，不需要真实模型凭证。新增素材必须生成目录与库存、检查两种风格；加入 v2 还须覆盖真实参数、动态端口/区域、事实绑定和科学关系，不能只验证 XML 可解析。
@@ -32,15 +34,21 @@ E2E 运行机制（效率与端口）：
 
 ```bash
 python3 scripts/acceptance/illustration/live.py --live-llm \
-  --cases heating,reading,buoyancy,series,geometry,bar,thermal,function,spring,filtration \
   --output /tmp/illustration-v2-round-1
+# 对读数、角度、模态和概率等使用另一组数值：
+python3 scripts/acceptance/illustration/live.py --live-llm --variation 1 \
+  --output /tmp/illustration-v2-round-2
 ```
 
 脚本只在这次验收进程中启用 `v2` 与 `active` 审核，以真实 provider 调用合成题目；运行根为自动清理的 `TemporaryDirectory`。输出目录必须位于仓库外，包含每次调用的答案通道 JSON、场景 SVG、最终与中间实际 PNG 和 `report.json`，不保存原始推理或凭证。
 
+默认依次运行 24 类情境：原有 14 类装置/读数/几何/学科题，加气柱驻波、水合壳、上升流、DNA 复制、谱线红移、单位圆、条件概率、电桥、膜分离和水培循环。`--cases` 可选择单轮范围；学科扩充采用高中语境，示意像素不作为物理条件。调整模型或素材后，先复验失败场景，再复跑其余场景和另一组数值。
+
 多轮复验使用不同输出目录保留每轮材料。逐张检查题意、仪器读数及单位、支撑/连接/浸没关系、遮挡、文字可读性和答案/量规一致性；检查必要图题具备完整、已审核材料，补充图没有增加条件，失败时没有交付半成品。报告的 `passed` 表示该轮产生了通过当前生成审核门的题目，仍须结合截图和题目内容确认效果；脚本不启动产品前后端，题目注册、任务权限和历史恢复另由 API 与浏览器回归验证。
 
-既有 `pnpm test:e2e:live-llm` 仍验证兼容 CAT 的即时 `ready` 响应与三次调用预算，不能作为 v2 异步 job/轮询协议的验收替代。普通 CI 保持 keyless，只运行 fake provider 与离线浏览器；真实模型测试需显式本地执行。
+冻结文字题补图使用 `python3 scripts/acceptance/illustration/cat.py --live-llm --mode both --output /tmp/cat-illustration-review`；`--variation 1` 改变科学数值与数据，`--cases` 限定合成情景。V1 启用实际 PNG 语义审查，V2 从空合同提取材料并走真实 Chromium/PNG 双审，能力门读取底层配置，全部存储隔离；任何失败返回非零退出码。不会生成新题或写生产评价数据。通用布局规则的离线回归为 `tests.diagrams.test_legacy_layout`，不能用某张图返回 ready 代替不同素材的空间关系和参数绑定检查。
+
+既有 `pnpm test:e2e:live-llm` 验证兼容 CAT 的即时 `ready` 响应与正常三次调用流程，不能作为 V2 异步 job/轮询协议的验收替代。普通 CI 保持 keyless，只运行 fake provider 与离线浏览器；真实模型测试需显式本地执行。前端 unit 覆盖请求时限、同题单请求、服务器已完成后的恢复、换号及迟到结果，见 `tests/unit/test-illustration-enrichment.mjs`。
 
 ## 执行分层
 

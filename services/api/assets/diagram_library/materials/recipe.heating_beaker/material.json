@@ -9,7 +9,50 @@
   "kind": "recipe",
   "renderer": "registered_v2_recipe",
   "preview_only": true,
+  "interface": {
+    "schema_version": "1.0.0",
+    "parameters": {
+      "fill": {
+        "type": "number",
+        "minimum": 0,
+        "maximum": 1,
+        "default": 0,
+        "condition_bearing": true,
+        "non_quantitative_allowed": true,
+        "affects_geometry": true,
+        "unit": "height_fraction",
+        "role": "quantity",
+        "fact_types": [
+          "scalar"
+        ],
+        "default_rule": "fact",
+        "derived_from": [],
+        "qualitative_state": "liquid_present"
+      },
+      "lit": {
+        "type": "boolean",
+        "default": false,
+        "condition_bearing": true,
+        "non_quantitative_allowed": false,
+        "affects_geometry": true,
+        "unit": "",
+        "role": "state",
+        "fact_types": [
+          "state"
+        ],
+        "default_rule": "fact",
+        "derived_from": []
+      }
+    },
+    "layout": {
+      "origin": "top_left",
+      "uniform_scale": true,
+      "annotations": "measured_outside_placement",
+      "relations": "declared_ports_only",
+      "rotation_allowed": false
+    }
+  },
   "svg_file": "asset.svg",
   "guidance_file": "usage_guide.json",
-  "svg_hash": "sha256:6f7c4bee64e53bcad46653eaa330218956bc5fd6391727ab1d146cd12fa792f9"
+  "svg_hash": "sha256:2b235685e0ac0ede6ad651ae27412aa92c392ee98ec15bc7dbcf968316f3f7e5"
 }

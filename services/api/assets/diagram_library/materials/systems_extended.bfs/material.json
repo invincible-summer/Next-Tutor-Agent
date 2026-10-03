@@ -65,7 +65,7 @@
     "creation_method": "ai_assisted_vector_code",
     "source_module": "app/diagrams/extended_systems.py",
     "source_symbol": "draw:bfs",
-    "source_hash": "sha256:9d6de66cfc07490923aa04d3a0860415981de185bd5baa2a912bbee8b8e4adf2",
+    "source_hash": "sha256:bcf8f653362ede27d3604a0696ede2403cd13be693f1c0cc02d336a457fc5f49",
     "external_graphics": [],
     "derived_from": [],
     "knowledge_references": [],
@@ -78,7 +78,7 @@
     "visual": "passed",
     "reviewer_type": "agent",
     "reviewed_at": "2026-10-03",
-    "source_hash": "sha256:9d6de66cfc07490923aa04d3a0860415981de185bd5baa2a912bbee8b8e4adf2",
+    "source_hash": "sha256:bcf8f653362ede27d3604a0696ede2403cd13be693f1c0cc02d336a457fc5f49",
     "evidence": {
       "profiles": [
         "textbook",
@@ -102,9 +102,76 @@
         "review_note": "Both re-rendered SVGs are byte-identical to reviewed baseline; prior visual evidence preserved."
       },
       "revalidation": "/tmp/diagram-rebind",
-      "revalidation_note": "Phase D scripts unification: generator moved to scripts/diagrams/build_catalog.py (renderer sources unchanged); full Chromium re-render of all 1119 assets in both profiles clean (bounds=0, textIssues=0, rejected=0)."
+      "revalidation_note": "Phase D scripts unification: generator moved to scripts/diagrams/build_catalog.py (renderer sources unchanged); full Chromium re-render of all 1119 assets in both profiles clean (bounds=0, textIssues=0, rejected=0).",
+      "current_source_review": {
+        "directory": "/tmp/next-tutor-instruments-all-assets-review",
+        "baseline": "/tmp/next-tutor-universal-all-assets-final",
+        "unchanged_actual_svg": true,
+        "svg_hashes": {
+          "systems_extended.bfs.svg": "sha256:2077360a345c2bbc847e130520c1e278e75d08a17f75304a4f9c886d36027677",
+          "systems_extended.bfs-monochrome.svg": "sha256:2929e649a8b7e6325f6ed783de6704b9b42ad19e1a1c3926f680b98ac8dbe74f"
+        },
+        "visual_review": "/tmp/next-tutor-universal-all-assets-final"
+      }
     },
     "notes": "全目录双风格重新渲染无越界/文字碰撞，与前轮逐SVG字节核对仅墙体变化；墙体接触面双风格实图已审阅。"
+  },
+  "interface": {
+    "schema_version": "1.0.0",
+    "parameters": {
+      "items": {
+        "type": "list",
+        "required": true,
+        "condition_bearing": true,
+        "non_quantitative_allowed": false,
+        "affects_geometry": true,
+        "unit": "",
+        "role": "data",
+        "fact_types": [
+          "data",
+          "label"
+        ],
+        "default_rule": "fact",
+        "derived_from": []
+      },
+      "edges": {
+        "type": "list",
+        "required": true,
+        "condition_bearing": true,
+        "non_quantitative_allowed": false,
+        "affects_geometry": true,
+        "unit": "",
+        "role": "data",
+        "fact_types": [
+          "data"
+        ],
+        "default_rule": "fact",
+        "derived_from": []
+      },
+      "start": {
+        "type": "integer",
+        "default": 0,
+        "minimum": 0,
+        "maximum": 7,
+        "condition_bearing": true,
+        "non_quantitative_allowed": false,
+        "affects_geometry": true,
+        "unit": "",
+        "role": "quantity",
+        "fact_types": [
+          "scalar"
+        ],
+        "default_rule": "fact",
+        "derived_from": []
+      }
+    },
+    "layout": {
+      "origin": "top_left",
+      "uniform_scale": true,
+      "annotations": "measured_outside_placement",
+      "relations": "declared_ports_only",
+      "rotation_allowed": false
+    }
   },
   "svg_file": "asset.svg",
   "guidance_file": "usage_guide.json",

@@ -10,7 +10,7 @@ import { Pager } from "@/components/ui/Pager";
 import { useAuthStore } from "@/lib/auth-store";
 import { useUIStore } from "@/lib/store";
 import { deleteMaterial, generateMaterial, getMaterial, listMaterials, materialTemplates, previewMaterial, saveMaterial,
-  type DiagramMaterial, type MaterialScope, type MaterialSource, type MaterialTemplate } from "@/lib/api-diagram-materials";
+  STATIC_PARAMETERIZATION, type MaterialParameterization, type DiagramMaterial, type MaterialScope, type MaterialSource, type MaterialTemplate } from "@/lib/api-diagram-materials";
 import type { QuestionIllustrationData } from "@/lib/types";
 
 const SUBJECT_LABELS: Record<string, [string, string]> = {
@@ -97,6 +97,10 @@ function MaterialEditor({ material, scope: initialScope, admin, onClose, onSaved
   const [enabled, setEnabled] = useState(material?.enabled ?? false);
   const [source, setSource] = useState<MaterialSource>(material?.source ?? "manual");
   const [svg, setSvg] = useState(material?.svg ?? '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 400"><rect x="220" y="140" width="200" height="120" fill="none" stroke="#26364a" stroke-width="2"/></svg>');
+  const [parameterJson, setParameterJson] = useState(JSON.stringify(material?.parameterization ?? STATIC_PARAMETERIZATION, null, 2));
+  const [previewParams, setPreviewParams] = useState<Record<string, string | number>>({});
+  const [validatedParameters, setValidatedParameters] = useState(parameterJson);
+  const [validatedPreviewParams, setValidatedPreviewParams] = useState("{}");
   const [validated, setValidated] = useState(material?.svg ?? "");
   const [image, setImage] = useState(material?.illustration ?? null);
   const [templates, setTemplates] = useState<MaterialTemplate[]>([]);
@@ -125,9 +129,20 @@ function MaterialEditor({ material, scope: initialScope, admin, onClose, onSaved
     catch { return []; }
   }, [svg]);
   const element = elements[selected];
-  const accept = useCallback((result: { svg: string; illustration: QuestionIllustrationData }) => {
+  const accept = useCallback((result: { svg: string; illustration: QuestionIllustrationData; parameterization?: MaterialParameterization }, values: Record<string, string | number> = {}) => {
     setSvg(result.svg); setValidated(result.svg); setImage(result.illustration);
+    const source = JSON.stringify(result.parameterization ?? STATIC_PARAMETERIZATION, null, 2);
+    setParameterJson(source); setValidatedParameters(source);
+    setPreviewParams(values); setValidatedPreviewParams(JSON.stringify(values));
   }, []);
+  function parameterization(): MaterialParameterization {
+    try { return JSON.parse(parameterJson) as MaterialParameterization; }
+    catch { throw new Error("material_parameterization_invalid"); }
+  }
+  const controls = useMemo(() => {
+    try { return Object.entries((JSON.parse(parameterJson) as MaterialParameterization).parameters ?? {}); }
+    catch { return []; }
+  }, [parameterJson]);
   async function run(action: string, operation: () => Promise<void>) {
     if (busy) return;
     setBusy(action); setError("");
@@ -174,10 +189,10 @@ function MaterialEditor({ material, scope: initialScope, admin, onClose, onSaved
     : error === "material_svg_file_invalid" ? text("请选择不超过 128 KiB 的 SVG 文件。", "Choose an SVG file up to 128 KiB.")
     : error ? text("操作未完成，请检查 SVG、坐标及输入后重试。", "Could not complete the operation. Check the SVG, coordinates and inputs, then retry.") : "";
   return <Modal open onClose={onClose} width={1180} title={<div className="flex justify-between items-center"><span>{material ? canEdit ? text("编辑素材", "Edit material") : text("查看素材", "View material") : text("新增素材", "New material")}</span><Button variant="ghost" aria-label={text("关闭", "Close")} icon={<X size={16} />} onClick={onClose} /></div>}
-    footer={<><span role="status" className="mr-auto text-xs text-muted">{busy ? text("处理中…", "Working…") : svg !== validated ? text("修改后尚未预览", "Changes need a preview") : text("预览已更新", "Preview updated")}</span>
-      <Button variant="outline" disabled={!!busy} onClick={() => void run("preview", async () => { const result = await previewMaterial(svg, controller.current?.signal); if (!controller.current?.signal.aborted) accept(result); })}>{text("检查并预览", "Check and preview")}</Button>
+    footer={<><span role="status" className="mr-auto text-xs text-muted">{busy ? text("处理中…", "Working…") : svg !== validated || parameterJson !== validatedParameters || JSON.stringify(previewParams) !== validatedPreviewParams ? text("修改后尚未预览", "Changes need a preview") : text("预览已更新", "Preview updated")}</span>
+      <Button variant="outline" disabled={!!busy} onClick={() => void run("preview", async () => { const result = await previewMaterial(svg, controller.current?.signal, parameterization(), previewParams); if (!controller.current?.signal.aborted) accept(result, previewParams); })}>{text("检查并预览", "Check and preview")}</Button>
       {canEdit && <Button demoWrite disabled={!!busy || !title.trim() || conflict} onClick={() => void run("save", async () => {
-        await saveMaterial({ title, description, subject, guidance_note: guidanceNote, aliases: aliases.split(/[,，]/).map(v => v.trim()).filter(Boolean), scope, enabled, source, svg, ...(material ? { base_revision: revision } : {}) }, material?.id, controller.current?.signal);
+        await saveMaterial({ title, description, subject, guidance_note: guidanceNote, aliases: aliases.split(/[,，]/).map(v => v.trim()).filter(Boolean), scope, enabled, source, svg, parameterization: parameterization(), ...(material ? { base_revision: revision } : {}) }, material?.id, controller.current?.signal);
         if (!controller.current?.signal.aborted) onSaved();
       })}>{text("保存素材", "Save material")}</Button>}</>}>
     <div className="space-y-4" data-testid="material-editor">
@@ -194,7 +209,7 @@ function MaterialEditor({ material, scope: initialScope, admin, onClose, onSaved
       </fieldset>
       <fieldset disabled={!!busy || !canEdit} className="space-y-3 rounded-xl border border-border bg-bg p-4">
         <div className="flex flex-wrap items-center gap-2"><select aria-label={text("设计模板", "Design template")} className={`${FIELD_CLS} max-w-64`} value="" onChange={e => {
-          const template = templates.find(v => v.id === e.target.value); if (template) { setSvg(template.svg); setSubject(template.subject); setSource("manual"); setSelected(0); }
+          const template = templates.find(v => v.id === e.target.value); if (template) { setSvg(template.svg); setParameterJson(JSON.stringify(template.parameterization, null, 2)); setPreviewParams({}); setSubject(template.subject); setSource("manual"); setSelected(0); }
         }}><option value="">{text("选择设计模板和样例", "Choose a template or example")}</option>{templates.map(v => <option key={v.id} value={v.id}>{v.title}</option>)}</select>
           <Button variant="outline" icon={<Upload size={14} />} onClick={() => fileInput.current?.click()}>{text("上传 SVG", "Upload SVG")}</Button>
           <input ref={fileInput} type="file" accept=".svg,image/svg+xml" className="hidden" aria-label={text("SVG 文件", "SVG file")} onChange={e => { void upload(e.target.files?.[0]); e.target.value = ""; }} />
@@ -202,7 +217,7 @@ function MaterialEditor({ material, scope: initialScope, admin, onClose, onSaved
         <div className="flex items-start gap-3"><Textarea aria-label={text("AI 设计要求", "AI design request")} rows={2} maxLength={2400} value={requirement} onChange={e => setRequirement(e.target.value)} placeholder={text("描述对象、位置、文字和科学关系，例如：两步流程，左边光照，右边光合作用…", "Describe objects, positions, labels and relations…")} className="flex-1" />
           <Button demoWrite disabled={requirement.trim().length < 3} icon={<Sparkles size={15} />} onClick={() => void run("generate", async () => {
             // Current edits must pass the same sanitizer before model input.
-            const result = await generateMaterial(requirement, svg, controller.current?.signal);
+            const result = await generateMaterial(requirement, svg, controller.current?.signal, parameterization());
             if (!controller.current?.signal.aborted) { accept(result); setSource("llm"); }
           })}>{text("生成 / 修改草稿", "Generate / revise draft")}</Button></div>
         <p className="text-xs text-muted">{text("AI 草稿可继续编辑，保存前请检查科学含义。生成不会自动发布或启用。", "AI drafts remain editable. Check their meaning before saving. Generation does not publish or enable them.")}</p>
@@ -210,13 +225,26 @@ function MaterialEditor({ material, scope: initialScope, admin, onClose, onSaved
       <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-4">
         <div className="min-w-0 space-y-3"><div className="h-[330px] rounded-xl border border-border bg-white" data-testid="material-preview" onDragOver={e => e.preventDefault()} onDrop={e => { e.preventDefault(); if (canEdit && !busy) void upload(e.dataTransfer.files[0]); }}>
           {image ? <Art image={image} /> : <p className="p-8 text-sm text-slate-500">{text("检查后显示安全预览；也可拖入 SVG 文件。", "Check the draft to preview it, or drop an SVG file here.")}</p>}</div>
-          <p className="text-xs text-muted">{svg !== validated ? text("当前显示上一次校验预览。点击“检查并预览”查看修改。", "Showing the last checked preview. Check again to see edits.") : text("白色画布与实际题图一致。", "The white canvas matches question rendering.")}</p>
+          <p className="text-xs text-muted">{svg !== validated || parameterJson !== validatedParameters || JSON.stringify(previewParams) !== validatedPreviewParams ? text("当前显示上一次校验预览。点击“检查并预览”查看修改。", "Showing the last checked preview. Check again to see edits.") : text("白色画布与实际题图一致。", "The white canvas matches question rendering.")}</p>
           <details className="text-xs leading-6 text-muted"><summary className="cursor-pointer">{text("设计说明与样例", "Design guide and examples")}</summary><ul className="list-disc pl-5">{guide.map(v => <li key={v}>{v}</li>)}</ul><p>{templates.find(v => v.subject === subject)?.description}</p></details>
         </div>
         <fieldset disabled={!!busy || !canEdit} className="min-w-0 space-y-3">
           <div className="flex flex-wrap gap-2">{[["rect", "矩形", "Rectangle"], ["circle", "圆", "Circle"], ["line", "直线", "Line"], ["text", "文字", "Text"]].map(([tag, zh, eng]) => <Button key={tag} size="sm" variant="outline" onClick={() => add(tag)}>{text(zh, eng)}</Button>)}</div>
           <Field label={text("选中图元", "Select element")}><select aria-label={text("选中图元", "Select element")} className={FIELD_CLS} value={selected} onChange={e => setSelected(Number(e.target.value))}>{elements.map((v, i) => <option key={i} value={i}>{i+1}. {v.tag} {v.attrs.id ?? v.content.slice(0, 20)}</option>)}</select></Field>
           {element && <div className="grid grid-cols-3 gap-2">{[...ATTRIBUTES[element.tag], "fill", "stroke", ...(element.tag === "text" ? ["text"] : [])].map(key => <Field label={key} key={key}><Input aria-label={`element ${key}`} value={key === "text" ? element.content : element.attrs[key] ?? ""} onChange={e => modify(key, e.target.value)} /></Field>)}</div>}
+          <details open={controls.length > 0} className="space-y-3 text-sm" data-testid="material-parameters">
+            <summary className="cursor-pointer text-fg">{text("可调参数与文字", "Adjustable parameters and text")}</summary>
+            <p className="text-xs text-muted">{text("模板会提供参数规范。修改预览值后检查效果；保存的是规范与默认值，出题时按题面条件调整。", "Templates include controls. Check preview values; questions supply their own facts. Saving preserves the specification and defaults.")}</p>
+            <div className="grid grid-cols-2 gap-2">{controls.map(([key, spec]) => <Field key={key} label={spec.description || key}>
+              <Input aria-label={`preview parameter ${key}`} type={spec.type === "number" || spec.type === "integer" ? "number" : "text"}
+                min={spec.minimum} max={spec.maximum} step={spec.type === "integer" ? 1 : "any"}
+                value={previewParams[key] ?? spec.default} onChange={e => setPreviewParams(v => ({ ...v,
+                  [key]: spec.type === "number" || spec.type === "integer" ? Number(e.target.value) : e.target.value }))} />
+            </Field>)}</div>
+            <Field label={text("参数规范 JSON", "Parameter specification JSON")}><Textarea aria-label={text("参数规范 JSON", "Parameter specification JSON")}
+              rows={8} spellCheck={false} className="font-mono text-xs" value={parameterJson} maxLength={20000}
+              onChange={e => { setParameterJson(e.target.value); setPreviewParams({}); setSource("manual"); }} /></Field>
+          </details>
           <Field label={text("SVG 源码", "SVG source")}><Textarea aria-label={text("SVG 源码", "SVG source")} className="font-mono text-xs" rows={9} spellCheck={false} value={svg} maxLength={131072} onChange={e => { setSvg(e.target.value); setSource("manual"); }} /></Field>
         </fieldset>
       </div>

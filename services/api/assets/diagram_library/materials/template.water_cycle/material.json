@@ -5,7 +5,7 @@
   "category": "geography",
   "renderer": "template",
   "variant": "water_cycle",
-  "version": 1,
+  "version": 2,
   "aliases": [],
   "features": [],
   "sample_params": {},
@@ -28,16 +28,19 @@
   "provenance": {
     "origin": "project_procedural",
     "creation_method": "ai_assisted_vector_code",
-    "source_module": "app/diagrams/templates.py",
-    "source_symbol": "template:water_cycle",
-    "source_hash": "sha256:201c7d25b25794d04d593f5d7c2f4c2a665d7da667cb690a728387ed7b61c9b8",
+    "source_module": "app/diagrams/terrestrial_models.py",
+    "source_symbol": "draw:water_cycle",
+    "source_hash": "sha256:91aaed512c2bcfe1e928c8fa3b82a56620455d4ad0999d2a71af2ec4c7d14ef4",
     "external_graphics": [],
-    "derived_from": [
-      "earth.mountain",
-      "earth.cloud",
-      "earth.pool"
+    "derived_from": [],
+    "knowledge_references": [
+      {
+        "url": "https://www.usgs.gov/centers/new-york-water-science-center/science/hydrologic-cycle",
+        "purpose": "太阳能与蒸发、降水及径流的关系；未使用外部图形",
+        "checked_at": "2026-10-02",
+        "type": "fact_only"
+      }
     ],
-    "knowledge_references": [],
     "statement": "项目独立编写矢量路径；通用符号与知识事实不代表独占造型。"
   },
   "review": {
@@ -47,7 +50,7 @@
     "visual": "passed",
     "reviewer_type": "agent",
     "reviewed_at": "2026-10-03",
-    "source_hash": "sha256:201c7d25b25794d04d593f5d7c2f4c2a665d7da667cb690a728387ed7b61c9b8",
+    "source_hash": "sha256:91aaed512c2bcfe1e928c8fa3b82a56620455d4ad0999d2a71af2ec4c7d14ef4",
     "evidence": {
       "profiles": [
         "textbook",
@@ -56,26 +59,38 @@
       "preview_rendered": true,
       "parameter_boundary_checked": false,
       "parameter_cases": 0,
-      "sheet_review": "/tmp/next-tutor-all-assets-contact-fixed",
-      "parameter_review": "/tmp/next-tutor-all-assets-review-final",
-      "individual_review": "/tmp/next-tutor-wall-source-review",
-      "review_note": "All 27 paired contact sheets inspected; changed families rerendered and inspected. Invalid cross-parameter endpoints explicitly rejected.",
-      "revalidation": "/tmp/diagram-rebind",
-      "revalidation_note": "Phase D scripts unification: generator moved to scripts/diagrams/build_catalog.py (renderer sources unchanged); full Chromium re-render of all 1119 assets in both profiles clean (bounds=0, textIssues=0, rejected=0).",
-      "expansion_replay": {
-        "directory": "/tmp/next-tutor-expansion-review",
-        "baseline": "/tmp/next-tutor-wall-source-review",
-        "svg_hashes": {
-          "textbook": "sha256:b67154755863333ee99fbbc35d0745be7356713708256bc0868e684477279d14",
-          "monochrome": "sha256:46ee4069d4162af2c1c77e25df185ef882fdbb8eacd27be318c757916e77dcd7"
-        },
+      "individual_review": "/tmp/next-tutor-terrestrial-review",
+      "review_note": "Original version 2 construction reviewed in both profiles after real LLM exposed ambiguous old geometry; coherent water transport cycle / broad-floor steep-sided glacier cross-section. No extra scenario prompt.",
+      "current_source_review": {
+        "directory": "/tmp/next-tutor-instruments-all-assets-review",
+        "baseline": "/tmp/next-tutor-universal-all-assets-final",
         "unchanged_actual_svg": true,
-        "review_note": "Both re-rendered SVGs are byte-identical to reviewed baseline; prior visual evidence preserved."
+        "svg_hashes": {
+          "template.water_cycle.svg": "sha256:52202194a83f909c519fbe88bd60b5f9a94302347a2533196b33431f0775f191",
+          "template.water_cycle-monochrome.svg": "sha256:a941a846877b16f3bdfc3d94e894c4d01e4b63a822ffab417dc72a6226d60d10"
+        },
+        "visual_review": "/tmp/next-tutor-universal-all-assets-final"
+      },
+      "section_view_metadata_review": {
+        "directory": "/tmp/next-tutor-section-view-source-review",
+        "unchanged_actual_svg": true,
+        "review_note": "Dependent template unchanged; both actual PNGs reviewed."
       }
     },
     "notes": "全目录双风格重新渲染无越界/文字碰撞，与前轮逐SVG字节核对仅墙体变化；墙体接触面双风格实图已审阅。"
   },
+  "interface": {
+    "schema_version": "1.0.0",
+    "parameters": {},
+    "layout": {
+      "origin": "top_left",
+      "uniform_scale": true,
+      "annotations": "measured_outside_placement",
+      "relations": "declared_ports_only",
+      "rotation_allowed": true
+    }
+  },
   "svg_file": "asset.svg",
   "guidance_file": "usage_guide.json",
-  "svg_hash": "sha256:1db82b4f275970bc7ebd779a1caad50ab6fe3757239341bf490ee6cecec0af2a"
+  "svg_hash": "sha256:3e264e8c702b34236f2eaf9bcca72435034f4265c567d802ee5fff945abc8c92"
 }

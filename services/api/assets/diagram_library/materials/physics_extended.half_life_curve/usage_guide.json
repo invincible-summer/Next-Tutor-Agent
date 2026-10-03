@@ -1,5 +1,5 @@
 {
-  "version": "1.0.0",
+  "version": "1.2.0",
   "match_terms": [
     "半衰期归一化曲线",
     "Half-life decay curve"
@@ -7,7 +7,7 @@
   "hints": {
     "authoring": "横轴t/T½、纵轴N/N₀，halflives为横轴半衰期个数1..5。不填写真实同位素、秒或核数量。 将它作为一个完整实体；固定标识与科学关系应由题文或允许材料明确，不能泄露待求结论。",
     "requirements": "选用名称：半衰期归一化曲线。完整静态构图，实体只声明整体，能力static_illustration，视角front_orthographic。横轴t/T½、纵轴N/N₀，halflives为横轴半衰期个数1..5。不填写真实同位素、秒或核数量。",
-    "compose": "整图单实例，不把内部原子、膜、线段拆为假端口组件。横轴t/T½、纵轴N/N₀，halflives为横轴半衰期个数1..5。不填写真实同位素、秒或核数量。",
+    "compose": "横轴t/T½、纵轴N/N₀，halflives为横轴半衰期个数1..5。不填写真实同位素、秒或核数量。",
     "review": "横轴t/T½、纵轴N/N₀，halflives为横轴半衰期个数1..5。不填写真实同位素、秒或核数量。 核对实图与事实绑定；固定文字须被题目允许，示意颗粒数不可当真实数量。"
   }
 }

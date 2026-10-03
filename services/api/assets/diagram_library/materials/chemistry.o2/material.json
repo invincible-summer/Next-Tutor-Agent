@@ -65,7 +65,44 @@
         },
         "unchanged_actual_svg": true,
         "review_note": "Both re-rendered SVGs are byte-identical to reviewed baseline; prior visual evidence preserved."
+      },
+      "current_source_review": {
+        "directory": "/tmp/next-tutor-instruments-all-assets-review",
+        "baseline": "/tmp/next-tutor-universal-all-assets-final",
+        "unchanged_actual_svg": true,
+        "svg_hashes": {
+          "chemistry.o2.svg": "sha256:8db4a971d22a5272b28affd5576cbceed9efbf38caf4bf352f734d0a546499ee",
+          "chemistry.o2-monochrome.svg": "sha256:ebb423c7df2243387932b6656d6a4e00fec18755bf73e9f8f6e5b9a3a5da3477"
+        },
+        "visual_review": "/tmp/next-tutor-universal-all-assets-final"
       }
+    }
+  },
+  "interface": {
+    "schema_version": "1.0.0",
+    "parameters": {
+      "show_labels": {
+        "type": "boolean",
+        "default": false,
+        "condition_bearing": true,
+        "non_quantitative_allowed": false,
+        "affects_geometry": true,
+        "unit": "",
+        "suppress_unrequested": true,
+        "role": "display",
+        "fact_types": [
+          "state"
+        ],
+        "default_rule": "off",
+        "derived_from": []
+      }
+    },
+    "layout": {
+      "origin": "top_left",
+      "uniform_scale": true,
+      "annotations": "measured_outside_placement",
+      "relations": "declared_ports_only",
+      "rotation_allowed": false
     }
   },
   "svg_file": "asset.svg",

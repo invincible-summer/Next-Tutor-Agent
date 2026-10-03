@@ -1,8 +1,8 @@
 {
-  "version": "1.0.2",
+  "version": "1.2.0",
   "hints": {
-    "authoring": "整体配方只有ball、beaker、dynamometer三实体，水作为烧杯liquid_present=true状态。测力计单位N，量程分10小格。球与测力计suspended_from，球与液体immersed_in。数值reading、maximum的predicate分别写reading、maximum（有该参数时），以明确绑定用途。液面高度和球半径只是非定量外观，不创建fill、radius的数值事实。",
-    "requirements": "浸没测力完整配方覆盖ball、beaker、dynamometer三个实体。单个need引用液体状态、maximum、reading。",
-    "compose": "reading、maximum分别绑定测力计事实，fill绑定烧杯liquid_present。radius非定量声明non_quantitative；scale_labels=true仅显示。复用内部悬挂和浸没关系，relations=[]。"
+    "authoring": "小球悬于测力计钩下并完全浸没液体，不碰容器；测力计单位N、最小分度maximum/10。球半径及液面高度可为定性示意。",
+    "requirements": "小球悬于测力计钩下并完全浸没液体，不碰容器；测力计单位N、最小分度maximum/10。球半径及液面高度可为定性示意。",
+    "compose": "小球悬于测力计钩下并完全浸没液体，不碰容器；测力计单位N、最小分度maximum/10。球半径及液面高度可为定性示意。"
   }
 }

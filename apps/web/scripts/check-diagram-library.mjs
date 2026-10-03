@@ -92,5 +92,5 @@ try {
   }
   writeFileSync(`${output}/review.json`, JSON.stringify({ count: rows.length, profiles: ["textbook", "monochrome"], renderFailures: 0, bounds, textIssues, rejected }, null, 2));
   console.log(JSON.stringify({ output, count: rows.length, bounds: bounds.length, textIssues: textIssues.length, rejected: rejected.length }, null, 2));
-  if (bounds.length) process.exitCode = 1;
+  if (bounds.length || textIssues.length) process.exitCode = 1;
 } finally { await browser.close(); }

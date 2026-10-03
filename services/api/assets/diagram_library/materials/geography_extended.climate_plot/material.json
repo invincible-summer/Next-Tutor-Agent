@@ -59,7 +59,7 @@
     "creation_method": "ai_assisted_vector_code",
     "source_module": "app/diagrams/extended_earth.py",
     "source_symbol": "draw:climate_plot",
-    "source_hash": "sha256:fd506b78c40d37af9847eecb2533102e3b6081e57ff608479ffffdb2a3fe2d99",
+    "source_hash": "sha256:09c9a7beb4ab76f0a07099d33ff0243e97ca524b9c165d359fa076b74df9f6b2",
     "external_graphics": [],
     "derived_from": [],
     "knowledge_references": [],
@@ -72,7 +72,7 @@
     "visual": "passed",
     "reviewer_type": "agent",
     "reviewed_at": "2026-10-03",
-    "source_hash": "sha256:fd506b78c40d37af9847eecb2533102e3b6081e57ff608479ffffdb2a3fe2d99",
+    "source_hash": "sha256:09c9a7beb4ab76f0a07099d33ff0243e97ca524b9c165d359fa076b74df9f6b2",
     "evidence": {
       "profiles": [
         "textbook",
@@ -96,9 +96,59 @@
         "review_note": "Both re-rendered SVGs are byte-identical to reviewed baseline; prior visual evidence preserved."
       },
       "revalidation": "/tmp/diagram-rebind",
-      "revalidation_note": "Phase D scripts unification: generator moved to scripts/diagrams/build_catalog.py (renderer sources unchanged); full Chromium re-render of all 1119 assets in both profiles clean (bounds=0, textIssues=0, rejected=0)."
+      "revalidation_note": "Phase D scripts unification: generator moved to scripts/diagrams/build_catalog.py (renderer sources unchanged); full Chromium re-render of all 1119 assets in both profiles clean (bounds=0, textIssues=0, rejected=0).",
+      "current_source_review": {
+        "directory": "/tmp/next-tutor-instruments-all-assets-review",
+        "baseline": "/tmp/next-tutor-universal-all-assets-final",
+        "unchanged_actual_svg": true,
+        "svg_hashes": {
+          "geography_extended.climate_plot.svg": "sha256:fb2c3a18d8372cb8ad3bc5b60d7d3b060bf177aebc3264688fb30a598154620f",
+          "geography_extended.climate_plot-monochrome.svg": "sha256:dc1c11aa02980fa05a41c3f80d457fbc4a272d5b68a348b9636c4c89608ca04c"
+        },
+        "visual_review": "/tmp/next-tutor-universal-all-assets-final"
+      }
     },
     "notes": "全目录双风格重新渲染无越界/文字碰撞，与前轮逐SVG字节核对仅墙体变化；墙体接触面双风格实图已审阅。"
+  },
+  "interface": {
+    "schema_version": "1.0.0",
+    "parameters": {
+      "temperature": {
+        "type": "list",
+        "required": true,
+        "condition_bearing": true,
+        "non_quantitative_allowed": false,
+        "affects_geometry": true,
+        "unit": "",
+        "role": "data",
+        "fact_types": [
+          "data"
+        ],
+        "default_rule": "fact",
+        "derived_from": []
+      },
+      "rainfall": {
+        "type": "list",
+        "required": true,
+        "condition_bearing": true,
+        "non_quantitative_allowed": false,
+        "affects_geometry": true,
+        "unit": "",
+        "role": "data",
+        "fact_types": [
+          "data"
+        ],
+        "default_rule": "fact",
+        "derived_from": []
+      }
+    },
+    "layout": {
+      "origin": "top_left",
+      "uniform_scale": true,
+      "annotations": "measured_outside_placement",
+      "relations": "declared_ports_only",
+      "rotation_allowed": true
+    }
   },
   "svg_file": "asset.svg",
   "guidance_file": "usage_guide.json",

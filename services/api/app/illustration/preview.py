@@ -28,6 +28,12 @@ def measure(svgs: list[str], texts: list[dict]) -> dict:
     return browser({"mode": "measure", "svgs": svgs, "texts": texts})
 
 
+def label_clearance(svg: str, width: int, height: int, candidates: list[list[float]]) -> list[bool]:
+    """Measure actual ink, so a hollow construction is not a solid obstacle."""
+    return browser({"mode": "label_clearance", "svg": svg, "width": width,
+        "height": height, "candidates": candidates})["clear"]
+
+
 def render(illustration) -> bytes:
     result = browser({"mode": "render", "svg": illustration.svg,
                       "width": illustration.width, "height": illustration.height})
@@ -45,44 +51,35 @@ def image_message(png: bytes) -> dict:
         "url": "data:image/png;base64," + base64.b64encode(png).decode("ascii"), "detail": "high"}}
 
 
-def candidate_thumbnails(bundle) -> list[dict]:
-    """Real local catalog previews, explicitly independent of question facts.
-
-    Contact sheets have stable card IDs; gallery samples only help selection.
-    They are never consulted by parameter resolution or publication checks.
-    """
+def material_drawing(card):
+    """Complete versioned sample, never taken as the question's conditions."""
     from app.diagrams.catalog import catalog
     from app.diagrams.drawing import Drawing, num
     from app.diagrams.semantics import RECIPES, instantiate_asset
-    messages = []
-    for offset in range(0, len(bundle.assets), 12):
-        cards = bundle.assets[offset:offset+12]
-        sheet = Drawing(960, ((len(cards)+3)//4)*200)
-        for index, card in enumerate(cards):
-            aid = card["asset_id"]
-            drawing = Drawing(640, 520) if aid in RECIPES else None
-            if aid in RECIPES:
-                for role, child, x, y, scale in RECIPES[aid].children:
-                    asset = catalog()[1][child]
-                    art = instantiate_asset(child, asset.version, asset.sample_params).drawing
-                    if role in RECIPES[aid].part_selectors:
-                        art.parts = [art.parts[RECIPES[aid].part_selectors[role]]]
-                    group = drawing.element("g", transform=f"translate({num(x)} {num(y)}) scale({num(scale)})")
-                    group.extend(art.parts)
-            elif aid.startswith("material."):
-                drawing = instantiate_asset(aid, card["version"], {}).drawing
-            else:
-                asset = catalog()[1][aid]
-                drawing = instantiate_asset(aid, asset.version, asset.sample_params).drawing
-            scale = min(215/drawing.width, 156/drawing.height)
-            x, y = (index % 4)*240, (index//4)*200
-            group = sheet.element("g", transform=f"translate({num(x+12)} {num(y+10)}) scale({num(scale)})")
-            group.extend(drawing.parts)
-            sheet.text(aid, x+12, y+184, size=11, anchor="start")
-        result = browser({"mode": "render", "svg": sheet.svg(), "width": sheet.width, "height": sheet.height})
-        messages += [{"type": "text", "text": "素材库外观预览（样例刻度/数据不是本题事实，禁止复制样例参数）"},
-                     image_message(base64.b64decode(result["png"], validate=True))]
-    return messages
+    aid = card["asset_id"]
+    if aid not in RECIPES:
+        params = {} if aid.startswith("material.") else catalog()[1][aid].sample_params
+        return instantiate_asset(aid, card["version"], params).drawing
+    drawing = Drawing(640, 520)
+    for role, child, x, y, scale in RECIPES[aid].children:
+        asset = catalog()[1][child]
+        art = instantiate_asset(child, asset.version, asset.sample_params).drawing
+        if role in RECIPES[aid].part_selectors:
+            art.parts = [art.parts[RECIPES[aid].part_selectors[role]]]
+        group = drawing.element("g", transform=f"translate({num(x)} {num(y)}) scale({num(scale)})", data_child=role)
+        group.extend(art.parts)
+    return drawing
+
+
+def material_sources(bundle):
+    """Only this authorized retrieval result, with full, untruncated SVG code."""
+    from app.diagrams.catalog import digest
+    result = []
+    for card in bundle.assets:
+        svg = material_drawing(card).svg()
+        result.append({"asset_id": card["asset_id"], "version": card["version"],
+            "svg": svg, "source_hash": digest(svg), "purpose": "material_template_not_question_facts"})
+    return result
 
 
 def measurement_crops(compiled) -> list[dict]:
@@ -90,7 +87,8 @@ def measurement_crops(compiled) -> list[dict]:
     image, source = compiled.illustration, compiled.source
     messages = []
     for instance, params in source.fact_bindings.items():
-        if not {"reading", "capacity"} & set(params) or instance not in source.layout_report.bounds:
+        if not any(isinstance(value, dict) and value.get("type") in {"scalar", "data", "range", "function"}
+                for value in params.values()) or instance not in source.layout_report.bounds:
             continue
         if len(messages) >= 6:
             break
@@ -99,6 +97,33 @@ def measurement_crops(compiled) -> list[dict]:
         right, bottom = min(image.width, x+w+12), min(image.height, y+h+12)
         result = browser({"mode": "render", "svg": image.svg, "width": image.width, "height": image.height,
             "clip": {"x": left, "y": top, "width": right-left, "height": bottom-top}})
-        messages += [{"type": "text", "text": f"同一最终成图的仪器局部放大，实例 {instance}（请辨认短刻度和单位）"},
+        messages += [{"type": "text", "text": f"同一最终成图的材料局部放大，实例 {instance}（请辨认短刻度和单位）"},
                      image_message(base64.b64decode(result["png"], validate=True))]
+    # Port contact is also a read-the-picture obligation. With no numeric
+    # facts, a static apparatus previously received no detail image at all.
+    from app.diagrams.semantics import RECIPES
+    endpoints = [(relation.start.instance, relation.start.port, relation.end.instance, relation.end.port)
+        for relation in source.scene.relations if relation.type in {"connected", "supported_by", "suspended_from", "series"}]
+    endpoints += [(node.instance_id+":"+start, ap, node.instance_id+":"+end, bp)
+        for node in source.scene.asset_instances if node.asset_id in RECIPES
+        for kind, start, ap, end, bp, _medium in RECIPES[node.asset_id].relations
+        if kind in {"connected", "supported_by", "suspended_from", "series"}]
+    seen = set()
+    for start, ap, end, bp in endpoints:
+        if len(messages) >= 6:
+            break
+        a = source.layout_report.ports.get(start, {}).get(ap)
+        b = source.layout_report.ports.get(end, {}).get(bp)
+        if a is None or b is None:
+            continue
+        marker = tuple(round(value, 1) for value in [*a, *b])
+        if marker in seen:
+            continue
+        seen.add(marker)
+        left, top = max(0, min(a[0], b[0])-48), max(0, min(a[1], b[1])-48)
+        right, bottom = min(image.width, max(a[0], b[0])+48), min(image.height, max(a[1], b[1])+48)
+        result = browser({"mode": "render", "svg": image.svg, "width": image.width, "height": image.height,
+            "clip": {"x": left, "y": top, "width": right-left, "height": bottom-top}})
+        messages += [{"type": "text", "text": f"同一最终成图的连接局部放大：{start}.{ap} / {end}.{bp}"},
+            image_message(base64.b64decode(result["png"], validate=True))]
     return messages

@@ -1,13 +1,13 @@
 {
-  "version": "1.0.0",
+  "version": "1.2.0",
   "match_terms": [
     "谱线红移对照",
     "Redshift lines"
   ],
   "hints": {
-    "authoring": "参考/观测各四条谱线保持相同间距，观测整体右移shift像素；横轴λ向右增大。shift仅diagram_px非定量，不能冒充nm或红移z。 将它作为一个完整实体；固定标识与科学关系应由题文或允许材料明确，不能泄露待求结论。",
-    "requirements": "选用名称：谱线红移对照。完整静态构图，实体只声明整体，能力static_illustration，视角front_orthographic。参考/观测各四条谱线保持相同间距，观测整体右移shift像素；横轴λ向右增大。shift仅diagram_px非定量，不能冒充nm或红移z。",
-    "compose": "整图单实例，不把内部原子、膜、线段拆为假端口组件。参考/观测各四条谱线保持相同间距，观测整体右移shift像素；横轴λ向右增大。shift仅diagram_px非定量，不能冒充nm或红移z。",
-    "review": "参考/观测各四条谱线保持相同间距，观测整体右移shift像素；横轴λ向右增大。shift仅diagram_px非定量，不能冒充nm或红移z。 核对实图与事实绑定；固定文字须被题目允许，示意颗粒数不可当真实数量。"
+    "authoring": "同一线性波长轴上全部谱线按同一比例伸展；shift仅为最右谱线的示意像素位移，不能作为nm或红移z。",
+    "requirements": "同一线性波长轴上全部谱线按同一比例伸展；shift仅为最右谱线的示意像素位移，不能作为nm或红移z。",
+    "compose": "同一线性波长轴上全部谱线按同一比例伸展；shift仅为最右谱线的示意像素位移，不能作为nm或红移z。",
+    "review": "同一线性波长轴上全部谱线按同一比例伸展；shift仅为最右谱线的示意像素位移，不能作为nm或红移z。"
   }
 }

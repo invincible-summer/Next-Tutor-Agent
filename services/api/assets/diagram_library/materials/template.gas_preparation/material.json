@@ -28,7 +28,7 @@
     "creation_method": "ai_assisted_vector_code",
     "source_module": "app/diagrams/extended_experiments.py",
     "source_symbol": "draw:gas_preparation",
-    "source_hash": "sha256:b71d3d54ecf4ab0cf7f41d0260497f374bb674d9d8fe42fd8e46097307a4e2d4",
+    "source_hash": "sha256:5907007a5d9057fc3154e916e5af3e5f10eef8e71dab1bf18c989ce5b00c49a3",
     "external_graphics": [],
     "derived_from": [
       "vessel.conical_flask"
@@ -43,7 +43,7 @@
     "visual": "passed",
     "reviewer_type": "agent",
     "reviewed_at": "2026-10-03",
-    "source_hash": "sha256:b71d3d54ecf4ab0cf7f41d0260497f374bb674d9d8fe42fd8e46097307a4e2d4",
+    "source_hash": "sha256:5907007a5d9057fc3154e916e5af3e5f10eef8e71dab1bf18c989ce5b00c49a3",
     "evidence": {
       "profiles": [
         "textbook",
@@ -67,9 +67,30 @@
         "review_note": "Both re-rendered SVGs are byte-identical to reviewed baseline; prior visual evidence preserved."
       },
       "revalidation": "/tmp/diagram-rebind",
-      "revalidation_note": "Phase D scripts unification: generator moved to scripts/diagrams/build_catalog.py (renderer sources unchanged); full Chromium re-render of all 1119 assets in both profiles clean (bounds=0, textIssues=0, rejected=0)."
+      "revalidation_note": "Phase D scripts unification: generator moved to scripts/diagrams/build_catalog.py (renderer sources unchanged); full Chromium re-render of all 1119 assets in both profiles clean (bounds=0, textIssues=0, rejected=0).",
+      "current_source_review": {
+        "directory": "/tmp/next-tutor-instruments-all-assets-review",
+        "baseline": "/tmp/next-tutor-universal-all-assets-final",
+        "unchanged_actual_svg": true,
+        "svg_hashes": {
+          "template.gas_preparation.svg": "sha256:e6c370a295f38ff39739dde781360dd4cedd09f0c548f6c8c0378bd3f7c5fd35",
+          "template.gas_preparation-monochrome.svg": "sha256:eaf429bcca8136a72cd19d69aab5b5383097098d928acd59e78723d2938ca913"
+        },
+        "visual_review": "/tmp/next-tutor-universal-all-assets-final"
+      }
     },
     "notes": "全目录双风格重新渲染无越界/文字碰撞，与前轮逐SVG字节核对仅墙体变化；墙体接触面双风格实图已审阅。"
+  },
+  "interface": {
+    "schema_version": "1.0.0",
+    "parameters": {},
+    "layout": {
+      "origin": "top_left",
+      "uniform_scale": true,
+      "annotations": "measured_outside_placement",
+      "relations": "declared_ports_only",
+      "rotation_allowed": false
+    }
   },
   "svg_file": "asset.svg",
   "guidance_file": "usage_guide.json",

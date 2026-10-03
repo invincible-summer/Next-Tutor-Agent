@@ -271,9 +271,13 @@ def apparatus(variant: str, p: dict, mono=False) -> Drawing:
             d.ellipse(80, 25, 31, 7, fill=d.glass)
         else:
             y = 37 if variant == "funnel" else 23
-            d.poly([(28, y), (73, 89), (73, 143), (87, 143), (87, 89), (132, y)], fill=d.glass)
+            # A narrow stem with a bevelled outlet has an actual contact tip,
+            # rather than a broad rectangular mouth floating off the wall.
+            d.poly([(28, y), (76, 89), (73, 143), (81, 139), (84, 89), (132, y)], fill=d.glass)
             d.ellipse(80, y, 52, 9, fill=d.glass)
         d.anchors.update({"mouth": (80, 27), "tube_outlet": (80, 143)})
+        if variant == "funnel":
+            d.anchors["tube_outlet"] = (77, 141)
     elif variant in {"pipette", "graduated_pipette", "dropper", "burette", "base_burette", "micropipette", "thermometer", "glass_rod", "pestle", "spatula", "combustion_spoon"}:
         if variant == "micropipette":
             d.rect(61, 25, 38, 65, fill=d.surface, radius=8)
@@ -291,10 +295,11 @@ def apparatus(variant: str, p: dict, mono=False) -> Drawing:
             d.circle(80, 132, 12, fill=d.red)
             reading = p.get("reading", 25)
             d.line(80, 125, 80, 116 - (reading + 20) * .8, color=d.red, width=4)
-            for i in range(11):
-                d.line(88, 116-i*8, 99 if i % 2 == 0 else 95, 116-i*8, width=1)
-                if p.get("scale_labels", False) and i % 2 == 0:
-                    d.text(str(i*10-20), 105, 120-i*8, size=12, anchor="start")
+            for i in range(21):
+                d.line(88, 116-i*4, 99 if i % 4 == 0 else 97 if i % 2 == 0 else 95,
+                    116-i*4, width=1.1)
+                if p.get("scale_labels", False) and i % 4 == 0:
+                    d.text(str(i*5-20), 105, 120-i*4, size=12, anchor="start")
             d.facts["reading"] = reading
         elif variant == "glass_rod":
             d.rect(75, 13, 10, 134, fill=d.glass, radius=5)

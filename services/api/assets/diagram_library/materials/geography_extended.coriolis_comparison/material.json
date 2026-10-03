@@ -30,7 +30,7 @@
     "creation_method": "ai_assisted_vector_code",
     "source_module": "app/diagrams/curriculum_expansion.py",
     "source_symbol": "draw:coriolis_comparison",
-    "source_hash": "sha256:c307134be2636a4c48f9a1e04ccd8e37be37b192d82343589930df3a95ba3340",
+    "source_hash": "sha256:52096eab1c1b342f38606bd7520a52132a7dbd44630a0dbf7980387ec0513107",
     "external_graphics": [],
     "derived_from": [],
     "knowledge_references": [],
@@ -43,7 +43,7 @@
     "visual": "passed",
     "reviewer_type": "agent",
     "reviewed_at": "2026-10-03",
-    "source_hash": "sha256:c307134be2636a4c48f9a1e04ccd8e37be37b192d82343589930df3a95ba3340",
+    "source_hash": "sha256:52096eab1c1b342f38606bd7520a52132a7dbd44630a0dbf7980387ec0513107",
     "evidence": {
       "profiles": [
         "textbook",
@@ -59,8 +59,34 @@
         "monochrome": "sha256:34359ee2edb32d1c68c6f45b7afa9d06c5b5e34ef236b328fc510a14f53c84e9"
       },
       "review_note": "All 12 large paired sheets and both correction sheets inspected. Closed-pipe ends, electrode/ion directions, daylight, membrane layers, actual numeric controls checked. Final XML matches selected evidence.",
-      "revalidation": "/tmp/diagram-rebind",
-      "revalidation_note": "Phase D scripts unification: generator moved to scripts/diagrams/build_catalog.py (renderer sources unchanged); full Chromium re-render of all 1119 assets in both profiles clean (bounds=0, textIssues=0, rejected=0)."
+      "revalidation": "/tmp/next-tutor-envelope-audit",
+      "revalidation_note": "62 default/endpoint cases in both styles passed bounds/text checks. All default SVGs match previous evidence; 122/124 SVGs unchanged. Two mode=3 endpoint SVGs plus intermediate mode=2 inspected individually in both styles; envelopes are +/- absolute amplitude, not signed snapshots.",
+      "view_metadata_revalidation": {
+        "directory": "/tmp/next-tutor-views-all-scoped",
+        "unchanged_svg_count": 124,
+        "note": "Defaults and valid endpoints in both styles are byte-identical to inspected envelope audit; only declared coordinate view metadata changed."
+      },
+      "current_source_review": {
+        "directory": "/tmp/next-tutor-instruments-all-assets-review",
+        "baseline": "/tmp/next-tutor-universal-all-assets-final",
+        "unchanged_actual_svg": true,
+        "svg_hashes": {
+          "geography_extended.coriolis_comparison.svg": "sha256:4718a62e2515d7c1ed2858c4842006475fd6de61ed0bfdebea4f647a98518b53",
+          "geography_extended.coriolis_comparison-monochrome.svg": "sha256:34359ee2edb32d1c68c6f45b7afa9d06c5b5e34ef236b328fc510a14f53c84e9"
+        },
+        "visual_review": "/tmp/next-tutor-universal-all-assets-final"
+      }
+    }
+  },
+  "interface": {
+    "schema_version": "1.0.0",
+    "parameters": {},
+    "layout": {
+      "origin": "top_left",
+      "uniform_scale": true,
+      "annotations": "measured_outside_placement",
+      "relations": "declared_ports_only",
+      "rotation_allowed": true
     }
   },
   "svg_file": "asset.svg",

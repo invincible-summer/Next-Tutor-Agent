@@ -43,6 +43,9 @@ M4 回答「学生真的学会了吗」：统一承载练习题生成、统一�
 - `GET /questions/{qid}`（`QuestionPublic` 白名单投影，作答后揭晓 answer/explanation）、`POST /questions/{qid}/practice`（`mode=same|variant` 再练一次，新题带 `origin_question_ref`/`task_family`）、`POST /questions/{qid}/hint`、`POST /questions/{qid}/reveal`。
 - `GET /records` — 本人原始作答档案分页（assessment 来源）。
 - CAT：`POST /{start,answer,next,abandon}` + `GET /{report,active}`；`active` 三态（进行中当前题公开内容 / 终态 `stop_reason`+summary / 无会话 none）；停止结论是**诊断性** `stop_code` 枚举（`sufficient_for_current_claim|needs_clarification|max_questions|max_time|user_stopped|generation_failed`），前端映射为中性表述。start/next 载荷剥离 answer/explanation，判分全在服务端。
+  `start` 支持 `illustration_mode=v1|v2`、`generation_hint` 与 `evaluation_mode=closed_loop|temporary`。账户默认配图方式缺省为 V1，单次测评可覆盖；V1 保留旧模型主导的组件绘图链，V2 使用最新素材库装配链。
+  两条链都在一次补图请求内进行有界校正，V2 从冻结公开题文首次提取材料，不改题干/答案/量规；新版本可重建当前题的旧失败任务，已冻结图仍复用。配图预算和科学发布门见 [diagrams-illustration.md](diagrams-illustration.md)。
+  `workspace_id` 与 `concept_keys` 都可以为空：无工作区时不调用知识检索，题目统一为临时出题；选工作区但不选概念时，服务端只按提示词对工作区教材检索一次，把检索证据缓存到 CAT 实例后复用。
 
 **提示与异议（chat 侧）**
 
@@ -64,10 +67,10 @@ M4 回答「学生真的学会了吗」：统一承载练习题生成、统一�
 
 ## Main flows
 
-1. **出题**（三条路径之一）→ `quiz_grounding` 投影工作区教材证据（tier `found/partial/not_found`，非 strict）→ `quiz_design` 蓝图轮（fail-open 回退 single）→ 生成（`complete(disable_thinking=True)`，`BudgetedLLM` 受 `ASSESSMENT_GENERATION_*` 约束）→ `quiz_verify` 两层校验，错题投递前丢弃 → 题目（含冻结量规）注册 journal `TaskSnapshot`。
+1. **出题**（三条路径之一）→ `quiz_grounding` 投影工作区教材证据（CAT 的无概念工作区模式只检索一次；无工作区不检索）→ `quiz_design` 蓝图轮（fail-open 回退 single）→ 生成（`complete(disable_thinking=True)`，`BudgetedLLM` 受 `ASSESSMENT_GENERATION_*` 约束）→ `quiz_verify` 两层校验，草稿题不再作为 CAT 结果交付 → 题目（含冻结量规）注册 journal `TaskSnapshot`。用户提示词会作为风格、背景和题型偏好传给出题及 V1/V2 配图链，但不能覆盖教材事实、答案或安全约束。
 2. **受理**：`/quiz/record`（MC）或 `/quiz/grade`（开放题）/`/assessment/submissions` → 归属校验（404 先于一切）→ `load_task_snapshot` 服务端权威题目 → `evaluate_submission`：帮助事件（`assistance_floor`）判独立资格 → 答案指纹判重 → MC 判定随事务落盘；开放题语义 `EvaluationJob` 入队 → `202` 受理回执。
 3. **语义评价**：lifespan 启动的评价 worker（`evaluation/worker.py`）按 JobKind 路由执行（重启恢复、wall-clock 预算、同 workspace 串行）→ `result_committed` 落 journal → outbox 事件由 M9 幂等消费（见 [learning-orchestration.md](learning-orchestration.md)）。
-4. **CAT**：start（按评价投影门控）→ next（当前题未答幂等重发；CAT 首题走 `get_llm("quiz")` 快速通道）→ answer 触发的停止随作答同次落盘 → report/active 恢复。per-student 生命周期锁 + journal `file_lock` 防并发。
+4. **CAT**：工作区闭环 start（按评价投影门控）或无工作区/临时 start → next（当前题未答幂等重发；CAT 首题走 `get_llm("quiz")` 快速通道）→ answer。临时模式只保留本次运行的本地判分结果，不创建 `SourceReceipt`、语义评价作业或学习证据；report/active 可恢复本次运行状态。per-student 生命周期锁 + journal `file_lock` 防并发。
 5. **帮助与异议**：hint/reveal 答前入账 → 判分自动携带 assistance 事件；dispute → review job → `review_resolved`（撤销解释保留原始证据）。
 6. **恢复与投影**：`GET /quiz/submission` 按题目身份只读恢复（支持无学习区的 task-only 判分）；`/quiz/recent`、错题本从 journal 现算。
 
@@ -90,10 +93,12 @@ M4 回答「学生真的学会了吗」：统一承载练习题生成、统一�
 - `AnswerRequest.raw_grade` 与 `StartRequest.mastery` 不存在——客户端无法注入批改或起点状态。
 - 变式证据分级：fit_quiz 题套作答携带 `origin_question_ref` 同族关系进统一评价。
 - 游客（guest token）仅开放文字聊天、临时出题与本题批改（`guest_learning` 内存域），不进入 journal 长期评价。
+- 无工作区的测评中心出题与显式 `temporary` 模式均不进入学习评价闭环；只有绑定工作区且选择 `closed_loop` 才会提交正式评价观察。
 
 ## Configuration
 
 - `LEARNER_EVALUATION_MODE`（`active|off`，默认 `active`）：统一评价域总开关。`off` = 暂停长期评价而非关练习——受理与 MC 判分照常，语义解释降级跳过；CAT `start/next` 受门控（off 期间不开新实例，在途实例可继续作答）。（旧 `ASSESSMENT_ENGINE_MODE` 已删除。）
+- 账户 `profile.prefs.quiz_illustration_mode`（缺省 `v1`）控制测评中心默认 V1/V2；`POST /assessment/start` 的 `illustration_mode` 仅覆盖本次实例。
 - `QUIZ_VERIFY_MODE`（`critic|basic|off`，默认 `critic`）：出题质量门。
 - `QUIZ_DESIGN_MODE`（`two_pass|single`，默认 `two_pass`）：命题蓝图两轮化。
 - `STRUCTURED_ASSESSMENT_MODE`（`off|shadow|active`，默认 `off`）：`off` 旧三级文本批改；`shadow` 旁路计算量规条目分析并落盘对照（不改变判定/不写能力）；`active` 有冻结量规的开放题以结构化分析为权威判定（分数由服务端按量规权重本地计算），done 事件与 `/quiz/record` 结果携带 `structured` 块。

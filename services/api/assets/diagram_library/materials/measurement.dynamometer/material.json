@@ -71,7 +71,81 @@
         "review_note": "Both re-rendered SVGs are byte-identical to reviewed baseline; prior visual evidence preserved."
       },
       "revalidation": "/tmp/diagram-rebind",
-      "revalidation_note": "Phase D scripts unification: generator moved to scripts/diagrams/build_catalog.py (renderer sources unchanged); full Chromium re-render of all 1119 assets in both profiles clean (bounds=0, textIssues=0, rejected=0)."
+      "revalidation_note": "Phase D scripts unification: generator moved to scripts/diagrams/build_catalog.py (renderer sources unchanged); full Chromium re-render of all 1119 assets in both profiles clean (bounds=0, textIssues=0, rejected=0).",
+      "current_source_review": {
+        "directory": "/tmp/next-tutor-instruments-all-assets-review",
+        "baseline": "/tmp/next-tutor-universal-all-assets-final",
+        "unchanged_actual_svg": true,
+        "svg_hashes": {
+          "measurement.dynamometer.svg": "sha256:090c637b1700e0b413166e8a8877e02b8dc851d8768a775eb092ac09d70a9c40",
+          "measurement.dynamometer-monochrome.svg": "sha256:bcd40d79c51b7553d2c5a5ee24ea9d7db367d9e7fcdaa522dec0aef7fdff770d"
+        },
+        "visual_review": "/tmp/next-tutor-universal-all-assets-final"
+      }
+    }
+  },
+  "interface": {
+    "schema_version": "1.0.0",
+    "parameters": {
+      "reading": {
+        "type": "number",
+        "minimum": 0,
+        "maximum": 50,
+        "default": 0,
+        "condition_bearing": true,
+        "non_quantitative_allowed": false,
+        "affects_geometry": true,
+        "unit": "N",
+        "role": "quantity",
+        "fact_types": [
+          "scalar"
+        ],
+        "default_rule": "fact",
+        "derived_from": []
+      },
+      "maximum": {
+        "type": "number",
+        "minimum": 0.1,
+        "maximum": 100,
+        "default": 5,
+        "condition_bearing": true,
+        "non_quantitative_allowed": false,
+        "affects_geometry": true,
+        "unit": "N",
+        "role": "quantity",
+        "fact_types": [
+          "scalar"
+        ],
+        "default_rule": "fact",
+        "derived_from": []
+      },
+      "scale_labels": {
+        "type": "boolean",
+        "default": true,
+        "condition_bearing": true,
+        "non_quantitative_allowed": true,
+        "affects_geometry": true,
+        "unit": "",
+        "canonical_value": true,
+        "role": "display",
+        "fact_types": [
+          "state"
+        ],
+        "default_rule": "derived",
+        "derived_from": [
+          [
+            "reading",
+            "maximum"
+          ]
+        ]
+      }
+    },
+    "layout": {
+      "origin": "top_left",
+      "uniform_scale": true,
+      "annotations": "measured_outside_placement",
+      "relations": "declared_ports_only",
+      "rotation_allowed": false
     }
   },
   "svg_file": "asset.svg",

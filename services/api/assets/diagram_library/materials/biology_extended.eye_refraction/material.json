@@ -28,7 +28,7 @@
     "creation_method": "ai_assisted_vector_code",
     "source_module": "app/diagrams/extended_biology.py",
     "source_symbol": "draw:eye_refraction",
-    "source_hash": "sha256:65584fce23291465612497cef0c80dd652901765ab1fa0950cad815a1dc5e6d2",
+    "source_hash": "sha256:2edf88c498a39afc906057eb2520c86d3493656c1b9251043f3c99e341fb62b1",
     "external_graphics": [],
     "derived_from": [],
     "knowledge_references": [],
@@ -41,7 +41,7 @@
     "visual": "passed",
     "reviewer_type": "agent",
     "reviewed_at": "2026-10-03",
-    "source_hash": "sha256:65584fce23291465612497cef0c80dd652901765ab1fa0950cad815a1dc5e6d2",
+    "source_hash": "sha256:2edf88c498a39afc906057eb2520c86d3493656c1b9251043f3c99e341fb62b1",
     "evidence": {
       "profiles": [
         "textbook",
@@ -65,9 +65,30 @@
         "review_note": "Both re-rendered SVGs are byte-identical to reviewed baseline; prior visual evidence preserved."
       },
       "revalidation": "/tmp/diagram-rebind",
-      "revalidation_note": "Phase D scripts unification: generator moved to scripts/diagrams/build_catalog.py (renderer sources unchanged); full Chromium re-render of all 1119 assets in both profiles clean (bounds=0, textIssues=0, rejected=0)."
+      "revalidation_note": "Phase D scripts unification: generator moved to scripts/diagrams/build_catalog.py (renderer sources unchanged); full Chromium re-render of all 1119 assets in both profiles clean (bounds=0, textIssues=0, rejected=0).",
+      "current_source_review": {
+        "directory": "/tmp/next-tutor-instruments-all-assets-review",
+        "baseline": "/tmp/next-tutor-universal-all-assets-final",
+        "unchanged_actual_svg": true,
+        "svg_hashes": {
+          "biology_extended.eye_refraction.svg": "sha256:e4ea5c40d399fa4e6413caeb58aadc12f224bed7ced11cd1a00f61da2d26df6d",
+          "biology_extended.eye_refraction-monochrome.svg": "sha256:04e0c7a1dc99bfb0cf94e33276d551af15059cdcacfe17c26e3b8d74ba08cf72"
+        },
+        "visual_review": "/tmp/next-tutor-universal-all-assets-final"
+      }
     },
     "notes": "全目录双风格重新渲染无越界/文字碰撞，与前轮逐SVG字节核对仅墙体变化；墙体接触面双风格实图已审阅。"
+  },
+  "interface": {
+    "schema_version": "1.0.0",
+    "parameters": {},
+    "layout": {
+      "origin": "top_left",
+      "uniform_scale": true,
+      "annotations": "measured_outside_placement",
+      "relations": "declared_ports_only",
+      "rotation_allowed": true
+    }
   },
   "svg_file": "asset.svg",
   "guidance_file": "usage_guide.json",

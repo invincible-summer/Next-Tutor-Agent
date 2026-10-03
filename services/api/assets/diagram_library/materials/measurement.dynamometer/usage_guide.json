@@ -1,9 +1,9 @@
 {
-  "version": "1.0.3",
+  "version": "1.2.0",
   "hints": {
-    "authoring": "测力计量程分成10小格，分度maximum/10，单位N；需maximum和reading事实，reading待读图时depict_only。刻度标签自动生成，required_marks=[]。数值reading、maximum的predicate分别写reading、maximum（有该参数时），以明确绑定用途。",
-    "requirements": "单独弹簧测力计只需reading_binding、readable_scale，不添加complete_apparatus。",
-    "compose": "必须fact_bindings.reading绑定server_binding=true的待读图事实ID，fact_bindings.maximum绑定量程ID。只省略params.reading，不能省略fact_bindings.reading。scale_labels=true不绑定其他事实。刻度自带数字与N，不加示数文字；单独仪表建议scale=2.2。",
-    "review": "本素材量程均分10小格，每两格印数字，短刻度分度maximum/10（例如4 N量程为0.4 N，印0、0.8、1.6、2.4、3.2、4；2 N对应1.6与2.4正中的短线）。读三角指针尖端，不能用其上下边缘。单独N表示所有刻度的共同单位；不要要求在每个数旁重复单位。必须按实际PNG核对指针位置与合同，不可改示数。"
+    "authoring": "弹簧测力计的真实标定单位N；量程由maximum控制，小分度为maximum/10。图上的指针和刻度数字是读图材料，禁止另写读数答案。",
+    "requirements": "弹簧测力计的真实标定单位N；量程由maximum控制，小分度为maximum/10。图上的指针和刻度数字是读图材料，禁止另写读数答案。",
+    "compose": "弹簧测力计的真实标定单位N；量程由maximum控制，小分度为maximum/10。图上的指针和刻度数字是读图材料，禁止另写读数答案。",
+    "review": "弹簧测力计的真实标定单位N；量程由maximum控制，小分度为maximum/10。图上的指针和刻度数字是读图材料，禁止另写读数答案。"
   }
 }

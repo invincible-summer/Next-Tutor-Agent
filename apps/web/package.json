@@ -8,7 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
-    "test:unit": "node tests/unit/test-classroom-player.mjs && node tests/unit/test-i18n.mjs && node tests/unit/test-assistant-navigation.mjs && node tests/unit/test-demo-fetch.mjs",
+    "test:unit": "node tests/unit/test-classroom-player.mjs && node tests/unit/test-i18n.mjs && node tests/unit/test-assistant-navigation.mjs && node tests/unit/test-demo-fetch.mjs && node tests/unit/test-illustration-enrichment.mjs",
     "check": "pnpm typecheck && pnpm lint && pnpm test:unit",
     "test:e2e": "playwright test",
     "test:player": "node tests/unit/test-classroom-player.mjs",

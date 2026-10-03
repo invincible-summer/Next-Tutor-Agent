@@ -310,9 +310,12 @@ async function post<T>(path: string, body: unknown): Promise<T> {
   return res.json();
 }
 
-/** §11.5：concept_keys=ConceptRef.key 列表（1–20）；purpose=用户任务意图。 */
+/** §11.5：concept_keys=ConceptRef.key 列表（0–20）；purpose=用户任务意图。 */
 export interface AssessmentStartPayload {
   illustration_request?: "auto" | "none" | "required";
+  illustration_mode?: "v1" | "v2";
+  generation_hint?: string;
+  evaluation_mode?: "closed_loop" | "temporary";
   workspace_id?: string;
   concept_keys: string[];
   goal?: { purpose?: "adaptive" | "diagnose" | "practice"; target_claims?: string[] };

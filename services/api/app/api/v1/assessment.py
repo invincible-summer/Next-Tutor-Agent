@@ -23,7 +23,7 @@ from app.agents.assessment import (
     task_snapshot_from_legacy)
 from app.agents.assessment import adaptive_test as cat
 from app.agents.student_model.evaluation import schema as S
-from app.agents.student_model.evaluation.store import get_journal
+from app.agents.student_model.evaluation.store import answer_fingerprint, get_journal
 from app.core.llm_async import get_llm
 from app.identity.deps import resolve_student_id
 
@@ -398,9 +398,12 @@ class CatGoal(BaseModel):
 class CatStartRequest(BaseModel):
     model_config = {"extra": "forbid"}
     workspace_id: str = Field("", max_length=96)
-    concept_keys: list[str] = Field(min_length=1, max_length=20)
+    concept_keys: list[str] = Field(default_factory=list, max_length=20)
     goal: CatGoal = Field(default_factory=CatGoal)
     illustration_request: Literal["auto", "none", "required"] = "auto"
+    illustration_mode: Literal["v1", "v2"] | None = None
+    generation_hint: str = Field("", max_length=1200)
+    evaluation_mode: Literal["closed_loop", "temporary"] = "closed_loop"
     q_type: str = Field("", max_length=32)
     count: int = Field(1, ge=1, le=20)
     probe_ref: dict[str, Any] = Field(default_factory=dict)
@@ -423,33 +426,15 @@ async def _generate_cat_question(student_id: str, instance: cat.CatInstance,
         raise api_error(409, exc.code, str(exc))
     # CAT text generation and its bounded fallback share one configured
     # deadline/call/repair budget.  Component enrichment starts later with its
-    # own three-call budget, so it cannot multiply the CAT retry lane.
+    # own bounded budget, so it cannot multiply the CAT retry lane.
     budget = new_quiz_budget() if policy != "off" else None
-    ctx_kwargs: dict[str, Any] = {}
-    # M5 教材 grounding：工作区已选教材即命题证据 scope（非 strict；
-    # strict 语义由 P2 unsupported 审核承担）
-    if instance.workspace_id:
-        try:
-            from app.api.v1.assessment_grounding import (
-                build_assessment_grounding, bundle_to_context_fields)
-            textbook_ids: list[str] = []
-            try:
-                from app.agents.student_model.evaluation.scope import (
-                    get_scope_resolver)
-                scope = get_scope_resolver().resolve(
-                    student_id, instance.workspace_id)
-                textbook_ids = sorted({v.textbook_id
-                                       for v in scope.selected_volumes})
-            except Exception:
-                pass
-            if textbook_ids:
-                bundle = await build_assessment_grounding(
-                    student_id=student_id, concept=instance.concept,
-                    session_id="", textbook_ids=textbook_ids,
-                    strict_textbook=False)
-                ctx_kwargs = bundle_to_context_fields(bundle)
-        except Exception:
-            ctx_kwargs = {}
+    ctx_kwargs: dict[str, Any] = {
+        "grounding_required": instance.grounding_required,
+        "grounding_mode": instance.grounding_mode,
+        "grounding_tier": instance.grounding_tier,
+        "grounding_query": instance.grounding_query,
+        "grounding_sources": [dict(s) for s in instance.grounding_sources],
+    }
     ctx = AssessmentContext(concept=instance.concept,
                             subject=instance.subject, grade=instance.grade,
                             base_difficulty=instance.difficulty, **ctx_kwargs)
@@ -474,25 +459,24 @@ async def _generate_cat_question(student_id: str, instance: cat.CatInstance,
             difficulty=max(1, instance.difficulty -
                            (1 if attempt > 0 else 0)),
             assesses=list(instance.target_claims[:4]),
-            avoid_stems=avoid, illustration_request=instance.illustration_request)
+            avoid_stems=avoid, illustration_request=instance.illustration_request,
+            generation_hint=instance.generation_hint)
         try:
             q = await generate_question(
                 goal, ctx, llm=get_llm("quiz"), student_id=student_id,
                 budget=budget, use_blueprint=False)
         except IllustrationDisabled as exc:
             raise api_error(409, exc.code, str(exc))
-        # A self-check draft is a degradation, not a delivered question: it
-        # satisfied the old "q is not None" break and silently skipped the
-        # bounded difficulty-fallback retry below.  Only a real question (or
-        # the final attempt) exits the loop.
-        if q is not None and (
-                attempt == settings.assessment_generation_max_attempts - 1
-                or not str(q.id).startswith("q_draft_")):
+        # A self-check draft is a degradation, not a delivered question.  It
+        # must never satisfy the outer CAT retry loop, including its final
+        # attempt; the assessment either receives a real question or an
+        # explicit retryable generation_failed result.
+        if q is not None and not str(q.id).startswith("q_draft_"):
             break
         # 单题生成是纯 LLM 路径：JSON 解析失败与 critic 退回都是单次采样
         # 方差，一次失败就把整个 CAT 会话打成 generation_failed 会让测评
         # 随机中断（§11.5 可用性），这里按次重试。
-    if q is None:
+    if q is None or str(q.id).startswith("q_draft_"):
         return None
     concept_refs = _match_concept_refs(student_id, instance, q)
     task = task_snapshot_from_legacy(q, workspace_id=instance.workspace_id,
@@ -507,16 +491,17 @@ async def _generate_cat_question(student_id: str, instance: cat.CatInstance,
     return task
 
 
-def _concept_label(scope, concept_keys: list[str]) -> str:
+def _concept_label(scope, concept_keys: list[str], hint: str = "") -> str:
     """concept key → 概念显示名（generator 提示词的出题目标）。
 
     start 传入的 concept_keys 是 ConceptRef.key（24 位哈希）；直接把它当
     concept 写进提示词，LLM 读不出题目主题（实测：选「曲线坐标」出成了
-    泊松分布题，且作答因归因失败而落不进概念评价）。scope 缺席/未命中时
-    退回 key 本身，不劣于旧行为。
+    泊松分布题，且作答因归因失败而落不进概念评价）。无概念时用提示词首行
+    或工作区综合诊断目标，避免空上下文。
     """
     if not concept_keys:
-        return ""
+        return (hint.strip().splitlines()[0][:120] if hint.strip()
+                else ("工作区综合诊断" if scope is not None else "自由出题"))
     if scope is None:
         return concept_keys[0]
     wanted = set(concept_keys)
@@ -524,6 +509,44 @@ def _concept_label(scope, concept_keys: list[str]) -> str:
         if ref.key in wanted and ref.display_name:
             return ref.display_name
     return concept_keys[0]
+
+
+async def _bind_workspace_grounding(student_id: str, instance: cat.CatInstance,
+                                    scope, hint: str) -> None:
+    """Run one scoped retrieval and persist its plain context on the CAT."""
+    if not instance.workspace_id or scope is None:
+        return
+    textbook_ids = sorted({v.textbook_id for v in scope.selected_volumes
+                           if getattr(v, "textbook_id", "")})
+    from app.api.v1.assessment_grounding import (
+        build_assessment_grounding, bundle_to_context_fields)
+    query = (hint.strip() or instance.concept or "工作区教材综合练习")[:600]
+    bundle = await build_assessment_grounding(
+        student_id=student_id, concept=query, session_id="",
+        textbook_ids=textbook_ids, strict_textbook=False)
+    fields = bundle_to_context_fields(bundle)
+    instance.grounding_required = bool(fields.get("grounding_required", False))
+    instance.grounding_mode = str(fields.get("grounding_mode") or "generic")
+    instance.grounding_tier = str(fields.get("grounding_tier") or "not_found")
+    instance.grounding_query = str(fields.get("grounding_query") or query)[:600]
+    instance.grounding_sources = [dict(s) for s in
+                                  (fields.get("grounding_sources") or [])
+                                  if isinstance(s, dict)][:8]
+    if not instance.concept_keys:
+        evidence_text = " ".join([
+            instance.grounding_query,
+            *[str(s.get("filename") or "") for s in instance.grounding_sources],
+            *["/".join(str(x) for x in (s.get("section_path") or []))
+              for s in instance.grounding_sources],
+            *[str(s.get("excerpt") or "")[:300]
+              for s in instance.grounding_sources],
+        ]).lower()
+        matches = [ref for ref in scope.allowed_concepts
+                   if str(ref.display_name or "").lower() in evidence_text
+                   or str(ref.concept_id or "").lower() in evidence_text]
+        if matches:
+            instance.concept_keys = [ref.key for ref in matches[:3]]
+            instance.concept = matches[0].display_name or instance.concept
 
 
 def _match_concept_refs(student_id: str, instance: cat.CatInstance,
@@ -542,6 +565,17 @@ def _match_concept_refs(student_id: str, instance: cat.CatInstance,
     names = set(question.knowledge_points or [])
     if question.concept:
         names.add(question.concept)
+    # Concept-free workspace runs are assigned by the single grounding pass.
+    # Match the generated question back to the retrieved section when the LLM
+    # did not echo a textbook concept verbatim.
+    evidence_text = " ".join([
+        instance.grounding_query,
+        *[str(s.get("filename") or "") for s in instance.grounding_sources],
+        *["/".join(str(x) for x in (s.get("section_path") or []))
+          for s in instance.grounding_sources],
+        *[str(s.get("excerpt") or "")[:300]
+          for s in instance.grounding_sources],
+    ]).lower()
     for concept in scope.allowed_concepts:
         if len(out) >= 3:
             break
@@ -551,13 +585,21 @@ def _match_concept_refs(student_id: str, instance: cat.CatInstance,
         if concept.display_name in names or concept.key in \
                 instance.concept_keys:
             out.append(concept)
+    if not out and evidence_text:
+        for concept in scope.allowed_concepts:
+            label = (concept.display_name or concept.concept_id or "").strip().lower()
+            if label and label in evidence_text:
+                out.append(concept)
+                if len(out) >= 3:
+                    break
     return out
 
 
 @router.post("/start")
 async def start_cat(req: CatStartRequest,
                     _sid: str = Depends(resolve_student_id)):
-    _require_enabled()
+    if req.workspace_id and req.evaluation_mode == "closed_loop":
+        _require_enabled()
     # §5.1.1：workspace 归属 404 先于任何检索/LLM 调用
     scope = None
     if req.workspace_id:
@@ -567,23 +609,43 @@ async def start_cat(req: CatStartRequest,
             scope = get_scope_resolver().resolve(_sid, req.workspace_id)
         except ScopeNotFound:
             raise api_error(404, "workspace_not_found", "工作区不存在")
-    from app.core.quiz_illustration_policy import resolve_illustration_policy, IllustrationDisabled
+    from app.core.quiz_illustration_policy import (
+        IllustrationDisabled, resolve_illustration_mode,
+        resolve_illustration_policy)
     try:
         resolve_illustration_policy(_sid, req.illustration_request)
     except IllustrationDisabled as exc:
         raise api_error(409, exc.code, str(exc))
+    try:
+        illustration_mode = resolve_illustration_mode(_sid, req.illustration_mode)
+    except ValueError as exc:
+        raise api_error(422, "invalid_illustration_mode", str(exc)) from exc
+    # A workspace-less run is deliberately free generation: concept keys are
+    # scoped to a workspace and must not smuggle a closed-loop target into a
+    # temporary assessment through a direct API caller.
+    concept_keys = list(req.concept_keys) if req.workspace_id else []
     instance = cat.CatInstance(
         assessment_id=new_assessment_id(),
         workspace_id=req.workspace_id,
         purpose=req.goal.purpose,
         target_claims=list(req.goal.target_claims),
-        concept_keys=list(req.concept_keys),
-        concept=_concept_label(scope, req.concept_keys),
+        concept_keys=concept_keys,
+        concept=_concept_label(scope, concept_keys, req.generation_hint),
         grade=req.grade, subject=req.subject,
         count_limit=req.count, difficulty=2,
         illustration_request=req.illustration_request,
+        illustration_mode=illustration_mode,
+        generation_hint=req.generation_hint.strip(),
+        evaluation_mode=(req.evaluation_mode if req.workspace_id else "temporary"),
         probe_ref=dict(req.probe_ref),
         created_at=S.utc_now_iso())
+    if req.workspace_id:
+        try:
+            await _bind_workspace_grounding(_sid, instance, scope,
+                                            instance.generation_hint)
+        except Exception:
+            instance.grounding_required = False
+            instance.grounding_sources = []
     task = await _generate_cat_question(_sid, instance, req.q_type)
     if task is None:
         instance.status = cat.STATUS_STOPPED
@@ -607,6 +669,8 @@ async def start_cat(req: CatStartRequest,
     cat.save_instance(_sid, instance, change="start")
     return {"status": "ok", "assessment_id": instance.assessment_id,
             "workspace_id": instance.workspace_id,
+            "illustration_mode": instance.illustration_mode,
+            "evaluation_mode": instance.evaluation_mode,
             "difficulty": instance.difficulty,
             "question": task.public_view()}
 
@@ -633,6 +697,49 @@ async def cat_answer(req: CatAnswerRequest,
     if current is None or current.question_id != req.question_id:
         raise api_error(409, "question_not_current",
                         "题目与当前测评不一致，请刷新")
+    if instance.evaluation_mode == "temporary":
+        task = state.tasks.get(req.question_id, {}).get(req.question_revision)
+        if task is None:
+            raise api_error(404, "question_not_found", "题目不存在或已过期")
+        if req.question_id in instance.answered_question_ids:
+            prior = instance.temporary_results.get(req.question_id) or {}
+            if prior.get("answer_fingerprint") == answer_fingerprint(
+                    req.student_answer):
+                out = {"status": "ok", "assessment_id": instance.assessment_id,
+                       "evaluation_mode": "temporary", "task_result": prior,
+                       "evaluation": {"status": "skipped", "interpretation_id": ""},
+                       "stop_reason": instance.stop_code or ""}
+                if instance.status != cat.STATUS_ACTIVE:
+                    out["summary"] = cat.report(get_journal(_sid).state(),
+                                                 instance.assessment_id)
+                return JSONResponse(out, status_code=202)
+            raise api_error(409, "question_already_answered", "这道题已经作答")
+        from app.agents.student_model.evaluation.grading import grade_mc_task
+        result = (grade_mc_task(task, req.student_answer)
+                  if task.q_type == S.QuestionType.MULTIPLE_CHOICE
+                  else S.TaskResult(
+                      question_ref=S.QuestionRef(
+                          question_id=task.question_id,
+                          question_revision=task.question_revision),
+                      grading_status=S.GradingStatus.INDETERMINATE,
+                      verdict=None, task_score=None,
+                      rubric_hash=task.rubric_hash,
+                      answer_fingerprint=answer_fingerprint(req.student_answer),
+                      computed_at=S.utc_now_iso()))
+        instance.answered_question_ids.append(req.question_id)
+        instance.temporary_results[req.question_id] = result.model_dump(mode="json")
+        if len(instance.answered_question_ids) >= instance.count_limit:
+            instance.status = cat.STATUS_COMPLETED
+            instance.stop_code = "max_questions"
+        cat.save_instance(_sid, instance, change="temporary_answer")
+        out = {"status": "ok", "assessment_id": instance.assessment_id,
+               "evaluation_mode": "temporary", "task_result": result.model_dump(mode="json"),
+               "evaluation": {"status": "skipped", "interpretation_id": ""},
+               "stop_reason": instance.stop_code or ""}
+        if instance.status != cat.STATUS_ACTIVE:
+            out["summary"] = cat.report(get_journal(_sid).state(),
+                                         instance.assessment_id)
+        return JSONResponse(out, status_code=202)
     # 归属/scope 由 evaluate_submission 从 CAT 实例事实解析（R05）；
     # 题目身份已校验为当前题。
     try:
@@ -656,6 +763,23 @@ async def cat_answer(req: CatAnswerRequest,
         raise api_error(409, "question_already_answered",
                         "这道题已有正式提交；请刷新查看判分结果，"
                         "再练一次请新建练习")
+    if receipt.duplicate:
+        # evaluate_submission 已验证这是同一答案的幂等重放；不要再次追加
+        # answered_question_ids 或重新计算停止状态。
+        state = get_journal(_sid).state()
+        instance = cat.load_instance(state, req.assessment_id)
+        out = {
+            "status": "ok", "assessment_id": instance.assessment_id,
+            "evaluation_mode": instance.evaluation_mode,
+            "task_result": (receipt.task_result.model_dump()
+                             if receipt.task_result else None),
+            "evaluation": {"status": receipt.evaluation_status,
+                           "interpretation_id": receipt.interpretation_id},
+            "stop_reason": instance.stop_code or "",
+        }
+        if instance.status != cat.STATUS_ACTIVE:
+            out["summary"] = cat.report(state, instance.assessment_id)
+        return JSONResponse(out, status_code=202)
     state = get_journal(_sid).state()
     instance = cat.load_instance(state, req.assessment_id)
     instance.answered_question_ids.append(req.question_id)
@@ -671,6 +795,7 @@ async def cat_answer(req: CatAnswerRequest,
     out = {
         "status": "ok",
         "assessment_id": instance.assessment_id,
+        "evaluation_mode": instance.evaluation_mode,
         "task_result": (receipt.task_result.model_dump()
                         if receipt.task_result else None),
         "evaluation": {"status": receipt.evaluation_status,
@@ -693,13 +818,54 @@ class CatNextRequest(BaseModel):
 @router.post("/next")
 async def cat_next(req: CatNextRequest,
                    _sid: str = Depends(resolve_student_id)):
-    _require_enabled()
     state = get_journal(_sid).state()
     instance = cat.load_instance(state, req.assessment_id)
     if instance is None:
         raise api_error(404, "assessment_not_found", "测评实例不存在")
+    if instance.evaluation_mode == "closed_loop":
+        _require_enabled()
+    if instance.evaluation_mode == "temporary" and instance.status == cat.STATUS_ACTIVE:
+        if len(instance.answered_question_ids) < len(instance.question_refs):
+            pending = instance.question_refs[-1]
+            task = state.tasks.get(pending.question_id, {}).get(
+                pending.question_revision)
+            return {"status": "ok", "assessment_id": instance.assessment_id,
+                    "illustration_mode": instance.illustration_mode,
+                    "evaluation_mode": "temporary", "stop_reason": "",
+                    "difficulty": instance.difficulty,
+                    "question": task.public_view() if task else None}
+        if len(instance.answered_question_ids) >= instance.count_limit:
+            instance.status = cat.STATUS_COMPLETED
+            instance.stop_code = "max_questions"
+            cat.save_instance(_sid, instance, change="temporary_stop")
+            return {"status": "ok", "assessment_id": instance.assessment_id,
+                    "illustration_mode": instance.illustration_mode,
+                    "evaluation_mode": "temporary",
+                    "stop_reason": instance.stop_code, "question": None,
+                    "summary": cat.report(get_journal(_sid).state(),
+                                          req.assessment_id)}
+        task = await _generate_cat_question(_sid, instance, "")
+        if task is None:
+            instance.status = cat.STATUS_STOPPED
+            instance.stop_code = "generation_failed"
+            cat.save_instance(_sid, instance, change="gen_failed")
+            return {"status": "ok", "assessment_id": instance.assessment_id,
+                    "illustration_mode": instance.illustration_mode,
+                    "evaluation_mode": "temporary",
+                    "stop_reason": "generation_failed", "question": None}
+        _register_generated_task(_sid, task)
+        instance.question_refs.append(S.QuestionRef(
+            question_id=task.question_id,
+            question_revision=task.question_revision))
+        cat.save_instance(_sid, instance, change="temporary_next")
+        return {"status": "ok", "assessment_id": instance.assessment_id,
+                "illustration_mode": instance.illustration_mode,
+                "evaluation_mode": "temporary", "stop_reason": "",
+                "difficulty": instance.difficulty, "question": task.public_view()}
     if instance.status != cat.STATUS_ACTIVE:
         return {"status": "ok", "assessment_id": instance.assessment_id,
+                "illustration_mode": instance.illustration_mode,
+                "evaluation_mode": instance.evaluation_mode,
                 "stop_reason": instance.stop_code,
                 "question": None,
                 "summary": cat.report(state, req.assessment_id)}
@@ -709,6 +875,8 @@ async def cat_next(req: CatNextRequest,
         task = state.tasks.get(pending.question_id, {}).get(
             pending.question_revision)
         return {"status": "ok", "assessment_id": instance.assessment_id,
+                "illustration_mode": instance.illustration_mode,
+                "evaluation_mode": instance.evaluation_mode,
                 "stop_reason": "", "difficulty": instance.difficulty,
                 "question": task.public_view() if task else None}
     # 最后一题已提交但语义未判定 → 409 evaluation_pending。
@@ -751,6 +919,8 @@ async def cat_next(req: CatNextRequest,
         instance.stop_code = stop_code
         cat.save_instance(_sid, instance, change="stop_on_next")
         return {"status": "ok", "assessment_id": instance.assessment_id,
+                "illustration_mode": instance.illustration_mode,
+                "evaluation_mode": instance.evaluation_mode,
                 "stop_reason": instance.stop_code, "question": None,
                 "summary": cat.report(get_journal(_sid).state(),
                                       req.assessment_id)}
@@ -761,6 +931,7 @@ async def cat_next(req: CatNextRequest,
         instance.stop_code = "generation_failed"
         cat.save_instance(_sid, instance, change="gen_failed")
         return {"status": "ok", "assessment_id": instance.assessment_id,
+                "illustration_mode": instance.illustration_mode,
                 "stop_reason": "generation_failed", "question": None,
                 "summary": cat.report(get_journal(_sid).state(),
                                       req.assessment_id)}
@@ -770,6 +941,8 @@ async def cat_next(req: CatNextRequest,
         question_revision=task.question_revision))
     cat.save_instance(_sid, instance, change="next")
     return {"status": "ok", "assessment_id": instance.assessment_id,
+            "illustration_mode": instance.illustration_mode,
+            "evaluation_mode": instance.evaluation_mode,
             "stop_reason": "", "difficulty": instance.difficulty,
             "question": task.public_view()}
 
@@ -789,6 +962,8 @@ async def cat_active(workspace_id: str = Query(""),
     out: dict[str, Any] = {
         "status": "ok", "assessment_id": instance.assessment_id,
         "workspace_id": instance.workspace_id,
+        "illustration_mode": instance.illustration_mode,
+        "evaluation_mode": instance.evaluation_mode,
         "session_status": instance.status,
         "answered": len(instance.answered_question_ids),
         "stop_reason": instance.stop_code,

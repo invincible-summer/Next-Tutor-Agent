@@ -4,7 +4,8 @@ import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { FileSearch, ImageIcon, LoaderCircle, Play, ShieldCheck } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
-import { FIELD_CLS, Input, LABEL_CLS } from "@/components/ui/Input";
+import { FIELD_CLS, Input, LABEL_CLS, Textarea } from "@/components/ui/Input";
+import { Hint } from "@/components/ui/Hint";
 import { getEvalConcepts, getEvalWorkspaces, getUserProfile, updateUserProfile } from "@/lib/api-modules";
 import { useAuthStore } from "@/lib/auth-store";
 import type { ConceptEvaluationView, WorkspaceEvaluationListItem } from "@/lib/types-modules";
@@ -16,6 +17,9 @@ export interface AssessmentStartIntent {
   purpose: "adaptive" | "diagnose" | "practice";
   count: number;
   illustrationRequest: "auto" | "required";
+  illustrationMode: "v1" | "v2";
+  generationHint: string;
+  evaluationMode: "closed_loop" | "temporary";
 }
 
 type ConfigProps = {
@@ -42,9 +46,11 @@ function Configuration({ tr, lang, busy, onStart, userId }: ConfigProps & { user
   const [workspaceRetry, setWorkspaceRetry] = useState(0);
   const [workspaceId, setWorkspaceId] = useState("");
   const [concepts, setConcepts] = useState<ConceptEvaluationView[]>([]);
-  const [conceptLoadState, setConceptLoadState] = useState<LoadState>("loading");
+  const [conceptLoadState, setConceptLoadState] = useState<LoadState>("ready");
   const [conceptRetry, setConceptRetry] = useState(0);
   const [picked, setPicked] = useState<string[]>([]);
+  const [generationHint, setGenerationHint] = useState("");
+  const [evaluationMode, setEvaluationMode] = useState<AssessmentStartIntent["evaluationMode"]>("closed_loop");
   const [purpose, setPurpose] = useState<AssessmentStartIntent["purpose"]>("adaptive");
   const [count, setCount] = useState("1");
   const [profileState, setProfileState] = useState<LoadState>(userId ? "loading" : "ready");
@@ -56,6 +62,7 @@ function Configuration({ tr, lang, busy, onStart, userId }: ConfigProps & { user
   // validation still runs on the server without spending another LLM call.
   const [criticEnabled, setCriticEnabled] = useState(false);
   const [illustrationReviewEnabled, setIllustrationReviewEnabled] = useState(false);
+  const [illustrationMode, setIllustrationMode] = useState<"v1" | "v2">("v1");
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState(false);
 
@@ -71,13 +78,16 @@ function Configuration({ tr, lang, busy, onStart, userId }: ConfigProps & { user
       const items = response.items ?? [];
       setWorkspaces(items);
       setWorkspaceId(items[0]?.workspace_id ?? "");
+      setConceptLoadState(items[0]?.workspace_id ? "loading" : "ready");
       setWorkspaceState("ready");
     }).catch(() => { if (active) setWorkspaceState("error"); });
     return () => { active = false; };
   }, [workspaceRetry]);
 
   useEffect(() => {
-    if (!workspaceId) return;
+    if (!workspaceId) {
+      return;
+    }
     let active = true;
     getEvalConcepts(workspaceId, { limit: 100 }).then((response) => {
       if (!active) return;
@@ -97,6 +107,7 @@ function Configuration({ tr, lang, busy, onStart, userId }: ConfigProps & { user
       setCriticEnabled(response.profile.prefs?.quiz_critic_enabled === true);
       setIllustrationReviewEnabled(
         response.profile.prefs?.quiz_illustration_review_enabled === true);
+      setIllustrationMode(response.profile.prefs?.quiz_illustration_mode === "v2" ? "v2" : "v1");
       setRequired(false);
       setProfileState("ready");
     }).catch(() => { if (active) setProfileState("error"); });
@@ -108,9 +119,9 @@ function Configuration({ tr, lang, busy, onStart, userId }: ConfigProps & { user
   const countValid = count.trim() !== "" && Number.isInteger(parsedCount) && parsedCount >= 1 && parsedCount <= 20;
   const profileBlocked = Boolean(userId && (profileState !== "ready" || saveError));
   const canStart = !busy && !saving && !profileBlocked && workspaceState === "ready"
-    && conceptLoadState === "ready" && Boolean(workspaceId) && picked.length > 0 && countValid;
+    && conceptLoadState === "ready" && countValid;
 
-  async function savePrefs(prefs: Record<string, boolean>) {
+  async function savePrefs(prefs: Record<string, boolean | string>) {
     if (!userId || busy || saveError || profileState !== "ready" || savingLock.current) return;
     savingLock.current = true;
     setSaving(true);
@@ -123,6 +134,7 @@ function Configuration({ tr, lang, busy, onStart, userId }: ConfigProps & { user
       setCriticEnabled(profile.prefs?.quiz_critic_enabled === true);
       setIllustrationReviewEnabled(
         profile.prefs?.quiz_illustration_review_enabled === true);
+      setIllustrationMode(profile.prefs?.quiz_illustration_mode === "v2" ? "v2" : "v1");
       if (profile.prefs?.quiz_svg_enabled === false) setRequired(false);
       useAuthStore.setState({ user: { ...user, profile } });
     } catch {
@@ -161,6 +173,8 @@ function Configuration({ tr, lang, busy, onStart, userId }: ConfigProps & { user
         if (canStart && !savingLock.current) onStart({
           workspaceId, conceptKeys: picked, purpose, count: parsedCount,
           illustrationRequest: ready && required ? "required" : "auto",
+          illustrationMode, generationHint: generationHint.trim(),
+          evaluationMode: workspaceId ? evaluationMode : "temporary",
         });
       }}>
         <header className="flex items-start gap-2.5">
@@ -181,10 +195,6 @@ function Configuration({ tr, lang, busy, onStart, userId }: ConfigProps & { user
               setWorkspaceRetry((value) => value + 1);
             }}>{tr("illustration.retry")}</Button>
           </div>
-        ) : workspaces.length === 0 ? (
-          <p className="rounded-lg bg-surface-sunken p-3 text-sm leading-6 text-muted">
-            {text("请先创建学习区并选择教材，然后回来开始测评。", "Create a workspace and select textbooks before starting an assessment.")}
-          </p>
         ) : (
           <fieldset disabled={busy || saving} className="min-w-0 space-y-4">
             <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_6rem]">
@@ -194,8 +204,9 @@ function Configuration({ tr, lang, busy, onStart, userId }: ConfigProps & { user
                   setWorkspaceId(event.target.value);
                   setPicked([]);
                   setConcepts([]);
-                  setConceptLoadState("loading");
+                  setConceptLoadState(event.target.value ? "loading" : "ready");
                 }}>
+                  <option value="">{text("不绑定学习区（自由出题）", "No workspace (free generation)")}</option>
                   {workspaces.map((workspace) => <option key={workspace.workspace_id} value={workspace.workspace_id}>
                     {workspace.workspace_name || workspace.workspace_id}
                   </option>)}
@@ -217,11 +228,12 @@ function Configuration({ tr, lang, busy, onStart, userId }: ConfigProps & { user
             </div>
             <section aria-labelledby={`${id}-concepts`}>
               <div className="mb-2 flex flex-wrap items-center justify-between gap-2 text-xs">
-                <h3 id={`${id}-concepts`} className="font-medium text-fg-secondary">{text("诊断概念", "Concepts")}</h3>
+                <h3 id={`${id}-concepts`} className="flex items-center gap-1 font-medium text-fg-secondary">{text("诊断概念（可不选）", "Concepts (optional)")}<Hint label={text("工作区与概念", "Workspace and concepts")} text={text("选择学习区但不选概念时，会根据下面的提示词检索一次教材，自动决定评价体系和出题范围。", "With a workspace but no concepts, the prompt guides one textbook retrieval that selects the evaluation scope and question direction.")} /></h3>
                 <span className="text-muted">{text("已选", "Selected")} {picked.length}/{MAX_CONCEPTS}</span>
               </div>
               <div className="flex max-h-40 min-w-0 flex-wrap content-start items-start gap-2 overflow-y-auto rounded-lg border border-border-light p-2.5">
-                {conceptLoadState === "loading" ? <p role="status" className="text-xs text-muted">{text("正在读取概念…", "Loading concepts…")}</p>
+                {!workspaceId ? <p className="text-xs text-muted">{text("自由出题不会调用知识检索，也不会加入评价体系。", "Free generation skips knowledge retrieval and the evaluation loop.")}</p>
+                  : conceptLoadState === "loading" ? <p role="status" className="text-xs text-muted">{text("正在读取概念…", "Loading concepts…")}</p>
                   : conceptLoadState === "error" ? <div role="alert" className="flex flex-wrap items-center gap-2 text-xs text-danger">
                     {text("读取概念失败。", "Could not load concepts.")}
                     <Button type="button" variant="outline" size="sm" onClick={() => {
@@ -249,6 +261,29 @@ function Configuration({ tr, lang, busy, onStart, userId }: ConfigProps & { user
           </fieldset>
         )}
 
+        <section className="space-y-3 rounded-lg border border-border-light bg-surface-sunken p-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <label className="min-w-0">
+              <span className={`${LABEL_CLS} flex items-center gap-1`}>{text("评价方式", "Evaluation")}
+                <Hint label={text("评价方式", "Evaluation")} text={text("临时出题只服务本次练习，不写入学习评价闭环。未绑定学习区的出题始终是临时出题。", "Temporary questions are only for this run and never enter the learning evaluation loop. No-workspace runs are always temporary.")} />
+              </span>
+              <select className={FIELD_CLS} value={workspaceId ? evaluationMode : "temporary"} disabled={!workspaceId || busy}
+                onChange={(event) => setEvaluationMode(event.target.value as AssessmentStartIntent["evaluationMode"])}>
+                <option value="closed_loop">{text("加入评价闭环", "Add to evaluation loop")}</option>
+                <option value="temporary">{text("临时出题", "Temporary")}</option>
+              </select>
+            </label>
+            <label className="min-w-0">
+              <span className={`${LABEL_CLS} flex items-center gap-1`}>{text("出题提示词（可选）", "Generation prompt (optional)")}
+                <Hint label={text("出题提示词", "Generation prompt")} text={text("可描述风格、背景、题型等方向；不会覆盖教材事实、答案和安全约束。V1/V2 配图都会使用。", "Describe style, background or question type. It cannot override textbook facts, answers or safety constraints, and is used by both V1 and V2 illustration.")} />
+              </span>
+              <Textarea value={generationHint} maxLength={1200} rows={3} disabled={busy}
+                placeholder={text("例如：生活化背景，简洁线稿，优先选择题", "e.g. everyday context, clean line art, prefer multiple choice")}
+                onChange={(event) => setGenerationHint(event.target.value)} />
+            </label>
+          </div>
+        </section>
+
         <section data-testid="assessment-illustration-options" aria-labelledby={`${id}-illustration`}
           className="rounded-lg border border-border-light bg-surface-sunken p-3">
           <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3">
@@ -269,6 +304,16 @@ function Configuration({ tr, lang, busy, onStart, userId }: ConfigProps & { user
             </Button>
           </div>
           <p className="mt-2 text-xs leading-5 text-muted">{tr("illustration.desc")}</p>
+          <label className="mt-3 block">
+            <span className={`${LABEL_CLS} flex items-center gap-1`}>{text("配图方式", "Illustration version")}
+              <Hint label={text("配图方式", "Illustration version")} text={text("选择仅用于本次出题；账户默认值在用户设置中调整。V1 保留旧版生成方式，V2 使用最新素材库方式。", "This choice applies only to this run. Change the account default in settings. V1 preserves the legacy path; V2 uses the latest material library pipeline.")} />
+            </span>
+            <select className={FIELD_CLS} value={illustrationMode} disabled={busy || saving}
+              onChange={(event) => setIllustrationMode(event.target.value as "v1" | "v2")}>
+              <option value="v1">V1 · {text("旧版生成", "Legacy generation")}</option>
+              <option value="v2">V2 · {text("素材库组合", "Material library")}</option>
+            </select>
+          </label>
           <label className="mt-3 grid cursor-pointer grid-cols-[1rem_minmax(0,1fr)] items-start gap-2">
             <Input type="checkbox" className="mt-0.5" checked={ready && required}
               disabled={!ready || saving || busy || saveError} aria-describedby={`${id}-required-help`}
@@ -312,7 +357,7 @@ function Configuration({ tr, lang, busy, onStart, userId }: ConfigProps & { user
         </section>
 
         <footer className="flex flex-col items-stretch gap-3 border-t border-border-light pt-3 sm:flex-row sm:items-center sm:justify-between">
-          <p className="min-w-0 text-xs leading-5 text-muted">{text("请选择 1–8 个教材概念，题量为 1–20。", "Select 1–8 textbook concepts and 1–20 questions.")}</p>
+          <p className="min-w-0 text-xs leading-5 text-muted">{text("可选择学习区和概念，也可自由出题；题量为 1–20。", "Workspace and concepts are optional; choose 1–20 questions.")}</p>
           <Button demoWrite type="submit" size="lg" className="shrink-0 whitespace-nowrap" disabled={!canStart}
             icon={busy ? <LoaderCircle size={15} aria-hidden="true" className="animate-spin" /> : <Play size={15} aria-hidden="true" />}>
             {busy ? tr("config.starting") : tr("config.start")}

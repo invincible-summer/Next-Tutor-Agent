@@ -30,7 +30,7 @@
     "creation_method": "ai_assisted_vector_code",
     "source_module": "app/diagrams/extended_physics.py",
     "source_symbol": "draw:micrometer_reading",
-    "source_hash": "sha256:5a2a91de87b340f6ac2effc426c501c415ad26fd471c527f6da6fd8efcdccfef",
+    "source_hash": "sha256:577aee16c26abd2334b259803dfa280cc71ddc03b862112650e4a04d66ad8668",
     "external_graphics": [],
     "derived_from": [],
     "knowledge_references": [],
@@ -43,7 +43,7 @@
     "visual": "passed",
     "reviewer_type": "agent",
     "reviewed_at": "2026-10-03",
-    "source_hash": "sha256:5a2a91de87b340f6ac2effc426c501c415ad26fd471c527f6da6fd8efcdccfef",
+    "source_hash": "sha256:577aee16c26abd2334b259803dfa280cc71ddc03b862112650e4a04d66ad8668",
     "evidence": {
       "profiles": [
         "textbook",
@@ -67,9 +67,47 @@
         "review_note": "Both re-rendered SVGs are byte-identical to reviewed baseline; prior visual evidence preserved."
       },
       "revalidation": "/tmp/diagram-rebind",
-      "revalidation_note": "Phase D scripts unification: generator moved to scripts/diagrams/build_catalog.py (renderer sources unchanged); full Chromium re-render of all 1119 assets in both profiles clean (bounds=0, textIssues=0, rejected=0)."
+      "revalidation_note": "Phase D scripts unification: generator moved to scripts/diagrams/build_catalog.py (renderer sources unchanged); full Chromium re-render of all 1119 assets in both profiles clean (bounds=0, textIssues=0, rejected=0).",
+      "current_source_review": {
+        "directory": "/tmp/next-tutor-instruments-all-assets-review",
+        "baseline": "/tmp/next-tutor-universal-all-assets-final",
+        "unchanged_actual_svg": true,
+        "svg_hashes": {
+          "physics_extended.micrometer_reading.svg": "sha256:b50159721035c4c55dfbf7de099a5e53f30344b6cbb7f817445aba2d3c37dab3",
+          "physics_extended.micrometer_reading-monochrome.svg": "sha256:3c02dd2edc6ae7012ba6d36f8de806069c837ec3dcad4fdee38180369b60aa04"
+        },
+        "visual_review": "/tmp/next-tutor-universal-all-assets-final"
+      }
     },
     "notes": "全目录双风格重新渲染无越界/文字碰撞，与前轮逐SVG字节核对仅墙体变化；墙体接触面双风格实图已审阅。"
+  },
+  "interface": {
+    "schema_version": "1.0.0",
+    "parameters": {
+      "reading": {
+        "type": "number",
+        "default": 6.28,
+        "minimum": 0,
+        "maximum": 12,
+        "condition_bearing": true,
+        "non_quantitative_allowed": false,
+        "affects_geometry": true,
+        "unit": "",
+        "role": "quantity",
+        "fact_types": [
+          "scalar"
+        ],
+        "default_rule": "fact",
+        "derived_from": []
+      }
+    },
+    "layout": {
+      "origin": "top_left",
+      "uniform_scale": true,
+      "annotations": "measured_outside_placement",
+      "relations": "declared_ports_only",
+      "rotation_allowed": true
+    }
   },
   "svg_file": "asset.svg",
   "guidance_file": "usage_guide.json",

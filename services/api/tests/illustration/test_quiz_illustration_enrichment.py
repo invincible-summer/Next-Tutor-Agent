@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import json
 import tempfile
+import time
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
@@ -74,6 +75,8 @@ def _illustration():
 
 
 class FakeLLM:
+    supports_images = True
+
     def __init__(self, responses: list[str | Exception], *, delay: float = 0.0):
         self.responses = list(responses)
         self.calls = 0
@@ -184,6 +187,37 @@ class TestAssessmentIllustrationBinding(unittest.TestCase):
 
 
 class TestAssessmentIllustrationApi(StorageSandboxTestCase, unittest.IsolatedAsyncioTestCase):
+    async def test_off_policy_is_not_required_for_both_implementations(self):
+        from app.illustration import orchestrator
+        for mode in ("v1", "v2"):
+            for request in ("none", "auto"):
+                with self.subTest(mode=mode, request=request):
+                    task = _task("q_off_policy")
+                    instance = cat.CatInstance(
+                        assessment_id="asmt_off_policy",
+                        illustration_mode=mode,
+                        illustration_request=request,
+                        question_refs=[S.QuestionRef(question_id=task.question_id, question_revision=1)],
+                    )
+                    state = SimpleNamespace(
+                        tasks={task.question_id: {1: task}},
+                        assessments={instance.assessment_id: instance.to_detail()},
+                    )
+                    with patch.object(illustration_api, "get_journal", return_value=SimpleNamespace(state=lambda: state)), \
+                            patch.object(illustration_api, "resolve_illustration_policy", return_value="off") as policy, \
+                            patch.object(illustration_api, "generate_assessment_illustration") as generate, \
+                            patch.object(orchestrator, "start_job") as start:
+                        result = await enrich_question_illustration(
+                            task.question_id, IllustrationRequest(question_revision=1),
+                            student_id="usr_off_policy")
+                    policy.assert_called_once_with("usr_off_policy", request)
+                    self.assertEqual(result["status"], "not_required")
+                    self.assertIsNone(result["illustration"])
+                    self.assertFalse(result["retryable"])
+                    self.assertEqual(result["metrics"]["generation_calls"], 0)
+                    generate.assert_not_called()
+                    start.assert_not_called()
+
     async def test_reviewed_cache_is_readable_after_new_generation_switch_is_off(self):
         task = _task("q_cached")
         instance = cat.CatInstance(
@@ -251,6 +285,10 @@ class TestIllustrationEnrichment(StorageSandboxTestCase, unittest.IsolatedAsynci
         components = patch.object(settings, "quiz_diagram_mode", "components")
         components.start()
         self.addCleanup(components.stop)
+        from app.illustration import preview
+        render = patch.object(preview, "render", return_value=b"synthetic-review-png")
+        render.start()
+        self.addCleanup(render.stop)
 
     async def test_required_enrichment_generates_audits_and_caches_without_regenerating_question(self):
         audited = json.dumps({"status": "passed", "issues": []})
@@ -344,12 +382,84 @@ class TestIllustrationEnrichment(StorageSandboxTestCase, unittest.IsolatedAsynci
         self.assertNotIn("answer", enrichment._task_payload(task))
         self.assertNotIn("explanation", enrichment._task_payload(task))
         self.assertNotIn("rubric", enrichment._task_payload(task))
-        audit = llm.requests[2]["messages"][1]["content"]
+        audit = llm.requests[2]["messages"][1]["content"][0]["text"]
         self.assertIn("审查专用 authoring_gold=", audit)
         self.assertIn(task.answer, audit)
         self.assertIn(task.explanation, audit)
         self.assertIn("PRIVATE_RUBRIC_SENTINEL", audit)
         self.assertEqual(task.model_dump_json(), before)
+
+    async def test_visual_review_uses_actual_rendered_png(self):
+        from app.core import quiz_illustration_policy as policy
+        from app.illustration import preview
+        llm = FakeLLM([_requirements_response(), _scene_response(),
+                       json.dumps({"status": "passed", "issues": []})])
+        with patch.object(policy, "account_allows_illustration_review", return_value=True), \
+                patch.object(preview, "render", return_value=b"the-actual-normalized-png") as render:
+            result = await enrichment.generate_assessment_illustration(
+                student_id="usr_png_review", task=_task("q_png_review"), policy="required", llm=llm)
+        self.assertEqual(result["status"], "ready")
+        render.assert_called_once()
+        content = llm.requests[2]["messages"][1]["content"]
+        self.assertEqual(content[1]["type"], "image_url")
+        import base64
+        encoded = content[1]["image_url"]["url"].split(",", 1)[1]
+        self.assertEqual(base64.b64decode(encoded), b"the-actual-normalized-png")
+        self.assertEqual(render.call_args.args[0].svg, result["illustration"].svg)
+        self.assertIn("实际解析几何=", content[0]["text"])
+
+    async def test_enabled_review_without_image_support_fails_before_provider_calls(self):
+        from app.core import quiz_illustration_policy as policy
+        llm = FakeLLM([])
+        llm.supports_images = False
+        task = _task("q_text_only_review")
+        with patch.object(policy, "account_allows_illustration_review", return_value=True):
+            result = await enrichment.generate_assessment_illustration(
+                student_id="usr_text_only_review", task=task, policy="required", llm=llm)
+        self.assertEqual(result["status"], "failed")
+        self.assertEqual(result["code"], "provider_unavailable")
+        self.assertEqual(llm.calls, 0)
+        self.assertIsNone(enrichment.get_cached_assessment_illustration(
+            "usr_text_only_review", task.question_id, 1))
+
+    async def test_disabled_review_still_repairs_unsupported_numeric_control(self):
+        from app.core import quiz_illustration_policy as policy
+        from app.diagrams.catalog import catalog
+        task = _task("q_numeric_guard").model_copy(update={"stem": "温度计示数为45 °C。"})
+        requirement = json.dumps({"requirements": [{"question_slot": "q1", "illustration_needed": True,
+            "needs": [{"key": "measure", "name": "温度计"}]}]})
+        bad = {"alt": "测量器示意", "nodes": [{"id": "measure", "asset_id": "apparatus.thermometer",
+            "version": catalog()[1]["apparatus.thermometer"].version, "x": 120, "y": 60,
+            "params": {"reading": 30, "scale_labels": True}}]}
+        fixed = json.loads(json.dumps(bad))
+        fixed["nodes"][0]["params"]["reading"] = 45
+        llm = FakeLLM([requirement, _scene_response(bad), _scene_response(fixed)])
+        llm.supports_images = False
+        with patch.object(policy, "account_allows_illustration_review", return_value=False):
+            result = await enrichment.generate_assessment_illustration(
+                student_id="usr_numeric_guard", task=task, policy="required", llm=llm)
+        self.assertEqual(result["status"], "ready")
+        self.assertEqual(llm.calls, 3)
+        self.assertEqual(result["metrics"]["illustration_repairs"], 1)
+        repair = json.loads(llm.requests[2]["messages"][-1]["content"])
+        self.assertEqual(repair["machine_feedback"]["condition_issues"][0]["code"], "unsupported_reading")
+        self.assertNotIn("authoring_gold", json.dumps(llm.requests))
+
+    def test_contradictory_passed_audit_cannot_pass(self):
+        result = enrichment._audit_payload(json.dumps({
+            "status": "passed", "issues": ["unsupported_reading"]}))
+        self.assertEqual(result["status"], "failed")
+        self.assertEqual(enrichment._audit_payload('{"status":"passed"}')["status"], "failed")
+
+    def test_presentation_warnings_do_not_override_scientific_issues(self):
+        warning = enrichment._audit_payload(json.dumps({"status": "failed", "issues": [],
+            "warnings": ["cosmetic_layout", "missing_optional_operation"]}))
+        self.assertEqual(warning["status"], "passed")
+        critical = enrichment._audit_payload(json.dumps({"status": "passed", "issues": ["scientific_mismatch"],
+            "warnings": ["cosmetic_layout"]}))
+        self.assertEqual(critical["status"], "failed")
+        self.assertEqual(enrichment._audit_payload(json.dumps({"status": "failed", "issues": [],
+            "warnings": ["unknown_freeform"]}))["status"], "failed")
 
     async def test_direct_svg_or_fragments_are_not_repaired_into_a_scene(self):
         for data in (
@@ -380,18 +490,69 @@ class TestIllustrationEnrichment(StorageSandboxTestCase, unittest.IsolatedAsynci
         self.assertEqual(result["illustration"].svg, historical.svg)
         self.assertEqual(result["metrics"]["cache_hit"], 1)
 
-    async def test_semantic_audit_failure_does_not_trigger_svg_redraw(self):
-        failed_audit = json.dumps({"status": "failed", "issues": ["label_position"]})
-        llm = FakeLLM([_requirements_response(), _scene_response(), failed_audit])
+    async def test_semantic_audit_repairs_and_reaudits_without_exposing_gold(self):
+        failed_audit = json.dumps({"status": "failed", "issues": ["label_position", "PRIVATE_ANSWER_SENTINEL"]})
+        llm = FakeLLM([_requirements_response(), _scene_response(), failed_audit,
+                       _scene_response(), json.dumps({"status": "passed", "issues": []})])
+        task = _task("q_repair").model_copy(update={"answer": "PRIVATE_ANSWER_SENTINEL"})
+        before = task.model_dump_json()
         from app.core import quiz_illustration_policy as policy
         with tempfile.TemporaryDirectory() as tmp, \
                 patch.object(enrichment, "_STUDENTS_DIR", Path(tmp)), \
                 patch.object(policy, "account_allows_illustration_review", return_value=True):
             result = await enrichment.generate_assessment_illustration(
-                student_id="usr_repair", task=_task("q_repair"), policy="required", llm=llm)
+                student_id="usr_repair", task=task, policy="required", llm=llm)
+        self.assertEqual(result["status"], "ready")
+        self.assertEqual(llm.calls, 5)
+        self.assertEqual(result["metrics"]["illustration_repairs"], 1)
+        repair_context = llm.requests[3]["messages"][-1]["content"]
+        self.assertIn("label_position", repair_context)
+        self.assertNotIn("PRIVATE_", json.dumps(llm.requests[3]))
+        self.assertIn("PRIVATE_ANSWER_SENTINEL", json.dumps(llm.requests[4]))
+        self.assertEqual(task.model_dump_json(), before)
+
+    async def test_failed_scene_is_repaired_from_machine_diagnostics(self):
+        requirement = json.dumps({"requirements": [{"question_slot": "q1", "illustration_needed": True,
+            "needs": [{"key": "chart", "name": "柱状图"}]}]})
+        bad = {"alt": "甲乙丙三组已知数据", "nodes": [{"id": "chart", "asset_id": "chart.bar",
+            "x": 20, "y": 20, "params": {"values": [10, 20, 15]}}]}
+        fixed = json.loads(json.dumps(bad))
+        fixed["nodes"][0]["params"]["labels"] = ["甲", "乙", "丙"]
+        llm = FakeLLM([requirement, _scene_response(bad), _scene_response(fixed),
+                       json.dumps({"status": "passed", "issues": []})])
+        from app.core import quiz_illustration_policy as policy
+        with patch.object(policy, "account_allows_illustration_review", return_value=True):
+            result = await enrichment.generate_assessment_illustration(
+                student_id="usr_scene_repair", task=_task("q_scene_repair"), policy="required", llm=llm)
+        self.assertEqual(result["status"], "ready")
+        self.assertEqual(llm.calls, 4)
+        repair = json.loads(llm.requests[2]["messages"][-1]["content"])
+        self.assertEqual(repair["machine_feedback"]["nodes"][0]["missing_parameters"], ["labels"])
+        self.assertEqual(repair["previous_scene"]["nodes"][0]["params"]["values"], [10, 20, 15])
+        self.assertEqual(result["metrics"]["illustration_repairs"], 1)
+
+    async def test_semantic_repairs_stop_at_the_call_and_repair_limit(self):
+        failed = json.dumps({"status": "failed", "issues": ["scientific_mismatch"]})
+        llm = FakeLLM([_requirements_response(), _scene_response(), failed,
+                       _scene_response(), failed, _scene_response(), failed])
+        task = _task("q_repair_limit")
+        from app.core import quiz_illustration_policy as policy
+        with patch.object(policy, "account_allows_illustration_review", return_value=True):
+            result = await enrichment.generate_assessment_illustration(
+                student_id="usr_repair_limit", task=task, policy="required", llm=llm)
         self.assertEqual(result["status"], "failed")
-        self.assertEqual(llm.calls, 3)
         self.assertEqual(result["code"], "illustration_audit_failed")
+        self.assertEqual(llm.calls, 7)
+        self.assertEqual(result["metrics"]["illustration_repairs"], 2)
+        self.assertIsNone(enrichment.get_cached_assessment_illustration("usr_repair_limit", task.question_id, 1))
+
+    async def test_final_audit_can_consume_the_reserved_time(self):
+        from app.core.quiz_generation_budget import GenerationBudget
+        budget = GenerationBudget(max_calls=3, calls=2, deadline=time.monotonic() + 1)
+        llm = FakeLLM([json.dumps({"status": "passed", "issues": []})])
+        result = await enrichment._complete(llm, budget, [], timeout=1, max_tokens=700)
+        self.assertEqual(json.loads(result)["status"], "passed")
+        self.assertEqual(budget.calls, 3)
 
     async def test_concurrent_requests_share_one_success_result(self):
         audited = json.dumps({"status": "passed", "issues": []})

@@ -17,26 +17,52 @@ export interface IllustrationJob {
   progress?: { stage: string; percent: number };
 }
 
+export class IllustrationRequestError extends Error {
+  constructor(code: string, readonly retryable: boolean) {
+    super(code);
+    this.name = "IllustrationRequestError";
+  }
+}
+
+// V1 may use a 90-second server budget; leave room for transport and cleanup.
+const ILLUSTRATION_POST_TIMEOUT_MS = 120_000;
+
 async function request(path: string, init?: RequestInit): Promise<IllustrationJob> {
-  const response = await apiFetch(`${API_BASE}${path}`, init);
+  let response: Response;
+  try {
+    response = await apiFetch(`${API_BASE}${path}`, init);
+  } catch (error) {
+    if (error instanceof Error && (error.name === "TimeoutError" || error.name === "AbortError")) {
+      throw new IllustrationRequestError("run_interrupted", true);
+    }
+    throw error;
+  }
   const payload = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(String(payload?.detail?.error?.code || payload?.error?.code || `status_${response.status}`));
+  if (!response.ok) {
+    const failure = payload?.detail?.error ?? payload?.error;
+    const retryable = typeof failure?.retryable === "boolean" ? failure.retryable
+      : response.status === 408 || response.status === 429 || response.status >= 500;
+    throw new IllustrationRequestError(String(failure?.code || `status_${response.status}`), retryable);
+  }
   return payload as IllustrationJob;
 }
 
-export function startIllustration(questionId: string, revision: number) {
+export function startIllustration(questionId: string, revision: number, signal?: AbortSignal) {
   return request(`/assessment/questions/${encodeURIComponent(questionId)}/illustration`, {
     method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ question_revision: revision }),
+    signal: signal ?? AbortSignal.timeout(ILLUSTRATION_POST_TIMEOUT_MS),
   });
 }
-export function getIllustrationJob(jobId: string) {
-  return request(`/illustration-jobs/${encodeURIComponent(jobId)}`);
+export function getIllustrationJob(jobId: string, signal?: AbortSignal) {
+  return request(`/illustration-jobs/${encodeURIComponent(jobId)}`, signal ? { signal } : undefined);
 }
-export function retryIllustrationJob(jobId: string) {
-  return request(`/illustration-jobs/${encodeURIComponent(jobId)}/retry`, { method: "POST" });
+export function retryIllustrationJob(jobId: string, signal?: AbortSignal) {
+  return request(`/illustration-jobs/${encodeURIComponent(jobId)}/retry`, {
+    method: "POST", signal: signal ?? AbortSignal.timeout(ILLUSTRATION_POST_TIMEOUT_MS),
+  });
 }
-export function getFrozenIllustration(questionId: string, revision: number) {
-  return request(`/questions/${encodeURIComponent(questionId)}/illustration?question_revision=${revision}`);
+export function getFrozenIllustration(questionId: string, revision: number, signal?: AbortSignal) {
+  return request(`/questions/${encodeURIComponent(questionId)}/illustration?question_revision=${revision}`, signal ? { signal } : undefined);
 }
 
 export function illustrationStage(stage: string, english: boolean): string {

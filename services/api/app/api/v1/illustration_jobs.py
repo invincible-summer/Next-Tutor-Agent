@@ -8,7 +8,9 @@ from app.agents.student_model.evaluation.store import get_journal
 from app.core.quiz_illustration_policy import IllustrationDisabled, resolve_illustration_policy
 from app.identity.deps import resolve_student_id
 from app.illustration import persistence
-from app.illustration.contracts import IllustrationError, material_contract
+from app.illustration.contracts import (IllustrationError,
+                                        QuestionMaterialContract,
+                                        material_contract)
 from app.illustration.events import public_job
 from app.illustration.orchestrator import recover_job, start_job
 
@@ -35,18 +37,29 @@ def policy_for(owner, state, task):
     instance = _bound_instance(state, task.question_id, task.question_revision)
     if instance is None:
         raise _error(404, "assessment_question_not_current", "只有进行中测评的当前题可启动新的补图任务")
+    if instance.illustration_mode != "v2":
+        raise _error(409, "illustration_mode_mismatch", "当前测评选择的是 V1 配图方式")
     try:
         return resolve_illustration_policy(owner, instance.illustration_request or "auto")
     except IllustrationDisabled:
         raise _error(409, "illustration_disabled", "题目插图已关闭") from None
 
 
-def task_contract(task):
+def task_contract(task, *, illustration_guidance: str = ""):
     # Late diagrams cannot supply essential conditions or change a snapshot.
+    if task.material_contract is not None:
+        # CAT generation may already have produced and validated the complete
+        # material contract.  Reusing it keeps V2 grounded in the same facts
+        # instead of reconstructing a weaker stem/options-only contract.
+        payload = task.material_contract.model_dump(mode="json")
+        payload["illustration_guidance"] = str(illustration_guidance or "").strip()[:1200]
+        payload["contract_hash"] = ""
+        return QuestionMaterialContract.model_validate(payload)
     return material_contract({"type": task.q_type.value, "stem": task.stem, "options": task.options,
         "answer": task.answer, "explanation": task.explanation,
         "rubric": [c.model_dump(mode="json") for c in task.rubric]},
-        question_ref=task.question_id, revision=task.question_revision, frozen=True)
+        question_ref=task.question_id, revision=task.question_revision, frozen=True,
+        illustration_guidance=illustration_guidance)
 
 
 def recovered_job(owner, job):
@@ -65,14 +78,21 @@ async def create_illustration_job(req: DraftReference, owner: str = Depends(reso
     state, task = owned_task(owner, req.question_id, req.question_revision)
     existing = persistence.find_job(owner, req.question_id, req.question_revision)
     if existing:
-        return public_job(owner, recovered_job(owner, existing))
+        existing = recovered_job(owner, existing)
+        if existing["status"] != "failed":
+            return public_job(owner, existing)
+        # A failed job cannot bypass policy/current-question checks. The
+        # orchestrator may replace it when its implementation version changed.
     if task.illustration is not None:
         return {"status": "ready", "question_id": task.question_id,
             "question_revision": task.question_revision, "visual_role": task.visual_role,
             "artifact_id": task.illustration_artifact_id,
             "illustration": task.illustration.model_dump(mode="json")}
     try:
-        job = start_job(owner, task_contract(task), policy_for(owner, state, task))
+        instance = _bound_instance(state, task.question_id, task.question_revision)
+        job = start_job(owner, task_contract(
+            task, illustration_guidance=instance.generation_hint if instance else ""),
+            policy_for(owner, state, task))
     except IllustrationError as exc:
         raise _error(409, exc.code, "题目材料无法补图，请修订题目或检查生成设置") from None
     return public_job(owner, job)
@@ -108,7 +128,10 @@ async def retry_illustration_job(job_id: str, owner: str = Depends(resolve_stude
     if job["status"] in {"queued", "running"}:
         return public_job(owner, job)
     try:
-        new_job = start_job(owner, task_contract(task), policy_for(owner, state, task), retry=True)
+        instance = _bound_instance(state, task.question_id, task.question_revision)
+        new_job = start_job(owner, task_contract(
+            task, illustration_guidance=instance.generation_hint if instance else ""),
+            policy_for(owner, state, task), retry=True)
     except IllustrationError as exc:
         raise _error(409, exc.code, "题目材料无法补图") from None
     return public_job(owner, new_job)

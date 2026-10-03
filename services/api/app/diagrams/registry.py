@@ -12,6 +12,7 @@ class Renderer:
     draw: Callable
     parameters: Callable
     rotation_allowed: bool = False
+    version: int = 1
 
 
 @lru_cache(maxsize=1)
@@ -49,7 +50,11 @@ def renderers():
 def extensions():
     from .extended import registrations
 
-    return registrations()
+    from . import terrestrial_models
+    rows = registrations()
+    rows.update({aid: Renderer(terrestrial_models.draw, terrestrial_models.parameters, version=2)
+        for aid in ("earth.water_cycle", "template.water_cycle", "geography_extended.glacier")})
+    return rows
 
 
 def extension(asset_id: str):

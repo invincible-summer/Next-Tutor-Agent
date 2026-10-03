@@ -35,7 +35,7 @@
     "creation_method": "ai_assisted_vector_code",
     "source_module": "app/diagrams/instruments.py",
     "source_symbol": "vessel:wide_bottle",
-    "source_hash": "sha256:5fddabf552f216723298f9d624ae3d0683d89251d7c552213266de0f7fa6115a",
+    "source_hash": "sha256:afa14e42f86f8f7c559f0893960a22ad716bc84ca7b433a3364efd0b8cfd5ebb",
     "external_graphics": [],
     "derived_from": [],
     "knowledge_references": [],
@@ -48,7 +48,7 @@
     "visual": "passed",
     "reviewer_type": "agent",
     "reviewed_at": "2026-10-03",
-    "source_hash": "sha256:5fddabf552f216723298f9d624ae3d0683d89251d7c552213266de0f7fa6115a",
+    "source_hash": "sha256:afa14e42f86f8f7c559f0893960a22ad716bc84ca7b433a3364efd0b8cfd5ebb",
     "evidence": {
       "profiles": [
         "textbook",
@@ -72,9 +72,60 @@
         "review_note": "Both re-rendered SVGs are byte-identical to reviewed baseline; prior visual evidence preserved."
       },
       "revalidation": "/tmp/diagram-rebind",
-      "revalidation_note": "Phase D scripts unification: generator moved to scripts/diagrams/build_catalog.py (renderer sources unchanged); full Chromium re-render of all 1119 assets in both profiles clean (bounds=0, textIssues=0, rejected=0)."
+      "revalidation_note": "Phase D scripts unification: generator moved to scripts/diagrams/build_catalog.py (renderer sources unchanged); full Chromium re-render of all 1119 assets in both profiles clean (bounds=0, textIssues=0, rejected=0).",
+      "current_source_review": {
+        "directory": "/tmp/next-tutor-instruments-all-assets-review",
+        "baseline": "/tmp/next-tutor-universal-all-assets-final",
+        "unchanged_actual_svg": true,
+        "svg_hashes": {
+          "vessel.wide_bottle.svg": "sha256:dcb71f128b38f8426453cde172fea25cac9ed5bad6e042cdfe3221a5f8daac42",
+          "vessel.wide_bottle-monochrome.svg": "sha256:0479426fed883ee1714a548c0db971b64c87f86c1e8a3e621a042ccb4c1961cc"
+        },
+        "visual_review": "/tmp/next-tutor-universal-all-assets-final"
+      }
     },
     "notes": "全目录双风格重新渲染无越界/文字碰撞，与前轮逐SVG字节核对仅墙体变化；墙体接触面双风格实图已审阅。"
+  },
+  "interface": {
+    "schema_version": "1.0.0",
+    "parameters": {
+      "fill": {
+        "type": "number",
+        "minimum": 0,
+        "maximum": 1,
+        "default": 0,
+        "condition_bearing": true,
+        "non_quantitative_allowed": true,
+        "affects_geometry": true,
+        "unit": "height_fraction",
+        "role": "quantity",
+        "fact_types": [
+          "scalar"
+        ],
+        "default_rule": "fact",
+        "derived_from": [],
+        "qualitative_state": "liquid_present"
+      },
+      "liquid_color": {
+        "type": "color",
+        "default": "#a9cedb",
+        "condition_bearing": false,
+        "non_quantitative_allowed": false,
+        "affects_geometry": false,
+        "unit": "",
+        "role": "appearance",
+        "fact_types": [],
+        "default_rule": "canonical",
+        "derived_from": []
+      }
+    },
+    "layout": {
+      "origin": "top_left",
+      "uniform_scale": true,
+      "annotations": "measured_outside_placement",
+      "relations": "declared_ports_only",
+      "rotation_allowed": false
+    }
   },
   "svg_file": "asset.svg",
   "guidance_file": "usage_guide.json",

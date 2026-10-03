@@ -408,6 +408,8 @@ def resolve_submission_binding(
         inst = cat.load_instance(state, assessment_id)
         if inst is None:
             raise AssessmentBindingError(f"测评实例 {assessment_id} 不存在")
+        if inst.evaluation_mode == "temporary":
+            raise AssessmentBindingError("临时出题不进入统一评价受理")
         if question_ref.question_id not in {
                 q.question_id for q in inst.question_refs}:
             raise AssessmentBindingError(

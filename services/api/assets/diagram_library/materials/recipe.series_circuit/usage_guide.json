@@ -1,9 +1,9 @@
 {
-  "version": "1.0.3",
+  "version": "1.2.0",
   "hints": {
-    "requirements": "需求名用“电池开关电阻电流表串联”，一个need覆盖四实体；capabilities=[\"complete_apparatus\",\"wire_terminal\"]，不增加整体回路实体。",
-    "compose": "closed绑定开关state事实；已有内部闭合接线，relations=[]即可，不重复series线。entity_map绑定四子实体；合同要求的器件标签逐字放在对应子实例annotations中。",
-    "authoring": "实体只有battery、switch、resistor、ammeter四个，不再创建loop或完整回路实体。开关closed=true；仅声明series关系，不再创建表示串联的label/geometry/depict_only事实，不加真实电表读数。"
+    "requirements": "电池、开关、电阻、电流表构成完整串联回路；此配方不显示电流表的定量读数。",
+    "compose": "电池、开关、电阻、电流表构成完整串联回路；此配方不显示电流表的定量读数。",
+    "authoring": "电池、开关、电阻、电流表构成完整串联回路；此配方不显示电流表的定量读数。"
   },
   "match_terms": [
     "串联回路",

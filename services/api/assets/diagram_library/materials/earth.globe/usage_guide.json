@@ -1,12 +1,12 @@
 {
-  "version": "1.0.0",
+  "version": "1.2.0",
   "match_terms": [
     "经纬网",
     "地球仪"
   ],
   "hints": {
-    "authoring": "地球仪已有经线、纬线和赤道。整个构造仅一个实体；内部线条事实只归属地球仪，不拆实体，不建立地球仪到自身关系。",
-    "requirements": "只需地球仪一个need覆盖全部内部已知结构，capabilities=[\"static_illustration\"]。不要另外检索经线、纬线或经纬网叠加。",
-    "compose": "一个地球仪整体实例；params.show_poles=false，无相关极点标签事实时不启用show_poles。不添加具体经纬度数字或国名。"
+    "authoring": "地球仪为无参数定性整体示意，不支持经纬度数字、国名或全球地图数据。",
+    "requirements": "地球仪为无参数定性整体示意，不支持经纬度数字、国名或全球地图数据。",
+    "compose": "地球仪为无参数定性整体示意，不支持经纬度数字、国名或全球地图数据。"
   }
 }

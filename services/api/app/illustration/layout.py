@@ -14,7 +14,7 @@ from app.diagrams.schema import DiagramError
 
 from .composition import validate_scene
 from .contracts import DiagramSourceV2, IllustrationError, LayoutReport, SceneDraftV2, SceneRelation, Target
-from .preview import measure
+from .preview import label_clearance, measure
 from .requirements import allowed_label
 
 LAYERS = ["background", "support", "body", "content", "connection", "measurement_marks",
@@ -74,74 +74,53 @@ def contains(outer, inner, margin=0):
 
 
 def _parameters(instance, contract):
-    schema = parameter_semantics(instance.asset_id)
+    from app.diagrams.interface import compatible_fact, default_is_safe
+    from .contracts import canonical_function_expression
+    schema = parameter_semantics(instance.asset_id, getattr(instance, "version", None))
     if (set(instance.params) | set(instance.fact_bindings) | set(instance.non_quantitative)) - set(schema):
         raise IllustrationError("parameter_unbound", target=instance.instance_id)
     facts = {f.id: f for f in contract.facts}
     params, bindings = dict(instance.params), {}
     for key, spec in schema.items():
+        if spec.get("role") == "function" and key in params:
+            params[key] = canonical_function_expression(params[key])
         ref = instance.fact_bindings.get(key)
         if ref:
-            fact = facts[ref]
-            if fact.entity_id and instance.entity_id and fact.entity_id != instance.entity_id:
+            fact = facts.get(ref)
+            if fact is None or fact.entity_id and instance.entity_id and fact.entity_id != instance.entity_id:
                 raise IllustrationError("parameter_unbound", target=instance.instance_id)
-            unit = spec.get("unit", "")
-            qualitative_liquid = key == "fill" and fact.type == "state" and fact.value is True and (
-                fact.predicate == "liquid_present") and not contract.presentation_constraints.to_scale
-            if qualitative_liquid:
+            if not compatible_fact(fact, spec, key, to_scale=contract.presentation_constraints.to_scale):
+                raise IllustrationError("parameter_unbound", target=instance.instance_id+":"+key)
+            if spec.get("qualitative_state") == fact.predicate and fact.type == "state":
                 value = params.get(key, spec.get("default") or .5)
-                if not isinstance(value, (int, float)) or not 0 < value <= 1 or fact.unit:
+                if type(value) not in {int, float} or not 0 < value <= 1:
                     raise IllustrationError("parameter_unbound", target=instance.instance_id)
                 params[key] = value
                 bindings[key] = {**fact.model_dump(mode="json"), "non_quantitative": True,
                                  "rendered_height_fraction": value}
                 continue
-            if unit and fact.unit != unit:
-                raise IllustrationError("parameter_unbound", target=instance.instance_id)
-            if key in {"values", "points", "x_range", "y_range", "interval"} and fact.type not in {"data", "range"}:
-                raise IllustrationError("parameter_unbound", target=instance.instance_id)
-            if key == "labels" and (fact.type not in {"data", "label"} or not isinstance(fact.value, list)):
-                raise IllustrationError("parameter_unbound", target=instance.instance_id)
-            if key == "function" and fact.type != "function":
-                raise IllustrationError("parameter_unbound", target=instance.instance_id)
             if key in params and params[key] != fact.value:
                 raise IllustrationError("parameter_unbound", target=instance.instance_id)
             params[key] = fact.value
             bindings[key] = fact.model_dump(mode="json")
         elif spec.get("condition_bearing"):
-            if key not in params and "default" not in spec and not spec.get("required"):
-                # Optional data is absent, not a model supplied condition.
-                # The registered renderer derives e.g. sequential edges from
-                # the bound ordered item list, never gallery sample values.
+            if key not in params and spec.get("default_rule") == "optional":
                 continue
-            # False appearance toggles add no marks; calibrated scales derive
-            # from bound readings/ranges rather than a model invented value.
             value = params.get(key, spec.get("default"))
-            # Library captions are optional presentation, never new question
-            # facts. Omit unrequested default labels across every renderer.
-            if key in {"show_labels", "show_poles"} and key not in params:
+            if spec.get("suppress_unrequested") and key not in params:
                 value = False
                 params[key] = False
-            safe_off = key in {"show_labels", "show_poles", "show_values", "show_angle", "scale_labels", "show_scale"} and value is False
-            calibrated = key in {"scale_labels", "show_scale"} and value is True and (
-                {"reading", "maximum"} <= set(instance.fact_bindings) or
-                instance.asset_id in {"apparatus.thermometer", "recipe.thermal"} and "reading" in instance.fact_bindings or
-                instance.asset_id == "vessel.cylinder" and "capacity" in instance.fact_bindings)
-            no_auxiliary = key == "construction" and value == "none"
-            calibrated_axis = instance.asset_id.startswith("function.") and {
-                "function", "x_range", "y_range"} <= set(instance.fact_bindings) and (
-                key == "show_ticks" and value is True or
-                key == "x_label" and value == "x" or key == "y_label" and value == "y")
-            if safe_off or calibrated or no_auxiliary or calibrated_axis:
+            if default_is_safe(spec, value, set(instance.fact_bindings)):
+                if key not in params and "default" in spec:
+                    params[key] = value
                 continue
             if key not in instance.non_quantitative or not spec.get("non_quantitative_allowed"):
                 raise IllustrationError("missing_fact_binding", target=instance.instance_id+":"+key,
                     repairable=bool(spec.get("non_quantitative_allowed") and not contract.presentation_constraints.to_scale))
-            if contract.presentation_constraints.to_scale or key in {"values", "points", "function"}:
+            if contract.presentation_constraints.to_scale or spec.get("role") in {"data", "function"}:
                 raise IllustrationError("missing_fact_binding", target=instance.instance_id)
             bindings[key] = {"non_quantitative": True, "value": value}
-            if key not in params:
-                params[key] = value
+            params[key] = value
     return params, bindings
 
 
@@ -255,17 +234,82 @@ class CompiledIllustration:
     facts: list[dict]
 
 
+def fit_schematic_containment(scene, contract, placed, bindings, internal):
+    """Fit declared schematic dimensions; every scientific binding stays fixed.
+
+    A candidate is accepted only when its actual instantiated region fits.
+    Later contact, collision and scientific checks still run normally.
+    """
+    changes = []
+    if contract.presentation_constraints.to_scale:
+        return placed, bindings, internal, changes
+    for relation in [*scene.relations, *internal]:
+        if relation.type not in {"inside", "immersed_in"}:
+            continue
+        a, b = placed.get(relation.start.instance), placed.get(relation.end.instance)
+        if not a or not b or a.rotation or b.rotation:
+            continue
+        subject_region = relation.start.region or "body"
+        container_region = relation.end.region or ("liquid" if relation.type == "immersed_in" else "cavity")
+        if not a.geometry.regions.get(subject_region, {}).get("bounds") or not b.geometry.regions.get(container_region, {}).get("bounds"):
+            continue
+        if a.geometry.derived_facts.get("construction_part") or b.geometry.derived_facts.get("construction_part"):
+            continue
+        body, container = a.region(subject_region), b.region(container_region)
+        if contains(container, body, margin=2):
+            continue
+        node = next((node for node in scene.asset_instances if node.instance_id == (a.recipe or a.id)), None)
+        if node is None:
+            continue
+        schema = parameter_semantics(node.asset_id, node.version)
+        for key in node.non_quantitative:
+            spec = schema.get(key, {})
+            if spec.get("role") != "schematic" or not spec.get("non_quantitative_allowed") or key in node.fact_bindings:
+                continue
+            if a.recipe and RECIPES[node.asset_id].bindings.get(key, (None,))[0] != a.id.removeprefix(a.recipe+":"):
+                continue
+            value = node.params.get(key, spec.get("default"))
+            if type(value) not in {int, float} or value <= 0:
+                continue
+            cx, cy = body[0]+body[2]/2, body[1]+body[3]/2
+            width = 2*min(cx-container[0]-2, container[0]+container[2]-2-cx)
+            height = 2*min(cy-container[1]-2, container[1]+container[3]-2-cy)
+            if min(width, height) <= 0:
+                continue
+            proposed = max(spec.get("minimum", 0), value*min(width/body[2], height/body[3], .99)*.98)
+            if spec["type"] == "integer":
+                proposed = math.floor(proposed)
+            original = dict(node.params)
+            node.params[key] = proposed
+            try:
+                candidate, candidate_bindings, candidate_internal = instantiate_scene(scene, contract)
+                fitted = candidate[a.id].region(subject_region)
+                if not contains(candidate[b.id].region(container_region), fitted, margin=2):
+                    node.params = original
+                    continue
+            except (DiagramError, IllustrationError):
+                node.params = original
+                continue
+            placed, bindings, internal = candidate, candidate_bindings, candidate_internal
+            changes.append({"instance": node.instance_id, "parameter": key, "from": value,
+                "to": proposed, "reason": "fit_schematic_containment"})
+            break
+    return placed, bindings, internal, changes
+
+
 def compile_scene(scene: SceneDraftV2, *, contract, brief, bundle) -> CompiledIllustration:
+    scene = scene.model_copy(deep=True)
     validate_scene(scene, contract, brief, bundle)
     try:
         placed, bindings, internal = instantiate_scene(scene, contract)
+        placed, bindings, internal, changes = fit_schematic_containment(scene, contract, placed, bindings, internal)
     except DiagramError as exc:
         raise IllustrationError("parameter_unbound") from exc
     texts = [{"text": a.text, "size": 18} for a in scene.annotations]
     metrics = measure([p.geometry.drawing.svg() for p in placed.values()], texts)
     for p, box in zip(placed.values(), metrics["bounds"]):
         p.local_bounds = box
-    report = LayoutReport()
+    report = LayoutReport(adjustments=changes)
     # A recipe is one rigid assembly. Uniformly fit its whole measured hull
     # into the selected canvas before solving contacts; never move parts or
     # annotations independently, and retain the correction in provenance.
@@ -282,8 +326,9 @@ def compile_scene(scene: SceneDraftV2, *, contract, brief, bundle) -> CompiledIl
             top = min(box[1] for box in boxes)
             width = max(box[0]+box[2] for box in boxes)-left
             height = max(box[1]+box[3] for box in boxes)-top
-            factor = min(2 if card["kind"] == "construction" else 1,
-                (scene.canvas.width-96)/width, (scene.canvas.height-96)/height)
+            label_margin = max([48, *[metric["width"]+20 for metric in metrics["textMetrics"]]])
+            factor = min(4/max(member.scale for member in members),
+                (scene.canvas.width-2*label_margin)/width, (scene.canvas.height-96)/height)
             dx = (scene.canvas.width-width*factor)/2
             dy = (scene.canvas.height-height*factor)/2
             for member in members:
@@ -391,6 +436,36 @@ def compile_scene(scene: SceneDraftV2, *, contract, brief, bundle) -> CompiledIl
         local = Drawing(w, h, drawing.monochrome)
         local.poly(points, width=3 if relation.medium in {"rope", "tube"} else 2)
         layer_parts[relation.layer].extend(local.parts)
+    # Point names belong beside their actual point, including inside a hollow
+    # circle. A whole-asset bounding box wrongly treats that empty area as ink.
+    # Raster-check all proposed point labels together against the real drawing.
+    point_positions, candidates = {}, []
+    for annotation, metric in zip(scene.annotations, metrics["textMetrics"]):
+        if annotation.placement != "near_point":
+            continue
+        p = placed.get(annotation.target.instance)
+        if p is None:
+            raise IllustrationError("relation_unrealizable", target=annotation.annotation_id)
+        if annotation.target.local_point is not None:
+            a, b = annotation.target.local_point
+            if not 0 <= a <= p.geometry.drawing.width or not 0 <= b <= p.geometry.drawing.height:
+                raise IllustrationError("relation_unrealizable", target=annotation.annotation_id)
+            px, py = p.point(annotation.target.local_point)
+        else:
+            px, py = p.port(annotation.target.port)
+        tw, th = metric["width"], max(18, metric["ascent"]+metric["descent"])
+        positions = [(px+8, py-th/2), (px-tw-8, py-th/2),
+            (px-tw/2, py-th-8), (px-tw/2, py+8),
+            (px+8, py-th-8), (px-tw-8, py-th-8),
+            (px+8, py+8), (px-tw-8, py+8)]
+        point_positions[annotation.annotation_id] = [(len(candidates)+i, xy) for i, xy in enumerate(positions)]
+        candidates.extend([[*xy, tw, th] for xy in positions])
+    clear_points = []
+    if candidates:
+        paint = Drawing(w, h, drawing.monochrome)
+        for layer in LAYERS:
+            paint.parts.extend(layer_parts[layer])
+        clear_points = label_clearance(paint.svg(), w, h, candidates)
     label_boxes = []
     for annotation, metric in zip(scene.annotations, metrics["textMetrics"]):
         p = placed.get(annotation.target.instance)
@@ -413,15 +488,35 @@ def compile_scene(scene: SceneDraftV2, *, contract, brief, bundle) -> CompiledIl
                 "outside_bottom": (px-tw/2, y+bh+12),
                 "outside_top_right": (px+12, y-th-12),
                 "outside_right_lower": (px+12, y+bh+12)}
+        elif annotation.target.local_point is not None:
+            local_x, local_y = annotation.target.local_point
+            if not 0 <= local_x <= p.geometry.drawing.width or not 0 <= local_y <= p.geometry.drawing.height:
+                raise IllustrationError("relation_unrealizable", target=annotation.annotation_id)
+            px, py = p.point(annotation.target.local_point)
+            positions = {"outside_left": (x-tw-12, py-th/2),
+                "outside_right": (x+bw+12, py-th/2), "outside_top": (px-tw/2, y-th-12),
+                "outside_bottom": (px-tw/2, y+bh+12),
+                "outside_top_right": (x+bw+12, y-th-12), "outside_right_lower": (x+bw+12, y+bh-th)}
         if annotation.text in p.geometry.intrinsic_marks:
             report.adjustments.append({"annotation": annotation.annotation_id,
                 "instance": p.id, "reason": "reuse_intrinsic_mark"})
             continue
         choices = [annotation.placement] + [key for key in positions if key != annotation.placement]
+        if annotation.placement == "near_point":
+            positions = {str(i): xy for i, xy in point_positions[annotation.annotation_id] if clear_points[i]}
+            choices = list(positions)
+        if annotation.target.local_point is not None:
+            # Preserve correspondence to the declared internal point. An
+            # outside label on the opposite side can falsely name a different
+            # feature of a complete figure, even if it does not overlap.
+            choices.sort(key=lambda key: math.dist((positions[key][0]+tw/2, positions[key][1]+th/2), (px, py)))
         def clear_label(candidate):
             return contains([4, 4, w-8, h-8], candidate) and not any(
                 overlaps(candidate, other, margin=-3) for other in label_boxes) and not any(
-                overlaps(candidate, node.box(), margin=1) for node in values) and not any(
+                overlaps(candidate, node.box(), margin=1) for node in values
+                if annotation.placement != "near_point") and not any(
+                overlaps(candidate, node.region(key), margin=1) for node in values
+                for key, region in node.geometry.regions.items() if region["occlusion"] == "never_cover") and not any(
                 segment_intersects(a, b, candidate) for points in paths for a, b in zip(points, points[1:]))
         selected = next((key for key in choices if clear_label([*positions[key], tw, th])), None)
         if selected is None:
@@ -434,6 +529,17 @@ def compile_scene(scene: SceneDraftV2, *, contract, brief, bundle) -> CompiledIl
         if 18*contract.presentation_constraints.target_width/w < 11:
             raise IllustrationError("text_not_legible", target=annotation.annotation_id)
         local = Drawing(w, h, drawing.monochrome)
+        if annotation.placement == "near_point":
+            local.circle(px, py, 2, fill=local.ink, color=local.ink, width=1)
+        elif annotation.leader:
+            endpoint = [max(lx, min(lx+tw, px)), max(ly, min(ly+th, py))]
+            if not contains([4, 4, w-8, h-8], [px-3, py-3, 6, 6]) or any(
+                    segment_intersects((px, py), endpoint, node.region(key))
+                    for node in values for key, region in node.geometry.regions.items()
+                    if region["occlusion"] == "never_cover"):
+                raise IllustrationError("collision_unresolved", target=annotation.annotation_id, repairable=True)
+            local.line(px, py, *endpoint, color=local.muted, width=1, dashed=True)
+            local.circle(px, py, 2.5, fill=local.ink, color=local.ink, width=1)
         local.text(annotation.text, lx, ly+metric["ascent"], size=18, anchor="start")
         layer_parts["labels"].extend(local.parts)
         label_boxes.append(lbox)
@@ -450,8 +556,12 @@ def compile_scene(scene: SceneDraftV2, *, contract, brief, bundle) -> CompiledIl
         renderer_version=V2_RENDERER_VERSION, scene_hash=digest(scene.model_dump(mode="json")),
         asset_versions={p.geometry.asset_id: p.geometry.version for p in values} | {
             p.asset_id: p.version for p in scene.asset_instances if p.asset_id in RECIPES},
-        scene=scene, fact_bindings=bindings, layout_report=report)
+        scene=scene, fact_bindings=bindings, layout_report=report,
+        resolved_parameters={p.id: p.geometry.params for p in values})
     from app.diagrams.guidance import for_asset
+    from app.diagrams.interface import material_interface
+    source.interface_hashes = {aid: digest(material_interface(parameter_semantics(aid, version)))
+        for aid, version in source.asset_versions.items()}
     source.guidance_versions = {asset_id: guide["version"] for asset_id, version in source.asset_versions.items()
         if (guide := for_asset(asset_id, version))["hints"]}
     return CompiledIllustration(illustration, source, [p.geometry.derived_facts for p in values])

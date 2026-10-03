@@ -585,12 +585,15 @@ async def _generate_verified_questions(
     v2 = settings.quiz_illustration_pipeline == "v2" and illustration_policy != "off"
     if v2:
         bundle = None
-        from app.illustration.requirements import authoring_material_schema, capability_guide
+        from app.illustration.requirements import authoring_material_schema, capability_guide, named_material_sources
         from app.prompts.registry import get as get_registered_prompt
-        diagram_contract = (get_registered_prompt("quiz_illustration_authoring", "1.0.0").text +
+        named_sources = named_material_sources(topic)
+        related = capability_guide(make_prompt(), selected_asset_ids=[source["asset_id"] for source in named_sources])
+        related["named_material_svg_sources"] = named_sources
+        diagram_contract = (get_registered_prompt("quiz_illustration_authoring").text +
             "\nmaterial_contract schema：" + json.dumps(authoring_material_schema(), ensure_ascii=False) +
             "\n相关素材信息（不是构图候选，不能复制预览条件）：" + json.dumps(
-                capability_guide(make_prompt()), ensure_ascii=False))
+                related, ensure_ascii=False))
         meta["diagram_mode"] = "v2"
     elif enabled(illustration_policy):
         try:
@@ -670,6 +673,15 @@ async def _generate_verified_questions(
                     if code in {"invalid_contract", "candidate_not_found", "parameter_unbound", "missing_fact_binding", "unsupported_domain", "question_material_incomplete"}:
                         meta["authoring_change_request"] = {"code": code, "target": target,
                             "allowed_action": "reauthor_before_publication", "max_reauthorings": 1}
+                        fact_id = target.partition(":")[0]
+                        fact = next((row for row in (candidate.get("material_contract") or {}).get("facts", [])
+                            if isinstance(row, dict) and row.get("id") == fact_id), None)
+                        if fact:
+                            meta["authoring_change_request"]["invalid_fact"] = {key: fact.get(key) for key in
+                                ("id", "type", "value", "unit", "predicate", "source_ref", "source_quote")}
+                            meta["authoring_change_request"]["binding_rule"] = "值必须由题文引用逐字支持，并符合实际选中接口；模板默认文字不是事实。"
+                        if target.endswith(":self_relation"):
+                            meta["authoring_change_request"]["binding_rule"] = "保持single_construction的一个整体实体，facts归该实体；不要把内部节点拆成独立实体。内部构造已由SVG表达，required_relations=[]，只在题文描述；只有不同独立素材之间才声明物理关系。"
             raw_questions = compiled_questions
         elif bundle is not None:
             raw_questions = compile_questions(raw_questions, bundle, illustration_policy,

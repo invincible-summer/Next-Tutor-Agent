@@ -7,8 +7,10 @@ from typing import Literal
 
 IllustrationRequest = Literal["auto", "none", "required"]
 IllustrationPolicy = Literal["off", "auto", "required"]
+IllustrationMode = Literal["v1", "v2"]
 REQUEST_SCHEMA = {"type": "string", "enum": ["auto", "none", "required"],
                   "description": "明确要求配图才用 required；明确不要图用 none；其余 auto。账户权限由服务端控制。"}
+ILLUSTRATION_MODES = ("v1", "v2")
 
 
 class IllustrationDisabled(ValueError):
@@ -74,6 +76,29 @@ def account_allows_illustration_review(student_id: str) -> bool:
     # component compilation remains mandatory; users can explicitly opt in to
     # this slower review from the assessment settings.
     return _account_pref(student_id, "quiz_illustration_review_enabled", False)
+
+
+def resolve_illustration_mode(student_id: str, requested: str | None = None) -> IllustrationMode:
+    """Resolve the CAT illustration implementation for one assessment.
+
+    The mode is deliberately separate from ``IllustrationPolicy``: the latter
+    answers whether a diagram is wanted, while this value selects the V1/V2
+    implementation.  Missing legacy preferences resolve to V1 so existing
+    accounts keep the historical behavior until they opt into V2.
+    """
+    if requested is not None and requested not in ILLUSTRATION_MODES:
+        raise ValueError("invalid_illustration_mode")
+    if requested in ILLUSTRATION_MODES:
+        return requested  # type: ignore[return-value]
+    if not student_id or student_id in {"student_default", "compat_agent"}:
+        return "v1"
+    try:
+        from ..identity.store import get_by_id
+        user = get_by_id(student_id)
+        value = user.profile.prefs.get("quiz_illustration_mode") if user else None
+        return value if value in ILLUSTRATION_MODES else "v1"
+    except Exception:
+        return "v1"
 
 
 def account_allows_quiz_critic(student_id: str) -> bool:

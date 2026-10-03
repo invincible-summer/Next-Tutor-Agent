@@ -45,7 +45,11 @@ def validate_relations(placed, relations, contract, report):
                     b.x, b.y, b.scale, b.geometry.params["radius"]):
                 raise IllustrationError("relation_unrealizable", target=relation.relation_id)
             if not construction and not contains(container, body, margin=2):
-                raise IllustrationError("relation_unrealizable", target=relation.relation_id, repairable=True)
+                raise IllustrationError("relation_unrealizable", target=relation.relation_id, repairable=True,
+                    details={"type": kind, "start": relation.start.model_dump(mode="json"),
+                        "end": relation.end.model_dump(mode="json"), "subject_bounds": body,
+                        "container_bounds": container, "required_inset": 2,
+                        "rule": "subject rectangle must fit inside container rectangle with required_inset"})
         elif kind == "supported_by":
             start, end = a.port(relation.start.port), b.port(relation.end.port)
             if a.geometry.ports[relation.start.port]["kind"] != "support" or b.geometry.ports[relation.end.port]["kind"] != "support":

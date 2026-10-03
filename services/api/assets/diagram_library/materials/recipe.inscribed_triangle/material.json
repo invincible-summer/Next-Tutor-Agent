@@ -10,7 +10,33 @@
   "kind": "recipe",
   "renderer": "registered_v2_recipe",
   "preview_only": true,
+  "interface": {
+    "schema_version": "1.0.0",
+    "parameters": {
+      "radius": {
+        "type": "number",
+        "minimum": 10,
+        "maximum": 63,
+        "default": 54,
+        "condition_bearing": true,
+        "non_quantitative_allowed": true,
+        "affects_geometry": true,
+        "unit": "diagram_px",
+        "role": "schematic",
+        "fact_types": [],
+        "default_rule": "schematic",
+        "derived_from": []
+      }
+    },
+    "layout": {
+      "origin": "top_left",
+      "uniform_scale": true,
+      "annotations": "measured_outside_placement",
+      "relations": "declared_ports_only",
+      "rotation_allowed": false
+    }
+  },
   "svg_file": "asset.svg",
   "guidance_file": "usage_guide.json",
-  "svg_hash": "sha256:21948198043ed3abbb5864fdd118221431bc57aa4afaea7ca38356e536517176"
+  "svg_hash": "sha256:f83392e794da305a3fb3ccb09b3f70a1be0e3f61d302f3c99495a4e8282f30e3"
 }

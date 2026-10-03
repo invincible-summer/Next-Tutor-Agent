@@ -20,6 +20,22 @@ def validate_scene(scene: SceneDraftV2, contract: QuestionMaterialContract,
     for instance in scene.asset_instances:
         if not bundle.allowed(instance.need_id, instance.asset_id, instance.version):
             raise IllustrationError("scene_asset_not_authorized", target=instance.instance_id)
+        from app.diagrams.semantics import RECIPES, parameter_semantics
+        specs = parameter_semantics(instance.asset_id, instance.version)
+        if instance.asset_id in RECIPES and set(instance.entity_map) != {
+                role for role, *_ in RECIPES[instance.asset_id].children}:
+            raise IllustrationError("scene_schema_invalid", target=instance.instance_id+":entity_map",
+                details={"rule": "Map exactly the registered recipe child keys to authorized entities."})
+        if instance.asset_id not in RECIPES and instance.entity_id and instance.entity_map and all(
+                key in specs and ref in facts and facts[ref].entity_id == instance.entity_id and
+                ref in needs[instance.need_id].fact_bindings and compatible_parameter_fact(facts[ref], specs[key], key,
+                    to_scale=contract.presentation_constraints.to_scale)
+                for key, ref in instance.entity_map.items()):
+            for key, ref in instance.entity_map.items():
+                if key in instance.fact_bindings and instance.fact_bindings[key] != ref:
+                    raise IllustrationError("parameter_unbound", target=instance.instance_id)
+                instance.fact_bindings[key] = ref
+            instance.entity_map = {}
         if instance.entity_id and instance.entity_id not in needs[instance.need_id].entity_ids:
             raise IllustrationError("scene_asset_not_authorized", target=instance.instance_id)
         if set(instance.entity_map.values()) - entities:
@@ -48,13 +64,13 @@ def validate_scene(scene: SceneDraftV2, contract: QuestionMaterialContract,
         # guessing from IDs, preview defaults, answer text or unit alone.
         from app.diagrams.semantics import parameter_semantics
         recipe = RECIPES.get(instance.asset_id)
-        for key, spec in parameter_semantics(instance.asset_id).items():
+        for key, spec in parameter_semantics(instance.asset_id, instance.version).items():
             if key in instance.fact_bindings or not spec.get("condition_bearing"):
                 continue
             owner = instance.entity_map.get(recipe.bindings[key][0], "") if recipe else instance.entity_id
             matches = [f.id for f in contract.facts if owner and f.entity_id == owner and f.predicate == key
                 and f.display_policy != "hidden" and f.id in needs[instance.need_id].fact_bindings
-                and (not spec.get("unit") or f.unit == spec["unit"])]
+                and compatible_parameter_fact(f, spec, key, to_scale=contract.presentation_constraints.to_scale)]
             if len(matches) == 1:
                 instance.fact_bindings[key] = matches[0]
         if any(ref not in facts or facts[ref].display_policy == "hidden" for ref in instance.fact_bindings.values()):
@@ -77,6 +93,8 @@ def validate_scene(scene: SceneDraftV2, contract: QuestionMaterialContract,
                 facts[ref].display_policy in {"hidden", "depict_only"} for ref in annotation.fact_refs):
             raise IllustrationError("parameter_unbound", target=annotation.annotation_id)
     instance_ids = {node.instance_id for node in scene.asset_instances}
+    if any(target.local_point is not None for relation in scene.relations for target in (relation.start, relation.end)):
+        raise IllustrationError("relation_unrealizable")
     for node in scene.asset_instances:
         if node.asset_id in RECIPES:
             instance_ids |= {node.instance_id+":"+role for role, *_ in RECIPES[node.asset_id].children}
@@ -85,6 +103,28 @@ def validate_scene(scene: SceneDraftV2, contract: QuestionMaterialContract,
             from app.diagrams.semantics import asset_card
             for target in [end for relation in scene.relations for end in (relation.start, relation.end)] + [
                     annotation.target for annotation in scene.annotations]:
+                if target.instance != node.instance_id:
+                    continue
+                # A whole recipe is not a rendered entity. A label quoting a
+                # uniquely owned explicit fact can identify its actual child;
+                # resolve that existing association without guessing geometry.
+                annotation = next((row for row in scene.annotations if row.target is target), None)
+                owners = {facts[ref].entity_id for ref in annotation.fact_refs if ref in facts} if annotation else set()
+                children = [role for role, entity in node.entity_map.items() if entity in owners]
+                if len(owners) == len(children) == 1 and not target.port and target.local_point is None:
+                    child_id = next(aid for role, aid, *_ in RECIPES[node.asset_id].children if role == children[0])
+                    if not target.region or target.region in asset_card(child_id)["nominal_geometry"].get("regions", {}):
+                        target.instance = node.instance_id+":"+children[0]
+                # Accept a qualified child key only when that exact registered
+                # child exposes the requested port/region. No alias guessing.
+                for field in ("port", "region"):
+                    role, separator, key = getattr(target, field).partition(":")
+                    children = {child: aid for child, aid, *_ in RECIPES[node.asset_id].children}
+                    if separator and role in children:
+                        geometry = asset_card(children[role])["nominal_geometry"]
+                        if key in geometry.get("ports" if field == "port" else "regions", {}):
+                            target.instance = node.instance_id+":"+role
+                            setattr(target, field, key)
                 if target.instance != node.instance_id or not target.port:
                     continue
                 children = [role for role, aid, *_ in RECIPES[node.asset_id].children
@@ -103,7 +143,10 @@ def validate_scene(scene: SceneDraftV2, contract: QuestionMaterialContract,
     if re.search(r"答案|正确选项|解题步骤|correct answer|answer\s*[:=]", text, re.I):
         raise IllustrationError("joint_review_failed")
     for forbidden in contract.prohibited_additions:
-        if forbidden in text:
+        # Accessibility prose can correctly describe absence ("无磁场线").
+        # Actual visible labels are hard checked here; the independent joint
+        # review interprets alt/caption and checks prohibited drawn geometry.
+        if any(forbidden in label for label in labels):
             raise IllustrationError("joint_review_failed")
     for fact in contract.facts:
         if fact.display_policy in {"depict_only", "hidden"} and isinstance(fact.value, (int, float)):
@@ -114,34 +157,50 @@ def validate_scene(scene: SceneDraftV2, contract: QuestionMaterialContract,
                 raise IllustrationError("joint_review_failed")
 
 
-async def compose(llm, contract, brief, bundle, *, thumbnails=None):
+def compatible_parameter_fact(fact, spec, key, *, to_scale=False):
+    from app.diagrams.interface import compatible_fact, parameter_contract
+    if "fact_types" not in spec:
+        spec = parameter_contract({key: spec})[key]
+    return compatible_fact(fact, spec, key, to_scale=to_scale)
+
+
+async def compose(llm, contract, brief, bundle, *, feedback=None):
     from app.diagrams.guidance import bundle_view
-    def compatible(fact, spec, key):
-        if key == "fill" and fact.type == "state" and fact.predicate == "liquid_present" and (
-                fact.value is True and fact.display_policy != "hidden" and
-                not contract.presentation_constraints.to_scale):
-            return True
-        if fact.display_policy == "hidden" or spec.get("unit") and fact.unit != spec["unit"]:
-            return False
-        if fact.predicate and fact.predicate != key:
-            return False
-        kind = spec.get("type")
-        return (kind == "boolean" and fact.type == "state" and isinstance(fact.value, bool) or
-            kind in {"number", "integer"} and fact.type == "scalar" and not isinstance(fact.value, bool) or
-            kind in {"string", "enum"} and fact.type in {"function", "label"} or
-            kind in {"array", "list"} and fact.type in {"data", "range", "label"} and isinstance(fact.value, list))
+    from .preview import material_sources
     binding_choices = {card["asset_id"]: {key: [fact.id for fact in contract.facts
-        if compatible(fact, spec, key)]
+        if compatible_parameter_fact(fact, spec, key, to_scale=contract.presentation_constraints.to_scale)]
         for key, spec in card["parameters"].items()} for card in bundle.assets}
+    schema = SceneDraftV2.model_json_schema()
+    # Dimensions are determined by the profile. The source material's viewBox
+    # is not the composed canvas, so do not offer editable size fields.
+    for field in ("width", "height"):
+        schema["$defs"]["Canvas"]["properties"].pop(field)
+    schema["$defs"]["AssetInstance"]["allOf"] = [{
+        "if": {"properties": {"asset_id": {"const": card["asset_id"]}}},
+        "then": {"required": ["entity_map"] if card.get("children") else ["entity_id"], "properties": {
+            "version": {"const": card["version"]},
+            "entity_map": {"type": "object", "additionalProperties": False,
+                "required": [child["child_id"] for child in card.get("children", [])],
+                "properties": {child["child_id"]: {"enum": list(dict.fromkeys(entity
+                    for need in brief.needs if bundle.allowed(need.need_id, card["asset_id"], card["version"])
+                    for entity in need.entity_ids))} for child in card.get("children", [])}},
+            "params": {"type": "object", "additionalProperties": False,
+                "properties": {key: {} for key in card["parameters"]}},
+            "fact_bindings": {"type": "object", "additionalProperties": False,
+                "properties": {key: {"enum": refs} for key, refs in binding_choices[card["asset_id"]].items() if refs}},
+            "non_quantitative": {"type": "array", "items": {"enum": qualitative}}
+                if (qualitative := [key for key, spec in card["parameters"].items()
+                    if spec.get("non_quantitative_allowed")]) else {"type": "array", "maxItems": 0}}}}
+        for card in bundle.assets]
     payload = {"visual_contract": contract.composer_view(), "visual_brief": brief.model_dump(mode="json"),
-        "candidate_bundle": bundle_view(bundle, "compose"), "scene_schema": SceneDraftV2.model_json_schema(),
+        "candidate_bundle": bundle_view(bundle, "compose"), "scene_schema": schema,
         "parameter_fact_choices": binding_choices,
-        "request_schema": MaterialRequest.model_json_schema()}
+        "material_svg_sources": material_sources(bundle),
+        "request_schema": MaterialRequest.model_json_schema(), "repair_feedback": feedback}
     content = [{"type": "text", "text": json.dumps(payload, ensure_ascii=False)}]
-    content.extend(thumbnails or [])
     raw, _ = await llm.complete(messages=[
-        {"role": "system", "content": get("quiz_illustration_composer", "2.1.0").text},
-        {"role": "user", "content": content if thumbnails else content[0]["text"]}],
+        {"role": "system", "content": get("quiz_illustration_composer", "2.20.0").text},
+        {"role": "user", "content": content[0]["text"]}],
         temperature=.2, max_tokens=5500, disable_thinking=True)
     data = structured(raw)
     try:
@@ -151,8 +210,15 @@ async def compose(llm, contract, brief, bundle, *, thumbnails=None):
             return CannotComplete.model_validate(data)
         scene = SceneDraftV2.model_validate(data)
     except ValueError as exc:
-        raise IllustrationError("scene_schema_invalid") from exc
-    validate_scene(scene, contract, brief, bundle)
+        errors = [{"field": list(error["loc"]), "message": error["msg"]}
+            for error in exc.errors(include_input=False, include_url=False)] if hasattr(exc, "errors") else []
+        raise IllustrationError("scene_schema_invalid", details={"invalid_response": data,
+            "validation_errors": errors}) from exc
+    try:
+        validate_scene(scene, contract, brief, bundle)
+    except IllustrationError as exc:
+        exc.details = {**exc.details, "invalid_response": scene.model_dump(mode="json")}
+        raise
     return scene
 
 
@@ -177,14 +243,20 @@ def apply_patch(scene: SceneDraftV2, patch: ScenePatchV2, *, contract, brief, bu
             elif operation.op == "set_param":
                 row = instances[operation.instance_id]
                 from app.diagrams.semantics import parameter_semantics
-                spec = parameter_semantics(row["asset_id"]).get(operation.key, {})
+                spec = parameter_semantics(row["asset_id"], row["version"]).get(operation.key, {})
                 if not operation.fact_id and spec.get("non_quantitative_allowed") and not contract.presentation_constraints.to_scale and operation.key not in row["fact_bindings"]:
                     if operation.key not in row["non_quantitative"]:
                         row["non_quantitative"].append(operation.key)
+                    if operation.value is not None:
+                        row["params"][operation.key] = operation.value
                     continue
                 # A patch can rebind to the same frozen fact, never change it.
                 if row["fact_bindings"].get(operation.key) != operation.fact_id:
                     raise IllustrationError("parameter_unbound")
+                if operation.value is not None:
+                    fact = next((fact for fact in contract.facts if fact.id == operation.fact_id), None)
+                    if fact is None or operation.value != fact.value:
+                        raise IllustrationError("parameter_unbound")
                 row["params"].pop(operation.key, None)
             elif operation.op == "replace_asset":
                 row = instances[operation.instance_id]
@@ -192,9 +264,19 @@ def apply_patch(scene: SceneDraftV2, patch: ScenePatchV2, *, contract, brief, bu
                     raise IllustrationError("scene_asset_not_authorized")
                 row.update(asset_id=operation.asset_id, version=operation.version)
             elif operation.op == "move_annotation":
-                annotations[operation.annotation_id]["placement"] = operation.placement
+                row = annotations[operation.annotation_id]
+                if operation.placement is not None:
+                    row["placement"] = operation.placement
+                if operation.target is not None:
+                    if operation.target.instance != row["target"]["instance"]:
+                        raise IllustrationError("scene_asset_not_authorized")
+                    row["target"] = operation.target.model_dump(mode="json")
+                if operation.leader is not None:
+                    row["leader"] = operation.leader
             elif operation.op == "replace_relation_route":
                 relations[operation.relation_id]["route"] = operation.route
+        except IllustrationError:
+            raise
         except (KeyError, ValueError) as exc:
             raise IllustrationError("scene_schema_invalid") from exc
     try:
@@ -207,16 +289,21 @@ def apply_patch(scene: SceneDraftV2, patch: ScenePatchV2, *, contract, brief, bu
 
 async def repair(llm, scene, issues, *, contract, brief, bundle, png_message=None):
     from app.diagrams.guidance import bundle_view
+    from .preview import material_sources
+    selected = {node.asset_id for node in scene.asset_instances}
+    from types import SimpleNamespace
     content = [{"type": "text", "text": json.dumps({"scene": scene.model_dump(mode="json"),
         "base_scene_hash": digest(scene.model_dump(mode="json")), "issues": issues,
         "contract": contract.composer_view(), "candidate_bundle": bundle_view(bundle, "compose"),
+        "material_svg_sources": material_sources(SimpleNamespace(assets=[
+            card for card in bundle.assets if card["asset_id"] in selected])),
         "patch_schema": ScenePatchV2.model_json_schema()}, ensure_ascii=False)}]
     if png_message:
         content.append(png_message)
     raw, _ = await llm.complete(messages=[
-        {"role": "system", "content": get("quiz_illustration_composer", "2.1.0").text +
+        {"role": "system", "content": get("quiz_illustration_composer", "2.20.0").text +
          "\n这是局部修订轮，只返回 ScenePatchV2；禁止改变题目事实。"
-         "仅当参数schema允许non_quantitative时，set_param的fact_id=''可以声明定性默认。禁止用此方式处理必须绑定的真实条件。"},
+         "仅当参数schema允许non_quantitative时，set_param的fact_id=''可以声明定性默认，或通过value给出范围内示意值以满足真实关系。用issues中的实际边界核对修订；禁止改变已绑定条件或用此方式处理真实定量参数。"},
         {"role": "user", "content": content if png_message else content[0]["text"]}],
         temperature=.1, max_tokens=1800, disable_thinking=True)
     try:

@@ -18,7 +18,8 @@ from typing import Literal
 from app.core.atomic import atomic_write_bytes, atomic_write_text, file_lock
 from app.core.paths import bind_storage_path
 from app.core.quiz_illustration import QuestionIllustration, normalize_svg, _hash
-from .catalog import _normalize
+from .catalog import _normalize, digest
+from .svg_bindings import SvgParameterization, program
 
 _MATERIALS_DIR = bind_storage_path(__name__, "_MATERIALS_DIR", "diagram_assets")
 _owner = contextvars.ContextVar("diagram_material_owner", default="")
@@ -43,6 +44,7 @@ class MaterialInput(BaseModel):
     aliases: list[str] = Field(default_factory=list, max_length=12)
     guidance_note: str = Field(default="", max_length=400)
     svg: str = Field(min_length=1, max_length=131072)
+    parameterization: SvgParameterization = Field(default_factory=SvgParameterization)
     scope: Literal["private", "public"] = "private"
     enabled: bool = False
     source: Literal["upload", "manual", "llm"] = "manual"
@@ -84,12 +86,15 @@ def _read(path):
         return None
 
 
-def validate_preview(svg, title="素材预览"):
+def validate_preview(svg, title="素材预览", parameterization=None, params=None):
     """Same strict allowlist and offline PNG used by question compilation."""
     from app.illustration.preview import render
     from app.illustration.contracts import IllustrationError
     try:
-        normalized = normalize_svg(svg, alt=title, components=True, preserve_presentation=True)
+        template = normalize_svg(svg, alt=title, components=True, preserve_presentation=True)
+        program(parameterization).validate_template(template.svg)
+        rendered, _resolved = program(parameterization).apply(template.svg, params)
+        normalized = normalize_svg(rendered, alt=title, components=True, preserve_presentation=True)
         image = QuestionIllustration(schema_version=3, sanitizer_version=3, kind="svg", svg=normalized.svg,
             width=normalized.width, height=normalized.height, alt=title,
             content_hash=_hash(normalized.svg, title, "", 3))
@@ -98,6 +103,25 @@ def validate_preview(svg, title="素材预览"):
         raise MaterialError(getattr(exc, "code", "material_svg_invalid"),
             503 if getattr(exc, "code", "") == "preview_unavailable" else 422) from None
     return image, png
+
+
+def validate_parameter_boundaries(svg, controls, width, height):
+    from app.illustration.preview import measure
+    variants = []
+    try:
+        for key, spec in controls.parameters.items():
+            if spec.type not in {"number", "integer"}:
+                continue
+            for bound in (spec.minimum, spec.maximum):
+                value = int(bound) if spec.type == "integer" else bound
+                rendered, _ = controls.apply(svg, {key: value})
+                variants.append(normalize_svg(rendered, components=True, preserve_presentation=True).svg)
+        if variants:
+            for x, y, w, h in measure(variants, [])["bounds"]:
+                if x < 0 or y < 0 or x+w > width or y+h > height:
+                    raise MaterialError("material_parameter_bounds_invalid")
+    except ValueError as exc:
+        raise MaterialError(getattr(exc, "code", "material_parameterization_invalid")) from None
 
 
 def visible(owner, *, scope=None, enabled_only=False):
@@ -130,7 +154,10 @@ def detail(owner, asset_id, revision=None, *, enabled_only=False):
             except OSError:
                 raise MaterialError("material_missing", 404) from None
             value["svg"] = svg
-            value["illustration"] = {**value["illustration"], "svg": svg}
+            controls = program(value.get("parameterization"))
+            rendered, _ = controls.apply(svg)
+            value["illustration"] = {**value["illustration"], "svg": normalize_svg(rendered,
+                components=True, preserve_presentation=True).svg}
             value["usage_guidance"] = _read(package / "usage_guide.json") or {"version": str(selected), "hints": {}}
         else:
             # Read-only compatibility for previously saved immutable revisions.
@@ -155,7 +182,15 @@ def save(owner, body: MaterialInput, *, admin=False, asset_id=None):
             raise MaterialError("material_scope_immutable", 409)
         if before["namespace"] != namespace:
             raise MaterialError("material_missing", 404)
-    image, png = validate_preview(body.svg, title)
+    controls = body.parameterization
+    try:
+        template = normalize_svg(body.svg, alt=title, components=True, preserve_presentation=True).svg
+        controls.apply(template)
+    except ValueError as exc:
+        raise MaterialError(getattr(exc, "code", "material_parameterization_invalid")) from None
+    image, png = validate_preview(template, title, controls) if controls.parameters else validate_preview(template, title)
+    if controls.parameters:
+        validate_parameter_boundaries(template, controls, image.width, image.height)
     with file_lock(root):
         if epoch(namespace) != initial_epoch:
             raise MaterialError("material_owner_deleted", 409)
@@ -172,7 +207,9 @@ def save(owner, body: MaterialInput, *, admin=False, asset_id=None):
             "title": title, "description": body.description.strip(), "subject": body.subject,
             "aliases": body.aliases, "enabled": body.enabled, "revision": revision,
             "guidance_note": body.guidance_note.strip(),
-            "source": body.source, "svg": image.svg, "illustration": image.model_dump(mode="json"),
+            "source": body.source, "svg": template, "illustration": image.model_dump(mode="json"),
+            "parameterization": controls.model_dump(mode="json", exclude_none=True), "interface": controls.interface(),
+            "definition_hash": digest({"svg": template, "controls": controls.model_dump(mode="json")}),
             "content_hash": image.content_hash, "created_at": current["created_at"] if current else time.time(),
             "updated_at": time.time(), "validation": "previewed", "capabilities": ["static_illustration"]}
         versions = root / "materials" / aid / "versions" / str(revision)
@@ -188,7 +225,7 @@ def save(owner, body: MaterialInput, *, admin=False, asset_id=None):
                 guidance["hints"][phase] += suffix
         metadata = {**value, "illustration": {k: v for k, v in value["illustration"].items() if k != "svg"}}
         metadata.pop("svg")
-        atomic_write_text(versions / "asset.svg", image.svg)
+        atomic_write_text(versions / "asset.svg", template)
         atomic_write_text(versions / "usage_guide.json", json.dumps(guidance, ensure_ascii=False))
         atomic_write_text(versions / "material.json", json.dumps(metadata, ensure_ascii=False))
         atomic_write_bytes(versions / "preview.png", png)
@@ -228,19 +265,23 @@ def search_cards(name):
 def card(row):
     value = detail(_owner.get(), row["id"], row["revision"], enabled_only=True)
     image = value["illustration"]
+    dynamic_text = {binding.element_id for binding in program(value.get("parameterization")).bindings
+        if binding.attribute == "text"}
+    fixed_marks = [node.text for node in ET.fromstring(image["svg"]).iter()
+        if node.tag.rsplit("}", 1)[-1] in {"text", "tspan"} and node.text and node.get("id") not in dynamic_text]
     return {"asset_id": "material." + row["id"], "version": row["revision"],
         "title": row["title"], "kind": "construction", "semantic_type": "custom",
-        "capabilities": ["static_illustration"], "parameters": {},
+        "capabilities": ["static_illustration"], "parameters": value.get("interface", {}).get("parameters", {}),
         "supported_views": ["front_orthographic"], "style_family": "textbook_line",
         "nominal_geometry": {"size": [image["width"], image["height"]], "ports": {},
             "regions": {"body": {"bounds": [0, 0, image["width"], image["height"]], "occlusion": "forbidden"}}},
-        "parts": ["body"], "intrinsic_marks": [node.text for node in ET.fromstring(image["svg"]).iter()
+        "parts": ["body"], "fixed_marks": fixed_marks, "intrinsic_marks": [node.text for node in ET.fromstring(image["svg"]).iter()
             if node.tag.rsplit("}", 1)[-1] in {"text", "tspan"} and node.text], "rotation_allowed": False,
-        "source_hash": value["content_hash"], "source_scope": value["scope"],
+        "source_hash": value.get("definition_hash", value["content_hash"]), "source_scope": value["scope"],
         "usage_guidance": value.get("usage_guidance", {}),
-        "review": {"status": "previewed", "geometry_provider": "private_static_svg"},
+        "review": {"status": "previewed", "geometry_provider": "declarative_svg"},
         "thumbnail_ref": f"artifact://diagram-material/{row['id']}@{row['revision']}",
-        "limitations": ["Static SVG; no numeric parameters or scientific ports. Must pass final visual and joint audits."]}
+        "limitations": ["Only declared SVG controls; no calibrated readings or scientific ports. Final visual and joint audits are mandatory."]}
 
 
 def instantiate(asset_id, version, params, *, monochrome=False):
@@ -251,10 +292,12 @@ def instantiate(asset_id, version, params, *, monochrome=False):
         value = detail(_owner.get(), asset_id.removeprefix("material."), version, enabled_only=True)
     except MaterialError as exc:
         raise DiagramError("diagram_unknown_asset") from exc
-    if params or version != value["revision"]:
+    if version != value["revision"]:
         raise DiagramError("diagram_invalid_parameter")
+    rendered, resolved = program(value.get("parameterization")).apply(value["svg"], params)
+    rendered = normalize_svg(rendered, components=True, preserve_presentation=True).svg
     image = value["illustration"]
-    root = ET.fromstring(image["svg"])
+    root = ET.fromstring(rendered)
     drawing = Drawing(image["width"], image["height"], monochrome)
     drawing.parts = [node for node in root if node.tag.rsplit("}", 1)[-1] not in {"title", "desc"}]
     for node in root.iter():
@@ -268,12 +311,14 @@ def instantiate(asset_id, version, params, *, monochrome=False):
                     grey = round(.2126*rgb[0]+.7152*rgb[1]+.0722*rgb[2])
                     node.set(key, f"#{grey:02x}{grey:02x}{grey:02x}")
     marks = [node.text for node in root.iter() if node.tag.rsplit("}", 1)[-1] in {"text", "tspan"} and node.text]
-    return AdaptedGeometry(asset_id, version, drawing, {}, "custom", {},
+    return AdaptedGeometry(asset_id, version, drawing, resolved, "custom", {},
         {"body": {"bounds": [0, 0, drawing.width, drawing.height], "occlusion": "forbidden"}},
         {"body": drawing.parts}, marks, {"content_hash": value["content_hash"], "source_scope": value["scope"]})
 
 
-async def generate_draft(requirement, existing="", *, llm=None):
+async def generate_draft(requirement, existing="", *, parameterization=None, llm=None):
+    from .svg_bindings import NUMERIC
+    from .material_templates import CONTROL_EXAMPLES
     from app.core.llm_async import get_llm
     from app.core.json_utils import extract_json_object
     from app.prompts.registry import get
@@ -284,18 +329,36 @@ async def generate_draft(requirement, existing="", *, llm=None):
             raise MaterialError("material_svg_invalid") from None
     client = llm or get_llm("quiz")
     error = ""
+    feedback = []
     async with asyncio.timeout(45):
         for _ in range(2):
+            data, controls, template = None, None, None
             raw, _usage = await client.complete(messages=[
                 {"role": "system", "content": get("diagram_material_generate").text},
                 {"role": "user", "content": json.dumps({"requirement": requirement,
-                    "current_svg": existing, "validation_error": error}, ensure_ascii=False)}],
+                    "current_svg": existing, "current_parameterization": program(parameterization).model_dump(mode="json", exclude_none=True),
+                    "parameterization_schema": SvgParameterization.model_json_schema(),
+                    "binding_attribute_support": {tag: sorted(attributes) for tag, attributes in NUMERIC.items()},
+                    "control_examples": CONTROL_EXAMPLES,
+                    "validation_error": error, "validation_feedback": feedback}, ensure_ascii=False)}],
                 temperature=.3, max_tokens=5000, disable_thinking=True)
             try:
                 data = extract_json_object(raw)
-                image, _png = await asyncio.to_thread(validate_preview, data["svg"], "AI 素材草稿")
-                return {"svg": image.svg, "illustration": image.model_dump(mode="json"),
+                if not isinstance(data, dict):
+                    raise ValueError("material_generation_invalid")
+                controls = program(data.get("parameterization"))
+                template = normalize_svg(data["svg"], components=True, preserve_presentation=True).svg
+                controls.validate_template(template)
+                image, _png = await asyncio.to_thread(validate_preview, template, "AI 素材草稿", controls)
+                await asyncio.to_thread(validate_parameter_boundaries, template, controls, image.width, image.height)
+                return {"svg": template, "parameterization": controls.model_dump(mode="json", exclude_none=True), "illustration": image.model_dump(mode="json"),
                     "status": "draft", "source": "llm"}
             except (ValueError, KeyError, TypeError) as exc:
                 error = getattr(exc, "code", "material_generation_invalid")
+                feedback = ([{"location": list(row["loc"]), "type": row["type"], "message": row["msg"][:160]}
+                    for row in exc.errors()[:6]] if hasattr(exc, "errors") else getattr(exc, "binding_errors", []))
+                if template is not None:
+                    existing = template
+                if controls is not None:
+                    parameterization = controls
         raise MaterialError(error)

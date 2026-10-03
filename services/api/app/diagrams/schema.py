@@ -83,6 +83,25 @@ class SceneLabel(StrictModel):
     anchor: Literal["start", "middle", "end"] = "middle"
 
 
+class RegionTarget(StrictModel):
+    node: str = Field(max_length=40)
+    region: str = Field(default="", max_length=60)
+    anchor: str = Field(default="", max_length=60)
+
+    @model_validator(mode="after")
+    def one_target(self):
+        if bool(self.region) == bool(self.anchor):
+            raise ValueError("target one registered region or anchor")
+        return self
+
+
+class LayoutRelation(StrictModel):
+    type: Literal["inside", "immersed_in", "supported_by", "suspended_from"]
+    source: RegionTarget
+    target: RegionTarget
+    source_quote: str = Field(min_length=1, max_length=400)
+
+
 class SceneSpec(StrictModel):
     schema_version: Literal[1] = 1
     width: int = Field(default=640, ge=320, le=960)
@@ -90,6 +109,7 @@ class SceneSpec(StrictModel):
     nodes: list[SceneNode] = Field(default_factory=list, max_length=24)
     connections: list[Connection] = Field(default_factory=list, max_length=48)
     labels: list[SceneLabel] = Field(default_factory=list, max_length=24)
+    layout_relations: list[LayoutRelation] = Field(default_factory=list, max_length=12)
     alt: str = Field(min_length=1, max_length=600)
     caption: str = Field(default="", max_length=120)
     profile: Literal["textbook", "monochrome"] = "textbook"
@@ -108,6 +128,9 @@ class SceneSpec(StrictModel):
         for connection in self.connections:
             if connection.start.node not in ids or connection.end.node not in ids:
                 raise ValueError("unknown endpoint")
+        for relation in self.layout_relations:
+            if relation.source.node not in ids or relation.target.node not in ids or relation.source.node == relation.target.node:
+                raise ValueError("unknown layout relation endpoint")
         return self
 
 

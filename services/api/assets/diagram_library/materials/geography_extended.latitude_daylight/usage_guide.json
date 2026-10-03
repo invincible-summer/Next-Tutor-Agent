@@ -1,5 +1,5 @@
 {
-  "version": "1.0.0",
+  "version": "1.2.0",
   "match_terms": [
     "纬度与昼长示意",
     "Latitude and daylight"
@@ -7,7 +7,7 @@
   "hints": {
     "authoring": "纬线平面示意，φ为latitude、δ为declination，单位°且均需绑定。色区为日/夜，不是地球完整立体半球。忽略折射，未输出昼长答案。 将它作为一个完整实体；固定标识与科学关系应由题文或允许材料明确，不能泄露待求结论。",
     "requirements": "选用名称：纬度与昼长示意。完整静态构图，实体只声明整体，能力static_illustration，视角front_orthographic。纬线平面示意，φ为latitude、δ为declination，单位°且均需绑定。色区为日/夜，不是地球完整立体半球。忽略折射，未输出昼长答案。",
-    "compose": "整图单实例，不把内部原子、膜、线段拆为假端口组件。纬线平面示意，φ为latitude、δ为declination，单位°且均需绑定。色区为日/夜，不是地球完整立体半球。忽略折射，未输出昼长答案。",
+    "compose": "纬线平面示意，φ为latitude、δ为declination，单位°且均需绑定。色区为日/夜，不是地球完整立体半球。忽略折射，未输出昼长答案。",
     "review": "纬线平面示意，φ为latitude、δ为declination，单位°且均需绑定。色区为日/夜，不是地球完整立体半球。忽略折射，未输出昼长答案。 核对实图与事实绑定；固定文字须被题目允许，示意颗粒数不可当真实数量。"
   }
 }

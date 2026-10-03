@@ -4,7 +4,18 @@
   "version": 1,
   "kind": "design_template",
   "preview_only": true,
+  "interface": {
+    "schema_version": "1.0.0",
+    "parameters": {},
+    "layout": {
+      "origin": "top_left",
+      "uniform_scale": true,
+      "annotations": "measured_outside_placement",
+      "relations": "declared_ports_only",
+      "rotation_allowed": false
+    }
+  },
   "svg_file": "asset.svg",
   "guidance_file": "usage_guide.json",
-  "svg_hash": "sha256:1731a098b139bc8872e974a36fde19862ca9a39f194f5b62f064d85dab3942b6"
+  "svg_hash": "sha256:063fc2afdc965ba68dd3cc39bf6deb3f419e5747bf932dc00a7db638fd388635"
 }

@@ -42,30 +42,38 @@ def templates():
     return {"templates": TEMPLATES, "guide": ["viewBox 定义画布；x/y 是坐标；width/height 是尺寸。",
         "circle 用 cx/cy/r；line 用 x1/y1/x2/y2；text 的内容可直接改写。",
         "路径 points/d 可在源码中修改。使用纯SVG，不含脚本、外部图片或HTML。",
-        "保存前检查位置、标签和题目含义，启用后素材可以进入当前账户的出题候选。"]}
+        "保存前检查位置、标签和题目含义，启用后素材可以进入当前账户的出题候选。",
+        "可调参数由参数规范声明：文字用text，示意尺寸用schematic，实际条件用quantity，外观用appearance。",
+        "绑定通过图元id定位，可用同一个参数联动多个图元；模板提供完整样例。",
+        "预览值用于检查调整效果，不会修改规范的默认值；出题使用题面事实。"]}
 
 
 class SvgInput(BaseModel):
     model_config = {"extra": "forbid"}
     svg: str = Field(min_length=1, max_length=131072)
+    parameterization: store.SvgParameterization = Field(default_factory=store.SvgParameterization)
+    params: dict = Field(default_factory=dict)
 
 
 @router.post("/preview")
 def preview(body: SvgInput):
-    image, _png = _invoke(store.validate_preview, body.svg)
-    return {"svg": image.svg, "illustration": image.model_dump(mode="json"), "status": "previewed"}
+    image, _png = _invoke(store.validate_preview, body.svg, parameterization=body.parameterization, params=body.params)
+    from app.core.quiz_illustration import normalize_svg
+    template = normalize_svg(body.svg, components=True, preserve_presentation=True).svg
+    return {"svg": template, "parameterization": body.parameterization.model_dump(mode="json", exclude_none=True), "illustration": image.model_dump(mode="json"), "status": "previewed"}
 
 
 class GenerateInput(BaseModel):
     model_config = {"extra": "forbid"}
     requirement: str = Field(min_length=3, max_length=2400)
     current_svg: str = Field(default="", max_length=131072)
+    current_parameterization: store.SvgParameterization = Field(default_factory=store.SvgParameterization)
 
 
 @router.post("/generate")
 async def generate(body: GenerateInput):
     try:
-        return await store.generate_draft(body.requirement, body.current_svg)
+        return await store.generate_draft(body.requirement, body.current_svg, parameterization=body.current_parameterization)
     except store.MaterialError as exc:
         raise HTTPException(exc.status, exc.code) from None
     except TimeoutError:

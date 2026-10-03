@@ -170,6 +170,7 @@ SSE 为前端直连后端的流式通道（`POST /chat/stream`、`POST /quiz/gra
 
 - 数据与端口：`NEXT_TUTOR_DATA_DIR`（存储单根）、`API_HOST`/`API_PORT`（默认 127.0.0.1:8000）、前端 `NEXT_PUBLIC_BACKEND_URL`（部署形态单一真相源）。
 - LLM：`LLM_BASE_URL`/`LLM_API_KEY`/`LLM_MODEL`/`LLM_PROVIDER`/`LLM_TEMPERATURE` 及 [conversation.md](./conversation.md) 所列预算变量。
+- 题图：V2 默认 `QUIZ_ILLUSTRATION_MAX_CALLS=8` / `QUIZ_ILLUSTRATION_DEADLINE_SECONDS=90` / `QUIZ_ILLUSTRATION_MAX_REPAIRS=2`，仍需真实图片输入能力和 PNG 双审；V1 补图固定 90 秒 / 8 次调用，见 [diagrams-illustration.md](./diagrams-illustration.md)。
 - 向量轨：`EMBEDDING_PROVIDER`（默认 off）、`EMBEDDING_BASE_URL`/`EMBEDDING_API_KEY`/`EMBEDDING_MODEL`/`EMBEDDING_MODEL_PATH`、`CHROMA_DIR`、`RAG_HYBRID`。
 - OCR：`PDF_OCR_MODE`（auto/on/off，逐页稀疏判定）、`PDF_OCR_MAX_PAGES=1024`、`PDF_OCR_SYNC_MAX_PAGES=20`、`PDF_OCR_DPI=200`、`PDF_OCR_CONCURRENCY=20`。
 - 教材管线：`TEXTBOOK_GRAPH_ENABLED`（默认 1）、`TEXTBOOK_GRAPH_MAX_CHAPTERS=30`、`TEXTBOOK_GRAPH_MAX_CONCEPTS=400`、`TEXTBOOK_PARSE_MODE`/`TEXTBOOK_BUILD_CONCURRENCY` 等。
@@ -182,6 +183,8 @@ SSE 为前端直连后端的流式通道（`POST /chat/stream`、`POST /quiz/gra
 1. 开发/跨域生产：显式设置完整后端 URL → 客户端直连（CORS 放行）。
 2. 同源生产：不设 → 相对路径 `/api/v1`，nginx 反代（SSE `proxy_buffering off`）；模板在 `deploy/`，systemd 专用用户 `edu-agent`（`NoNewPrivileges`/`ProtectSystem=strict` 等，`ReadWritePaths` 只放行存储根）。
 3. 本地一键：`./start.sh` 自动探测端口并同步变量。
+
+直接启动 `next dev` 或 `next start`、未设 `NEXT_PUBLIC_BACKEND_URL` 时，Next.js 将 `/api/*` 回退转发到 `BACKEND_URL`（默认 `http://127.0.0.1:8000`）。该转发的超时为 150 秒，覆盖 V1 配图的 90 秒服务端预算及客户端 120 秒 POST 等待；nginx 模板的 API 转发超时为 600 秒。
 
 GitHub Pages 静态演示（`NEXT_PUBLIC_DEMO_MODE=1` 只读导出形态）见 [../operations/pages-demo.md](../operations/pages-demo.md)；同机生产部署手册见 [../operations/deployment.md](../operations/deployment.md)。
 

@@ -141,6 +141,7 @@ class IllustrationJobApiTest(StorageSandboxTestCase, unittest.IsolatedAsyncioTes
     def bind(self, task, *, status=cat.STATUS_ACTIVE, request="required"):
         instance = cat.CatInstance(assessment_id="asmt_" + task.question_id,
             status=status, illustration_request=request,
+            illustration_mode="v2",
             question_refs=[S.QuestionRef(question_id=task.question_id, question_revision=1)])
         cat.save_instance(self.owner, instance)
         return instance
@@ -311,6 +312,65 @@ class IllustrationJobApiTest(StorageSandboxTestCase, unittest.IsolatedAsyncioTes
         self.assertEqual(new_job["status"], "not_required")
         self.assertEqual(persistence.read(self.owner, "runs", failed["run_id"]), original)
         self.assertEqual(persistence.read(self.owner, "jobs", failed["job_id"])["status"], "failed")
+
+    async def test_obsolete_failed_jobs_restart_through_both_start_routes(self):
+        for endpoint in ("assessment", "quiz"):
+            with self.subTest(endpoint=endpoint):
+                task = self.register_task("q_upgrade_" + endpoint)
+                self.bind(task)
+                old = self.seed_job(task=task, failure={"code": "invalid_contract", "retryable": False})
+                old["prompt_versions"] = {"requirements": "2.0.0"}
+                persistence.write(self.owner, "jobs", old["job_id"], old)
+                original = copy.deepcopy(persistence.read(self.owner, "runs", old["run_id"]))
+                llm = QueueLLM(ready_responses())
+                with patch.object(orchestrator, "get_llm", return_value=llm):
+                    if endpoint == "assessment":
+                        response = await self.request("POST", "/assessment/questions/" + task.question_id + "/illustration",
+                            json={"question_revision": 1})
+                    else:
+                        response = await self.start(question_id=task.question_id)
+                    self.assertEqual(response.status_code, 200, response.text)
+                    self.assertNotEqual(response.json()["job_id"], old["job_id"])
+                    new = await self.finish(response.json()["job_id"])
+                self.assertEqual(new["status"], "ready", new.get("failure"))
+                self.assertEqual(new["prompt_versions"], orchestrator.PROMPT_VERSIONS)
+                self.assertEqual(len(llm.requests), 4)
+                self.assertEqual(persistence.read(self.owner, "runs", old["run_id"]), original)
+                self.assertEqual(persistence.read(self.owner, "jobs", old["job_id"]), old)
+
+    async def test_current_version_failure_is_read_without_implicit_retry(self):
+        job = self.seed_job()
+        with patch.object(orchestrator, "get_llm") as provider:
+            for endpoint in ("assessment", "quiz"):
+                with self.subTest(endpoint=endpoint):
+                    if endpoint == "assessment":
+                        response = await self.request("POST", "/assessment/questions/" + self.task.question_id + "/illustration",
+                            json={"question_revision": 1})
+                    else:
+                        response = await self.start()
+                    self.assertEqual(response.status_code, 200, response.text)
+                    self.assertEqual(response.json()["job_id"], job["job_id"])
+                    self.assertEqual(response.json()["status"], "failed")
+            provider.assert_not_called()
+        self.assertEqual(len(list((persistence.owner_dir(self.owner) / "jobs").glob("*.json"))), 1)
+
+    async def test_obsolete_failed_jobs_cannot_regenerate_stopped_questions(self):
+        old = self.seed_job()
+        old["prompt_versions"] = {"requirements": "2.0.0"}
+        persistence.write(self.owner, "jobs", old["job_id"], old)
+        self.instance.status = cat.STATUS_STOPPED
+        cat.save_instance(self.owner, self.instance)
+        with patch.object(orchestrator, "get_llm") as provider:
+            for endpoint in ("assessment", "quiz"):
+                with self.subTest(endpoint=endpoint):
+                    if endpoint == "assessment":
+                        response = await self.request("POST", "/assessment/questions/" + self.task.question_id + "/illustration",
+                            json={"question_revision": 1})
+                    else:
+                        response = await self.start()
+                    self.assert_error(response, 404, "assessment_question_not_current")
+            provider.assert_not_called()
+        self.assertEqual(persistence.read(self.owner, "jobs", old["job_id"]), old)
 
     async def test_retry_of_orphaned_running_job_recovers_and_starts_on_the_first_request(self):
         orphan = self.seed_job("running")

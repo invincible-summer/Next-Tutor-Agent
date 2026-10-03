@@ -10,7 +10,102 @@
   "kind": "recipe",
   "renderer": "registered_v2_recipe",
   "preview_only": true,
+  "interface": {
+    "schema_version": "1.0.0",
+    "parameters": {
+      "fill": {
+        "type": "number",
+        "minimum": 0,
+        "maximum": 1,
+        "default": 0.7,
+        "condition_bearing": true,
+        "non_quantitative_allowed": true,
+        "affects_geometry": true,
+        "unit": "height_fraction",
+        "role": "quantity",
+        "fact_types": [
+          "scalar"
+        ],
+        "default_rule": "fact",
+        "derived_from": [],
+        "qualitative_state": "liquid_present"
+      },
+      "reading": {
+        "type": "number",
+        "minimum": 0,
+        "maximum": 50,
+        "default": 0,
+        "condition_bearing": true,
+        "non_quantitative_allowed": false,
+        "affects_geometry": true,
+        "unit": "N",
+        "role": "quantity",
+        "fact_types": [
+          "scalar"
+        ],
+        "default_rule": "fact",
+        "derived_from": []
+      },
+      "maximum": {
+        "type": "number",
+        "minimum": 0.1,
+        "maximum": 100,
+        "default": 5,
+        "condition_bearing": true,
+        "non_quantitative_allowed": false,
+        "affects_geometry": true,
+        "unit": "N",
+        "role": "quantity",
+        "fact_types": [
+          "scalar"
+        ],
+        "default_rule": "fact",
+        "derived_from": []
+      },
+      "radius": {
+        "type": "number",
+        "minimum": 5,
+        "maximum": 50,
+        "default": 34,
+        "condition_bearing": true,
+        "non_quantitative_allowed": true,
+        "affects_geometry": true,
+        "unit": "diagram_px",
+        "role": "schematic",
+        "fact_types": [],
+        "default_rule": "schematic",
+        "derived_from": []
+      },
+      "scale_labels": {
+        "type": "boolean",
+        "default": true,
+        "condition_bearing": true,
+        "non_quantitative_allowed": true,
+        "affects_geometry": true,
+        "unit": "",
+        "canonical_value": true,
+        "role": "display",
+        "fact_types": [
+          "state"
+        ],
+        "default_rule": "derived",
+        "derived_from": [
+          [
+            "reading",
+            "maximum"
+          ]
+        ]
+      }
+    },
+    "layout": {
+      "origin": "top_left",
+      "uniform_scale": true,
+      "annotations": "measured_outside_placement",
+      "relations": "declared_ports_only",
+      "rotation_allowed": false
+    }
+  },
   "svg_file": "asset.svg",
   "guidance_file": "usage_guide.json",
-  "svg_hash": "sha256:fbd04c31543b151870f4484e64ade05e47550f62d33222925c2c941cb6f69d98"
+  "svg_hash": "sha256:311c72d4d34d7a78b0e3945d0e4120ee2686eb0a1cd4f9a0ff75e2a676c109a7"
 }
