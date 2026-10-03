@@ -30,7 +30,7 @@ class SiteSearchTest(StorageSandboxTestCase):
 
     def _add_note(self, title: str, content: str, note_id: str = "note_1",
                   updated_at: float = 50.0) -> None:
-        from app.core import notes as notes_store
+        from app import notes as notes_store
         vault = notes_store.load_vault(self.sid)
         vault.notes.append({
             "id": note_id, "title": title, "content": content,
@@ -181,7 +181,7 @@ class SiteSearchTest(StorageSandboxTestCase):
         fid = lib.add_file("", "微积分讲义复验.pdf", "讲义",
                            raw=b"%PDF-1.4\n%%EOF", orig_ext=".pdf")["id"]
         save_library(lib)
-        from app.core import notes as notes_store
+        from app import notes as notes_store
         vault = notes_store.load_vault(self.sid)
         vault.notes.append({
             "id": "note_tag1", "title": "微积分学习路线图", "content": "",

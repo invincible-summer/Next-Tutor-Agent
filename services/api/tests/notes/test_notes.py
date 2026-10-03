@@ -29,7 +29,7 @@ sys.path.insert(0, str(_BACKEND))
 from fastapi.testclient import TestClient  # noqa: E402
 
 from app.main import create_app  # noqa: E402
-from app.core import notes as notes_mod  # noqa: E402
+from app import notes as notes_mod  # noqa: E402
 from app.core import textbook as textbook_mod  # noqa: E402
 from app.core import trash as trash_mod  # noqa: E402
 from app.identity import store as id_store  # noqa: E402

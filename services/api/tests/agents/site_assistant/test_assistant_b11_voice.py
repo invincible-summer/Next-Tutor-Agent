@@ -14,7 +14,7 @@ from unittest import mock
 from tests.support.storage_sandbox import StorageSandboxTestCase
 
 from app.agents.site_assistant import voice
-from app.core import assistant_store as store
+from app.agents.site_assistant import store
 
 
 def _hex() -> str:
@@ -193,7 +193,7 @@ class PreferencesModelTest(StorageSandboxTestCase):
                              hash_password("pw123456"), user_id=self.sid)
 
     def test_defaults_and_version_merge(self) -> None:
-        from app.core.assistant_store import (AssistantStoreError,
+        from app.agents.site_assistant.store import (AssistantStoreError,
                                               load_preferences,
                                               save_preferences)
         prefs = load_preferences(self.sid)

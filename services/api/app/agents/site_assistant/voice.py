@@ -18,7 +18,7 @@ import uuid
 from dataclasses import dataclass
 from typing import Any
 
-from app.core.assistant_store import _student_root
+from app.agents.site_assistant.store import _student_root
 
 MAX_CHARS_PER_ANSWER = 6000
 MAX_CLIPS = 40
@@ -454,7 +454,7 @@ def _owning_job(student_id: str, clip_id: str) -> dict[str, Any] | None:
 
 def _message_still_valid(student_id: str, job: dict[str, Any]) -> bool:
     """§24.4：消息 revision 变化或消息删除 → 音频失效。"""
-    from app.core import assistant_store as store
+    from app.agents.site_assistant import store
     cid = str(job.get("conversation_id") or "")
     mid = str(job.get("message_id") or "")
     want_rev = int(job.get("message_revision") or 0)

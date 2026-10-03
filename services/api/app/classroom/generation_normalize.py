@@ -7,7 +7,7 @@ from typing import Any
 
 from pydantic import ValidationError
 
-from ..core import classroom_store as store
+from app.classroom import storage as store
 from ..schemas import classroom as sc
 from .validation import normalize_slide_spans
 

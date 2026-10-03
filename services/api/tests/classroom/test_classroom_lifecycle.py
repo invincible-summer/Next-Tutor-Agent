@@ -15,7 +15,7 @@ from unittest import mock  # noqa: F401  (crash 注入用)
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from app.classroom import lifecycle as lc  # noqa: E402
-from app.core import classroom_store as store  # noqa: E402
+from app.classroom import storage as store  # noqa: E402
 from app.core import trash as trash_mod  # noqa: E402
 from app.core import workspace as ws_mod  # noqa: E402
 from app.schemas import classroom as sc  # noqa: E402
@@ -655,7 +655,7 @@ class CrashInjectionTests(StorageSandboxTestCase):
     def test_note_save_crash_converges_single_note(self):
         """create_note 后 save_vault 前 crash：重试只产生一份笔记。"""
         from app.classroom import runs as runs_mod
-        from app.core import notes as notes_store
+        from app import notes as notes_store
         info = build_full_lesson()
         run = store.load_run(FULL_OWNER, FULL_WS, info["lesson"].lesson_id,
                              info["run"].run_id)

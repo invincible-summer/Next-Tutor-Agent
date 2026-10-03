@@ -13,7 +13,7 @@ import io
 import zipfile
 from typing import Mapping
 
-from ..core import classroom_store as store
+from app.classroom import storage as store
 from ..schemas.classroom import LessonRevision
 from .render.assets import load_asset_pack
 from .render.compiler import (

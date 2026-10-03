@@ -15,7 +15,7 @@ from unittest import mock
 from tests.support.storage_sandbox import StorageSandboxTestCase
 
 from app.agents.site_assistant import runtime as rt_mod
-from app.core import assistant_store as store
+from app.agents.site_assistant import store
 
 
 def _page_context(route: str = "chat") -> dict:

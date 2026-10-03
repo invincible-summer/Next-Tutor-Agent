@@ -15,7 +15,7 @@ from __future__ import annotations
 import json
 from typing import Any
 
-from ..core import classroom_store as store
+from app.classroom import storage as store
 from ..schemas import classroom as sc
 from . import idempotency
 from . import sources

@@ -455,7 +455,7 @@ def normalize_generated_slides(slides: list[sc.SlideSpec],
         slide.blocks = [b for b in slide.blocks if b.kind != "checkpoint"
                         or b.checkpoint_id in known_checkpoints]
         if not slide.blocks:
-            from ..core.classroom_store import new_id
+            from app.classroom.storage import new_id
             slide.blocks = [sc.ParagraphBlock(
                 id=new_id("blk"), spans=[sc.SpanText(text=slide.title)])]
         if coerce_layout_blocks(slide, preserve_content=preserve_content):

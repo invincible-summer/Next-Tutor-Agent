@@ -22,7 +22,7 @@ from app.classroom import runs as runs_mod  # noqa: E402
 from app.classroom.chat_context import (  # noqa: E402
     resolve_classroom_turn)
 from app.classroom.errors import ClassroomError  # noqa: E402
-from app.core import classroom_store as store  # noqa: E402
+from app.classroom import storage as store  # noqa: E402
 from app.core.session import load_session, session_path  # noqa: E402
 from app.schemas.chat import ClassroomRef  # noqa: E402
 from app.schemas import classroom as sc  # noqa: E402
@@ -400,7 +400,7 @@ class ClassroomChatTests(RevisionTestBase):
     # ---- 批注与课堂笔记（§12.6/§16.3） ------------------------------------
 
     def test_annotation_and_save_note_idempotent(self):
-        from app.core import notes as notes_store
+        from app import notes as notes_store
 
         first = min(self.spec.slides, key=lambda s: s.order)
         seg = first.segments[0]

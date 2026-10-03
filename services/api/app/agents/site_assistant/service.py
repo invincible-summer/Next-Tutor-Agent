@@ -142,7 +142,7 @@ def _style_directive(student_id: str) -> str:
     读取失败时无指令（默认风格），不阻断回答。
     """
     try:
-        from app.core import assistant_store as prefs_store
+        from app.agents.site_assistant import store as prefs_store
         prefs = prefs_store.load_preferences(student_id)
         tone = {"neutral": "平实自然",
                 "encouraging": "鼓励友好"}.get(
@@ -305,7 +305,7 @@ async def execute_turn(runtime: AssistantRuntime, turn: _RunningTurn) -> None:
 
 def store_register_refs(turn: _RunningTurn, registry: readers.SourceRegistry,
                         message: dict[str, Any]) -> None:
-    from app.core import assistant_store
+    from app.agents.site_assistant import store as assistant_store
     assistant_store.register_source_refs(
         turn.student_id,
         registry.ref_entries(turn.conversation_id,
@@ -313,5 +313,5 @@ def store_register_refs(turn: _RunningTurn, registry: readers.SourceRegistry,
 
 
 def _utc_now() -> str:
-    from app.core.assistant_store import utc_now_iso
+    from app.agents.site_assistant.store import utc_now_iso
     return utc_now_iso()

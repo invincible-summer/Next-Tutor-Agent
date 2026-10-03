@@ -33,7 +33,7 @@
 | `classroom/health.py` | 管理端健康巡检与恢复动作 |
 | `classroom/capabilities.py` / `templates.py` / `validation.py` / `generation_normalize.py` / `idempotency.py` / `limits.py` / `errors.py` / `netcheck.py` | 能力面、模板目录、结构校验、生成结果无损规范化、幂等键、统一限制常量、错误映射、外部网络探测 |
 | `classroom/static/generated/` | 课件 frame runtime 静态包（`pnpm run build:classroom` 部署期构建，gitignored） |
-| `core/classroom_store.py` | 唯一存储层（目录布局、发布事务、tombstone、缓存清扫） |
+| `classroom/storage.py` | 唯一存储层（目录布局、发布事务、tombstone、缓存清扫） |
 | `schemas/classroom.py` | API/schema 契约（Pydantic） |
 | `api/v1/classroom.py` | `/api/v1` 课堂路由（45 个端点） |
 | `prompts/classroom.py` | `classroom_outline` / `classroom_slide` / `classroom_json_continue` / `classroom_block` / `classroom_review` / `classroom_repair` 提示词（经 `prompts/registry.py` 注册，版本随 Job 冻结） |

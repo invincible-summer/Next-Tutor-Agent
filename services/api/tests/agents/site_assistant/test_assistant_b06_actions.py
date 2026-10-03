@@ -13,7 +13,7 @@ from datetime import datetime, timedelta, timezone
 
 from tests.support.storage_sandbox import StorageSandboxTestCase
 
-from app.core import assistant_store as store
+from app.agents.site_assistant import store
 
 
 def _hex() -> str:
@@ -70,7 +70,7 @@ class _B06Case(StorageSandboxTestCase):
 
     def _make_note(self, title: str = "物理笔记",
                    content: str = "原有内容") -> tuple[str, int]:
-        from app.core import notes as notes_store
+        from app import notes as notes_store
         vault = notes_store.load_vault(self.sid)
         note = vault.create_note(title=title, content=content)
         notes_store.save_vault(vault)
@@ -91,7 +91,7 @@ class _B06Case(StorageSandboxTestCase):
 
 class NoteActionsTest(_B06Case):
     def test_append_executes_and_undo_restores(self) -> None:
-        from app.core import notes as notes_store
+        from app import notes as notes_store
         note_id, revision = self._make_note(content="原有内容")
         self._add_action("asta_na", {
             "kind": "domain_write", "operation": "note.append",
@@ -128,7 +128,7 @@ class NoteActionsTest(_B06Case):
             self._execute("asta_nas")
 
     def test_replace_requires_preview_and_shows_diff(self) -> None:
-        from app.core import notes as notes_store
+        from app import notes as notes_store
         note_id, revision = self._make_note(content="旧正文")
         self._add_action("asta_nr", {
             "kind": "domain_write", "operation": "note.replace",
@@ -154,7 +154,7 @@ class NoteActionsTest(_B06Case):
             notes_store.load_vault(self.sid).read_note(note_id), "旧正文")
 
     def test_move_single_direct_multi_requires_review(self) -> None:
-        from app.core import notes as notes_store
+        from app import notes as notes_store
         vault = notes_store.load_vault(self.sid)
         folder = vault.create_folder("复习夹")
         notes_store.save_vault(vault)
@@ -186,7 +186,7 @@ class NoteActionsTest(_B06Case):
         self.assertEqual(vault.find_note(n1)["folder_id"], folder["id"])
 
     def test_set_review_toggles_and_undo(self) -> None:
-        from app.core import notes as notes_store
+        from app import notes as notes_store
         note_id, _rev = self._make_note()
         self._add_action("asta_nsr", {
             "kind": "domain_write", "operation": "note.set_review",
@@ -202,7 +202,7 @@ class NoteActionsTest(_B06Case):
         self.assertFalse((meta.get("review") or {}).get("enabled"))
 
     def test_restore_revision_flow(self) -> None:
-        from app.core import notes as notes_store
+        from app import notes as notes_store
         note_id, rev1 = self._make_note(content="第一版")
         vault = notes_store.load_vault(self.sid)
         vault.write_note(note_id, "第二版", author="user",

@@ -290,7 +290,7 @@ def _owned_textbook(student_id: str, textbook_id: str, *,
 
 def _owned_note(student_id: str, note_id: str):
     """加载本人笔记元数据；不存在 404（笔记无跨用户共享）。"""
-    from app.core import notes as notes_store
+    from app import notes as notes_store
     meta = notes_store.load_vault(student_id).find_note(str(note_id))
     if meta is None:
         raise ActionRejected(404, "entity_not_found", "笔记不存在。")
@@ -603,7 +603,7 @@ def _preview_content(student_id: str, operation: str,
         return out
     # -- B06：笔记 / 学习编排 ------------------------------------------------
     if operation == "note.append":
-        from app.core import notes as notes_store
+        from app import notes as notes_store
         meta = _owned_note(student_id, str(data.get("note_id")))
         revision = int(meta.get("revision") or 1)
         if revision != int(data.get("base_revision") or 0):
@@ -621,7 +621,7 @@ def _preview_content(student_id: str, operation: str,
             "kind": "note", "note_id": str(data.get("note_id"))}]
         return out
     if operation == "note.replace":
-        from app.core import notes as notes_store
+        from app import notes as notes_store
         meta = _owned_note(student_id, str(data.get("note_id")))
         vault = notes_store.load_vault(student_id)
         revision = int(meta.get("revision") or 1)
@@ -646,7 +646,7 @@ def _preview_content(student_id: str, operation: str,
             "kind": "note", "note_id": str(data.get("note_id"))}]
         return out
     if operation == "note.move":
-        from app.core import notes as notes_store
+        from app import notes as notes_store
         vault = notes_store.load_vault(student_id)
         metas = []
         for nid in [str(n) for n in (data.get("note_ids") or [])]:
@@ -701,7 +701,7 @@ def _preview_content(student_id: str, operation: str,
             "kind": "note", "note_id": str(data.get("note_id"))}]
         return out
     if operation == "note.restore_revision":
-        from app.core import notes as notes_store
+        from app import notes as notes_store
         vault = notes_store.load_vault(student_id)
         meta = _owned_note(student_id, str(data.get("note_id")))
         revision = int(meta.get("revision") or 1)
@@ -1041,7 +1041,7 @@ def _preview_content(student_id: str, operation: str,
                 user, "updated_at") else "1"}
         return out
     if operation == "assistant.preferences":
-        from app.core.assistant_store import load_preferences
+        from app.agents.site_assistant.store import load_preferences
         prefs = load_preferences(student_id)
         labels = {"tone": "助手语气", "response_length": "回答长度",
                   "default_scope": "默认查询范围",
@@ -1317,7 +1317,7 @@ def execute_domain_write(student_id: str,
             return {"kind": "task", "entity_id": str(data.get("task_id")),
                     "related_ids": {}, "result_revision": "completed"}
         if operation == "note.create":
-            from app.core import notes as notes_store
+            from app import notes as notes_store
             vault = notes_store.load_vault(student_id)
             note = vault.create_note(
                 title=str(data.get("title") or ""),
@@ -1723,7 +1723,7 @@ def _run_async_on_loop(main_loop, coro_fn, *args, timeout: float = 60.0):
 
 def _exec_note_append(student_id: str, data: dict[str, Any]) -> dict[str, Any]:
     """PUT /notes/{id} 共用保存服务语义：精确 revision 附加（§21.3）。"""
-    from app.core import notes as notes_store
+    from app import notes as notes_store
     vault = notes_store.load_vault(student_id)
     note_id = str(data.get("note_id"))
     if vault.find_note(note_id) is None:
@@ -1750,7 +1750,7 @@ def _exec_note_append(student_id: str, data: dict[str, Any]) -> dict[str, Any]:
 
 def _exec_note_replace(student_id: str, data: dict[str, Any]) -> dict[str, Any]:
     """note.replace：整体改写（review_required）；历史保留旧版本。"""
-    from app.core import notes as notes_store
+    from app import notes as notes_store
     vault = notes_store.load_vault(student_id)
     note_id = str(data.get("note_id"))
     if vault.find_note(note_id) is None:
@@ -1776,7 +1776,7 @@ def _exec_note_replace(student_id: str, data: dict[str, Any]) -> dict[str, Any]:
 
 def _exec_note_move(student_id: str, data: dict[str, Any]) -> dict[str, Any]:
     """POST /notes/bulk/move 语义（≤20 篇；文件夹缺失 404）。"""
-    from app.core import notes as notes_store
+    from app import notes as notes_store
     vault = notes_store.load_vault(student_id)
     folder_id = str(data.get("folder_id") or "")
     if folder_id and vault.find_folder(folder_id) is None:
@@ -1799,7 +1799,7 @@ def _exec_note_move(student_id: str, data: dict[str, Any]) -> dict[str, Any]:
 def _exec_note_set_review(student_id: str,
                           data: dict[str, Any]) -> dict[str, Any]:
     """PATCH /notes/{id} 的 review_enabled 分支；不生成复习记录。"""
-    from app.core import notes as notes_store
+    from app import notes as notes_store
     from app.api.v1.notes import _drop_review_card, _sync_review_card
     vault = notes_store.load_vault(student_id)
     note_id = str(data.get("note_id"))
@@ -1827,7 +1827,7 @@ def _exec_note_set_review(student_id: str,
 def _exec_note_restore_revision(student_id: str,
                                 data: dict[str, Any]) -> dict[str, Any]:
     """POST /notes/{id}/revisions/{r}/restore 语义（review_required）。"""
-    from app.core import notes as notes_store
+    from app import notes as notes_store
     from app.api.v1.notes import _sync_review_card
     vault = notes_store.load_vault(student_id)
     note_id = str(data.get("note_id"))
@@ -2216,7 +2216,7 @@ def _exec_profile_update(student_id: str,
 def _exec_assistant_preferences(student_id: str,
                                 data: dict[str, Any]) -> dict[str, Any]:
     """PUT /assistant/preferences 白名单合并（§22.4/§24.6）。"""
-    from app.core.assistant_store import (AssistantStoreError,
+    from app.agents.site_assistant.store import (AssistantStoreError,
                                           load_preferences, save_preferences)
     previous = load_preferences(student_id)
     updates = {k: data[k] for k in (

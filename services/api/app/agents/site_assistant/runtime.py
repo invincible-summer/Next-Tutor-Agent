@@ -23,8 +23,8 @@ from collections import deque
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
-from app.core import assistant_store as store
-from app.core.assistant_store import AssistantStoreError
+from app.agents.site_assistant import store
+from app.agents.site_assistant.store import AssistantStoreError
 
 _EVENT_RING_SIZE = 512
 _TERMINAL_RETENTION_SECONDS = 600

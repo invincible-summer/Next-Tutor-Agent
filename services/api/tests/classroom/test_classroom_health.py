@@ -15,7 +15,7 @@ from unittest import mock
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from app.classroom import health, limits  # noqa: E402
-from app.core import classroom_store as store  # noqa: E402
+from app.classroom import storage as store  # noqa: E402
 from app.schemas import classroom as sc  # noqa: E402
 
 from tests.support.storage_sandbox import StorageSandboxTestCase  # noqa: E402
@@ -180,7 +180,7 @@ class DiskFullProjectionTests(StorageSandboxTestCase):
     def test_storage_exception_handler_projects_envelope(self):
         from app.api.v1.classroom import storage_exception_handler
         from app.classroom.errors import ClassroomError
-        from app.core.classroom_store import LessonDamagedError
+        from app.classroom.storage import LessonDamagedError
 
         class _Req:
             pass

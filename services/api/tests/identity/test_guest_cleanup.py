@@ -82,7 +82,9 @@ class GuestCleanupTests(StorageSandboxTestCase):
         self.assertTrue(path.exists())
 
     def test_old_guests_are_not_resumed_by_background_services(self):
-        from app.core import textbook, textbook_ocr, classroom_store, assistant_store
+        from app.core import textbook, textbook_ocr
+        from app.classroom import storage as classroom_store
+        from app.agents.site_assistant import store as assistant_store
         from app.classroom.worker import ClassroomWorker
         from app.agents.site_assistant import notifications
         from app.agents.site_assistant.runtime import AssistantRuntime

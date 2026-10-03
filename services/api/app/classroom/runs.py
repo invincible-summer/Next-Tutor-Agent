@@ -18,7 +18,7 @@ import secrets
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
-from ..core import classroom_store as store
+from app.classroom import storage as store
 from ..schemas import classroom as sc
 from ..voice.tts import service as tts_service
 from . import limits
@@ -446,7 +446,7 @@ def update_progress(student_id: str, workspace_id: str, lesson_id: str,
             r.visited_slides.append(cursor.slide_id)
         r.updated_at = _utcnow()
 
-    from ..core.classroom_store import CasConflictError
+    from app.classroom.storage import CasConflictError
 
     try:
         updated = store.update_run(
@@ -540,7 +540,7 @@ def save_run_note(student_id: str, workspace_id: str, lesson_id: str,
     （create_note 的 note_id 参数遇同 ID 会另造 ID，因此以 source 查找
     为准，不依赖预留 note_id）。
     """
-    from ..core import notes as notes_store
+    from app import notes as notes_store
 
     run = load_owned_run(student_id, workspace_id, lesson_id, run_id)
     spec = load_run_spec(student_id, workspace_id, lesson_id,
@@ -654,7 +654,7 @@ def update_audio_profile(student_id: str, workspace_id: str, lesson_id: str,
         r.tts_local_locked = False   # 显式切换重置回退锁
         r.updated_at = _utcnow()
 
-    from ..core.classroom_store import CasConflictError
+    from app.classroom.storage import CasConflictError
 
     try:
         updated = store.update_run(

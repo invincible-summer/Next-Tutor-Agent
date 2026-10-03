@@ -18,7 +18,7 @@ from unittest import mock
 from tests.support.storage_sandbox import StorageSandboxTestCase
 
 from app.agents.site_assistant import catalog, intent, policy
-from app.core import assistant_store as store
+from app.agents.site_assistant import store
 
 
 def _navigate_results(unique: bool = True) -> list[dict]:

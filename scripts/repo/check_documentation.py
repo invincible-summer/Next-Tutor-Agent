@@ -74,6 +74,7 @@ REQUIRED_READMES = [
     "services/api/app/diagrams/README.md",
     "services/api/app/identity/README.md",
     "services/api/app/illustration/README.md",
+    "services/api/app/notes/README.md",
     "services/api/app/prompts/README.md",
     "services/api/app/schemas/README.md",
     "services/api/app/tools/README.md",

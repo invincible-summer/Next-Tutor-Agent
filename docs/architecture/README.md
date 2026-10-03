@@ -60,7 +60,7 @@ SSE 为前端直连后端的流式通道（`POST /chat/stream` 等），生产�
 |------|------|------|---------|
 | 课堂模式 | 教师创建课程/幻灯片，学生跟堂学习与作文 | `app/classroom/` | [classroom.md](./classroom.md) |
 | 站内学习助手 | 站内导航、领域动作与实体深链 | `app/agents/site_assistant/` | [site-assistant.md](./site-assistant.md) |
-| 笔记 | 笔记仓库 + 笔记智能体 | `app/agents/notes_agent.py` + `core/notes*.py` | [notes.md](./notes.md) |
+| 笔记 | 笔记仓库 + 笔记智能体 | `app/notes/` + `app/agents/notes_agent.py` | [notes.md](./notes.md) |
 | 图库与题图 | 教学 SVG 素材库、题图装配与渲染 | `app/diagrams/` + `app/illustration/` | [diagrams-illustration.md](./diagrams-illustration.md) |
 | 语音 | 电话式语音对话（WS）+ TTS | `app/voice/` + `services/voice/` | [voice.md](./voice.md) |
 | 前端 | 学生学习空间 UI | `apps/web/` | [frontend.md](./frontend.md) |

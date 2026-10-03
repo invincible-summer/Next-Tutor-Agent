@@ -16,7 +16,7 @@
 
 ## Does not own
 
-- 存储落盘细节（目录布局、发布事务）→ `app/core/classroom_store.py`（本域唯一存储层）。
+- 存储落盘细节（目录布局、发布事务）→ `app/classroom/storage.py`（本域唯一存储层）。
 - API 路由与 schema → `app/api/v1/classroom.py`、`app/schemas/classroom.py`；提示词 → `app/prompts/classroom.py`。
 - 插问的对话语义 → 聊天内核 `run_turn`（`app/agents/`）。
 - TTS provider 实现与并发 → `app/voice/tts/`；MeloTTS sidecar → `services/voice/`。

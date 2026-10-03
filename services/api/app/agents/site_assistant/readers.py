@@ -14,7 +14,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import Any
 
-from app.core import assistant_store as store
+from app.agents.site_assistant import store
 from app.schemas.assistant import AssistantRouteId
 
 from . import catalog
@@ -246,7 +246,7 @@ def _lesson_edit_candidates(
         if eid:
             title = eid
             try:
-                from app.core import classroom_store as cstore
+                from app.classroom import storage as cstore
                 lessons = cstore.read_index(
                     student_id, ws_id).get("lessons") or {}
                 entries = (lessons.values() if isinstance(lessons, dict)

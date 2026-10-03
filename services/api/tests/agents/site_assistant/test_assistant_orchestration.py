@@ -373,7 +373,7 @@ class ReadersTest(StorageSandboxTestCase):
 
     def test_destination_lesson_edit_name_match(self) -> None:
         # 无页面实体：按名称匹配课程（§8.4 名称包含），候选带工作区名。
-        from app.core import classroom_store as cstore
+        from app.classroom import storage as cstore
         self._make_workspace("wsp_a", "大学物理")
         cstore.update_index(self.student_id, "wsp_a", lambda idx: (
             idx["lessons"].update({
@@ -403,7 +403,7 @@ class ReadersTest(StorageSandboxTestCase):
     # -- P1-2/P1-3 回归：具名实体候选与 file 页码 -------------------------
 
     def _add_note(self, note_id: str, title: str) -> None:
-        from app.core import notes as notes_store
+        from app import notes as notes_store
         vault = notes_store.load_vault(self.student_id)
         vault.notes.append({
             "id": note_id, "title": title, "content": "", "tags": [],
@@ -430,7 +430,7 @@ class ReadersTest(StorageSandboxTestCase):
     def test_destination_best_tier_unique_wins_over_weak_matches(self) -> None:
         # 笔记《定积分与可积性》exact 命中；课程《定积分》经反向包含
         # 弱 title 命中 —— 最佳档位唯一者顶替，弱命中不稀释唯一性。
-        from app.core import classroom_store as cstore
+        from app.classroom import storage as cstore
         self._add_note("note_bt1", "定积分与可积性")
         self._make_workspace("wsp_bt", "高等数学")
         cstore.update_index(self.student_id, "wsp_bt", lambda idx: (
@@ -865,7 +865,7 @@ class ServiceTurnTest(_OrchestrationApiCase):
     # -- P1-1/P1-2/P1-3 回归：自然语言实体轮次（快路、无模型）------------
 
     def _seed_note(self, note_id: str, title: str) -> None:
-        from app.core import notes as notes_store
+        from app import notes as notes_store
         vault = notes_store.load_vault(self.sid)
         vault.notes.append({
             "id": note_id, "title": title, "content": "", "tags": [],

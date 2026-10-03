@@ -9,7 +9,7 @@ import json
 from datetime import datetime
 from typing import Any
 
-from ..core import classroom_store as store
+from app.classroom import storage as store
 from ..core.atomic import file_lock
 from ..core.workspace import _owner_of, load_workspace
 from ..schemas import classroom as sc

@@ -26,7 +26,7 @@ from app.classroom.pipeline import (ClassroomPipeline,  # noqa: E402
                                     PipelineDeps)
 from app.classroom.research.base import (ExtractOutcome,  # noqa: E402
                                          ExtractedPage, SearchHit)
-from app.core import classroom_store as store  # noqa: E402
+from app.classroom import storage as store  # noqa: E402
 from app.schemas import classroom as sc  # noqa: E402
 
 from tests.classroom.test_classroom_pipeline import OWNER, PipelineTestBase, WS  # noqa: E402
@@ -407,7 +407,7 @@ class AssetExportTests(RevisionTestBase):
         self.assertTrue(ndata.startswith(b"#"))
 
         # 过期 → export_expired（可重建）
-        from app.core import classroom_store as st
+        from app.classroom import storage as st
         meta_path = st.export_meta_path(OWNER, WS, lesson_id,
                                         notes["export_id"])
         import json as _json

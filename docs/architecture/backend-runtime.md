@@ -117,9 +117,9 @@ SSE 为前端直连后端的流式通道（`POST /chat/stream`、`POST /quiz/gra
 | M8 | 交互体验智能 | 怎么表达最适合：UX 画像 + 输出适配（不改内容） | `app/agents/ux_intelligence/` |
 | M9 | 学习编排智能 | 未来几周怎么学：多目标→周任务→今日任务 + SM-2 | `app/agents/learning_orchestration/` |
 | M10 | 能力运行时与证据门 | Agent 能调用什么、契约是否满足、证据能否写回 | `app/agents/skill_runtime/` |
-| 领域 | 课堂模式 | 私有课件生成/试听/运行/音频/导出 | `api/v1/classroom.py` + `core/classroom_store.py` |
+| 领域 | 课堂模式 | 私有课件生成/试听/运行/音频/导出 | `api/v1/classroom.py` + `classroom/storage.py` |
 | 领域 | 站点助手 | 站内导航/检索/代办动作/撤销/通知 | `app/agents/site_assistant/` + `api/v1/assistant.py` |
-| 领域 | 笔记（M-Notes） | 笔记仓库 + 每笔记专属智能体 | `api/v1/notes.py` + `agents/notes_agent.py` + `core/notes.py` |
+| 领域 | 笔记（M-Notes） | 笔记仓库 + 每笔记专属智能体 | `api/v1/notes.py` + `agents/notes_agent.py` + `notes/` |
 | 领域 | 图示库 | 配图资产与教材图示材料 | `api/v1/diagram_library.py` `diagram_materials.py`（`diagram_assets/` 根） |
 | 领域 | 题图 | 题目插图任务管线与冻结 artifact | `api/v1/illustration_jobs.py` `assessment_illustration.py` + `core/quiz_illustration*.py` |
 | 领域 | 语音通话 | push-to-talk 电话模式 + 板书同步 | `api/v1/voice.py` + `services/voice/` sidecar |

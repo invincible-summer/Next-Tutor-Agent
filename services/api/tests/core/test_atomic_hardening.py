@@ -113,7 +113,7 @@ class TestFileLockLifecycle(unittest.TestCase):
 
 class TestNotesConcurrentWrite(StorageSandboxTestCase):
     def test_concurrent_write_content_intact(self):
-        from app.core.notes import NoteVault
+        from app.notes import NoteVault
         vault = NoteVault("usr_atomic_notes")
         meta = vault.create_note(title="并发笔记", content="初始内容")
         note_id = meta["id"]

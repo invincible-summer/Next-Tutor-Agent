@@ -61,7 +61,7 @@ def _collect_orphans(protected_ids) -> dict[str, list[Path]]:
     from app.agents.student_model import store as sm_store
     from app.core import context as context_mod
     from app.core import library as lib_mod
-    from app.core import notes as notes_mod
+    from app import notes as notes_mod
     from app.core import session as session_mod
     from app.core import trash as trash_mod
     from app.core import workspace as ws_mod
@@ -224,7 +224,7 @@ def _collect_orphans(protected_ids) -> dict[str, list[Path]]:
 
     # --- 课堂：孤儿 owner 根 + 失去工作区归属的活跃子树（§16.4）---
     try:
-        from app.core import classroom_store as cs_mod
+        from app.classroom import storage as cs_mod
     except Exception:
         cs_mod = None
     if cs_mod is not None and cs_mod._CLASSROOM_DIR.is_dir():
@@ -254,7 +254,7 @@ def _collect_orphans(protected_ids) -> dict[str, list[Path]]:
                 out["knowledge"].append(d)
 
     # --- 站内助手：chat_history/assistant/<uid>/ 目录名归属 ---
-    from app.core import assistant_store as asst_mod
+    from app.agents.site_assistant import store as asst_mod
     if asst_mod._ASSISTANT_DIR.is_dir():
         for d in sorted(asst_mod._ASSISTANT_DIR.iterdir()):
             if d.is_dir() and d.name not in protected:

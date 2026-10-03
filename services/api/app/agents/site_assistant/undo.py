@@ -140,7 +140,7 @@ def _undo_task_create(student_id: str, data: dict[str, Any],
 def _undo_note_create(student_id: str, data: dict[str, Any],
                       snap: dict[str, Any], *, is_admin: bool) -> str:
     import hashlib
-    from app.core import notes as notes_store
+    from app import notes as notes_store
     from app.core import trash
     vault = notes_store.load_vault(student_id)
     note_id = str(snap.get("note_id"))
@@ -344,7 +344,7 @@ def _undo_note_append_or_replace(student_id: str, data: dict[str, Any],
                                  snap: dict[str, Any], *,
                                  is_admin: bool) -> str:
     """撤销追加/改写：笔记未被再编辑时恢复 base_revision 版本。"""
-    from app.core import notes as notes_store
+    from app import notes as notes_store
     vault = notes_store.load_vault(student_id)
     note_id = str(snap.get("note_id"))
     meta = vault.find_note(note_id)
@@ -362,7 +362,7 @@ def _undo_note_append_or_replace(student_id: str, data: dict[str, Any],
 
 def _undo_note_move(student_id: str, data: dict[str, Any],
                     snap: dict[str, Any], *, is_admin: bool) -> str:
-    from app.core import notes as notes_store
+    from app import notes as notes_store
     vault = notes_store.load_vault(student_id)
     target = str(data.get("folder_id") or "")
     moved: list[str] = []
@@ -386,7 +386,7 @@ def _undo_note_move(student_id: str, data: dict[str, Any],
 def _undo_note_set_review(student_id: str, data: dict[str, Any],
                           snap: dict[str, Any], *, is_admin: bool) -> str:
     previous_enabled = bool(snap.get("previous_enabled"))
-    from app.core import notes as notes_store
+    from app import notes as notes_store
     from app.api.v1.notes import _drop_review_card, _sync_review_card
     vault = notes_store.load_vault(student_id)
     note_id = str(snap.get("note_id"))
@@ -411,7 +411,7 @@ def _undo_note_set_review(student_id: str, data: dict[str, Any],
 def _undo_note_restore_revision(student_id: str, data: dict[str, Any],
                                 snap: dict[str, Any], *,
                                 is_admin: bool) -> str:
-    from app.core import notes as notes_store
+    from app import notes as notes_store
     vault = notes_store.load_vault(student_id)
     note_id = str(snap.get("note_id"))
     meta = vault.find_note(note_id)
@@ -532,7 +532,7 @@ def _undo_profile_update(student_id: str, data: dict[str, Any],
 def _undo_assistant_preferences(student_id: str, data: dict[str, Any],
                                 snap: dict[str, Any],
                                 *, is_admin: bool) -> str:
-    from app.core.assistant_store import load_preferences, save_preferences
+    from app.agents.site_assistant.store import load_preferences, save_preferences
     current = load_preferences(student_id)
     applied = dict(snap.get("applied") or {})
     previous = dict(snap.get("previous") or {})

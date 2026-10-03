@@ -19,7 +19,7 @@ async def generate(output: Path, resume: Path | None = None, brief_path: Path | 
     from tests.storage_sandbox import StorageSandboxTestCase
     from app.classroom.pipeline import ClassroomPipeline, PipelineDeps
     from app.classroom.render.compiler import compile_html
-    from app.core import classroom_store as store
+    from app.classroom import storage as store
     from app.core import workspace as ws_mod
     from app.schemas import classroom as sc
     from app.prompts.registry import active_versions

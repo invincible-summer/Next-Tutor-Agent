@@ -16,7 +16,7 @@ import time
 from pathlib import Path
 from typing import Any
 
-from ..core import classroom_store as store
+from app.classroom import storage as store
 from ..schemas import classroom as sc
 
 # 快照/恢复时跳过的可重建目录（§16.4：音频缓存与过期 exports 可不打包）

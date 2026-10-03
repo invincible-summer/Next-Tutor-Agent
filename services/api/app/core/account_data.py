@@ -102,7 +102,7 @@ def scan_storage(user_ids: list[str]) -> dict[str, dict[str, Any]]:
     from app.agents.student_model.store import DEFAULT_STUDENT_ID
     from app.core import context as context_mod
     from app.core import library as lib_mod
-    from app.core import notes as notes_mod
+    from app import notes as notes_mod
     from app.core import session as session_mod
     from app.core import trash as trash_mod
     from app.core import workspace as ws_mod
@@ -193,7 +193,7 @@ def scan_storage(user_ids: list[str]) -> dict[str, dict[str, Any]]:
 
     # --- 站内助手：chat_history/assistant/<uid>/ 目录直取 ---
     try:
-        from app.core import assistant_store as asst_mod
+        from app.agents.site_assistant import store as asst_mod
         for uid, buckets in out.items():
             buckets["assistant_bytes"] += asst_mod.assistant_storage_size(uid)
     except Exception:
@@ -450,7 +450,7 @@ def clear_chat_data(user_id: str, scope: str = "all") -> dict[str, Any]:
         # 站内助手：先停在途任务（进程内 owner_generation 随之提升，
         # 迟到写入会被拒），再删助手根。
         try:
-            from app.core import assistant_store as asst_mod
+            from app.agents.site_assistant import store as asst_mod
             asst_mod.stop_assistant_tasks(uid)
             report["assistant_freed_bytes"] = asst_mod.purge_assistant_data(uid)
         except Exception:
@@ -493,7 +493,7 @@ def _purge_account(user_id: str) -> dict[str, Any]:
     最后删账号记录。不可恢复；调用方须确保目标不是管理员账号。"""
     from app.agents.knowledge import store as kgs_mod
     from app.agents.student_model import store as sm_store
-    from app.core import notes as notes_mod
+    from app import notes as notes_mod
     from app.core import trash as trash_mod
     from app.identity import store as id_store
 

@@ -28,7 +28,7 @@ from app.classroom.audio import (  # noqa: E402
     build_segment_order, clip_id_for, pcm16_to_wav, synthesis_key,
     validate_request_window)
 from app.classroom.errors import ClassroomError  # noqa: E402
-from app.core import classroom_store as store  # noqa: E402
+from app.classroom import storage as store  # noqa: E402
 from app.schemas import classroom as sc  # noqa: E402
 from app.voice.base import TTSResult, TTSUnavailable  # noqa: E402
 from app.voice.tts import service as tts_service  # noqa: E402

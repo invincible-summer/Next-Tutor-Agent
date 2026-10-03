@@ -22,7 +22,7 @@ from datetime import date, timedelta
 from pathlib import Path
 from typing import Any, Callable
 
-from ..core import classroom_store as store
+from app.classroom import storage as store
 from ..prompts.registry import active_versions
 from ..schemas import classroom as sc
 from . import limits, sources, validation

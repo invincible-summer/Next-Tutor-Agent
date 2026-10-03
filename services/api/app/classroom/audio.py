@@ -35,7 +35,7 @@ from datetime import date
 from pathlib import Path
 from typing import Any, Iterator
 
-from ..core import classroom_store as store
+from app.classroom import storage as store
 from ..schemas import classroom as sc
 from ..voice.base import TTSConfigError, TTSOptions, VoiceProviderError
 from ..voice.speak_text import to_speakable

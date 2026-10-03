@@ -46,7 +46,7 @@ def storage_exception_handler(request: Request,
 
     由 main.create_app 注册；保证强制写失败可观察（§16.2），不静默成功。
     """
-    from app.core.classroom_store import (ClassroomStorageError,
+    from app.classroom.storage import (ClassroomStorageError,
                                           LessonDamagedError)
     if isinstance(exc, LessonDamagedError):
         code = LessonDamagedError.code

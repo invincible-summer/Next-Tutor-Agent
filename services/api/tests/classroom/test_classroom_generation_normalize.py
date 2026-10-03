@@ -13,7 +13,7 @@ from app.classroom.generation_normalize import normalize_authored_slide
 from app.classroom.llm_io import generate_json
 from app.classroom.pipeline import _SlideModel, _slide_schema_hint
 from app.classroom import revisions
-from app.core import classroom_store as store
+from app.classroom import storage as store
 from app.schemas import classroom as sc
 from tests.support import classroom_fixtures as fx
 from tests.support.classroom_fake_llm import FakeClassroomLLM

@@ -27,8 +27,8 @@ from app.agents.site_assistant.runtime import (
     TurnRejected,
     get_runtime,
 )
-from app.core import assistant_store as store
-from app.core.assistant_store import AssistantStoreError
+from app.agents.site_assistant import store
+from app.agents.site_assistant.store import AssistantStoreError
 from app.identity.deps import optional_user, require_user
 from app.identity.models import User
 from app.schemas.assistant import (
@@ -444,7 +444,7 @@ async def get_preferences(
     if user is None:
         return assistant_error(401, "authentication_required",
                                "登录后才能使用学习助手会话。")
-    from app.core import assistant_store as prefs_store
+    from app.agents.site_assistant import store as prefs_store
     return JSONResponse(content=prefs_store.load_preferences(user.id))
 
 
@@ -457,8 +457,8 @@ async def put_preferences(
     if user is None:
         return assistant_error(401, "authentication_required",
                                "登录后才能使用学习助手会话。")
-    from app.core import assistant_store as prefs_store
-    from app.core.assistant_store import AssistantStoreError
+    from app.agents.site_assistant import store as prefs_store
+    from app.agents.site_assistant.store import AssistantStoreError
     try:
         merged = prefs_store.save_preferences(
             user.id, request.model_dump(exclude={"base_revision"}),
@@ -516,7 +516,7 @@ def _voice_error_response(exc) -> JSONResponse:
 
 
 def _locate_message(user: User, message_id: str):
-    from app.core import assistant_store as store
+    from app.agents.site_assistant import store
     items, _total = store.list_conversations(user.id, limit=100)
     for summary in items:
         cid = summary.get("conversation_id")

@@ -21,7 +21,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from ..core import classroom_store as store
+from app.classroom import storage as store
 from ..core.session import TutorSession, load_session, new_session_id, \
     save_session
 from ..schemas import classroom as sc

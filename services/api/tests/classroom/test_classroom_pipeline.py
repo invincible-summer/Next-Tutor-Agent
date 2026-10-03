@@ -22,7 +22,7 @@ from tests.support.storage_sandbox import StorageSandboxTestCase  # noqa: E402
 from app.classroom import pipeline as pl  # noqa: E402
 from app.classroom.pipeline import (ClassroomPipeline,  # noqa: E402
                                     PipelineCrash, PipelineDeps)
-from app.core import classroom_store as store  # noqa: E402
+from app.classroom import storage as store  # noqa: E402
 from app.core import library as lib_mod  # noqa: E402
 from app.core import workspace as ws_mod  # noqa: E402
 from app.schemas import classroom as sc  # noqa: E402

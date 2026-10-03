@@ -252,7 +252,7 @@ def seed_own_graph(fx) -> None:
 
 
 def seed_workspace_sessions_notes_quiz(fx, records: dict) -> tuple[list[str], list[str]]:
-    from app.core import notes as notes_mod
+    from app import notes as notes_mod
     from app.core.notes import save_vault
     from app.core import session as session_mod
     from app.core import workspace as ws_mod
@@ -364,7 +364,7 @@ def seed_evaluation(fx, records: dict, workspace_ids: list[str]) -> None:
 def seed_classroom(fx) -> dict:
     """Publish the synthetic lessons (spec-authored, LLM-free)."""
     from app.schemas import classroom as sc
-    from app.core import classroom_store as store
+    from app.classroom import storage as store
 
     store.ensure_owner(DEMO_ID)
     lessons: list[dict] = []

@@ -10,8 +10,8 @@
 
 ## Owned code
 
-- `services/api/app/core/notes.py`：仓库存储（vault 索引、正文、修订、智能体状态、资源链接解析、关系图现算）。
-- `services/api/app/core/notes_templates.py`：内置模板骨架与自定义模板。
+- `services/api/app/notes/__init__.py`：仓库存储（vault 索引、正文、修订、智能体状态、资源链接解析、关系图现算）。
+- `services/api/app/notes/templates.py`：内置模板骨架与自定义模板。
 - `services/api/app/agents/notes_agent.py`：智能体（来源组装、生成管线、对话循环、工具矩阵、计划批复状态机）。
 - `services/api/app/api/v1/notes.py`：全部路由。
 - 前端 `apps/web/src/` 的 `/notes/[[...noteId]]` 页面与笔记组件（消费本模块契约）。

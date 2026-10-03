@@ -36,8 +36,8 @@ import zipfile
 from pathlib import Path
 from typing import Any, Iterator
 
-from .atomic import atomic_write_text, file_lock
-from .notes_templates import BUILT_IN_TEMPLATES
+from ..core.atomic import atomic_write_text, file_lock
+from .templates import BUILT_IN_TEMPLATES
 
 from app.core import paths
 
@@ -616,7 +616,7 @@ class NoteVault:
                              "updated_at": note.get("updated_at") or 0})
         elif kind == "session":
             try:
-                from .session import load_session
+                from ..core.session import load_session
                 session = load_session(rid)
                 if session is not None and (getattr(session, "student_id", "") or _default_student_id()) == self.student_id:
                     base.update({"status": "resolved", "resolved": True,
@@ -631,7 +631,7 @@ class NoteVault:
             pass
         if not base["resolved"]:
             try:
-                from .trash import list_items
+                from ..core.trash import list_items
                 resource_type = "notes_note" if kind == "note" else ("session" if kind == "session" else "notes_thread")
                 deleted = next((item for item in list_items(self.student_id)
                                 if str(item.get("original_id") or "") == rid
@@ -711,7 +711,7 @@ class NoteVault:
         # 教材索引不可用时静默降级——图谱其余部分不受影响。
         textbooks: dict[str, dict[str, Any]] = {}
         try:
-            from .textbook import load_textbooks
+            from ..core.textbook import load_textbooks
             textbooks = {str(t.get("id") or ""): t
                          for t in load_textbooks(self.student_id)
                          if str(t.get("id") or "").strip()}
@@ -1161,8 +1161,8 @@ def uploads_vector_scope(student_id: str) -> str:
 def load_uploads_store(student_id: str):
     """重建附件 KnowledgeStore：清单只存元数据，chunks 从 uploads/<fid>.txt
     惰性重建（与会话知识库同一模式）。"""
-    from .knowledge_store import KnowledgeStore
-    from .retriever import chunk_text
+    from ..core.knowledge_store import KnowledgeStore
+    from ..core.retriever import chunk_text
 
     store = KnowledgeStore(upload_dir=_uploads_dir(student_id))
     manifest = _uploads_manifest(student_id)
@@ -1190,7 +1190,7 @@ def add_upload_file(student_id: str, file_id: str, filename: str, text: str,
                     *, raw: bytes | None = None, orig_ext: str = "",
                     metadata: dict[str, Any] | None = None) -> dict[str, Any]:
     """写入一份附件（提取文本 + 可选原件），并原子更新清单。返回文件元数据。"""
-    from .knowledge_store import KnowledgeStore
+    from ..core.knowledge_store import KnowledgeStore
 
     store = KnowledgeStore(upload_dir=_uploads_dir(student_id))
     meta = store.add_file(file_id, filename, text, raw=raw,

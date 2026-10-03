@@ -34,7 +34,8 @@ class AccountDataFixture(unittest.TestCase):
         from app.agents.memory import prompt_memory
         from app.agents.memory import store as memory_store
         from app.agents.student_model import store as sm_store
-        from app.core import context, library, notes
+        from app.core import context, library
+        from app import notes
         from app.core import session, textbook, trash, workspace
         from app.core.config import settings
         from app.core.paths import runtime_paths

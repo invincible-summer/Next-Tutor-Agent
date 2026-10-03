@@ -12,7 +12,7 @@ import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
-from app.core.assistant_store import _student_root
+from app.agents.site_assistant.store import _student_root
 
 REPORT_RETENTION_DAYS = 90
 

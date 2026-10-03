@@ -29,7 +29,7 @@ from fastapi.testclient import TestClient  # noqa: E402
 from app.main import create_app  # noqa: E402
 from app.agents.learning_orchestration import manager as m9_manager  # noqa: E402
 from app.agents.learning_orchestration import store as orch_store  # noqa: E402
-from app.core import notes as notes_mod  # noqa: E402
+from app import notes as notes_mod  # noqa: E402
 from app.core import trash as trash_mod  # noqa: E402
 
 

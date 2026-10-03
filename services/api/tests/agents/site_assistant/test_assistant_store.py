@@ -13,7 +13,7 @@ import uuid
 
 from tests.support.storage_sandbox import StorageSandboxTestCase
 
-from app.core import assistant_store as store
+from app.agents.site_assistant import store
 
 SID = "usr_store_test"
 OTHER = "usr_store_other"
@@ -223,7 +223,7 @@ class LifecycleIntegrationTest(StorageSandboxTestCase):
         self.assertEqual(scan_ok["categories"]["assistant"]["items"], 0)
 
     def test_sandbox_redirects_assistant_root(self) -> None:
-        from app.core import assistant_store as asst
+        from app.agents.site_assistant import store as asst
         self.assertTrue(str(asst._ASSISTANT_DIR).startswith(
             str(self._tmp.name)))
         _mk_conversation()

@@ -20,10 +20,10 @@ import re
 import time
 from typing import Any, AsyncGenerator
 
-from ..core import notes as notes_store
+from app import notes as notes_store
 from ..core.llm_async import get_llm
 from ..core.message_protocol import build_openai_tool_messages
-from ..core.notes_templates import get_template
+from app.notes.templates import get_template
 from ..core.tool_base import Tool
 from ..core.tool_protocol import ErrorCode, err, ok
 from ..prompts.registry import get as get_prompt

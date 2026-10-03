@@ -12,7 +12,7 @@ import re
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
-from app.core.assistant_store import mint_action_id, utc_now_iso
+from app.agents.site_assistant.store import mint_action_id, utc_now_iso
 from app.schemas.assistant import AssistantRouteId
 
 from . import catalog
@@ -412,7 +412,7 @@ def _propose_note_append(text: str,
     addition = (m.group(1) or "").strip()
     if not addition or len(addition) > 8000:
         return None
-    from app.core import notes as notes_store
+    from app import notes as notes_store
     meta = notes_store.load_vault(student_id).find_note(note_id)
     if meta is None:
         return None
@@ -432,7 +432,7 @@ def _propose_note_set_review(text: str,
     note_id = _page_note_id(page_context)
     if not note_id:
         return None
-    from app.core import notes as notes_store
+    from app import notes as notes_store
     meta = notes_store.load_vault(student_id).find_note(note_id)
     if meta is None:
         return None

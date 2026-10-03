@@ -612,7 +612,7 @@ def archive_note(owner_id: str, note_id: str) -> dict[str, Any]:
     """归档一篇笔记：快照元数据 + 正文 + 修订历史，随后移除活动副本。
 
     温故复习卡与 pending 建议随归档一并摘除（恢复时重建）。"""
-    from . import notes as notes_store
+    from app import notes as notes_store
     vault = notes_store.load_vault(owner_id)
     meta = vault.find_note(note_id)
     if meta is None:
@@ -796,7 +796,7 @@ def archive_classroom_lesson(owner_id: str, workspace_id: str,
     崩溃（回收站里已有同 original_id 的已提交条目），本次直接补删活跃
     副本并复用该条目，不产生第二份 bundle。
     """
-    from app.core import classroom_store as store
+    from app.classroom import storage as store
     # 同一课的两个归档请求串行处理，避免各自提交一个 bundle。
     with file_lock(store.lesson_root(owner_id, workspace_id, lesson_id)):
         return _archive_classroom_lesson_locked(owner_id, workspace_id,
@@ -806,7 +806,7 @@ def archive_classroom_lesson(owner_id: str, workspace_id: str,
 def _archive_classroom_lesson_locked(owner_id: str, workspace_id: str,
                                      lesson_id: str) -> dict[str, Any]:
     from app.classroom import lifecycle as classroom_lifecycle
-    from app.core import classroom_store as store
+    from app.classroom import storage as store
     lesson = store.load_lesson(owner_id, workspace_id, lesson_id)
     if lesson is not None and (lesson.owner_id != owner_id or
                               lesson.workspace_id != workspace_id or
@@ -989,7 +989,7 @@ def restore_item(owner_id: str, item_id: str, *, workspace_ids: list[str] | None
             kg_store.save_concept_chunks(owner_id, restored_id, chunks)
         _invalidate_knowledge_cache(owner_id)
     elif kind == "notes_note":
-        from . import notes as notes_store
+        from app import notes as notes_store
         vault = notes_store.load_vault(owner_id)
         if vault.find_note(restored_id):
             raise FileExistsError("同 ID 笔记已存在")
@@ -1108,7 +1108,7 @@ def _residual_purge(owner_id: str, manifest: dict[str, Any]) -> None:
     elif kind == "knowledge_graph":
         _purge_graph_active(owner_id, original_id)
     elif kind == "notes_note":
-        from . import notes as notes_store
+        from app import notes as notes_store
         vault = notes_store.load_vault(owner_id)
         if vault.remove_note(original_id):
             notes_store.save_vault(vault)

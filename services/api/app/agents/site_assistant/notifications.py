@@ -26,7 +26,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Any
 from zoneinfo import ZoneInfo
 
-from app.core.assistant_store import _student_root
+from app.agents.site_assistant.store import _student_root
 
 SUBSCRIPTION_KINDS = ("weekly_brief", "daily_tasks", "due_reviews",
                       "unfinished_course")
@@ -378,7 +378,7 @@ def scheduler_tick(now: datetime | None = None) -> dict[str, int]:
     now = now or _now()
     processed = delivered = held = skipped = 0
     import pathlib
-    from app.core.assistant_store import _ASSISTANT_DIR
+    from app.agents.site_assistant.store import _ASSISTANT_DIR
     from app.core.guest_runtime import is_legacy_guest_owner
     if not _ASSISTANT_DIR.is_dir():
         return {"processed": 0, "delivered": 0, "held": 0, "skipped": 0}
@@ -619,7 +619,7 @@ def _daily_tasks(student_id: str, now: datetime) -> dict[str, Any] | None:
 
 
 def _due_reviews(student_id: str) -> dict[str, Any] | None:
-    from app.core import notes as notes_store
+    from app import notes as notes_store
     vault = notes_store.load_vault(student_id)
     due_ids = [n["id"] for n in vault.notes
                if (n.get("review") or {}).get("enabled")

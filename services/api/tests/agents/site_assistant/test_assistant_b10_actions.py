@@ -16,8 +16,8 @@ from tests.classroom.test_classroom_pipeline import OWNER, WS, PipelineTestBase
 from tests.classroom.test_classroom_revisions import _deps
 from tests.classroom.test_classroom_pipeline import ClassroomPipeline
 
-from app.core import assistant_store as store
-from app.core import classroom_store as cc_store
+from app.agents.site_assistant import store
+from app.classroom import storage as cc_store
 
 
 def _hex() -> str:
@@ -139,7 +139,7 @@ class LessonJobOpsTest(_B10Case):
         self.assertEqual(preview["approval"], "intent_sufficient")
         result = self._execute("asta_lc")
         self.assertEqual(result["action"]["state"], "succeeded")
-        from app.core import classroom_store as cs
+        from app.classroom import storage as cs
         job = cs.load_job(OWNER, WS, lesson_id, job_id)
         self.assertTrue(job.cancel_requested)  # 协作式取消标记
         # 状态版本过期 → 预览 409。

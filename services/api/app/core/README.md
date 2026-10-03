@@ -2,6 +2,20 @@
 
 FastAPI 后端各领域共用的运行时基建：配置、存储根与路径绑定、原子写、限流、LLM 通道、检索/OCR/向量、会话、trace 与一批跨域共享的存储/工具模块。
 
+## 准入规则（Admission）
+
+`core/` 只接受真正跨领域的 primitive：
+
+- 配置与路径（`config.py` / `paths.py`）；
+- 原子写与 JSON 持久化基建（`atomic.py` / `json_utils.py` / `validator.py`）；
+- LLM 通道与策略（`llm_async.py` / `llm_policy.py` / `llm_runtime/`）；
+- 上下文预算与遥测（`context*.py`）；
+- 通用工具协议（`agent_tools.py` / `tool_*.py` / `message_protocol.py` / `execution_policy.py`）；
+- 通用限流（`ratelimit.py`）；
+- 共享持久化 primitive（会话工作集、trace、uploads、workspace）。
+
+**明确不允许新的领域服务进入 core**：新增领域逻辑应落在 `app/agents/<域>/`、`app/classroom/` 等所属域包。现存于 core 的领域文件（`guest_*`、`quiz_*`、`textbook*`、RAG/检索侧、`evidence_*`、`learner_*` 等）是历史布局，其所有权见各 [architecture 文档](../../../../docs/architecture/README.md)；按「随功能修改逐步迁出、不做为目录而目录的大迁移」的约定处理，guest 的收敛边界另见 site-assistant/identity 架构文档。
+
 全景（物理拓扑、存储布局总表、智能层开关、部署边界）见 [docs/architecture/backend-runtime.md](../../../../docs/architecture/backend-runtime.md)，本 README 只做导航。
 
 ## Owns
@@ -14,7 +28,7 @@ FastAPI 后端各领域共用的运行时基建：配置、存储根与路径绑
 - 文件解析与 OCR：`file_parser.py`、`file_summary.py`、`multimodal_parser.py`、`multimodal_context.py`、`ocr.py`、`pdf_ocr.py`、`ocr_policy.py`、`textbook_ocr.py`、`text_quality.py`。
 - 工具协议：`agent_tools.py`、`tool_base.py`、`tool_context.py`、`tool_protocol.py`、`tool_call_compat.py`、`execution_policy.py`、`message_protocol.py`。
 - 账号与治理：`account_data.py`（注销级联 purge）、`orphan_cleanup.py`（孤儿数据扫描类别）、`guest_*`（游客策略/运行时/清理/学习）、`trash.py`、`uploads.py`、`workspace.py` / `workspace_memory.py`。
-- 其余跨域共享模块：教材管线（`textbook.py`、`textbook_pipeline.py`、`library.py`）、出题配图侧（`quiz_illustration*.py`、`quiz_design.py`、`quiz_grounding.py`、`quiz_attempts.py`、`quiz_submission.py`、`quiz_verify.py`、`quiz_generation_budget.py`）、学习证据与画像消费（`evidence_context.py`、`evidence_gate.py`、`learner_evaluation_policy.py`、`learner_runtime.py`、`learning_episodes.py`、`session_learning_card.py`）、记忆与教学辅助（`memory_safety.py`、`bloom.py`）、使用文档（`usage_docs.py`）、`figure_harvest.py`、`notes_templates.py`。Domain-specific stores（`classroom_store.py`、`assistant_store.py`、`notes.py`）分别为课堂、站点助手、笔记域的唯一存储层，放在 core 是现状布局。
+- 其余跨域共享模块：教材管线（`textbook.py`、`textbook_pipeline.py`、`library.py`）、出题配图侧（`quiz_illustration*.py`、`quiz_design.py`、`quiz_grounding.py`、`quiz_attempts.py`、`quiz_submission.py`、`quiz_verify.py`、`quiz_generation_budget.py`）、学习证据与画像消费（`evidence_context.py`、`evidence_gate.py`、`learner_evaluation_policy.py`、`learner_runtime.py`、`learning_episodes.py`、`session_learning_card.py`）、记忆与教学辅助（`memory_safety.py`、`bloom.py`）、使用文档（`usage_docs.py`）、`figure_harvest.py`。课堂/站内助手/笔记的域存储层已迁至所属域（`app/classroom/storage.py`、`app/agents/site_assistant/store.py`、`app/notes/`）。
 
 ## Does not own
 
@@ -28,7 +42,7 @@ FastAPI 后端各领域共用的运行时基建：配置、存储根与路径绑
 
 ## Tests
 
-`services/api/tests/` 运行时/基建相关：`test_atomic_hardening.py`、`test_json_utils.py`、`test_cors_network.py`、`test_bootstrap_readiness.py`、`test_deployment_contract.py`、`test_requirements_contract.py`、`test_compat_api.py`、`test_docs.py`、`test_allowlist_sanitize.py`、`test_orphan_cleanup.py`、`test_prompt_registry.py`、`test_session_isolation.py`、`test_file_parser.py`、`test_pdf_ocr.py`、`test_ocr_policy.py`、`test_rag_hybrid.py`、`test_local_rag.py`、`test_text_quality.py` 等；各域存储模块的回归分散在对应前缀（`test_classroom_storage.py`、`test_assistant_store.py`、`test_notes.py` 等）。
+`services/api/tests/core/` 运行时/基建相关（`test_atomic_hardening.py`、`test_deployment_contract.py` 等）；检索/OCR 回归在 `tests/agents/knowledge/`，会话隔离在 `tests/identity/`，各域存储回归在 `tests/classroom/`、`tests/agents/site_assistant/`、`tests/notes/`（目录导览见 [tests/README.md](../../tests/README.md)）。
 
 ## Key entry points
 

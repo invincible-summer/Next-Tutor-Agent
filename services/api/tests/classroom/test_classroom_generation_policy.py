@@ -14,7 +14,8 @@ from app.classroom import limits, service, validation
 from app.classroom.errors import ClassroomError
 from app.classroom.pipeline import PipelineCrash
 from app.classroom.render.check import LayoutCheckError
-from app.core import classroom_store as store, llm_async
+from app.classroom import storage as store
+from app.core import llm_async
 from app.schemas import classroom as sc
 
 

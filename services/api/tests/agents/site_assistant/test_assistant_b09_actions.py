@@ -13,7 +13,7 @@ from unittest import mock
 
 from tests.support.storage_sandbox import StorageSandboxTestCase
 
-from app.core import assistant_store as store
+from app.agents.site_assistant import store
 
 
 def _hex() -> str:
@@ -79,7 +79,7 @@ class _B09Case(StorageSandboxTestCase):
 
 class AssistantPreferencesTest(_B09Case):
     def test_length_preference_flow(self) -> None:
-        from app.core.assistant_store import load_preferences
+        from app.agents.site_assistant.store import load_preferences
         self._add_action("asta_pref", {
             "kind": "domain_write", "operation": "assistant.preferences",
             "input": {"response_length": "short"}})
@@ -97,7 +97,7 @@ class AssistantPreferencesTest(_B09Case):
                          "standard")
 
     def test_style_directive_injected_into_answer_prompt(self) -> None:
-        from app.core.assistant_store import save_preferences
+        from app.agents.site_assistant.store import save_preferences
         from app.agents.site_assistant import service
         save_preferences(self.sid, {"response_length": "short",
                                     "tone": "encouraging"})
@@ -106,7 +106,7 @@ class AssistantPreferencesTest(_B09Case):
         self.assertIn("鼓励", directive)
 
     def test_preferences_route_roundtrip(self) -> None:
-        from app.core.assistant_store import load_preferences, save_preferences
+        from app.agents.site_assistant.store import load_preferences, save_preferences
         merged = save_preferences(self.sid, {"tone": "encouraging"})
         self.assertEqual(merged["tone"], "encouraging")
         self.assertEqual(load_preferences(self.sid)["tone"], "encouraging")

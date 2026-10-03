@@ -218,7 +218,7 @@ class ReportTest(StorageSandboxTestCase):
 
     def test_manage_subscription_action_roundtrip(self) -> None:
         """§25.1 对话订阅：提案 → execute 建订阅（幂等）。"""
-        from app.core import assistant_store as store
+        from app.agents.site_assistant import store
         from app.core.config import settings
         from app.agents.site_assistant import actions as actions_svc
         from app.agents.site_assistant import policy

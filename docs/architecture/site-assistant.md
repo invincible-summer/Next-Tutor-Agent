@@ -36,7 +36,7 @@
 | `agents/site_assistant/catalog.py` / `guide.py` / `capabilities.py` | `product_catalog.json` 读取、功能导览、能力面（含各开关如实反映） |
 | `agents/site_assistant/service.py` / `ratelimit.py` | 服务编排与助手级限流 |
 | `agents/site_assistant/product_catalog.json` | 功能事实源（`catalog_version`） |
-| `core/assistant_store.py` | 会话/草稿/工作流/订阅/报告持久化（原子写、容量上限、幂等） |
+| `agents/site_assistant/store.py` | 会话/草稿/工作流/订阅/报告持久化（原子写、容量上限、幂等） |
 | `schemas/assistant.py` | Pydantic 契约唯一源（`extra="forbid"`） |
 | `api/v1/assistant.py` | `/api/v1/assistant/*` 路由 |
 

@@ -12,7 +12,7 @@ from datetime import datetime, timedelta, timezone
 
 from tests.support.storage_sandbox import StorageSandboxTestCase
 
-from app.core import assistant_store as store
+from app.agents.site_assistant import store
 
 
 def _hex() -> str:
@@ -248,7 +248,7 @@ class LibraryUndoTest(_UndoCase):
 
 class NoteTaskUndoTest(_UndoCase):
     def test_note_create_undo_archives_unedited(self) -> None:
-        from app.core import notes as notes_store
+        from app import notes as notes_store
         self._add_action("asta_unc", {
             "kind": "domain_write", "operation": "note.create",
             "input": {"title": "撤销笔记", "content": "原文"}})
@@ -263,7 +263,7 @@ class NoteTaskUndoTest(_UndoCase):
             notes_store.load_vault(self.sid).find_note(note_id))
 
     def test_note_undo_rejects_edited_note(self) -> None:
-        from app.core import notes as notes_store
+        from app import notes as notes_store
         from app.agents.site_assistant.actions import ActionRejected
         self._add_action("asta_unc2", {
             "kind": "domain_write", "operation": "note.create",

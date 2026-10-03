@@ -191,7 +191,7 @@ async def _lifespan(app: FastAPI):
 
             async def _assistant_draft_purge_loop() -> None:
                 # 启动清一次，此后每小时一次（§12.3-5）。
-                from app.core import assistant_store as asst_store
+                from app.agents.site_assistant import store as asst_store
                 while True:
                     try:
                         if asst_store._ASSISTANT_DIR.is_dir():
@@ -350,7 +350,7 @@ def create_app() -> FastAPI:
     from app.api.v1.classroom import (classroom_exception_handler,
                                       storage_exception_handler)
     from app.classroom.errors import ClassroomError
-    from app.core.classroom_store import (ClassroomStorageError,
+    from app.classroom.storage import (ClassroomStorageError,
                                           LessonDamagedError)
     app.add_exception_handler(ClassroomError, classroom_exception_handler)
     app.add_exception_handler(ClassroomStorageError,

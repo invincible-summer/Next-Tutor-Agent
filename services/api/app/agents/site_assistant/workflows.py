@@ -24,7 +24,7 @@ import time
 import uuid
 from typing import Any
 
-from app.core.assistant_store import _student_root
+from app.agents.site_assistant.store import _student_root
 
 WORKFLOW_STATES = (
     "draft", "awaiting_approval", "queued", "running",
@@ -594,7 +594,7 @@ def _domain_job_ref_of(step: dict[str, Any],
 
 def _ensure_step_action(student_id: str, conversation_id: str,
                         action_id: str, step: dict[str, Any]) -> dict:
-    from app.core import assistant_store as store
+    from app.agents.site_assistant import store
     record = store.load_conversation(student_id, conversation_id)
     if record is None:
         record = {"conversation_id": conversation_id, "revision": 0,

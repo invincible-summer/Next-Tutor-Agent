@@ -35,7 +35,10 @@ def collect() -> tuple[dict[str, list[Path]], set[str], set[str], set[str]]:
     from app.agents.student_model import store as sm
     from app.agents.knowledge import store as knowledge
     from app.identity import store as identity, avatars
-    from . import session, context, workspace, library, notes, trash, classroom_store, assistant_store
+    from . import session, context, workspace, library, trash
+    from app.classroom import storage as classroom_store
+    from app.agents.site_assistant import store as assistant_store
+    from app import notes
     from .config import settings
     protected = {u.id for u in identity.list_users()} | {"public"}
 

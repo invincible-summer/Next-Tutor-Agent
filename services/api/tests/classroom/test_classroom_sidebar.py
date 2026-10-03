@@ -15,7 +15,7 @@ sys.path.insert(0, str(_BACKEND))
 
 from tests.support.storage_sandbox import StorageSandboxTestCase  # noqa: E402
 
-from app.core import classroom_store as store  # noqa: E402
+from app.classroom import storage as store  # noqa: E402
 from app.core import workspace as ws_mod  # noqa: E402
 from app.schemas import classroom as sc  # noqa: E402
 from app.classroom import service as svc  # noqa: E402

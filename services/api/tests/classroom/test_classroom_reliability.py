@@ -19,7 +19,8 @@ from app.classroom.llm_budget import LLMUsageBudget
 from app.classroom.llm_io import generate_json
 from app.classroom.pipeline import PipelineCrash, _SlideModel
 from app.classroom.worker import ClassroomWorker
-from app.core import classroom_store as store, llm_async
+from app.classroom import storage as store
+from app.core import llm_async
 from app.core.config import settings
 from app.schemas import classroom as sc
 

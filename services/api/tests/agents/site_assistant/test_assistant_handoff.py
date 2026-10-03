@@ -18,7 +18,7 @@ from unittest import mock
 from tests.support.storage_sandbox import StorageSandboxTestCase
 
 from app.agents.site_assistant import intent, policy
-from app.core import assistant_store as store
+from app.agents.site_assistant import store
 
 
 def _find_course_result(resume: dict | None = None) -> dict:
@@ -175,7 +175,7 @@ class HandoffActionTest(_HandoffCase):
     def test_resume_lesson_uses_idempotent_run(self) -> None:
         from tests.support import classroom_fixtures as fx
         from app.schemas import classroom as sc
-        from app.core import classroom_store as cstore
+        from app.classroom import storage as cstore
         from app.classroom import runs as cruns
         self._classroom_on()
         cstore.ensure_owner(self.sid)
@@ -221,7 +221,7 @@ class HandoffActionTest(_HandoffCase):
             self.assertEqual(again["command_id"], result["command_id"])
 
     def test_resume_lesson_revision_mismatch_target_changed(self) -> None:
-        from app.core import classroom_store as cstore
+        from app.classroom import storage as cstore
         from app.schemas import classroom as sc
         from tests.support import classroom_fixtures as fx
         self._classroom_on()

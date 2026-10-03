@@ -16,7 +16,7 @@ from tests.support.storage_sandbox import StorageSandboxTestCase
 
 from app.agents.site_assistant import workflows as wf_svc
 from app.agents.site_assistant import workflow_templates
-from app.core import assistant_store as store
+from app.agents.site_assistant import store
 
 
 def _hex() -> str:

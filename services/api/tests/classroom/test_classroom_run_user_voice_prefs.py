@@ -17,7 +17,7 @@ sys.path.insert(0, str(_BACKEND))
 
 from app.classroom import runs as runs_mod  # noqa: E402
 from app.classroom.pipeline import ClassroomPipeline  # noqa: E402
-from app.core import classroom_store as store  # noqa: E402
+from app.classroom import storage as store  # noqa: E402
 from app.schemas import classroom as sc  # noqa: E402
 
 from tests.classroom.test_classroom_pipeline import OWNER, WS  # noqa: E402

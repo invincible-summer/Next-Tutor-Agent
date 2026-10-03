@@ -35,7 +35,7 @@ from fastapi.testclient import TestClient  # noqa: E402
 
 from app.main import create_app  # noqa: E402
 from app.agents import notes_agent  # noqa: E402
-from app.core import notes as notes_mod  # noqa: E402
+from app import notes as notes_mod  # noqa: E402
 from app.core import session as session_mod  # noqa: E402
 from app.core import trash as trash_mod  # noqa: E402
 

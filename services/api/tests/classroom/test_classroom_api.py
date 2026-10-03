@@ -150,7 +150,7 @@ class ClassroomApiTests(StorageSandboxTestCase):
                 json=_brief_body(), headers={"Idempotency-Key": key})
             self.assertEqual(r1.status_code, 202, r1.text)
             first = r1.json()
-            from app.core import classroom_store as classroom_store
+            from app.classroom import storage as classroom_store
             job = classroom_store.load_job(
                 self.user_a.id, WS_A, first["lesson_id"], first["job_id"])
             self.assertEqual(job.renderer_version, "2.0.0")
@@ -189,7 +189,7 @@ class ClassroomApiTests(StorageSandboxTestCase):
                              "generating")
 
     def test_content_review_default_and_opt_in_are_persisted(self):
-        from app.core import classroom_store as store
+        from app.classroom import storage as store
         from app.core.config import settings
         for enabled in (None, True):
             with self.subTest(enabled=enabled), patch.object(settings, "classroom_enabled", True):

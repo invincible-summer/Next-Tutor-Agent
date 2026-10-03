@@ -11,7 +11,7 @@ from tests.classroom.test_classroom_pipeline import OWNER, WS
 from app.classroom.block_edit import block_context, regenerate_block
 from app.classroom.errors import ClassroomError
 from app.classroom.revisions_ops import apply_block_change
-from app.core import classroom_store as store
+from app.classroom import storage as store
 from app.schemas import classroom as sc
 
 

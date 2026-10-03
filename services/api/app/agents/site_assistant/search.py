@@ -181,7 +181,7 @@ def _collect_chat(student_id: str, query_norm: str, in_scope_ws: set[str],
 
 def _collect_notes(student_id: str, query_norm: str, include_content: bool,
                    workspace_id: str) -> list[dict[str, Any]]:
-    from app.core import notes as notes_store
+    from app import notes as notes_store
     vault = notes_store.load_vault(student_id)
     out = []
     for note in vault.notes:
@@ -210,7 +210,7 @@ def _collect_notes(student_id: str, query_norm: str, include_content: bool,
 
 
 def _collect_lessons(student_id: str, query_norm: str, workspace_id: str) -> list[dict[str, Any]]:
-    from app.core import classroom_store as cstore
+    from app.classroom import storage as cstore
     out = []
     for w in readers.owned_workspaces(student_id):
         ws = w["workspace_id"]

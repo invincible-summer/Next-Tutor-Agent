@@ -22,9 +22,9 @@ from fastapi.responses import FileResponse, JSONResponse, Response
 from pydantic import BaseModel, Field
 
 from app.agents.learning_orchestration import manager as m9_manager
-from app.core import notes as notes_store
+from app import notes as notes_store
 from app.core import trash
-from app.core.notes_templates import get_template, list_templates
+from app.notes.templates import get_template, list_templates
 from app.core.ratelimit import rate_limit
 from app.identity.deps import resolve_student_id
 

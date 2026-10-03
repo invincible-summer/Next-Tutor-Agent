@@ -27,8 +27,8 @@ import weakref
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
-from app.core import assistant_store as store
-from app.core.assistant_store import AssistantStoreError, utc_now_iso
+from app.agents.site_assistant import store
+from app.agents.site_assistant.store import AssistantStoreError, utc_now_iso
 
 ACK_WINDOW_SECONDS = 15.0          # §9.4：15s 未 ack → needs_attention
 TERMINAL_STATES = ("succeeded", "cancelled", "expired")
@@ -481,7 +481,7 @@ def _prepare_resume_lesson(student_id: str, payload: dict[str, Any],
     run_id = payload.get("run_id")
     if workspace_id not in _owned_workspace_ids(student_id):
         return None
-    from app.core import classroom_store
+    from app.classroom import storage as classroom_store
     lesson = classroom_store.load_lesson(student_id, workspace_id, lesson_id)
     if lesson is None or lesson.lifecycle not in ("active", "archived"):
         raise ActionRejected(409, "target_changed",
@@ -589,7 +589,7 @@ def _prepare_classroom_question(student_id: str, payload: dict[str, Any],
     workspace_id = str(payload.get("workspace_id") or "")
     if workspace_id not in _owned_workspace_ids(student_id):
         return None
-    from app.core import classroom_store
+    from app.classroom import storage as classroom_store
     run = classroom_store.load_run(
         student_id, workspace_id, str(payload.get("lesson_id") or ""),
         str(payload.get("run_id") or ""))

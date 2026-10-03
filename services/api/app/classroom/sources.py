@@ -352,7 +352,7 @@ def resolve_classroom_sources(
 
 
 def _new_source_id() -> str:
-    from ..core import classroom_store as store
+    from app.classroom import storage as store
 
     return store.new_id("src")
 

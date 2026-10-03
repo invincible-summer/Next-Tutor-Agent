@@ -21,7 +21,7 @@ from pathlib import Path
 from typing import Any, Callable, Type, TypeVar
 
 from ..schemas import classroom as sc
-from .atomic import atomic_write_bytes, atomic_write_text, file_lock, fsync_dir
+from ..core.atomic import atomic_write_bytes, atomic_write_text, file_lock, fsync_dir
 
 from app.core import paths
 

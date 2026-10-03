@@ -11,7 +11,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from app.core import classroom_store as store  # noqa: E402
+from app.classroom import storage as store  # noqa: E402
 from app.schemas import classroom as sc  # noqa: E402
 
 from tests.support import classroom_fixtures as fx  # noqa: E402

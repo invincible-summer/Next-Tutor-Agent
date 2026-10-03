@@ -21,7 +21,7 @@ from typing import Any
 
 from ..agents.assessment import manager as assessment
 from ..agents.student_model.evaluation import schema as S
-from ..core import classroom_store as store
+from app.classroom import storage as store
 from ..schemas import classroom as sc
 from .errors import ClassroomError
 

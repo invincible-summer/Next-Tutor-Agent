@@ -23,7 +23,7 @@ from app.classroom import validation  # noqa: E402
 from app.classroom.checkpoints import author_question_checkpoint  # noqa: E402
 from app.classroom.pipeline import (ClassroomPipeline,  # noqa: E402
                                     PipelineDeps)
-from app.core import classroom_store as store  # noqa: E402
+from app.classroom import storage as store  # noqa: E402
 from app.schemas import classroom as sc  # noqa: E402
 
 from tests.classroom.test_classroom_pipeline import OWNER, PipelineTestBase, WS  # noqa: E402

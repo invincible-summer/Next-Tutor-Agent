@@ -18,7 +18,7 @@ from collections import deque
 from dataclasses import dataclass
 from typing import Any, Callable
 
-from ..core import classroom_store as store
+from app.classroom import storage as store
 from ..core.config import settings
 from ..schemas import classroom as sc
 from . import limits
