@@ -253,7 +253,7 @@ def seed_own_graph(fx) -> None:
 
 def seed_workspace_sessions_notes_quiz(fx, records: dict) -> tuple[list[str], list[str]]:
     from app import notes as notes_mod
-    from app.core.notes import save_vault
+    from app.notes import save_vault
     from app.core import session as session_mod
     from app.core import workspace as ws_mod
     from app.core.quiz_attempts import record_generated_quiz, record_quiz_attempt

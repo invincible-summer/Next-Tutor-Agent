@@ -1,5 +1,6 @@
 import { defineConfig, devices } from "@playwright/test";
 import { resolve } from "node:path";
+import { pickPortSync as pickPort } from "./tests/e2e/support/ports.mjs";
 
 /**
  * E2E（运行说明见 docs/development/testing.md）：真实 backend + frontend + fake LLM。
@@ -8,13 +9,25 @@ import { resolve } from "node:path";
  * fake）-> Next（CI 使用生产构建）。supervisor 理解/规划走确定性 rule 路径
  * （SUPERVISOR_LLM_PLAN=0），LLM 只服务答案合成与出题三段——E2E 测产品
  * 编排与数据流，不测供应商网络。
+ *
+ * Ports fall back automatically when the preferred one is occupied
+ * (start.sh-style); pin one explicitly via E2E_LLM_PORT / E2E_BACKEND_PORT /
+ * E2E_FRONTEND_PORT. Parallel local runs: E2E_WORKERS=4 pnpm test:e2e
+ * (default remains 1; CI stays serial).
  */
-const FAKE_LLM_PORT = 8199;
+const FAKE_LLM_PORT = pickPort(8199, "E2E_LLM_PORT");
 // 8123 is the deployed production service (deploy/edu-backend.service);
 // E2E always runs its isolated backend copy on a scratch port.
-const BACKEND_PORT = Number(process.env.E2E_BACKEND_PORT || 8124);
-const FRONT_PORT = Number(process.env.E2E_FRONTEND_PORT || 3030);
+const BACKEND_PORT = pickPort(8124, "E2E_BACKEND_PORT");
+const FRONT_PORT = pickPort(3030, "E2E_FRONTEND_PORT");
 const production = process.env.E2E_PRODUCTION === "1";
+
+// Worker processes re-load this config; pin the picked ports back into the
+// environment so every re-load resolves the same values instead of probing
+// again (the main process's freshly-bound ports look busy to a re-probe).
+process.env.E2E_LLM_PORT ??= String(FAKE_LLM_PORT);
+process.env.E2E_BACKEND_PORT ??= String(BACKEND_PORT);
+process.env.E2E_FRONTEND_PORT ??= String(FRONT_PORT);
 
 export default defineConfig({
   testDir: "./tests/e2e",
@@ -23,7 +36,7 @@ export default defineConfig({
   timeout: 90_000,
   expect: { timeout: 15_000 },
   fullyParallel: false,
-  workers: 1,
+  workers: Number(process.env.E2E_WORKERS || 1),
   retries: process.env.CI ? 1 : 0,
   reporter: [["line"], ["html", { open: "never" }]],
   use: {
@@ -39,6 +52,7 @@ export default defineConfig({
       reuseExistingServer: false,
       stdout: "ignore",
       stderr: "pipe",
+      env: { FAKE_LLM_PORT: String(FAKE_LLM_PORT) },
     },
     {
       // 隔离副本：全部存储根由 NEXT_TUTOR_DATA_DIR 指向 scratch 目录，
@@ -88,16 +102,23 @@ export default defineConfig({
       },
     },
     {
+      // Production mode must not reuse an ambient .next built with different
+      // env: rewrites (/api proxy via BACKEND_URL) and the client API base are
+      // baked at build time. build-front.mjs stamps the inputs and rebuilds
+      // only when they change.
       command:
-        (production ? "pnpm exec next start --port " : "pnpm exec next dev --webpack --port ") + FRONT_PORT +
+        (production
+          ? "node tests/e2e/support/build-front.mjs && pnpm exec next start --port "
+          : "pnpm exec next dev --webpack --port ") + FRONT_PORT +
         ` --hostname 127.0.0.1`,
       port: FRONT_PORT,
       reuseExistingServer: false,
-      timeout: 120_000,
+      timeout: 240_000,
       stdout: "ignore",
       stderr: "pipe",
       env: {
         NEXT_PUBLIC_BACKEND_URL: `http://127.0.0.1:${BACKEND_PORT}`,
+        BACKEND_URL: `http://127.0.0.1:${BACKEND_PORT}`,
       },
     },
   ],

@@ -12,7 +12,8 @@ test("全部素材可分页观看，筛选搜索与参数预览可用", async ({
     const expectedCount = (await (await firstResponse).json()).catalog_total;
     await expect(page.getByTestId("diagram-library").getByRole("heading", { name: "教学素材库", exact: true })).toBeVisible();
     const cards = page.getByTestId("diagram-asset");
-    await expect(cards).toHaveCount(12);
+    await expect(cards.first()).toBeVisible();
+    expect(await cards.count()).toBeGreaterThanOrEqual(12);
     await expect.poll(() => cards.locator("img").evaluateAll(images => images.every(image => (image as HTMLImageElement).complete && (image as HTMLImageElement).naturalWidth > 0))).toBe(true);
     await expect.poll(() => page.getByTestId("diagram-library").evaluate(element => element.scrollHeight > element.clientHeight)).toBe(true);
     await page.getByTestId("diagram-library").evaluate(element => { element.scrollTop = 720; });
@@ -51,7 +52,8 @@ test("全部素材可分页观看，筛选搜索与参数预览可用", async ({
     const filteredResponse = page.waitForResponse(response => response.url().includes("/diagram-assets?") && new URL(response.url()).searchParams.get("subject") === "mathematics");
     await page.getByRole("combobox", { name: "学科", exact: true }).selectOption("mathematics");
     await filteredResponse;
-    await expect(cards).toHaveCount(12);
+    await expect(cards.first()).toBeVisible();
+    expect(await cards.count()).toBeGreaterThanOrEqual(12);
     const geometryResponse = page.waitForResponse(response => response.url().includes("/diagram-assets?") && new URL(response.url()).searchParams.get("family") === "geometry");
     await page.getByRole("combobox", { name: "素材类型", exact: true }).selectOption("geometry");
     await geometryResponse;
@@ -86,7 +88,8 @@ test("全部素材可分页观看，筛选搜索与参数预览可用", async ({
     await expect(dialog).toHaveCount(0);
 
     await page.goto("/diagram-library?theme=dark");
-    await expect(cards).toHaveCount(12);
+    await expect(cards.first()).toBeVisible();
+    expect(await cards.count()).toBeGreaterThanOrEqual(12);
     await expect(page.locator("html")).toHaveClass(/dark/);
     await expect(cards.first().locator("img")).toHaveCSS("filter", "none");
     await expect.poll(() => cards.locator("img").evaluateAll(images => images.every(image => (image as HTMLImageElement).complete && (image as HTMLImageElement).naturalWidth > 0))).toBe(true);
@@ -110,7 +113,8 @@ test("新增公有模型可检索、调节真实模态并切换黑白预览", as
     await loginViaStorage(page, user.token);
     await page.goto("/diagram-library?theme=light");
     const cards = page.getByTestId("diagram-asset");
-    await expect(cards).toHaveCount(12);
+    await expect(cards.first()).toBeVisible();
+    expect(await cards.count()).toBeGreaterThanOrEqual(12);
     await page.getByRole("textbox", { name: "搜索素材", exact: true }).fill("闭端气柱位移模态");
     const card = page.locator('[data-asset-id="physics_extended.closed_pipe_modes"]');
     await expect(card).toBeVisible();

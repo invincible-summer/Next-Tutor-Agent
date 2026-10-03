@@ -3,6 +3,9 @@ import { test, expect, request as pwRequest } from "@playwright/test";
 import { loginViaStorage, registerAndLogin } from "./support/helpers";
 
 test("聊天明确要求带插图：题图在结构化题卡内并可放大", async ({ page }) => {
+  // Full chat -> quiz -> illustration pipeline; give it headroom under
+  // parallel worker load (healthy serial time is far below this budget).
+  test.setTimeout(240_000);
   const api = await pwRequest.newContext();
   try {
     const learner = await registerAndLogin(api);
@@ -15,7 +18,7 @@ test("聊天明确要求带插图：题图在结构化题卡内并可放大", as
     await input.press("Enter");
 
     const card = page.getByTestId("quiz-card").first();
-    await expect(card).toBeVisible({ timeout: 90_000 });
+    await expect(card).toBeVisible({ timeout: 180_000 });
     const illustration = card.getByTestId("question-illustration").first();
     await expect(illustration).toBeVisible({ timeout: 30_000 });
     await expect(illustration.getByTestId("question-illustration-image")).toHaveJSProperty("naturalWidth", 640);
@@ -43,7 +46,7 @@ test("聊天模糊表达考我一下：仍进入结构化题卡", async ({ page 
     await input.press("Enter");
 
     const card = page.getByTestId("quiz-card").first();
-    await expect(card).toBeVisible({ timeout: 90_000 });
+    await expect(card).toBeVisible({ timeout: 180_000 });
     await expect(card).toContainText("ZX-17 定理");
     await expect(card.getByRole("button", { name: /314159/ })).toBeEnabled();
   } finally {

@@ -15,7 +15,14 @@ python3 -m tests tests.illustration.test_illustration_v2 tests.illustration.test
 
 在 `apps/web` 运行 `node scripts/check-diagram-library.mjs /tmp/diagram-review`，检查全部正式素材的 Chromium 渲染与画布边界，逐张观看 `sheet-*.png` 和 `monochrome-*.png`；可追加 `--parameters` 检查参数端点。越界会返回失败，`review.json` 记录数量、边界问题和被参数约束拒绝的组合。人工审阅还要核对变形、位置、接头、刻度、液面和遮挡，自动通过不等于科学构图正确。
 
-前端改动继续执行 `pnpm check`、`NEXT_PUBLIC_BACKEND_URL=http://127.0.0.1:8124 pnpm build` 和 `E2E_FRESH=1 E2E_PRODUCTION=1 pnpm test:e2e tests/e2e/diagram-library.spec.ts tests/e2e/quiz-illustration.spec.ts`。浏览器回归使用隔离账号和后端目录，遍历全部分页、验证图片及参数变化，并保存浅色、深色和较窄桌面截图。测试缓存、v2 job/artifact/PNG 都由存储沙箱重定向，不能写生产 students 或 illustrations 根。
+前端改动继续执行 `pnpm check`、`NEXT_PUBLIC_BACKEND_URL=http://127.0.0.1:8124 pnpm build` 和 `E2E_FRESH=1 E2E_PRODUCTION=1 pnpm test:e2e tests/e2e/diagram-library.spec.ts tests/e2e/quiz-illustration.spec.ts`。
+
+E2E 运行机制（效率与端口）：
+
+- 生产模式 e2e 的前端构建由 `tests/e2e/support/build-front.mjs` 按烙印输入（BACKEND_URL/NEXT_PUBLIC_BACKEND_URL/demo/base path）条件重建：env 不变时复用 `.next`（秒级启动），env 变化才重建；CI 的构建步骤走同一脚本，全链路只构建一次。
+- 三个服务端口（fake LLM 8199 / 后端 8124 / 前端 3030）被占用时自动顺延到下一个空闲端口（同 start.sh 语义）；要钉死端口用 `E2E_LLM_PORT` / `E2E_BACKEND_PORT` / `E2E_FRONTEND_PORT`（Pages 静态伺服为 `E2E_PAGES_PORT`，默认 3040）。
+- 全量默认串行；本地可选用并行加速：`E2E_WORKERS=4 E2E_PRODUCTION=1 E2E_FRESH=1 pnpm test:e2e`（并行下重管线用例更易碰预算上限，失败时先用串行复跑定位）。
+- 新 spec 必须并行安全（如果选择并行运行）：账号/数据一律走 `registerAndLogin` 独立账号；对共享全局列表（公有素材、公有教材）不得断言精确数量（改为 ≥ 或按 asset-id 断言存在）；重管线用例显式 `test.setTimeout` 给足预算。浏览器回归使用隔离账号和后端目录，遍历全部分页、验证图片及参数变化，并保存浅色、深色和较窄桌面截图。测试缓存、v2 job/artifact/PNG 都由存储沙箱重定向，不能写生产 students 或 illustrations 根。
 
 ## 真实 v2 配图验收
 

@@ -1,82 +1,64 @@
 # Repository Guidelines
 
-暂时不做手机端适配，Github Page 上的展示页面在无要求时不必时时更新；
-
-在没有明确要求且不需要 commit push 时，对于小的修复和更新不需要运行全量测试.
+暂时不做手机端适配，且在没有明确要求且不需要 push 时，对于小的修复和更新不需要运行全量测试.
 
 ## 1. Repository map
 
-Next-Tutor-Agent is a textbook-driven AI teaching workspace (monorepo):
+Textbook-driven AI teaching monorepo: `apps/web/` (Next.js), `services/api/` (FastAPI; routes `app/api/v1/`, agents `app/agents/`, shared infra `app/core/`, tests `tests/`), `services/voice/` (optional MeloTTS sidecar), `fixtures/demo/` (the only demo content source — synthetic), `scripts/` (per-domain READMEs), `deploy/` (templates).
 
-- `apps/web/` — Next.js frontend: pages in `src/app/`, reusable UI in `src/components/`, API/state/i18n/types in `src/lib/`.
-- `services/api/` — FastAPI backend: routes in `app/api/v1/`, identity in `app/identity/`, orchestration layers M1–M10 in `app/agents/`, shared infrastructure in `app/core/`, tests in `tests/`.
-- `services/voice/` — optional local MeloTTS sidecar.
-- `fixtures/demo/` — the only demo content source: project-authored synthetic data.
-- `scripts/` — repo hygiene, demo export, and dev tooling (one README per domain).
-- `deploy/` — systemd/nginx deployment templates.
-
-All runtime state lives under a single data root (`NEXT_TUTOR_DATA_DIR`, default `.runtime/data`; see `services/api/app/core/paths.py`). Runtime data, private uploads, conversations, traces, and `.env` files must never be committed. The repository ships no textbook or derived data assets: public textbook namespaces, parsed text, chunks, knowledge graphs, and demo runtime data are deployment-local state.
-
-Start from the docs entry point [`docs/README.md`](docs/README.md); each module directory has a README for local navigation.
+All runtime state resolves through one data root (`NEXT_TUTOR_DATA_DIR`, `services/api/app/core/paths.py`). Never commit runtime data, uploads, conversations, traces, or `.env`; the repo ships no textbook or derived assets. Docs entry: [`docs/README.md`](docs/README.md).
 
 ## 2. Module maintenance map
 
-When touching an area, open its module README (in-place navigation) and, for anything beyond mechanical edits, the canonical architecture doc:
+For anything beyond mechanical edits, open the module README plus its canonical doc. Docs are in `docs/architecture/`; agents-layer code is under `app/agents/` (rows listing `agents/<pkg>`):
 
-| Area | Code | Canonical docs |
+| Area | Code | Doc |
 | :--- | :--- | :--- |
-| Frontend | `apps/web` | `docs/architecture/frontend.md` |
-| Identity / accounts | `services/api/app/identity` | `docs/architecture/identity.md` |
-| Chat / supervisor pipeline | `services/api/app/agents` (root files) + `app/api/v1/chat.py` | `docs/architecture/conversation.md` |
-| Student model / evidence | `services/api/app/agents/student_model` | `docs/architecture/student-model.md` |
-| Teaching engine | `services/api/app/agents/teaching_engine` | `docs/architecture/teaching-engine.md` |
-| Assessment (quiz/CAT) | `services/api/app/agents/assessment` | `docs/architecture/assessment.md` |
-| Knowledge / RAG | `services/api/app/agents/knowledge` + retrieval core | `docs/architecture/knowledge-rag.md` |
-| Memory | `services/api/app/agents/memory` | `docs/architecture/memory.md` |
-| Learner evaluation | `services/api/app/agents/evaluation` | `docs/architecture/evaluation.md` |
-| UX intelligence | `services/api/app/agents/ux_intelligence` | `docs/architecture/ux.md` |
-| Learning orchestration | `services/api/app/agents/learning_orchestration` | `docs/architecture/learning-orchestration.md` |
-| Skill runtime / tools | `services/api/app/agents/skill_runtime` + `app/tools` | `docs/architecture/skill-runtime.md` |
-| Classroom | `services/api/app/classroom` | `docs/architecture/classroom.md` |
-| Site assistant | `services/api/app/agents/site_assistant` | `docs/architecture/site-assistant.md` |
-| Notes | notes store + `app/agents/notes_agent.py` | `docs/architecture/notes.md` |
-| Diagrams / illustration | `services/api/app/diagrams` + `app/illustration` | `docs/architecture/diagrams-illustration.md` |
-| Voice | `services/api/app/voice` + `services/voice` | `docs/architecture/voice.md` |
-| Backend runtime / storage | `services/api/app/core` + `app/main.py` | `docs/architecture/backend-runtime.md` |
-| Pedagogy policy | prompts + strategy layers | `docs/architecture/pedagogy.md` |
+| Frontend | `apps/web` | `frontend.md` |
+| Identity / accounts | `app/identity` | `identity.md` |
+| Chat / supervisor | `app/agents` root + `api/v1/chat.py` | `conversation.md` |
+| Student model | `agents/student_model` | `student-model.md` |
+| Teaching engine | `agents/teaching_engine` | `teaching-engine.md` |
+| Assessment (quiz/CAT) | `agents/assessment` | `assessment.md` |
+| Knowledge / RAG | `agents/knowledge` | `knowledge-rag.md` |
+| Memory | `agents/memory` | `memory.md` |
+| Evaluation | `agents/evaluation` | `evaluation.md` |
+| UX intelligence | `agents/ux_intelligence` | `ux.md` |
+| Learning orchestration | `agents/learning_orchestration` | `learning-orchestration.md` |
+| Skill runtime / tools | `agents/skill_runtime` + `app/tools` | `skill-runtime.md` |
+| Classroom | `app/classroom` | `classroom.md` |
+| Site assistant | `agents/site_assistant` | `site-assistant.md` |
+| Notes | `app/notes` + `agents/notes_agent.py` | `notes.md` |
+| Diagrams / illustration | `app/diagrams` + `app/illustration` | `diagrams-illustration.md` |
+| Voice | `app/voice` + `services/voice` | `voice.md` |
+| Backend runtime / core | `app/core` + `app/main.py` | `backend-runtime.md` |
 
-Decisions with lasting impact live in `docs/adr/` (immutable once accepted; supersede by a new ADR, never edit history).
+Lasting decisions live in `docs/adr/` (immutable; supersede with a new ADR).
 
 ## 3. Non-negotiable invariants
 
-- `identity` 侧的 `resolve_student_id()` is the only trusted student identifier.
-- Route all JSON persistence through `core/atomic.py` and sanitize file keys.
-- Register prompts in `prompts/registry.py`; changing prompt text requires a version bump.
-- Public textbook data uses the fixed `public` namespace: readable by all users, writable only by administrators.
-- Never log or commit secrets, passwords, raw chain-of-thought, or private user data.
-- Frontend requests must use `apiFetch`; list views use the shared `Pager`; form controls use the shared `ui/Input.tsx` primitives (`Input`/`Textarea`/`Field`/`FIELD_CLS`) instead of ad-hoc class strings. Overlay entrances use the `motion-modal`/`motion-drawer`/`motion-pop` classes (reduced-motion aware); long forms like textbook upload live in `Modal`, not embedded page cards.
-- Production requires `AUTH_MODE=1`, a strong `AUTH_JWT_SECRET`, restricted `CORS_ORIGINS`, and nginx SSE buffering disabled.
-- Content policy (details in `docs/compliance/content-policy.md`): only project-authored synthetic fixtures for RAG/E2E; no textbook PDFs, parsed text, chunks, graphs, embeddings, user data, or real account exports in the repository.
+- `resolve_student_id()`（identity 侧）is the only trusted student identifier.
+- All JSON persistence goes through `core/atomic.py`; sanitize file keys.
+- Prompts live in `prompts/registry.py`; text changes require a version bump.
+- Public textbook data: fixed `public` namespace — all users read, only admins write.
+- Never log/commit secrets, passwords, raw chain-of-thought, or private user data.
+- Frontend: `apiFetch` for requests; shared `Pager` for lists; `ui/Input.tsx` primitives (`Input`/`Textarea`/`Field`/`FIELD_CLS`) for forms; `motion-modal`/`motion-drawer`/`motion-pop` for overlay entrances; long forms in `Modal`, not page cards.
+- Production: `AUTH_MODE=1`, strong `AUTH_JWT_SECRET`, restricted `CORS_ORIGINS`, nginx SSE buffering off.
+- Content policy (`docs/compliance/content-policy.md`): fixtures are project-authored synthetic only — no textbook PDFs, parsed text, chunks, graphs, embeddings, or user data in the repo.
 
 ## 4. Test selection
 
-- Focused first: `cd services/api && python -m tests tests.test_<module>`; frontend `cd apps/web && pnpm check`.
-- Full battery when behavior, storage, or APIs change: backend full run, `pnpm check && pnpm build`, browser regression per `docs/development/testing.md`, then `git diff --check`.
-- Disabled intelligence layers must degrade without breaking chat.
-- Frontend visual work also needs light/dark and narrow-screen verification.
+Focused first: `cd services/api && python -m tests tests.<owner>.test_<module>`; frontend `cd apps/web && pnpm check`. Full battery (backend full run, `pnpm check && pnpm build`, browser regression, `git diff --check`) when behavior/storage/APIs change. Disabled intelligence layers must degrade without breaking chat; visual work needs light/dark + narrow-screen checks.
 
-Tests must never write to production storage roots — everything resolves through the runtime data root (`students/`, `chat_history/`, `traces/`, `uploads/`, `notes/`, `knowledge/`, `users/` under it); synthetic IDs leaking into a live data root were the source of thousands of orphan files. Inherit `tests/storage_sandbox.py::StorageSandboxTestCase` (or call its `patch_all_storage_roots` when a custom fixture is unavoidable) so the runtime root override, every storage-root binding, `prompt_memory`, `settings.trace_dir`/`chroma_dir`, and the StudentModel/vector-store caches are redirected into a `TemporaryDirectory`. Never use a bare `tempfile.mkdtemp` without cleanup in `tearDown`. When adding a new per-user storage root, bind it via `core/paths.py::bind_storage_path` AND register it in `core/orphan_cleanup.py`'s scan categories in the same change.
-
-Account deletion (self-service or admin) purges all account data via `core/account_data.purge_account` with no empty-dir residue; the admin "数据清理" page (`GET/POST /admin/orphan-data`) scans and purges orphan runtime data left by tests or legacy deletions.
+Tests never write production roots — everything resolves under the runtime data root. Inherit `tests/support/storage_sandbox.py::StorageSandboxTestCase` (or call `patch_all_storage_roots`) so all storage bindings, `prompt_memory`, `settings.trace_dir`/`chroma_dir`, and shared caches land in a `TemporaryDirectory`; no bare `tempfile.mkdtemp` without tearDown cleanup. New per-user storage root ⇒ bind via `core/paths.py::bind_storage_path` AND register in `core/orphan_cleanup.py` scan categories, in the same change. (Account deletion purges via `core/account_data.purge_account`; orphan leftovers are cleaned via `GET/POST /admin/orphan-data`.)
 
 ## 5. Documentation update rule
 
-- `docs/architecture/*.md` describe current behavior — update the affected module doc in the same change when you modify architecture, storage, APIs, or agent pipelines.
-- Add an ADR when making a decision that future contributors must not silently reverse (storage model, retrieval baseline, deployment shape, content policy).
-- Module READMEs are navigation only: fix their links when moving code, don't grow them into designs.
-- Never commit working plans (`plan*.md` stays local); tracked code/docs must not reference plan sections.
-- `python scripts/repo/check_documentation.py` (CI gate) verifies links, required module READMEs, and banned legacy references; `python scripts/repo/check_repository_hygiene.py` guards copyright/runtime-data/history boundaries.
+- Change architecture/storage/APIs/pipelines ⇒ update the module's `docs/architecture/*.md` in the same change.
+- Module READMEs are navigation only — fix links when moving code, don't grow them.
+- Working plans (`plan*.md`) stay local; tracked files never reference plan sections.
+- CI gates: `scripts/repo/check_documentation.py` (links, READMEs, legacy refs, generated catalogs) and `scripts/repo/check_repository_hygiene.py` (copyright/runtime-data/history).
 
 ## 6. Commit / PR guidelines
 
-Prefer imperative, scoped commits such as `m5: add textbook taxonomy` or `chat: fix formula layout`; avoid vague checkpoint messages. Pull requests should explain behavior changes, compatibility and permission boundaries, tests run, linked issues, and documentation updates. Include screenshots or recordings for UI work.
+Imperative, scoped commits (`m5: add textbook taxonomy`, `chat: fix formula layout`); no vague checkpoints. PRs state behavior changes, compatibility/permission boundaries, tests run, and doc updates; include screenshots for UI work.

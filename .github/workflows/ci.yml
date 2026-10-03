@@ -57,9 +57,12 @@ jobs:
       - name: Typecheck, lint and unit tests
         working-directory: apps/web
         run: pnpm check
-      - name: Production build
+      - name: Production build (e2e-stamped)
         working-directory: apps/web
-        run: pnpm build
+        # build-front.mjs bakes BACKEND_URL (the /api rewrite) plus the client
+        # API base and stamps the inputs, so the e2e webServer reuses this
+        # build instead of rebuilding with different env.
+        run: node tests/e2e/support/build-front.mjs
       - name: Critical browser journeys
         working-directory: apps/web
         env:
