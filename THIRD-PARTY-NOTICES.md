@@ -7,7 +7,7 @@ The original text of the complete license is kept in the [`licenses/`](licenses/
 This is a consolidated reorganization of the project's third-party license and
 copyright declarations; the authoritative audit procedure, pinned sources,
 revision history and release checklist remain in
-[`docs/VOICE_LICENSES.md`](docs/VOICE_LICENSES.md).
+[`docs/compliance/voice-licenses.md`](docs/compliance/voice-licenses.md).
 
 ## Distribution boundary
 
@@ -128,4 +128,4 @@ commercial use of a browser vendor's recognition service.
 Audit date: 2026-08-30. Resolved transitive packages and native libraries vary
 by target platform; this file is not a substitute for the notices/SBOM of a
 shipped image. For the repository/model audit procedure and complete release
-checklist, see [`docs/VOICE_LICENSES.md`](docs/VOICE_LICENSES.md).
+checklist, see [`docs/compliance/voice-licenses.md`](docs/compliance/voice-licenses.md).

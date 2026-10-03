@@ -31,6 +31,8 @@ jobs:
           fetch-depth: 0
       - name: Scan tracked files and full history
         run: python scripts/repo/check_repository_hygiene.py
+      - name: Documentation links and layout
+        run: python scripts/repo/check_documentation.py
 
   backend:
     name: Backend

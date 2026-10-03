@@ -147,22 +147,30 @@ cd ..
 
 </details>
 
-开发与验证请参阅 [测试与 CI 维护](docs/TESTING.md)，包含环境准备、日常检查、完整回归及发布检查顺序。
+参与开发请从 [`docs/README.md`](docs/README.md) 进入文档体系（架构、ADR、测试与运维入口），
+贡献流程见 [CONTRIBUTING](.github/CONTRIBUTING.md)。
 
 ## 项目结构
 
 ```text
 apps/web/           Next.js 前端（页面、学习交互与共享组件）
-services/api/       FastAPI 后端（API、教学智能体、教材处理与学习数据）
+services/api/       FastAPI 后端（API、教学智能体、教材处理与学习数据，tests/ 为后端测试）
 services/voice/     本地 MeloTTS 语音 sidecar（可选）
 fixtures/demo/      GitHub Pages 演示的合成数据源（synthetic-only）
-scripts/            repo 卫生 guard / demo 导出 / dev 工具
+scripts/            按域组织的仓库脚本（repo 卫生 guard / demo 导出 / 开发与验收工具）
 deploy/             systemd、nginx 等部署模板
+docs/               架构文档、ADR、开发/运维/合规/验证手册（入口 docs/README.md）
 ```
 
 仓库只包含源码、测试、部署模板与合成演示数据：教材原件、解析文本、切片、
 知识图谱与用户运行数据均为部署本地状态（`.runtime/data`，见
 `services/api/app/core/paths.py`），不随版本发布。
+
+## 授权说明
+
+本仓库以「源码可见」方式发布：可以浏览、克隆和在本机运行，但**未授予任何开源复用权利**。
+仓库未附带开源许可证，代码、合成数据与生成素材的复制、修改、再分发或用于训练等用途
+均需事先获得作者许可。第三方依赖的许可声明见 [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md)。
 
 希望先看产品体验？打开 [GitHub Pages 只读演示站](https://invincible-summer.github.io/Next-Tutor-Agent/)，
 用 `example@example.com / example` 查看合成示范数据的对话、笔记、学习档案、虚构教材知识图谱和课程。

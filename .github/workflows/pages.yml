@@ -23,6 +23,8 @@ jobs:
           fetch-depth: 0
       - name: Repository hygiene (copyright guard)
         run: python scripts/repo/check_repository_hygiene.py
+      - name: Documentation links and layout
+        run: python scripts/repo/check_documentation.py
       - uses: ./.github/actions/setup-project
       - name: Configure Pages
         uses: actions/configure-pages@v5
