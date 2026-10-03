@@ -33,7 +33,7 @@ except Exception:
 
 
 def load_tests(loader, tests, pattern):
-    if not _HAS_VECTOR_DEPS:  # BM25-only（plan.md §22.1）：vector job 专属
+    if not _HAS_VECTOR_DEPS:  # BM25-only：vector job 专属
         raise unittest.SkipTest(
             "vector optional deps not installed (BM25-only environment)")
     return tests

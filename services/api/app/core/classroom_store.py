@@ -1,6 +1,5 @@
 """课堂存储层：唯一 root、路径、原子持久化、CAS、发布事务与可重建索引。
 
-plan.md §16.1/§16.2/§10.1：
 - `_CLASSROOM_DIR` 是唯一根常量；其他模块一律调用本模块的路径函数，
   不复制 root 常量或在 import 期冻结派生路径。
 - 读取不隐式 mkdir；list/capability 不产生空目录；写入目录 0700、文件 0600。
@@ -580,7 +579,7 @@ def update_run(owner_id: str, workspace_id: str, lesson_id: str, run_id: str,
 
     ``bump_revision=False`` 供纯记账写入（lease 心跳、audio_refs、TTS 回退
     锁）：它们不是内容状态变化，不得推进 state_revision——否则 15s 一次的
-    lease 续期会让播放端的进度 CAS 永远 409（plan.md §12.3）。
+    lease 续期会让播放端的进度 CAS 永远 409。
     """
     path = run_path(owner_id, workspace_id, lesson_id, run_id)
     with file_lock(path):

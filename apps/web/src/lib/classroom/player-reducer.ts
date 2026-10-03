@@ -1,4 +1,4 @@
-/* 课堂播放器状态机（plan.md §12.1/§12.2，阶段 G01）。
+/* 课堂播放器状态机（G01）。
  *
  * 后端 run.status 只有 active/paused/completed/ended；浏览器临时状态更细。
  * generation token = {run_id, lesson_revision, lease_epoch, playback_epoch}：

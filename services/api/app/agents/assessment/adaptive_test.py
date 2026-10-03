@@ -1,4 +1,4 @@
-"""CAT 自适应测评引擎：journal 投影版（plan §11.5 / A10）。
+"""CAT 自适应测评引擎：journal 投影版（A10）。
 
 实例身份显式化（assessment_id + workspace 绑定）：题目/作答/报告全部经
 journal（TaskSnapshot + SourceReceipt + assessment_session_changed）持久

@@ -58,7 +58,7 @@ def _validate_workspace_binding(workspace_id: str | None, student_id: str) -> No
 def _build_tools(session: TutorSession, *, user_message: str = "",
                  attachments: list[dict] | None = None,
                  restrict_to_file_ids=None):
-    """Thin wrapper over core.agent_tools.build_session_tools（plan.md §12.4）。
+    """Thin wrapper over core.agent_tools.build_session_tools。
 
     公共构建逻辑已提取到 core/agent_tools.py；本符号保留给既有测试的
     patch 点。课堂问答由 chat_stream 以服务端构造的
@@ -314,7 +314,7 @@ async def upload_files(session_id: str | None = None, grade: str = "",
             continue
         limit = MAX_IMAGE_BYTES if ext in (".png", ".jpg", ".jpeg", ".webp",
                                            ".bmp", ".tiff", ".tif") else MAX_UPLOAD_BYTES
-        # P2-B（plan.md §33）：分块限流读取——超限文件在读到 limit+chunk 后
+        # P2-B：分块限流读取——超限文件在读到 limit+chunk 后
         # 即被拒，不再先完整读入内存；per-file 200-with-errors 合同不变。
         from app.core.uploads import UploadTooLarge, read_upload_limited
         try:

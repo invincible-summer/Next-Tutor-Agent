@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
 const manifest = JSON.parse(readFileSync(join(process.cwd(), "public/demo/manifest.json"), "utf8"));
-const base = "/The-Next-Tutor-Agent";
+const base = "/Next-Tutor-Agent";
 
 test("complete example showcase works with only a static file server", async ({ page }, testInfo) => {
   const errors: string[] = [];

@@ -1,4 +1,4 @@
-"""课堂五种 revision operation（plan.md §14.1/§4.3，D05）。
+"""课堂五种 revision operation（D05）。
 
 全部从已发布 base revision 派生（旧版本保持可用，published_revisions
 只增不删）：

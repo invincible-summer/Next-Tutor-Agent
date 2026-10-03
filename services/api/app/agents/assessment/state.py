@@ -62,7 +62,7 @@ class AssessmentContext:
     skill_id: str = ""
     base_difficulty: int = 2
     recent_outcomes: list[str] = field(default_factory=list)
-    # 统一 Quiz Grounding（plan.md §5.1）：additive 字段，plain data only。
+    # 统一 Quiz Grounding：additive 字段，plain data only。
     # grounding_sources 只放序列化后的 QuizSourceRef plain dict，保持本
     # 包 import-clean —— Assessment 不依赖 KnowledgeStore，证据由 API 层
     # 经 QuizGroundingProvider 解析后投影进来。to_dict/from_dict 全支持，

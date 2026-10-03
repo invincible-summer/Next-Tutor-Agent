@@ -1,4 +1,4 @@
-"""LearnerEvaluationService：唯一事务提交 facade（plan §6.2 / §10.2）。
+"""LearnerEvaluationService：唯一事务提交 facade。
 
 任何 learner 写操作只从 service/store 到 journal（§17.1）；提交前再检查
 身份/范围/source revision/lease/generation——权限撤销、账号删除、source

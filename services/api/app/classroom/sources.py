@@ -1,4 +1,4 @@
-"""课堂来源解析、冻结与复核（plan.md §7.1）。
+"""课堂来源解析、冻结与复核。
 
 resolve_classroom_sources 把备课 Brief 的 SourceSelection 解析为服务端签发的
 SourceRecord 冻结集 + scope fingerprint。所有读取只走既有授权面
@@ -310,7 +310,7 @@ def resolve_classroom_sources(
                 if _chapter_matcher(file_sel.chapters)(c)]
         text_path = _library_text_path(namespace, fid)
         if not pool and text_path is not None:
-            # 文件可读但所选章节没有命中任何片段：按 plan §7.1 不得编内容
+            # 文件可读但所选章节没有命中任何片段：不得编内容
             result.issues.append(SourceIssue(
                 "source_not_ready", fid, "所选章节在资料中未找到内容"))
             continue

@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-/* 课堂排版检查 worker（plan.md §9.6）。
+/* 课堂排版检查 worker。
  *
  * 用 Playwright headless Chromium 打开编译产物的本地文件（禁止一切外网
  * 请求；内容自包含 data URI）。在 1280×720 / 960×540 两档

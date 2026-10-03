@@ -1,4 +1,4 @@
-/* 课堂安全 E2E（plan.md §19.3 classroom-security）。
+/* 课堂安全 E2E（classroom-security）。
  *
  * - 课件 iframe：sandbox=allow-scripts（无 allow-same-origin）、srcdoc
  *   注入（URL 不带 token）；伪造 postMessage 无效果（source 校验）；

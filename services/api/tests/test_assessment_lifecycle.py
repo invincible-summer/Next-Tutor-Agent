@@ -1,4 +1,4 @@
-"""M4 CAT 生命周期回归（journal 版，plan §11.5 / A10）。
+"""M4 CAT 生命周期回归（journal 版，A10）。
 
 固定的持久化契约：独立 assessment_id、停止结论与作答同批落盘、next 不叠
 题/终态不进新题、abandon 幂等、刷新恢复（GET /active）、报告不覆盖、

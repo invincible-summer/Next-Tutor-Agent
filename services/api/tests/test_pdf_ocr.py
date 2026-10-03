@@ -1,6 +1,6 @@
 """扫描版 PDF OCR 回退测试：pdf_ocr 判定/逐页 OCR + 教材库后台 OCR 管线 + 同步回退。
 
-验收（plan §验证）：
+验收：
 - is_scanned_pdf：文本层满→False；空→True；混合→True。
 - ocr_pdf_pages / ocr_pdf_pages_sync：逐页渲染+OCR 顺序拼接；max_pages 截断；on_progress 回调。
 - 教材库端到端：扫描 PDF 上传→building/ocr→后台 OCR 写回 .txt→图谱 ready。

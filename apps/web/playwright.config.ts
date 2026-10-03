@@ -2,7 +2,7 @@ import { defineConfig, devices } from "@playwright/test";
 import { resolve } from "node:path";
 
 /**
- * E2E（运行说明见 docs/TESTING.md）：真实 backend + frontend + fake LLM。
+ * E2E（运行说明见 docs/development/testing.md）：真实 backend + frontend + fake LLM。
  *
  * webServer 启动顺序：fake LLM -> backend（BM25-only，LLM_BASE_URL 指向
  * fake）-> Next（CI 使用生产构建）。supervisor 理解/规划走确定性 rule 路径
@@ -82,7 +82,7 @@ export default defineConfig({
         AUTH_JWT_SECRET: "e2e-test-secret-e2e-test-secret-e2e",
         // E2E 从单 IP 高频注册测试账号（产品限流不受测）
         RATE_LIMIT_DISABLE: "1",
-        // Voice smoke：TTS 走 stub provider（plan.md §26 Flow 8）
+        // Voice smoke：TTS 走 stub provider，不依赖真实语音服务（voice-smoke.spec.ts）
         VOICE_TTS_PROVIDER: "stub",
         CORS_ORIGINS: `http://127.0.0.1:${FRONT_PORT},http://localhost:${FRONT_PORT}`,
       },

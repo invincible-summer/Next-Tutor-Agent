@@ -1,5 +1,5 @@
 /**
- * E2E backend isolation (plan.md §26-§27): rsync the repo into a scratch dir
+ * E2E backend isolation: rsync the repo into a scratch dir
  * so the real uvicorn process never writes business data (chat_history/,
  * students/, knowledge/) into the working tree. The backend derives its
  * storage roots from module constants, so an isolated copy is the clean way

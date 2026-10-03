@@ -1,4 +1,4 @@
-"""B08 学习历史补齐回归（plan.md §22.2）。
+"""B08 学习历史补齐回归。
 
 覆盖：task_instance_id 迁移与稳定；task_status_changed 事件（self_report /
 quiz_evidence / PATCH 撤销 / 逾期 / in_progress）一次一记；outbox 与 state

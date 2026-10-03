@@ -1,4 +1,4 @@
-"""ScopeResolver：工作区 → 卷级授权范围 + revision（plan §5）。
+"""ScopeResolver：工作区 → 卷级授权范围 + revision。
 
 流程严格按 §5.1：归属 404 先于任何检索/LLM；selected_file_ids 经
 `resolve_textbook_file` 同等授权；只认注册教材；卷闭包抽节点；仅

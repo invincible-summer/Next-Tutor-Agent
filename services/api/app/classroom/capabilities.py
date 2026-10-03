@@ -1,4 +1,4 @@
-"""课堂能力探测（plan.md §14.1 GET /classroom/capabilities）。
+"""课堂能力探测（GET /classroom/capabilities）。
 
 只读配置与本地构建产物，不触发外部计费、不发网络请求。voices 列表由
 TTS service（F 阶段）缓存填充；此处只给静态默认候选是否可用的判断依据。

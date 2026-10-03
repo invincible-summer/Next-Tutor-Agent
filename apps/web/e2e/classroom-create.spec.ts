@@ -1,4 +1,4 @@
-/* 课堂创建 E2E（plan.md §19.3 classroom-create）。
+/* 课堂创建 E2E（classroom-create）。
  *
  * 场景 1：工作区进入 → 默认设置 → 一次生成 → 关闭页面 → 重进，
  *         仍是同一 lesson/job（幂等不重复建课）。

@@ -2,8 +2,8 @@
 
 本文件是语音栈（浏览器语音输入、本地 MeloTTS sidecar、课堂云端 TTS）的
 权威审计入口：钉住来源、复核规程与发布检查表。汇总性声明见
-[`THIRD-PARTY-NOTICES.md`](../THIRD-PARTY-NOTICES.md)；仓库许可证原文存于
-[`licenses/`](../licenses/)。
+[`THIRD-PARTY-NOTICES.md`](../../THIRD-PARTY-NOTICES.md)；仓库许可证原文存于
+[`licenses/`](../../licenses/)。
 
 ## 1. 组成与边界
 

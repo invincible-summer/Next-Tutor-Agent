@@ -1,4 +1,4 @@
-"""受控内容块渲染（plan.md §9.3）。
+"""受控内容块渲染。
 
 所有动态文本经 html.escape；公式交给固定 KaTeX 在 frame 内渲染
 （trust=false）；SVG 仅由本项目图形构造器生成，不接受模型 XML。

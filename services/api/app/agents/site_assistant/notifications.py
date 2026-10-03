@@ -1,6 +1,6 @@
 """§25 主动服务：订阅、调度、去重与通知收件箱（C04/C05）。
 
-要点（plan.md §25.1–§25.5）：
+要点：
 - 四类订阅（weekly_brief/daily_tasks/due_reviews/unfinished_course），
   默认全部关闭；`SITE_ASSISTANT_PROACTIVE_ENABLED` 独立开关 + 用户逐项
   开启（§26.5），二者同时满足才调度。

@@ -1,5 +1,5 @@
 /**
- * Fake OpenAI-compatible LLM server for E2E (plan.md §26-§27).
+ * Fake OpenAI-compatible LLM server for E2E.
  *
  * E2E 测产品编排与数据流，不测供应商网络：所有 LLM 调用指向这里。
  * 协议：POST /chat/completions（stream 与非 stream 都支持）。

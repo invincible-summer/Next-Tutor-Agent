@@ -130,7 +130,7 @@ def quality_from_verdict(verdict: str) -> int | None:
     update (BKT) is M2's separate, independent responsibility.
 
     Returns None for ``unknown``/unrecognized verdicts: without valid recall
-    evidence there is NO SM-2 observation (updatePlan.md A07) — the caller
+    evidence there is NO SM-2 observation (A07) — the caller
     must register contact only (create/refresh the card, schedule the first
     check) instead of extending the review interval.
     """

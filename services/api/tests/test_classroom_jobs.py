@@ -1,4 +1,4 @@
-"""课堂 job 控制面回归（plan.md D06 / §14.1/§14.4）。
+"""课堂 job 控制面回归（D06）。
 
 覆盖：GET J snapshot（进度/警告/next_actions）；cancel 的 CAS 与终态幂等；
 retry 保留产物重新排队；continue 从 awaiting_outline/needs_input 续跑；

@@ -448,7 +448,7 @@ def clear_chat_data(user_id: str, scope: str = "all") -> dict[str, Any]:
         except Exception:
             pass
         # 站内助手：先停在途任务（进程内 owner_generation 随之提升，
-        # 迟到写入会被拒），再删助手根（plan.md §12.3-1/11）。
+        # 迟到写入会被拒），再删助手根。
         try:
             from app.core import assistant_store as asst_mod
             asst_mod.stop_assistant_tasks(uid)

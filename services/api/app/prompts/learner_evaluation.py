@@ -1,4 +1,4 @@
-"""统一学习评价系统提示词（plan §9：P0–P10，文本为计划给定的注册文本）。
+"""统一学习评价系统提示词（P0–P10）。
 
 由 `prompts/registry.py` 尾部 import 以完成注册（保持单一注册点）。
 实际 system message = P0 共享合同 + 角色文本 + 情景文本 + JSON Schema；

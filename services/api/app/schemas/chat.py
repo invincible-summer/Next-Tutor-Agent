@@ -7,7 +7,7 @@ from pydantic import BaseModel, Field
 
 
 class ClassroomRef(BaseModel):
-    """课堂插问引用（plan.md §12.4）：普通调用缺省 None，旧客户端兼容。
+    """课堂插问引用：普通调用缺省 None，旧客户端兼容。
 
     workspace_id/lesson_id 是定位提示；run 始终在调用者 owner 根下加载，
     归属校验由服务端完成，外来 ID 只得到 404 语义。

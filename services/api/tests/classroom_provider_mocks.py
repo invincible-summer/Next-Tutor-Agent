@@ -1,4 +1,4 @@
-"""课堂 provider HTTP mocks（plan.md C05）。
+"""课堂 provider HTTP mocks（C05）。
 
 只保存人工构造的响应样例——不含真实用户查询、API key 或下载素材。
 供 research/media 适配器测试以 httpx.MockTransport 注入，禁止出真实网络。

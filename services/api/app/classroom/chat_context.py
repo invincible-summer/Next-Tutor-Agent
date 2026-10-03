@@ -1,4 +1,4 @@
-"""课堂问答上下文（plan.md §12.4，阶段 H01）。
+"""课堂问答上下文（阶段 H01）。
 
 职责：
 - ``resolve_classroom_turn``：验证 classroom_ref（run 归属/固定 revision/

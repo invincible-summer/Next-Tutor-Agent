@@ -1,4 +1,4 @@
-// 助手导航目标 → 站内 URL 的唯一白名单拼装点（plan.md §8.2/§8.3，A10）。
+// 助手导航目标 → 站内 URL 的唯一白名单拼装点（A10）。
 // 只认契约内 NavigationTarget；未知目标一律返回 null，不得由模型文本
 // 构造 URL。A11 会为 memory/orchestration/insights 等扩展深链参数。
 import type { NavigationTarget } from "./types.generated";

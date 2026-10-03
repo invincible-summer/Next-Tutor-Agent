@@ -159,7 +159,7 @@ async def verify_questions(llm: AsyncLLMClient, questions: list[dict[str, Any]],
                            *, topic: str, grade: str, difficulty: str = "",
                            grounding_context: str = "",
                            review_illustrations: bool = True) -> tuple[list[dict[str, Any]], list[dict[str, Any]], bool]:
-    """P2 逐题审核（plan §9.4 / A06）：独立重解 + ECDL 机会检查。
+    """P2 逐题审核（A06）：独立重解 + ECDL 机会检查。
 
     Returns ``(kept, dropped, critic_ok)``。每题独立结论：
     - ``passed``：保留并标记 content_checked；
@@ -563,7 +563,7 @@ async def _generate_verified_questions(
     result's data payload, Trace, and M10 postconditions. ``difficulty``
     (easy/medium/hard, "" = unspecified) lets the critic flag correct-but-
     too-shallow questions against the target level.  ``grounding_context``
-    (plan.md §4.6) additionally enables the ``unsupported`` verdict in the
+    additionally enables the ``unsupported`` verdict in the
     critic when textbook evidence is present.
     """
     mode = verify_mode if verify_mode in {"critic", "basic", "off"} \

@@ -1,5 +1,5 @@
 "use client";
-// 运行状态小标记（plan §14.4）：scope/pending/reconciling 等单独小标记，
+// 运行状态小标记：scope/pending/reconciling 等单独小标记，
 // 不渲染成“第六种学生等级”，也不与概念类别共用视觉权重。
 import { AlertCircle, Clock, RefreshCw } from "lucide-react";
 import { Badge } from "@/components/ui/Badge";

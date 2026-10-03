@@ -1,4 +1,4 @@
-"""课堂生命周期回归（plan.md §16.4 / A03、J01/J02）。
+"""课堂生命周期回归（A03、J01/J02）。
 
 覆盖：单课归档→恢复→purge、工作区归档携带课堂子树、purge_account
 tombstone 防晚写、uploads_only 上传图清理、orphan 扫描分类、用量分桶、

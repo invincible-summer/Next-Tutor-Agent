@@ -36,7 +36,7 @@ jobs:
         working-directory: apps/web
         env:
           NEXT_PUBLIC_DEMO_MODE: "1"
-          NEXT_PUBLIC_BASE_PATH: /The-Next-Tutor-Agent
+          NEXT_PUBLIC_BASE_PATH: /Next-Tutor-Agent
         run: |
           pnpm check
           pnpm build

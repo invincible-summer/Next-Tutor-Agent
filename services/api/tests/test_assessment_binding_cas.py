@@ -1,4 +1,4 @@
-"""R05（update_plan §4）：提交归属服务端解析 + commit compare-and-swap。
+"""R05：提交归属服务端解析 + commit compare-and-swap。
 
 - 外区/假区 workspace 404 且零模型调用；CAT 实例题目绑定校验。
 - expected_scope_revision 仅作期望断言，不一致 409。

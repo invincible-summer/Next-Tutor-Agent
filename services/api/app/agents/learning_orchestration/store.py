@@ -117,7 +117,7 @@ def read_events(student_id: str, limit: int = _MAX_EVENTS_REPLAY) -> list[Orches
 
 
 def read_events_with_coverage(student_id: str) -> tuple[list[OrchestrationEvent], dict]:
-    """严格读取全部事件并区分文件缺失/损坏（plan.md §7.4-10）。
+    """严格读取全部事件并区分文件缺失/损坏。
 
     返回 (events, coverage)：coverage = {exists, readable, invalid_count,
     total_lines, truncated}。坏行不吞成成功；读取失败时 events 为空且

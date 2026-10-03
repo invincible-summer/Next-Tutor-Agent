@@ -1,4 +1,4 @@
-"""G2 回归：题目/作答身份（plan §18.2 test_submission_identity）。
+"""G2 回归：题目/作答身份。
 
 长题相同前缀仍不同、答案前 200 字相同后文不同不合并、旧标签页
 question_revision 冲突、跨区 CAT 不错投。

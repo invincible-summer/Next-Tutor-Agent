@@ -31,7 +31,7 @@ export interface ChapterModel {
   sectionCount: Map<string, number>;
 }
 
-/** 子概念证据覆盖计数（plan §14.4）：章节只显示「有证据 K / 本卷概念 M」
+/** 子概念证据覆盖计数：章节只显示「有证据 K / 本卷概念 M」
  * 文字，不做平均掌握颜色；章节/section 的 evaluation 固定 null。 */
 export function evidenceCountOf(children: KnowledgeNode[]): number {
   return children.filter((c) => {

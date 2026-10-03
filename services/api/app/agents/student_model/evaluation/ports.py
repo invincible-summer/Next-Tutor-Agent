@@ -1,4 +1,4 @@
-"""评价核心的只读端口协议（plan §6.2 依赖边界）。
+"""评价核心的只读端口协议（依赖边界）。
 
 评价包不得 import `api/v1/*`、M3/M9 manager/store；跨模块读取一律走
 这些 Protocol，由 `core/learner_runtime.py` 组装具体适配器。M2 facade、

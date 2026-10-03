@@ -1,10 +1,10 @@
 # GitHub Pages 只读演示
 
-演示地址：<https://invincible-summer.github.io/The-Next-Tutor-Agent/>。登录页预填
+演示地址：<https://invincible-summer.github.io/Next-Tutor-Agent/>（canonical base path 为 `/Next-Tutor-Agent`，与仓库名一致；仓库改名前的旧 URL `/The-Next-Tutor-Agent` 由 GitHub 自动重定向）。登录页预填
 `example@example.com / example`；这只是选择公开示范账户的本地入口，不提供真实认证或私有账户访问。
 
 演示站使用完整 Next.js 前端，`NEXT_PUBLIC_DEMO_MODE=1` 启用静态导出，
-`NEXT_PUBLIC_BASE_PATH=/The-Next-Tutor-Agent` 设置项目路径。普通后端部署不设置这两个变量，行为保持原样。
+`NEXT_PUBLIC_BASE_PATH=/Next-Tutor-Agent` 设置项目路径。普通后端部署不设置这两个变量，行为保持原样。
 界面可切换语言、主题、筛选和分页，可查看历史会话、笔记及修订、学习评价、教材知识图谱、课程和保存的上课记录。
 演示请求层在发起网络请求之前拒绝所有数据写入和 AI 调用。
 界面不显示常驻演示横幅；尝试 AI、编辑、上传、新建、归档、出题或提交时弹窗说明限制，
@@ -14,12 +14,14 @@ Pages 与 `./start.sh` 共用紧凑导航及全局字号：默认根字号 16px�
 课程使用冻结课件与讲稿预览，可切换历史版本、打开全部保存的上课记录并查看进度、课堂笔记和关联答疑。
 不创建 Run、不申请租约、不更新进度。笔记以预览模式打开。
 
+**base path 单一事实源**：`.github/workflows/pages.yml` 中的 `NEXT_PUBLIC_BASE_PATH` 环境变量是唯一权威值；本页与 `apps/web/playwright.pages.config.ts`、pages E2E 中的前缀必须与该值保持一致，不得在各处手写不同的仓库名。
+
 ## 合成演示数据（synthetic-only）
 
 演示内容**全部为项目自写的合成数据**，唯一来源是 `fixtures/demo/`（见其 README 的
 来源声明）：虚构教材库（合成 `.txt` 讲义、虚构书名与 `fx_*` 合成 id）、自写教学对话、
 笔记、学习者状态与合成课堂讲义。仓库与 Pages 产物都**不包含任何真实教材、
-OCR 文本、切片、向量索引或私有用户数据**，也不提供真实教材下载链接。
+OCR 文本、切片、向量索引或私有用户数据**，也不提供真实教材下载链接（ADR-0005）。
 
 `scripts/demo/export_pages_demo.py` 在 TemporaryDirectory 沙箱中通过
 `tests/storage_sandbox` 的运行根隔离写入：真实后端存储从不被读取。它用内部
@@ -35,7 +37,7 @@ HTML 帧（走真实渲染管线），输出与旧版 schema v1 兼容的
 
 ## 本地构建与验证
 
-先按 `docs/TESTING.md` 安装依赖（课堂帧渲染需要 `pnpm build:classroom` 产物）：
+先按 [../development/testing.md](../development/testing.md) 安装依赖（课堂帧渲染需要 `pnpm build:classroom` 产物）：
 
 ```bash
 cd apps/web && pnpm build:classroom && cd ..
@@ -44,14 +46,14 @@ python3 scripts/demo/export_pages_demo.py
 python3 scripts/repo/check_pages_artifact.py apps/web/public/demo
 cd apps/web
 pnpm check
-NEXT_PUBLIC_DEMO_MODE=1 NEXT_PUBLIC_BASE_PATH=/The-Next-Tutor-Agent pnpm build
+NEXT_PUBLIC_DEMO_MODE=1 NEXT_PUBLIC_BASE_PATH=/Next-Tutor-Agent pnpm build
 pnpm test:e2e:pages
 ```
 
 `pnpm test:e2e:pages` 仅启动 Python 静态文件服务器，检查所有已导出页面的直接访问，
 example 登录、只读操作、课件翻页和浅色/深色/窄桌面窗口。报告和截图在 `apps/web/test-results/`。
 静态预览可单独运行 `python3 scripts/demo/serve_pages_demo.py`，地址为
-`http://127.0.0.1:3040/The-Next-Tutor-Agent/`。
+`http://127.0.0.1:3040/Next-Tutor-Agent/`。
 
 ## CI
 

@@ -1,4 +1,4 @@
-"""G5 回归：M7 策略聚合在去除数值增益后仍可用（plan §13.7 / §19.1）。
+"""G5 回归：M7 策略聚合在去除数值增益后仍可用。
 
 de-mastery 清理曾把 TurnTrace 的 learning_gain 字段删掉，但
 strategy_analyzer/schema 里残留 avg_gain 引用（gains 未定义、to_dict

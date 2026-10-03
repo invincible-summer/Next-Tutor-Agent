@@ -1,4 +1,4 @@
-"""Assessment API：统一受理协议 + 自适应诊断（plan §11.4/§11.5）。
+"""Assessment API：统一受理协议 + 自适应诊断。
 
 - 学生身份只经 `resolve_student_id`；请求体不信任任何判分结果/帮助自报。
 - 所有作答（聊天题卡/习题中心/CAT）经 `evaluate_submission` 单入口受理。

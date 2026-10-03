@@ -1,4 +1,4 @@
-"""M4 统一作答服务：evaluate_submission 唯一业务入口（plan §11.4/§11.5）。
+"""M4 统一作答服务：evaluate_submission 唯一业务入口。
 
 聊天题卡、习题中心、自适应诊断共用本入口；服务端自行解析 TaskSnapshot、
 session/workspace、assistance 与 task_binding。旧 raw_grade 流式旁路、
@@ -516,7 +516,7 @@ async def evaluate_submission(
         (question_ref.question_id, question_ref.question_revision), []))
     assistance_floor = _assistance_floor(assistance)
 
-    # R21（update_plan §4）：共享游客（student_default）只给当场反馈——
+    # R21：共享游客（student_default）只给当场反馈——
     # MC 本地判分直接返回，不写共享长期 learner journal（登录后从新表现
     # 建档）；开放题在游客态不可判，返回未判定回执。
     from app.agents.student_model.store import DEFAULT_STUDENT_ID

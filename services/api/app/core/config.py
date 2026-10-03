@@ -146,7 +146,7 @@ class Settings:
     # 受限方式调整策略（单一主要行动/枚举白名单/显式约束优先）。
     teaching_decision_mode: str = _resolve_mode(
         "TEACHING_DECISION_MODE", {"rules", "shadow", "active"}, "rules")
-    # 统一语义学习评价（plan §10.3 工程预算，非教育测量阈值）。
+    # 统一语义学习评价（工程预算，非教育测量阈值）。
     learner_evaluation_mode: str = _resolve_mode(
         "LEARNER_EVALUATION_MODE", {"active", "off"}, "active")
     learner_evaluation_concurrency: int = int(
@@ -291,7 +291,7 @@ class Settings:
     api_port: int = int(os.getenv("API_PORT", "8000"))
 
     # ------------------------------------------------------------------
-    # 站内学习助手（plan.md §0.2/§17；默认 0，发布阶段显式启用）
+    # 站内学习助手（默认 0，发布阶段显式启用）
     # ------------------------------------------------------------------
     site_assistant_enabled: bool = _env_bool("SITE_ASSISTANT_ENABLED", False)
     # §26.5 领域写入与预览许可（B05 起）；默认随助手开启，灰度可单独关闭。
@@ -306,7 +306,7 @@ class Settings:
         "SITE_ASSISTANT_PROACTIVE_ENABLED", False)
 
     # ------------------------------------------------------------------
-    # 课堂模式（plan.md §20.1；默认值为开发阶段值，验收后发布模板设 1）
+    # 课堂模式（默认值为开发阶段值，验收后发布模板设 1）
     # ------------------------------------------------------------------
     classroom_enabled: bool = _env_bool("CLASSROOM_ENABLED", False)
     # 默认仅认证用户可生成/播放私有课堂；测试可显式放行游客
@@ -340,7 +340,7 @@ class Settings:
         else _env_bool("CLASSROOM_LOCAL_TTS_ENABLED", False))
     classroom_tts_local_fallback: bool = _env_bool(
         "CLASSROOM_TTS_LOCAL_FALLBACK", True)
-    # 受限作业调度（plan.md §15.3/§15.4）
+    # 受限作业调度
     classroom_job_concurrency: int = max(1, int(os.getenv("CLASSROOM_JOB_CONCURRENCY", "2")))
     classroom_owner_concurrency: int = max(1, int(os.getenv("CLASSROOM_OWNER_CONCURRENCY", "1")))
     classroom_llm_concurrency: int = max(1, int(os.getenv("CLASSROOM_LLM_CONCURRENCY", "3")))

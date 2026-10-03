@@ -1,4 +1,4 @@
-"""阶段C（update_plan §5–§6）：每日零点批次的规划与状态。
+"""阶段C：每日零点批次的规划与状态。
 
 DailyPlanner（进程内任务，lifespan 启动）：
 - 每 TICK 秒检查一次策略；daily_midnight 模式下计算业务时区的自然日

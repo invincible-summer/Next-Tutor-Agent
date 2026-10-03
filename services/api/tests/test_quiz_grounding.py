@@ -1,6 +1,6 @@
-"""Contract tests: 统一 Quiz Grounding（plan.md §3-§8, Phase 1）。
+"""Contract tests: 统一 Quiz Grounding。
 
-这些测试先于实现编写，编码的是 plan.md 描述的**目标行为**——它们在
+这些测试先于实现编写，编码的是目标行为契约——它们在
 当前 main 上必须失败，以证明整改计划命中的是真实缺口：
   1. GenerateQuizTool 没有 grounding 输入层（无 grounding_provider）；
   2. 教材证据没有进入命题蓝图 / 生成 prompt；
@@ -155,7 +155,7 @@ def _bundle(tier: str, required: bool):
 
 
 class TestQuizGroundingModuleContract(StorageSandboxTestCase):
-    """plan §4.1: core/quiz_grounding.py 数据投影层。"""
+    """core/quiz_grounding.py 数据投影层。"""
 
     def test_module_exports_contract_types(self):
         from app.core.quiz_grounding import (KnowledgeSearchQuizGroundingProvider,
@@ -187,7 +187,7 @@ class TestQuizGroundingModuleContract(StorageSandboxTestCase):
 
 
 class TestGenerateQuizGroundingContract(StorageSandboxTestCase):
-    """plan §4.3: GenerateQuizTool 的 grounding 输入层与 provenance 输出。"""
+    """GenerateQuizTool 的 grounding 输入层与 provenance 输出。"""
 
     def _tool(self, provider):
         from app.tools.quiz import GenerateQuizTool
@@ -235,7 +235,7 @@ class TestGenerateQuizGroundingContract(StorageSandboxTestCase):
                 self.assertIn("chunk_id", ref)
 
     def test_blueprint_prompt_contains_grounding_context(self):
-        """plan §4.4/两轮命题：蓝图轮必须见到教材证据，不能只在终轮注入。"""
+        """两轮命题：蓝图轮必须见到教材证据，不能只在终轮注入。"""
         llm = FakeQuizLLM()
         from app.tools.quiz import GenerateQuizTool
         tool = GenerateQuizTool(llm, avoid_stems=[],
@@ -286,7 +286,7 @@ class TestGenerateQuizGroundingContract(StorageSandboxTestCase):
 
 
 class TestFitQuizNoForcedRetrieval(StorageSandboxTestCase):
-    """plan §6/§43：fit_quiz 的参考题路径不被强制重复检索。
+    """fit_quiz 的参考题路径不被强制重复检索。
 
     reference 是普通用户粘贴时：grounding_mode=reference，provider 的
     resolve 不被调用（无检索）；reference 来自本轮教材预检索时（provider
@@ -332,7 +332,7 @@ class TestFitQuizNoForcedRetrieval(StorageSandboxTestCase):
 
 
 class TestGroundedCriticContract(StorageSandboxTestCase):
-    """plan §4.6: verify_questions 的 grounding_context + unsupported verdict。"""
+    """verify_questions 的 grounding_context + unsupported verdict。"""
 
     def test_critic_input_carries_grounding(self):
         from app.core.quiz_verify import verify_questions
@@ -387,7 +387,7 @@ class TestGroundedCriticContract(StorageSandboxTestCase):
 
 
 class TestQuizDesignGroundingContext(StorageSandboxTestCase):
-    """plan §4.4: design_blueprint 的 additive grounding_context。"""
+    """design_blueprint 的 additive grounding_context。"""
 
     def test_design_blueprint_accepts_grounding_context(self):
         from app.core.quiz_design import build_blueprint_messages

@@ -185,7 +185,7 @@ class KnowledgeSearchTool(Tool):
         # strict_relevance：内部参数（quiz grounding provider 传入，不在 LLM
         # 工具 schema 中）——出题依据必须过证据门的相关性判定；小材料直通
         # （allow_small_direct）只服务「总结这份文件」类问答，不得让 scope 外
-        # 概念借文件引用拿到教材依据（plan.md §4.6）。
+        # 概念借文件引用拿到教材依据。
         strict_relevance = bool(kwargs.get("strict_relevance"))
         gate = apply_evidence_gate(
             query, candidates, top_k, allow_metadata=metadata_query,

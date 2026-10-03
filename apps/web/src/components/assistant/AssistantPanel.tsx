@@ -1,6 +1,6 @@
 "use client";
 
-// 助手面板（plan.md §3.2/§3.3，A06）：标准 420 × min(640, dvh-48)，
+// 助手面板（A06）：标准 420 × min(640, dvh-48)，
 // 放大 min(720, vw-48) × min(780, dvh-48)；右下角与按钮同锚点；
 // 非模态 dialog（aria-modal=false），打开聚焦输入，收起归还焦点。
 import { useEffect, useId, useRef } from "react";
@@ -176,7 +176,7 @@ export function AssistantPanel({
 }
 
 function SourceStrip() {
-  // 最近一条消息的来源入口（plan.md §3.3 布局）。
+  // 最近一条消息的来源入口。
   const messages = useAssistantStore((s) => s.messages);
   const last = [...messages].reverse().find((m) => m.role === "assistant"
     && m.sources?.length);

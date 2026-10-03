@@ -1,4 +1,4 @@
-"""课堂音频引擎回归（plan.md §11.4/§11.5、§19.2 test_classroom_audio）。
+"""课堂音频引擎回归。
 
 覆盖：音频 key 含 owner/voice/provider、single-flight、WAV 时长元数据、
 纯 GET、队列满 audio_busy、云失败一次回退本地（锁定 + 只提示一次）、

@@ -1,4 +1,4 @@
-"""Tavily research 适配器（plan.md §7.3，C02）。
+"""Tavily research 适配器（C02）。
 
 固定显式参数（search_depth=basic、auto_parameters/include_* 全关、
 max_results=5），有时效约束才附带 time_range；extract 处理 results 与

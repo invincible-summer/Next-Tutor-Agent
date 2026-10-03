@@ -1,4 +1,4 @@
-"""课堂检查点题模板回归（plan.md D03 / §13.2）。
+"""课堂检查点题模板回归（D03）。
 
 覆盖：standard 密度经既有 generate_verified_questions 出正式题（结构
 过滤 + critic 语义保留）；出题失败降级 reflect 讲授模式；density=none

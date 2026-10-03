@@ -10,7 +10,7 @@ streamed per turn:
     only, grounding turns force-disable thinking);
   - ``>0``: cap the total streamed characters at N.
 
-Contract (DESIGN.md §4.3/§5.1): live thinking is display-only. It is never
+Contract (docs/architecture/conversation.md): live thinking is display-only. It is never
 persisted into session.messages, never logged, and never reaches the voice
 WebSocket/TTS pipeline — persistence keeps storing the public summary, and
 voice.py keeps dropping thinking events server-side.

@@ -1,6 +1,6 @@
 "use client";
 
-// 领域写动作的变更预览卡（plan.md §21.1/§26.1，B03 前端收口）。
+// 领域写动作的变更预览卡（B03 前端收口）。
 // 展示字段 before/after、影响说明、可逆性与有效期；review_required
 // 必须在此确认后才执行（approve 只授予许可，不等于已执行）。
 import { useEffect, useState } from "react";

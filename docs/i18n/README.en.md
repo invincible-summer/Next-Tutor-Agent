@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="assets/learning-journey.svg" alt="Next Tutor Agent — a textbook-centered learning journey" width="900" />
+<img src="../assets/learning-journey.svg" alt="Next Tutor Agent — a textbook-centered learning journey" width="900" />
 
 # Next Tutor Agent
 
@@ -8,9 +8,9 @@
 
 A textbook-driven AI workspace · Tutoring · Lessons · Assessment · Notes & review
 
-[简体中文](../README.md) · **English**
+[简体中文](../../README.md) · **English**
 
-[Quick start](#quick-start) · [Features](#features) · [Project showcase](https://invincible-summer.github.io/The-Next-Tutor-Agent/)
+[Quick start](#quick-start) · [Features](#features) · [Project showcase](https://invincible-summer.github.io/Next-Tutor-Agent/)
 
 </div>
 
@@ -72,8 +72,8 @@ BM25 retrieval works without an embedding model; vector retrieval is optional. A
 Linux / WSL is recommended. Install **Python 3.11, Node.js 22 LTS, and pnpm 11**, and have an OpenAI-compatible model service available.
 
 ```bash
-git clone https://github.com/invincible-summer/The-Next-Tutor-Agent.git
-cd The-Next-Tutor-Agent
+git clone https://github.com/invincible-summer/Next-Tutor-Agent.git
+cd Next-Tutor-Agent
 
 python3.11 -m venv .venv
 source .venv/bin/activate
@@ -137,11 +137,11 @@ Sign in and choose a textbook in Resources, or start in Chat Tutoring. For text 
 | Cloud classroom speech | Provide `AZURE_SPEECH_KEY` and `AZURE_SPEECH_REGION`. |
 | Local speech | Install the local MeloTTS service, then set `VOICE_TTS_PROVIDER=melo`. |
 
-The interface indicates available capabilities when optional services are missing. See [`.env.example`](../.env.example) for configuration options.
+The interface indicates available capabilities when optional services are missing. See [`.env.example`](../../.env.example) for configuration options.
 
 </details>
 
-See [Testing and CI maintenance](TESTING.md) for setup, local checks, extended regressions, and release verification.
+See [Testing and CI maintenance](../development/testing.md) for setup, local checks, extended regressions, and release verification.
 
 ## Project layout
 
@@ -159,6 +159,6 @@ textbook files, parsed text, chunks, knowledge graphs, and user runtime state ar
 deployment-local (`.runtime/data`, see `services/api/app/core/paths.py`) and never
 published with the repository.
 
-Explore the [project showcase](https://invincible-summer.github.io/The-Next-Tutor-Agent/) —
+Explore the [project showcase](https://invincible-summer.github.io/Next-Tutor-Agent/) —
 built entirely from project-authored synthetic data (a fictional textbook library) —
 or launch the app and open the user guide.

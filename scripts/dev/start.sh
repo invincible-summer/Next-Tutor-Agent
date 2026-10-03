@@ -179,7 +179,7 @@ start_backend() {
 
 start_voice_sidecar() {
     # 语音 sidecar（MeloTTS-Chinese，本地 CPU；电话 P10 + 课堂回退共用）。
-    # plan.md §11.6 启动判定（任一成立即启动）：
+    # 启动判定（任一成立即启动）：
     #   1) 旧电话 VOICE_TTS_PROVIDER=melo；
     #   2) 旧电话 provider=auto（默认本地）；
     #   3) 课堂启用且本地回退启用，且默认策略 local/auto 或允许本地回退。

@@ -1,5 +1,5 @@
 /**
- * Flow 2（plan.md §26）：教材上传 -> BM25 立即可查。
+ * Flow 2：教材上传 -> BM25 立即可查。
  * 产品设计是 BM25 先可用（不等大模型 graph build），E2E 断言：
  * upload -> group 返回 -> rag_index.status bm25_ready -> 教材页可见 ->
  * knowledge 检索 API 能命中 ZX-17。

@@ -1,4 +1,4 @@
-"""课堂 run 创建的个人默认语音偏好回落（plan.md §11.1/§20.1）。
+"""课堂 run 创建的个人默认语音偏好回落。
 
 有效选择顺序：run 显式 > 课程 brief 显式 > 个人 prefs.classroom > 系统默认。
 brief 的 voice_preferences 全默认（创建弹窗未触碰语音区）视为未配置；

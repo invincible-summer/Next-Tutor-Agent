@@ -149,7 +149,7 @@ export const STRINGS: PageStrings = {
     "ai.remote.banner": "助手已更新本笔记，你的编辑尚未保存",
     "ai.remote.loadLatest": "载入最新",
     "ai.remote.keepMine": "保留我的",
-    // 助手笔记草稿（plan.md §19.5/§19.6 临时编辑器）
+    // 助手笔记草稿
     "draft.banner": "助手笔记草稿",
     "draft.hint": "尚未创建正式笔记，保存后才会写入笔记仓库",
     "draft.title": "笔记标题",
@@ -389,7 +389,7 @@ export const STRINGS: PageStrings = {
     "ai.remote.banner": "Assistant updated this note; your edits are unsaved",
     "ai.remote.loadLatest": "Load latest",
     "ai.remote.keepMine": "Keep mine",
-    // Assistant note draft (plan.md §19.5/§19.6 temporary editor)
+    // Assistant note draft
     "draft.banner": "Assistant note draft",
     "draft.hint": "Not a real note yet — saving writes it into your vault",
     "draft.title": "Note title",

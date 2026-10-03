@@ -1,4 +1,4 @@
-"""课堂 run：创建/恢复、lease、进度 CAS、audio profile（plan.md §12/§14.2）。
+"""课堂 run：创建/恢复、lease、进度 CAS、audio profile。
 
 职责：
 - POST L/runs：resume_or_create 复用未终结 run（200 resumed）或从
@@ -46,7 +46,7 @@ def _brief_voice_explicit(prefs: sc.VoicePreferences) -> bool:
 
 def _user_voice_preferences(student_id: str, *, playback_speed: float) \
         -> sc.VoicePreferences | None:
-    """个人默认课堂语音（accounts.json 的 prefs.classroom，plan.md §20.1）。
+    """个人默认课堂语音（accounts.json 的 prefs.classroom）。
 
     只采纳存在且合法的 voice_policy/voice_id/allow_local_fallback；
     语速不属于该层（沿用 brief 值）。游客/无账号/无有效字段 → None，

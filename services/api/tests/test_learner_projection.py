@@ -1,4 +1,4 @@
-"""G3 回归：投影语义（plan §12 / §18.2 test_learner_projection）。
+"""G3 回归：投影语义。
 
 - 五种类别正确投影（经物化判断）；无证据概念由 scope 左连接。
 - 最新判断生效（不是最先返回）。
@@ -109,7 +109,7 @@ class TestConceptViews(ProjectionFixture):
 
 
 class TestWrongAnswerItems(ProjectionFixture):
-    """R13（update_plan §4）：有错题时投影不得触发 NameError；source_id
+    """R13：有错题时投影不得触发 NameError；source_id
     必须是稳定 receipt 值；争议未结的来源不进入错题链路。"""
 
     def _task(self, qid: str, stem: str = "1+1=?") -> S.TaskSnapshot:

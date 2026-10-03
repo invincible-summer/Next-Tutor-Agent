@@ -7,7 +7,7 @@ from urllib.parse import urlsplit
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--port", type=int, default=3040)
-parser.add_argument("--base-path", default="/The-Next-Tutor-Agent")
+parser.add_argument("--base-path", default="/Next-Tutor-Agent")
 args = parser.parse_args()
 root = Path(__file__).resolve().parents[2] / "apps" / "web" / "out"
 

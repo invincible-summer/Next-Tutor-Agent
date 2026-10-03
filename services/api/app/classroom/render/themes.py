@@ -1,4 +1,4 @@
-"""五套原创视觉主题与九种布局（plan.md §9.2）。
+"""五套原创视觉主题与九种布局。
 
 主题仅改变设计 token 和有限装饰，教学模板独立选择。所有颜色从这里
 登记的 token 白名单取值；展示正文对比度 ≥4.5:1。字体用系统 CJK
@@ -18,7 +18,7 @@ CANVAS_HEIGHT = 720
 SAFE_MARGIN = 64
 FOOTER_HEIGHT = 20
 
-# 正文 ≥28px@1280（plan.md §5.2）；标题/图注/页脚相对推导
+# 正文 ≥28px@1280；标题/图注/页脚相对推导
 BASE_FONT_STACK = (
     '"PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans CJK SC", '
     '"Source Han Sans SC", system-ui, -apple-system, "Segoe UI", sans-serif'

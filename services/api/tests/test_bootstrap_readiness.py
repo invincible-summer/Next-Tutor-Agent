@@ -1,4 +1,4 @@
-"""Contract tests: Bootstrap 可观测性与 Readiness（plan.md §15-§20, Phase 1）。
+"""Contract tests: Bootstrap 可观测性与 Readiness。
 
 当前行为（必须先失败证明 gap）：
   main._lifespan 里多处 except Exception: pass 把启动维护失败完全吞掉；
@@ -152,7 +152,7 @@ class TestReadyEndpointContract(StorageSandboxTestCase):
         self.assertEqual(resp.json()["status"], "ready")
 
     def test_student_model_warm_failure_does_not_block_service(self):
-        """SM 预热失败只 degraded，不阻止服务（plan.md §17 分级）。"""
+        """SM 预热失败只 degraded，不阻止服务。"""
         import asyncio
         from app.core.bootstrap import BootstrapReport, run_bootstrap_step
 
@@ -168,7 +168,7 @@ class TestReadyEndpointContract(StorageSandboxTestCase):
         self.assertTrue(report.degraded)
 
     def test_web_concurrency_over_one_fails_fast(self):
-        """P2-C（plan.md §36）：WEB_CONCURRENCY>1 与 file-backed 锁不兼容，
+        """P2-C：WEB_CONCURRENCY>1 与 file-backed 锁不兼容，
         create_app 必须 fail-fast。"""
         import os
         from unittest.mock import patch

@@ -8,8 +8,8 @@ After=network-online.target
 # XDG_CACHE_HOME=/var/lib/edu-agent/cache（ReadWritePaths 已含）。渲染静态
 # 资源需部署期在 apps/web 目录执行 `pnpm install && pnpm build:classroom`
 # 生成 services/api/app/classroom/static/generated/；缺失时
-# 课堂能力端点显式 renderer_unavailable，旧聊天不受影响。详见
-# docs/The_Website_deployment_plan.md §7.1。
+# 课堂能力端点显式 renderer_unavailable，旧聊天不受影响。
+# 部署形态、加固选项与生产清单见 docs/operations/deployment.md。
 [Service]
 Type=simple
 User=edu-agent

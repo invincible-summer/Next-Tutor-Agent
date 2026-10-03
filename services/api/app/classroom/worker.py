@@ -1,4 +1,4 @@
-"""课堂生成 worker：lifespan 后台 asyncio supervisor（plan.md §15.3，D04）。
+"""课堂生成 worker：lifespan 后台 asyncio supervisor（D04）。
 
 单 uvicorn worker，不引入 Redis/Celery。持久化 job 是事实源；内存队列只
 是加速（pending 登记表 + 唤醒事件）。调度约束：

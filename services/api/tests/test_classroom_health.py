@@ -1,4 +1,4 @@
-"""课堂健康告警扫描与恢复动作（plan.md §20.3 / J03）。
+"""课堂健康告警扫描与恢复动作（J03）。
 
 覆盖七类告警的触发与不触发、只读性（不 mkdir）、sweep_audio 恢复动作、
 云鉴权连击计数（audio.record_cloud_auth_result）。

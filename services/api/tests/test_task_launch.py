@@ -1,8 +1,8 @@
-"""Task launch binding regressions (W4/A12, updatePlan.md §12.2 W4 行).
+"""Task launch binding regressions (W4/A12).
 
 Pins the server-side launch contract: POST /orchestration/task/{id}/launch
-(singular, matching the router's task family; updatePlan.md §9.2 spells the
-design target in plural) validates ownership, pre-creates a chat session
+(singular, matching the router's task family, though the design target was
+originally phrased in plural) validates ownership, pre-creates a chat session
 carrying task_binding and an
 episode; relaunch is idempotent; graded answers in the bound session complete
 EXACTLY that task (只更新绑定任务) while a same-concept sibling stays

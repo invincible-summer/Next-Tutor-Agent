@@ -1,4 +1,4 @@
-"""ContextPack 组装与预算（plan §8）。
+"""ContextPack 组装与预算。
 
 只依赖注入 reader（§6.2）；assemble_assessment_pack 供 M4 统一链使用，
 dialogue pack 在 G3 接入。输入分层按 §8.1：trusted_scope / current /

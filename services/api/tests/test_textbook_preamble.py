@@ -1,6 +1,6 @@
 """P3 对话/工作区联动测试：preamble [当前教材] 块 + TaskFrame.has_textbook trace。
 
-验收（update_plan §6.5）：
+验收：
 - 选教材的会话 preamble 出现 [当前教材] 块且内容正确；无教材零变化。
 - TaskFrame.has_textbook 信号写入 trace（诊断用，不改门控）。
 - legacy chat_turn 路径与 v2 supervisor 路径行为一致（同一反查函数族）。

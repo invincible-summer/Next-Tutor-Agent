@@ -1,4 +1,4 @@
-// 站内学习助手 API 客户端（plan.md §11）。
+// 站内学习助手 API 客户端。
 // 所有请求经 apiFetch（鉴权注入）；SSE 用 ReadableStream，
 // 断线按 1/2/4 秒退避最多 3 次后交由 UI 显示「连接已中断」。
 import { apiFetch } from "@/lib/api-fetch";
@@ -130,7 +130,7 @@ export function cancelTurn(turnId: string, clientRequestId: string):
   });
 }
 
-// --- 动作 execute / ack / 查询（plan.md §9.4，A10） -------------------------
+// --- 动作 execute / ack / 查询（A10） -------------------------
 
 export function executeAssistantAction(
     actionId: string, body: ActionExecuteRequest): Promise<ActionExecutionResponse> {
@@ -156,7 +156,7 @@ export function ackAssistantAction(
   });
 }
 
-// --- 预览与审批（plan.md §21.4，B03 前端收口） ---------------------------
+// --- 预览与审批（B03 前端收口） ---------------------------
 
 export function getAssistantActionPreview(actionId: string):
     Promise<ActionPreview> {
@@ -176,7 +176,7 @@ export function approveAssistantAction(actionId: string, body: {
   });
 }
 
-// --- 撤销（plan.md §21.4/§21.5） -----------------------------------------
+// --- 撤销 -----------------------------------------
 
 export function undoAssistantAction(actionId: string, body: {
   client_request_id: string;
@@ -245,7 +245,7 @@ export function deleteAssistantDraft(draftId: string): Promise<void> {
   return request<void>(`/drafts/${draftId}`, { method: "DELETE" });
 }
 
-// --- 工作流 / 办理事项（plan.md §23.5，C01/C03） ---------------------------
+// --- 工作流 / 办理事项（C01/C03） ---------------------------
 
 export interface WorkflowStepView {
   step_id: string;
@@ -373,7 +373,7 @@ export function resumeAssistantWorkflow(workflowId: string, body: {
     });
 }
 
-// --- 主动服务：订阅 / 收件箱 / 报告（plan.md §25.5，C04/C05） ----------------
+// --- 主动服务：订阅 / 收件箱 / 报告（C04/C05） ----------------
 
 export interface AssistantSubscription {
   subscription_id: string;
@@ -491,7 +491,7 @@ export function deleteAssistantReport(reportId: string): Promise<void> {
     `/reports/${encodeURIComponent(reportId)}`, { method: "DELETE" });
 }
 
-// --- 助手偏好（plan.md §24.6/§22.4；B09 服务端 + C05 设置卡） ----------------
+// --- 助手偏好（B09 服务端 + C05 设置卡） ----------------
 
 export interface AssistantPreferencesPayload {
   response_length?: "short" | "standard" | "detailed";

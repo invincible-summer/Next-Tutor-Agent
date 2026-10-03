@@ -1,4 +1,4 @@
-"""站内学习助手三段提示词（plan.md §10.5，A09）。
+"""站内学习助手三段提示词（A09）。
 
 文本常量 + register()（由 registry.py 底部统一调用，与 classroom.py
 同款约定）。system/intent/answer 各自 @1.0.0；改任何文本必须 bump 版本。

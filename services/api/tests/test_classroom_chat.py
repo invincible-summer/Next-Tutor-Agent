@@ -1,4 +1,4 @@
-"""课堂问答接入回归（plan.md §12.4、§19.2 test_classroom_chat）。
+"""课堂问答接入回归。
 
 覆盖：服务端上下文构造（材料区边界、无答案泄漏）、qa_session 幂等创建
 与 crash 恢复、外来 owner/坏 ref 拒绝、v2/legacy 两条执行路径的材料区

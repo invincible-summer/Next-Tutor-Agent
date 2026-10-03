@@ -1,6 +1,6 @@
 "use client";
 
-// 页面接入 hook（plan.md §13.1 useAssistantPage，A08）。
+// 页面接入 hook（A08）。
 // 简单页面可只传 context（无操作能力）；需要 dirty 保护或页面命令的
 // 页面传完整 adapter。适配器随页面卸载自动注销。
 import { usePathname } from "next/navigation";

@@ -1,4 +1,4 @@
-"""G2 回归：统一受理协议（plan §18.2 test_unified_submission）。
+"""G2 回归：统一受理协议。
 
 chat/center/CAT 同 runner/prompt/schema；MC 一次语义调用；完整答案指纹；
 重复 key 同结果；indeterminate 全链正确；硬校验失败不产生新能力结论。
@@ -333,7 +333,7 @@ class TestInlineRecovery(SubmissionTestBase):
         return receipt.job_id
 
     def test_inline_leaves_stale_for_worker_and_runs_own(self):
-        """R02（update_plan §4）：inline 只认领本次提交的作业，绝不借
+        """R02：inline 只认领本次提交的作业，绝不借
         HTTP 请求排空其他 job——中断残留由后台 worker 负责。"""
         stale_job = self._seed_stale("q_stale_1")
         time.sleep(1.05)
@@ -462,7 +462,7 @@ if __name__ == "__main__":
 
 
 class TestR14GatesAndFeedback(SubmissionTestBase):
-    """R14（update_plan §4）：题目审核准入、判分鲁棒与反馈贯通。"""
+    """R14：题目审核准入、判分鲁棒与反馈贯通。"""
 
     def _task_with(self, **kw) -> S.TaskSnapshot:
         base = _open_task("q_r14_1")
@@ -569,7 +569,7 @@ class TestR14GatesAndFeedback(SubmissionTestBase):
 
 
 class TestR21DegradationAndGuests(SubmissionTestBase):
-    """R21（update_plan §4）：停用降级分层与游客隔离。"""
+    """R21：停用降级分层与游客隔离。"""
 
     def test_guest_submission_local_feedback_no_journal(self):
         from app.agents.student_model.store import DEFAULT_STUDENT_ID

@@ -1,4 +1,4 @@
-"""本题判分：仅由冻结量规权重服务端本地计算（plan §4.5 / A04）。
+"""本题判分：仅由冻结量规权重服务端本地计算（A04）。
 
 - 每个 criterion 恰好出现一次；not_applicable 只有任务定义允许时可用。
 - 必需（critical）criterion 未观察到 → 整题 indeterminate（score=null），

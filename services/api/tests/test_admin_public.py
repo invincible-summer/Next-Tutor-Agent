@@ -275,7 +275,7 @@ class TestGraphIsolation(unittest.TestCase):
 
     def test_graph_structure_and_evaluation_isolated(self):
         """G4：数值掌握键已删；节点评价统一走 evaluation 覆盖层（无
-        workspace 时不着色，plan §11.6）。可见性隔离语义不变。"""
+        workspace 时不着色）。可见性隔离语义不变。"""
         from app.core.textbook import PUBLIC_STUDENT_ID
         self._seed_graph(self.user_a.id, "tb-a", "custom.tb-a.c1", "A独有概念")
         self._seed_graph(self.user_b.id, "tb-b", "custom.tb-b.c1", "B独有概念")

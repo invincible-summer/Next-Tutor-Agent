@@ -1,5 +1,5 @@
 "use client";
-// 下一步验证行动（plan §14.3/§14.5）：next_probe 是「可选行动」，不自动
+// 下一步验证行动：next_probe 是「可选行动」，不自动
 // 无限出题。展示 instruction/rationale/帮助级别/预期观察，按钮由容器注入。
 import { Compass, Lightbulb } from "lucide-react";
 import { Badge } from "@/components/ui/Badge";

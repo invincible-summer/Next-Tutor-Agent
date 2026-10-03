@@ -1,6 +1,6 @@
 "use client";
 
-// 输入区（plan.md §3.5，A06）：Enter 发送、Shift+Enter 换行、
+// 输入区（A06）：Enter 发送、Shift+Enter 换行、
 // 输入法 composition 期间 Enter 不发送；2→6 行自增后内部滚动；
 // 流式期间发送按钮切「停止」；草稿即时保存。
 import { useRef, useState } from "react";

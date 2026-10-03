@@ -1,4 +1,4 @@
-"""课堂质量门（plan.md §15.5，D02）。
+"""课堂质量门（D02）。
 
 确定性结构门 / 证据门 / 时长门在此实现；视觉门 = render 阶段的
 Chromium 排版检查（render/check.py）；教学门 = 独立 reviewer LLM 的

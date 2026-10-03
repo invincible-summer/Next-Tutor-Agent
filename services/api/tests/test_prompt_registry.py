@@ -58,7 +58,7 @@ class TestPromptRegistry(unittest.TestCase):
         # W3/D02 增【会话上下文】块使用规则 → 1.3.0（1.2.0 保留非 active）。
         self.assertEqual(av["understand_system"], "1.3.0")
         # 出题两轮化：蓝图 prompt 已注册（第一轮设计，第二轮生成见 tools/quiz.py）；
-        # 统一学习评价 P1 升级 ECDL+RBT 蓝图 → 2.0.0（plan §9.1/§9.3）。
+        # 统一学习评价 P1 升级 ECDL+RBT 蓝图 → 2.0.0。
         self.assertEqual(av["quiz_blueprint"], "2.0.0")
         self.assertIn("quiz_blueprint_anchor", av)
         self.assertIn("quiz_blueprint_anchor_auto", av)
@@ -67,7 +67,7 @@ class TestPromptRegistry(unittest.TestCase):
         self.assertEqual(av["assessment_generate_auto"], "1.0.0")
         self.assertEqual(av["assessment_grade"], "1.0.0")
         self.assertEqual(av["assessment_analyze"], "1.0.0")
-        # 统一学习评价 P0–P10（plan §9）：全部注册且为 active。
+        # 统一学习评价 P0–P10：全部注册且为 active。
         for pid, version in (
                 ("learning_evidence_contract", "1.0.0"),
                 ("question_evidence_audit", "1.0.0"),

@@ -22,7 +22,7 @@ function fmtIso(iso: string, lang: Lang): string {
   return d.toLocaleDateString(localeFor(lang));
 }
 
-/** 最近作答（plan §15.3：原始作答投影——journal /quiz/recent，题目与判定
+/** 最近作答（原始作答投影——journal /quiz/recent，题目与判定
  * 是本次事实，不折算成能力档案）。 */
 export function RecentAnswersCard({
   items,

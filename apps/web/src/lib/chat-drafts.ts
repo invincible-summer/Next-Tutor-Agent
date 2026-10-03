@@ -1,4 +1,4 @@
-// 聊天草稿仓（plan.md §3.2 末段）：
+// 聊天草稿仓：
 // 模式切换（对话 ↔ 课堂）与路由卸载会销毁 ChatInput 的 useState，正文和
 // 待上传附件随组件一起丢。这里提供 owner+session（新会话用 workspace）键的
 // 内存草稿仓，最多 20 项 LRU：

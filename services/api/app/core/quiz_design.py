@@ -1,4 +1,4 @@
-"""Two-pass quiz generation, round 1: the task blueprint (P1 v2, plan §9.3).
+"""Two-pass quiz generation, round 1: the task blueprint (P1 v2).
 
 蓝图轮从「列举考查角度」升级为 ECDL 任务设计：每题产出 target_claims、
 intended_processes（RBT）、knowledge_types、evidence_opportunities、

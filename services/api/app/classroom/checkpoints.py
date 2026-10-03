@@ -1,4 +1,4 @@
-"""课堂检查点题模板生成（plan.md §13.2，D03）。
+"""课堂检查点题模板生成（D03）。
 
 复用 ``core.quiz_verify.generate_verified_questions``——结构过滤、独立
 critic 复核、教材 grounding、量规冻结语义原样保留，不写新的一次模型

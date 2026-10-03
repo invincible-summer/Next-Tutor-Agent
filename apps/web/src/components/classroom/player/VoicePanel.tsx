@@ -1,5 +1,5 @@
 "use client";
-/* 课堂语音源面板（plan.md §11.1/§14.2，PUT runs/{id}/audio-profile）。
+/* 课堂语音源面板（PUT runs/{id}/audio-profile）。
  *
  * 控制条按钮（AudioLines + 当前源徽标 云端/本地/文字）打开 motion-pop：
  * 策略四选（自动/云端/本地/静音，不可用项按 capabilities 禁用并给原因）→

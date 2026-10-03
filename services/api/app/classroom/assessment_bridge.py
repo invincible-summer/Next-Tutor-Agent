@@ -1,4 +1,4 @@
-"""课堂随堂题桥接（plan.md §13.2/§13.3，阶段 I01/I02）。
+"""课堂随堂题桥接（阶段 I01/I02）。
 
 run→question 稳定实例化：question_id 由 owner+run+checkpoint+template_hash
 确定性派生（§13.2.3）；初始化按 §13.2.6 的可恢复顺序——先在 run 文件锁内

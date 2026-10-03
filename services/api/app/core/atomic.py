@@ -62,7 +62,7 @@ def atomic_write_text(path: PathLike, text: str, encoding: str = "utf-8") -> Non
 
 
 def atomic_write_bytes(path: PathLike, data: bytes) -> None:
-    """原子写二进制（音频/ZIP 等，plan.md §16.2）：同目录 tmp + fsync + replace。"""
+    """原子写二进制（音频/ZIP 等）：同目录 tmp + fsync + replace。"""
     path = Path(path)
     tmp = _tmp_path(path)
     try:
@@ -101,7 +101,7 @@ def fsync_dir(path: PathLike) -> None:
 
 
 def append_line_sync(path: PathLike, line: str, encoding: str = "utf-8") -> bool:
-    """受测的 journal append 原语（plan §6.5/§15.1）。
+    """受测的 journal append 原语。
 
     在调用方持有的 file_lock 内：追加完整一行（含换行）、flush、fsync 文件；
     文件本次新建时同步父目录。短临界区、无 await；写失败向上抛 OSError，

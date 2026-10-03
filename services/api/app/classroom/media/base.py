@@ -1,4 +1,4 @@
-"""图库 provider 契约、候选 ID、预算与限流（plan.md §8.2/§8.3，C03）。
+"""图库 provider 契约、候选 ID、预算与限流（C03）。
 
 模型/前端只见到服务端签发的 ``cand_…`` 候选 ID；下载 URL、API key 永远
 只在服务端。缓存复用进程级 shared_research_cache（同款 24h/每 owner 语义，

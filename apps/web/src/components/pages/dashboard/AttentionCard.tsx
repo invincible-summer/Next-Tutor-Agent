@@ -8,7 +8,7 @@ import { et, evalStateTone, type Lang } from "@/lib/evaluation-labels";
 import type { WorkspaceEvaluationListItem } from "@/lib/types-modules";
 import type { Tr } from "./shared";
 
-/** 学习区近况（plan §14.1/§15.3）：各工作区的简短评价状态，点击回学习
+/** 学习区近况：各工作区的简短评价状态，点击回学习
  * 档案；Dashboard 不另算指标、不展示总体能力等级。 */
 export function AttentionCard({
   workspaces,

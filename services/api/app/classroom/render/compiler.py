@@ -1,4 +1,4 @@
-"""LessonSpec → 受控 HTML 编译器（plan.md §9）。
+"""LessonSpec → 受控 HTML 编译器。
 
 唯一生产路径：LessonSpec → validate → compile_html → render_check →
 publish。显式字符串模板 + html.escape；不把 LLM 原始 HTML 放进应用 DOM；

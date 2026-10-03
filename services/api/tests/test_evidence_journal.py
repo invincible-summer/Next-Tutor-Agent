@@ -1,4 +1,4 @@
-"""G1 回归：学习证据 journal（plan §6.4/§6.5 / §18.2 test_evidence_journal）。
+"""G1 回归：学习证据 journal。
 
 覆盖：原子受理、append fsync（完整行+换行）、尾损坏恢复（不完整行/坏
 校验和的最后一行）、中部损坏保护、缓存删除后重放相同、generation 切换

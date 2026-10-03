@@ -143,7 +143,7 @@ export const getRecentQuizQuestions = () =>
 export const getErrorNotebook = () =>
   get<ErrorNotebookResp>(`/student/error-notebook`);
 
-// --- 统一学习评价（/learner-evaluation/*，plan §11.2；全部走 apiFetch） ---
+// --- 统一学习评价（/learner-evaluation/*；全部走 apiFetch） ---
 
 /** 本人工作区卡片（无证据的工作区也出现）。 */
 export const getEvalWorkspaces = (offset = 0, limit = 20) =>

@@ -1,4 +1,4 @@
-"""课堂 worker 回归（plan.md D04 / §15.3）。
+"""课堂 worker 回归（D04）。
 
 覆盖：queued job 被调度执行至发布；重启扫描把 running 恢复为 queued
 （recovery_count 累计、超限 failed）；owner 并发 1（同 owner 串行）；

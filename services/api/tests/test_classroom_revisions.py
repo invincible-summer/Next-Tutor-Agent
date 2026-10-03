@@ -1,4 +1,4 @@
-"""课堂 revision operations 回归（plan.md D05 / §14.1/§4.3）。
+"""课堂 revision operations 回归（D05）。
 
 五种 operation 全部从已发布 base 派生：旧版本保留可读；换主题/编辑/
 换图零 LLM（严格证明：LLM 一旦被调用即让测试失败）；重生成单页走完整

@@ -1,4 +1,4 @@
-"""G1 回归：卷级 scope/revision 解析（plan §5 / §18.2 test_learner_scope）。
+"""G1 回归：卷级 scope/revision 解析。
 
 覆盖：私有/公有混合、选上册不进下册、普通文件/章节排除、同名跨教材不
 合并、foreign 404、graph revision 失效、scope 缓存。

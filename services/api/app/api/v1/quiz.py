@@ -1,4 +1,4 @@
-"""Quiz API：统一作答服务的薄适配层（plan §11.4 / A02/A03/A05）。
+"""Quiz API：统一作答服务的薄适配层（A02/A03/A05）。
 
 保留 URL 供同版前端使用，但请求一律携带 question_id + question_revision
 身份；内部只调用 `evaluate_submission`。旧 stem/correct_answer/raw_grade/

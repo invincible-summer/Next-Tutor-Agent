@@ -1,4 +1,4 @@
-"""课堂 run 回归（plan.md §12/§14.2、§19.2 test_classroom_runs）。
+"""课堂 run 回归。
 
 覆盖：cursor 校验、过期事件去重、lease 接管（旧 epoch 409）、幂等
 progress、lease 续期不推进 state_revision、GET 不写文件（过期 active

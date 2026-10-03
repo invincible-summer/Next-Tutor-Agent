@@ -1,5 +1,5 @@
 /**
- * Flow 4 + Flow 5（plan.md §26）：Grounded Quiz 与 NOT_FOUND。
+ * Flow 4 + Flow 5：Grounded Quiz 与 NOT_FOUND。
  * 教材在场时出题 -> QuizCard 出现、教材依据 badge（quiz-source-badge）、
  * source_refs 可展开、服务端身份提交（/quiz/record）成功并出判定；
  * 请求教材中没有的 ZX-999 -> strict 语义下不出伪教材题（G2 契约：
@@ -78,7 +78,7 @@ test("strict 请求教材中没有的知识点：不出伪教材题", async ({ p
   await expect(page.getByText(/314159|继续/).first())
     .toBeVisible({ timeout: 90_000 });
 
-  // strict 语义（plan.md §4.6）：检索未命中 + required -> 不生成伪教材题。
+  // strict 语义：检索未命中 + required -> 不生成伪教材题。
   // 页面不出现 quiz 卡，也不出现可选选项。
   await expect(page.getByTestId("quiz-source-badge")).toHaveCount(0);
   await expect(page.getByRole("button", { name: /314159/ })).toHaveCount(0);

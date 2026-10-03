@@ -1,4 +1,4 @@
-"""Azure Speech REST 适配器（plan.md §11.3，课堂云端 TTS 首发实现）。
+"""Azure Speech REST 适配器（课堂云端 TTS 首发实现）。
 
 要点（与计划逐条对应）：
 - 凭证只来自服务器配置 ``AZURE_SPEECH_KEY``/``AZURE_SPEECH_REGION``；

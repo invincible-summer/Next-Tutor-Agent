@@ -1,6 +1,5 @@
 """课堂生命周期：归档快照、恢复、purge、上传清理与可恢复操作。
 
-plan.md §16.4：
 - 单课归档：先写 durable op、标 lifecycle=archiving、提升 epoch、取消
   生成/lease，再快照内容与 run；音频缓存与过期 exports 不打包（可重建）。
 - 工作区归档在 trash bundle commit 前冻结该区所有课堂写入，commit 后删

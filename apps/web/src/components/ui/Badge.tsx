@@ -34,7 +34,7 @@ export function Badge({
   tone?: BadgeTone;
   className?: string;
   dot?: boolean;
-  /** E2E 稳定选择器（plan.md §27：只给关键交互边界加，不铺满 DOM） */
+  /** E2E 稳定选择器（只给关键交互边界加，不铺满 DOM） */
   testId?: string;
 }) {
   return (

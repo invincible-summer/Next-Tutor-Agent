@@ -1,4 +1,4 @@
-"""W3/D02 回合理解的有界会话上下文回归（docs/updatePlan.md §7.2 D02 / A10）。
+"""W3/D02 回合理解的有界会话上下文回归（D02 / A10）。
 
 此前 understand(msg, session, ...) 的 session 参数零引用：「B」「继续」这类
 短确认在存在待答检测题/正在教学概念时被规则短路成 CHITCHAT，指代丢失；

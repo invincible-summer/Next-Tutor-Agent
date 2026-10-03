@@ -1,4 +1,4 @@
-"""Contract tests: 非 OCR 教材图谱构建的重启恢复（plan.md §9-§14, Phase 1）。
+"""Contract tests: 非 OCR 教材图谱构建的重启恢复。
 
 当前行为（必须先失败证明 gap）：
   reap_stale_builds() 把一切非 OCR-pending 的 building 记录直接判
@@ -150,7 +150,7 @@ class TestTextbookBuildRecoveryContract(StorageSandboxTestCase):
         self.assertEqual(len(report.recovered), 1)
 
     def test_graph_failed_history_not_auto_rerun(self):
-        """已终态 graph_failed 的旧失败不自动重跑（plan §14.5）。"""
+        """已终态 graph_failed 的旧失败不自动重跑。"""
         from app.core import textbook as tb
         sid = "student_recovery"
         rec = _make_textbook_with_source(self, sid, status="graph_failed")
@@ -243,7 +243,7 @@ class TestTextbookBuildRecoveryContract(StorageSandboxTestCase):
         self.assertEqual(job.get("attempt"), 2, "worker 开始时 attempt+1")
 
     def test_public_namespace_recovers_like_private(self):
-        """public namespace 的恢复逻辑与 private 一致（plan §14.11）。"""
+        """public namespace 的恢复逻辑与 private 一致。"""
         from app.core import textbook as tb
         from app.core.library import library_data_dir
         sid = tb.PUBLIC_STUDENT_ID

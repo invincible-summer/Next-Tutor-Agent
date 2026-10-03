@@ -1,7 +1,7 @@
 "use client";
 import { navigationAnchor, navigationSucceeded, navigationFailed } from "@/lib/assistant/navigation";
 
-// /memory 记忆中心（plan §14.1）：两个清晰区域——
+// /memory 记忆中心：两个清晰区域——
 // ①学习档案：按工作区展示统一学习评价（学科叙述/覆盖/近期变化/下一步；
 //   Tabs：近期变化=证据时间线、对话记录=本区来源会话、教材概念=主张列表）。
 //   它取代旧学习评价/六维/Bloom 弱项展示，不是在旧区域下再加一张新卡。
@@ -282,7 +282,7 @@ function WorkspaceMemorySection({
 }
 
 /** ①学习档案区：工作区选择 + 叙述/覆盖/下一步 + 三个内容 Tabs。
- *  R09（update_plan §4）：四个区域（总览/时间线/会话/概念）独立加载与
+ *  R09：四个区域（总览/时间线/会话/概念）独立加载与
  *  失败重试——一个子请求 422/失败不能把其他成功区域一起抹成空态；
  *  概念走服务端筛选 + 分页（统一 limit ≤100 上限），不拉全量。 */
 function LearningArchiveRegion({ tr, lang, deepSignal = 0 }: {

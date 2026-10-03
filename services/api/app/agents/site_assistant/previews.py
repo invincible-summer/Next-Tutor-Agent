@@ -1,4 +1,4 @@
-"""领域写动作：预览、审批许可与执行分发（plan.md §21）。
+"""领域写动作：预览、审批许可与执行分发。
 
 预览的参数 hash 与审批绑定 owner/action/parameter_hash/source_revisions，
 10 分钟有效；review_required 的 operation 必须持当前有效许可才可 execute。

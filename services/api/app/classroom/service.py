@@ -1,4 +1,4 @@
-"""课堂应用服务（plan.md §14；route 之下的复杂工作层）。
+"""课堂应用服务（route 之下的复杂工作层）。
 
 A 阶段落地：课程创建（幂等+配额+占位 job）、列表读取（只读索引）。
 后续阶段在同一 service 上扩展修订/run/音频/导出操作。
@@ -496,7 +496,7 @@ def get_revision_frame(student_id: str, workspace_id: str, lesson_id: str,
 
 
 # ---------------------------------------------------------------------------
-# Job 控制面（plan.md §14.1，D06）：snapshot / cancel / retry / continue /
+# Job 控制面（D06）：snapshot / cancel / retry / continue /
 # patch_outline / patch_brief + SSE 事件流。
 # ---------------------------------------------------------------------------
 
@@ -1271,7 +1271,7 @@ def export_content(student_id: str, workspace_id: str, lesson_id: str,
 
 
 # ---------------------------------------------------------------------------
-# 语音试听（plan.md §14.1 POST W/voice-preview；阶段 F）
+# 语音试听（POST W/voice-preview；阶段 F）
 # ---------------------------------------------------------------------------
 
 def _preview_rate_allow(student_id: str) -> bool:

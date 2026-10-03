@@ -1,4 +1,4 @@
-"""课堂模式 Pydantic 契约（plan.md §10/§14）。
+"""课堂模式 Pydantic 契约。
 
 三层模型严格分离：
 - 内容契约（Brief/Spec）：LLM draft 与已发布 revision 共用，extra="forbid"、

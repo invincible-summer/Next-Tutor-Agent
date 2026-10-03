@@ -1,4 +1,4 @@
-"""P4/P5/P9 的 LLM 调用包装与 job 执行（plan §6.2 evaluator.py）。
+"""P4/P5/P9 的 LLM 调用包装与 job 执行。
 
 - run_dialogue_job（C5/P4）：pack → P4 → validator → commit。
 - run_review_job（C9/P5）：独立上下文复核 → review_resolved + 级联失效。

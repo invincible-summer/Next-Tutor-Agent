@@ -1,4 +1,4 @@
-"""Contract tests: 统一 Upload 限流读取（plan.md §32-§35, Phase 1）。
+"""Contract tests: 统一 Upload 限流读取。
 
 当前行为（必须先失败证明 gap）：
   各上传端点 `raw = await f.read()` 之后才判断大小——超限文件会先被完整

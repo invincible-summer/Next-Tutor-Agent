@@ -1,4 +1,4 @@
-"""R01（update_plan §4）：评价作业后台 worker。
+"""R01：评价作业后台 worker。
 
 生产执行入口——按 JobKind 路由到正确执行器（来源解释 / 复核 / 综合 /
 backfill / CLT），lifespan 启动；重启恢复 = 首轮扫描认领 queued/

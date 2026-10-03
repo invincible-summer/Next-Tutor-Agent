@@ -1,4 +1,4 @@
-"""对话来源划分与 eligibility（plan §7.2 / §2.2 / §13.1）。
+"""对话来源划分与 eligibility。
 
 代码只排除明确无关与重复（空消息/纯操作命令/问候感谢/单独“懂了、继续”/
 已被 assessment 拥有的片段）；范围内教学语境一律进入 LLM applicability

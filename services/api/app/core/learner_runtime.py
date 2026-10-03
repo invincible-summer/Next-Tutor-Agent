@@ -1,4 +1,4 @@
-"""评价运行时 composition root（plan §6.2 / §15.1）。
+"""评价运行时 composition root。
 
 把 workspace/textbook/M5 图谱的只读适配器注入评价核心，避免评价包 import
 具体 IO 模块形成循环（评价→M5→评价）。进程级单例 + 沙箱可重置。

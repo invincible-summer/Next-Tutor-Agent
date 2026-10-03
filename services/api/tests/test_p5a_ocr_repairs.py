@@ -1,4 +1,4 @@
-"""P5a 修复测试（update_plan §12.4/§12.7）：
+"""P5a 修复测试：
 
 - A1 页码对齐：OCR 合并保留空页占位 → 页序与物理页一一对应（页码不漂移）。
 - A2 逐页判定：文本层达标页不被 OCR 降质覆盖，稀疏页才 OCR（混合书逐页择优）。
@@ -166,7 +166,7 @@ class TestReapStaleBuilds(unittest.TestCase):
         self._tmp.cleanup()
 
     def test_reap_building_marks_graph_failed(self):
-        # P1-B（plan.md §13）：无 build_job 且源文件缺失的 building 记录
+        # P1-B：无 build_job 且源文件缺失的 building 记录
         # 仍判失败，但结构化原因是 source_missing（不再是笼统的"重启中断"）；
         # 源文件在的中断构建由 test_textbook_build_recovery 覆盖自动恢复。
         tb = self._tb

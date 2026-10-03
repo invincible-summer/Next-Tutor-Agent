@@ -21,5 +21,5 @@ E2E_PRODUCTION=1 E2E_FRESH=1 pnpm test:e2e:ci  # critical journeys
 E2E_PRODUCTION=1 E2E_FRESH=1 pnpm test:e2e     # full regression
 ```
 
-See [Testing and CI maintenance](../docs/TESTING.md) for Python setup, test
+See [Testing and CI maintenance](../../docs/development/testing.md) for Python setup, test
 isolation, diagnostics, and the GitHub workflow policy.

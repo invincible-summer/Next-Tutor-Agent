@@ -1,4 +1,4 @@
-"""G4 回归：journal outbox 消费者（plan §6.6 / §18.2 test_learning_consumers）。
+"""G4 回归：journal outbox 消费者。
 
 - M9 以 consumer="m9" 幂等消费 task_result：SRS quality + consumer_ack 落盘，
   重复消费不重复增长（(event_id, consumer) 键 + M9 侧 attempt 去重双层）。
@@ -182,7 +182,7 @@ if __name__ == "__main__":
 
 
 class TestR19OutboxFieldsAndRecallGate(ConsumerTestBase):
-    """R19（update_plan §4）：outbox 事件字段完整 + 独立召回条件。"""
+    """R19：outbox 事件字段完整 + 独立召回条件。"""
 
     def test_event_carries_full_attribution(self):
         import asyncio

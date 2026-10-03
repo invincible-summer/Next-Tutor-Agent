@@ -1,5 +1,5 @@
 /**
- * Flow 6（plan.md §26）：Notes。
+ * Flow 6：Notes。
  * 笔记创建/vault 可用、source 归属正确（notes API 真实合同）、
  * 私有 ownership 保持（他人不可见）。
  */

@@ -19,7 +19,7 @@ derivation: M8 motivation/greeting, M9 habit tracker, /ux/activity. Zero LLM,
 zero writes, never raises. Day keys are local "YYYY-MM-DD" (user-facing
 correctness beats the old UTC-midnight keys M8 used).
 
-New in v2 (plan.md §7.3/§7.4, A03): ``learning_activity_snapshot`` is the
+New in v2 (A03): ``learning_activity_snapshot`` is the
 normalized, timezone-aware, status-carrying read used by the site assistant
 and (via /ux/activity extras) the dashboard. It counts ONLY qualifying
 learning events (evidence receipt / actual teaching turn / actual task
@@ -394,7 +394,7 @@ def daily_counts(student_id: str, *, days: int = 14,
         return []
 
 
-# --- normalized v2 snapshot (plan.md §7.3/§7.4, site assistant A03) ---------
+# --- normalized v2 snapshot (site assistant A03) ---------
 
 _VALID_VERDICTS = {"correct", "partial", "wrong"}
 # 窗口内计入学习日/任务口径的 M9 事件闭集（§7.4-8）：仅真实完成与真实
@@ -441,7 +441,7 @@ def learning_activity_snapshot(
     timezone: str,
     workspace_ids: list[str] | None = None,
 ) -> dict[str, Any]:
-    """规范化学习活动快照（plan.md §7.4，metric_version=2）。
+    """规范化学习活动快照（metric_version=2）。
 
     - 半开区间 [start_at, end_at)，时间先统一为 tz-aware UTC 再按请求
       时区取本地日（不按 86400 秒递减，夏令时安全）。

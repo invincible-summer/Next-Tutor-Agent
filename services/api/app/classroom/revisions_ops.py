@@ -1,4 +1,4 @@
-"""revision 操作的纯函数实现（plan.md D05；零 LLM 派生）。"""
+"""revision 操作的纯函数实现（D05；零 LLM 派生）。"""
 from __future__ import annotations
 
 from typing import Any

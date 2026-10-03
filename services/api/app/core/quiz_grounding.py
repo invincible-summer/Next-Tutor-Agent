@@ -4,12 +4,11 @@ This module is a *data projection layer* only — it never implements
 retrieval, relevance thresholds or evidence gating itself.  The single
 source of truth stays the existing ``KnowledgeSearchTool`` (BM25/hybrid +
 ``evidence_gate``); the provider here simply calls that tool and maps its
-``ToolResult`` into the frozen bundles the quiz generators consume
-(plan.md §3.2 原则 1).
+``ToolResult`` into the frozen bundles the quiz generators consume.
 
 Scope is bound server-side: the provider is constructed by the chat layer
 with the already-authorized session/workspace store, so the LLM tool schema
-never gains ``student_id`` / ``file_ids`` / owner namespaces (原则 2).
+never gains ``student_id`` / ``file_ids`` / owner namespaces.
 """
 from __future__ import annotations
 
@@ -20,7 +19,7 @@ from typing import Any, Protocol
 log = logging.getLogger(__name__)
 
 # Tier vocabulary is reused verbatim from the existing evidence gate — no
-# parallel "quiz confidence" scale (plan.md §3.2 原则 4).
+# parallel "quiz confidence" scale.
 TIERS = ("found", "partial", "not_found")
 
 
@@ -98,7 +97,7 @@ class QuizGroundingProvider(Protocol):
 def build_quiz_query(topic: str, focus: str = "") -> str:
     """Light semantic join only — KnowledgeSearchTool already expands
     natural-language questions into multi-query variants, so no keyword
-    extraction happens here (plan.md §4.1)."""
+    extraction happens here."""
     t = str(topic or "").strip()
     f = str(focus or "").strip()
     return f"{t} {f}".strip() if f else t
@@ -175,7 +174,7 @@ def bundle_from_tool_result(
 
 class KnowledgeSearchQuizGroundingProvider:
     """Resolve grounding through the *same* KnowledgeSearchTool instance the
-    chat layer already built for this session (plan.md §4.1).
+    chat layer already built for this session.
 
     ``file_ids`` narrows the search to the current turn's referenced
     materials when the grounding decision provides them; it never widens
@@ -195,7 +194,7 @@ class KnowledgeSearchQuizGroundingProvider:
         self._reason = str(reason or "")
         self._file_ids = tuple(f for f in (file_ids or ()) if f)
         # 同轮共享缓存：fit_quiz 复用本轮已解析证据，不强制重复检索
-        # (plan.md §6)。只有真正 resolve 过才有缓存。
+        # 只有真正 resolve 过才有缓存。
         self._cached: QuizGroundingBundle | None = None
 
     @property
@@ -210,7 +209,7 @@ class KnowledgeSearchQuizGroundingProvider:
         """Return the bundle resolved earlier in this turn, if any.
 
         Lets fit_quiz inherit the current turn's textbook evidence without
-        issuing another retrieval (plan.md §6 严禁重复检索污染拟合)."""
+        issuing another retrieval (严禁重复检索污染拟合)."""
         return self._cached
 
     async def resolve(
@@ -223,7 +222,7 @@ class KnowledgeSearchQuizGroundingProvider:
         query = build_quiz_query(topic, focus)
         kwargs: dict[str, Any] = {"query": query, "top_k": top_k,
                                   # 出题依据必须过证据门相关性判定：
-                                  # 小材料直通只服务文件总结问答（§4.6）。
+                                  # 小材料直通只服务文件总结问答。
                                   "strict_relevance": True}
         if self._file_ids:
             kwargs["file_ids"] = list(self._file_ids)
@@ -247,8 +246,8 @@ def render_grounding_context(
     """Render the [教材命题依据] block used by blueprint/generation prompts.
 
     Excerpts carry explicit data delimiters and a short server-side ref id;
-    the material is never presented as instructions (prompt-injection guard,
-    plan.md §4.4)."""
+    the material is never presented as instructions (prompt-injection
+    guard)."""
     refs = bundle.source_refs[:max_refs]
     if not refs:
         return ""

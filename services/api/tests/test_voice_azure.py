@@ -1,4 +1,4 @@
-"""Azure TTS 适配器与统一 TTS service 回归（plan.md §11、§19.2 阶段 F）。
+"""Azure TTS 适配器与统一 TTS service 回归。
 
 覆盖：SSML 转义、请求头/输出格式、voices list 投影、中英文音色、
 401/429/5xx/超时分类、解析失败不伪成功、无 key 零请求；service 层的

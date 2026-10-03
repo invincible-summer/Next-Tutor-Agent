@@ -1,6 +1,6 @@
 import { t } from "@/lib/i18n";
 import { useUIStore } from "@/lib/store";
-// 课堂模式 API 客户端（plan.md §14.1）。
+// 课堂模式 API 客户端。
 // 全部走 apiFetch（带 Authorization）；SSE 用 ReadableStream 手解析——
 // 原生 EventSource 不能设置 Authorization 头（§14.4）。
 import { apiFetch } from "./api-fetch";
@@ -298,7 +298,7 @@ export function subscribeJobEvents(
 }
 
 // ---------------------------------------------------------------------------
-// 课堂 run / lease / 进度 / 音频（plan.md §14.2，阶段 G）
+// 课堂 run / lease / 进度 / 音频（G）
 // ---------------------------------------------------------------------------
 
 const R = (ws: string, lesson: string) =>

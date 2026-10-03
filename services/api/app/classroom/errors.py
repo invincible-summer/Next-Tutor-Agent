@@ -1,4 +1,4 @@
-"""课堂错误类型与统一 envelope（plan.md §14.3）。
+"""课堂错误类型与统一 envelope。
 
 service/worker 抛 ClassroomError；route 层统一映射为固定错误体：
 {"error": {code, message, retryable, phase?, request_id}}。

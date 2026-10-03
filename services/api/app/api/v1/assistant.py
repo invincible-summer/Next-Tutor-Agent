@@ -1,4 +1,4 @@
-"""站内学习助手 API（plan.md §11）。
+"""站内学习助手 API。
 
 所有路径前缀 /api/v1/assistant。错误统一为一层 envelope（§11.1），
 不暴露堆栈、存储路径或他人实体存在性。个人能力要求真实登录：
@@ -471,7 +471,7 @@ async def put_preferences(
     return JSONResponse(content=merged)
 
 
-# --- 助手语音（plan.md §24.3，B11） -----------------------------------------
+# --- 助手语音（B11） -----------------------------------------
 
 @router.get("/voice/capabilities")
 async def get_voice_capabilities(
@@ -948,7 +948,7 @@ def delete_draft(
                                "存储暂不可用，请稍后重试。", retryable=True)
     return Response(status_code=204)
 
-# --- 助手工作流（plan.md §23.5，C01） ----------------------------------------
+# --- 助手工作流（C01） ----------------------------------------
 
 class WorkflowCreateRequest(BaseModel):
     model_config = {"extra": "forbid"}
@@ -1193,7 +1193,7 @@ async def workflow_events(
                                       "X-Accel-Buffering": "no"})
 
 
-# --- 主动服务：订阅 / 收件箱 / 报告（plan.md §25.5，C04/C05） -------------------
+# --- 主动服务：订阅 / 收件箱 / 报告（C04/C05） -------------------
 
 class SubscriptionCreateRequest(BaseModel):
     model_config = {"extra": "forbid"}

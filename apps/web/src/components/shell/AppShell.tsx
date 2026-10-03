@@ -24,7 +24,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  // 沉浸式课堂上报（plan.md §5.3-3）：进入课堂播放时助手收起并保留草稿。
+  // 沉浸式课堂上报：进入课堂播放时助手收起并保留草稿。
   useEffect(() => {
     useAssistantStore.setState({ immersiveMode: immersive });
     if (immersive) {

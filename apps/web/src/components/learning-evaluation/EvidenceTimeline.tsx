@@ -1,6 +1,6 @@
 "use client";
 import { QuestionIllustration } from "@/components/quiz/QuestionIllustration";
-// 证据时间线 + 单条证据详情 Drawer（plan §14.2/§14.3/§14.6）：
+// 证据时间线 + 单条证据详情 Drawer：
 // - 行级：时间 / 来源 / 涉及概念 / 反馈摘要，[看这条依据] 打开详情。
 // - 详情：原始作答、题目公开/揭晓视图、帮助事件、解释主张（含 RBT
 //   过程标签）、本题结果、复核记录。

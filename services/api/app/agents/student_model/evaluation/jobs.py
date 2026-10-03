@@ -1,4 +1,4 @@
-"""评价作业调度：lease、重试、优先级（plan §10.3）。
+"""评价作业调度：lease、重试、优先级。
 
 作业事实存于 journal（job_requested/job_leased/job_failed/…）；本模块是
 纯调度逻辑：claim_next 按 §10.3 优先级取队首 job 并写 lease 事务。完成/

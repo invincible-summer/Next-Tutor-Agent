@@ -1,4 +1,4 @@
-"""StudentModel facade：M2 只剩画像（plan §13.2）。
+"""StudentModel facade：M2 只剩画像。
 
 旧数值掌握链（tracker/状态机/事件写入口）
 已删除；学习评价（claims/judgments）唯一事实在

@@ -1,4 +1,4 @@
-"""可重建投影：index / 概念视图（plan §6.3 / §12.1 缓存重建）。
+"""可重建投影：index / 概念视图（缓存重建）。
 
 缓存重建 = 纯函数重放 journal 中已接受的 observation/judgment/lifecycle/
 synthesis——清空 index/views 后无需 LLM 也能重建相同当前结论（§12.1）。

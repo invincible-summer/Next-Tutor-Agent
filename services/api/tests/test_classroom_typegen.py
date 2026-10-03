@@ -1,4 +1,4 @@
-"""类型生成脚本回归：生成结果稳定且与磁盘文件一致（plan.md A01）。"""
+"""类型生成脚本回归：生成结果稳定且与磁盘文件一致（A01）。"""
 from __future__ import annotations
 
 import importlib.util

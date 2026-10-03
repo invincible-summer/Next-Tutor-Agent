@@ -1,4 +1,4 @@
-"""受控动作协议回归（plan.md §9 / §19.3–19.5，A10）。
+"""受控动作协议回归（A10）。
 
 覆盖：§9.2 策略表（automatic/user_click/无动作）、execute 受理与
 invocation 锁（同 invocation 幂等、异 invocation 409）、ack 凭证与

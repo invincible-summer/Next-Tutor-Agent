@@ -1,4 +1,4 @@
-"""课堂 API 骨架回归（plan.md A04/A05 退出门）。
+"""课堂 API 骨架回归（A04/A05）。
 
 覆盖：功能关闭时 capabilities 可读/生成端点 classroom_disabled；开启后
 创建幂等（同 key 同 body 重放、不同 body 409、缺 key 422）；配额 429；

@@ -1,4 +1,4 @@
-"""G3 回归：对话 eligibility 与 turn hook（plan §7.2 / §13.1 / §18.2）。
+"""G3 回归：对话 eligibility 与 turn hook。
 
 - 明确无关（问候/感谢/单独“懂了/继续”/命令）不受理；其余进 LLM。
 - run_turn 统一 hook：supervisor/legacy/错误路径都只受理一次。
@@ -144,7 +144,7 @@ if __name__ == "__main__":
 
 
 class TestR03ShortAnswersAndContext(DialogueFixture):
-    """R03（update_plan §4）：对话来源、帮助条件与漏评恢复。"""
+    """R03：对话来源、帮助条件与漏评恢复。"""
 
     def test_short_single_token_answers_eligible(self):
         # A18/R03：单字数字答案有意义，不能用长度门排除

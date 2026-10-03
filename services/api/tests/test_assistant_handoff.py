@@ -1,4 +1,4 @@
-"""课程与任务交接回归（plan.md §9.5 / §19.6 / §19.7，A13）。
+"""课程与任务交接回归（A13）。
 
 覆盖：备课草稿（lesson prefill + lesson_form 命令）、课堂恢复（冻结
 revision、run 归属复核、action 派生幂等键、target_changed 不悄悄

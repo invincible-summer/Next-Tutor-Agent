@@ -1,4 +1,4 @@
-"""G3 回归：ContextPack 历史与防自证循环（plan §8 / §18.2 test_evaluation_context）。
+"""G3 回归：ContextPack 历史与防自证循环。
 
 - prior_same_concept：同 workspace 历史、保留反证、缺历史 no_prior。
 - 恶意 memory 不入 system（system 只从 registry 装配）。
@@ -130,7 +130,7 @@ class TestSystemAssembly(ContextFixture):
 
 
 class TestR16HistoryBound(ContextFixture):
-    """R16（update_plan §4）：历史时间上界与输入审计。"""
+    """R16：历史时间上界与输入审计。"""
 
     def test_future_observations_excluded_from_prior(self):
         # 历史来源 observed_at 晚于当前来源 → 不入历史（防未来污染）

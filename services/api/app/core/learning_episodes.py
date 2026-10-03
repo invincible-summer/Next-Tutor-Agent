@@ -1,5 +1,5 @@
 """Learning episodes: the launch binding between a plan task and a chat
-session (W4/A12, updatePlan.md §8.2/§8.5).
+session (W4/A12).
 
 A LearningEpisode is a recoverable learning segment bound to ONE daily task.
 Launching a task from the plan creates (or resumes) an episode plus a

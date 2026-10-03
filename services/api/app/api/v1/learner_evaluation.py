@@ -1,4 +1,4 @@
-"""学习评价读取与管理 API（plan §11.2）。
+"""学习评价读取与管理 API。
 
 - 学生身份只经 `resolve_student_id`；所有 GET 零 LLM 调用（§10.4）。
 - 个人评价响应 `Cache-Control: private, no-store`。
@@ -84,7 +84,7 @@ async def workspace_detail(wid: str,
     summary = projections.workspace_summary(student_id, scope,
                                             workspace_name=ws.name if ws
                                             else "")
-    # R11（update_plan §4）：pending 不能把 failed/cancelled/停用伪装成
+    # R11：pending 不能把 failed/cancelled/停用伪装成
     # "排队中"——分桶呈现，UI 各自有合法操作（重试/查看原因）。
     state_obj = get_journal(student_id).state()
     pending = failed = disabled = 0

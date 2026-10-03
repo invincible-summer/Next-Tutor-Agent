@@ -1,4 +1,4 @@
-"""EvaluationLLMRunner：统一学习评价的唯一 LLM 调用适配器（plan §10.2）。
+"""EvaluationLLMRunner：统一学习评价的唯一 LLM 调用适配器。
 
 职责：
 1. 显式注入客户端与全局调度器（进程级 semaphore =

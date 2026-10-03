@@ -1,4 +1,4 @@
-"""课堂音频引擎（plan.md §11.4/§11.5，阶段 F03/F04）。
+"""课堂音频引擎（阶段 F03/F04）。
 
 职责边界：
 - synthesis key = owner + hash(规范化朗读文本) + provider/version + voice +

@@ -14,7 +14,7 @@ from unittest import mock
 try:
     import numpy as np
     _HAS_VECTOR_DEPS = True
-except ImportError:  # BM25-only production（plan.md §22.1）：本文件属
+except ImportError:  # BM25-only production：本文件属
     _HAS_VECTOR_DEPS = False  # Extended regression，核心 CI 跳过
 
 

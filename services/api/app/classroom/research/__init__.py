@@ -1,4 +1,4 @@
-"""课堂外部检索（plan.md §7.3）。provider 无 key 即不可用，不伪联网。"""
+"""课堂外部检索。provider 无 key 即不可用，不伪联网。"""
 from __future__ import annotations
 
 from ...core.config import settings

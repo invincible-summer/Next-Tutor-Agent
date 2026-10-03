@@ -1,6 +1,6 @@
 "use client";
 
-// 来源列表（plan.md §7.7/§11.4 sources，A06 视觉 / A11 locator 跳转）。
+// 来源列表（A06 视觉 / A11 locator 跳转）。
 // 点击来源经 routes 白名单解析 locator；目标页负责加载后定位与
 // 不存在时的温和提示；不可用来源只展示不跳转。
 import { useState } from "react";

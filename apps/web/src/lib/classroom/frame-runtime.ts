@@ -1,4 +1,4 @@
-/* 课堂 frame runtime（plan.md §9.4/§9.5）。
+/* 课堂 frame runtime。
  *
  * 独立 DOM runtime：仅接页切换、块显隐、高亮、主题指令；
  * 无业务 fetch、无 token、无 localStorage。源码为单一 IIFE 闭包，

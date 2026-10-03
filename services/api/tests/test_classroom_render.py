@@ -1,4 +1,4 @@
-"""课堂渲染安全与契约回归（plan.md §19.2 test_classroom_render）。
+"""课堂渲染安全与契约回归。
 
 覆盖：每种 block escaping、脚本注入、URL/CSS 注入、KaTeX 属性承载、
 图表数值边界、无 raw SVG、public HTML 无答案、CSP runtime hash 一致、

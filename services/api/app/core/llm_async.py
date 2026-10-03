@@ -30,7 +30,7 @@ from .tool_call_compat import (
 
 
 # ---------------------------------------------------------------------------
-# 课堂 LLM 预算钩子（plan.md §15.4，D01）
+# 课堂 LLM 预算钩子（D01）
 # 只在课堂 worker 上下文 set；complete() 发 HTTP 前向钩子预留一次调用与
 # token 上限，返回后按 usage 结算。未设置（普通聊天/quiz 既有路径）时
 # 行为零变化。钩子协议见 app/classroom/llm_budget.py::LLMUsageBudget。
@@ -409,7 +409,7 @@ def get_llm(purpose: str = "") -> AsyncLLMClient:
     JSON work: disabling SDK-level retries avoids multiplying a single failed
     request by both the SDK and the application's own bounded fallback.
 
-    ``"classroom"``（plan §6.5/§15.4）：单次 90s、SDK 隐式重试关闭，应用层
+    ``"classroom"``：单次 90s、SDK 隐式重试关闭，应用层
     有界重试；token/调用预算经 contextvar 钩子由 worker 记账（见
     set_llm_budget_hook）。
     """

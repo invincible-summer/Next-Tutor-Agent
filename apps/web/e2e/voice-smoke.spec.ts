@@ -1,5 +1,5 @@
 /**
- * Flow 8（plan.md §26）：Voice 协议冒烟。
+ * Flow 8：Voice 协议冒烟。
  * CI 不测真实麦克风/浏览器 SpeechRecognition，只测协议闭环：
  * ticket 单次消费 -> WS connect -> start -> utterance_end text ->
  * answer_delta/turn_end。TTS provider 走 fake/失败降级（text-only）。

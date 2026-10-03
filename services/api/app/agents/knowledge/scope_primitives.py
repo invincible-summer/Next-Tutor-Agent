@@ -1,4 +1,4 @@
-"""M5 纯图/范围原语（plan §5.1 第 4 条：从 API 路由提炼，评价模块复用）。
+"""M5 纯图/范围原语（从 API 路由提炼，评价模块复用）。
 
 无 IO、无 LLM、不 import API 层——`api/v1/knowledge.py` 与
 `agents/student_model/evaluation/scope.py` 共用同一份卷归属语义。

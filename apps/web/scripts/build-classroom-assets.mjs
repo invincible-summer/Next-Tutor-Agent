@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-/* 课堂渲染资产打包（plan.md §9.4）。
+/* 课堂渲染资产打包。
  *
  * 读取 tsc 编译出的 frame-runtime 与仓库固定的 KaTeX dist，把 CSS 字体
  * URL 转为 data URI，输出带 manifest/hash 的后端可读包：

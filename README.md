@@ -8,9 +8,9 @@
 
 教材驱动的 AI 学习工作台 · 对话辅导 · 备课上课 · 练习测评 · 笔记复习
 
-**简体中文** · [English](docs/README.en.md)
+**简体中文** · [English](docs/i18n/README.en.md)
 
-[快速开始](#快速开始) · [功能一览](#功能一览) · [项目展示](https://invincible-summer.github.io/The-Next-Tutor-Agent/)
+[快速开始](#快速开始) · [功能一览](#功能一览) · [项目展示](https://invincible-summer.github.io/Next-Tutor-Agent/)
 
 </div>
 
@@ -75,8 +75,8 @@ Next Tutor Agent 把教材、讲解、练习与复习放进同一个学习空间
 建议使用 Linux / WSL，安装 **Python 3.11、Node.js 22 LTS 和 pnpm 11**，并准备一个可用的 OpenAI 兼容模型服务。
 
 ```bash
-git clone https://github.com/invincible-summer/The-Next-Tutor-Agent.git
-cd The-Next-Tutor-Agent
+git clone https://github.com/invincible-summer/Next-Tutor-Agent.git
+cd Next-Tutor-Agent
 
 python3.11 -m venv .venv
 source .venv/bin/activate
@@ -137,7 +137,7 @@ cd ..
 | 能力 | 配置方式 |
 | :--- | :--- |
 | 课堂 | `.env.example` 已启用 `CLASSROOM_ENABLED=1`；需完成上述课堂准备。 |
-| 题图 v2 | 默认 `QUIZ_ILLUSTRATION_PIPELINE=shadow`；开发验收时设为 `v2`，保留 `QUIZ_ILLUSTRATION_VISUAL_REVIEW=active`，需 Chromium 和支持图片输入的模型（`LLM_SUPPORTS_IMAGES=1`）。已完成14类情境与两组数值的真实模型验收，详见[验收记录](docs/DIAGRAM_LIBRARY_ACCEPTANCE.md)和[配图协议](docs/ASSESSMENT_ILLUSTRATION_PIPELINE.md)。 |
+| 题图 v2 | 默认 `QUIZ_ILLUSTRATION_PIPELINE=shadow`；开发验收时设为 `v2`，保留 `QUIZ_ILLUSTRATION_VISUAL_REVIEW=active`，需 Chromium 和支持图片输入的模型（`LLM_SUPPORTS_IMAGES=1`）。已完成14类情境与两组数值的真实模型验收，详见[验收基线](docs/validation/diagram-library.md)和[配图架构](docs/architecture/diagrams-illustration.md)。 |
 | 站内学习助手 | 设置 `SITE_ASSISTANT_ENABLED=1`。子开关：`SITE_ASSISTANT_ACTIONS_ENABLED`（领域写入，默认 1）、`SITE_ASSISTANT_WORKFLOWS_ENABLED`（跨模块工作流/办理事项，默认 1）、`SITE_ASSISTANT_VOICE_ENABLED`（语音输入与朗读，默认 0）、`SITE_ASSISTANT_PROACTIVE_ENABLED`（订阅与学习简报调度，默认 0；开启后用户仍需逐项订阅）。 |
 | 课堂联网检索与配图 | 按需填写 `TAVILY_API_KEY`、`PEXELS_API_KEY` 或 `PIXABAY_API_KEY`。 |
 | 课堂云端语音 | 填写 `AZURE_SPEECH_KEY` 与 `AZURE_SPEECH_REGION`。 |
@@ -164,7 +164,7 @@ deploy/             systemd、nginx 等部署模板
 知识图谱与用户运行数据均为部署本地状态（`.runtime/data`，见
 `services/api/app/core/paths.py`），不随版本发布。
 
-希望先看产品体验？打开 [GitHub Pages 只读演示站](https://invincible-summer.github.io/The-Next-Tutor-Agent/)，
+希望先看产品体验？打开 [GitHub Pages 只读演示站](https://invincible-summer.github.io/Next-Tutor-Agent/)，
 用 `example@example.com / example` 查看合成示范数据的对话、笔记、学习档案、虚构教材知识图谱和课程。
 演示内容全部为项目自写的合成数据（虚构教材库），不包含真实教材；AI、编辑与新建操作已关闭；
-构建说明见 [docs/GITHUB_PAGES.md](docs/GITHUB_PAGES.md)。
+构建说明见 [docs/operations/pages-demo.md](docs/operations/pages-demo.md)。

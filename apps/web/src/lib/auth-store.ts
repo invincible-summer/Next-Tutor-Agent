@@ -157,7 +157,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
  *  token. The two requests fly in parallel (they used to be a serial waterfall
  *  gating the first workspace render). Render gating additionally waits for
  *  `statusLoaded` so an unauthenticated user never sees a workspace flash.
- *  In-flight dedup（plan.md §5.1）：根助手 Provider 与 WorkspaceLayout 并发
+ *  In-flight dedup：根助手 Provider 与 WorkspaceLayout 并发
  *  mount 时共享同一次水合，不重复请求。 */
 let _hydrateInFlight: Promise<void> | null = null;
 

@@ -1,4 +1,4 @@
-"""G1 回归：评价作业状态机（plan §10.3 / §18.2 test_evaluation_jobs）。
+"""G1 回归：评价作业状态机。
 
 覆盖：queued/running 崩溃恢复（过期 lease 重认领）、stale lease 不能提交、
 乱序完成（重放后状态以 journal 为准）、重试退避、终态不再认领、
@@ -191,7 +191,7 @@ if __name__ == "__main__":
 
 
 class TestRetryBudgetR17(StorageSandboxTestCase):
-    """R17（update_plan §4）：重试次数与总调用预算可兑现。
+    """R17：重试次数与总调用预算可兑现。
 
     - 认领事务原子递增 attempt_count（旧缺陷：只改内存副本，连续失败恒 1）
     - retry_not_before 绝对时刻冻结（重启/重放不改）

@@ -1,5 +1,5 @@
 "use client";
-// 学习评价方式面板（update_plan §5.3）：两个互斥调度档位，默认方案 1。
+// 学习评价方式面板：两个互斥调度档位，默认方案 1。
 // 保存走 expected_revision CAS；冲突提示刷新后重试。运行停用开关
 // （LEARNER_EVALUATION_MODE）只读展示——它与 1/2 档位正交。
 import { useEffect, useState } from "react";

@@ -1,4 +1,4 @@
-"""公网 URL 校验与解析地址检查（plan.md §7.5）。
+"""公网 URL 校验与解析地址检查。
 
 课堂所有出站 URL（研究提取、用户手输 URL、图片 CDN 下载）共用这一套
 边界：scheme/host/端口/长度/userinfo 检查、IP literal 检查、DNS 解析后

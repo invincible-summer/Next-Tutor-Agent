@@ -9,7 +9,7 @@ projected via the unified scope resolver; nothing persists. Every handler
 degrades to a clear status (ok | disabled | not_found | error) and never
 raises into a request.
 
-R04（update_plan §4）：结构身份固定 `(owner, textbook_id, node_id)`；评价
+R04：结构身份固定 `(owner, textbook_id, node_id)`；评价
 身份使用含 revision 的 ConceptRef.key；带 workspace 的 graph/详情必须经
 ScopeResolver 求交并严格 404（未选教材、越权或不存在的工作区都不能静默
 变成空 overlay）；浏览模式明确无个人 overlay；chapter/section 只显示

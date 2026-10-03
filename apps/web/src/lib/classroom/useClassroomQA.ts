@@ -1,7 +1,7 @@
 "use client";
 import { t } from "@/lib/i18n";
 import { useUIStore } from "@/lib/store";
-/* 课堂插问 hook（plan.md §12.4/§12.5，阶段 H02）。
+/* 课堂插问 hook（H02）。
  *
  * 首条提问经 classroom_ref 由服务端创建/复用答疑 session；回答文字实时
  * 显示；done 后从 session 尾部取 reply message_id，按句合成回复语音

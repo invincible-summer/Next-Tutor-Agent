@@ -1,4 +1,4 @@
-"""WebResearchProvider 契约与共享预算/缓存（plan.md §7.3/§7.4/§15.4）。
+"""WebResearchProvider 契约与共享预算/缓存。
 
 适配器只做受控 search/extract：显式参数、结果部分失败、时效元数据、
 每 owner 24h 缓存与每课调用预算。外部返回的任何文本只是数据，绝不执行。

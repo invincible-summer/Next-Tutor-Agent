@@ -16,7 +16,7 @@ def health():
 
 @router.get("/ready")
 def ready():
-    """Readiness（plan.md §18）：bootstrap 维护步骤的结果视图。
+    """Readiness：bootstrap 维护步骤的结果视图。
 
     职责与 /health（liveness，恒 200）分离：
       ready     全部关键步骤正常（非关键 degraded 仍服务）-> 200

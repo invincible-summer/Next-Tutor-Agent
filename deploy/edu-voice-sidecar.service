@@ -1,7 +1,7 @@
 # MeloTTS-Chinese sidecar（电话语音 + 课堂本地回退，可选生产部署）。
 # 与 edu-backend.service 分离：独立 venv（含 CPU torch），崩溃不拖垮主服务。
 #
-# 何时需要本 unit（plan.md §11.6，与 start.sh::start_voice_sidecar 同判定）：
+# 何时需要本 unit（与 start.sh::start_voice_sidecar 同判定）：
 #   1) VOICE_TTS_PROVIDER=melo（旧电话本地语音）；
 #   2) VOICE_TTS_PROVIDER=auto（默认本地）；
 #   3) CLASSROOM_ENABLED=1 且课堂本地语音启用（CLASSROOM_LOCAL_TTS_ENABLED=1，

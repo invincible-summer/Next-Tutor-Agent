@@ -1,4 +1,4 @@
-"""R01/R02（update_plan §4）：评价作业后台 worker 闭环回归。
+"""R01/R02：评价作业后台 worker 闭环回归。
 
 R01 验收：真实 run_turn 完成后不调用任何测试辅助 drain、不发 HTTP 请求，
 后台 worker 自动完成 P4 调用、journal 结果与概念投影；重启（缓存重建）

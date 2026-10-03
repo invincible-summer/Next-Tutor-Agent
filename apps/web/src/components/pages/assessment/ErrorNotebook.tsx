@@ -1,6 +1,6 @@
 "use client";
 
-// 错题本卡（plan §11.2/§14.6）：journal 投影 wrong/partial 题目，分页展示。
+// 错题本卡：journal 投影 wrong/partial 题目，分页展示。
 // 展开行 = 打开证据详情（原始作答/原题/揭晓答案与解析/帮助记录）——原始
 // 材料与判分全部回源服务端，不在列表里复制一份；重练走 chat 深链变式。
 import { useEffect, useState } from "react";

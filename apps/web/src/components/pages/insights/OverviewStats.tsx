@@ -1,6 +1,6 @@
 "use client";
 
-// 顶部统计卡（plan §13.7/§14.7）：教学质量口径——轮次/已评估/待审批提案；
+// 顶部统计卡：教学质量口径——轮次/已评估/待审批提案；
 // 平均学习增益等学生数值字段已删除。
 import { Stat } from "@/components/ui/Stat";
 import type { EvalReport } from "@/lib/types-modules";

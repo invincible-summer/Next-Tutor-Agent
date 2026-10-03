@@ -1,4 +1,4 @@
-"""课堂结构化 LLM 调用（plan.md §6.5，D02）。
+"""课堂结构化 LLM 调用（D02）。
 
 统一 complete(disable_thinking=True)；输出过 Pydantic 校验，失败最多一次
 受预算约束的修复（SCHEMA_REPAIR_ATTEMPTS=1，修复也计入同一预算钩子）。

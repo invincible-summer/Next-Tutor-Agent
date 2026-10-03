@@ -1,4 +1,4 @@
-"""G0 协议回归：统一评价 schema 的边界与 envelope 语义（plan §4/§6.4）。
+"""G0 协议回归：统一评价 schema 的边界与 envelope 语义。
 
 聚焦模型层可静态判定的约束：extra=forbid、字段长度/条数上限、UTC 时间
 格式、journal envelope 校验和、op discriminated union、QuestionPublic

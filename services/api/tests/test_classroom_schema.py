@@ -1,4 +1,4 @@
-"""课堂 schema 契约回归（plan.md §19.2 test_classroom_schema）。
+"""课堂 schema 契约回归。
 
 覆盖：闭合字段、ID/引用/enum、空讲稿、长度、NaN/Infinity、坏 layout、
 未知 action、不支持的 schema version。

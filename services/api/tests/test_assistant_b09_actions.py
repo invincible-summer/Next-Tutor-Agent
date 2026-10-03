@@ -1,4 +1,4 @@
-"""B09 画像/记忆/助手偏好回归（plan.md §21.3/§22.4）。
+"""B09 画像/记忆/助手偏好回归。
 
 覆盖：assistant.preferences（提案→执行→回答风格注入→撤销）、
 memory.set_window（clamp+撤销）、profile.update（白名单+学段同步+撤销）、

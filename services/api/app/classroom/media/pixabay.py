@@ -1,4 +1,4 @@
-"""Pixabay 图片检索适配器（plan.md §8.2，C03）。
+"""Pixabay 图片检索适配器（C03）。
 
 GET https://pixabay.com/api/；key 只在服务端 query；safesearch=true、
 per_page=8、q≤100 字符；下载用 largeImageURL/webformatURL（cd­n.pixabay.com），

@@ -1,4 +1,4 @@
-"""统一学生评价领域协议（plan.md §4 领域协议 / §6.4 事务 envelope）。
+"""统一学生评价领域协议（领域协议 / 事务 envelope）。
 
 本文件是唯一 schema 事实源：持久化、API DTO 与 LLM 输出校验都从这里取
 严格模型（`extra='forbid'`）。LLM 永不生成 owner、workspace、时间、原始

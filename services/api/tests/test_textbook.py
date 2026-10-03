@@ -1,6 +1,6 @@
 """P2 教材库测试：注册表 CRUD + spec_to_graph 形参化 + 章节切片 + 构建管线。
 
-验收（update_plan §5.5 / §10.2）：
+验收：
 - 注册表：create/find/update/remove/textbook_for_file + 同 file_id 幂等。
 - spec_to_graph 形参：max_chapters/max_concepts 截断 + level 合法学段生效/非法回退。
 - 切片：fitz TOC 精确分页；locate_chapters 确定性定位；whole_book 单章。

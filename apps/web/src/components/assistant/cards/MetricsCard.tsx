@@ -1,6 +1,6 @@
 "use client";
 
-// 统计事实卡（plan.md §7.3/§11.4，A06 视觉；数字由服务端确定性生成）。
+// 统计事实卡（A06 视觉；数字由服务端确定性生成）。
 import { useAssistantStore } from "@/lib/assistant/store";
 import { stringsFor } from "../strings";
 import type { MetricItem } from "@/lib/assistant/types.generated";

@@ -1,6 +1,6 @@
 """P2 教材库 API 集成测试：upload/list/get/patch/delete + 隔离 404 + 孤儿清理。
 
-验收（update_plan §5.5 / §10.2）：
+验收：
 - upload 200（逐文件失败也 200）；记录创建 + library 文件 kind=textbook。
 - list/get/patch/delete 全部 JWT 隔离（外人 404）。
 - PATCH level 非法值 400。

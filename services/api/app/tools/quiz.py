@@ -73,7 +73,7 @@ class GenerateQuizTool(Tool):
         self._illustration_policy_provider = illustration_policy_provider
         # 本会话已出过的题干（截断），注入 prompt 防止逐轮出同质题。
         self._avoid_stems = [s for s in (avoid_stems or []) if s][:8]
-        # 统一 Quiz Grounding 输入层（plan.md §4.3）：服务端闭包绑定的
+        # 统一 Quiz Grounding 输入层：服务端闭包绑定的
         # KnowledgeSearchTool 投影，LLM schema 不新增 scope 参数。
         self._grounding_provider = grounding_provider
 
@@ -119,7 +119,7 @@ class GenerateQuizTool(Tool):
         llm = (BudgetedLLM(self._llm, new_quiz_budget())
                if policy != "off" else self._llm)
 
-        # --- 统一 Quiz Grounding（plan.md §4.3）---------------------------
+        # --- 统一 Quiz Grounding---------------------------
         # 检索先于蓝图：第一轮蓝图决定角度/Bloom/陷阱，若未见教材，蓝图会
         # 先发散到教材外，第二轮再要求"基于教材"已经太晚。
         bundle = None
@@ -154,7 +154,7 @@ class GenerateQuizTool(Tool):
             from ..core.quiz_grounding import render_grounding_context
             grounding_context = render_grounding_context(bundle)
         elif bundle is not None and not bundle.usable and not strict:
-            # 非强制但检索未命中：允许 generic 出题（plan.md 原则 5）。
+            # 非强制但检索未命中：允许 generic 出题。
             pass
 
         # 两轮出题（QUIZ_DESIGN_MODE=two_pass）：先跑命题蓝图设计轮（考查角度/
@@ -208,7 +208,7 @@ class GenerateQuizTool(Tool):
             from ..core.bloom import guidance_block
             extra += "\n" + guidance_block()
             if grounding_context:
-                # 命题事实边界（plan.md §4.5）：grounding_context 已带
+                # 命题事实边界：grounding_context 已带
                 # <material_excerpt> 数据定界与 src_N 短 ref id。
                 extra += ("\n\n[命题事实边界]\n"
                           "本轮要求根据给定教材证据命题。\n"
@@ -283,7 +283,7 @@ class GenerateQuizTool(Tool):
                 verification["answer_verified"] = False
         verification["design"] = design_status
 
-        # --- Provenance 验证与附加（plan.md §4.5）---------------------------
+        # --- Provenance 验证与附加---------------------------
         # 模型只允许输出已提供的 src_N 短 ref id；后端映射回服务端 bundle，
         # 无效 ref 丢弃，绝不信任模型返回的完整 path/file_id。
         ref_dicts: dict[str, dict[str, Any]] = {}
@@ -309,7 +309,7 @@ class GenerateQuizTool(Tool):
                     grounded_questions.append(q)
                 elif strict:
                     # 严格教材模式：一个有效 source ref 都没有的题不能标
-                    # grounded（plan.md §4.6 失败语义——source ref 缺失不能
+                    # grounded（失败语义——source ref 缺失不能
                     # fail-open 成 grounded）。
                     dropped_no_ref += 1
                 else:
@@ -325,7 +325,7 @@ class GenerateQuizTool(Tool):
             verification["dropped_no_source_ref"] = dropped_no_ref
         if grounded:
             # required=true 时 critic 不可用可以 fail-open，但必须留审计标记
-            # （plan.md §4.6：grounding_verification="unavailable"）。
+            # （grounding_verification="unavailable"）。
             verification["grounding_verification"] = (
                 "content_checked" if verification.get("critic") == "ok"
                 else "unavailable")

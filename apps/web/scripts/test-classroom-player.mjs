@@ -1,4 +1,4 @@
-/* 课堂播放器确定性测试（plan.md §18 G05、§19.3）。
+/* 课堂播放器确定性测试（G05）。
  *
  * 用 tsc 把 audio-controller/player-reducer 编译到临时目录，在 Node 里以
  * fake HTMLMediaElement + 受控 clock 驱动，验证：

@@ -93,14 +93,14 @@ BUILD_STALL_SECONDS = 1800.0
 _TERMINAL_STATUSES = {"ready", "partial", "graph_failed", "failed", "ocr_paused"}
 
 
-# build intent 的合法 kwargs（与 run_textbook_build 签名对齐；plan.md §10）。
+# build intent 的合法 kwargs（与 run_textbook_build 签名对齐）。
 _BUILD_INTENT_KEYS = ("ocr_parallel", "force_reextract", "use_llm", "skip_ocr",
                       "skip_harvest", "force_full_ocr")
 
 
 def _persist_build_intent(student_id: str, tb_id: str,
                           build_kwargs: dict[str, Any]) -> None:
-    """入队前持久化 build intent（plan.md §11.2）：进程死掉后都知道用户
+    """入队前持久化 build intent：进程死掉后都知道用户
     最后一次要求做什么。不改变任何书级状态；永不抛出。"""
     try:
         rec = tb_store.find_textbook(student_id, tb_id)
@@ -122,7 +122,7 @@ def _persist_build_intent(student_id: str, tb_id: str,
 
 
 def _mark_build_running(student_id: str, tb_id: str) -> None:
-    """worker 真正取得执行权时置 running + attempt+=1（plan.md §11.2）。"""
+    """worker 真正取得执行权时置 running + attempt+=1。"""
     try:
         rec = tb_store.find_textbook(student_id, tb_id)
         if rec is None:
@@ -140,7 +140,7 @@ def _mark_build_running(student_id: str, tb_id: str) -> None:
 
 
 def _settle_build_job_terminal(student_id: str, tb_id: str) -> None:
-    """队列项结束后的 build_job 终态收口（plan.md §11.2）：
+    """队列项结束后的 build_job 终态收口：
     ready -> ready；graph_failed/failed -> failed(+last_error)；ocr_waiting/
     ocr_paused -> waiting_ocr；其它非终态保持 running 交给 reconcile。"""
     try:
@@ -190,7 +190,7 @@ async def run_textbook_build(student_id: str, tb_id: str, *,
             tb_store.set_build_job(student_id, tb_id, state="cancelled",
                                    last_error="cancelled")
             return
-        # P1-B（plan.md §11.2）：worker 真正取得执行权 -> running + attempt+=1。
+        # P1-B：worker 真正取得执行权 -> running + attempt+=1。
         _mark_build_running(student_id, tb_id)
         if rec.get("kind") == "group":
             await build_group_graph(
@@ -243,7 +243,7 @@ def enqueue_textbook_build(student_id: str, tb_id: str, **build_kwargs) \
         loop = asyncio.get_running_loop()
     except RuntimeError:
         return None
-    # P1-B（plan.md §11.2）：入队前持久化 build intent——无论任务来自首次
+    # P1-B：入队前持久化 build intent——无论任务来自首次
     # 上传、失败重试、管理员 rebuild 还是 full OCR，进程死掉后都知道用户
     # 最后一次要求做什么。
     _persist_build_intent(student_id, tb_id, build_kwargs)
@@ -258,7 +258,7 @@ def enqueue_textbook_build(student_id: str, tb_id: str, **build_kwargs) \
 
 
 async def resume_interrupted_textbook_builds() -> int:
-    """P1-B 启动恢复（plan.md §11.3）：把 reconcile 置为 queued 的中断 build
+    """P1-B 启动恢复：把 reconcile 置为 queued 的中断 build
     intent 重新入现有 per-owner 队列。
 
     必须在事件循环内调用（FastAPI lifespan），不能在 import/init 阶段。
@@ -354,7 +354,7 @@ async def _run_queued_item(student_id: str, item: dict[str, Any]) -> None:
     except Exception:
         pass  # run_textbook_build 自带异常网；门控自身永不抛
     finally:
-        # P1-B：build_job 终态收口（ready/failed/waiting_ocr；plan.md §11.2）。
+        # P1-B：build_job 终态收口（ready/failed/waiting_ocr）。
         _settle_build_job_terminal(student_id, tb_id)
         # Future 必须结算（含异常路径），否则等待方（手动刷新）悬挂。
         if future is not None and not future.done():

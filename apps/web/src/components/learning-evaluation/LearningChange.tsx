@@ -1,5 +1,5 @@
 "use client";
-// 「与之前相比」区块（plan §14.3）：方向 + 可比性 + 陈述 + 替代解释。
+// 「与之前相比」区块：方向 + 可比性 + 陈述 + 替代解释。
 // 任务帮助不同 → 明确“暂不宣称能力提升”，不做数值增益。
 import { ArrowDownRight, ArrowUpRight, Minus, Shuffle } from "lucide-react";
 import { Badge } from "@/components/ui/Badge";

@@ -1,4 +1,4 @@
-"""Bounded upload reading (plan.md §32-§35).
+"""Bounded upload reading.
 
 The upload endpoints used to ``raw = await f.read()`` and only then compare
 against the size limit — an oversized (potentially hostile) file was fully

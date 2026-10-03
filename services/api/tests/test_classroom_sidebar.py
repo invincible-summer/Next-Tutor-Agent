@@ -1,4 +1,4 @@
-"""Sidebar 课堂批量摘要回归（plan.md §3.2.7 / E01）。
+"""Sidebar 课堂批量摘要回归（E01）。
 
 workspace_summary 只读可重建索引（不 mkdir、不逐课解析讲稿）；
 GET /sidebar 的 payload 带 classroom_summaries 且计入 ETag；

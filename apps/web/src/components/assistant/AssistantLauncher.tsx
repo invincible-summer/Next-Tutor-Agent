@@ -1,6 +1,6 @@
 "use client";
 
-// 收起态悬浮按钮（plan.md §3.1，A06）：56×56、右下 24px、圆角 20，
+// 收起态悬浮按钮（A06）：56×56、右下 24px、圆角 20，
 // 黛青底 + text-on-accent；Tooltip 悬停 200ms；未读小圆点；运行细环。
 import { useEffect, useRef, useState } from "react";
 import { MessageCircle } from "lucide-react";

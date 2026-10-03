@@ -1,5 +1,5 @@
 "use client";
-// 概念详情统一组件（plan §14.3）：同一面板供 Memory 概念区、知识图谱
+// 概念详情统一组件：同一面板供 Memory 概念区、知识图谱
 // ConceptDrawer 使用；judgment_id 与状态映射全站一致（evaluation-labels）。
 // 类别不是等级：无数值、无进度条；帮助/任务变化用行为语言呈现。
 import { useCallback, useEffect, useState } from "react";

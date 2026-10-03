@@ -1,4 +1,4 @@
-"""B07 测评/评价/教学指导动作回归（plan.md §21.3，8 操作）。
+"""B07 测评/评价/教学指导动作回归（8 操作）。
 
 覆盖：review_required 审批链；expected_status/expected_revision 绑定
 （引用正确性 404/409）；assessment.start 经真实路由核心（fake LLM）；

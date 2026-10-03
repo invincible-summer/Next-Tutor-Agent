@@ -1,5 +1,5 @@
-"""V1/V2 外部合同一致性（plan.md §30 golden/differential）+ P2-A fallback
-结构化观测（plan.md §29）。
+"""V1/V2 外部合同一致性（golden/differential）+ P2-A fallback
+结构化观测。
 
 golden 断言的是**外部合同**，不是 thinking 文本：
 - 两模式最终都产出 done 事件与 answer 增量；
@@ -119,7 +119,7 @@ class TestV1V2ExternalContract(StorageSandboxTestCase):
 
 
 class TestLegacyFallbackSwitch(StorageSandboxTestCase):
-    """P2-A（plan.md §29）：fallback 默认关闭 + 显式紧急开关 + trace。"""
+    """P2-A：fallback 默认关闭 + 显式紧急开关 + trace。"""
 
     def _run_with_broken_v2(self, fallback: str | None):
         from app.agents import chat_agent as ca

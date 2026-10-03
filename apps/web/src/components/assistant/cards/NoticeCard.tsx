@@ -1,6 +1,6 @@
 "use client";
 
-// 提示块（plan.md §11.4 notice，A06 视觉）。
+// 提示块（A06 视觉）。
 import { AlertCircle, AlertTriangle, Info } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { useAssistantStore } from "@/lib/assistant/store";

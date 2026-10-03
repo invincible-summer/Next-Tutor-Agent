@@ -1,4 +1,4 @@
-"""课堂导出回归（plan.md §19.2 test_classroom_exports）。
+"""课堂导出回归。
 
 覆盖：ZIP 结构与路径安全、自包含离线 HTML、无 token/答案/全文教材、
 credits 署名、manifest hash、源图已清理不导出旧 bytes。

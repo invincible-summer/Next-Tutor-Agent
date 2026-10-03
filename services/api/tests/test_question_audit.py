@@ -1,4 +1,4 @@
-"""G2 回归：P2 逐题审核（plan §18.2 test_question_audit / A06）。
+"""G2 回归：P2 逐题审核（A06）。
 
 批审核漏一题=该题 unreviewed、错误答案拒绝、整套通过不能替代单题、
 嵌套 answer key 不出现在 QuestionPublic（后者在 schema 测试中）。

@@ -292,7 +292,7 @@ class LearnerEvaluationPolicyRequest(BaseModel):
 
 @router.get("/learner-evaluation-policy")
 def get_learner_evaluation_policy(admin: User = Depends(require_admin)) -> dict:
-    """阶段C（update_plan §5.3）：当前策略 + 面板状态（下次执行/待评价量/
+    """阶段C：当前策略 + 面板状态（下次执行/待评价量/
     最旧等待/上批次状态）。不暴露用户原始作答或 prompt。"""
     from app.core import learner_evaluation_policy as lep
     from app.core.config import settings

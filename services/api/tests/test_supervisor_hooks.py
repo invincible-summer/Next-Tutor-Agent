@@ -147,7 +147,7 @@ if __name__ == "__main__":
 
 
 class TestR20EvaluationInjection(unittest.TestCase):
-    """R20（update_plan §4）：M3 evaluation_context 注入与 P7 接入。"""
+    """R20：M3 evaluation_context 注入与 P7 接入。"""
 
     def test_understanding_carries_evaluation_context(self):
         from app.agents.state import TaskUnderstanding

@@ -141,7 +141,7 @@ class UXService:
     def activity(self, student_id: str, *, days: int = 14) -> dict[str, Any]:
         """Dashboard activity chart: per-day classified counts (answers /
         teachings / reviews) + the streak summary and its data source.
-        plan.md §7.4：附 metric_version=2 与各数据源读取状态（旧字段保留，
+        附 metric_version=2 与各数据源读取状态（旧字段保留，
         新增字段不改变旧 UI 行为）。Never raises."""
         try:
             from .. import activity_aggregator

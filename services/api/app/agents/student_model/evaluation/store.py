@@ -1,4 +1,4 @@
-"""学习证据 journal：每学生唯一事务事实源（plan §6.3–§6.5）。
+"""学习证据 journal：每学生唯一事务事实源。
 
 `students/<sid>.learning_evidence.jsonl` —— 唯一事务 journal。index 与
 views 是可删除重建的投影，不属于本模块职责（见 projections.py）。

@@ -1,7 +1,7 @@
 "use client";
 import { DEMO_MODE, demoReadOnly, guardDemoAction } from "@/lib/demo";
 import { QuestionIllustration } from "@/components/quiz/QuestionIllustration";
-// 单题练习卡（plan §14.5/§15.3）：服务端身份题卡——question_id 定位、
+// 单题练习卡：服务端身份题卡——question_id 定位、
 // 一次正式提交（/quiz/record 服务端判分+评价）、提示与揭晓都由服务端记录
 // 并影响后续解释；反馈分两层（本题结果 / 学习反馈，SubmissionOutcome）。
 // 刷新/重开经 q.result.attempt_id 恢复已提交状态；旧会话无服务端身份的题
@@ -22,7 +22,7 @@ import { SubmissionOutcome } from "@/components/learning-evaluation/SubmissionOu
 import type { QuizQuestion, QuizSourceRef } from "@/lib/types";
 
 /**
- * 课堂 transport（plan §13.3）：提交/提示/揭晓/恢复的传输层可注入，
+ * 课堂 transport：提交/提示/揭晓/恢复的传输层可注入，
  * 原聊天默认走 /quiz/* 端点；课堂经 R/checkpoints/{cid}/* 并附 run 归属
  * 校验。两个视图共用同一卡片渲染。
  */

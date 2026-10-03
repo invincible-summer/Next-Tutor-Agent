@@ -103,7 +103,7 @@ def _next_learnable(g, view: dict[str, Any], student_id: str, *,
 
 
 def _current_difficulty(head_cid: str, student_id: str) -> int:
-    """G4：1..5 难度旋钮只受近期已评估作答影响（中性起点，plan §13）。"""
+    """G4：1..5 难度旋钮只受近期已评估作答影响（中性起点）。"""
     try:
         from app.agents.teaching_engine.difficulty import compute_difficulty
         recent = _te.load_teaching_log(student_id).get(head_cid) or []

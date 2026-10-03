@@ -1,4 +1,4 @@
-/* 课堂插问与检查点 E2E（plan.md §19.3 classroom-questions）。
+/* 课堂插问与检查点 E2E（classroom-questions）。
  *
  * - 检查点 question 型：最后一段结束后弹面板；提示/揭晓经服务端端点；
  *   提交一次受理（已提交的答案可见，按钮不再出现）；

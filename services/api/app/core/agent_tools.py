@@ -1,4 +1,4 @@
-"""会话工具组装（从 api/v1/chat.py::_build_tools 提取，plan.md §12.4）。
+"""会话工具组装（从 api/v1/chat.py::_build_tools 提取）。
 
 普通聊天经 ``api.v1.chat._build_tools`` 薄 wrapper 复用本模块（保留既有
 patch 点）；课堂问答以服务端构造的 ``restrict_to_file_ids`` 做**可信
@@ -28,7 +28,7 @@ def build_session_tools(
     gets the scoped (session/folder/file) stores for hybrid retrieval;
     otherwise the BM25 overlay alone remains the whole retrieval path.
 
-    统一 Quiz Grounding（plan.md §4.2）：本轮 message/attachments 经
+    统一 Quiz Grounding：本轮 message/attachments 经
     decide_material_grounding 得出 strict 教材语义，注入共享的
     KnowledgeSearchQuizGroundingProvider —— generate_quiz / fit_quiz 与
     普通问答使用同一个已授权检索空间；教材 scope 由服务端闭包决定，

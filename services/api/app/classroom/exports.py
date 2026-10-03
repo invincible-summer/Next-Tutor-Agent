@@ -1,4 +1,4 @@
-"""课堂导出（plan.md §9.6：HTML 离线课件 ZIP / 逐页讲稿 Markdown）。
+"""课堂导出（HTML 离线课件 ZIP / 逐页讲稿 Markdown）。
 
 ZIP 结构：index.html（自包含课件及可信离线前后页控件）、
 speaker-notes.md（每页讲稿+来源短标记）、credits.html（资料与图片署名）、

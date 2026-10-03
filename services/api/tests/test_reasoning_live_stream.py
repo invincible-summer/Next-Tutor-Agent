@@ -1,6 +1,6 @@
 """Live thinking stream (REASONING_LIVE_MAX_CHARS) regressions.
 
-Contract under test (DESIGN.md §4.3/§5.1):
+Contract under test (docs/architecture/conversation.md):
   - gate -1 (default): provider reasoning_content streams live as thinking
     events (is_delta, summary=False) on both executor paths;
   - gate 0: hidden-CoT legacy behavior, and the mandatory-material-grounding

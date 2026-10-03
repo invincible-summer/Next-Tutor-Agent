@@ -171,7 +171,7 @@ def _sanitize_record(raw: dict[str, Any]) -> dict[str, Any] | None:
         "parse_cancel_requested": bool(raw.get("parse_cancel_requested", False)),
         "rag_index": dict(raw.get("rag_index") or {})
                      if isinstance(raw.get("rag_index"), dict) else {},
-        # P1-B 持久化 build intent（plan.md §10）：textbook record 本身就是
+        # P1-B 持久化 build intent：textbook record 本身就是
         # 最接近资源生命周期的事实源，不另建 jobs.json。
         "build_job": dict(raw.get("build_job") or {})
                      if isinstance(raw.get("build_job"), dict) else {},
@@ -462,13 +462,13 @@ def remove_textbook(student_id: str, tb_id: str) -> bool:
     return True
 
 
-# --- P1-B: 持久化 build_job 与重启恢复（plan.md §10-§13） --------------------
+# --- P1-B: 持久化 build_job 与重启恢复 --------------------
 
 BUILD_JOB_STATES = ("queued", "running", "waiting_ocr", "ready", "failed",
                     "cancelled")
 BUILD_JOB_PHASES = ("prepare", "ocr", "harvest", "chapter_extract",
                     "concept_extract", "graph_merge", "rag_refresh", "finalize")
-# 同一 build intent 的自动恢复上限（plan.md §13 失败语义）。
+# 同一 build intent 的自动恢复上限（失败语义）。
 BUILD_JOB_MAX_AUTO_ATTEMPTS = 3
 # 结构化短原因（内部 build_job.last_error；用户可见 error 仍用友好中文）。
 _BUILD_FAIL_REASONS = ("source_missing", "invalid_record", "schema_incompatible",
@@ -485,7 +485,7 @@ class TextbookRecoveryReport:
 
 
 def set_build_job(student_id: str, tb_id: str, **fields) -> dict[str, Any] | None:
-    """Upsert the textbook's persisted build_job (plan.md §10).
+    """Upsert the textbook's persisted build_job.
 
     Only whitelisted keys are written (state must be a legal state, phase a
     legal phase); attempt stays int>=0; intent is a plain dict. Returns the
@@ -538,7 +538,7 @@ def set_build_job(student_id: str, tb_id: str, **fields) -> dict[str, Any] | Non
         return None
 
 
-# enqueue_textbook_build 支持的 intent 参数（plan.md §10 intent 形状）。
+# enqueue_textbook_build 支持的 intent 参数（intent 形状）。
 _BUILD_INTENT_KEYS = ("ocr_parallel", "force_reextract", "use_llm", "skip_ocr",
                       "skip_harvest", "force_full_ocr")
 
@@ -577,7 +577,7 @@ def _source_files_exist(student_id: str, record: dict[str, Any]) -> bool:
 
 
 def _synthesize_intent(record: dict[str, Any]) -> dict[str, Any]:
-    """Legacy building 记录（无 build_job）的默认 intent（plan.md §11.1）。"""
+    """Legacy building 记录（无 build_job）的默认 intent。"""
     policy = record.get("graph_policy") if isinstance(record.get("graph_policy"), dict) else {}
     return {
         "ocr_parallel": False,
@@ -592,7 +592,7 @@ def _synthesize_intent(record: dict[str, Any]) -> dict[str, Any]:
 
 
 def reconcile_stale_builds() -> TextbookRecoveryReport:
-    """重启对账（plan.md §11.1）：普通进程重启不是失败。
+    """重启对账：普通进程重启不是失败。
 
     - building + 可恢复 OCR pending -> ocr_waiting（现有 OCR resume 接手）；
     - building + build_job（或 legacy 有源文件）-> build_job.state=queued，
@@ -624,7 +624,7 @@ def reconcile_stale_builds() -> TextbookRecoveryReport:
                              and (v.get("pending_pages") or [])]
                 if resumable:
                     # OCR 可恢复：交给现有 resume_pending_textbook_ocr，
-                    # 不走 graph recovery（plan.md §9.1）。
+                    # 不走 graph recovery。
                     r["status"] = "ocr_waiting"
                     r["progress"] = {
                         "stage": "ocr_waiting",
@@ -735,7 +735,7 @@ def interrupted_build_jobs() -> list[tuple[str, str, dict[str, Any]]]:
 
 
 def reap_stale_builds() -> int:
-    """兼容 wrapper（plan.md §11.1）：内部改走 reconcile_stale_builds。
+    """兼容 wrapper：内部改走 reconcile_stale_builds。
 
     返回置为终态失败的记录数（历史上返回收割数）；OCR 可恢复项进入
     ocr_waiting，非 OCR 中断项现在会自动恢复而非直接判 graph_failed。

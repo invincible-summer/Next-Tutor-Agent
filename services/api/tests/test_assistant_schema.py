@@ -1,4 +1,4 @@
-"""站内助手契约回归（plan.md A01）。
+"""站内助手契约回归（A01）。
 
 覆盖：extra=forbid、判别联合、ID 模式、PageContext 8KiB 上限、
 数组上限、错误 envelope、TurnSnapshot 完整往返，以及前端生成类型

@@ -1,4 +1,4 @@
-/* 课堂断点恢复 E2E（plan.md §19.3 classroom-resume）。
+/* 课堂断点恢复 E2E（classroom-resume）。
  *
  * - 刷新恢复：paused run 游标即上次位置；恢复播放必须用户手势
  *   （进入页面不发音频合成请求）；

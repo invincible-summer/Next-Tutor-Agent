@@ -63,7 +63,7 @@ class FitQuizTool(Tool):
                  illustration_policy_provider: Any | None = None) -> None:
         self._llm = llm
         self._illustration_policy_provider = illustration_policy_provider
-        # plan.md §6：fit_quiz 的事实源是 reference 本身，不强制重复检索；
+        # fit_quiz 的事实源是 reference 本身，不强制重复检索；
         # provider 只用于继承本轮已解析的教材证据（peek 缓存）。
         self._grounding_provider = grounding_provider
 
@@ -102,7 +102,7 @@ class FitQuizTool(Tool):
         llm = (BudgetedLLM(self._llm, new_quiz_budget())
                if policy != "off" else self._llm)
 
-        # plan.md §6：reference 来自普通粘贴 -> grounding_mode="reference"；
+        # reference 来自普通粘贴 -> grounding_mode="reference"；
         # reference 来自本轮教材预检索/教材题卡（provider 已缓存证据）->
         # 继承 source refs，"reference+textbook"。严禁为统一而重新检索 topic，
         # 额外检索会让无关教材证据污染拟合。

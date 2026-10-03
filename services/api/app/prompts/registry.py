@@ -593,16 +593,16 @@ _register(PromptDef(id="quiz_blueprint", version="1.0.0", text=_QUIZ_BLUEPRINT))
 _register(PromptDef(id="quiz_blueprint_anchor", version="1.0.0", text=_QUIZ_BLUEPRINT_ANCHOR))
 _register(PromptDef(id="quiz_blueprint_anchor_auto", version="1.0.0", text=_QUIZ_BLUEPRINT_ANCHOR_AUTO))
 
-# 统一学习评价 P0–P10（plan §9）——独立模块注册，此处 import 保持单一注册点
+# 统一学习评价 P0–P10——独立模块注册，此处 import 保持单一注册点
 from . import learner_evaluation as _learner_evaluation  # noqa: E402,F401
 from .quiz_illustration import register as _register_illustration_prompts
 _register_illustration_prompts()
 
-# 课堂模式七 prompt（plan §6.5，D01）——文本在 prompts/classroom.py
+# 课堂模式七 prompt（D01）——文本在 prompts/classroom.py
 from .classroom import register as _register_classroom_prompts
 _register_classroom_prompts()
 
-# 站内学习助手三段 prompt（plan.md §10.5，A09）——文本在 prompts/site_assistant.py
+# 站内学习助手三段 prompt（A09）——文本在 prompts/site_assistant.py
 from .site_assistant import register as _register_site_assistant_prompts
 _register_site_assistant_prompts()
 

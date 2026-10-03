@@ -1,4 +1,4 @@
-// 助手前端状态（plan.md §4.1/§4.3，A06）。
+// 助手前端状态（A06）。
 // PanelMode 与 TurnState 相互独立：最小化不等于取消生成。
 // 服务端持有完整会话；Zustand 只承载面板状态、实时增量与未读。
 // 草稿按 user+conversation 存 sessionStorage；面板尺寸偏好存

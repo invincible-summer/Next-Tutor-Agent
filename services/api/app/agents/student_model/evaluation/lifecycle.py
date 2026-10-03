@@ -1,4 +1,4 @@
-"""dispute/revoke/delete/revision 及失效传播（plan §12.4 / §5.3 + R07/R08）。
+"""dispute/revoke/delete/revision 及失效传播（R07/R08）。
 
 依赖链：source → interpretation → claim/judgment → synthesis → prompt
 reference。任何引用失效，依赖其结论的自由叙述隐藏/撤销，不再注入下轮

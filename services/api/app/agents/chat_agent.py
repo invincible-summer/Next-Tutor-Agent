@@ -915,13 +915,13 @@ def _lite_tool_calls(calls: list[dict[str, Any]]) -> list[dict[str, Any]]:
 # -> this V1 chat_turn. V2 failures are surfaced by default; operators may
 # explicitly set SUPERVISOR_LEGACY_FALLBACK=1 as an emergency compatibility
 # switch to fall back to V1 without breaking the SSE stream.
-# P2-A（plan.md §29）：fallback 有显式开关（SUPERVISOR_LEGACY_FALLBACK，
+# P2-A：fallback 有显式开关（SUPERVISOR_LEGACY_FALLBACK，
 # 默认 0）与结构化观测（异常分类/stage/会话/任务类型）。默认暴露 V2
 # 回归；只有显式开启开关时才回落 V1。
 # ---------------------------------------------------------------------------
 
 def _classify_supervisor_error(exc: BaseException) -> str:
-    """Coarse V2 failure category from the traceback path（plan.md §29）。
+    """Coarse V2 failure category from the traceback path。
 
     只看代码路径（traceback 文本），不落入用户消息/教材正文/JWT——
     分类输入是异常类型与模块名，不是对话内容。
@@ -950,7 +950,7 @@ def _legacy_fallback_enabled() -> bool:
 
 def _after_turn_dialogue_receipt(session: TutorSession,
                                   student_id: str) -> None:
-    """G3 统一 turn hook（plan §13.1/§7.2）：回合结束后对已可靠落盘的学生
+    """G3 统一 turn hook：回合结束后对已可靠落盘的学生
     消息受理 dialogue 来源。用磁盘会话核对（保存与受理之间的故障窗口不
     受理未保存内容）；任何失败不影响对话流。"""
     try:
@@ -1008,7 +1008,7 @@ async def _run_turn_dispatch(
     """Entry point chosen by chat.py. Dispatches to V1 chat_turn or V2
     supervisor.run based on SUPERVISOR_MODE (default v2).
 
-    V2 failure semantics（plan.md §29）：
+    V2 failure semantics：
     - SUPERVISOR_LEGACY_FALLBACK 未设置或 =0：yield error 事件并结束本轮，
       V2 回归不会被 legacy 成功掩盖；
     - =1：结构化 trace 后显式回落 V1，仅作为紧急兼容开关。"""

@@ -99,7 +99,7 @@ export interface WorkspaceDetail {
   updated_at: number;
 }
 
-// --- 课堂模式（classroom）：Sidebar 批量摘要（plan.md §3.2.7）---
+// --- 课堂模式（classroom）：Sidebar 批量摘要 ---
 
 export interface ClassroomSummary {
   lesson_count: number;

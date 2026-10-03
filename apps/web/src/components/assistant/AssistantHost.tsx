@@ -1,6 +1,6 @@
 "use client";
 
-// 助手宿主（plan.md §5.1，A06 挂载骨架 / A07 身份 / A08 页面上下文）：
+// 助手宿主（A06 挂载骨架 / A07 身份 / A08 页面上下文）：
 // Portal 渲染，目标跟随 document.fullscreenElement（GAP-07）；
 // 面板懒加载不进首屏包；Ctrl/Cmd+Shift+K 切换；enabled=false 不渲染入口；
 // 路由变化提升 route_epoch 并刷新页面上下文（旧适配器随之失效）。

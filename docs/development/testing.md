@@ -1,6 +1,6 @@
 # 测试与 CI 维护
 
-教学 SVG 素材与出题专项说明见 [DIAGRAM_LIBRARY.md](DIAGRAM_LIBRARY.md)，v2 合同、发布门和任务 API 见 [ASSESSMENT_ILLUSTRATION_PIPELINE.md](ASSESSMENT_ILLUSTRATION_PIPELINE.md)，完整库存见 [DIAGRAM_ASSETS.md](DIAGRAM_ASSETS.md)，既有首轮检查记录见 [DIAGRAM_REVIEW.md](DIAGRAM_REVIEW.md)。
+教学 SVG 素材与出题专项的架构说明见 [architecture/diagrams-illustration.md](../architecture/diagrams-illustration.md)（测评侧合同另见 [architecture/assessment.md](../architecture/assessment.md)），完整库存清单见 [reference/diagram-assets.md](../reference/diagram-assets.md)（脚本生成），当前验收基线见 [validation/diagram-library.md](../validation/diagram-library.md)。
 
 素材改动先从仓库根运行 `python3 services/api/scripts/build_diagram_catalog.py --check`，再在 `services/api` 运行相关回归：
 
@@ -19,7 +19,7 @@ python3 -m tests tests.test_illustration_v2 tests.test_illustration_jobs
 
 ## 真实 v2 配图验收
 
-当前默认 `QUIZ_ILLUSTRATION_PIPELINE=shadow`，真实多场景验收仍在进行。fake LLM 回归、目录结构检查或单轮成功不能作为真实模型全部通过或生产切换的结论。
+代码默认 `QUIZ_ILLUSTRATION_PIPELINE=shadow`；真实多场景配图验收与全目录审查已完成，当前基线见 [validation/diagram-library.md](../validation/diagram-library.md)。fake LLM 回归、目录结构检查或单轮成功不能作为真实模型全部通过或生产切换的结论。
 
 先完成下面的 Node/Chromium 准备，并在本地 shell 或仓库根 `.env` 配置实际 quiz provider。显式从仓库根运行：
 
@@ -102,7 +102,7 @@ E2E_PRODUCTION=1 E2E_FRESH=1 pnpm test:e2e
 `GitHub Pages demo` 工作流单独验证静态演示：先跑仓库卫生 guard 与 fixtures 契约测试，
 再从 `fixtures/demo/` 合成数据导出只读快照（临时沙箱，不读任何真实运行数据），
 构建完整静态前端，并通过 `pnpm test:e2e:pages` 在纯文件服务器上检查全部导出页面、
-只读操作和课件翻页。通过后才发布 Pages，不依赖运行中的 API 或模型。详情见 [`GITHUB_PAGES.md`](GITHUB_PAGES.md)。
+只读操作和课件翻页。通过后才发布 Pages，不依赖运行中的 API 或模型。详情见 [`operations/pages-demo.md`](../operations/pages-demo.md)。
 
 Playwright 自动启动 fake LLM（8199）、隔离后端（8124）和前端（3030），等待后端 `/ready` 成功后再运行。开发调试可不设置 `E2E_PRODUCTION`，使用 Next dev。端口冲突时调整 `E2E_BACKEND_PORT` / `E2E_FRONTEND_PORT`，并重新用相同后端地址构建。`E2E_PYTHON` 可指定 Python 可执行文件；`E2E_BACKEND_HOME` 可指定专用临时副本目录，`E2E_FRESH=1` 会删除该目录后重建，不能指向项目或其他有用数据。
 
@@ -151,4 +151,4 @@ python -m tests tests.test_local_rag tests.test_rag_hybrid
 
 素材创作重点回归：`cd services/api && python3 -m tests tests.test_diagram_materials tests.test_diagram_guidance tests.test_illustration_jobs tests.test_guest_access`；前端 `pnpm check`、`pnpm build` 后运行 `E2E_FRESH=1 pnpm exec playwright test e2e/diagram-materials.spec.ts e2e/quiz-illustration.spec.ts`。浏览器隔离后端引导合成管理员，验证公有发布、普通用户403/只读历史与私有列表隔离；图片渲染脚本和依赖同样位于隔离架构。
 
-真实素材生成与使用验收：`python3 scripts/illustration/material_acceptance.py --live-llm --output /tmp/material-live-acceptance`。它创建隔离临时运行根，实际调用配置服务生成容器/几何/流程草稿、手动修改、冻结新版本并使用指定素材出题，两项审图均看真实PNG。浏览器AI草稿替身不计为该服务验收，详细结果见[验收记录](DIAGRAM_LIBRARY_ACCEPTANCE.md)。
+真实素材生成与使用验收：`python3 scripts/illustration/material_acceptance.py --live-llm --output /tmp/material-live-acceptance`。它创建隔离临时运行根，实际调用配置服务生成容器/几何/流程草稿、手动修改、冻结新版本并使用指定素材出题，两项审图均看真实PNG。浏览器AI草稿替身不计为该服务验收，详细结果见[验收记录](../validation/diagram-library.md)。

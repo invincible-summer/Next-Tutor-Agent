@@ -24,7 +24,7 @@ _DEFAULT_CORS_ORIGINS = [
 
 @asynccontextmanager
 async def _lifespan(app: FastAPI):
-    # P1-C（plan.md §15-§19）：结构化 bootstrap——每个启动维护步骤都有
+    # P1-C：结构化 bootstrap——每个启动维护步骤都有
     # 命名 check 与状态，失败 log.exception（不再静默吞掉），critical 失败
     # fail-fast；可降级功能失败不阻止服务（/ready 里可见但不 503）。
     from app.core.bootstrap import run_bootstrap_step
@@ -38,7 +38,7 @@ async def _lifespan(app: FastAPI):
         cleanup_legacy_graph_archives()
 
     # 教材记录迁移 + 重启对账 + OCR 续跑 + 中断图谱构建重入队
-    # （P1-B plan.md §11.3 顺序）。
+    # （P1-B 顺序）。
     async def _textbook_recovery() -> None:
         from app.core.textbook import (migrate_legacy_single_to_groups,
                                        reconcile_stale_builds)
@@ -116,7 +116,7 @@ async def _lifespan(app: FastAPI):
 
     # 回收站过期清扫不依赖浏览器打开：启动时先扫一次，之后进程内定时扫。
     cleanup_task = None
-    # 课堂生成 worker（plan.md §15.3）：恢复未终结 job + 受限调度。
+    # 课堂生成 worker：恢复未终结 job + 受限调度。
     # classroom 关闭时不启动（无新 job；旧 job 留在磁盘等下次开启）。
     classroom_worker = None
     try:
@@ -141,7 +141,7 @@ async def _lifespan(app: FastAPI):
         log.warning("classroom worker not started", exc_info=True)
 
     # 课堂云端 TTS voices list 预热（阶段 F）：后台 best-effort 刷新缓存，
-    # 失败只记 degraded；GET capability 永不发网络请求（plan.md §11.6）。
+    # 失败只记 degraded；GET capability 永不发网络请求。
     voices_task = None
     try:
         from app.core.config import settings
@@ -173,7 +173,7 @@ async def _lifespan(app: FastAPI):
         log.warning("trash cleanup loop not started", exc_info=True)
         cleanup_task = None
 
-    # 站内学习助手（plan.md §12.2/§12.3-5）：开关关闭时不启动后台任务。
+    # 站内学习助手：开关关闭时不启动后台任务。
     assistant_runtime = None
     assistant_draft_task = None
     try:
@@ -221,7 +221,7 @@ async def _lifespan(app: FastAPI):
             await guest_sweep_task
         except asyncio.CancelledError:
             pass
-        # shutdown 类失败只 warning（plan.md §19），不再无痕。
+        # shutdown 类失败只 warning，不再无痕。
         # 课堂 worker：先停调度（≤10s 检查点宽限），再走其余清理
         if classroom_worker is not None:
             try:
@@ -307,7 +307,7 @@ async def _process_time_header(request: Request, call_next):
 
 
 def create_app() -> FastAPI:
-    # P2-C（plan.md §36）：file-backed 业务状态 + 进程内锁只支持单 worker。
+    # P2-C：file-backed 业务状态 + 进程内锁只支持单 worker。
     # WEB_CONCURRENCY>1（uvicorn/gunicorn 常用扩展变量）会在多进程下产生
     # 并发写同一 JSON 的竞态——显式 fail-fast，而不是默默数据损坏。
     import os as _os
@@ -345,7 +345,7 @@ def create_app() -> FastAPI:
     )
     from app.api.v1.router import api_router
     app.include_router(api_router)
-    # 课堂域统一错误 envelope（plan.md §14.3）；存储强制写失败（磁盘满/
+    # 课堂域统一错误 envelope；存储强制写失败（磁盘满/
     # 权限）与损坏课程同样投影为可观察 envelope（J03，§16.2）
     from app.api.v1.classroom import (classroom_exception_handler,
                                       storage_exception_handler)

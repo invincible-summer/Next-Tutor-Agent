@@ -21,7 +21,7 @@ from typing import Any
 _MAX_TASKS_PER_DAY = 20
 _MAX_PLAN_CONCEPTS = 30
 _MAX_EVENTS_REPLAY = 200
-# 严格读取路径的行数预算（plan.md A03）：超出时返回最近事件并标记 truncated
+# 严格读取路径的行数预算（A03）：超出时返回最近事件并标记 truncated
 _MAX_EVENTS_STRICT_BUDGET = 20000
 _MAX_GAPS = 40
 _MAX_PROJECTION_WEEKS = 52

@@ -1,4 +1,4 @@
-"""课堂图片资源管线（plan.md §8）。无 key 即降级，不伪联网。"""
+"""课堂图片资源管线。无 key 即降级，不伪联网。"""
 from __future__ import annotations
 
 from .base import (ImageCandidate, ImageSearchBudget, ImageSearchProvider,

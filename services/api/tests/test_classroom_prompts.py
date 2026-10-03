@@ -1,4 +1,4 @@
-"""课堂 prompt 注册与 LLM 预算钩子回归（plan.md §6.5/§15.4，D01）。
+"""课堂 prompt 注册与 LLM 预算钩子回归（D01）。
 
 覆盖：七个 classroom prompt 注册、历史写作版本可读且锁定系统指令不变；
 get_llm("classroom") 的模型回退与超时/重试策略；LLMUsageBudget 预留/

@@ -1,6 +1,6 @@
 "use client";
 
-// 近期学习报告卡（plan.md §7.2/§11.4 固定结构，A12）。
+// 近期学习报告卡（A12）。
 // 五段固定结构：范围/日期/截至 → 学习事实 → 已有学习评价 → 需要关注 →
 // 下一步 → 依据与限制。数字与主张全部来自服务端报告，不在前端计算。
 import { useAssistantStore } from "@/lib/assistant/store";

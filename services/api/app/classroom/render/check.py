@@ -1,4 +1,4 @@
-"""受控 Node/Chromium 排版检查进程封装（plan.md §9.6）。
+"""受控 Node/Chromium 排版检查进程封装。
 
 全局最多 1 个 headless 校验进程；超时 kill；报告只含
 block_id/尺寸/错误码。禁外网由脚本内部 route abort 保证。

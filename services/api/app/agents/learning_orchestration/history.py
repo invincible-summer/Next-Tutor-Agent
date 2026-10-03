@@ -1,6 +1,6 @@
 """§22.2 学习历史补齐（B08）：任务实例 ID、状态变化事件与可靠推导。
 
-职责边界（plan.md §22.2）：
+职责边界：
 - DailyTask.task_instance_id 随机稳定；旧任务首次保存前补齐（ensure_*）。
 - 每次任务状态变化记一条 ``task_status_changed``（同一次变化只记一次），
   与 M9 state 同一事务写入 ``event_outbox``；flush 追加到

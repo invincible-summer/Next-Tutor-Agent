@@ -1,6 +1,6 @@
 "use client";
 
-// 历史会话视图（plan.md §3.5，A06）：面板内部视图，Pager 每页 20。
+// 历史会话视图（A06）：面板内部视图，Pager 每页 20。
 import { useEffect } from "react";
 import { ChevronLeft, Plus, Trash2 } from "lucide-react";
 import { useAssistantStore } from "@/lib/assistant/store";

@@ -203,10 +203,10 @@ class TutorSession:
 
 
 def ensure_message_ids(messages: list[dict[str, Any]]) -> bool:
-    """G3（plan §13.1）：为每条消息补稳定 message_id（一次性生成、随会话
+    """G3：为每条消息补稳定 message_id（一次性生成、随会话
     持久化；压缩改变下标也不受影响）。
 
-    R03（update_plan §4）：同时补 created_at（epoch 秒，同样一次性冻结）
+    R03：同时补 created_at（epoch 秒，同样一次性冻结）
     ——评价来源的 observed_at 必须取消息首次可靠落盘时间，而不是 turn
     hook 执行时间；跨零点/延迟受理时归属日期由该值决定。旧消息在首次
     迁移保存时补当前时间（无更早事实可考，不回溯编造）。

@@ -23,7 +23,7 @@ from app.identity.store import update_profile_fields
 
 router = APIRouter(prefix="/user", tags=["user"])
 
-# 个人课堂偏好白名单（plan.md §20.1）：只接受有类型的字段；tts_speed 沿用
+# 个人课堂偏好白名单：只接受有类型的字段；tts_speed 沿用
 # 既有顶层值。任何未知键/URL 形值一律 422——个人偏好绝不能借道携带供应商
 # endpoint/base URL 之类的任意配置。
 _CLASSROOM_PREF_BOOL_FIELDS = (

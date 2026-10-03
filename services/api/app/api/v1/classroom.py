@@ -1,4 +1,4 @@
-"""课堂模式 HTTP API（plan.md §14）。
+"""课堂模式 HTTP API。
 
 route 只做身份、schema、状态码投影；复杂工作由 app.classroom.service 等
 执行。所有 ID 均验证完整 owner→workspace→lesson→revision/run/job 链。
@@ -333,7 +333,7 @@ def voice_preview_content(workspace_id: str, clip_id: str,
 
 
 # ---------------------------------------------------------------------------
-# 课堂 run、lease、进度与音频（plan.md §14.2，阶段 G）
+# 课堂 run、lease、进度与音频（阶段 G）
 # ---------------------------------------------------------------------------
 
 def _run_base(workspace_id: str, lesson_id: str, run_id: str) -> str:

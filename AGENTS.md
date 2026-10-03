@@ -20,7 +20,7 @@ The Next.js frontend is in `apps/web/src/`: pages under `app/`, reusable UI unde
 - `cd apps/web && pnpm build`: validate the production frontend build.
 - `python scripts/repo/check_repository_hygiene.py`: run the copyright/hygiene guard locally.
 
-See `docs/TESTING.md` for environment setup, browser smoke/full regression, and CI ownership.
+See `docs/development/testing.md` for environment setup, browser smoke/full regression, and CI ownership.
 
 ## Coding Style & Naming Conventions
 

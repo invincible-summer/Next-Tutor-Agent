@@ -1,5 +1,5 @@
 "use client";
-/* 课堂课件 iframe 宿主（plan.md §9.5）。
+/* 课堂课件 iframe 宿主。
  *
  * 父页面用 apiFetch 带 JWT 读取自包含 HTML，再设置 iframe.srcdoc；
  * 不给 <iframe src> 塞带 token 的 query。iframe 只授予

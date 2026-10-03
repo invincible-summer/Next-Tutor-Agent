@@ -1,4 +1,4 @@
-"""课堂 LLM 用量预算（plan.md §15.4，D01）。
+"""课堂 LLM 用量预算（D01）。
 
 worker 在任务上下文里 set_llm_budget_hook(LLMUsageBudget)；core/llm_async
 在真正发 HTTP 前预留一次调用与 token 上限、完成后按 usage 结算——这样

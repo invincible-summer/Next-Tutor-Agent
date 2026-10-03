@@ -1,4 +1,4 @@
-"""唯一 learner admissibility + 引用/语义资格门（plan §17.2 / §4.4 / §18.2）。
+"""唯一 learner admissibility + 引用/语义资格门。
 
 validator 区分三类结论：
 1. 硬错误（severity=hard）：越权/伪造引文/assistant 冒充 learner/过期

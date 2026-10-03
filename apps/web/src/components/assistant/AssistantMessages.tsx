@@ -1,6 +1,6 @@
 "use client";
 
-// 消息区（plan.md §3.4/§3.5，A06）：滚动跟随（底部 64px 内自动跟随），
+// 消息区（A06）：滚动跟随（底部 64px 内自动跟随），
 // 向上阅读时显示「新内容」按钮；用户消息浅强调底靠右（max-w 88%）；
 // Markdown 复用 StreamingMarkdown；结构化块渲染 cards/*。
 import { useEffect, useRef, useState } from "react";

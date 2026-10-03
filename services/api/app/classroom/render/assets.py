@@ -1,4 +1,4 @@
-"""课堂渲染资产包（plan.md §9.4）。
+"""课堂渲染资产包。
 
 `backend/app/classroom/static/generated/` 由前端
 `pnpm run build:classroom` 生成（tsc frame-runtime + 固定 KaTeX dist + 字体

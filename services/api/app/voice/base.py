@@ -1,6 +1,6 @@
 """Voice provider contracts for spoken-reply TTS plugins.
 
-课堂模式（plan.md §11.2）兼容扩展：``synthesize`` 接受可选 ``options``
+课堂模式兼容扩展：``synthesize`` 接受可选 ``options``
 （音色/语言/合成基准速度）；旧 ``speed`` 关键字调用保持原行为。Provider
 额外通过 :class:`TTSCapabilities` 声明语言、音色、语速区间、是否有词级
 边界与单段文本上限；首发 Azure REST 与 Melo 都是段级同步合成，不允许
@@ -52,7 +52,7 @@ class TTSTransient(VoiceProviderError):
 class TTSOptions:
     """合成选项（课堂逐段合成用）；电话路径不传、保持旧 ``speed`` 语义。
 
-    ``synthesis_speed`` 是合成基准速度（课堂固定 1.0，plan.md §11.4）；
+    ``synthesis_speed`` 是合成基准速度（课堂固定 1.0）；
     课堂个人的 ``tts_speed`` 是播放倍速，由浏览器 ``playbackRate`` 承担，
     不进入合成参数。
     """

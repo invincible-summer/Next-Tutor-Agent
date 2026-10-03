@@ -1,4 +1,4 @@
-"""受控动作 execute/ack 状态机（plan.md §9.3/§9.4/§19.3/§19.4，A10）。
+"""受控动作 execute/ack 状态机（A10）。
 
 状态转换：
     proposed --execute受理--> executing --命令就绪--> awaiting_ack

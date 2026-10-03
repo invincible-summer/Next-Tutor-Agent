@@ -1,4 +1,4 @@
-"""本人只读领域适配器（plan.md §10.3，A09）。
+"""本人只读领域适配器（A09）。
 
 每个 read_* 都返回 §10.4 的统一结果形状：
     {tool, status, data, scope, generated_at, data_revision, complete,

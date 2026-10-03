@@ -1,4 +1,4 @@
-"""站内学习助手私有存储（plan.md §12.1）。
+"""站内学习助手私有存储。
 
 布局：``chat_history/assistant/<student_id>/`` 下
   conversations/<conversation_id>.json   会话/轮/动作唯一事实源

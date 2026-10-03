@@ -1,4 +1,4 @@
-"""课堂生成管线：九阶段与 checked artifact（plan.md §15.1/§15.2，D02）。
+"""课堂生成管线：九阶段与 checked artifact（D02）。
 
 每阶段产物写 ``jobs/<job_id>/stages/<phase>.json`` 并把内容 hash 记进
 job.artifacts；重试/恢复时 hash 未变的阶段直接复用（不重算、不重花钱）。

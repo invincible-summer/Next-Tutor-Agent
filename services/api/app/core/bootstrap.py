@@ -1,6 +1,6 @@
 """Bootstrap observability: structured startup report + readiness.
 
-plan.md §15-§19: the process being alive is not the same as its data
+The process being alive is not the same as its data
 maintenance having succeeded.  ``_lifespan`` used to swallow most startup
 failures with ``except Exception: pass`` and ``/health`` was always ok, so a
 broken textbook recovery or admin bootstrap was invisible.
@@ -95,7 +95,7 @@ async def run_bootstrap_step(
     - failure -> ``log.exception`` with the step name (never silent), check
       failed with the exception text as detail;
     - non-critical failures are swallowed (degradable features must not take
-      the whole service down — plan.md §17);
+      the whole service down);
     - critical failures re-raise after being recorded so the app fails fast.
     """
     check = BootstrapCheck(name=name, critical=critical,

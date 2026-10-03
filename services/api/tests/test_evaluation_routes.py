@@ -1,4 +1,4 @@
-"""G3 回归：学习评价 API 契约（plan §11.1/§11.2 / §18.2 test_evaluation_routes）。
+"""G3 回归：学习评价 API 契约。
 
 - 错误 envelope、身份（JWT）、分页、读接口零模型调用。
 - POST review/synthesis/retry；DELETE evidence；无 scope 反馈。
@@ -218,7 +218,7 @@ if __name__ == "__main__":
 
 
 class TestR11StatusBucketsAndSSE(RouteFixture):
-    """R11（update_plan §4）：pending 分桶与 job SSE 真实跟随终态。"""
+    """R11：pending 分桶与 job SSE 真实跟随终态。"""
 
     def _workspace(self) -> str:
         return WS

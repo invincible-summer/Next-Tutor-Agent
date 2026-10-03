@@ -1,4 +1,4 @@
-"""个人课堂 voice/界面偏好严格校验（plan.md §20.1、阶段 F05）。
+"""个人课堂 voice/界面偏好严格校验（F05）。
 
 prefs.classroom 只接受白名单类型字段；未知键、URL 形值、类型错误一律 422
 ——个人偏好不能浅合并任意供应商 endpoint/base URL。旧 prefs 键保持兼容。

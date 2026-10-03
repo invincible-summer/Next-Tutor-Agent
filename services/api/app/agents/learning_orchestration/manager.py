@@ -855,7 +855,7 @@ class LearningOrchestrationService:
 
     async def saved_tasks_snapshot(self, student_id: str, *,
                                    now: float | None = None) -> dict[str, Any]:
-        """只读任务快照（plan.md GAP-04）：不物化、不标记逾期、不重规划、
+        """只读任务快照：不物化、不标记逾期、不重规划、
         不落盘。供站内助手等只读消费方使用；`today_tasks` 的物化路径继续
         服务原有页面。返回值带覆盖说明——当前任务集合不能证明完整历史
         （GAP-10：from_dict 对 daily_tasks 有数量截断）。

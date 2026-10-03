@@ -533,7 +533,7 @@ input:focus, textarea:focus, select:focus {
 }
 
 /* ==========================================================================
-   站内学习助手（plan.md §3，A06）：纸墨书院令牌复用；
+   站内学习助手（A06）：纸墨书院令牌复用；
    56×56 右下按钮、420/min(640) 面板、放大 720；深浅主题同源。
    ========================================================================== */
 
@@ -643,7 +643,7 @@ input:focus, textarea:focus, select:focus {
 }
 .assistant-icon-btn:hover { background: rgb(var(--surface-hover)); color: rgb(var(--fg)); }
 .assistant-icon-btn[data-active="true"] { color: rgb(var(--accent)); }
-/* 助手语音控件（plan.md §24，B11）：录入 + 朗读，随输入区排布。 */
+/* 助手语音控件（B11）：录入 + 朗读，随输入区排布。 */
 .assistant-voice-controls {
   flex: none;
   display: flex;
@@ -987,7 +987,7 @@ input:focus, textarea:focus, select:focus {
 }
 .assistant-history-date { font-size: 11px; color: rgb(var(--fg-tertiary)); }
 
-/* 办理事项视图（plan.md §23.6，C03）：分组列表、步骤行与一个主操作。 */
+/* 办理事项视图（C03）：分组列表、步骤行与一个主操作。 */
 .assistant-task-group { margin-bottom: 10px; }
 .assistant-task-group-title {
   font-size: 11px;
@@ -1103,7 +1103,7 @@ input:focus, textarea:focus, select:focus {
   gap: 4px;
 }
 
-/* 收件箱视图（plan.md §25.5，C05）：柔和未读点、每条一个主行动。 */
+/* 收件箱视图（C05）：柔和未读点、每条一个主行动。 */
 .assistant-inbox-item {
   border: 1px solid rgb(var(--border));
   border-radius: 10px;
@@ -1265,7 +1265,7 @@ input:focus, textarea:focus, select:focus {
   }
 }
 
-/* 助手深链定位高亮（plan.md §8.3，A11）：短暂描边，不改变布局。 */
+/* 助手深链定位高亮（A11）：短暂描边，不改变布局。 */
 .assistant-deep-highlight {
   outline: 2px solid rgb(var(--accent));
   outline-offset: 2px;
@@ -1273,7 +1273,7 @@ input:focus, textarea:focus, select:focus {
   transition: outline-color 0.3s ease;
 }
 
-/* 报告卡（plan.md §7.2/§7.6/§11.4 固定结构，A12） */
+/* 报告卡（A12） */
 .assistant-report-card {
   display: flex;
   flex-direction: column;

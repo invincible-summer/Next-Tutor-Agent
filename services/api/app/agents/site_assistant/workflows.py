@@ -1,6 +1,6 @@
 """§23 助手工作流执行器（C01）：持久状态、步骤依赖、恢复与部分成功。
 
-要点（plan.md §23.2/23.3/23.4）：
+要点：
 - 记录存 ASSISTANT_DIR/workflows/<id>.json（§26.3；随账号清理覆盖）。
 - 状态机：draft→awaiting_approval→queued→running→(waiting_domain_job|
   paused_for_user)→succeeded|partially_succeeded|failed|cancelled|

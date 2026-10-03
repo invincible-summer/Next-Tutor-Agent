@@ -1,4 +1,4 @@
-"""B03 预览与执行许可协议回归（plan.md §21.4/§21.2）。
+"""B03 预览与执行许可协议回归。
 
 覆盖：preview 确定性与同参数幂等；review_required（note.create）无许可
 execute 返回 409/preview_stale、approve 后可执行；intent_sufficient

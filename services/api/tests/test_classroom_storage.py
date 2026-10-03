@@ -1,4 +1,4 @@
-"""课堂存储回归（plan.md §19.2 test_classroom_storage）。
+"""课堂存储回归。
 
 覆盖：原子写、CAS、读不 mkdir、hash 损坏、重建 index、版本空号、
 跨文件操作恢复（发布事务 crash）、发布/取消竞态拦截、路径逃逸、tombstone。

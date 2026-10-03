@@ -1,4 +1,4 @@
-"""G3 回归：评价生命周期（plan §5.3 / §18.2 test_evaluation_lifecycle）。
+"""G3 回归：评价生命周期。
 
 - 会话移动历史不迁区（历史归属按 workspace_id_at_observation）。
 - 删除/恢复/永久删除副本清理；assessment 档案独立保留语义。

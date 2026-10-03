@@ -1,4 +1,4 @@
-// 统一学习评价的唯一 state/condition/process 文案与 tone 映射（plan §14/§15.3）。
+// 统一学习评价的唯一 state/condition/process 文案与 tone 映射。
 // 中英双语；所有页面（Memory/ConceptDrawer/QuizCard/…）共用这里，
 // 禁止在不同页面复制状态翻译，禁止把类别映射成 0-100 数值。
 import type { Lang } from "./i18n";

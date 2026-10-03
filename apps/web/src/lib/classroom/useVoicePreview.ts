@@ -1,4 +1,4 @@
-/* 语音试听 hook（plan.md §11.5 POST W/voice-preview）。
+/* 语音试听 hook（POST W/voice-preview）。
  *
  * createVoicePreview（服务端同步合成固定试听句，幂等键防重）→
  * fetchVoicePreviewBlobUrl 拉 WAV → new Audio() 播放 → ended/error/停止时

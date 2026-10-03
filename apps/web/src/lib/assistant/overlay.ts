@@ -1,6 +1,6 @@
 "use client";
 
-// OverlayCoordinator（plan.md §5.5，GAP-08）：层级与 Escape 协作。
+// OverlayCoordinator（GAP-08）：层级与 Escape 协作。
 // 层级：主页面 0（现有值）· 助手 40 · 全局 Modal/Drawer 50 · 轻提示 60。
 // 相同层级有先后时按打开顺序判断最上层，不只依赖 z-index；高层
 // Modal/Drawer 打开时助手保留状态但入口位于遮罩之后。

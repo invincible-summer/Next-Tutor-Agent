@@ -339,7 +339,7 @@ export interface ErrorNotebookResp {
   count: number;
 }
 
-// --- 统一学习评价（/learner-evaluation/*，plan §11.2/§11.3） ---
+// --- 统一学习评价（/learner-evaluation/*） ---
 // 时间戳均为服务端 ISO 字符串；类别不是等级阶梯，禁止映射数值。
 
 export interface EvalConceptRef {
@@ -858,7 +858,7 @@ export interface UserProfileData {
   };
 }
 
-/** 个人课堂偏好（prefs.classroom，plan.md §20.1；后端白名单校验）。
+/** 个人课堂偏好（prefs.classroom；后端白名单校验）。
  * 本卡只写语音三键，保存时需并入既有键避免整层覆盖。 */
 export interface ClassroomPrefs {
   voice_policy?: "auto" | "cloud" | "local" | "silent";

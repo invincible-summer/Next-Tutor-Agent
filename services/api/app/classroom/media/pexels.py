@@ -1,4 +1,4 @@
-"""Pexels 图片检索适配器（plan.md §8.2，C03）。
+"""Pexels 图片检索适配器（C03）。
 
 GET https://api.pexels.com/v1/search；Authorization 为原始 key；参数固定
 query/orientation/locale/per_page=8；每次响应读取实际限流头更新共享状态；

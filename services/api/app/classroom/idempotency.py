@@ -1,4 +1,4 @@
-"""课堂幂等与配额（plan.md §14.3/§15.4）。
+"""课堂幂等与配额。
 
 幂等映射存 owner.json（沙箱 patch 自动生效，无进程级缓存）：
 - owner + endpoint scope + key 定位；canonical body hash 不一致 → 409

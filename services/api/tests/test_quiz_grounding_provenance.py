@@ -1,4 +1,4 @@
-"""Provenance 验收测试（plan.md §8）：出题结果的 source refs 可审计、
+"""Provenance 验收测试：出题结果的 source refs 可审计、
 不可伪造、且经 session.quiz_history 持久化/重载不丢。
 
 覆盖：

@@ -1,6 +1,6 @@
 "use client";
 
-/* 「课堂语音」默认偏好卡（prefs.classroom，plan.md §20.1）。
+/* 「课堂语音」默认偏好卡（prefs.classroom）。
  *
  * 新建课堂 run 未显式指定语音时的个人默认（有效顺序：run 显式 > 课程 brief
  * > 个人默认 > 系统默认）。音色候选来自 GET /classroom/capabilities

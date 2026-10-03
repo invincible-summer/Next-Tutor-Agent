@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""旧学习数据迁移 CLI（plan §16.2）。
+"""旧学习数据迁移 CLI。
 
 把旧权威文件的可信原始学习事实迁入统一学习证据 journal
 （`students/<sid>.learning_evidence.jsonl`），并按 §16.3 清理/改写各
@@ -199,7 +199,7 @@ def build_record_ops(record: dict[str, Any], *, sid: str,
         id="rc_legacy_answer_match",
         description=("迁移冻结：作答与旧记录的 correct_answer 语义一致即满足。"
                      "由旧记录标准答案确定性导出（未含学生作答），迁移时刻冻结，"
-                     "非旧时冻结量规（plan §16.4）。"),
+                     "非旧时冻结量规。"),
         weight=1.0, critical=True)]
     task = S.TaskSnapshot(
         question_id=qid[:96], question_revision=1,
@@ -212,7 +212,7 @@ def build_record_ops(record: dict[str, Any], *, sid: str,
         verification=S.TaskVerification(status="unreviewed"),
         concept_refs=[],
         task_family="legacy_learning_record",
-        novelty=("legacy_truncated: 旧存储原文可能截断（plan §16.3）"
+        novelty=("legacy_truncated: 旧存储原文可能截断"
                  if truncated else ""),
         source_badge="旧学习记录迁移",
         frozen_at=now_iso,
@@ -282,7 +282,7 @@ def build_record_ops(record: dict[str, Any], *, sid: str,
         ops.append(S.OpJobCancelled(
             job_id=job_id,
             reason="migration: deterministic MC graded locally; "
-                   "semantic backfill not run (plan §16.4)"))
+                   "semantic backfill not run"))
         counters["mc_graded"] = counters.get("mc_graded", 0) + 1
     else:
         counters["open_pending_backfill"] = counters.get(
@@ -981,7 +981,7 @@ def cmd_rollback(args) -> int:
 
 def main() -> int:
     parser = argparse.ArgumentParser(
-        description="旧学习数据 → 统一学习证据 journal 迁移（plan §16）")
+        description="旧学习数据 → 统一学习证据 journal 迁移")
     modes = parser.add_mutually_exclusive_group(required=True)
     modes.add_argument("--dry-run", action="store_true")
     modes.add_argument("--apply", action="store_true")

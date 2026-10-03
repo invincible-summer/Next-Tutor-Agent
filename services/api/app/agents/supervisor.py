@@ -316,7 +316,7 @@ def _memory_directive_for_turn(understanding, session, trace) -> str:
 
 def _teaching_evidence_directive_for_turn(understanding, session,
                                           trace) -> str:
-    """R20（update_plan §4）：P7 teaching_evidence_directive 的使用入口。
+    """R20：P7 teaching_evidence_directive 的使用入口。
 
     当前工作区对理解层识别的概念存在有效统一评价投影（supported/
     fragile/conflicting/emerging）时，输出 [证据智能·教学呈现] 软指令
@@ -677,7 +677,7 @@ def _enrich_plan_with_strategy_check(plan: TaskPlan, strategy: Any,
 
 async def _adapt_via_engine(sm, concept, subject, intent, grade,
                             understanding, trace, sid: str, llm=None):
-    """G4（plan §13.3）：TeachingContext 不携带掌握度；评价上下文经
+    """G4：TeachingContext 不携带掌握度；评价上下文经
     understanding.evaluation_context 只读注入。"""
     from .teaching_engine import (TeachingContext, get_teaching_manager,
                                   is_enabled as te_enabled,
@@ -1412,7 +1412,7 @@ async def run(
         from .task_understanding import rule_understand
         understanding = rule_understand(user_message)
         understanding.source = "fallback"
-    # R20（update_plan §4）：composition root 注入 scoped 评价投影——
+    # R20：composition root 注入 scoped 评价投影——
     # M3/M5 教学输入读到当前工作区有效判断（此前 evaluation_context
     # 无赋值路径，恒空）。无 workspace → 空 dict（非个性化降级）。
     try:
@@ -1530,7 +1530,7 @@ async def run(
     # PURE-READ: builds the "[交互智能·...]" block from the UX profile + the
     # most recent feedback + a once-per-milestone motivation nudge. Advisory
     # only; never alters content correctness. Mirrors 3d/3e/3f.
-    # --- 3f2. R20（update_plan §4）：P7 教学证据指令 —— 当前工作区对
+    # --- 3f2. R20：P7 教学证据指令 —— 当前工作区对
     # 本轮概念已有有效评价投影时，把 registry 的 P7 文本作为讲解呈现
     # 约束并入本轮软指令（此前 P7 注册后零使用）。纯读、不改评价。
     p7_recap = _teaching_evidence_directive_for_turn(understanding, session,
