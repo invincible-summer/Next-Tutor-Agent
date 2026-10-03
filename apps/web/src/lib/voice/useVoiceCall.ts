@@ -2,7 +2,7 @@
 /**
  * 语音通话 hook：push-to-talk 状态机 + 语音 WebSocket 协议客户端。
  *
- * 服务端协议见 backend/app/api/v1/voice.py：JSON 控制/事件帧 + 下行二进制帧
+ * 服务端协议见 services/api/app/api/v1/voice.py：JSON 控制/事件帧 + 下行二进制帧
  * （输入侧只发送最终识别文本；下行
  * 每句一个 tts_start 元事件 + 44.1 kHz PCM16 帧 + tts_end）。播放端按到达
  * 顺序入队，AudioBuffer 按元事件携带的采样率创建（浏览器自动重采样到

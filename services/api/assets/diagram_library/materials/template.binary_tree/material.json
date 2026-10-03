@@ -38,7 +38,7 @@
     "creation_method": "ai_assisted_vector_code",
     "source_module": "app/diagrams/templates.py",
     "source_symbol": "template:binary_tree",
-    "source_hash": "sha256:6597a1e10782520c75ad0d147cfb867f02956768cfb43c7cc979aeb54c22769a",
+    "source_hash": "sha256:201c7d25b25794d04d593f5d7c2f4c2a665d7da667cb690a728387ed7b61c9b8",
     "external_graphics": [],
     "derived_from": [],
     "knowledge_references": [],
@@ -51,7 +51,7 @@
     "visual": "passed",
     "reviewer_type": "agent",
     "reviewed_at": "2026-10-03",
-    "source_hash": "sha256:6597a1e10782520c75ad0d147cfb867f02956768cfb43c7cc979aeb54c22769a",
+    "source_hash": "sha256:201c7d25b25794d04d593f5d7c2f4c2a665d7da667cb690a728387ed7b61c9b8",
     "evidence": {
       "profiles": [
         "textbook",
@@ -64,8 +64,8 @@
       "parameter_review": "/tmp/next-tutor-all-assets-review-final",
       "individual_review": "/tmp/next-tutor-wall-source-review",
       "review_note": "All 27 paired contact sheets inspected; changed families rerendered and inspected. Invalid cross-parameter endpoints explicitly rejected.",
-      "revalidation": "/tmp/next-tutor-all-assets-post-composition-fixes",
-      "revalidation_note": "Chromium rerender; unchanged SVG compared byte-for-byte against reviewed corpus. Changed diagrams inspected on sheets 14/17/23 in both profiles.",
+      "revalidation": "/tmp/diagram-rebind",
+      "revalidation_note": "Phase D scripts unification: generator moved to scripts/diagrams/build_catalog.py (renderer sources unchanged); full Chromium re-render of all 1119 assets in both profiles clean (bounds=0, textIssues=0, rejected=0).",
       "expansion_replay": {
         "directory": "/tmp/next-tutor-expansion-review",
         "baseline": "/tmp/next-tutor-wall-source-review",

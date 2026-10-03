@@ -21,7 +21,7 @@
 
 ## Design
 
-`catalog.json` 与 `review.json` 均为生成物，由目录生成脚本（见 scripts/diagrams/）从渲染器源码重建，不要手改；素材包可重建性经 `build_diagram_packages.py --check` 校验。新增定量/科学装配能力必须登记单位、条件参数、动态端口、区域与关系规则，不能只靠标签或相似外形取得资格。
+`catalog.json` 与 `review.json` 均为生成物，由目录生成脚本（见 scripts/diagrams/）从渲染器源码重建，不要手改；素材包可重建性经 `scripts/diagrams/build_packages.py --check` 校验。新增定量/科学装配能力必须登记单位、条件参数、动态端口、区域与关系规则，不能只靠标签或相似外形取得资格。
 
 ## Tests
 

@@ -17,7 +17,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
-# Ensure backend/ is on sys.path
+# Ensure services/api/ is on sys.path
 _BACKEND = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(_BACKEND))
 

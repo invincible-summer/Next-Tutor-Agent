@@ -278,7 +278,7 @@ class Settings:
 
     # Voice call: browser SpeechRecognition input + pluggable TTS output.
     # STT is always performed in the browser; the backend receives final text.
-    # TTS: off | stub | melo (MeloTTS sidecar, see backend/voice_sidecar).
+    # TTS: off | stub | melo (MeloTTS sidecar, see services/voice).
     voice_tts_provider: str = os.getenv("VOICE_TTS_PROVIDER", "off").strip().lower()
     # MeloTTS sidecar base URL (localhost only; started by start.sh).
     voice_tts_base_url: str = os.getenv("VOICE_TTS_BASE_URL", "http://127.0.0.1:8130")

@@ -28,7 +28,7 @@
     "creation_method": "ai_assisted_vector_code",
     "source_module": "app/diagrams/life_earth.py",
     "source_symbol": "biology:chloroplast",
-    "source_hash": "sha256:baafe320672a58a945e1cd23dfe1b3ff2ea7bf946f71e9b8548dec8f5f9606c0",
+    "source_hash": "sha256:0f92a58c9a6d6282c9363c50f30906763fbe32d9f30f410aae0e98cedb754df8",
     "external_graphics": [],
     "derived_from": [],
     "knowledge_references": [
@@ -48,7 +48,7 @@
     "visual": "passed",
     "reviewer_type": "agent",
     "reviewed_at": "2026-10-03",
-    "source_hash": "sha256:baafe320672a58a945e1cd23dfe1b3ff2ea7bf946f71e9b8548dec8f5f9606c0",
+    "source_hash": "sha256:0f92a58c9a6d6282c9363c50f30906763fbe32d9f30f410aae0e98cedb754df8",
     "evidence": {
       "profiles": [
         "textbook",
@@ -63,7 +63,9 @@
         "textbook": "sha256:e2045314758a9a00683111d99a8e44c285ea3ea1c95817402a90395a82f2dd66",
         "monochrome": "sha256:de19a9c5feea3454f48fd04c701faf7df4fdebf99ba5def46d003b886cd358d7"
       },
-      "review_note": "All 12 large paired sheets and both correction sheets inspected. Closed-pipe ends, electrode/ion directions, daylight, membrane layers, actual numeric controls checked. Final XML matches selected evidence."
+      "review_note": "All 12 large paired sheets and both correction sheets inspected. Closed-pipe ends, electrode/ion directions, daylight, membrane layers, actual numeric controls checked. Final XML matches selected evidence.",
+      "revalidation": "/tmp/diagram-rebind",
+      "revalidation_note": "Phase D scripts unification: generator moved to scripts/diagrams/build_catalog.py (renderer sources unchanged); full Chromium re-render of all 1119 assets in both profiles clean (bounds=0, textIssues=0, rejected=0)."
     }
   },
   "svg_file": "asset.svg",

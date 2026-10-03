@@ -2,7 +2,7 @@
 
 教学 SVG 素材与出题专项的架构说明见 [architecture/diagrams-illustration.md](../architecture/diagrams-illustration.md)（测评侧合同另见 [architecture/assessment.md](../architecture/assessment.md)），完整库存清单见 [reference/diagram-assets.md](../reference/diagram-assets.md)（脚本生成），当前验收基线见 [validation/diagram-library.md](../validation/diagram-library.md)。
 
-素材改动先从仓库根运行 `python3 services/api/scripts/build_diagram_catalog.py --check`，再在 `services/api` 运行相关回归：
+素材改动先从仓库根运行 `python3 scripts/diagrams/build_catalog.py --check`，再在 `services/api` 运行相关回归：
 
 ```bash
 # 共享目录与兼容题图：
@@ -24,7 +24,7 @@ python3 -m tests tests.illustration.test_illustration_v2 tests.illustration.test
 先完成下面的 Node/Chromium 准备，并在本地 shell 或仓库根 `.env` 配置实际 quiz provider。显式从仓库根运行：
 
 ```bash
-python3 scripts/illustration/acceptance.py --live-llm \
+python3 scripts/acceptance/illustration/live.py --live-llm \
   --cases heating,reading,buoyancy,series,geometry,bar,thermal,function,spring,filtration \
   --output /tmp/illustration-v2-round-1
 ```
@@ -151,4 +151,4 @@ python -m tests tests.agents.knowledge.test_local_rag tests.agents.knowledge.tes
 
 素材创作重点回归：`cd services/api && python3 -m tests tests.diagrams.test_diagram_materials tests.diagrams.test_diagram_guidance tests.illustration.test_illustration_jobs tests.identity.test_guest_access`；前端 `pnpm check`、`pnpm build` 后运行 `E2E_FRESH=1 pnpm exec playwright test tests/e2e/diagram-materials.spec.ts tests/e2e/quiz-illustration.spec.ts`。浏览器隔离后端引导合成管理员，验证公有发布、普通用户403/只读历史与私有列表隔离；图片渲染脚本和依赖同样位于隔离架构。
 
-真实素材生成与使用验收：`python3 scripts/illustration/material_acceptance.py --live-llm --output /tmp/material-live-acceptance`。它创建隔离临时运行根，实际调用配置服务生成容器/几何/流程草稿、手动修改、冻结新版本并使用指定素材出题，两项审图均看真实PNG。浏览器AI草稿替身不计为该服务验收，详细结果见[验收记录](../validation/diagram-library.md)。
+真实素材生成与使用验收：`python3 scripts/acceptance/illustration/materials.py --live-llm --output /tmp/material-live-acceptance`。它创建隔离临时运行根，实际调用配置服务生成容器/几何/流程草稿、手动修改、冻结新版本并使用指定素材出题，两项审图均看真实PNG。浏览器AI草稿替身不计为该服务验收，详细结果见[验收记录](../validation/diagram-library.md)。

@@ -8,10 +8,13 @@
 
 | 目录 | 职责 |
 |------|------|
+| `acceptance/` | 真实模型验收（产生真实 LLM 费用，输出必须写仓库外目录）：`classroom/live.py`、`illustration/live.py`、`illustration/materials.py` |
 | `demo/` | GitHub Pages 静态演示：`export_pages_demo.py`（synthetic fixtures 只读导出）、`serve_pages_demo.py`（本地伺服预览）及导出器自测 |
 | `dev/` | 本地开发辅助：`start.sh`（完整运行时一键启动、端口回退、sidecar 拉起）、`generate_assistant_types.py` / `generate_classroom_types.py`（契约类型生成）、`create_speech.js`、`migrate_learning_evidence.py` |
-| `illustration/` | 图库/题图真实模型验收：`acceptance.py`、`material_acceptance.py`（产生真实 LLM 费用，输出必须写仓库外目录） |
-| `repo/` | 仓库卫生守卫：`check_repository_hygiene.py`（CI 首个 blocking job，检查 tracked 文件与全量历史）、`check_pages_artifact.py`、`repo-policy.toml`（大文件例外政策） |
+| `diagrams/` | 图库生成物重建（离线、确定性，输出必须入库）：`build_catalog.py`（catalog + 参考清单）、`build_packages.py`（素材包），`--check` 进 CI |
+| `evaluation/` | prompt 回归评测：`run_prompt_eval.py`（`--mock` 零成本进 unittest，`--llm` 真实费用仅人工） |
+| `repo/` | 仓库卫生守卫：`check_repository_hygiene.py`（CI 首个 blocking job，检查 tracked 文件与全量历史）、`check_documentation.py`（文档链接/布局/生成物一致）、`check_pages_artifact.py`、`repo-policy.toml`（大文件例外政策） |
+| `retrieval/` | 公用教材向量包构建/导入（部署期，输出为运行数据根状态，不入库）：`build_public_vector_pack.py`、`import_public_vector_pack.py` |
 
 ## 命名与归域规则
 
@@ -21,6 +24,5 @@
 
 ## Does not own
 
-- 后端专属脚本（真实模型验收、图库目录生成等）→ `services/api/scripts/`。
-- 前端构建与浏览器回归脚本 → `apps/web/scripts/`（如 `build-classroom-assets.mjs`、`test-classroom-*.mjs`、`check-diagram-library.mjs`）。
+- 前端构建与浏览器回归脚本 → `apps/web/scripts/`（如 `build-classroom-assets.mjs`、`check-diagram-library.mjs`）；离线单元脚本在 `apps/web/tests/unit/`。
 - 部署模板与安装脚本 → [`deploy/`](../deploy/README.md)（部署文档以 [docs/operations/deployment.md](../docs/operations/deployment.md) 为权威）。

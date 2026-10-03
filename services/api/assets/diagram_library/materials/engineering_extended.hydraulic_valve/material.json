@@ -28,7 +28,7 @@
     "creation_method": "ai_assisted_vector_code",
     "source_module": "app/diagrams/extended_engineering.py",
     "source_symbol": "draw:hydraulic_valve",
-    "source_hash": "sha256:9e8143848fbd7748174804747bab0927d70a6043cc7de1a0914f2c8db4617ed5",
+    "source_hash": "sha256:47dc15a46f76eba60e756c020b0dabdab3cdc02e451cceb90dacfe095d3292cc",
     "external_graphics": [],
     "derived_from": [],
     "knowledge_references": [],
@@ -41,7 +41,7 @@
     "visual": "passed",
     "reviewer_type": "agent",
     "reviewed_at": "2026-10-03",
-    "source_hash": "sha256:9e8143848fbd7748174804747bab0927d70a6043cc7de1a0914f2c8db4617ed5",
+    "source_hash": "sha256:47dc15a46f76eba60e756c020b0dabdab3cdc02e451cceb90dacfe095d3292cc",
     "evidence": {
       "profiles": [
         "textbook",
@@ -63,7 +63,9 @@
         },
         "unchanged_actual_svg": true,
         "review_note": "Both re-rendered SVGs are byte-identical to reviewed baseline; prior visual evidence preserved."
-      }
+      },
+      "revalidation": "/tmp/diagram-rebind",
+      "revalidation_note": "Phase D scripts unification: generator moved to scripts/diagrams/build_catalog.py (renderer sources unchanged); full Chromium re-render of all 1119 assets in both profiles clean (bounds=0, textIssues=0, rejected=0)."
     },
     "notes": "全目录双风格重新渲染无越界/文字碰撞，与前轮逐SVG字节核对仅墙体变化；墙体接触面双风格实图已审阅。"
   },

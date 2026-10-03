@@ -32,7 +32,7 @@
     "creation_method": "ai_assisted_vector_code",
     "source_module": "app/diagrams/physics.py",
     "source_symbol": "measurement:vernier",
-    "source_hash": "sha256:15db561e0e7b6fb55797e51b9e2f632f4c99892f3b643989d5f663f619355cae",
+    "source_hash": "sha256:a5df04888b2e96b3aa38a8c2ba764997f84010fea7aa3559e33da9373c511efd",
     "external_graphics": [],
     "derived_from": [],
     "knowledge_references": [],
@@ -45,7 +45,7 @@
     "visual": "passed",
     "reviewer_type": "agent",
     "reviewed_at": "2026-10-03",
-    "source_hash": "sha256:15db561e0e7b6fb55797e51b9e2f632f4c99892f3b643989d5f663f619355cae",
+    "source_hash": "sha256:a5df04888b2e96b3aa38a8c2ba764997f84010fea7aa3559e33da9373c511efd",
     "evidence": {
       "profiles": [
         "textbook",
@@ -67,7 +67,9 @@
         },
         "unchanged_actual_svg": true,
         "review_note": "Both re-rendered SVGs are byte-identical to reviewed baseline; prior visual evidence preserved."
-      }
+      },
+      "revalidation": "/tmp/diagram-rebind",
+      "revalidation_note": "Phase D scripts unification: generator moved to scripts/diagrams/build_catalog.py (renderer sources unchanged); full Chromium re-render of all 1119 assets in both profiles clean (bounds=0, textIssues=0, rejected=0)."
     }
   },
   "svg_file": "asset.svg",

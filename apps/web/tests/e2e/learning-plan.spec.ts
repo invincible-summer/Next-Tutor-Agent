@@ -1,7 +1,7 @@
 /**
  * Flow 7：学习编排链（M5 -> SkillGraph -> orchestration）。
  * E2E 层验证编排 API 对真实状态的响应（prerequisite 拓扑的深度行为由
- * backend/tests/test_learning_grounded_loop.py 的 Case A/B/C 覆盖）。
+ * services/api/tests/agents/learning_orchestration/ 的后端单测覆盖）。
  */
 import { test, expect } from "@playwright/test";
 import { request as pwRequest } from "@playwright/test";

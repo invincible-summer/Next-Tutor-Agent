@@ -28,7 +28,7 @@
     "creation_method": "ai_assisted_vector_code",
     "source_module": "app/diagrams/life_earth.py",
     "source_symbol": "biology:virus",
-    "source_hash": "sha256:baafe320672a58a945e1cd23dfe1b3ff2ea7bf946f71e9b8548dec8f5f9606c0",
+    "source_hash": "sha256:0f92a58c9a6d6282c9363c50f30906763fbe32d9f30f410aae0e98cedb754df8",
     "external_graphics": [],
     "derived_from": [],
     "knowledge_references": [],
@@ -41,7 +41,7 @@
     "visual": "passed",
     "reviewer_type": "agent",
     "reviewed_at": "2026-10-03",
-    "source_hash": "sha256:baafe320672a58a945e1cd23dfe1b3ff2ea7bf946f71e9b8548dec8f5f9606c0",
+    "source_hash": "sha256:0f92a58c9a6d6282c9363c50f30906763fbe32d9f30f410aae0e98cedb754df8",
     "evidence": {
       "profiles": [
         "textbook",
@@ -63,7 +63,9 @@
         },
         "unchanged_actual_svg": true,
         "review_note": "Both re-rendered SVGs are byte-identical to reviewed baseline; prior visual evidence preserved."
-      }
+      },
+      "revalidation": "/tmp/diagram-rebind",
+      "revalidation_note": "Phase D scripts unification: generator moved to scripts/diagrams/build_catalog.py (renderer sources unchanged); full Chromium re-render of all 1119 assets in both profiles clean (bounds=0, textIssues=0, rejected=0)."
     }
   },
   "svg_file": "asset.svg",

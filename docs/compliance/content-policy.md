@@ -10,7 +10,7 @@
   - Pages 演示唯一内容源 `fixtures/demo/`（虚构书名、`fx_*` 合成 id，README 声明 synthetic 来源）；
   - E2E 用的合成教材文本 fixture（如 `apps/web/tests/e2e/fixtures/` 下的 `synthetic-zx17-grounding.txt`，fixtures README 声明 project-authored synthetic）；
 - 项目原创/程序化生成的 SVG 及其 provenance（`services/api/assets/diagram_library/`，含逐素材 `material.json`/`usage_guide.json` 与审核台账）；
-- 可确定性重建的生成型 catalog/reference（如 [../reference/diagram-assets.md](../reference/diagram-assets.md)，由 `build_diagram_catalog.py` 生成，`--check` 保证与源一致）；
+- 可确定性重建的生成型 catalog/reference（如 [../reference/diagram-assets.md](../reference/diagram-assets.md)，由 `scripts/diagrams/build_catalog.py` 生成，`--check` 保证与源一致）；
 - 第三方许可证文本（`licenses/`、`THIRD-PARTY-NOTICES.md`）。
 
 ## 禁止入库

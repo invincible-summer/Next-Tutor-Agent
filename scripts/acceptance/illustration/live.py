@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Explicit live-provider acceptance against synthetic questions and isolated storage.
 
-python scripts/illustration/acceptance.py --live-llm --output /tmp/illustration-review
+python scripts/acceptance/illustration/live.py --live-llm --output /tmp/illustration-review
 Never imports the hermetic unittest runner; it deliberately uses configured LLM.
 """
 from __future__ import annotations
@@ -15,7 +15,7 @@ import tempfile
 import time
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[2]
+ROOT = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(ROOT / "services/api"))
 
 SCENARIOS = {

@@ -31,3 +31,5 @@
 ## 台账重绑记录
 
 素材的审核状态与来源哈希绑定（含生成脚本路径）。当生成脚本位置/字节变化（如仓库结构整理移动脚本）但不改变任何绘制源与渲染结果时：先以全量双风格离线渲染复核（自动结构/边界检查必须全数通过），再重绑台账哈希并重新生成目录，`--check` 恢复通过。每轮重绑在此追加一行记录（日期、渲染数、结果）。
+
+- 2026-10-03（Phase D scripts 统一）：生成脚本迁移 `services/api/scripts/build_diagram_catalog.py` → `scripts/diagrams/build_catalog.py`（渲染器源码零改动）。全量 1,119 素材 × 彩色/黑白双风格 Chromium 离线渲染 2,238 次，0 越界、0 文本重叠、0 参数端点拒绝；台账 1,119 项哈希重绑后 `build_catalog.py --check` 与 `build_packages.py --check` 恢复通过。

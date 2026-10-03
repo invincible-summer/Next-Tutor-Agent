@@ -1,6 +1,6 @@
 """Explicit paid-LLM acceptance; redirects all app storage to a temporary sandbox.
 
-Run from backend: python scripts/accept_classroom_live.py --output /tmp/course-live
+Run from repo root: python scripts/acceptance/classroom/live.py --output /tmp/course-live
 Uses synthetic material only. Not included in unittest discovery.
 """
 from __future__ import annotations
@@ -9,7 +9,7 @@ import asyncio
 import json
 import sys
 from pathlib import Path
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+sys.path.insert(0, str(Path(__file__).resolve().parents[3] / "services" / "api"))
 
 
 async def generate(output: Path, resume: Path | None = None, brief_path: Path | None = None) -> None:

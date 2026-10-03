@@ -2,11 +2,11 @@
 
 Like StudentModel (M2), TeachingManager (M3), and AssessmentManager (M4), this
 is the one entry point for the knowledge-intelligence layer. It owns the live
-KnowledgeGraph (seed + learned edges/content) and the ConceptRetriever, and
+KnowledgeGraph (learned edges/content) and the ConceptRetriever, and
 exposes the read surface the Supervisor + bridge consume:
 
     ks = get_knowledge_service()
-    ks.graph                # KnowledgeGraph (seed + learned edges + contents)
+    ks.graph                # KnowledgeGraph (learned edges + contents)
     ks.retriever            # ConceptRetriever (BM25 + KG traversal)
     ks.retrieve(query)      # -> [{concept_id, name, score, source}]
     ks.build_context(...)   # -> KnowledgeContext (content + materials resolved)
@@ -19,10 +19,10 @@ Design contract (mirrors M2/M3/M4):
     runs knowledge -> (consumed by) student_model/teaching_engine, one-way.
   - GRACEFUL: any failure degrades to a no-op; never breaks a turn. Toggled by
     KNOWLEDGE_INTELLIGENCE_MODE (default on). When off, callers fall back to
-    the SkillGraph seed exactly (zero M5 surface).
-  - LEARNED vs SEED: seed (code) is the source of truth for curated facts;
-    only reasoner-derived edges are persisted to disk (store.py,
-    knowledge/graph.json). The seed is never written to disk.
+    the SkillGraph exactly (zero M5 surface).
+  - LEARNED-ONLY BASE: the base graph starts empty (P6-A2 removed the
+    curriculum seed); only reasoner-derived edges are persisted to disk
+    (store.py, knowledge/graph.json).
 """
 from __future__ import annotations
 
@@ -77,10 +77,9 @@ class KnowledgeService:
 
     def _build_graph(self) -> KnowledgeGraph:
         from .reasoning import persist_result  # noqa: F401 (kept for callers)
-        from .seed import seed_contents, seed_edges, seed_nodes
         from . import store as _store
-        graph = KnowledgeGraph(nodes=seed_nodes(), edges=seed_edges(),
-                               contents=seed_contents())
+        # P6-A2 之后知识只来自教材：主图初始为空，learned 边来自磁盘。
+        graph = KnowledgeGraph()
         # merge learned edges from disk (reasoner-derived); each still passes
         # add_edge's DAG guard, so a corrupt file cannot introduce a cycle.
         for e in _store.load_learned_edges():

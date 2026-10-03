@@ -81,9 +81,11 @@ REQUIRED_READMES = [
     "services/api/tests/README.md",
     "services/voice/README.md",
     "scripts/README.md",
+    "scripts/acceptance/README.md",
+    "scripts/diagrams/README.md",
+    "scripts/evaluation/README.md",
+    "scripts/retrieval/README.md",
     "deploy/README.md",
-    # scripts/<domain>/README.md entries are appended together with the
-    # scripts/ migration so each script domain documents its own contract.
 ]
 
 # ---------------------------------------------------------------------------
@@ -129,37 +131,9 @@ LEGACY_PATH_EXEMPT_DIRS = {
 # forgives the *named pattern* in the *named file*. Remove the entry in the
 # same change that removes the reference; a stale entry (file no longer
 # matches) is itself an error so the list cannot rot.
-LEGACY_PATH_RATCHET = {
-    rel: [r"(?<![\w.\-])backend/"]
-    for rel in [
-        "apps/web/scripts/build-classroom-assets.mjs",
-        "apps/web/src/lib/types-notes.ts",
-        "apps/web/src/lib/voice/useVoiceCall.ts",
-        "apps/web/src/components/classroom/TemplatePicker.tsx",
-        "apps/web/src/lib/assistant/types.generated.ts",
-        "apps/web/src/lib/types-classroom.generated.ts",
-        "apps/web/tests/e2e/support/prepare-backend.mjs",
-        "apps/web/tests/e2e/learning-plan.spec.ts",
-        "scripts/dev/generate_classroom_types.py",
-        "scripts/dev/generate_assistant_types.py",
-        "services/api/cli.py",
-        "services/api/serve.py",
-        "services/api/app/agents/knowledge/store.py",
-        "services/api/app/agents/memory/store.py",
-        "services/api/app/classroom/render/assets.py",
-        "services/api/app/core/account_data.py",
-        "services/api/app/core/config.py",
-        "services/api/app/core/session.py",
-        "services/api/app/voice/tts/melotts.py",
-        "services/api/scripts/build_all_packs.sh",
-        "services/api/scripts/build_seed_pack.py",
-        "services/api/scripts/restore_legacy_richness.py",
-        "services/api/scripts/run_prompt_eval.py",
-        "services/api/tests/agents/memory/test_memory.py",
-        "services/api/tests/agents/knowledge/test_workspace_knowledge.py",
-        "services/voice/requirements.txt",
-    ]
-}
+# Legacy layout paths were fully cleaned up in phase D (clean-plan §8.3);
+# the ratchet is kept empty so any reintroduced reference fails immediately.
+LEGACY_PATH_RATCHET: dict[str, list[str]] = {}
 
 # ---------------------------------------------------------------------------
 # Markdown link checking

@@ -1,4 +1,4 @@
-"""Run the FastAPI server: python backend/serve.py"""
+"""Run the FastAPI server: python services/api/serve.py"""
 from __future__ import annotations
 
 import uvicorn

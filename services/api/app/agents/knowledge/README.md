@@ -17,7 +17,6 @@
 - `reasoning.py` — `DependencyReasoner`：新概念 prerequisite 边补全（本包唯一用 LLM 的组件，阈值门 + DAG 安全写入）。
 - `bridge.py` — M5 → M2 SkillGraph plain-data 投影（与 legacy 种子永不并存，避免双真相源）。
 - `scope_primitives.py` — public / student 命名空间原语。
-- `seed.py` — seed 聚合入口。
 
 ## Does not own
 

@@ -1,6 +1,6 @@
 "use client";
 /* 5 个视觉模板的原创 CSS 缩略图（静态原创、无外部请求）。
- * 缩略图配色取自 backend/app/classroom/render/themes.py 的真实 token，
+ * 缩略图配色取自 services/api/app/classroom/render/themes.py 的真实 token，
  * 让用户在备课时预览到的就是最终课件的面貌。
  */
 import { Check } from "lucide-react";

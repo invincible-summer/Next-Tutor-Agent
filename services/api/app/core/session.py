@@ -18,8 +18,8 @@ from .atomic import atomic_write_text, file_lock
 from .config import settings
 from .knowledge_store import KnowledgeStore
 
-# chat_history lives at the project root (parent of backend/), so it is
-# independent of the backend cwd. Mirror config.py's project-root resolution.
+# chat_history lives in the runtime data root, so it is independent of
+# the backend cwd. Mirror config.py's data-root resolution.
 from app.core import paths
 
 _SESSIONS_DIR = paths.bind_storage_path(__name__, "_SESSIONS_DIR", "sessions")

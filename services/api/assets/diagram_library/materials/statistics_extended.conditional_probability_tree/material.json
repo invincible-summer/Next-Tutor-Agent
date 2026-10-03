@@ -30,7 +30,7 @@
     "creation_method": "ai_assisted_vector_code",
     "source_module": "app/diagrams/curriculum_expansion.py",
     "source_symbol": "draw:conditional_probability_tree",
-    "source_hash": "sha256:5105f9387ffff241aab1a3fe717976c9c3daecb204895d419901214a9f1761d2",
+    "source_hash": "sha256:c307134be2636a4c48f9a1e04ccd8e37be37b192d82343589930df3a95ba3340",
     "external_graphics": [],
     "derived_from": [],
     "knowledge_references": [],
@@ -43,7 +43,7 @@
     "visual": "passed",
     "reviewer_type": "agent",
     "reviewed_at": "2026-10-03",
-    "source_hash": "sha256:5105f9387ffff241aab1a3fe717976c9c3daecb204895d419901214a9f1761d2",
+    "source_hash": "sha256:c307134be2636a4c48f9a1e04ccd8e37be37b192d82343589930df3a95ba3340",
     "evidence": {
       "profiles": [
         "textbook",
@@ -58,7 +58,9 @@
         "textbook": "sha256:973023c0bba2658abee1c9c70c1b5ee1e6c4292834a6f2acd05b7884951e1e17",
         "monochrome": "sha256:5b3d1bef4c90f6cf959e3ae3927828638257320252ffc32fb21976155f0ffc75"
       },
-      "review_note": "All 12 large paired sheets and both correction sheets inspected. Closed-pipe ends, electrode/ion directions, daylight, membrane layers, actual numeric controls checked. Final XML matches selected evidence."
+      "review_note": "All 12 large paired sheets and both correction sheets inspected. Closed-pipe ends, electrode/ion directions, daylight, membrane layers, actual numeric controls checked. Final XML matches selected evidence.",
+      "revalidation": "/tmp/diagram-rebind",
+      "revalidation_note": "Phase D scripts unification: generator moved to scripts/diagrams/build_catalog.py (renderer sources unchanged); full Chromium re-render of all 1119 assets in both profiles clean (bounds=0, textIssues=0, rejected=0)."
     }
   },
   "svg_file": "asset.svg",

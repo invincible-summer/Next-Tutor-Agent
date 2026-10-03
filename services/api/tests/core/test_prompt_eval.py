@@ -1,6 +1,6 @@
 """阶段D：prompt 回归评测的 CI 门禁（unittest 封装）。
 
-把 scripts/run_prompt_eval.py 的 mock 检查接入 unittest discover：
+把 scripts/evaluation/run_prompt_eval.py 的 mock 检查接入 unittest discover：
 golden 集每条（讲解结构/学段适配/红线拒答/检索忠实度/工具选择）的
 确定性断言任一失败即红。真实 LLM 模式不在此处跑（需网络）。
 """
@@ -10,7 +10,7 @@ from pathlib import Path
 
 _BACKEND = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(_BACKEND))
-sys.path.insert(0, str(_BACKEND / "scripts"))
+sys.path.insert(0, str(_BACKEND.parents[1] / "scripts" / "evaluation"))
 
 import run_prompt_eval as rpe  # noqa: E402
 from tests.support.storage_sandbox import StorageSandboxTestCase  # noqa: E402

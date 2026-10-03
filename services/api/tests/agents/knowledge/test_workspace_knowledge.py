@@ -80,7 +80,7 @@ class TestMergedKnowledge(unittest.TestCase):
         library_mod._LIBRARY_DIR = root / "library"
         tb_mod._LIBRARY_DIR = root / "library"
         # lib.add_file 经默认 KnowledgeStore 落 uploads（trace_dir 派生），
-        # 不隔离会直写生产 backend/uploads。
+        # 不隔离会直写生产 uploads/。
         settings.trace_dir = str(root / "traces")
 
     def tearDown(self):

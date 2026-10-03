@@ -28,7 +28,7 @@
     "creation_method": "ai_assisted_vector_code",
     "source_module": "app/diagrams/systems.py",
     "source_symbol": "chemistry:water",
-    "source_hash": "sha256:d4489571c90419d8a44b4415225411a789f62d32c72674110be6610d49ed937b",
+    "source_hash": "sha256:368c275eabf10af0dffc091904771b818739247efb066bd58d9589663e0a1c99",
     "external_graphics": [],
     "derived_from": [],
     "knowledge_references": [
@@ -48,7 +48,7 @@
     "visual": "passed",
     "reviewer_type": "agent",
     "reviewed_at": "2026-10-03",
-    "source_hash": "sha256:d4489571c90419d8a44b4415225411a789f62d32c72674110be6610d49ed937b",
+    "source_hash": "sha256:368c275eabf10af0dffc091904771b818739247efb066bd58d9589663e0a1c99",
     "evidence": {
       "profiles": [
         "textbook",
@@ -63,7 +63,9 @@
         "textbook": "sha256:6e4cb9d2f02cee69a19959e4a9c08c1659f4440303bb9f27c600112c17d28236",
         "monochrome": "sha256:badbe8c7f270754f76ba762dcda8edce16adb8a2c611895d3ac4496a85d19a5f"
       },
-      "review_note": "All 12 large paired sheets and both correction sheets inspected. Closed-pipe ends, electrode/ion directions, daylight, membrane layers, actual numeric controls checked. Final XML matches selected evidence."
+      "review_note": "All 12 large paired sheets and both correction sheets inspected. Closed-pipe ends, electrode/ion directions, daylight, membrane layers, actual numeric controls checked. Final XML matches selected evidence.",
+      "revalidation": "/tmp/diagram-rebind",
+      "revalidation_note": "Phase D scripts unification: generator moved to scripts/diagrams/build_catalog.py (renderer sources unchanged); full Chromium re-render of all 1119 assets in both profiles clean (bounds=0, textIssues=0, rejected=0)."
     }
   },
   "svg_file": "asset.svg",

@@ -28,7 +28,7 @@
     "creation_method": "ai_assisted_vector_code",
     "source_module": "app/diagrams/extended_deferred.py",
     "source_symbol": "draw:watershed",
-    "source_hash": "sha256:2288e230bb5f526d1f85133677eb9560b790b0fca7596a861150e2f8201f0bd4",
+    "source_hash": "sha256:0698c95d11767f3d5399686788d09f5c0dbeb612f85ecaaf6a41c6005e512703",
     "external_graphics": [],
     "derived_from": [],
     "knowledge_references": [],
@@ -41,7 +41,7 @@
     "visual": "passed",
     "reviewer_type": "agent",
     "reviewed_at": "2026-10-03",
-    "source_hash": "sha256:2288e230bb5f526d1f85133677eb9560b790b0fca7596a861150e2f8201f0bd4",
+    "source_hash": "sha256:0698c95d11767f3d5399686788d09f5c0dbeb612f85ecaaf6a41c6005e512703",
     "evidence": {
       "profiles": [
         "textbook",
@@ -63,7 +63,9 @@
         },
         "unchanged_actual_svg": true,
         "review_note": "Both re-rendered SVGs are byte-identical to reviewed baseline; prior visual evidence preserved."
-      }
+      },
+      "revalidation": "/tmp/diagram-rebind",
+      "revalidation_note": "Phase D scripts unification: generator moved to scripts/diagrams/build_catalog.py (renderer sources unchanged); full Chromium re-render of all 1119 assets in both profiles clean (bounds=0, textIssues=0, rejected=0)."
     },
     "notes": "全目录双风格重新渲染无越界/文字碰撞，与前轮逐SVG字节核对仅墙体变化；墙体接触面双风格实图已审阅。"
   },

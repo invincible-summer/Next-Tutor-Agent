@@ -18,7 +18,6 @@ from app.agents.knowledge import (ConceptRetriever, EdgeType, KnowledgeContent,
                                   KnowledgeContext, KnowledgeEdge,
                                   KnowledgeGraph, KnowledgeNode,
                                   KnowledgeService, is_enabled)
-from app.agents.knowledge.seed import seed_skill_prereqs
 from tests.support.storage_sandbox import StorageSandboxTestCase  # noqa: E402
 
 
@@ -139,13 +138,6 @@ class TestGraphDAG(unittest.TestCase):
         g = _toy_graph()
         self.assertFalse(g.add_edge(KnowledgeEdge("c", "a", EdgeType.PREREQUISITE)))
         self.assertTrue(g.add_edge(KnowledgeEdge("c", "a", EdgeType.RELATED)))
-
-    def test_seed_is_empty_post_p6(self):
-        """P6-A2：考纲 seed 已删，seed_nodes/edges 为空（图谱只来自教材）。"""
-        from app.agents.knowledge.seed import seed_edges, seed_nodes
-        self.assertEqual(seed_nodes(), [])
-        self.assertEqual(seed_edges(), [])
-        self.assertEqual(seed_skill_prereqs(), set())
 
 
 class TestTraversal(unittest.TestCase):

@@ -18,7 +18,7 @@
 - `services/api/app/illustration/`（12 文件）：`contracts.py`（闭合 schema 全集）、`requirements.py`、`retrieval.py`、`composition.py`、`layout.py`（`compile_scene` 实测编译）、`preview.py`（Chromium PNG/测量）、`review.py`、`validators.py`、`orchestrator.py`（job/run 状态机）、`persistence.py`、`events.py`（公开投影）。
 - `services/api/app/core/`：`quiz_illustration.py`（SVG 规范化与白名单重建）、`quiz_illustration_policy.py`（`resolve_illustration_policy`：总闸/账户偏好/本次意图三态合成）、`quiz_illustration_enrichment.py`（兼容链路补图）。
 - API 路由：`services/api/app/api/v1/diagram_library.py`（共享目录）、`diagram_materials.py`（公私创作）、`illustration_jobs.py`（题图任务）、`assessment_illustration.py`（CAT 补图启动）。
-- 构建脚本：`services/api/scripts/build_diagram_catalog.py`（稳定 ID/名称/别名/能力声明）、`build_diagram_packages.py --check`（素材包可重建与一致性校验）。
+- 构建脚本：`scripts/diagrams/build_catalog.py`（稳定 ID/名称/别名/能力声明）、`scripts/diagrams/build_packages.py --check`（素材包可重建与一致性校验）。
 
 ## Public contracts
 
@@ -107,8 +107,8 @@
 ## Observability
 
 - 任务/run 追加事件流记录各阶段；`catalog_version()` 与 `V2_RENDERER_VERSION` 随产物落盘，可追溯装配环境。
-- 构建期校验：`python3 services/api/scripts/build_diagram_packages.py --check`（可重建与一致性）；`apps/web/scripts/check-diagram-library.mjs` 渲染全部目录素材输出人工审查拼图与边界报告（自动检查不替代截图审阅）。
-- 真实模型验收：`python3 scripts/illustration/acceptance.py --live-llm --output <repo 外目录>` 逐轮输出模型 JSON、SVG、实际 PNG 与 report；验收记录见 [../validation/diagram-library.md](../validation/diagram-library.md)。
+- 构建期校验：`python3 scripts/diagrams/build_packages.py --check`（可重建与一致性）；`apps/web/scripts/check-diagram-library.mjs` 渲染全部目录素材输出人工审查拼图与边界报告（自动检查不替代截图审阅）。
+- 真实模型验收：`python3 scripts/acceptance/illustration/live.py --live-llm --output <repo 外目录>` 逐轮输出模型 JSON、SVG、实际 PNG 与 report；验收记录见 [../validation/diagram-library.md](../validation/diagram-library.md)。
 - 资产级清单（名称/别名/能力/参数）见 [../reference/diagram-assets.md](../reference/diagram-assets.md)；测评侧合同见 [assessment.md](assessment.md)；图库与题图协议已并入本文档。
 
 ## Tests / acceptance

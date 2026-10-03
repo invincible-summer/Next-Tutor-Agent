@@ -27,7 +27,7 @@
 
 ## Tests
 
-`services/api/tests/` 下 `test_classroom_*.py` 共 31 件（api / pipeline / worker / jobs / runs / revisions / block_edit / render / render_layout / composition / audio / exports / checkpoints / lifecycle / health / images / research / sources / storage / prompts / …）；fake LLM 与固定件由 `tests/classroom_fake_llm.py` 等提供。真实模型手工验收脚本为 `services/api/scripts/accept_classroom_live.py`。
+`services/api/tests/classroom/` 下 `test_classroom_*.py` 共 31 件（api / pipeline / worker / jobs / runs / revisions / block_edit / render / render_layout / composition / audio / exports / checkpoints / lifecycle / health / images / research / sources / storage / prompts / …）；fake LLM 与固定件由 `tests/support/classroom_fake_llm.py` 等提供。真实模型手工验收脚本为 `scripts/acceptance/classroom/live.py`。
 
 ## Key entry points
 

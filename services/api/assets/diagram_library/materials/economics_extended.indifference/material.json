@@ -27,7 +27,7 @@
     "creation_method": "ai_assisted_vector_code",
     "source_module": "app/diagrams/extended_humanities.py",
     "source_symbol": "draw:indifference",
-    "source_hash": "sha256:36bb3cd99a2977447c6629be475137d94e41ac218c17e4aa13e70490b497092d",
+    "source_hash": "sha256:ab6d40a7ead9427525c58877ac1a91500a74dfb7a7b07826d0bb8902b566ffaf",
     "external_graphics": [],
     "derived_from": [],
     "knowledge_references": [],
@@ -40,7 +40,7 @@
     "visual": "passed",
     "reviewer_type": "agent",
     "reviewed_at": "2026-10-03",
-    "source_hash": "sha256:36bb3cd99a2977447c6629be475137d94e41ac218c17e4aa13e70490b497092d",
+    "source_hash": "sha256:ab6d40a7ead9427525c58877ac1a91500a74dfb7a7b07826d0bb8902b566ffaf",
     "evidence": {
       "profiles": [
         "textbook",
@@ -62,7 +62,9 @@
         },
         "unchanged_actual_svg": true,
         "review_note": "Both re-rendered SVGs are byte-identical to reviewed baseline; prior visual evidence preserved."
-      }
+      },
+      "revalidation": "/tmp/diagram-rebind",
+      "revalidation_note": "Phase D scripts unification: generator moved to scripts/diagrams/build_catalog.py (renderer sources unchanged); full Chromium re-render of all 1119 assets in both profiles clean (bounds=0, textIssues=0, rejected=0)."
     },
     "notes": "全目录双风格重新渲染无越界/文字碰撞，与前轮逐SVG字节核对仅墙体变化；墙体接触面双风格实图已审阅。"
   },

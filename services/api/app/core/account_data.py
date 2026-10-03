@@ -2,7 +2,7 @@
 
 一个账号的运行时数据分散在多个根目录（chat_history/ 的会话/转写/工作区/
 资料库/回收站、students/ 学习档案、knowledge/custom/ 图谱、notes/ 笔记、
-backend/uploads 会话上传与 backend/traces 调用追踪）。本模块把它们当作
+运行数据根 uploads/ 会话上传与 traces/ 调用追踪）。本模块把它们当作
 一个账号的整体来统计与不可恢复地清理：
 
 - scan_storage(user_ids)：单次遍历磁盘，返回每账号的分桶占用字节数。
@@ -69,7 +69,7 @@ def _read_json(path: Path) -> dict[str, Any] | None:
 def _empty_buckets() -> dict[str, Any]:
     return {
         "chat_bytes": 0,       # 会话/转写/追踪/工作区/资料库索引与数据
-        "uploads_bytes": 0,    # backend/uploads 会话上传（按会话归属统计）
+        "uploads_bytes": 0,    # uploads/ 会话上传（按会话归属统计）
         "notes_bytes": 0,
         "students_bytes": 0,
         "knowledge_bytes": 0,
@@ -245,7 +245,7 @@ def _forget_chat_memory(uid: str, session_ids: list[str]) -> None:
 
 
 def _delete_upload_files(fids: set[str]) -> None:
-    """删除 backend/uploads 里的会话上传（提取文本 + 原始二进制）+ 向量。"""
+    """删除 uploads/ 里的会话上传（提取文本 + 原始二进制）+ 向量。"""
     from app.core.knowledge_store import KnowledgeStore
     uploads_dir = KnowledgeStore().upload_dir
     for fid in fids:
@@ -429,7 +429,7 @@ def clear_chat_data(user_id: str, scope: str = "all") -> dict[str, Any]:
 
     scope="all"：会话、转写、追踪、会话上传、工作区、资料库、聊天类回收站
     条目与可归属记忆。
-    scope="uploads_only"：仅上传的原始/提取文件（backend/uploads、资料库数
+    scope="uploads_only"：仅上传的原始/提取文件（uploads/、资料库数
     据、工作区上传），会话文本保留。
     """
     if scope not in ("all", "uploads_only"):

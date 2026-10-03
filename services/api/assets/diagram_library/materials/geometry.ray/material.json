@@ -29,7 +29,7 @@
     "creation_method": "ai_assisted_vector_code",
     "source_module": "app/diagrams/mathematics.py",
     "source_symbol": "geometry:ray",
-    "source_hash": "sha256:ed2793ab359cd86b110a54909e7a471b84d548c61e33c6552a2e586def1012ab",
+    "source_hash": "sha256:117909400cfdddd3450a88d33fe7417c43277d66f7463a1af7cd6521217c8b7a",
     "external_graphics": [],
     "derived_from": [],
     "knowledge_references": [],
@@ -42,7 +42,7 @@
     "visual": "passed",
     "reviewer_type": "agent",
     "reviewed_at": "2026-10-03",
-    "source_hash": "sha256:ed2793ab359cd86b110a54909e7a471b84d548c61e33c6552a2e586def1012ab",
+    "source_hash": "sha256:117909400cfdddd3450a88d33fe7417c43277d66f7463a1af7cd6521217c8b7a",
     "evidence": {
       "profiles": [
         "textbook",
@@ -64,7 +64,9 @@
         },
         "unchanged_actual_svg": true,
         "review_note": "Both re-rendered SVGs are byte-identical to reviewed baseline; prior visual evidence preserved."
-      }
+      },
+      "revalidation": "/tmp/diagram-rebind",
+      "revalidation_note": "Phase D scripts unification: generator moved to scripts/diagrams/build_catalog.py (renderer sources unchanged); full Chromium re-render of all 1119 assets in both profiles clean (bounds=0, textIssues=0, rejected=0)."
     }
   },
   "svg_file": "asset.svg",

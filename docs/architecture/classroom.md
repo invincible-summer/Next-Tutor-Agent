@@ -40,7 +40,7 @@
 
 前端 `apps/web/src/`：`app/(workspace)/course/`（课程中心）、`app/(workspace)/workspaces/[workspaceId]/classroom/`（列表/详情/`learn/[runId]` 播放器）、`components/classroom/`（`CreateLessonModal`、`LessonEditor`、`LessonOverview`、`SlideFrame`、`BlockEditor`、`player/` 下 `ScriptPanel`/`VoicePanel`/`CheckpointPanel`/`QuestionDrawer` 等）、`lib/classroom/`（`useClassroomPlayer`、`player-reducer`、`audio-controller`、`audio-focus`、`frame-runtime`、`useClassroomQA`、`useVoicePreview`）。
 
-辅助脚本：`apps/web/scripts/build-classroom-assets.mjs`（静态包构建）、`check-classroom-render.mjs`、`inspect-classroom-course.mjs`、`test-classroom-*.mjs`（浏览器回归）；`services/api/scripts/accept_classroom_live.py`（真实模型手工验收）。
+辅助脚本：`apps/web/scripts/build-classroom-assets.mjs`（静态包构建）、`check-classroom-render.mjs`、`inspect-classroom-course.mjs`；离线浏览器回归 `apps/web/tests/unit/test-classroom-*.mjs`；真实模型手工验收 `scripts/acceptance/classroom/live.py`。
 
 ## Public contracts（对外契约：API 端点/SSE/WS/数据结构）
 
@@ -175,9 +175,9 @@
 
 ## Tests / acceptance（测试索引）
 
-后端 `services/api/tests/`（继承 `StorageSandboxTestCase`；`tests/classroom_fake_llm.py` 提供 fake LLM 全管线回归）：`test_classroom_api.py`、`test_classroom_assessment.py`、`test_classroom_audio.py`、`test_classroom_block_edit.py`、`test_classroom_chat.py`、`test_classroom_checkpoints.py`、`test_classroom_composition.py`、`test_classroom_exports.py`、`test_classroom_generation_normalize.py`、`test_classroom_generation_policy.py`、`test_classroom_health.py`、`test_classroom_images.py`、`test_classroom_inline_math.py`、`test_classroom_jobs.py`、`test_classroom_lifecycle.py`、`test_classroom_overflow.py`、`test_classroom_pipeline.py`、`test_classroom_prompts.py`、`test_classroom_reliability.py`、`test_classroom_render.py`、`test_classroom_render_layout.py`、`test_classroom_research.py`、`test_classroom_revisions.py`、`test_classroom_run_user_voice_prefs.py`、`test_classroom_runs.py`、`test_classroom_schema.py`、`test_classroom_sidebar.py`、`test_classroom_sources.py`、`test_classroom_storage.py`、`test_classroom_typegen.py`、`test_classroom_worker.py`（共 31 件），以及 `test_voice_azure.py`。
+后端 `services/api/tests/classroom/`（继承 `StorageSandboxTestCase`；`tests/support/classroom_fake_llm.py` 提供 fake LLM 全管线回归）：`test_classroom_api.py`、`test_classroom_assessment.py`、`test_classroom_audio.py`、`test_classroom_block_edit.py`、`test_classroom_chat.py`、`test_classroom_checkpoints.py`、`test_classroom_composition.py`、`test_classroom_exports.py`、`test_classroom_generation_normalize.py`、`test_classroom_generation_policy.py`、`test_classroom_health.py`、`test_classroom_images.py`、`test_classroom_inline_math.py`、`test_classroom_jobs.py`、`test_classroom_lifecycle.py`、`test_classroom_overflow.py`、`test_classroom_pipeline.py`、`test_classroom_prompts.py`、`test_classroom_reliability.py`、`test_classroom_render.py`、`test_classroom_render_layout.py`、`test_classroom_research.py`、`test_classroom_revisions.py`、`test_classroom_run_user_voice_prefs.py`、`test_classroom_runs.py`、`test_classroom_schema.py`、`test_classroom_sidebar.py`、`test_classroom_sources.py`、`test_classroom_storage.py`、`test_classroom_typegen.py`、`test_classroom_worker.py`（共 31 件），以及 `test_voice_azure.py`。
 
-前端/浏览器：`apps/web/tests/e2e/classroom-{create,editor,player,resume,questions,security,export,workflow}.spec.ts`（route 级 API mock + 真实 audio ended 驱动）；确定性播放器套件 `pnpm test:player`（`tests/unit/test-classroom-player.mjs`）；布局/构图/公式/层级浏览器回归 `tests/unit/test-classroom-{layout,composition,inline-math,hierarchy}.mjs`。真实模型手工验收：`services/api/scripts/accept_classroom_live.py`（存储全隔离，`--brief` 可换主题，`scripts/inspect-classroom-course.mjs` 出截图与等尺寸 PDF）。
+前端/浏览器：`apps/web/tests/e2e/classroom-{create,editor,player,resume,questions,security,export,workflow}.spec.ts`（route 级 API mock + 真实 audio ended 驱动）；确定性播放器套件 `pnpm test:player`（`tests/unit/test-classroom-player.mjs`）；布局/构图/公式/层级浏览器回归 `tests/unit/test-classroom-{layout,composition,inline-math,hierarchy}.mjs`。真实模型手工验收：`scripts/acceptance/classroom/live.py`（存储全隔离，`--brief` 可换主题，`apps/web/scripts/inspect-classroom-course.mjs` 出截图与等尺寸 PDF）。
 
 ## Related ADRs
 

@@ -4,8 +4,8 @@ A KnowledgeNode is the abstract concept (导数); teaching needs concrete conten
 (definition / formula / worked example / exercise hint). This resolver answers
 that, with a deliberate source cascade so it never blocks a turn:
 
-  1. SEED content   -- curated KnowledgeContent in seed.py for high-leverage
-                       concepts (deterministic, always available, no I/O).
+  1. GRAPH content  -- curated KnowledgeContent carried by the merged
+                       KnowledgeGraph (deterministic, no I/O).
   2. MATERIAL       -- if the student uploaded course materials, BM25-search
                        them via the EXISTING core/knowledge_store.KnowledgeStore
                        for passages mentioning the concept (grounds teaching in

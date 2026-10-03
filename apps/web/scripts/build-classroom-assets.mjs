@@ -3,7 +3,7 @@
  *
  * 读取 tsc 编译出的 frame-runtime 与仓库固定的 KaTeX dist，把 CSS 字体
  * URL 转为 data URI，输出带 manifest/hash 的后端可读包：
- *   backend/app/classroom/static/generated/
+ *   services/api/app/classroom/static/generated/
  *     runtime.js / katex.min.js / katex.min.css / manifest.json
  * 缺任一输入即退出非零；不访问网络。
  */

@@ -27,8 +27,8 @@ Design contract (must hold to protect M1-M4):
     graph stays one-directional (student_model/teaching_engine -> knowledge
     is downward).
   - SINGLE TRUTH SOURCE for PREREQUISITE edges: when this module is enabled,
-    SkillGraph prerequisite edges come from here; when disabled, the existing
-    the M5 seed is authoritative. Never both at once.
+    SkillGraph prerequisite edges come from here; when disabled, SkillGraph's own
+    seed is authoritative. Never both at once.
   - GRACEFUL: any failure degrades to a no-op; never breaks a turn. Toggled by
     KNOWLEDGE_INTELLIGENCE_MODE (default on); when off, every layer falls back
     to byte-identical M1-M4 behavior.

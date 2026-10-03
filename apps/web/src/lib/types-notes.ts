@@ -1,4 +1,4 @@
-// M-Notes 笔记仓库的前端类型。字段与 backend/app/core/notes.py 的
+// M-Notes 笔记仓库的前端类型。字段与 services/api/app/core/notes.py 的
 // vault_summary / note_summary / suggestions 投影一一对应。
 
 export interface NotesFolder {

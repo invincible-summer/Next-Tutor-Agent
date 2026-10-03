@@ -1,5 +1,5 @@
 # Direct/runtime dependencies for the local Chinese MeloTTS sidecar.
-# MeloTTS is mounted from backend/vendor/MeloTTS at a pinned revision instead
+# MeloTTS is mounted from services/voice/vendor/MeloTTS at a pinned revision instead
 # of installed as a package, so its setup.py post-install hook is not run.
 # That avoids downloading the optional Japanese unidic dictionary.
 #

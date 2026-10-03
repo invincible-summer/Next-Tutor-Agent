@@ -21,7 +21,7 @@ from typing import Any
 
 from ...core.atomic import atomic_write_text, file_lock
 
-# knowledge/ lives at the project root (parent of backend/), sibling of
+# knowledge/ lives in the runtime data root, sibling of
 # chat_history/ and students/ -- same resolution policy.
 from app.core import paths
 

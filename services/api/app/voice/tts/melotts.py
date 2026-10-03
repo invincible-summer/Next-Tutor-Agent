@@ -1,7 +1,7 @@
 """MeloTTS-Chinese through the local sidecar service (HTTP).
 
 MeloTTS ships no official HTTP server (only the ``melo.api.TTS`` Python
-class), so ``backend/voice_sidecar/app.py`` wraps it in a tiny FastAPI
+class), so ``services/voice/app.py`` wraps it in a tiny FastAPI
 process with its own venv. This provider keeps torch out of the main
 backend: it POSTs text and normalizes the returned WAV to PCM16 for the
 WebSocket wire format.

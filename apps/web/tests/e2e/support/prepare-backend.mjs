@@ -5,7 +5,7 @@
  * storage roots from module constants, so an isolated copy is the clean way
  * to keep E2E state out of the versioned repo.
  *
- * Reuses the copy across runs unless E2E_FRESH=1 (full resync of backend/
+ * Reuses the copy across runs unless E2E_FRESH=1 (full resync of services/api/
  * sources only — fixtures under the copy are per-run state).
  */
 import { execFileSync, spawnSync } from "node:child_process";

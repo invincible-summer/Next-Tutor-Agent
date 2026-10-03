@@ -1,9 +1,9 @@
 """Prompt 回归评测 runner（阶段D）。
 
 用法：
-  python backend/scripts/run_prompt_eval.py            # 默认 mock 模式
-  python backend/scripts/run_prompt_eval.py --mock     # 规则/结构断言，零成本，CI 可跑
-  python backend/scripts/run_prompt_eval.py --llm      # 真实 LLM 模式（读 .env，需网络，默认不跑）
+  python scripts/evaluation/run_prompt_eval.py            # 默认 mock 模式
+  python scripts/evaluation/run_prompt_eval.py --mock     # 规则/结构断言，零成本，CI 可跑
+  python scripts/evaluation/run_prompt_eval.py --llm      # 真实 LLM 模式（读 .env，需网络，默认不跑）
 
 mock 模式对每条 golden 做确定性断言（不调 LLM）：
   - system_prompt_contains：注册表 prompt 文本必须含指定关键词
@@ -24,7 +24,7 @@ import json
 import sys
 from pathlib import Path
 
-_BACKEND = Path(__file__).resolve().parent.parent
+_BACKEND = Path(__file__).resolve().parents[2] / "services" / "api"
 sys.path.insert(0, str(_BACKEND))
 
 GOLDEN_PATH = _BACKEND / "tests" / "support" / "prompt_eval" / "golden.jsonl"

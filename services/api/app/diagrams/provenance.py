@@ -9,6 +9,7 @@ from pathlib import Path
 from .taxonomy import LEVELS
 
 ROOT = Path(__file__).resolve().parents[2]
+REPO_ROOT = ROOT.parents[1]
 REVIEW_PATH = ROOT / "assets" / "diagram_library" / "review.json"
 FACT_REFERENCES = {
     "chemistry.water": (
@@ -81,7 +82,7 @@ def source_hash(module):
     dependencies = [
         Path(module),
         directory / "drawing.py",
-        ROOT / "scripts/build_diagram_catalog.py",
+        REPO_ROOT / "scripts" / "diagrams" / "build_catalog.py",
     ]
     if Path(module).name.startswith("extended"):
         dependencies.extend(
@@ -105,7 +106,8 @@ def source_hash(module):
         )
     digest = hashlib.sha256()
     for path in sorted(set(dependencies)):
-        digest.update(str(path.relative_to(ROOT)).encode())
+        label = path.relative_to(ROOT) if path.is_relative_to(ROOT) else path.relative_to(REPO_ROOT)
+        digest.update(str(label).encode())
         digest.update(path.read_bytes())
     return "sha256:" + digest.hexdigest()
 

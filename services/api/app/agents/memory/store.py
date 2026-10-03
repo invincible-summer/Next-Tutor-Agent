@@ -24,8 +24,8 @@ from .schema import (EpisodicMemory, ProceduralMemory, SemanticFact,
                      SEMANTIC_CATEGORIES)
 from ...core.atomic import atomic_write_text, file_lock
 
-# students/ lives at the project root (parent of backend/), independent of
-# the backend cwd -- same resolution policy as chat_history / student_model.
+# students/ lives in the runtime data root, independent of the backend
+# cwd -- same resolution policy as chat_history / student_model.
 from app.core import paths
 
 _STUDENTS_DIR = paths.bind_storage_path(__name__, "_STUDENTS_DIR", "students")

@@ -1,6 +1,6 @@
 """课堂渲染资产包。
 
-`backend/app/classroom/static/generated/` 由前端
+`services/api/app/classroom/static/generated/` 由前端
 `pnpm run build:classroom` 生成（tsc frame-runtime + 固定 KaTeX dist + 字体
 data URI 化 + manifest/hash），Git 忽略源码外的产物。缺包时 capability
 明确 renderer_unavailable，运行时不从 CDN 下载补齐。

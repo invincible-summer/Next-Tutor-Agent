@@ -6,7 +6,7 @@
 
 - 本模块覆盖「文件 → 知识」的完整链路：上传解析（PDF/DOCX/PPTX/TXT/MD/图片）、扫描件 OCR、图表结构化标记、结构化切块与索引、混合检索运行时（查询变体、RRF 融合、证据门、分级证据、上下文重建）、资料库（Library）与教材库（Textbook）、教材知识图谱构建与合并视图（M5 知识智能）。
 - 检索基线是**确定性 BM25**，向量轨是可选增强；证据门在无足够证据时返回 partial/NOT_FOUND 而非静默编造（反幻觉 evidence gate）。
-- 知识只来自教材：考纲 seed 包不存在（`seed_packs/` 仅保留空聚合实现，主图初始为空），图谱 = 公用教材图谱 ∪ 自有教材图谱；`scope=public` 公用教材所有账号可读、仅管理员可写。
+- 知识只来自教材：考纲 seed 已彻底移除（无 seed 代码路径，主图初始为空），图谱 = 公用教材图谱 ∪ 自有教材图谱；`scope=public` 公用教材所有账号可读、仅管理员可写。
 - 不在本模块范围：对话编排（chat/supervisor）、出题与测评（M4）、工作区公共记忆——它们是检索结果的消费方。
 
 ## Owned code
@@ -14,7 +14,7 @@
 - `services/api/app/agents/knowledge/`（15 个 Python 文件）：
   - `manager.py`（KnowledgeService：`graph_for` / `retriever_for` 合并视图）、`store.py`（图谱持久化）、`graph.py`（KnowledgeGraph 本体、环检测与邻接索引）、`schema.py`（节点/多类型边模型）；
   - `textbook_builder.py`（章节切片 + 教材构建编排）、`custom_graph.py`（spec → graph 确定性合并）、`taxonomy_normalizer.py`（章名/标题规范化）；
-  - `retriever.py`（ConceptRetriever）、`content.py`（ContentResolver）、`context_builder.py`（知识指令块组装）、`reasoning.py`（Dependency Reasoner）、`bridge.py`（M5 → SkillGraph 投影）、`scope_primitives.py`、`seed.py` + `seed_packs/`（考纲包已移除，聚合函数保留空实现以维持调用契约）。
+  - `retriever.py`（ConceptRetriever）、`content.py`（ContentResolver）、`context_builder.py`（知识指令块组装）、`reasoning.py`（Dependency Reasoner）、`bridge.py`（M5 → SkillGraph 投影）、`scope_primitives.py`（考纲 seed 包与空聚合层已删除，主图初始为空）。
 - `services/api/app/core/`：`file_parser.py`（上传解析）、`multimodal_parser.py`（内嵌媒体对齐）、`pdf_ocr.py`（逐页择优 OCR + `FITZ_LOCK`）、`ocr.py`（视觉 OCR 单页调用 + tesseract 回退）、`ocr_policy.py`（OCR 动态策略）、`textbook_ocr.py`（教材后台 OCR 持久状态机）、`textbook_pipeline.py`（构建队列/有界并发策略）、`figure_harvest.py`（原生 PDF 图表收割）、`text_quality.py`（文本层质量分级）、`structured_chunker.py`（Structured V2.2 切块）、`rag_index.py`（staging 质检 + BM25/向量发布）、`retriever.py`（`chunk_text` + BM25）、`hybrid.py`（BM25+向量 RRF 融合）、`evidence_gate.py`（证据门）、`evidence_context.py`（证据摘录/上下文重建）、`knowledge_store.py`（会话级 KnowledgeStore）、`library.py`（资料库存储与 `chunks_for` 惰性切块）、`textbook.py`（Textbook 记录服务）、`file_summary.py`（文件级摘要）、`vector_store.py`、`embedding.py`、`vector_jobs.py`、`public_vector_artifact.py`（向量轨支撑）。
 - `services/api/app/api/v1/`：`library.py`、`textbook.py`、`knowledge.py`；工作区上传端点在 `workspace.py`（`POST /workspaces/{id}/upload`，落 Library 专属夹）。
 - 工具：`services/api/app/tools/knowledge_search.py`、`knowledge_read.py`；检索触发统一在 `services/api/app/agents/material_signals.py`。
@@ -36,7 +36,7 @@
 
 **Python 契约**：
 
-- `KnowledgeService.graph_for(student_id) / retriever_for(student_id)`：合并视图 = seed（空）∪ learned ∪ 公用图谱 ∪ 自有教材图谱；双命名空间 mtime stamp 缓存、写后失效；stamp 与 listing 忽略 `*.chunks.json`（chunks 是检索域数据，其重写不应使全量合并缓存失效）。`graph_for` 每学生一把构建锁 + 锁内双检。
+- `KnowledgeService.graph_for(student_id) / retriever_for(student_id)`：合并视图 = learned ∪ 公用图谱 ∪ 自有教材图谱；双命名空间 mtime stamp 缓存、写后失效；stamp 与 listing 忽略 `*.chunks.json`（chunks 是检索域数据，其重写不应使全量合并缓存失效）。`graph_for` 每学生一把构建锁 + 锁内双检。
 - `Library.chunks_for(file_id)`：惰性构建并落进程级缓存（`(namespace, file_id) -> (mtime, chunks)`）；`remove_file` 主动失效、内容变更经 mtime 自动失效；所有检索/建图/向量读路径一律经它，不得直接读 `chunks_by_file`。
 - `KnowledgeGraph`：`edges` 列表是序列化真相源；`add_edge` 去重走 `_edge_keys` 集合（O(1)），`_reaches/_prerequisites_of/descendants_of/neighborhood` 走 `_adj_out/_adj_in` 邻接索引（O(可达)）；语义等价由朴素参考实现测试钉死。
 - 资料分类元数据唯一事实源在资料中心：三级目录固定为 学段（小学/初中/高中/本科/其他）→ 学科（资料中心 subject 原样）→ 教材组/栏目（`group_name`，单本教材也有独立栏目）→ 章节/概念；改名/改学科/改学段不触发重新 OCR、切块、向量化或图谱重建，下一次 taxonomy 请求立即反映新分类；`file_id`/`file_ids`/`topic_key` 永远稳定。
@@ -48,7 +48,7 @@
 - 资料库：`chat_history/library/<student_id>.json`（元数据 + RAG 索引状态）+ `chat_history/library/data/<student_id>/<file_id>.txt`（解析文本；PDF/.txt 是事实源）+ `<file_id>.orig<ext>`（原件）。
 - 教材注册记录：`chat_history/library/<student_id>.textbooks.json`（原子写 + 文件锁；状态机、进度、章节/概念数、warnings、`ocr_state`、`graph_policy`）。
 - `ocr_state` 是 OCR 重启恢复事实源：状态版本、force-full 模式、物理/目标/成功/待处理/暂停/空白页、逐页 attempts、next retry、错误码摘要、策略 generation、配置阻塞与 API/本地成功计数；不保存图片、密钥或模型原始响应。
-- 图谱：`knowledge/custom/<owner>/<topic_key>.json`（唯一 active 图谱，原子替换 + version 递增）+ `<topic_key>.chunks.json`（概念 → chunk_ids 预索引）+ `<topic>.volume_specs/<file>.json`（完整规范化抽取缓存，限制变化只快速重合并）。`knowledge/graph.json` 仅承载 Dependency Reasoner 的学习边（考纲 seed 引用已清空）。
+- 图谱：`knowledge/custom/<owner>/<topic_key>.json`（唯一 active 图谱，原子替换 + version 递增）+ `<topic_key>.chunks.json`（概念 → chunk_ids 预索引）+ `<topic>.volume_specs/<file>.json`（完整规范化抽取缓存，限制变化只快速重合并）。`knowledge/graph.json` 仅承载 Dependency Reasoner 的学习边。
 - RAG 索引随 library 文件元数据持久化：`bm25_revision`（`RAG_INDEX_VERSION:content_hash`）、`vector_revision`、`status ∈ bm25_ready|ready`（向量构建在单槽后台队列中完成后升级为 ready，失败维持 BM25 可用）、`content_sha256`、`staging_quality`（含 `failed_garble` / `excluded_by_garble` 计数）。
 - 向量轨（可选）：Chroma collection 按模型/维度/chunk schema/归一化/RAG revision 指纹隔离，`scope` 元数据过滤（笔记侧为 `notes:<sid>`）。公共教材向量包以可校验 NPZ 分发、部署本地导入；混合私有数据的 `knowledge/vector_db` 绝不入库（构建/导入见 [../operations/semantic-rag.md](../operations/semantic-rag.md)）。
 - 会话附件：`uploads/<id>.txt`（会话恢复时从其重建 KnowledgeStore，历史对话仍可检索已上传资料）。
@@ -110,9 +110,9 @@
 **8. M5 知识服务（图谱之上的运行时组件）**：
 
 - `ConceptRetriever`：BM25 over concept search_text（复用 `core/retriever`）+ KG 遍历扩展 + 分数融合；确定性、零 LLM；`match_concept(level=...)` 学段感知（分数相近偏好学生学段节点，未指定不偏好）。
-- `ContentResolver`：概念 → 教学内容，级联永不阻塞（seed content → 上传材料 BM25 回退，把讲解锚定到学生实际教材）；本体外概念返回空（M5 隐形不噪音）；命中经 `_GatedSearchStore` 适配器过同一证据门。
+- `ContentResolver`：概念 → 教学内容，级联永不阻塞（教材内容 → 上传材料 BM25 回退，把讲解锚定到学生实际教材）；本体外概念返回空（M5 隐形不噪音）；命中经 `_GatedSearchStore` 适配器过同一证据门。
 - `KnowledgeContextBuilder`：组装 `[知识智能·…]` 软指令块（概念定位/前置补缺/易错点/教学示例/教材引用/相关概念）；前置补缺读统一评价投影——仅提示 fragile/conflicting/emerging 概念的前置（未观察 ≠ 未掌握）。
-- `DependencyReasoner`（M5 唯一用 LLM 的组件）：为未 seed 的新概念自动补 prerequisite 边——候选检索 → 规则过滤 → LLM 校验器（结构化 `{relation,confidence}`）→ 阈值门 ≥0.65 → DAG 安全写入 + 持久化；仅在扩展新节点，绝不在教学关键路径，坏输出无法腐蚀 DAG。
+- `DependencyReasoner`（M5 唯一用 LLM 的组件）：为新概念自动补 prerequisite 边——候选检索 → 规则过滤 → LLM 校验器（结构化 `{relation,confidence}`）→ 阈值门 ≥0.65 → DAG 安全写入 + 持久化；仅在扩展新节点，绝不在教学关键路径，坏输出无法腐蚀 DAG。
 - `SkillGraphBridge`：M5 → M2 SkillGraph plain-data 投影；M5 关时 M2 回退自有 legacy 种子（独立模块），**永不并存**（避免双真相源）。
 - `/knowledge` 个性化学习路径 `_personalized_next`（确定性、零 LLM）：四级优先——M9 本周计划未掌握概念 → 承接最近教学日志概念的可学后继 → M9 目标学科内可学节点 → 学生学段基础补全；每条带 `reason` 徽标，有作答记录的节点归入复习列表。
 

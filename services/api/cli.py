@@ -1,9 +1,9 @@
 """Interactive CLI for the V0 tutor agent.
 
 Usage:
-    python backend/cli.py                 # interactive REPL
-    python backend/cli.py --once "讲一下浮力"   # single turn
-    python backend/cli.py --grade 初中     # set student grade
+    python services/api/cli.py                 # interactive REPL
+    python services/api/cli.py --once "讲一下浮力"   # single turn
+    python services/api/cli.py --grade 初中     # set student grade
 """
 from __future__ import annotations
 

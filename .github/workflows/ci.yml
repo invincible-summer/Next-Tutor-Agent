@@ -32,7 +32,7 @@ jobs:
       - name: Scan tracked files and full history
         run: python scripts/repo/check_repository_hygiene.py
       - name: Documentation links and layout
-        run: python scripts/repo/check_documentation.py
+        run: python scripts/repo/check_documentation.py --check-generated
 
   backend:
     name: Backend
