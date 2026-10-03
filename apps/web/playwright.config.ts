@@ -17,7 +17,7 @@ const FRONT_PORT = Number(process.env.E2E_FRONTEND_PORT || 3030);
 const production = process.env.E2E_PRODUCTION === "1";
 
 export default defineConfig({
-  testDir: "./e2e",
+  testDir: "./tests/e2e",
   forbidOnly: !!process.env.CI,
   globalTimeout: 25 * 60_000,
   timeout: 90_000,
@@ -34,7 +34,7 @@ export default defineConfig({
   projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
   webServer: [
     {
-      command: "node e2e/fake-llm-server.mjs",
+      command: "node tests/e2e/support/fake-llm-server.mjs",
       port: FAKE_LLM_PORT,
       reuseExistingServer: false,
       stdout: "ignore",
@@ -44,7 +44,7 @@ export default defineConfig({
       // 隔离副本：全部存储根由 NEXT_TUTOR_DATA_DIR 指向 scratch 目录，
       // 业务数据（会话/画像/知识）绝不落仓库。
       command:
-        "node e2e/prepare-backend.mjs && " +
+        "node tests/e2e/support/prepare-backend.mjs && " +
         'cd "${E2E_BACKEND_HOME:-/tmp/edu-agent-e2e}/services/api" && ' +
         '"${E2E_PYTHON:-python3}" -m uvicorn app.main:app ' +
         `--host 127.0.0.1 --port ${BACKEND_PORT} --workers 1`,

@@ -6,16 +6,16 @@
 
 ```bash
 # 共享目录与兼容题图：
-python3 -m tests tests.test_diagram_library tests.test_quiz_illustration tests.test_quiz_illustration_enrichment
+python3 -m tests tests.diagrams.test_diagram_library tests.illustration.test_quiz_illustration tests.illustration.test_quiz_illustration_enrichment
 # v2 语义装配、真实浏览器 PNG、发布门和鉴权任务生命周期：
-python3 -m tests tests.test_illustration_v2 tests.test_illustration_jobs
+python3 -m tests tests.illustration.test_illustration_v2 tests.illustration.test_illustration_jobs
 ```
 
 这些测试使用合成材料、fake LLM 和临时存储，v2 的测量与 PNG 仍调用实际 Node/Chromium，不需要真实模型凭证。新增素材必须生成目录与库存、检查两种风格；加入 v2 还须覆盖真实参数、动态端口/区域、事实绑定和科学关系，不能只验证 XML 可解析。
 
 在 `apps/web` 运行 `node scripts/check-diagram-library.mjs /tmp/diagram-review`，检查全部正式素材的 Chromium 渲染与画布边界，逐张观看 `sheet-*.png` 和 `monochrome-*.png`；可追加 `--parameters` 检查参数端点。越界会返回失败，`review.json` 记录数量、边界问题和被参数约束拒绝的组合。人工审阅还要核对变形、位置、接头、刻度、液面和遮挡，自动通过不等于科学构图正确。
 
-前端改动继续执行 `pnpm check`、`NEXT_PUBLIC_BACKEND_URL=http://127.0.0.1:8124 pnpm build` 和 `E2E_FRESH=1 E2E_PRODUCTION=1 pnpm test:e2e e2e/diagram-library.spec.ts e2e/quiz-illustration.spec.ts`。浏览器回归使用隔离账号和后端目录，遍历全部分页、验证图片及参数变化，并保存浅色、深色和较窄桌面截图。测试缓存、v2 job/artifact/PNG 都由存储沙箱重定向，不能写生产 students 或 illustrations 根。
+前端改动继续执行 `pnpm check`、`NEXT_PUBLIC_BACKEND_URL=http://127.0.0.1:8124 pnpm build` 和 `E2E_FRESH=1 E2E_PRODUCTION=1 pnpm test:e2e tests/e2e/diagram-library.spec.ts tests/e2e/quiz-illustration.spec.ts`。浏览器回归使用隔离账号和后端目录，遍历全部分页、验证图片及参数变化，并保存浅色、深色和较窄桌面截图。测试缓存、v2 job/artifact/PNG 都由存储沙箱重定向，不能写生产 students 或 illustrations 根。
 
 ## 真实 v2 配图验收
 
@@ -81,7 +81,7 @@ python scripts/repo/check_repository_hygiene.py
 cd services/api
 python -m tests
 # 按模块或类运行，仍保留完整存储沙箱：
-python -m tests tests.test_orchestration.TestAPIContracts
+python -m tests tests.agents.learning_orchestration.test_api.TestAPIContracts
 ```
 
 `python -m tests` 基于标准库 unittest，增加进程级临时存储兜底，并在退出时清理临时文件。每个涉及存储的测试仍须使用 `StorageSandboxTestCase`，或在有自定义基类时调用 `patch_all_storage_roots`；兜底不能替代用例之间的隔离。不要直接对运行中的服务执行测试。
@@ -111,7 +111,7 @@ Playwright 自动启动 fake LLM（8199）、隔离后端（8124）和前端（3
 ```bash
 python -m pip install -r services/api/requirements-vector.txt
 cd services/api
-python -m tests tests.test_local_rag tests.test_rag_hybrid
+python -m tests tests.agents.knowledge.test_local_rag tests.agents.knowledge.test_rag_hybrid
 ```
 
 浏览器失败后查看 `apps/web/playwright-report/` 和 `apps/web/test-results/`。GitHub 上传 HTML 报告、截图和 trace，保留 7 天。CI 最多重试一次浏览器用例；诊断抖动时加 `--retries=0`，不要用重试掩盖稳定复现的失败。
@@ -149,6 +149,6 @@ python -m tests tests.test_local_rag tests.test_rag_hybrid
 
 版本 tag（v1.0.0–v2.1.0）是版权清洗后的历史里程碑，指向旧布局的净化快照：不移动、不重打，也不要求其通过当前 CI（工作流不监听 tag）。日常开发不自动移动发布标签。
 
-素材创作重点回归：`cd services/api && python3 -m tests tests.test_diagram_materials tests.test_diagram_guidance tests.test_illustration_jobs tests.test_guest_access`；前端 `pnpm check`、`pnpm build` 后运行 `E2E_FRESH=1 pnpm exec playwright test e2e/diagram-materials.spec.ts e2e/quiz-illustration.spec.ts`。浏览器隔离后端引导合成管理员，验证公有发布、普通用户403/只读历史与私有列表隔离；图片渲染脚本和依赖同样位于隔离架构。
+素材创作重点回归：`cd services/api && python3 -m tests tests.diagrams.test_diagram_materials tests.diagrams.test_diagram_guidance tests.illustration.test_illustration_jobs tests.identity.test_guest_access`；前端 `pnpm check`、`pnpm build` 后运行 `E2E_FRESH=1 pnpm exec playwright test tests/e2e/diagram-materials.spec.ts tests/e2e/quiz-illustration.spec.ts`。浏览器隔离后端引导合成管理员，验证公有发布、普通用户403/只读历史与私有列表隔离；图片渲染脚本和依赖同样位于隔离架构。
 
 真实素材生成与使用验收：`python3 scripts/illustration/material_acceptance.py --live-llm --output /tmp/material-live-acceptance`。它创建隔离临时运行根，实际调用配置服务生成容器/几何/流程草稿、手动修改、冻结新版本并使用指定素材出题，两项审图均看真实PNG。浏览器AI草稿替身不计为该服务验收，详细结果见[验收记录](../validation/diagram-library.md)。

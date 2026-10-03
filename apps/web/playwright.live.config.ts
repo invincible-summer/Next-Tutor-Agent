@@ -21,7 +21,7 @@ const FRONT_PORT = Number(process.env.LIVE_E2E_FRONTEND_PORT || 3031);
 const BACKEND_HOME = process.env.LIVE_E2E_BACKEND_HOME || "/tmp/edu-agent-live-e2e";
 
 export default defineConfig({
-  testDir: "./e2e-live",
+  testDir: "./tests/live",
   timeout: 120_000,
   expect: { timeout: 30_000 },
   fullyParallel: false,
@@ -37,7 +37,7 @@ export default defineConfig({
   webServer: [
     {
       command:
-        `E2E_BACKEND_HOME=${JSON.stringify(BACKEND_HOME)} E2E_FRESH=1 node e2e/prepare-backend.mjs && ` +
+        `E2E_BACKEND_HOME=${JSON.stringify(BACKEND_HOME)} E2E_FRESH=1 node tests/e2e/support/prepare-backend.mjs && ` +
         `cd ${JSON.stringify(`${BACKEND_HOME}/services/api`)} && ` +
         "QUIZ_SVG_ENABLED=1 SUPERVISOR_LLM_PLAN=0 TEXTBOOK_GRAPH_ENABLED=0 " +
         `NEXT_TUTOR_DATA_DIR=${JSON.stringify(`${BACKEND_HOME}/data`)} ` +

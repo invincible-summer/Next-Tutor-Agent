@@ -113,9 +113,10 @@ M9 回答「未来几周到几个月怎么持续成长」：纵向编排层，�
 
 ## Tests / acceptance
 
-`services/api/tests/`（聚焦运行：`cd services/api && python -m tests tests.test_orchestration`）：
+`services/api/tests/agents/learning_orchestration/`（聚焦运行：`cd services/api && python -m tests tests.agents.learning_orchestration.test_manager`）：
 
-- `test_orchestration.py` — SM-2/计划/任务/复习闭环、多目标与 fallback、双守卫、容量报告。
+- `test_schema.py` / `test_store.py` / `test_srs.py` — schema 往返与兼容、store 单一事实源边界、SM-2 复习与习惯追踪。
+- `test_planner.py` / `test_manager.py` / `test_api.py` — 目标分析与计划生成、任务执行与写回、事件发射与 API 合同。
 - `test_task_launch.py` — launch 绑定、幂等 relaunch、episode 生命周期。
 - `test_learning_consumers.py` — 评价 outbox 消费幂等与审核门。
 - `test_learner_evaluation_policy.py` — 即时/每日调度策略与补关账。

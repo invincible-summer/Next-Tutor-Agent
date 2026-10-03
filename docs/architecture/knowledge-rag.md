@@ -183,7 +183,7 @@
 
 ## Tests / acceptance
 
-- 教材管线/OCR：`test_textbook.py`、`test_textbook_api.py`、`test_textbook_build_recovery.py`、`test_textbook_bulk.py`、`test_textbook_ocr_scheduler.py`、`test_textbook_stall.py`、`test_textbook_pipeline_policy.py`、`test_pdf_ocr.py`、`test_p5a_ocr_repairs.py`。
+- 教材管线/OCR：`test_textbook.py`、`test_textbook_api.py`、`test_textbook_build_recovery.py`、`test_textbook_bulk.py`、`test_scheduler_queue.py`/`test_round_durability.py`/`test_parallel_mode.py`/`test_cancel_recovery.py`（原 OCR scheduler 巨件拆分）、`test_textbook_stall.py`、`test_textbook_pipeline_policy.py`、`test_pdf_ocr.py`、`test_p5a_ocr_repairs.py`。
 - 图谱/谱系：`test_textbook_graph_direction.py`、`test_textbook_graph_policy.py`、`test_textbook_group.py`、`test_textbook_sections.py`、`test_textbook_taxonomy.py`、`test_textbook_taxonomy_normalizer.py`、`test_textbook_preamble.py`、`test_knowledge.py`、`test_knowledge_custom.py`、`test_knowledge_graph_index.py`、`test_knowledge_graph_views.py`、`test_knowledge_scope_isolation.py`。
 - 检索运行时：`test_rag_v2.py`、`test_rag_hybrid.py`、`test_local_rag.py`、`test_evidence_gate_tiers.py`、`test_evidence_query_core.py`、`test_evidence_context_recon.py`、`test_knowledge_read.py`、`test_material_trigger_signals.py`。
 - 资料库/多模态：`test_library.py`、`test_multimodal_parser.py`、`test_multimodal_context.py`、`test_multimodal_uploads.py`、`test_docs.py`。

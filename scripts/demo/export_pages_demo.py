@@ -484,7 +484,7 @@ def main() -> None:
                       LLM_API_KEY="", LLM_BASE_URL="", CLASSROOM_ENABLED="1",
                       KNOWLEDGE_RETRIEVAL_MODE="bm25")
     sys.path.insert(0, str(API))
-    from tests.storage_sandbox import patch_all_storage_roots, reset_shared_caches
+    from tests.support.storage_sandbox import patch_all_storage_roots, reset_shared_caches
     from app.identity.models import UserProfile
     from app.identity.store import create_user
     from app.identity.security import create_token

@@ -1,0 +1,476 @@
+"""Contract tests: 统一 Quiz Grounding。
+
+这些测试先于实现编写，编码的是目标行为契约——它们在
+当前 main 上必须失败，以证明整改计划命中的是真实缺口：
+  1. GenerateQuizTool 没有 grounding 输入层（无 grounding_provider）；
+  2. 教材证据没有进入命题蓝图 / 生成 prompt；
+  3. strict 模式 NOT_FOUND 时仍会照常出题（假教材题）；
+  4. 出题结果不携带可审计的 source_refs provenance。
+
+Phase 2 实现后这些测试必须全绿，并保持回归。
+"""
+from __future__ import annotations
+
+
+import asyncio
+import json
+import unittest
+from typing import Any
+
+from tests.support.storage_sandbox import StorageSandboxTestCase
+
+
+# --- Fake LLM：按 prompt 特征区分蓝图/出题/审题三种子调用 ------------------
+
+_BLUEPRINT_JSON = json.dumps({
+    "items": [
+        {"local_question_id": "q1", "target_concept_refs": ["ZX-17 定理"],
+         "target_claims": ["能说出 ZX-17 定理右端常数并解释其唯一性"],
+         "intended_processes": ["understand"],
+         "knowledge_types": ["factual"], "q_type": "multiple_choice",
+         "difficulty_design": "记忆与理解", "task_family": "zx17-constant",
+         "assistance_plan": "key_hints",
+         "evidence_opportunities": [{"id": "o1",
+                                     "required_product": "写出右端常数",
+                                     "permitted_claim": "能记住常数",
+                                     "limits": "仅本题"}],
+         "rubric_draft": [], "grounding_refs": ["src_1"],
+         "construction_brief": "考查 ZX-17 定理右端常数的记忆与理解"},
+        {"local_question_id": "q2", "target_concept_refs": ["ZX-17 定理"],
+         "target_claims": ["能在新情境中应用 ZX-17 定理"],
+         "intended_processes": ["apply"], "knowledge_types": ["factual"],
+         "q_type": "fill_blank", "difficulty_design": "应用与迁移",
+         "task_family": "zx17-apply", "assistance_plan": "key_hints",
+         "evidence_opportunities": [{"id": "o1",
+                                     "required_product": "填出常数",
+                                     "permitted_claim": "能应用定理",
+                                     "limits": "仅本题"}],
+         "rubric_draft": [], "grounding_refs": ["src_1", "src_2"],
+         "construction_brief": "在新情境中应用 ZX-17 定理"},
+    ]
+}, ensure_ascii=False)
+
+_QUESTIONS_JSON = json.dumps({
+    "questions": [
+        {
+            "id": 1, "type": "multiple_choice",
+            "stem": "根据 ZX-17 定理，其右端常数是多少？",
+            "options": {"A": "314159", "B": "271828", "C": "141421", "D": "161803"},
+            "answer": "A",
+            "explanation": "ZX-17 定理明确规定右端常数为 314159，"
+                           "其余选项均为其它数学常数的近似值，属于干扰项。",
+            "knowledge_point": "ZX-17 定理",
+            "difficulty": "easy",
+            "bloom_level": "remember",
+            "source_ref_ids": ["src_1"],
+        },
+        {
+            "id": 2, "type": "fill_blank",
+            "stem": "在 ZX-17 定理的表述中，右端常数等于______。",
+            "answer": "314159",
+            "explanation": "教材中 ZX-17 定理的右端常数唯一确定，为 314159；"
+                           "填其它数值均不符合定理原文。",
+            "knowledge_point": "ZX-17 定理",
+            "difficulty": "easy",
+            "bloom_level": "remember",
+            "source_ref_ids": ["src_1", "src_2"],
+        },
+    ]
+}, ensure_ascii=False)
+
+_CRITIC_OK_JSON = json.dumps({"items": [
+    {"question_ref": "1", "answer_check": "valid",
+     "grounding_check": "supported",
+     "actual_required_processes": ["remember"],
+     "knowledge_types": ["factual"], "alignment": "aligned",
+     "opportunity_checks": [], "rubric_issues": [], "brief_basis": "",
+     "grounding_refs": [], "recommended_revision": "",
+     "proposed_status": "passed"},
+    {"question_ref": "2", "answer_check": "valid",
+     "grounding_check": "supported",
+     "actual_required_processes": ["remember"],
+     "knowledge_types": ["factual"], "alignment": "aligned",
+     "opportunity_checks": [], "rubric_issues": [], "brief_basis": "",
+     "grounding_refs": [], "recommended_revision": "",
+     "proposed_status": "passed"},
+]}, ensure_ascii=False)
+
+
+class FakeQuizLLM:
+    """按消息特征区分蓝图/出题/审题三种子调用；记录全部消息文本。"""
+
+    def __init__(self):
+        self.prompts: list[str] = []
+
+    async def complete(self, messages, temperature=None, max_tokens=None,
+                       disable_thinking=False):
+        text = "\n".join(str(m.get("content") or "") for m in messages)
+        self.prompts.append(text)
+        if "任务设计者" in text:            # P1 蓝图（system 角色）
+            body = _BLUEPRINT_JSON
+        elif "出题审核员" in text:          # P2 审题（system 角色）
+            body = _CRITIC_OK_JSON
+        else:
+            body = _QUESTIONS_JSON
+        return body, {"prompt_tokens": 5, "completion_tokens": 5,
+                      "total_tokens": 10}
+
+
+def _make_ref(**over: Any) -> Any:
+    """目标契约 QuizSourceRef（Phase 2 前 ImportError —— 这正是 contract）。"""
+    from app.core.quiz_grounding import QuizSourceRef
+    kw = {"file_id": "file_zx17", "chunk_id": "file_zx17#0",
+          "filename": "zx17讲义.pdf", "source_scope": "session",
+          "page": 3, "printed_page": 12,
+          "section_path": ["第三章", "3.2"],
+          "excerpt": "ZX-17 定理的右端常数为 314159。",
+          "context_hash": "hash_zx17"}
+    kw.update(over)
+    return QuizSourceRef(**kw)
+
+
+class _StubProvider:
+    """duck-typed QuizGroundingProvider，返回预设 bundle。"""
+
+    def __init__(self, bundle):
+        self._bundle = bundle
+        self._cached = None
+        self.calls: list[dict] = []
+
+    def peek_cached(self):
+        return self._cached
+
+    async def resolve(self, *, topic: str, focus: str = "", top_k: int = 6):
+        self.calls.append({"topic": topic, "focus": focus, "top_k": top_k})
+        self._cached = self._bundle
+        return self._bundle
+
+
+def _bundle(tier: str, required: bool):
+    from app.core.quiz_grounding import QuizGroundingBundle
+    refs = [] if tier == "not_found" else [_make_ref(), _make_ref(chunk_id="file_zx17#1")]
+    return QuizGroundingBundle(
+        query="ZX-17 定理", mode="textbook", tier=tier, required=required,
+        reason="workspace_material_content_question", source_refs=refs)
+
+
+class TestQuizGroundingModuleContract(StorageSandboxTestCase):
+    """core/quiz_grounding.py 数据投影层。"""
+
+    def test_module_exports_contract_types(self):
+        from app.core.quiz_grounding import (KnowledgeSearchQuizGroundingProvider,
+                                             QuizGroundingBundle, QuizSourceRef,
+                                             build_quiz_query)
+        self.assertTrue(callable(build_quiz_query))
+        self.assertEqual(build_quiz_query("ZX-17 定理", "右端常数"),
+                         "ZX-17 定理 右端常数")
+        self.assertEqual(build_quiz_query("ZX-17 定理", ""), "ZX-17 定理")
+
+    def test_bundle_usable_semantics(self):
+        from app.core.quiz_grounding import QuizGroundingBundle
+        found = QuizGroundingBundle(query="q", mode="textbook", tier="found",
+                                    required=True, reason="r",
+                                    source_refs=[_make_ref()])
+        self.assertTrue(found.usable)
+        partial = QuizGroundingBundle(query="q", mode="textbook", tier="partial",
+                                      required=True, reason="r",
+                                      source_refs=[_make_ref()])
+        self.assertTrue(partial.usable)
+        not_found = QuizGroundingBundle(query="q", mode="textbook",
+                                        tier="not_found", required=True,
+                                        reason="r", source_refs=[])
+        self.assertFalse(not_found.usable)
+        # found 语义但零 ref：不可用（不能凭空声称 grounded）
+        empty_found = QuizGroundingBundle(query="q", mode="textbook", tier="found",
+                                          required=True, reason="r", source_refs=[])
+        self.assertFalse(empty_found.usable)
+
+
+class TestGenerateQuizGroundingContract(StorageSandboxTestCase):
+    """GenerateQuizTool 的 grounding 输入层与 provenance 输出。"""
+
+    def _tool(self, provider):
+        from app.tools.quiz import GenerateQuizTool
+        return GenerateQuizTool(FakeQuizLLM(), avoid_stems=[],
+                                grounding_provider=provider)
+
+    def test_tool_accepts_grounding_provider_kwarg(self):
+        tool = self._tool(_StubProvider(_bundle("found", True)))
+        self.assertIsNotNone(tool)
+
+    def test_strict_not_found_does_not_generate_textbook_quiz(self):
+        tool = self._tool(_StubProvider(_bundle("not_found", True)))
+        result = asyncio.run(tool.run(topic="ZX-17 定理", grade="本科",
+                                      difficulty="easy", count=2))
+        # 严格教材模式 + NOT_FOUND：不允许出任何带教材依据的题。
+        grounded = [q for q in result.data.get("questions", [])
+                    if q.get("grounding_mode") == "textbook"]
+        self.assertEqual(grounded, [],
+                         "strict NOT_FOUND 不得产出任何教材 grounded 题")
+        self.assertFalse(
+            result.data.get("grounding", {}).get("mode") == "textbook"
+            and result.data.get("grounding", {}).get("tier") == "found")
+        # 明确的失败语义（error/partial），上层能据此告知用户。
+        self.assertTrue(result.is_error or result.status == "partial",
+                        "strict NOT_FOUND 必须返回明确的失败语义")
+
+    def test_found_grounded_questions_carry_source_refs(self):
+        provider = _StubProvider(_bundle("found", True))
+        tool = self._tool(provider)
+        result = asyncio.run(tool.run(topic="ZX-17 定理", grade="本科",
+                                      difficulty="easy", count=2))
+        self.assertFalse(result.is_error, result.text)
+        questions = result.data.get("questions", [])
+        self.assertTrue(questions)
+        grounding = result.data.get("grounding") or {}
+        self.assertEqual(grounding.get("mode"), "textbook")
+        self.assertEqual(grounding.get("tier"), "found")
+        for q in questions:
+            self.assertEqual(q.get("grounding_mode"), "textbook")
+            self.assertEqual(q.get("grounding_tier"), "found")
+            refs = q.get("source_refs") or []
+            self.assertTrue(refs, "strict 教材题必须至少携带一个 source ref")
+            for ref in refs:
+                self.assertEqual(ref.get("file_id"), "file_zx17")
+                self.assertIn("chunk_id", ref)
+
+    def test_blueprint_prompt_contains_grounding_context(self):
+        """两轮命题：蓝图轮必须见到教材证据，不能只在终轮注入。"""
+        llm = FakeQuizLLM()
+        from app.tools.quiz import GenerateQuizTool
+        tool = GenerateQuizTool(llm, avoid_stems=[],
+                                grounding_provider=_StubProvider(_bundle("found", True)))
+        asyncio.run(tool.run(topic="ZX-17 定理", grade="本科",
+                             difficulty="easy", count=2))
+        blueprint_prompts = [p for p in llm.prompts if "任务设计者" in p]
+        self.assertTrue(blueprint_prompts, "必须执行蓝图轮")
+        self.assertIn("ZX-17", blueprint_prompts[0])
+        self.assertIn("命题依据", blueprint_prompts[0],
+                      "蓝图输入必须包含教材命题依据块")
+
+    def test_generation_prompt_contains_grounding_block(self):
+        llm = FakeQuizLLM()
+        from app.tools.quiz import GenerateQuizTool
+        tool = GenerateQuizTool(llm, avoid_stems=[],
+                                grounding_provider=_StubProvider(_bundle("found", True)))
+        asyncio.run(tool.run(topic="ZX-17 定理", grade="本科",
+                             difficulty="easy", count=2))
+        gen_prompts = [p for p in llm.prompts
+                       if "出题专家" in p and "审题员" not in p]
+        self.assertTrue(gen_prompts)
+        self.assertIn("命题事实边界", gen_prompts[0])
+        self.assertIn("source_ref_ids", gen_prompts[0])
+        self.assertIn("material_excerpt", gen_prompts[0])
+
+    def test_non_strict_without_provider_stays_generic(self):
+        """plan 原则 5：无 provider / 非强制时保持 generic 出题，不强制教材化。"""
+        from app.tools.quiz import GenerateQuizTool
+        tool = GenerateQuizTool(FakeQuizLLM(), avoid_stems=[])
+        result = asyncio.run(tool.run(topic="牛顿第二定律", grade="高中",
+                                      difficulty="medium", count=2))
+        self.assertFalse(result.is_error, result.text)
+        grounding = result.data.get("grounding") or {}
+        self.assertEqual(grounding.get("mode", "generic"), "generic")
+        for q in result.data.get("questions", []):
+            self.assertNotEqual(q.get("grounding_mode"), "textbook")
+
+    def test_optional_not_found_falls_back_to_generic(self):
+        provider = _StubProvider(_bundle("not_found", False))
+        tool = self._tool(provider)
+        result = asyncio.run(tool.run(topic="牛顿第二定律", grade="高中",
+                                      difficulty="medium", count=2))
+        self.assertFalse(result.is_error, result.text)
+        grounding = result.data.get("grounding") or {}
+        self.assertEqual(grounding.get("mode"), "generic")
+        self.assertEqual(grounding.get("tier"), "not_found")
+
+
+class TestFitQuizNoForcedRetrieval(StorageSandboxTestCase):
+    """fit_quiz 的参考题路径不被强制重复检索。
+
+    reference 是普通用户粘贴时：grounding_mode=reference，provider 的
+    resolve 不被调用（无检索）；reference 来自本轮教材预检索时（provider
+    已缓存）只继承证据，也不发新检索。
+    """
+
+    def test_pasted_reference_does_not_retrieve(self):
+        from app.tools.fit_quiz import FitQuizTool
+
+        class _CountingProvider(_StubProvider):
+            pass
+
+        provider = _CountingProvider(_bundle("found", True))
+        tool = FitQuizTool(FakeQuizLLM(), grounding_provider=provider)
+        result = asyncio.run(tool.run(reference="一道普通参考题：求 x^2=4 的解",
+                                      grade="本科", difficulty="easy", count=1))
+        self.assertFalse(result.is_error, result.text)
+        self.assertEqual(provider.calls, [], "普通粘贴 reference 不得触发检索")
+        for q in result.data.get("questions", []):
+            self.assertEqual(q.get("grounding_mode"), "reference")
+            self.assertEqual(q.get("source_refs") or [], [],
+                             "无教材证据时不得携带 source refs")
+
+    def test_cached_evidence_inherited_without_new_retrieval(self):
+        from app.tools.fit_quiz import FitQuizTool
+        provider = _StubProvider(_bundle("found", True))
+        asyncio.run(provider.resolve(topic="ZX-17 定理"))  # 预检索缓存
+        calls_before = len(provider.calls)
+        tool = FitQuizTool(FakeQuizLLM(), grounding_provider=provider)
+        result = asyncio.run(tool.run(
+            reference="根据教材：ZX-17 定理的右端常数是多少？",
+            grade="本科", difficulty="easy", count=1))
+        self.assertFalse(result.is_error, result.text)
+        self.assertEqual(len(provider.calls), calls_before,
+                         "fit_quiz 只继承缓存，不发新检索")
+        for q in result.data.get("questions", []):
+            self.assertEqual(q.get("grounding_mode"), "reference+textbook")
+            self.assertTrue(q.get("source_refs"),
+                            "继承路径必须携带教材 provenance")
+        self.assertEqual(
+            (result.data.get("grounding") or {}).get("mode"),
+            "reference+textbook")
+
+
+class TestGroundedCriticContract(StorageSandboxTestCase):
+    """verify_questions 的 grounding_context + unsupported verdict。"""
+
+    def test_critic_input_carries_grounding(self):
+        from app.core.quiz_verify import verify_questions
+        llm = FakeQuizLLM()
+        questions = [{
+            "id": 1, "type": "multiple_choice",
+            "stem": "ZX-17 定理右端常数是多少？",
+            "options": {"A": "314159", "B": "1"}, "answer": "A",
+            "explanation": "教材写明右端常数为 314159。"}]
+        asyncio.run(verify_questions(
+            llm, questions, topic="ZX-17", grade="本科", difficulty="easy",
+            grounding_context="ZX-17 定理的右端常数为 314159。"))
+        self.assertTrue(llm.prompts)
+        critic_input = llm.prompts[-1]
+        self.assertIn("出题审核员", critic_input)     # P2 角色在位
+        self.assertIn("教材证据", critic_input)       # 证据随审核输入
+
+    def test_unsupported_verdict_drops_question(self):
+        from app.core.quiz_verify import verify_questions
+
+        class _UnsupportedLLM(FakeQuizLLM):
+            async def complete(self, messages, temperature=None,
+                               max_tokens=None, disable_thinking=False):
+                text = "\n".join(str(m.get("content") or "")
+                                 for m in messages)
+                self.prompts.append(text)
+                if "出题审核员" in text:
+                    return json.dumps({"items": [{
+                        "question_ref": "1", "answer_check": "indeterminate",
+                        "grounding_check": "unsupported",
+                        "actual_required_processes": [],
+                        "knowledge_types": [], "alignment": "indeterminate",
+                        "opportunity_checks": [], "rubric_issues": [],
+                        "brief_basis": "", "grounding_refs": [],
+                        "recommended_revision": "补教材依据",
+                        "proposed_status": "rejected"}]},
+                        ensure_ascii=False), {}
+                return _CRITIC_OK_JSON, {}
+
+        llm = _UnsupportedLLM()
+        questions = [{
+            "id": 1, "type": "multiple_choice",
+            "stem": "ZX-17 定理右端常数是多少？",
+            "options": {"A": "314159", "B": "1"}, "answer": "A",
+            "explanation": "教材写明右端常数为 314159。"}]
+        kept, dropped, critic_ok = asyncio.run(verify_questions(
+            llm, questions, topic="ZX-17", grade="本科", difficulty="easy",
+            grounding_context="ZX-17 定理的右端常数为 314159。"))
+        self.assertTrue(critic_ok)
+        self.assertEqual(kept, [])
+        self.assertEqual(len(dropped), 1)
+
+
+class TestQuizDesignGroundingContext(StorageSandboxTestCase):
+    """design_blueprint 的 additive grounding_context。"""
+
+    def test_design_blueprint_accepts_grounding_context(self):
+        from app.core.quiz_design import build_blueprint_messages
+        messages, binding = build_blueprint_messages(
+            topic="ZX-17", grade="本科", difficulty="easy",
+            count=2, focus="", avoid_stems=[],
+            grounding_context="ZX-17 定理的右端常数为 314159。")
+        user = messages[1]["content"]
+        system = messages[0]["content"]
+        self.assertIn("命题依据", user)
+        self.assertIn("314159", user)
+        self.assertIn("material_excerpt", user)
+        self.assertIn("任务设计者", system)
+        self.assertIn("quiz_blueprint", binding)
+        # 空 grounding_context 时无新增块。
+        messages2, _ = build_blueprint_messages(
+            topic="ZX-17", grade="本科", difficulty="easy",
+            count=2, focus="", avoid_stems=[], grounding_context="")
+        self.assertNotIn("命题依据", messages2[1]["content"])
+
+# Related quiz grounding strict relevance regressions.
+
+
+class _RecordingSearchTool:
+    """记录 kwargs 的假检索工具：按 strict_relevance 模拟两种门行为。"""
+
+    def __init__(self, small_direct_hit: bool = True):
+        self.calls: list[dict[str, Any]] = []
+        self._small_direct_hit = small_direct_hit
+
+    async def run(self, **kwargs: Any):
+        self.calls.append(kwargs)
+        from app.core.tool_protocol import ok, partial_result
+        if kwargs.get("strict_relevance"):
+            # 相关性门：ZX-999 与 fixture 无内容重合 -> 全部丢弃
+            return partial_result(
+                "knowledge_search",
+                {"query": kwargs.get("query", ""), "results": [],
+                 "count": 0, "partial": False},
+                "未能通过相关性判定。")
+        if self._small_direct_hit:
+            return ok("knowledge_search", {
+                "query": kwargs.get("query", ""),
+                "results": [{"id": "f1", "file_id": "f1", "chunk_id": "c1",
+                             "source": "zx17讲义.txt", "text": "第三章 ZX-17 定理"}],
+                "count": 1, "partial": False})
+        return ok("knowledge_search", {"query": "", "results": [], "count": 0})
+
+class StrictRelevanceGateTest(StorageSandboxTestCase):
+    def test_provider_passes_strict_relevance(self) -> None:
+        from app.core.quiz_grounding import KnowledgeSearchQuizGroundingProvider
+        import asyncio
+
+        tool = _RecordingSearchTool()
+        provider = KnowledgeSearchQuizGroundingProvider(
+            tool, required=True, reason="pending_material_action",
+            file_ids=("f1",))
+        bundle = asyncio.run(provider.resolve(topic="ZX-999 未定义概念"))
+        self.assertEqual(len(tool.calls), 1)
+        self.assertTrue(tool.calls[0].get("strict_relevance"))
+        self.assertEqual(tool.calls[0].get("file_ids"), ["f1"])
+        # 相关性门丢弃 -> not_found -> strict 下不可用
+        self.assertEqual(bundle.tier, "not_found")
+        self.assertFalse(bundle.usable)
+
+    def test_gate_disables_small_direct_only_under_strict_relevance(self) -> None:
+        from app.core.evidence_gate import apply_evidence_gate
+
+        candidates = [
+            {"text": "第三章 ZX-17 定理", "bm25_score": 1.0,
+             "source": "zx17讲义.txt"},
+        ]
+        # 小材料直通（旧行为，供"总结这份文件"问答）：命中即放行
+        direct = apply_evidence_gate(
+            "总结这份文件", candidates, 4, allow_small_direct=True)
+        self.assertEqual(len(direct.selected), 1)
+        # 同一调用面在 strict_relevance 语义下（quiz 路径不再传
+        # allow_small_direct）：scope 外概念过不了相关性
+        gated = apply_evidence_gate(
+            "ZX-999 未定义概念", candidates, 4, allow_small_direct=False)
+        self.assertEqual(len(gated.selected), 0)
+        self.assertEqual(gated.tier, "not_found")
+
+
+if __name__ == "__main__":
+    unittest.main()

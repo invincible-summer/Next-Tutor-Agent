@@ -26,7 +26,7 @@
 
 ## Tests
 
-`services/api/tests/`：`test_illustration_v2.py`（合成材料 + fake LLM 经真实 Chromium 的全链回归）、`test_illustration_jobs.py`（真实 JWT/ASGI 路由：所有权、单次运行、重试、不可变产物、删除竞争）、`test_quiz_illustration.py` / `test_quiz_illustration_enrichment.py`（出题侧策略与兼容链路）。聚焦运行：`cd services/api && python -m tests tests.test_illustration_v2`。
+`services/api/tests/`：`test_illustration_v2.py`（合成材料 + fake LLM 经真实 Chromium 的全链回归）、`test_illustration_jobs.py`（真实 JWT/ASGI 路由：所有权、单次运行、重试、不可变产物、删除竞争）、`test_quiz_illustration.py` / `test_quiz_illustration_enrichment.py`（出题侧策略与兼容链路）。聚焦运行：`cd services/api && python -m tests tests.illustration.test_illustration_v2`。
 
 ## Key entry points
 

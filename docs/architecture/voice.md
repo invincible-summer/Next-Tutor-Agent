@@ -140,9 +140,9 @@ Sidecar 启动判定（`scripts/dev/start.sh`，任一成立即启动）：`VOIC
 
 ## Tests / acceptance（测试索引）
 
-- `services/api/tests/test_voice.py`（90 用例）：子句切分（弱标点/硬上限/数学与表格不可切区/流式余量）、朗读清洗与公式口语化、TTS WAV 解码、响度归一、ticket 与鉴权、会话所有权、会话持久化与 TTS fail-open；WebSocket 回归使用 stub TTS + canned `run_turn`（所有走 turn 的测试必须 patch `get_llm`/`_build_tools`），覆盖 `status` 固定 `stt=browser`、无 PCM 的 `utterance_end.text` 全链路、`empty_transcript`、`binary_audio_unsupported`、`busy`、坏 ticket / header 直连 / 外来会话 / `end` 语义。
+- `services/api/tests/voice/`（约 90 用例）：`test_sentence_splitting.py`（弱标点/硬上限/数学与表格不可切区/流式余量）、`test_speak_text.py`（朗读清洗与公式口语化）、`test_speakable_chunks.py`、`test_wav_helpers.py`（TTS WAV 解码、响度归一）、`test_websocket.py`（ticket 与鉴权、会话所有权、会话持久化与 TTS fail-open；使用 stub TTS + canned `run_turn`，所有走 turn 的测试必须 patch `get_llm`/`_build_tools`，覆盖 `status` 固定 `stt=browser`、无 PCM 的 `utterance_end.text` 全链路、`empty_transcript`、`binary_audio_unsupported`、`busy`、坏 ticket / header 直连 / 外来会话 / `end` 语义）、`test_tts_speed.py`（语速）。
 - `services/api/tests/test_voice_azure.py`：Azure provider 与统一 TTS service（音色 allowlist、共享并发、档案解析）回归。
-- 浏览器：`apps/web/e2e/voice-smoke.spec.ts`（通话 UI、板书黑板与 drain 收尾冒烟）。
+- 浏览器：`apps/web/tests/e2e/voice-smoke.spec.ts`（通话 UI、板书黑板与 drain 收尾冒烟）。
 
 ## Related ADRs
 

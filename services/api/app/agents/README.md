@@ -24,8 +24,8 @@
 
 ## Design
 
-- M1 主管线（八步管线、执行器护栏 R1–R4/R10/R13、GSSC 上下文工程、钩子正交降级）：[docs/architecture/conversation.md](../../../docs/architecture/conversation.md)
-- M1–M10 模块索引表与层次关系（M5 输入、M8 输出、M9 纵向编排、M10 能力控制）：[docs/architecture/README.md](../../../docs/architecture/README.md)
+- M1 主管线（八步管线、执行器护栏 R1–R4/R10/R13、GSSC 上下文工程、钩子正交降级）：[docs/architecture/conversation.md](../../../../docs/architecture/conversation.md)
+- M1–M10 模块索引表与层次关系（M5 输入、M8 输出、M9 纵向编排、M10 能力控制）：[docs/architecture/README.md](../../../../docs/architecture/README.md)
 
 ## Tests
 

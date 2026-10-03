@@ -31,7 +31,7 @@
 ## Tests
 
 - `services/api/tests/test_assistant_*.py`（19 件：actions、b05–b11 系列、catalog、data_projection、handoff、notifications、orchestration、previews、runtime、schema 含 typegen `--check`、search、store、undo、workflows）
-- 浏览器回归：`apps/web/e2e/assistant-panel.spec.ts`、`apps/web/e2e/assistant-navigation.spec.ts`
+- 浏览器回归：`apps/web/tests/e2e/assistant-panel.spec.ts`、`apps/web/tests/e2e/assistant-navigation.spec.ts`
 
 ## Key entry points
 

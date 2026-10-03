@@ -36,7 +36,7 @@
 | `src/lib/voice/` | `useVoiceCall`（语音通话 WS 客户端 + 板书状态）、`browser-recognition`（课堂插问/助手朗读的 Web Speech 封装） |
 | `src/lib/demo.ts`、`demo-fetch.ts`、`demo-routes.ts` | Pages 演示模式：`DEMO_MODE`/`siteUrl`/`guardDemoAction`、静态快照 fetch 替身、`demoRoutes()` 构建期路由枚举 |
 | `next.config.ts` | basePath/`output: export`（demo）、`/api/*` 回退 rewrite、`/resources` 307 重定向、CSP 与安全响应头 |
-| `playwright.*.config.ts`、`e2e/`、`e2e-pages/`、`scripts/` | E2E 多车道配置与用例、node 单测与构建脚本（见 Tests / acceptance） |
+| `playwright.*.config.ts`、`tests/{e2e,pages,live,unit}/`、`scripts/`（构建/渲染工具） | E2E 多车道配置与用例、node 单测与构建脚本（见 Tests / acceptance） |
 
 ## Public contracts（对外契约）
 
@@ -138,10 +138,10 @@ chat 页右上角电话按钮为唯一入口（`GET /voice/status` 决定显隐�
 
 apps/web 下的 Playwright E2E 与 node 单测（环境搭建、浏览器回归与 CI 所有权见 [../../docs/development/testing.md](../../docs/development/testing.md)）：
 
-- `pnpm check`：`tsc --noEmit` + eslint + node 单测（`scripts/test-classroom-player.mjs`、`test-i18n.mjs`（词典键/插值/翻译函数契约）、`test-assistant-navigation.mjs`、`test-demo-fetch.mjs`）。
-- `pnpm test:e2e`：真实 backend + frontend + fake LLM（`e2e/fake-llm-server.mjs`、`prepare-backend.mjs` scratch 数据根）；`test:e2e:ci` CI 白名单车道、`test:e2e:i18n` 全拦截请求的 i18n 套件、`test:e2e:pages`（`e2e-pages/`）验证静态演示站、`test:e2e:live` 本机真实 LLM 验收车道、`test:e2e:account`/`test:e2e:guest` 账号与访客专项。
+- `pnpm check`：`tsc --noEmit` + eslint + node 单测（`tests/unit/test-classroom-player.mjs`、`test-i18n.mjs`（词典键/插值/翻译函数契约）、`test-assistant-navigation.mjs`、`test-demo-fetch.mjs`）。
+- `pnpm test:e2e`：真实 backend + frontend + fake LLM（`tests/e2e/support/fake-llm-server.mjs`、`prepare-backend.mjs` scratch 数据根）；`test:e2e:ci` CI 白名单车道、`test:e2e:i18n` 全拦截请求的 i18n 套件、`test:e2e:pages`（`tests/pages/`）验证静态演示站、`test:e2e:live` 本机真实 LLM 验收车道。
 - `pnpm build`（`next build --webpack`）作为生产构建验证；课堂播放器另有 `pnpm test:player` 与 `build:classroom` 资产管线。
-- 用例目录 `e2e/` 覆盖：鉴权隔离、课堂全流程（创建/编辑/播放/恢复/安全/导出/插问）、课程 Hub、笔记、图示库与素材、BM25 检索、题目卡契约与插图、开放作答、语音 smoke、访客接入、严格 QA。
+- 用例目录 `tests/e2e/` 覆盖：鉴权隔离、课堂全流程（创建/编辑/播放/恢复/安全/导出/插问）、课程 Hub、笔记、图示库与素材、BM25 检索、题目卡契约与插图、开放作答、语音 smoke、访客接入、严格 QA。
 
 ## Related ADRs
 

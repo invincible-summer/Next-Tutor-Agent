@@ -22,8 +22,8 @@
 
 ## Design
 
-- API 面分组概览、鉴权矩阵、限流与生产基线：[docs/architecture/backend-runtime.md](../../../docs/architecture/backend-runtime.md)
-- `/chat/*` SSE 事件契约、帧序与会话绑定双保险：[docs/architecture/conversation.md](../../../docs/architecture/conversation.md)
+- API 面分组概览、鉴权矩阵、限流与生产基线：[docs/architecture/backend-runtime.md](../../../../docs/architecture/backend-runtime.md)
+- `/chat/*` SSE 事件契约、帧序与会话绑定双保险：[docs/architecture/conversation.md](../../../../docs/architecture/conversation.md)
 
 ## Tests
 

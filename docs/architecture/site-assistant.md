@@ -154,7 +154,7 @@
 
 后端 `services/api/tests/`：`test_assistant_actions.py`、`test_assistant_b05_actions.py`、`test_assistant_b06_actions.py`、`test_assistant_b07_actions.py`、`test_assistant_b09_actions.py`、`test_assistant_b10_actions.py`、`test_assistant_b11_voice.py`、`test_assistant_catalog.py`、`test_assistant_data_projection.py`、`test_assistant_handoff.py`、`test_assistant_notifications.py`、`test_assistant_orchestration.py`、`test_assistant_previews.py`、`test_assistant_runtime.py`、`test_assistant_schema.py`（含 typegen `--check`）、`test_assistant_search.py`、`test_assistant_store.py`、`test_assistant_undo.py`、`test_assistant_workflows.py`（共 19 件；站内检索的进程级缓存由 `tests/storage_sandbox.reset_shared_caches` 跨用例清理）。
 
-浏览器：`apps/web/e2e/assistant-panel.spec.ts`（自动导航 ack 闭环 / 学习报告 / 教学报告 / 实体检索深链）、`apps/web/e2e/assistant-navigation.spec.ts`、`apps/web/scripts/test-assistant-navigation.mjs`（页面适配器与回执）。
+浏览器：`apps/web/tests/e2e/assistant-panel.spec.ts`（自动导航 ack 闭环 / 学习报告 / 教学报告 / 实体检索深链）、`apps/web/tests/e2e/assistant-navigation.spec.ts`、`apps/web/tests/unit/test-assistant-navigation.mjs`（页面适配器与回执）。
 
 ## Related ADRs
 

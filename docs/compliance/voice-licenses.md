@@ -57,8 +57,10 @@ sidecar venv 依赖（CPU torch 等）钉住在 `services/voice/requirements.txt
 
 1. `deploy/install_voice.sh` 全新环境安装，记录实际下载的 revision 哈希
    与模型缓存清单，与本文件 §2 一致。
-2. `python3 -m unittest tests.test_voice tests.test_voice_azure
-   tests.test_classroom_audio`（services/api/ 下）全绿。
+2. `python3 -m unittest tests.voice.test_sentence_splitting tests.voice.test_speak_text \
+   tests.voice.test_speakable_chunks tests.voice.test_wav_helpers \
+   tests.voice.test_websocket tests.voice.test_tts_speed \
+   tests.voice.test_voice_azure tests.classroom.test_classroom_audio`（services/api/ 下）全绿。
 3. 需要再分发时：保留上游 LICENSE/NOTICE/model card 与 revision 哈希，
    按实际安装版本生成 SBOM；Torch 等 multi-license 打包以 wheel 内
    NOTICE 为准，不得只标 MIT。

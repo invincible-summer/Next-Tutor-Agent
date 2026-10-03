@@ -23,7 +23,7 @@
 
 - `services/api/tests/test_prompt_registry.py` — 注册、版本钉扎与 active 版本语义
 - `test_prompt_eval.py` — prompt 效果回归
-- 聚焦运行：`cd services/api && python -m tests tests.test_prompt_registry`
+- 聚焦运行：`cd services/api && python -m tests tests.core.test_prompt_registry`
 
 ## Key entry points
 

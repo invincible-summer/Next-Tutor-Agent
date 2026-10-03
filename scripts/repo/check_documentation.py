@@ -98,6 +98,8 @@ PLAN_REF_ALLOWLIST = {
     # prompt version bump, so the historical mention stays until the next
     # deliberate text change.
     "services/api/app/prompts/registry.py",
+    # This guard's own docstring names the banned pattern.
+    "scripts/repo/check_documentation.py",
 }
 
 # ---------------------------------------------------------------------------
@@ -136,8 +138,8 @@ LEGACY_PATH_RATCHET = {
         "apps/web/src/components/classroom/TemplatePicker.tsx",
         "apps/web/src/lib/assistant/types.generated.ts",
         "apps/web/src/lib/types-classroom.generated.ts",
-        "apps/web/e2e/prepare-backend.mjs",
-        "apps/web/e2e/learning-plan.spec.ts",
+        "apps/web/tests/e2e/support/prepare-backend.mjs",
+        "apps/web/tests/e2e/learning-plan.spec.ts",
         "scripts/dev/generate_classroom_types.py",
         "scripts/dev/generate_assistant_types.py",
         "services/api/cli.py",
@@ -153,8 +155,8 @@ LEGACY_PATH_RATCHET = {
         "services/api/scripts/build_seed_pack.py",
         "services/api/scripts/restore_legacy_richness.py",
         "services/api/scripts/run_prompt_eval.py",
-        "services/api/tests/test_memory.py",
-        "services/api/tests/test_workspace_knowledge.py",
+        "services/api/tests/agents/memory/test_memory.py",
+        "services/api/tests/agents/knowledge/test_workspace_knowledge.py",
         "services/voice/requirements.txt",
     ]
 }
@@ -168,9 +170,11 @@ MD_IMAGE_RE = re.compile(r"<img[^>]+src=[\"']([^\"']+)[\"']")
 SKIP_TARGET_PREFIXES = ("http://", "https://", "mailto:", "//", "#", "data:")
 
 
-def tracked_files() -> list[str]:
+def repo_files() -> list[str]:
+    """Tracked files plus untracked-but-not-ignored files (pre-commit state)."""
     out = subprocess.run(
-        ["git", "ls-files", "-z"], cwd=ROOT, capture_output=True, text=True, check=True
+        ["git", "ls-files", "-z", "--cached", "--others", "--exclude-standard"], cwd=ROOT,
+        capture_output=True, text=True, check=True,
     ).stdout
     return [p for p in out.split("\0") if p]
 
@@ -291,7 +295,7 @@ def main() -> int:
     )
     args = parser.parse_args()
 
-    files = tracked_files()
+    files = repo_files()
     problems: list[str] = []
     problems += check_markdown_links(files)
     problems += check_required_readmes()

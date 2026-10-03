@@ -25,7 +25,7 @@
 
 ## Tests
 
-`services/api/tests/`：`test_voice.py`（约 90 用例：子句切分、朗读清洗与公式口语化、WAV 解码、响度归一、ticket/鉴权、WS 回归使用 stub TTS + canned `run_turn`）、`test_voice_azure.py`（Azure provider 与统一 TTS service：音色 allowlist、共享并发、档案解析）。浏览器冒烟 `apps/web/e2e/voice-smoke.spec.ts`。
+`services/api/tests/voice/`：`test_sentence_splitting.py`（子句切分）、`test_speak_text.py`（朗读清洗与公式口语化）、`test_speakable_chunks.py`（可说块）、`test_wav_helpers.py`（WAV 解码、响度归一）、`test_websocket.py`（ticket/鉴权与 WS 回归，使用 stub TTS + canned `run_turn`）、`test_tts_speed.py`（语速）；`test_voice_azure.py`（Azure provider 与统一 TTS service：音色 allowlist、共享并发、档案解析）。浏览器冒烟 `apps/web/tests/e2e/voice-smoke.spec.ts`。
 
 ## Key entry points
 

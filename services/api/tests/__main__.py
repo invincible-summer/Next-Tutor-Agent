@@ -11,7 +11,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from tests.storage_sandbox import patch_all_storage_roots, reset_shared_caches
+from tests.support.storage_sandbox import patch_all_storage_roots, reset_shared_caches
 
 
 def main() -> int:

@@ -29,7 +29,7 @@ Skill 命名空间与绑定表、决策信号、门控流程、shadow/gated/off 
 - `test_context_budget.py`（Skill 注入的上下文预算）、`test_quiz_card_contract.py`（`skill_ids` 链路）
 - `test_deepseek_tool_call_compat.py`（工具调用解析兼容）、`test_pseudo_tool_guard.py`（伪工具护栏）
 - 相邻回归：`test_knowledge_read.py`、`test_recall_history.py`、`test_material_trigger_signals.py`、`test_task_understanding_context.py`
-- 聚焦运行：`cd services/api && python -m tests tests.test_prompt_registry`
+- 聚焦运行：`cd services/api && python -m tests tests.core.test_prompt_registry`
 
 ## Key entry points
 

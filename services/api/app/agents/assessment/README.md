@@ -27,7 +27,7 @@ M4 回答「学生真的学会了吗」：承载练习题生成、统一作答�
 
 ## Tests
 
-`services/api/tests/`（`python -m tests tests.test_<module>`）：
+`services/api/tests/`（`python -m tests tests.agents.assessment.test_<module>`）：
 
 - 统一受理：`test_unified_submission.py`、`test_submission_identity.py`、`test_quiz_submission_state.py`、`test_quiz_ownership.py`。
 - 测评中心与 CAT：`test_assessment.py` 及 `test_assessment_*` 系列（lifecycle / identity / binding_cas / generation_fast）、`test_classroom_assessment.py`。

@@ -17,8 +17,8 @@
 
 ## Design
 
-- 运行时形态（应用工厂/lifespan、CORS、限流、trace）、统一存储布局、API 面分组概览与智能层开关体系：[docs/architecture/backend-runtime.md](../docs/architecture/backend-runtime.md)。
-- 系统总览：产品定位、M0 + M1–M10 模块地图与领域模块索引：[docs/architecture/README.md](../docs/architecture/README.md)。
+- 运行时形态（应用工厂/lifespan、CORS、限流、trace）、统一存储布局、API 面分组概览与智能层开关体系：[docs/architecture/backend-runtime.md](../../docs/architecture/backend-runtime.md)。
+- 系统总览：产品定位、M0 + M1–M10 模块地图与领域模块索引：[docs/architecture/README.md](../../docs/architecture/README.md)。
 
 ## Tests
 

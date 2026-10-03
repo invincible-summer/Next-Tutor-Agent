@@ -26,7 +26,7 @@ FastAPI 应用与教学智能层的 Python 包：应用装配、API 路由、M1�
 
 ## Design
 
-- 模块索引与依赖方向（api → 领域模块 → core；`identity/` 是所有请求的身份入口；领域模块不得反向依赖 `api/`）：[docs/architecture/README.md](../../docs/architecture/README.md)
+- 模块索引与依赖方向（api → 领域模块 → core；`identity/` 是所有请求的身份入口；领域模块不得反向依赖 `api/`）：[docs/architecture/README.md](../../../docs/architecture/README.md)
 
 ## Tests
 

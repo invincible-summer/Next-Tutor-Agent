@@ -2,7 +2,7 @@ import { defineConfig, devices } from "@playwright/test";
 
 // Every API request in these tests is intercepted. No runtime data is written.
 export default defineConfig({
-  testDir: "./e2e",
+  testDir: "./tests/e2e",
   testMatch: "i18n.spec.ts",
   workers: 1,
   timeout: 60_000,

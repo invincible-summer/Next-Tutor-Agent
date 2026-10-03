@@ -27,7 +27,7 @@ from pathlib import Path
 _BACKEND = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(_BACKEND))
 
-GOLDEN_PATH = _BACKEND / "tests" / "prompt_eval" / "golden.jsonl"
+GOLDEN_PATH = _BACKEND / "tests" / "support" / "prompt_eval" / "golden.jsonl"
 
 
 def load_golden(path: Path = GOLDEN_PATH) -> list[dict]:
