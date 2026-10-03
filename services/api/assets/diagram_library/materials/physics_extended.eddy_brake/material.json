@@ -1,0 +1,68 @@
+{
+  "id": "physics_extended.eddy_brake",
+  "renderer": "physics_extended",
+  "variant": "eddy_brake",
+  "category": "physics",
+  "title": "涡流制动示意",
+  "english": "Eddy-current brake",
+  "aliases": [
+    "电磁感应",
+    "制动"
+  ],
+  "version": 1,
+  "features": [],
+  "sample_params": {},
+  "license": "original-project-artwork",
+  "subjects": [
+    "physics"
+  ],
+  "education_levels": [
+    "junior",
+    "senior",
+    "undergraduate"
+  ],
+  "asset_kind": "scene",
+  "topics": [
+    "physics",
+    "eddy_brake"
+  ],
+  "provenance": {
+    "origin": "project_procedural",
+    "creation_method": "ai_assisted_vector_code",
+    "source_module": "app/diagrams/curriculum_expansion.py",
+    "source_symbol": "draw:eddy_brake",
+    "source_hash": "sha256:5105f9387ffff241aab1a3fe717976c9c3daecb204895d419901214a9f1761d2",
+    "external_graphics": [],
+    "derived_from": [],
+    "knowledge_references": [],
+    "statement": "项目独立编写矢量路径；通用符号与知识事实不代表独占造型。"
+  },
+  "review": {
+    "status": "passed",
+    "automatic": "passed",
+    "structure": "passed",
+    "visual": "passed",
+    "reviewer_type": "agent",
+    "reviewed_at": "2026-10-03",
+    "source_hash": "sha256:5105f9387ffff241aab1a3fe717976c9c3daecb204895d419901214a9f1761d2",
+    "evidence": {
+      "profiles": [
+        "textbook",
+        "monochrome"
+      ],
+      "preview_rendered": true,
+      "parameter_boundary_checked": false,
+      "parameter_cases": 0,
+      "sheet_review": "/tmp/next-tutor-expansion-scoped-final",
+      "correction_review": "/tmp/next-tutor-expansion-corrections",
+      "svg_hashes": {
+        "textbook": "sha256:71a6ffb1c86129e44a15675f2a147026e4c9453e1c6321efc1177dca798e2234",
+        "monochrome": "sha256:943e5a3cd1f15933caa49686889e5a3a576a8d7d966cf3a69ffa3509827a43c7"
+      },
+      "review_note": "All 12 large paired sheets and both correction sheets inspected. Closed-pipe ends, electrode/ion directions, daylight, membrane layers, actual numeric controls checked. Final XML matches selected evidence."
+    }
+  },
+  "svg_file": "asset.svg",
+  "guidance_file": "usage_guide.json",
+  "svg_hash": "sha256:43239a6892da5472f9ef1ba1a8710ae29fae0385e0d0d6533006f039305c1ceb"
+}

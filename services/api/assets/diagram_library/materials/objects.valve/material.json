@@ -1,0 +1,75 @@
+{
+  "id": "objects.valve",
+  "title": "阀门",
+  "english": "valve",
+  "category": "systems",
+  "renderer": "objects",
+  "variant": "valve",
+  "version": 1,
+  "aliases": [],
+  "features": [],
+  "sample_params": {},
+  "license": "original-project-artwork",
+  "subjects": [
+    "systems",
+    "engineering"
+  ],
+  "education_levels": [
+    "junior",
+    "senior",
+    "undergraduate"
+  ],
+  "asset_kind": "object",
+  "topics": [
+    "systems",
+    "valve"
+  ],
+  "provenance": {
+    "origin": "project_procedural",
+    "creation_method": "ai_assisted_vector_code",
+    "source_module": "app/diagrams/systems.py",
+    "source_symbol": "objects:valve",
+    "source_hash": "sha256:d4489571c90419d8a44b4415225411a789f62d32c72674110be6610d49ed937b",
+    "external_graphics": [],
+    "derived_from": [],
+    "knowledge_references": [],
+    "statement": "项目独立编写矢量路径；通用符号与知识事实不代表独占造型。"
+  },
+  "review": {
+    "status": "passed",
+    "automatic": "passed",
+    "structure": "passed",
+    "visual": "passed",
+    "reviewer_type": "agent",
+    "reviewed_at": "2026-10-03",
+    "source_hash": "sha256:d4489571c90419d8a44b4415225411a789f62d32c72674110be6610d49ed937b",
+    "evidence": {
+      "profiles": [
+        "textbook",
+        "monochrome"
+      ],
+      "preview_rendered": true,
+      "parameter_boundary_checked": false,
+      "parameter_cases": 0,
+      "sheet_review": "/tmp/next-tutor-all-assets-contact-fixed",
+      "parameter_review": "/tmp/next-tutor-all-assets-review-final",
+      "individual_review": "/tmp/next-tutor-all-assets-review-oct3",
+      "review_note": "All 27 paired contact sheets inspected; changed families rerendered and inspected. Invalid cross-parameter endpoints explicitly rejected.",
+      "revalidation": "/tmp/next-tutor-all-assets-post-composition-fixes",
+      "revalidation_note": "Chromium rerender; unchanged SVG compared byte-for-byte against reviewed corpus. Changed diagrams inspected on sheets 14/17/23 in both profiles.",
+      "expansion_replay": {
+        "directory": "/tmp/next-tutor-expansion-review",
+        "baseline": "/tmp/next-tutor-wall-source-review",
+        "svg_hashes": {
+          "textbook": "sha256:4a9de84fb6d5d5915246ee09da34e1e920f6aade3e86729d3d92aa8365c62dca",
+          "monochrome": "sha256:a201d58a5facf70d2a0095592bcbdacc3367e30acb876a0239d4d7283bfab2a1"
+        },
+        "unchanged_actual_svg": true,
+        "review_note": "Both re-rendered SVGs are byte-identical to reviewed baseline; prior visual evidence preserved."
+      }
+    }
+  },
+  "svg_file": "asset.svg",
+  "guidance_file": "usage_guide.json",
+  "svg_hash": "sha256:9998d751332b7f32d883319583c3ba355765515d488dfe5fe829158d4f235782"
+}

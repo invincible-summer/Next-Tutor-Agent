@@ -12,6 +12,7 @@ import { makePageT } from "@/lib/i18n-page";
 import { getDiagramAsset, getDiagramTaxonomy, listDiagramAssets, previewDiagramAsset, type AssetDetail, type AssetPage, type DiagramAsset, type DiagramTaxonomy } from "@/lib/api-diagrams";
 import type { QuestionIllustrationData } from "@/lib/types";
 import { STRINGS } from "./strings";
+import { MaterialLibrary } from "@/components/diagrams/MaterialLibrary";
 
 const PER = 12;
 
@@ -25,6 +26,7 @@ export default function DiagramLibraryPage() {
   const lang = useUIStore(s => s.lang);
   const tr = useMemo(() => makePageT(lang, STRINGS), [lang]);
   const [query, setQuery] = useState("");
+  const [scope, setScope] = useState<"public" | "private">("public");
   const [category, setCategory] = useState("");
   const [family, setFamily] = useState("");
   const [level, setLevel] = useState("");
@@ -74,6 +76,14 @@ export default function DiagramLibraryPage() {
       </div>
     </header>
 
+    <div className="flex gap-2" role="group" aria-label={lang === "en" ? "Material scope" : "素材范围"}>
+      <Button variant={scope === "public" ? "primary" : "outline"} onClick={() => setScope("public")}>{lang === "en" ? "Public materials" : "公有素材"}</Button>
+      <Button variant={scope === "private" ? "primary" : "outline"} onClick={() => setScope("private")}>{lang === "en" ? "My materials" : "我的素材"}</Button>
+    </div>
+    <MaterialLibrary scope={scope} />
+    {scope === "public" && <>
+    <h2 className="text-lg font-medium text-fg">{lang === "en" ? "Built-in public materials" : "内置公有素材"}</h2>
+
     <section aria-label={tr("filters")} className="space-y-5">
       <div className="grid grid-cols-3 gap-4 rounded-xl border border-border bg-surface p-5">
         <Field label={tr("subject")}><select aria-label={tr("subject")} value={category} className={FIELD_CLS} onChange={e => { setCategory(e.target.value); setFamily(""); setPage(0); }}>
@@ -118,6 +128,7 @@ export default function DiagramLibraryPage() {
       {data && data.total > PER && <Pager className="mt-6" page={page} total={data.total} per={PER} onPage={setPage} />}
     </section>
     <p className="border-t border-border-light pt-5 text-[11px] text-muted">{tr("original")}</p>
+    </>}
     {selected && <AssetExplorer key={selected.id} asset={selected} onClose={close} label={label} />}
     </div>
   </div>;
@@ -176,6 +187,18 @@ function AssetExplorer({ asset, onClose, label }: { asset: DiagramAsset; onClose
         <p className="mt-4 text-xs leading-6 text-muted">{asset.education_levels.map(label).join(" · ")}</p>
         {!!Object.keys(detail?.sample_params ?? {}).length && <p className="mt-1 text-xs leading-6 text-muted">{tr("previewSample")}</p>}
         <p className="mt-1 text-xs leading-6 text-muted">{asset.aliases.join(" · ")}</p>
+        {detail?.v2 && <div className="mt-3 space-y-1 text-xs leading-6 text-muted" data-testid="asset-v2-capabilities">
+          <p>{lang === "en" ? "Supports question composition" : "可用于题目关系构图"} · {detail.v2.capabilities.map(capability => ({
+            liquid_fill: lang === "en" ? "Liquid level" : "液面", supports_submersion: lang === "en" ? "Submersion" : "浸没",
+            open_top: lang === "en" ? "Open vessel" : "敞口", reading_binding: lang === "en" ? "Bound reading" : "读数绑定",
+            readable_scale: lang === "en" ? "Scale" : "刻度", wire_terminal: lang === "en" ? "Wire connection" : "导线连接",
+            rope_attach: lang === "en" ? "Suspension" : "悬挂", tube_terminal: lang === "en" ? "Tube connection" : "导管连接",
+            support: lang === "en" ? "Support" : "支撑", heating: lang === "en" ? "Heating" : "加热",
+            geometry_construction: lang === "en" ? "Exact construction" : "几何构造", data_binding: lang === "en" ? "Question data" : "题目数据",
+            function_binding: lang === "en" ? "Function" : "函数",
+          }[capability] ?? capability)).join(" · ")}</p>
+          <p>{lang === "en" ? "Readings, states and data must come from question material." : "读数、状态和图表数据须绑定题目条件；预览示例不用于出题。"}</p>
+        </div>}
         <p className="mt-4 text-xs text-muted" data-testid="asset-origin">{tr("original")}</p>
       </div>
       <form onSubmit={e => { e.preventDefault(); void apply(); }} className="min-w-0 space-y-4">

@@ -1,0 +1,68 @@
+{
+  "id": "astronomy_extended.transit_lightcurve",
+  "renderer": "astronomy_extended",
+  "variant": "transit_lightcurve",
+  "category": "astronomy",
+  "title": "凌星与光变曲线",
+  "english": "Transit light curve",
+  "aliases": [
+    "系外行星",
+    "凌星"
+  ],
+  "version": 1,
+  "features": [],
+  "sample_params": {},
+  "license": "original-project-artwork",
+  "subjects": [
+    "astronomy"
+  ],
+  "education_levels": [
+    "junior",
+    "senior",
+    "undergraduate"
+  ],
+  "asset_kind": "scene",
+  "topics": [
+    "astronomy",
+    "transit_lightcurve"
+  ],
+  "provenance": {
+    "origin": "project_procedural",
+    "creation_method": "ai_assisted_vector_code",
+    "source_module": "app/diagrams/curriculum_expansion.py",
+    "source_symbol": "draw:transit_lightcurve",
+    "source_hash": "sha256:5105f9387ffff241aab1a3fe717976c9c3daecb204895d419901214a9f1761d2",
+    "external_graphics": [],
+    "derived_from": [],
+    "knowledge_references": [],
+    "statement": "项目独立编写矢量路径；通用符号与知识事实不代表独占造型。"
+  },
+  "review": {
+    "status": "passed",
+    "automatic": "passed",
+    "structure": "passed",
+    "visual": "passed",
+    "reviewer_type": "agent",
+    "reviewed_at": "2026-10-03",
+    "source_hash": "sha256:5105f9387ffff241aab1a3fe717976c9c3daecb204895d419901214a9f1761d2",
+    "evidence": {
+      "profiles": [
+        "textbook",
+        "monochrome"
+      ],
+      "preview_rendered": true,
+      "parameter_boundary_checked": false,
+      "parameter_cases": 0,
+      "sheet_review": "/tmp/next-tutor-expansion-scoped-final",
+      "correction_review": "/tmp/next-tutor-expansion-corrections",
+      "svg_hashes": {
+        "textbook": "sha256:601afe39b1d0addd64220f5b6fd80a857400846a4624734385f3ca93211aaf80",
+        "monochrome": "sha256:718934bd91afb056a52e195df3c742b51e630cb0fd3180458512fde6de6b9522"
+      },
+      "review_note": "All 12 large paired sheets and both correction sheets inspected. Closed-pipe ends, electrode/ion directions, daylight, membrane layers, actual numeric controls checked. Final XML matches selected evidence."
+    }
+  },
+  "svg_file": "asset.svg",
+  "guidance_file": "usage_guide.json",
+  "svg_hash": "sha256:3fea2aab2180f5917c9de86c808bce1f2cd96f0a614c09058b0b89f7545a0261"
+}

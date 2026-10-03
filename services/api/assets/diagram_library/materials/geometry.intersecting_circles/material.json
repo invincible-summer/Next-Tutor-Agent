@@ -1,0 +1,73 @@
+{
+  "id": "geometry.intersecting_circles",
+  "title": "两圆相交",
+  "english": "intersecting circles",
+  "category": "mathematics",
+  "renderer": "geometry",
+  "variant": "intersecting_circles",
+  "version": 1,
+  "aliases": [],
+  "features": [],
+  "sample_params": {},
+  "license": "original-project-artwork",
+  "subjects": [
+    "mathematics"
+  ],
+  "education_levels": [
+    "elementary",
+    "junior",
+    "senior",
+    "undergraduate"
+  ],
+  "asset_kind": "symbol",
+  "topics": [
+    "mathematics",
+    "intersecting_circles"
+  ],
+  "provenance": {
+    "origin": "project_procedural",
+    "creation_method": "ai_assisted_vector_code",
+    "source_module": "app/diagrams/mathematics.py",
+    "source_symbol": "geometry:intersecting_circles",
+    "source_hash": "sha256:ed2793ab359cd86b110a54909e7a471b84d548c61e33c6552a2e586def1012ab",
+    "external_graphics": [],
+    "derived_from": [],
+    "knowledge_references": [],
+    "statement": "项目独立编写矢量路径；通用符号与知识事实不代表独占造型。"
+  },
+  "review": {
+    "status": "passed",
+    "automatic": "passed",
+    "structure": "passed",
+    "visual": "passed",
+    "reviewer_type": "agent",
+    "reviewed_at": "2026-10-03",
+    "source_hash": "sha256:ed2793ab359cd86b110a54909e7a471b84d548c61e33c6552a2e586def1012ab",
+    "evidence": {
+      "profiles": [
+        "textbook",
+        "monochrome"
+      ],
+      "preview_rendered": true,
+      "parameter_boundary_checked": false,
+      "parameter_cases": 0,
+      "sheet_review": "/tmp/next-tutor-all-assets-contact-fixed",
+      "parameter_review": "/tmp/next-tutor-all-assets-review-final",
+      "individual_review": "/tmp/next-tutor-all-assets-review-oct3",
+      "review_note": "All 27 paired contact sheets inspected; changed families rerendered and inspected. Invalid cross-parameter endpoints explicitly rejected.",
+      "expansion_replay": {
+        "directory": "/tmp/next-tutor-expansion-review",
+        "baseline": "/tmp/next-tutor-wall-source-review",
+        "svg_hashes": {
+          "textbook": "sha256:a439fbda7c20fb3f276bfc297214881c1c53ec9801a48009b9c802e2d36bcc77",
+          "monochrome": "sha256:10e46326e8ed652bf9b79a84b337686d2024037f6eef33f6a8251fb32e77f866"
+        },
+        "unchanged_actual_svg": true,
+        "review_note": "Both re-rendered SVGs are byte-identical to reviewed baseline; prior visual evidence preserved."
+      }
+    }
+  },
+  "svg_file": "asset.svg",
+  "guidance_file": "usage_guide.json",
+  "svg_hash": "sha256:7a1cea5e1aebd1bd9edb0773953e61e9766773846a5486573504ac86ee2fb24b"
+}

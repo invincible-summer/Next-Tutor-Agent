@@ -1,0 +1,8 @@
+{
+  "version": "1.0.3",
+  "hints": {
+    "authoring": "顺序流程图只列一个完整实体，步骤合成一个data事实，value为文字数组，引用题干步骤列表。不声明整体实体到自身的物理关系。",
+    "requirements": "需求名流程图、能力data_binding。一个完整实体，relations_to_express=[]，内部顺序通过items事实表达。",
+    "compose": "这是一个完整普通实例：entity_id为流程图实体ID，entity_map必须{}（items不是实体）。items绑定步骤数组。relations=[]；箭头由素材内部生成。无连边数组事实则省略edges；已有步骤标签不重复annotations。"
+  }
+}

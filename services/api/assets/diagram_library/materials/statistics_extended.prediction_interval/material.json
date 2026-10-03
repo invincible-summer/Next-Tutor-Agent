@@ -1,0 +1,131 @@
+{
+  "id": "statistics_extended.prediction_interval",
+  "title": "回归预测区间",
+  "english": "Regression prediction interval",
+  "category": "statistics",
+  "renderer": "statistics_extended",
+  "variant": "prediction_interval",
+  "version": 1,
+  "aliases": [],
+  "features": [
+    "数据驱动"
+  ],
+  "sample_params": {
+    "points": [
+      [
+        0,
+        2.0,
+        0.040000000000000036,
+        3.96
+      ],
+      [
+        1,
+        2.8,
+        1.26,
+        4.34
+      ],
+      [
+        2,
+        3.6,
+        2.3600000000000003,
+        4.84
+      ],
+      [
+        3,
+        4.4,
+        3.3400000000000003,
+        5.46
+      ],
+      [
+        4,
+        5.2,
+        4.2,
+        6.2
+      ],
+      [
+        5,
+        6.0,
+        4.94,
+        7.06
+      ],
+      [
+        6,
+        6.800000000000001,
+        5.5600000000000005,
+        8.040000000000001
+      ],
+      [
+        7,
+        7.6000000000000005,
+        6.0600000000000005,
+        9.14
+      ],
+      [
+        8,
+        8.4,
+        6.44,
+        10.36
+      ]
+    ]
+  },
+  "license": "original-project-artwork",
+  "subjects": [
+    "statistics"
+  ],
+  "education_levels": [
+    "senior",
+    "undergraduate"
+  ],
+  "asset_kind": "chart",
+  "topics": [
+    "statistics",
+    "prediction_interval"
+  ],
+  "provenance": {
+    "origin": "project_procedural",
+    "creation_method": "ai_assisted_vector_code",
+    "source_module": "app/diagrams/extended_statistics.py",
+    "source_symbol": "draw:prediction_interval",
+    "source_hash": "sha256:d2b24d8678ddff0ca109a65021c8c58c5cc22528dd00a4bb9088704ffb481e4d",
+    "external_graphics": [],
+    "derived_from": [],
+    "knowledge_references": [],
+    "statement": "项目独立编写矢量路径；通用符号与知识事实不代表独占造型。"
+  },
+  "review": {
+    "status": "passed",
+    "automatic": "passed",
+    "structure": "passed",
+    "visual": "passed",
+    "reviewer_type": "agent",
+    "reviewed_at": "2026-10-03",
+    "source_hash": "sha256:d2b24d8678ddff0ca109a65021c8c58c5cc22528dd00a4bb9088704ffb481e4d",
+    "evidence": {
+      "profiles": [
+        "textbook",
+        "monochrome"
+      ],
+      "preview_rendered": true,
+      "parameter_boundary_checked": false,
+      "parameter_cases": 0,
+      "sheet_review": "/tmp/next-tutor-all-assets-contact-fixed",
+      "parameter_review": "/tmp/next-tutor-all-assets-review-final",
+      "individual_review": "/tmp/next-tutor-wall-source-review",
+      "review_note": "All 27 paired contact sheets inspected; changed families rerendered and inspected. Invalid cross-parameter endpoints explicitly rejected.",
+      "expansion_replay": {
+        "directory": "/tmp/next-tutor-expansion-review",
+        "baseline": "/tmp/next-tutor-wall-source-review",
+        "svg_hashes": {
+          "textbook": "sha256:9fcd7c0146052d8dd8e6ab653ee6936c2f4cff435d3ac262ca359fcc46ae0f19",
+          "monochrome": "sha256:645b330bc3b370f504aafd18a41da2450816247d62abad09ae28309c23ed68fb"
+        },
+        "unchanged_actual_svg": true,
+        "review_note": "Both re-rendered SVGs are byte-identical to reviewed baseline; prior visual evidence preserved."
+      }
+    },
+    "notes": "全目录双风格重新渲染无越界/文字碰撞，与前轮逐SVG字节核对仅墙体变化；墙体接触面双风格实图已审阅。"
+  },
+  "svg_file": "asset.svg",
+  "guidance_file": "usage_guide.json",
+  "svg_hash": "sha256:dda04654976f2b4837d0aca339957f3282d891ca9ee33d17ef06130f0169da0d"
+}

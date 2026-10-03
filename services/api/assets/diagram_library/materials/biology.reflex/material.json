@@ -1,0 +1,72 @@
+{
+  "id": "biology.reflex",
+  "title": "反射弧结构",
+  "english": "reflex structure",
+  "category": "biology",
+  "renderer": "biology",
+  "variant": "reflex",
+  "version": 1,
+  "aliases": [],
+  "features": [],
+  "sample_params": {},
+  "license": "original-project-artwork",
+  "subjects": [
+    "biology"
+  ],
+  "education_levels": [
+    "junior",
+    "senior",
+    "undergraduate"
+  ],
+  "asset_kind": "object",
+  "topics": [
+    "biology",
+    "reflex"
+  ],
+  "provenance": {
+    "origin": "project_procedural",
+    "creation_method": "ai_assisted_vector_code",
+    "source_module": "app/diagrams/life_earth.py",
+    "source_symbol": "biology:reflex",
+    "source_hash": "sha256:baafe320672a58a945e1cd23dfe1b3ff2ea7bf946f71e9b8548dec8f5f9606c0",
+    "external_graphics": [],
+    "derived_from": [],
+    "knowledge_references": [],
+    "statement": "项目独立编写矢量路径；通用符号与知识事实不代表独占造型。"
+  },
+  "review": {
+    "status": "passed",
+    "automatic": "passed",
+    "structure": "passed",
+    "visual": "passed",
+    "reviewer_type": "agent",
+    "reviewed_at": "2026-10-03",
+    "source_hash": "sha256:baafe320672a58a945e1cd23dfe1b3ff2ea7bf946f71e9b8548dec8f5f9606c0",
+    "evidence": {
+      "profiles": [
+        "textbook",
+        "monochrome"
+      ],
+      "preview_rendered": true,
+      "parameter_boundary_checked": false,
+      "parameter_cases": 0,
+      "sheet_review": "/tmp/next-tutor-all-assets-contact-fixed",
+      "parameter_review": "/tmp/next-tutor-all-assets-review-final",
+      "individual_review": "/tmp/next-tutor-all-assets-review-oct3",
+      "review_note": "All 27 paired contact sheets inspected; changed families rerendered and inspected. Invalid cross-parameter endpoints explicitly rejected.",
+      "expansion_replay": {
+        "directory": "/tmp/next-tutor-expansion-review",
+        "baseline": "/tmp/next-tutor-wall-source-review",
+        "svg_hashes": {
+          "textbook": "sha256:745c57e4b42106678a1a5b34e67fd90912a16bad6c4e435eaea19aba26a2577a",
+          "monochrome": "sha256:67c20af8d6a746e18ca186f59f61a9179eee79ba40381a1abea67534dee145bf"
+        },
+        "unchanged_actual_svg": true,
+        "review_note": "Both re-rendered SVGs are byte-identical to reviewed baseline; prior visual evidence preserved."
+      }
+    }
+  },
+  "svg_file": "asset.svg",
+  "guidance_file": "usage_guide.json",
+  "svg_hash": "sha256:276271d6e7dffaf3c895177b947d34bd7779b6a2bba7f4dbb71a0a8634fc3bf3"
+}

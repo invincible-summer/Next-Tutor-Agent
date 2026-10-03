@@ -1,0 +1,72 @@
+{
+  "id": "waves.standing_wave",
+  "title": "驻波",
+  "english": "standing wave",
+  "category": "physics",
+  "renderer": "waves",
+  "variant": "standing_wave",
+  "version": 1,
+  "aliases": [],
+  "features": [],
+  "sample_params": {},
+  "license": "original-project-artwork",
+  "subjects": [
+    "physics"
+  ],
+  "education_levels": [
+    "junior",
+    "senior",
+    "undergraduate"
+  ],
+  "asset_kind": "object",
+  "topics": [
+    "physics",
+    "standing_wave"
+  ],
+  "provenance": {
+    "origin": "project_procedural",
+    "creation_method": "ai_assisted_vector_code",
+    "source_module": "app/diagrams/physics.py",
+    "source_symbol": "waves:standing_wave",
+    "source_hash": "sha256:15db561e0e7b6fb55797e51b9e2f632f4c99892f3b643989d5f663f619355cae",
+    "external_graphics": [],
+    "derived_from": [],
+    "knowledge_references": [],
+    "statement": "项目独立编写矢量路径；通用符号与知识事实不代表独占造型。"
+  },
+  "review": {
+    "status": "passed",
+    "automatic": "passed",
+    "structure": "passed",
+    "visual": "passed",
+    "reviewer_type": "agent",
+    "reviewed_at": "2026-10-03",
+    "source_hash": "sha256:15db561e0e7b6fb55797e51b9e2f632f4c99892f3b643989d5f663f619355cae",
+    "evidence": {
+      "profiles": [
+        "textbook",
+        "monochrome"
+      ],
+      "preview_rendered": true,
+      "parameter_boundary_checked": false,
+      "parameter_cases": 0,
+      "sheet_review": "/tmp/next-tutor-all-assets-contact-fixed",
+      "parameter_review": "/tmp/next-tutor-all-assets-review-final",
+      "individual_review": "/tmp/next-tutor-all-assets-review-oct3",
+      "review_note": "All 27 paired contact sheets inspected; changed families rerendered and inspected. Invalid cross-parameter endpoints explicitly rejected.",
+      "expansion_replay": {
+        "directory": "/tmp/next-tutor-expansion-review",
+        "baseline": "/tmp/next-tutor-wall-source-review",
+        "svg_hashes": {
+          "textbook": "sha256:5bf5bec606ed2706ab4ba085ee31883faa69a9e4bb1f9029b8690e93893772d4",
+          "monochrome": "sha256:e7c1cf371ed56d8619456f80db1349243170997461b14b32b2d6cb4e189bc131"
+        },
+        "unchanged_actual_svg": true,
+        "review_note": "Both re-rendered SVGs are byte-identical to reviewed baseline; prior visual evidence preserved."
+      }
+    }
+  },
+  "svg_file": "asset.svg",
+  "guidance_file": "usage_guide.json",
+  "svg_hash": "sha256:d756bb8fd40db7533b3e0b03165b366481f38da50e5121a26e5005dd36f16367"
+}

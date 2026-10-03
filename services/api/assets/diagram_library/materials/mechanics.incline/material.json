@@ -1,0 +1,75 @@
+{
+  "id": "mechanics.incline",
+  "title": "斜面",
+  "english": "inclined plane",
+  "category": "physics",
+  "renderer": "mechanics",
+  "variant": "incline",
+  "version": 1,
+  "aliases": [
+    "可调斜面"
+  ],
+  "features": [],
+  "sample_params": {},
+  "license": "original-project-artwork",
+  "subjects": [
+    "physics"
+  ],
+  "education_levels": [
+    "junior",
+    "senior",
+    "undergraduate"
+  ],
+  "asset_kind": "object",
+  "topics": [
+    "physics",
+    "incline"
+  ],
+  "provenance": {
+    "origin": "project_procedural",
+    "creation_method": "ai_assisted_vector_code",
+    "source_module": "app/diagrams/instruments.py",
+    "source_symbol": "mechanics:incline",
+    "source_hash": "sha256:8e1f2b28972d23c5451395185c2c131ce07e4a3019de755f30fe497536b9f35e",
+    "external_graphics": [],
+    "derived_from": [],
+    "knowledge_references": [],
+    "statement": "项目独立编写矢量路径；通用符号与知识事实不代表独占造型。"
+  },
+  "review": {
+    "status": "passed",
+    "automatic": "passed",
+    "structure": "passed",
+    "visual": "passed",
+    "reviewer_type": "agent",
+    "reviewed_at": "2026-10-03",
+    "source_hash": "sha256:8e1f2b28972d23c5451395185c2c131ce07e4a3019de755f30fe497536b9f35e",
+    "evidence": {
+      "profiles": [
+        "textbook",
+        "monochrome"
+      ],
+      "preview_rendered": true,
+      "parameter_boundary_checked": true,
+      "parameter_cases": 2,
+      "sheet_review": "/tmp/next-tutor-all-assets-contact-fixed",
+      "parameter_review": "/tmp/next-tutor-all-assets-review-final",
+      "individual_review": "/tmp/next-tutor-wall-source-review",
+      "review_note": "All 27 paired contact sheets inspected; changed families rerendered and inspected. Invalid cross-parameter endpoints explicitly rejected.",
+      "expansion_replay": {
+        "directory": "/tmp/next-tutor-expansion-review",
+        "baseline": "/tmp/next-tutor-wall-source-review",
+        "svg_hashes": {
+          "textbook": "sha256:6296ca2a7d5a550c0497abe7ce1923a03fdf44cd8f63b3b5b780d10bf9e3a403",
+          "monochrome": "sha256:4134696e31aa116c72fff57f1836a85ff74aeeb222ac0f366b6bebec6f1ffe17"
+        },
+        "unchanged_actual_svg": true,
+        "review_note": "Both re-rendered SVGs are byte-identical to reviewed baseline; prior visual evidence preserved."
+      }
+    },
+    "notes": "全目录双风格重新渲染无越界/文字碰撞，与前轮逐SVG字节核对仅墙体变化；墙体接触面双风格实图已审阅。"
+  },
+  "svg_file": "asset.svg",
+  "guidance_file": "usage_guide.json",
+  "svg_hash": "sha256:f7c30686cc8b89c58d55d7b898ccf46a18fc6d0afda502dd492ab457c909af4d"
+}

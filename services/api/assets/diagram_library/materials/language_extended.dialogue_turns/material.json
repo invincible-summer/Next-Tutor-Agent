@@ -1,0 +1,83 @@
+{
+  "id": "language_extended.dialogue_turns",
+  "title": "对话轮次",
+  "english": "Dialogue turns",
+  "category": "language",
+  "renderer": "language_extended",
+  "variant": "dialogue_turns",
+  "version": 1,
+  "aliases": [],
+  "features": [
+    "数据驱动"
+  ],
+  "sample_params": {
+    "items": [
+      "question",
+      "response",
+      "follow-up",
+      "clarification"
+    ]
+  },
+  "license": "original-project-artwork",
+  "subjects": [
+    "language"
+  ],
+  "education_levels": [
+    "elementary",
+    "junior",
+    "senior",
+    "undergraduate"
+  ],
+  "asset_kind": "scene",
+  "topics": [
+    "language",
+    "dialogue_turns"
+  ],
+  "provenance": {
+    "origin": "project_procedural",
+    "creation_method": "ai_assisted_vector_code",
+    "source_module": "app/diagrams/extended_humanities.py",
+    "source_symbol": "draw:dialogue_turns",
+    "source_hash": "sha256:36bb3cd99a2977447c6629be475137d94e41ac218c17e4aa13e70490b497092d",
+    "external_graphics": [],
+    "derived_from": [],
+    "knowledge_references": [],
+    "statement": "项目独立编写矢量路径；通用符号与知识事实不代表独占造型。"
+  },
+  "review": {
+    "status": "passed",
+    "automatic": "passed",
+    "structure": "passed",
+    "visual": "passed",
+    "reviewer_type": "agent",
+    "reviewed_at": "2026-10-03",
+    "source_hash": "sha256:36bb3cd99a2977447c6629be475137d94e41ac218c17e4aa13e70490b497092d",
+    "evidence": {
+      "profiles": [
+        "textbook",
+        "monochrome"
+      ],
+      "preview_rendered": true,
+      "parameter_boundary_checked": false,
+      "parameter_cases": 0,
+      "sheet_review": "/tmp/next-tutor-all-assets-contact-fixed",
+      "parameter_review": "/tmp/next-tutor-all-assets-review-final",
+      "individual_review": "/tmp/next-tutor-wall-source-review",
+      "review_note": "All 27 paired contact sheets inspected; changed families rerendered and inspected. Invalid cross-parameter endpoints explicitly rejected.",
+      "expansion_replay": {
+        "directory": "/tmp/next-tutor-expansion-review",
+        "baseline": "/tmp/next-tutor-wall-source-review",
+        "svg_hashes": {
+          "textbook": "sha256:28b83f9c12e12b9fa2902e4d1b11f0b7b0319c458d9f2bf8839daf077078814f",
+          "monochrome": "sha256:f00cf3846f564003221543165b24f406eb95a1dae133f22f6e2e628e8072d7c5"
+        },
+        "unchanged_actual_svg": true,
+        "review_note": "Both re-rendered SVGs are byte-identical to reviewed baseline; prior visual evidence preserved."
+      }
+    },
+    "notes": "全目录双风格重新渲染无越界/文字碰撞，与前轮逐SVG字节核对仅墙体变化；墙体接触面双风格实图已审阅。"
+  },
+  "svg_file": "asset.svg",
+  "guidance_file": "usage_guide.json",
+  "svg_hash": "sha256:24aa64f55f5dbbfccfb6255853f7010f0a98e91fb0c017aa418da9cd0f89897c"
+}

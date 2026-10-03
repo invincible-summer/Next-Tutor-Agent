@@ -1,0 +1,68 @@
+{
+  "id": "biology_extended.competitive_inhibition",
+  "renderer": "biology_extended",
+  "variant": "competitive_inhibition",
+  "category": "biology",
+  "title": "竞争性抑制结合示意",
+  "english": "Competitive inhibition",
+  "aliases": [
+    "酶",
+    "活性位点"
+  ],
+  "version": 1,
+  "features": [],
+  "sample_params": {},
+  "license": "original-project-artwork",
+  "subjects": [
+    "biology"
+  ],
+  "education_levels": [
+    "junior",
+    "senior",
+    "undergraduate"
+  ],
+  "asset_kind": "scene",
+  "topics": [
+    "biology",
+    "competitive_inhibition"
+  ],
+  "provenance": {
+    "origin": "project_procedural",
+    "creation_method": "ai_assisted_vector_code",
+    "source_module": "app/diagrams/curriculum_expansion.py",
+    "source_symbol": "draw:competitive_inhibition",
+    "source_hash": "sha256:5105f9387ffff241aab1a3fe717976c9c3daecb204895d419901214a9f1761d2",
+    "external_graphics": [],
+    "derived_from": [],
+    "knowledge_references": [],
+    "statement": "项目独立编写矢量路径；通用符号与知识事实不代表独占造型。"
+  },
+  "review": {
+    "status": "passed",
+    "automatic": "passed",
+    "structure": "passed",
+    "visual": "passed",
+    "reviewer_type": "agent",
+    "reviewed_at": "2026-10-03",
+    "source_hash": "sha256:5105f9387ffff241aab1a3fe717976c9c3daecb204895d419901214a9f1761d2",
+    "evidence": {
+      "profiles": [
+        "textbook",
+        "monochrome"
+      ],
+      "preview_rendered": true,
+      "parameter_boundary_checked": false,
+      "parameter_cases": 0,
+      "sheet_review": "/tmp/next-tutor-expansion-scoped-final",
+      "correction_review": "/tmp/next-tutor-expansion-corrections",
+      "svg_hashes": {
+        "textbook": "sha256:325852a49f9f4353964efd00f8c8b3e909a2efcd41ecd0db89f136c826daf410",
+        "monochrome": "sha256:5a0f909334f703034023e58cc13bfa274a134a072af5c13150594a35ecf7e1d6"
+      },
+      "review_note": "All 12 large paired sheets and both correction sheets inspected. Closed-pipe ends, electrode/ion directions, daylight, membrane layers, actual numeric controls checked. Final XML matches selected evidence."
+    }
+  },
+  "svg_file": "asset.svg",
+  "guidance_file": "usage_guide.json",
+  "svg_hash": "sha256:083fc7f44797860a5d48354f2696962bfb9ba34c77334882e8b481f94d4b87ed"
+}

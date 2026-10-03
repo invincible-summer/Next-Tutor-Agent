@@ -1,0 +1,74 @@
+{
+  "id": "earth.groundwater",
+  "title": "地下水",
+  "english": "groundwater",
+  "category": "geography",
+  "renderer": "earth",
+  "variant": "groundwater",
+  "version": 1,
+  "aliases": [],
+  "features": [],
+  "sample_params": {},
+  "license": "original-project-artwork",
+  "subjects": [
+    "geography",
+    "environment",
+    "biology"
+  ],
+  "education_levels": [
+    "junior",
+    "senior",
+    "undergraduate"
+  ],
+  "asset_kind": "object",
+  "topics": [
+    "geography",
+    "groundwater"
+  ],
+  "provenance": {
+    "origin": "project_procedural",
+    "creation_method": "ai_assisted_vector_code",
+    "source_module": "app/diagrams/life_earth.py",
+    "source_symbol": "earth:groundwater",
+    "source_hash": "sha256:baafe320672a58a945e1cd23dfe1b3ff2ea7bf946f71e9b8548dec8f5f9606c0",
+    "external_graphics": [],
+    "derived_from": [],
+    "knowledge_references": [],
+    "statement": "项目独立编写矢量路径；通用符号与知识事实不代表独占造型。"
+  },
+  "review": {
+    "status": "passed",
+    "automatic": "passed",
+    "structure": "passed",
+    "visual": "passed",
+    "reviewer_type": "agent",
+    "reviewed_at": "2026-10-03",
+    "source_hash": "sha256:baafe320672a58a945e1cd23dfe1b3ff2ea7bf946f71e9b8548dec8f5f9606c0",
+    "evidence": {
+      "profiles": [
+        "textbook",
+        "monochrome"
+      ],
+      "preview_rendered": true,
+      "parameter_boundary_checked": false,
+      "parameter_cases": 0,
+      "sheet_review": "/tmp/next-tutor-all-assets-contact-fixed",
+      "parameter_review": "/tmp/next-tutor-all-assets-review-final",
+      "individual_review": "/tmp/next-tutor-all-assets-review-oct3",
+      "review_note": "All 27 paired contact sheets inspected; changed families rerendered and inspected. Invalid cross-parameter endpoints explicitly rejected.",
+      "expansion_replay": {
+        "directory": "/tmp/next-tutor-expansion-review",
+        "baseline": "/tmp/next-tutor-wall-source-review",
+        "svg_hashes": {
+          "textbook": "sha256:ce561a3ad1058d63b401a7a3a4df94439ef0292345e269316eca1e90990cc360",
+          "monochrome": "sha256:5750476668f80ee6f7f67b85e754d64261513670d0f9287c1b2e78735ef3679a"
+        },
+        "unchanged_actual_svg": true,
+        "review_note": "Both re-rendered SVGs are byte-identical to reviewed baseline; prior visual evidence preserved."
+      }
+    }
+  },
+  "svg_file": "asset.svg",
+  "guidance_file": "usage_guide.json",
+  "svg_hash": "sha256:246fe1b048816eccae6173e70a3eccdfdc44340b19f0035910276095a1b576e2"
+}

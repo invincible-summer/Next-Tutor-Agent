@@ -1,0 +1,72 @@
+{
+  "id": "earth.earth_layers",
+  "title": "地球内部圈层",
+  "english": "earth layers",
+  "category": "geography",
+  "renderer": "earth",
+  "variant": "earth_layers",
+  "version": 1,
+  "aliases": [],
+  "features": [],
+  "sample_params": {},
+  "license": "original-project-artwork",
+  "subjects": [
+    "geography"
+  ],
+  "education_levels": [
+    "junior",
+    "senior",
+    "undergraduate"
+  ],
+  "asset_kind": "object",
+  "topics": [
+    "geography",
+    "earth_layers"
+  ],
+  "provenance": {
+    "origin": "project_procedural",
+    "creation_method": "ai_assisted_vector_code",
+    "source_module": "app/diagrams/life_earth.py",
+    "source_symbol": "earth:earth_layers",
+    "source_hash": "sha256:baafe320672a58a945e1cd23dfe1b3ff2ea7bf946f71e9b8548dec8f5f9606c0",
+    "external_graphics": [],
+    "derived_from": [],
+    "knowledge_references": [],
+    "statement": "项目独立编写矢量路径；通用符号与知识事实不代表独占造型。"
+  },
+  "review": {
+    "status": "passed",
+    "automatic": "passed",
+    "structure": "passed",
+    "visual": "passed",
+    "reviewer_type": "agent",
+    "reviewed_at": "2026-10-03",
+    "source_hash": "sha256:baafe320672a58a945e1cd23dfe1b3ff2ea7bf946f71e9b8548dec8f5f9606c0",
+    "evidence": {
+      "profiles": [
+        "textbook",
+        "monochrome"
+      ],
+      "preview_rendered": true,
+      "parameter_boundary_checked": false,
+      "parameter_cases": 0,
+      "sheet_review": "/tmp/next-tutor-all-assets-contact-fixed",
+      "parameter_review": "/tmp/next-tutor-all-assets-review-final",
+      "individual_review": "/tmp/next-tutor-all-assets-review-oct3",
+      "review_note": "All 27 paired contact sheets inspected; changed families rerendered and inspected. Invalid cross-parameter endpoints explicitly rejected.",
+      "expansion_replay": {
+        "directory": "/tmp/next-tutor-expansion-review",
+        "baseline": "/tmp/next-tutor-wall-source-review",
+        "svg_hashes": {
+          "textbook": "sha256:5c07fc32406d9e5e6ba536d07982ca76aa1980e703ec10cbf4f7fd38e3c239ad",
+          "monochrome": "sha256:8c14eafaf05362a60dd401b8930a5af97257618b3f8dc53e76d5669ef866a3bd"
+        },
+        "unchanged_actual_svg": true,
+        "review_note": "Both re-rendered SVGs are byte-identical to reviewed baseline; prior visual evidence preserved."
+      }
+    }
+  },
+  "svg_file": "asset.svg",
+  "guidance_file": "usage_guide.json",
+  "svg_hash": "sha256:31d1db3746211f32945bbd2f0ee26639e254b85b56b599a51157099d261291f7"
+}

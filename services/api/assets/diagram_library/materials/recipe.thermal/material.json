@@ -1,0 +1,15 @@
+{
+  "id": "recipe.thermal",
+  "title": "烧杯温度测量",
+  "aliases": [
+    "加热测温",
+    "液体温度计"
+  ],
+  "version": 1,
+  "kind": "recipe",
+  "renderer": "registered_v2_recipe",
+  "preview_only": true,
+  "svg_file": "asset.svg",
+  "guidance_file": "usage_guide.json",
+  "svg_hash": "sha256:aa011d7ba107bd292749e63be10474edb00d50a7daaf2ee2a32ba33bf85a971c"
+}

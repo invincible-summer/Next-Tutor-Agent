@@ -1,0 +1,164 @@
+{
+  "id": "chemistry_extended.equilibrium_time",
+  "title": "化学平衡浓度时间图",
+  "english": "Equilibrium concentration-time plot",
+  "category": "chemistry",
+  "renderer": "chemistry_extended",
+  "variant": "equilibrium_time",
+  "version": 1,
+  "aliases": [],
+  "features": [
+    "数据驱动"
+  ],
+  "sample_params": {
+    "points": [
+      [
+        0,
+        8.0
+      ],
+      [
+        1,
+        6.299187863442736
+      ],
+      [
+        2,
+        5.080502714195552
+      ],
+      [
+        3,
+        4.207276647028654
+      ],
+      [
+        4,
+        3.5815828286943607
+      ],
+      [
+        5,
+        3.133253617025371
+      ],
+      [
+        6,
+        2.812011699419676
+      ],
+      [
+        7,
+        2.5818318071864303
+      ],
+      [
+        8,
+        2.416900707336809
+      ],
+      [
+        9,
+        2.2987224102071835
+      ],
+      [
+        10,
+        2.2140439600835142
+      ],
+      [
+        11,
+        2.1533691992390445
+      ],
+      [
+        12,
+        2.109893833332405
+      ],
+      [
+        13,
+        2.0787423724216456
+      ],
+      [
+        14,
+        2.0564213753089713
+      ],
+      [
+        15,
+        2.0404276819945126
+      ],
+      [
+        16,
+        2.0289676999629886
+      ],
+      [
+        17,
+        2.0207562640187886
+      ],
+      [
+        18,
+        2.014872513059998
+      ],
+      [
+        19,
+        2.010656621274406
+      ],
+      [
+        20,
+        2.0076358028080388
+      ]
+    ],
+    "x_label": "t",
+    "y_label": "c"
+  },
+  "license": "original-project-artwork",
+  "subjects": [
+    "chemistry"
+  ],
+  "education_levels": [
+    "junior",
+    "senior",
+    "undergraduate"
+  ],
+  "asset_kind": "scene",
+  "topics": [
+    "chemistry",
+    "equilibrium_time"
+  ],
+  "provenance": {
+    "origin": "project_procedural",
+    "creation_method": "ai_assisted_vector_code",
+    "source_module": "app/diagrams/extended_chemistry.py",
+    "source_symbol": "draw:equilibrium_time",
+    "source_hash": "sha256:c60cbd383629df3dc42d5bd2d28a5d86d736c7bf3eb692524016c8d3aac0e2da",
+    "external_graphics": [],
+    "derived_from": [],
+    "knowledge_references": [],
+    "statement": "项目独立编写矢量路径；通用符号与知识事实不代表独占造型。"
+  },
+  "review": {
+    "status": "passed",
+    "automatic": "passed",
+    "structure": "passed",
+    "visual": "passed",
+    "reviewer_type": "agent",
+    "reviewed_at": "2026-10-03",
+    "source_hash": "sha256:c60cbd383629df3dc42d5bd2d28a5d86d736c7bf3eb692524016c8d3aac0e2da",
+    "evidence": {
+      "profiles": [
+        "textbook",
+        "monochrome"
+      ],
+      "preview_rendered": true,
+      "parameter_boundary_checked": false,
+      "parameter_cases": 0,
+      "sheet_review": "/tmp/next-tutor-all-assets-contact-fixed",
+      "parameter_review": "/tmp/next-tutor-all-assets-review-final",
+      "individual_review": "/tmp/next-tutor-wall-source-review",
+      "review_note": "All 27 paired contact sheets inspected; changed families rerendered and inspected. Invalid cross-parameter endpoints explicitly rejected.",
+      "expansion_replay": {
+        "directory": "/tmp/next-tutor-expansion-review",
+        "baseline": "/tmp/next-tutor-wall-source-review",
+        "svg_hashes": {
+          "textbook": "sha256:d92ed7a716ada3b317af004384eb00a536c07de52d7c93fa46bd1a166592f51b",
+          "monochrome": "sha256:c02b14bcdb001e7d0424f25bd26705ef19a7b43a5b48d2f36a6f897ea621ed7b"
+        },
+        "unchanged_actual_svg": true,
+        "review_note": "Both re-rendered SVGs are byte-identical to reviewed baseline; prior visual evidence preserved."
+      }
+    },
+    "notes": "全目录双风格重新渲染无越界/文字碰撞，与前轮逐SVG字节核对仅墙体变化；墙体接触面双风格实图已审阅。"
+  },
+  "svg_file": "asset.svg",
+  "guidance_file": "usage_guide.json",
+  "svg_hash": "sha256:aa422a0265bd69d32be44b9ffc926d292d522618a3c07c77f5d7b2b0511ac4f9"
+}

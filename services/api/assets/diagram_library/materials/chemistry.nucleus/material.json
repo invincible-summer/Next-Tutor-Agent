@@ -1,0 +1,74 @@
+{
+  "id": "chemistry.nucleus",
+  "title": "原子核",
+  "english": "atomic nucleus",
+  "category": "chemistry",
+  "renderer": "chemistry",
+  "variant": "nucleus",
+  "version": 1,
+  "aliases": [],
+  "features": [],
+  "sample_params": {},
+  "license": "original-project-artwork",
+  "subjects": [
+    "chemistry"
+  ],
+  "education_levels": [
+    "junior",
+    "senior",
+    "undergraduate"
+  ],
+  "asset_kind": "object",
+  "topics": [
+    "chemistry",
+    "nucleus"
+  ],
+  "provenance": {
+    "origin": "project_procedural",
+    "creation_method": "ai_assisted_vector_code",
+    "source_module": "app/diagrams/systems.py",
+    "source_symbol": "chemistry:nucleus",
+    "source_hash": "sha256:d4489571c90419d8a44b4415225411a789f62d32c72674110be6610d49ed937b",
+    "external_graphics": [],
+    "derived_from": [],
+    "knowledge_references": [],
+    "statement": "项目独立编写矢量路径；通用符号与知识事实不代表独占造型。"
+  },
+  "review": {
+    "status": "passed",
+    "automatic": "passed",
+    "structure": "passed",
+    "visual": "passed",
+    "reviewer_type": "agent",
+    "reviewed_at": "2026-10-03",
+    "source_hash": "sha256:d4489571c90419d8a44b4415225411a789f62d32c72674110be6610d49ed937b",
+    "evidence": {
+      "profiles": [
+        "textbook",
+        "monochrome"
+      ],
+      "preview_rendered": true,
+      "parameter_boundary_checked": false,
+      "parameter_cases": 0,
+      "sheet_review": "/tmp/next-tutor-all-assets-contact-fixed",
+      "parameter_review": "/tmp/next-tutor-all-assets-review-final",
+      "individual_review": "/tmp/next-tutor-all-assets-review-oct3",
+      "review_note": "All 27 paired contact sheets inspected; changed families rerendered and inspected. Invalid cross-parameter endpoints explicitly rejected.",
+      "revalidation": "/tmp/next-tutor-all-assets-post-composition-fixes",
+      "revalidation_note": "Chromium rerender; unchanged SVG compared byte-for-byte against reviewed corpus. Changed diagrams inspected on sheets 14/17/23 in both profiles.",
+      "expansion_replay": {
+        "directory": "/tmp/next-tutor-expansion-review",
+        "baseline": "/tmp/next-tutor-wall-source-review",
+        "svg_hashes": {
+          "textbook": "sha256:f1663373cf869a57bdc496da5e046165451a2cac8c54e9bb24965a8d1a589255",
+          "monochrome": "sha256:7124585c760b3893d7dcedb04944d1810cea4c78dde022320b88b414093b1226"
+        },
+        "unchanged_actual_svg": true,
+        "review_note": "Both re-rendered SVGs are byte-identical to reviewed baseline; prior visual evidence preserved."
+      }
+    }
+  },
+  "svg_file": "asset.svg",
+  "guidance_file": "usage_guide.json",
+  "svg_hash": "sha256:c288bf91c49b21475f0f30d8bc2f3969b7d2501a0c76d5ffe2b5871cf1a98e66"
+}

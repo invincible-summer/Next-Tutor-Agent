@@ -1,0 +1,75 @@
+{
+  "id": "geometry.base_ten",
+  "title": "十进制积木",
+  "english": "base ten blocks",
+  "category": "mathematics",
+  "renderer": "geometry",
+  "variant": "base_ten",
+  "version": 1,
+  "aliases": [
+    "计数方块"
+  ],
+  "features": [],
+  "sample_params": {},
+  "license": "original-project-artwork",
+  "subjects": [
+    "mathematics"
+  ],
+  "education_levels": [
+    "elementary",
+    "junior",
+    "senior",
+    "undergraduate"
+  ],
+  "asset_kind": "symbol",
+  "topics": [
+    "mathematics",
+    "base_ten"
+  ],
+  "provenance": {
+    "origin": "project_procedural",
+    "creation_method": "ai_assisted_vector_code",
+    "source_module": "app/diagrams/mathematics.py",
+    "source_symbol": "geometry:base_ten",
+    "source_hash": "sha256:ed2793ab359cd86b110a54909e7a471b84d548c61e33c6552a2e586def1012ab",
+    "external_graphics": [],
+    "derived_from": [],
+    "knowledge_references": [],
+    "statement": "项目独立编写矢量路径；通用符号与知识事实不代表独占造型。"
+  },
+  "review": {
+    "status": "passed",
+    "automatic": "passed",
+    "structure": "passed",
+    "visual": "passed",
+    "reviewer_type": "agent",
+    "reviewed_at": "2026-10-03",
+    "source_hash": "sha256:ed2793ab359cd86b110a54909e7a471b84d548c61e33c6552a2e586def1012ab",
+    "evidence": {
+      "profiles": [
+        "textbook",
+        "monochrome"
+      ],
+      "preview_rendered": true,
+      "parameter_boundary_checked": true,
+      "parameter_cases": 2,
+      "sheet_review": "/tmp/next-tutor-all-assets-contact-fixed",
+      "parameter_review": "/tmp/next-tutor-all-assets-review-final",
+      "individual_review": "/tmp/next-tutor-all-assets-review-oct3",
+      "review_note": "All 27 paired contact sheets inspected; changed families rerendered and inspected. Invalid cross-parameter endpoints explicitly rejected.",
+      "expansion_replay": {
+        "directory": "/tmp/next-tutor-expansion-review",
+        "baseline": "/tmp/next-tutor-wall-source-review",
+        "svg_hashes": {
+          "textbook": "sha256:60f69a0d2a70a63b53d6ce1e144775ea4ca476d12a790a4907f7dbd71ee81e2b",
+          "monochrome": "sha256:7b8e90d34b4422a7a95ddbf9289a0e94eaaaac97c6e9a07f9fedd70d2eafa3cb"
+        },
+        "unchanged_actual_svg": true,
+        "review_note": "Both re-rendered SVGs are byte-identical to reviewed baseline; prior visual evidence preserved."
+      }
+    }
+  },
+  "svg_file": "asset.svg",
+  "guidance_file": "usage_guide.json",
+  "svg_hash": "sha256:4bc76894cf16e01c2ef3d6ce739b63d6f1237506b7e99ae4b1b1624450b447e2"
+}

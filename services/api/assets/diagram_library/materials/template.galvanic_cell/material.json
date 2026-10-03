@@ -1,0 +1,73 @@
+{
+  "id": "template.galvanic_cell",
+  "title": "原电池装置",
+  "english": "galvanic cell",
+  "category": "chemistry",
+  "renderer": "template",
+  "variant": "galvanic_cell",
+  "version": 1,
+  "aliases": [],
+  "features": [],
+  "sample_params": {},
+  "license": "original-project-artwork",
+  "subjects": [
+    "chemistry"
+  ],
+  "education_levels": [
+    "junior",
+    "senior",
+    "undergraduate"
+  ],
+  "asset_kind": "scene",
+  "topics": [
+    "chemistry",
+    "galvanic_cell"
+  ],
+  "provenance": {
+    "origin": "project_procedural",
+    "creation_method": "ai_assisted_vector_code",
+    "source_module": "app/diagrams/extended_experiments.py",
+    "source_symbol": "draw:galvanic_cell",
+    "source_hash": "sha256:e0aaef7730243ffc4d368bcf5c291d5f2620175bdf059387784c4fbf19afd24c",
+    "external_graphics": [],
+    "derived_from": [],
+    "knowledge_references": [],
+    "statement": "项目独立编写矢量路径；通用符号与知识事实不代表独占造型。"
+  },
+  "review": {
+    "status": "passed",
+    "automatic": "passed",
+    "structure": "passed",
+    "visual": "passed",
+    "reviewer_type": "agent",
+    "reviewed_at": "2026-10-03",
+    "source_hash": "sha256:e0aaef7730243ffc4d368bcf5c291d5f2620175bdf059387784c4fbf19afd24c",
+    "evidence": {
+      "profiles": [
+        "textbook",
+        "monochrome"
+      ],
+      "preview_rendered": true,
+      "parameter_boundary_checked": false,
+      "parameter_cases": 0,
+      "sheet_review": "/tmp/next-tutor-all-assets-contact-fixed",
+      "parameter_review": "/tmp/next-tutor-all-assets-review-final",
+      "individual_review": "/tmp/next-tutor-wall-source-review",
+      "review_note": "All 27 paired contact sheets inspected; changed families rerendered and inspected. Invalid cross-parameter endpoints explicitly rejected.",
+      "expansion_replay": {
+        "directory": "/tmp/next-tutor-expansion-review",
+        "baseline": "/tmp/next-tutor-wall-source-review",
+        "svg_hashes": {
+          "textbook": "sha256:64527cb08f0211e84c8dfa9cde6af51bf10b9f09c297509b5bc33c62b2444e50",
+          "monochrome": "sha256:baaf95913d0dbb42e3dfdf5fb5c4c8ba85fbec1fa94b82e3b25cb55906766457"
+        },
+        "unchanged_actual_svg": true,
+        "review_note": "Both re-rendered SVGs are byte-identical to reviewed baseline; prior visual evidence preserved."
+      }
+    },
+    "notes": "全目录双风格重新渲染无越界/文字碰撞，与前轮逐SVG字节核对仅墙体变化；墙体接触面双风格实图已审阅。"
+  },
+  "svg_file": "asset.svg",
+  "guidance_file": "usage_guide.json",
+  "svg_hash": "sha256:b8aa2a408edbc678b1e61db9313f1b655e0fdbc45b66943e03b92b7df6cfd397"
+}

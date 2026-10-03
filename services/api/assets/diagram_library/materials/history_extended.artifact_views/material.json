@@ -1,0 +1,74 @@
+{
+  "id": "history_extended.artifact_views",
+  "title": "器物三视图",
+  "english": "Artifact orthographic views",
+  "category": "history",
+  "renderer": "history_extended",
+  "variant": "artifact_views",
+  "version": 1,
+  "aliases": [],
+  "features": [],
+  "sample_params": {},
+  "license": "original-project-artwork",
+  "subjects": [
+    "history"
+  ],
+  "education_levels": [
+    "elementary",
+    "junior",
+    "senior",
+    "undergraduate"
+  ],
+  "asset_kind": "scene",
+  "topics": [
+    "history",
+    "artifact_views"
+  ],
+  "provenance": {
+    "origin": "project_procedural",
+    "creation_method": "ai_assisted_vector_code",
+    "source_module": "app/diagrams/extended_humanities.py",
+    "source_symbol": "draw:artifact_views",
+    "source_hash": "sha256:36bb3cd99a2977447c6629be475137d94e41ac218c17e4aa13e70490b497092d",
+    "external_graphics": [],
+    "derived_from": [],
+    "knowledge_references": [],
+    "statement": "项目独立编写矢量路径；通用符号与知识事实不代表独占造型。"
+  },
+  "review": {
+    "status": "passed",
+    "automatic": "passed",
+    "structure": "passed",
+    "visual": "passed",
+    "reviewer_type": "agent",
+    "reviewed_at": "2026-10-03",
+    "source_hash": "sha256:36bb3cd99a2977447c6629be475137d94e41ac218c17e4aa13e70490b497092d",
+    "evidence": {
+      "profiles": [
+        "textbook",
+        "monochrome"
+      ],
+      "preview_rendered": true,
+      "parameter_boundary_checked": false,
+      "parameter_cases": 0,
+      "sheet_review": "/tmp/next-tutor-all-assets-contact-fixed",
+      "parameter_review": "/tmp/next-tutor-all-assets-review-final",
+      "individual_review": "/tmp/next-tutor-wall-source-review",
+      "review_note": "All 27 paired contact sheets inspected; changed families rerendered and inspected. Invalid cross-parameter endpoints explicitly rejected.",
+      "expansion_replay": {
+        "directory": "/tmp/next-tutor-expansion-review",
+        "baseline": "/tmp/next-tutor-wall-source-review",
+        "svg_hashes": {
+          "textbook": "sha256:0d84a38fa84493cb6216be413658d493bd2b32783fbd690652a28bf97210120d",
+          "monochrome": "sha256:6130dd1b62d6437b1b0764b1bca5376d84549406bba787481f655ae3f693e170"
+        },
+        "unchanged_actual_svg": true,
+        "review_note": "Both re-rendered SVGs are byte-identical to reviewed baseline; prior visual evidence preserved."
+      }
+    },
+    "notes": "全目录双风格重新渲染无越界/文字碰撞，与前轮逐SVG字节核对仅墙体变化；墙体接触面双风格实图已审阅。"
+  },
+  "svg_file": "asset.svg",
+  "guidance_file": "usage_guide.json",
+  "svg_hash": "sha256:6dfbc266aa38fb64b7fdd745ca33df30b36ce745a60fd0aab2c88c14b7a44de8"
+}

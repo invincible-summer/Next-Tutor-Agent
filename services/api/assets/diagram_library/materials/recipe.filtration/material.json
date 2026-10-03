@@ -1,0 +1,14 @@
+{
+  "id": "recipe.filtration",
+  "title": "过滤装置",
+  "aliases": [
+    "漏斗过滤"
+  ],
+  "version": 1,
+  "kind": "recipe",
+  "renderer": "registered_v2_recipe",
+  "preview_only": true,
+  "svg_file": "asset.svg",
+  "guidance_file": "usage_guide.json",
+  "svg_hash": "sha256:68f3393cabb4f3a27e04c6978f5cfa4e1d98fab4ea9d4c8682181a4a1115846f"
+}

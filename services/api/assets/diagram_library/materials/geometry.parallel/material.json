@@ -1,0 +1,73 @@
+{
+  "id": "geometry.parallel",
+  "title": "平行标记",
+  "english": "parallel marks",
+  "category": "mathematics",
+  "renderer": "geometry",
+  "variant": "parallel",
+  "version": 1,
+  "aliases": [],
+  "features": [],
+  "sample_params": {},
+  "license": "original-project-artwork",
+  "subjects": [
+    "mathematics"
+  ],
+  "education_levels": [
+    "elementary",
+    "junior",
+    "senior",
+    "undergraduate"
+  ],
+  "asset_kind": "symbol",
+  "topics": [
+    "mathematics",
+    "parallel"
+  ],
+  "provenance": {
+    "origin": "project_procedural",
+    "creation_method": "ai_assisted_vector_code",
+    "source_module": "app/diagrams/mathematics.py",
+    "source_symbol": "geometry:parallel",
+    "source_hash": "sha256:ed2793ab359cd86b110a54909e7a471b84d548c61e33c6552a2e586def1012ab",
+    "external_graphics": [],
+    "derived_from": [],
+    "knowledge_references": [],
+    "statement": "项目独立编写矢量路径；通用符号与知识事实不代表独占造型。"
+  },
+  "review": {
+    "status": "passed",
+    "automatic": "passed",
+    "structure": "passed",
+    "visual": "passed",
+    "reviewer_type": "agent",
+    "reviewed_at": "2026-10-03",
+    "source_hash": "sha256:ed2793ab359cd86b110a54909e7a471b84d548c61e33c6552a2e586def1012ab",
+    "evidence": {
+      "profiles": [
+        "textbook",
+        "monochrome"
+      ],
+      "preview_rendered": true,
+      "parameter_boundary_checked": false,
+      "parameter_cases": 0,
+      "sheet_review": "/tmp/next-tutor-all-assets-contact-fixed",
+      "parameter_review": "/tmp/next-tutor-all-assets-review-final",
+      "individual_review": "/tmp/next-tutor-all-assets-review-oct3",
+      "review_note": "All 27 paired contact sheets inspected; changed families rerendered and inspected. Invalid cross-parameter endpoints explicitly rejected.",
+      "expansion_replay": {
+        "directory": "/tmp/next-tutor-expansion-review",
+        "baseline": "/tmp/next-tutor-wall-source-review",
+        "svg_hashes": {
+          "textbook": "sha256:c24b1a127d32249e3627a8c3ed0d1b9d1b61652f8e941d4496e4b24b8590c3ce",
+          "monochrome": "sha256:253e6cf0d1543cd764ebaa9ada60a66775ab66a560385483fb9fe987be7603eb"
+        },
+        "unchanged_actual_svg": true,
+        "review_note": "Both re-rendered SVGs are byte-identical to reviewed baseline; prior visual evidence preserved."
+      }
+    }
+  },
+  "svg_file": "asset.svg",
+  "guidance_file": "usage_guide.json",
+  "svg_hash": "sha256:515142eb405fc48936ead8efefc793d2c53564130f9c584ef17094bd7206130a"
+}

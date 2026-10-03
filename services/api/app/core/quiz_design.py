@@ -173,7 +173,7 @@ async def design_blueprint(llm: AsyncLLMClient, *, topic: str, grade: str,
         items = parse_blueprint(full)
         if not items:
             return "", "fallback"
-        if illustration_policy != "off" and diagram_feedback is not None:
+        if illustration_policy != "off" and diagram_feedback is not None and settings.quiz_illustration_pipeline != "v2":
             from .json_utils import extract_json_object
             from app.diagrams.pipeline import retrieve_declaration
             try:

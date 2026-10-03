@@ -182,7 +182,7 @@ export interface QuizSourceRef {
 
 export interface QuestionIllustrationData {
   kind: "svg";
-  schema_version: 1 | 2;
+  schema_version: 1 | 2 | 3;
   /** v1 = original closed grammar; v2 = safe defs/marker + normalized inline presentation style. */
   sanitizer_version: 1 | 2 | 3;
   svg: string;
@@ -195,6 +195,8 @@ export interface QuestionIllustrationData {
 
 export interface QuizQuestion {
   illustration?: QuestionIllustrationData | null;
+  visual_role?: "none" | "supplemental" | "essential";
+  illustration_artifact_id?: string;
   id: number;
   type: "multiple_choice" | "fill_blank" | "short_answer";
   stem: string;

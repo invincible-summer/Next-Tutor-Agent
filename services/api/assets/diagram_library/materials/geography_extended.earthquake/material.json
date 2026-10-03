@@ -1,0 +1,73 @@
+{
+  "id": "geography_extended.earthquake",
+  "title": "地震震源震中",
+  "english": "Hypocenter and epicenter",
+  "category": "geography",
+  "renderer": "geography_extended",
+  "variant": "earthquake",
+  "version": 1,
+  "aliases": [],
+  "features": [],
+  "sample_params": {},
+  "license": "original-project-artwork",
+  "subjects": [
+    "geography"
+  ],
+  "education_levels": [
+    "junior",
+    "senior",
+    "undergraduate"
+  ],
+  "asset_kind": "scene",
+  "topics": [
+    "geography",
+    "earthquake"
+  ],
+  "provenance": {
+    "origin": "project_procedural",
+    "creation_method": "ai_assisted_vector_code",
+    "source_module": "app/diagrams/extended_earth.py",
+    "source_symbol": "draw:earthquake",
+    "source_hash": "sha256:90c5bb2570d4621c0f02a0f9c271f6eb3943bd3735975757f3c62db783fb63c5",
+    "external_graphics": [],
+    "derived_from": [],
+    "knowledge_references": [],
+    "statement": "项目独立编写矢量路径；通用符号与知识事实不代表独占造型。"
+  },
+  "review": {
+    "status": "passed",
+    "automatic": "passed",
+    "structure": "passed",
+    "visual": "passed",
+    "reviewer_type": "agent",
+    "reviewed_at": "2026-10-03",
+    "source_hash": "sha256:90c5bb2570d4621c0f02a0f9c271f6eb3943bd3735975757f3c62db783fb63c5",
+    "evidence": {
+      "profiles": [
+        "textbook",
+        "monochrome"
+      ],
+      "preview_rendered": true,
+      "parameter_boundary_checked": false,
+      "parameter_cases": 0,
+      "sheet_review": "/tmp/next-tutor-all-assets-contact-fixed",
+      "parameter_review": "/tmp/next-tutor-all-assets-review-final",
+      "individual_review": "/tmp/next-tutor-wall-source-review",
+      "review_note": "All 27 paired contact sheets inspected; changed families rerendered and inspected. Invalid cross-parameter endpoints explicitly rejected.",
+      "expansion_replay": {
+        "directory": "/tmp/next-tutor-expansion-review",
+        "baseline": "/tmp/next-tutor-wall-source-review",
+        "svg_hashes": {
+          "textbook": "sha256:a001210ce4252712b37c3e94486f115e51fe1218a40ac6e33f9c26ddb5aee2c9",
+          "monochrome": "sha256:b071b14c0c7ce1186cb0935cbf7f86b64b58998bf2ad2fbc2522f469611a560d"
+        },
+        "unchanged_actual_svg": true,
+        "review_note": "Both re-rendered SVGs are byte-identical to reviewed baseline; prior visual evidence preserved."
+      }
+    },
+    "notes": "全目录双风格重新渲染无越界/文字碰撞，与前轮逐SVG字节核对仅墙体变化；墙体接触面双风格实图已审阅。"
+  },
+  "svg_file": "asset.svg",
+  "guidance_file": "usage_guide.json",
+  "svg_hash": "sha256:a9f6bc7e05462fe0633b7601d67011d599da7d524f59095cb26d0e6831d6667b"
+}

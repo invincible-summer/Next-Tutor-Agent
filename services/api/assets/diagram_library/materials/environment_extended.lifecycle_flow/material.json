@@ -1,0 +1,74 @@
+{
+  "id": "environment_extended.lifecycle_flow",
+  "title": "生命周期物质流",
+  "english": "Life-cycle material flow",
+  "category": "environment",
+  "renderer": "environment_extended",
+  "variant": "lifecycle_flow",
+  "version": 1,
+  "aliases": [],
+  "features": [],
+  "sample_params": {},
+  "license": "original-project-artwork",
+  "subjects": [
+    "environment"
+  ],
+  "education_levels": [
+    "elementary",
+    "junior",
+    "senior",
+    "undergraduate"
+  ],
+  "asset_kind": "sequence",
+  "topics": [
+    "environment",
+    "lifecycle_flow"
+  ],
+  "provenance": {
+    "origin": "project_procedural",
+    "creation_method": "ai_assisted_vector_code",
+    "source_module": "app/diagrams/extended_earth.py",
+    "source_symbol": "draw:lifecycle_flow",
+    "source_hash": "sha256:90c5bb2570d4621c0f02a0f9c271f6eb3943bd3735975757f3c62db783fb63c5",
+    "external_graphics": [],
+    "derived_from": [],
+    "knowledge_references": [],
+    "statement": "项目独立编写矢量路径；通用符号与知识事实不代表独占造型。"
+  },
+  "review": {
+    "status": "passed",
+    "automatic": "passed",
+    "structure": "passed",
+    "visual": "passed",
+    "reviewer_type": "agent",
+    "reviewed_at": "2026-10-03",
+    "source_hash": "sha256:90c5bb2570d4621c0f02a0f9c271f6eb3943bd3735975757f3c62db783fb63c5",
+    "evidence": {
+      "profiles": [
+        "textbook",
+        "monochrome"
+      ],
+      "preview_rendered": true,
+      "parameter_boundary_checked": false,
+      "parameter_cases": 0,
+      "sheet_review": "/tmp/next-tutor-all-assets-contact-fixed",
+      "parameter_review": "/tmp/next-tutor-all-assets-review-final",
+      "individual_review": "/tmp/next-tutor-wall-source-review",
+      "review_note": "All 27 paired contact sheets inspected; changed families rerendered and inspected. Invalid cross-parameter endpoints explicitly rejected.",
+      "expansion_replay": {
+        "directory": "/tmp/next-tutor-expansion-review",
+        "baseline": "/tmp/next-tutor-wall-source-review",
+        "svg_hashes": {
+          "textbook": "sha256:baf6f4b19c757d80d383b8d7ef35ce1357d67fee0dd3841b4b7ca57c83068505",
+          "monochrome": "sha256:627d1a0ad7291db462349ad202047e3b52981c16004bdba52c0000f0bdab7adf"
+        },
+        "unchanged_actual_svg": true,
+        "review_note": "Both re-rendered SVGs are byte-identical to reviewed baseline; prior visual evidence preserved."
+      }
+    },
+    "notes": "全目录双风格重新渲染无越界/文字碰撞，与前轮逐SVG字节核对仅墙体变化；墙体接触面双风格实图已审阅。"
+  },
+  "svg_file": "asset.svg",
+  "guidance_file": "usage_guide.json",
+  "svg_hash": "sha256:583c120bed9263f225014c27a8f7093288bc811b0cc4e31acba1131b79332bf6"
+}

@@ -1,0 +1,76 @@
+{
+  "id": "geography_extended.artesian_aquifer",
+  "renderer": "geography_extended",
+  "variant": "artesian_aquifer",
+  "category": "geography",
+  "title": "承压含水层与自流井",
+  "english": "Artesian aquifer",
+  "aliases": [
+    "地下水",
+    "水头",
+    "自流井"
+  ],
+  "version": 1,
+  "features": [],
+  "sample_params": {},
+  "license": "original-project-artwork",
+  "subjects": [
+    "geography"
+  ],
+  "education_levels": [
+    "junior",
+    "senior",
+    "undergraduate"
+  ],
+  "asset_kind": "scene",
+  "topics": [
+    "geography",
+    "artesian_aquifer"
+  ],
+  "provenance": {
+    "origin": "project_procedural",
+    "creation_method": "ai_assisted_vector_code",
+    "source_module": "app/diagrams/curriculum_expansion.py",
+    "source_symbol": "draw:artesian_aquifer",
+    "source_hash": "sha256:5105f9387ffff241aab1a3fe717976c9c3daecb204895d419901214a9f1761d2",
+    "external_graphics": [],
+    "derived_from": [],
+    "knowledge_references": [
+      {
+        "url": "https://www.usgs.gov/water-science-school/science/artesian-water-and-artesian-wells",
+        "purpose": "承压水头与自流井条件；仅核对事实，未使用外部图形",
+        "checked_at": "2026-10-03",
+        "type": "fact_only"
+      }
+    ],
+    "statement": "项目独立编写矢量路径；通用符号与知识事实不代表独占造型。"
+  },
+  "review": {
+    "status": "passed",
+    "automatic": "passed",
+    "structure": "passed",
+    "visual": "passed",
+    "reviewer_type": "agent",
+    "reviewed_at": "2026-10-03",
+    "source_hash": "sha256:5105f9387ffff241aab1a3fe717976c9c3daecb204895d419901214a9f1761d2",
+    "evidence": {
+      "profiles": [
+        "textbook",
+        "monochrome"
+      ],
+      "preview_rendered": true,
+      "parameter_boundary_checked": false,
+      "parameter_cases": 0,
+      "sheet_review": "/tmp/next-tutor-expansion-scoped-final",
+      "correction_review": "/tmp/next-tutor-expansion-corrections",
+      "svg_hashes": {
+        "textbook": "sha256:90dd24078dfb4666973bc0cc4f83bd63558ca75ca2045081549f9608d6eca6c4",
+        "monochrome": "sha256:0b3b7e59542f327d9c7ba771ab6b84b44b9fd6689a8949addba823271c2114e4"
+      },
+      "review_note": "All 12 large paired sheets and both correction sheets inspected. Closed-pipe ends, electrode/ion directions, daylight, membrane layers, actual numeric controls checked. Final XML matches selected evidence."
+    }
+  },
+  "svg_file": "asset.svg",
+  "guidance_file": "usage_guide.json",
+  "svg_hash": "sha256:616d0564ac08fee525e12ca3051f1fcf11b559328029bef3ac0a985390d142a7"
+}

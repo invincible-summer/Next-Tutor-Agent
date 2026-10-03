@@ -1,0 +1,73 @@
+{
+  "id": "mathematics_extended.frustum_net",
+  "title": "截锥展开",
+  "english": "Frustum net",
+  "category": "mathematics",
+  "renderer": "mathematics_extended",
+  "variant": "frustum_net",
+  "version": 1,
+  "aliases": [],
+  "features": [],
+  "sample_params": {},
+  "license": "original-project-artwork",
+  "subjects": [
+    "mathematics"
+  ],
+  "education_levels": [
+    "junior",
+    "senior",
+    "undergraduate"
+  ],
+  "asset_kind": "scene",
+  "topics": [
+    "mathematics",
+    "frustum_net"
+  ],
+  "provenance": {
+    "origin": "project_procedural",
+    "creation_method": "ai_assisted_vector_code",
+    "source_module": "app/diagrams/extended_math.py",
+    "source_symbol": "draw:frustum_net",
+    "source_hash": "sha256:5a450598e5312e79f2351988abcae216d8528a3daaf91c8b608225b06bc1771e",
+    "external_graphics": [],
+    "derived_from": [],
+    "knowledge_references": [],
+    "statement": "项目独立编写矢量路径；通用符号与知识事实不代表独占造型。"
+  },
+  "review": {
+    "status": "passed",
+    "automatic": "passed",
+    "structure": "passed",
+    "visual": "passed",
+    "reviewer_type": "agent",
+    "reviewed_at": "2026-10-03",
+    "source_hash": "sha256:5a450598e5312e79f2351988abcae216d8528a3daaf91c8b608225b06bc1771e",
+    "evidence": {
+      "profiles": [
+        "textbook",
+        "monochrome"
+      ],
+      "preview_rendered": true,
+      "parameter_boundary_checked": false,
+      "parameter_cases": 0,
+      "sheet_review": "/tmp/next-tutor-all-assets-contact-fixed",
+      "parameter_review": "/tmp/next-tutor-all-assets-review-final",
+      "individual_review": "/tmp/next-tutor-wall-source-review",
+      "review_note": "All 27 paired contact sheets inspected; changed families rerendered and inspected. Invalid cross-parameter endpoints explicitly rejected.",
+      "expansion_replay": {
+        "directory": "/tmp/next-tutor-expansion-review",
+        "baseline": "/tmp/next-tutor-wall-source-review",
+        "svg_hashes": {
+          "textbook": "sha256:ec0f56f26f6c844ec2ba31e2c6c5ec4fc60ee5f4d14ec618af517650f8550899",
+          "monochrome": "sha256:04c41e427d8014bb45a2b4f7dbf35d9b9bcce0da35147b263861edd22f3c562d"
+        },
+        "unchanged_actual_svg": true,
+        "review_note": "Both re-rendered SVGs are byte-identical to reviewed baseline; prior visual evidence preserved."
+      }
+    },
+    "notes": "全目录双风格重新渲染无越界/文字碰撞，与前轮逐SVG字节核对仅墙体变化；墙体接触面双风格实图已审阅。"
+  },
+  "svg_file": "asset.svg",
+  "guidance_file": "usage_guide.json",
+  "svg_hash": "sha256:838df8d6761ea6b35fbd25db2f7b4a25db5e13d4a877dcfdcb51a32446bfe483"
+}

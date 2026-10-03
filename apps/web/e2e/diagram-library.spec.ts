@@ -36,7 +36,7 @@ test("全部素材可分页观看，筛选搜索与参数预览可用", async ({
       await expect(page.locator("section[aria-busy=true]")).toHaveCount(0);
     }
     expect(seen.size).toBe(expectedCount);
-    expect(seen.size).toBe(1079);
+    expect(seen.size).toBe(1119);
     const subject = page.getByRole("combobox", { name: "学科", exact: true });
     const subjectValues = await subject.locator("option").evaluateAll(options => options.map(option => (option as HTMLOptionElement).value).filter(Boolean));
     expect(subjectValues).toHaveLength(17);
@@ -100,5 +100,39 @@ test("全部素材可分页观看，筛选搜索与参数预览可用", async ({
     await expect.poll(() => page.getByRole("dialog").evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
     await expect(page.getByRole("dialog").getByRole("button", { name: "更新预览" })).toBeEnabled();
     await page.screenshot({ path: "test-results/diagram-library-narrow.png", fullPage: true, animations: "disabled" });
+  } finally { await api.dispose(); }
+});
+
+test("新增公有模型可检索、调节真实模态并切换黑白预览", async ({ page }) => {
+  const api = await pwRequest.newContext();
+  try {
+    const user = await registerAndLogin(api);
+    await loginViaStorage(page, user.token);
+    await page.goto("/diagram-library?theme=light");
+    const cards = page.getByTestId("diagram-asset");
+    await expect(cards).toHaveCount(12);
+    await page.getByRole("textbox", { name: "搜索素材", exact: true }).fill("闭端气柱位移模态");
+    const card = page.locator('[data-asset-id="physics_extended.closed_pipe_modes"]');
+    await expect(card).toBeVisible();
+    await card.click();
+    const dialog = page.getByRole("dialog");
+    await expect(dialog).toHaveCSS("opacity", "1");
+    const before = await dialog.locator("img").getAttribute("src");
+    await dialog.getByRole("spinbutton", { name: "允许模态序号", exact: true }).fill("3");
+    await dialog.getByRole("button", { name: "更新预览" }).click();
+    await expect.poll(() => dialog.locator("img").getAttribute("src")).not.toBe(before);
+    await expect.poll(() => dialog.locator("img").evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth > 0)).toBe(true);
+    await page.screenshot({ path: "test-results/diagram-expansion-sound-light.png", animations: "disabled" });
+    const color = await dialog.locator("img").getAttribute("src");
+    await dialog.getByRole("combobox", { name: "图示风格", exact: true }).selectOption("monochrome");
+    await dialog.getByRole("button", { name: "更新预览" }).click();
+    await expect.poll(() => dialog.locator("img").getAttribute("src")).not.toBe(color);
+    await expect.poll(() => dialog.locator("img").evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth > 0)).toBe(true);
+    await page.screenshot({ path: "test-results/diagram-expansion-sound-mono.png", animations: "disabled" });
+    await page.keyboard.press("Escape");
+    await page.getByRole("textbox", { name: "搜索素材", exact: true }).fill("阳离子水合壳示意");
+    await expect(page.locator('[data-asset-id="chemistry_extended.hydration_shell"]')).toBeVisible();
+    await page.getByRole("textbox", { name: "搜索素材", exact: true }).fill("沿岸上升流剖面");
+    await expect(page.locator('[data-asset-id="geography_extended.coastal_upwelling"]')).toBeVisible();
   } finally { await api.dispose(); }
 });

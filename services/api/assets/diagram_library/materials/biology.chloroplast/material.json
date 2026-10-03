@@ -1,0 +1,72 @@
+{
+  "id": "biology.chloroplast",
+  "title": "叶绿体",
+  "english": "chloroplast",
+  "category": "biology",
+  "renderer": "biology",
+  "variant": "chloroplast",
+  "version": 2,
+  "aliases": [],
+  "features": [],
+  "sample_params": {},
+  "license": "original-project-artwork",
+  "subjects": [
+    "biology"
+  ],
+  "education_levels": [
+    "junior",
+    "senior",
+    "undergraduate"
+  ],
+  "asset_kind": "object",
+  "topics": [
+    "biology",
+    "chloroplast"
+  ],
+  "provenance": {
+    "origin": "project_procedural",
+    "creation_method": "ai_assisted_vector_code",
+    "source_module": "app/diagrams/life_earth.py",
+    "source_symbol": "biology:chloroplast",
+    "source_hash": "sha256:baafe320672a58a945e1cd23dfe1b3ff2ea7bf946f71e9b8548dec8f5f9606c0",
+    "external_graphics": [],
+    "derived_from": [],
+    "knowledge_references": [
+      {
+        "url": "https://openstax.org/books/biology-2e/pages/8-1-overview-of-photosynthesis",
+        "purpose": "双层包膜、基粒与基质；仅核对事实，未使用外部图形",
+        "checked_at": "2026-10-03",
+        "type": "fact_only"
+      }
+    ],
+    "statement": "项目独立编写矢量路径；通用符号与知识事实不代表独占造型。"
+  },
+  "review": {
+    "status": "passed",
+    "automatic": "passed",
+    "structure": "passed",
+    "visual": "passed",
+    "reviewer_type": "agent",
+    "reviewed_at": "2026-10-03",
+    "source_hash": "sha256:baafe320672a58a945e1cd23dfe1b3ff2ea7bf946f71e9b8548dec8f5f9606c0",
+    "evidence": {
+      "profiles": [
+        "textbook",
+        "monochrome"
+      ],
+      "preview_rendered": true,
+      "parameter_boundary_checked": false,
+      "parameter_cases": 0,
+      "sheet_review": "/tmp/next-tutor-expansion-scoped-final",
+      "correction_review": "/tmp/next-tutor-expansion-corrections",
+      "svg_hashes": {
+        "textbook": "sha256:e2045314758a9a00683111d99a8e44c285ea3ea1c95817402a90395a82f2dd66",
+        "monochrome": "sha256:de19a9c5feea3454f48fd04c701faf7df4fdebf99ba5def46d003b886cd358d7"
+      },
+      "review_note": "All 12 large paired sheets and both correction sheets inspected. Closed-pipe ends, electrode/ion directions, daylight, membrane layers, actual numeric controls checked. Final XML matches selected evidence."
+    }
+  },
+  "svg_file": "asset.svg",
+  "guidance_file": "usage_guide.json",
+  "svg_hash": "sha256:9164897574ab34b15aff0a9ad9e00dcb179d4156972a40af635eb678b720440b"
+}

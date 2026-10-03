@@ -20,6 +20,7 @@ def _thumbnail(asset_id: str) -> dict:
 
 
 def _metadata(asset) -> dict:
+    from app.diagrams.semantics import COMPONENTS, asset_card
     return {
         "id": asset.id,
         "title": asset.title,
@@ -36,6 +37,7 @@ def _metadata(asset) -> dict:
         "topics": asset.topics,
         "provenance": asset.provenance,
         "review": asset.review,
+        "v2": asset_card(asset.id) if asset.review.get("status") == "passed" else None,
     }
 
 

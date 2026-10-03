@@ -1,0 +1,13 @@
+{
+  "version": "1.0.3",
+  "hints": {
+    "requirements": "水平弹簧滑块一个need覆盖wall、spring、block、plane四实体，固定、连接、支撑关系由配方表达。",
+    "compose": "四子实体全部绑定entity_map；entity_id为空、relations=[]。length只是像素示意，严格fact_bindings={}、non_quantitative=[\"length\"]；不得绑定描述姿态的geometry事实或cm/m标量。没有受力箭头。",
+    "authoring": "完整配方含wall、spring、block、plane四实体。用于问滑块运动时，题干明确弹簧一端固定于墙，另一端连接滑块，光滑水平面支撑滑块；不要让另一端自由却断言简谐往复。长度非定量，不创建像素事实。固定/连接/支撑用required_relations即可，水平姿态是题文明示条件，不另建depict_only几何事实。"
+  },
+  "match_terms": [
+    "水平弹簧连接滑块",
+    "水平弹簧滑块",
+    "弹簧连接滑块"
+  ]
+}

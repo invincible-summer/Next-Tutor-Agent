@@ -1,0 +1,16 @@
+{
+  "id": "recipe.buoyancy_measurement",
+  "title": "浸没测力",
+  "aliases": [
+    "浮力实验",
+    "测力计悬挂小球",
+    "完全浸没"
+  ],
+  "version": 1,
+  "kind": "recipe",
+  "renderer": "registered_v2_recipe",
+  "preview_only": true,
+  "svg_file": "asset.svg",
+  "guidance_file": "usage_guide.json",
+  "svg_hash": "sha256:fbd04c31543b151870f4484e64ade05e47550f62d33222925c2c941cb6f69d98"
+}

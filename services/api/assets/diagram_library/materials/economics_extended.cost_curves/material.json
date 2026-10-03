@@ -1,0 +1,132 @@
+{
+  "id": "economics_extended.cost_curves",
+  "title": "成本曲线组",
+  "english": "Cost curves",
+  "category": "economics",
+  "renderer": "economics_extended",
+  "variant": "cost_curves",
+  "version": 1,
+  "aliases": [],
+  "features": [
+    "数据驱动"
+  ],
+  "sample_params": {
+    "points": [
+      [
+        1,
+        11,
+        20.8
+      ],
+      [
+        2,
+        13,
+        11.6
+      ],
+      [
+        3,
+        15,
+        9.066666666666666
+      ],
+      [
+        4,
+        17,
+        8.2
+      ],
+      [
+        5,
+        19,
+        8.0
+      ],
+      [
+        6,
+        21,
+        8.133333333333335
+      ],
+      [
+        7,
+        23,
+        8.457142857142857
+      ],
+      [
+        8,
+        25,
+        8.9
+      ],
+      [
+        9,
+        27,
+        9.422222222222222
+      ],
+      [
+        10,
+        29,
+        10.0
+      ],
+      [
+        11,
+        31,
+        10.618181818181819
+      ]
+    ]
+  },
+  "license": "original-project-artwork",
+  "subjects": [
+    "economics"
+  ],
+  "education_levels": [
+    "senior",
+    "undergraduate"
+  ],
+  "asset_kind": "scene",
+  "topics": [
+    "economics",
+    "cost_curves"
+  ],
+  "provenance": {
+    "origin": "project_procedural",
+    "creation_method": "ai_assisted_vector_code",
+    "source_module": "app/diagrams/extended_humanities.py",
+    "source_symbol": "draw:cost_curves",
+    "source_hash": "sha256:36bb3cd99a2977447c6629be475137d94e41ac218c17e4aa13e70490b497092d",
+    "external_graphics": [],
+    "derived_from": [],
+    "knowledge_references": [],
+    "statement": "项目独立编写矢量路径；通用符号与知识事实不代表独占造型。"
+  },
+  "review": {
+    "status": "passed",
+    "automatic": "passed",
+    "structure": "passed",
+    "visual": "passed",
+    "reviewer_type": "agent",
+    "reviewed_at": "2026-10-03",
+    "source_hash": "sha256:36bb3cd99a2977447c6629be475137d94e41ac218c17e4aa13e70490b497092d",
+    "evidence": {
+      "profiles": [
+        "textbook",
+        "monochrome"
+      ],
+      "preview_rendered": true,
+      "parameter_boundary_checked": false,
+      "parameter_cases": 0,
+      "sheet_review": "/tmp/next-tutor-all-assets-contact-fixed",
+      "parameter_review": "/tmp/next-tutor-all-assets-review-final",
+      "individual_review": "/tmp/next-tutor-wall-source-review",
+      "review_note": "All 27 paired contact sheets inspected; changed families rerendered and inspected. Invalid cross-parameter endpoints explicitly rejected.",
+      "expansion_replay": {
+        "directory": "/tmp/next-tutor-expansion-review",
+        "baseline": "/tmp/next-tutor-wall-source-review",
+        "svg_hashes": {
+          "textbook": "sha256:122c25cbac0a0ac0b5b6983fe9d414c665f7c98c146e4cdccb121e91cbca5913",
+          "monochrome": "sha256:8b7c179c5543c18d5f653bd08a4bdeee51974a5d8c53ae02c2e6cfe6a087727c"
+        },
+        "unchanged_actual_svg": true,
+        "review_note": "Both re-rendered SVGs are byte-identical to reviewed baseline; prior visual evidence preserved."
+      }
+    },
+    "notes": "全目录双风格重新渲染无越界/文字碰撞，与前轮逐SVG字节核对仅墙体变化；墙体接触面双风格实图已审阅。"
+  },
+  "svg_file": "asset.svg",
+  "guidance_file": "usage_guide.json",
+  "svg_hash": "sha256:e90fee36c2e3d7568186b176d52f6c5e6ebf14d5271604db3880a800895ecf6a"
+}

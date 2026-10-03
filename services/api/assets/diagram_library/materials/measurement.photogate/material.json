@@ -1,0 +1,74 @@
+{
+  "id": "measurement.photogate",
+  "title": "光电门",
+  "english": "photogate",
+  "category": "physics",
+  "renderer": "measurement",
+  "variant": "photogate",
+  "version": 1,
+  "aliases": [],
+  "features": [],
+  "sample_params": {},
+  "license": "original-project-artwork",
+  "subjects": [
+    "physics",
+    "chemistry",
+    "biology"
+  ],
+  "education_levels": [
+    "junior",
+    "senior",
+    "undergraduate"
+  ],
+  "asset_kind": "object",
+  "topics": [
+    "physics",
+    "photogate"
+  ],
+  "provenance": {
+    "origin": "project_procedural",
+    "creation_method": "ai_assisted_vector_code",
+    "source_module": "app/diagrams/physics.py",
+    "source_symbol": "measurement:photogate",
+    "source_hash": "sha256:15db561e0e7b6fb55797e51b9e2f632f4c99892f3b643989d5f663f619355cae",
+    "external_graphics": [],
+    "derived_from": [],
+    "knowledge_references": [],
+    "statement": "项目独立编写矢量路径；通用符号与知识事实不代表独占造型。"
+  },
+  "review": {
+    "status": "passed",
+    "automatic": "passed",
+    "structure": "passed",
+    "visual": "passed",
+    "reviewer_type": "agent",
+    "reviewed_at": "2026-10-03",
+    "source_hash": "sha256:15db561e0e7b6fb55797e51b9e2f632f4c99892f3b643989d5f663f619355cae",
+    "evidence": {
+      "profiles": [
+        "textbook",
+        "monochrome"
+      ],
+      "preview_rendered": true,
+      "parameter_boundary_checked": false,
+      "parameter_cases": 0,
+      "sheet_review": "/tmp/next-tutor-all-assets-contact-fixed",
+      "parameter_review": "/tmp/next-tutor-all-assets-review-final",
+      "individual_review": "/tmp/next-tutor-all-assets-review-oct3",
+      "review_note": "All 27 paired contact sheets inspected; changed families rerendered and inspected. Invalid cross-parameter endpoints explicitly rejected.",
+      "expansion_replay": {
+        "directory": "/tmp/next-tutor-expansion-review",
+        "baseline": "/tmp/next-tutor-wall-source-review",
+        "svg_hashes": {
+          "textbook": "sha256:3b587d1acf3dd28a88e183253f14bd0473fee85d7a3d010a46d14bc3ba8cd538",
+          "monochrome": "sha256:5dc10740085f27063508df29378065eb4bdbbb4775d8a0eae5a81e3d54e28135"
+        },
+        "unchanged_actual_svg": true,
+        "review_note": "Both re-rendered SVGs are byte-identical to reviewed baseline; prior visual evidence preserved."
+      }
+    }
+  },
+  "svg_file": "asset.svg",
+  "guidance_file": "usage_guide.json",
+  "svg_hash": "sha256:5840fb64107adebaf4f0798e77b802fe5ec95216c425e4e459fec3305bfb68c6"
+}

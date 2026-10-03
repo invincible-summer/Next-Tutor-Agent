@@ -1,0 +1,68 @@
+{
+  "id": "biology_extended.action_potential_stages",
+  "renderer": "biology_extended",
+  "variant": "action_potential_stages",
+  "category": "biology",
+  "title": "动作电位阶段示意",
+  "english": "Action potential stages",
+  "aliases": [
+    "神经",
+    "膜电位"
+  ],
+  "version": 1,
+  "features": [],
+  "sample_params": {},
+  "license": "original-project-artwork",
+  "subjects": [
+    "biology"
+  ],
+  "education_levels": [
+    "junior",
+    "senior",
+    "undergraduate"
+  ],
+  "asset_kind": "sequence",
+  "topics": [
+    "biology",
+    "action_potential_stages"
+  ],
+  "provenance": {
+    "origin": "project_procedural",
+    "creation_method": "ai_assisted_vector_code",
+    "source_module": "app/diagrams/curriculum_expansion.py",
+    "source_symbol": "draw:action_potential_stages",
+    "source_hash": "sha256:5105f9387ffff241aab1a3fe717976c9c3daecb204895d419901214a9f1761d2",
+    "external_graphics": [],
+    "derived_from": [],
+    "knowledge_references": [],
+    "statement": "项目独立编写矢量路径；通用符号与知识事实不代表独占造型。"
+  },
+  "review": {
+    "status": "passed",
+    "automatic": "passed",
+    "structure": "passed",
+    "visual": "passed",
+    "reviewer_type": "agent",
+    "reviewed_at": "2026-10-03",
+    "source_hash": "sha256:5105f9387ffff241aab1a3fe717976c9c3daecb204895d419901214a9f1761d2",
+    "evidence": {
+      "profiles": [
+        "textbook",
+        "monochrome"
+      ],
+      "preview_rendered": true,
+      "parameter_boundary_checked": false,
+      "parameter_cases": 0,
+      "sheet_review": "/tmp/next-tutor-expansion-scoped-final",
+      "correction_review": "/tmp/next-tutor-expansion-corrections",
+      "svg_hashes": {
+        "textbook": "sha256:e3903d4a8142a54f5cb9cfb4c3ebde8c39164a591389e6f30fedaec26b165b1c",
+        "monochrome": "sha256:f0e8dba9a5cd0091aa23fa5c3d6250fa3af98a0c9a45d33403292bdda4bec823"
+      },
+      "review_note": "All 12 large paired sheets and both correction sheets inspected. Closed-pipe ends, electrode/ion directions, daylight, membrane layers, actual numeric controls checked. Final XML matches selected evidence."
+    }
+  },
+  "svg_file": "asset.svg",
+  "guidance_file": "usage_guide.json",
+  "svg_hash": "sha256:252c4fc42ad3121a1378fc623280dcb106c4ea18c41388428ecd30722d469905"
+}

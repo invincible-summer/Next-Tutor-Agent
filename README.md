@@ -28,6 +28,7 @@ Next Tutor Agent 把教材、讲解、练习与复习放进同一个学习空间
 | **备课上课** | 从教材章节或主题生成课件与讲稿，预览和编辑后开始 AI 讲授，继续未完成的课程，导出课件与讲稿。 |
 | **资料中心** | 使用公共教材、上传个人材料，并为不同工作学习区关联教材；教材解析后可检索，知识图谱在后台继续构建。 |
 | **练习与测评** | 在聊天中出题、参考原题生成变式，或发起按作答调整难度的测评；查看解析、近期习题与错题，按需生成题图。 |
+| **教学素材库** | 浏览公有/个人 SVG 素材，搜索、放大、调参及黑白预览；上传、模板设计、AI 草稿和手动编辑，独立保存版本与短使用说明，管理员可增补公有素材。 |
 | **知识图谱与学习总览** | 浏览概念及其联系，结合实际作答查看学习记录与当前评价，寻找需要继续练习的内容。 |
 | **笔记与复习** | 用 Markdown、双向链接、标签和文件夹整理笔记，从对话、教材或错题生成内容，安排到期复习。 |
 | **学习编排** | 将长期目标细化为周计划和今日任务，把学习与复习放进日常节奏。 |
@@ -109,7 +110,7 @@ ADMIN_PASSWORD=replace-with-your-own-password
 
 ### 3. 启动应用
 
-首次使用课堂功能，先准备课件资源与排版检查浏览器：
+首次使用课堂或 v2 题图，先安装本地 Chromium；课堂还需准备课件资源：
 
 ```bash
 cd apps/web
@@ -136,6 +137,7 @@ cd ..
 | 能力 | 配置方式 |
 | :--- | :--- |
 | 课堂 | `.env.example` 已启用 `CLASSROOM_ENABLED=1`；需完成上述课堂准备。 |
+| 题图 v2 | 默认 `QUIZ_ILLUSTRATION_PIPELINE=shadow`；开发验收时设为 `v2`，保留 `QUIZ_ILLUSTRATION_VISUAL_REVIEW=active`，需 Chromium 和支持图片输入的模型（`LLM_SUPPORTS_IMAGES=1`）。已完成14类情境与两组数值的真实模型验收，详见[验收记录](docs/DIAGRAM_LIBRARY_ACCEPTANCE.md)和[配图协议](docs/ASSESSMENT_ILLUSTRATION_PIPELINE.md)。 |
 | 站内学习助手 | 设置 `SITE_ASSISTANT_ENABLED=1`。子开关：`SITE_ASSISTANT_ACTIONS_ENABLED`（领域写入，默认 1）、`SITE_ASSISTANT_WORKFLOWS_ENABLED`（跨模块工作流/办理事项，默认 1）、`SITE_ASSISTANT_VOICE_ENABLED`（语音输入与朗读，默认 0）、`SITE_ASSISTANT_PROACTIVE_ENABLED`（订阅与学习简报调度，默认 0；开启后用户仍需逐项订阅）。 |
 | 课堂联网检索与配图 | 按需填写 `TAVILY_API_KEY`、`PEXELS_API_KEY` 或 `PIXABAY_API_KEY`。 |
 | 课堂云端语音 | 填写 `AZURE_SPEECH_KEY` 与 `AZURE_SPEECH_REGION`。 |

@@ -16,6 +16,16 @@ def text(d, value, x, y, size=14, color=None, anchor="middle"):
     d.text(value, x, y, size=size, color=color, anchor=anchor)
 
 
+def text_units(value: object) -> float:
+    """Approximate rendered width in font-size units for mixed CJK/Latin text."""
+    return sum(1.0 if ord(char) > 255 else 0.58 for char in str(value))
+
+
+def node_size(label, *, size=14, min_width=66, max_width=190, height=36):
+    width = max(min_width, min(max_width, text_units(label) * size + 22))
+    return width, height
+
+
 def panel(d, x, y, w, h, fill=None):
     d.rect(x, y, w, h, fill=fill or d.surface, radius=7, width=1.5)
 
@@ -130,7 +140,9 @@ def plant(d, x, y, height=90):
 def axes(d, x=55, y=260, w=370, h=215, *, x_label="x", y_label="y", ticks=True):
     d.arrow(x, y, x + w, y)
     d.arrow(x, y, x, y - h)
-    text(d, x_label, x + w, y + 24, anchor="end")
+    # Endpoint numbers occupy the first row below the axis. Keep its name
+    # on a separate baseline for spectra, climate and statistical charts.
+    text(d, x_label, x + w, min(d.height - 8, y + 50), anchor="end")
     text(d, y_label, x - 25, y - h - 9, anchor="start")
     if ticks:
         for i in range(1, 5):
@@ -160,8 +172,12 @@ def curve(d, fn, coord, *, color=None, n=65, start=0, end=1, width=2):
 
 
 def node(d, label, x, y, w=66, h=36, fill=None):
+    # A caller supplied width remains a lower bound; labels determine the
+    # actual box width so Chinese and long prompts never protrude.
+    w = max(w, node_size(label, height=h)[0])
     panel(d, x - w / 2, y - h / 2, w, h, fill)
     text(d, label, x, y + 5)
+    return w, h
 
 
 def connect(d, a, b, *, color=None, dashed=False):
@@ -179,15 +195,17 @@ def sequence(d, labels, y=130, *, symbols=None):
     n = len(labels)
     spacing = 390 / max(1, n - 1)
     centers = [(45 + i * spacing, y) for i in range(n)]
+    widths = [node_size(label, max_width=max(66, spacing - 16))[0] for label in labels]
     for i, ((x, cy), label) in enumerate(zip(centers, labels)):
         if symbols:
             symbols(i, x, cy)
         else:
-            node(d, label, x, cy, w=min(80, spacing - 16))
+            node(d, label, x, cy, w=widths[i])
         if symbols:
             text(d, label, x, cy + 74)
         if i:
-            connect(d, (centers[i - 1][0] + 32, cy), (x - 32, cy))
+            connect(d, (centers[i - 1][0] + widths[i - 1] / 2, cy),
+                    (x - widths[i] / 2, cy))
     return centers
 
 

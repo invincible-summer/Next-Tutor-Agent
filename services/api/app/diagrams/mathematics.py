@@ -123,7 +123,15 @@ def geometry(variant: str, p: dict, mono=False) -> Drawing:
             d.poly([front[1], back[1], back[2], front[2]], closed=True, fill=d.glass)
             d.poly(front, closed=True, fill=d.surface)
             d.line(*front[0], *back[0], dashed=True)
-        elif variant in {"cube", "cuboid", "section"}:
+        elif variant == "cuboid":
+            # Three different edge lengths distinguish a rectangular prism.
+            d.poly([(18, 62), (122, 62), (122, 120), (18, 120)], closed=True, fill=d.surface)
+            d.poly([(18, 62), (42, 40), (146, 40), (122, 62)], closed=True, fill=d.glass)
+            d.poly([(122, 62), (146, 40), (146, 98), (122, 120)], closed=True, fill=d.surface)
+            d.line(18, 120, 42, 98, dashed=True)
+            d.line(42, 40, 42, 98, dashed=True)
+            d.line(42, 98, 146, 98, dashed=True)
+        elif variant in {"cube", "section"}:
             d.poly([(29, 52), (106, 52), (106, 132), (29, 132)], closed=True, fill=d.surface)
             d.poly([(29, 52), (56, 27), (133, 27), (106, 52)], closed=True, fill=d.glass)
             d.poly([(106, 52), (133, 27), (133, 108), (106, 132)], closed=True, fill=d.surface)
@@ -304,12 +312,12 @@ def function_plot(variant: str, p: dict, mono=False) -> Drawing:
             x = xmin+i*(xmax-xmin)/4
             px, _ = xy(x, 0)
             d.line(px, oy-4, px, oy+4)
-            d.text(f"{x:g}", px, min(282, oy+23), size=14)
+            d.text(f"{x:g}", px-12 if abs(x) < 1e-9 else px, min(282, oy+23), size=14)
         for i in range(5):
             y = ymin+i*(ymax-ymin)/4
             _, py = xy(0, y)
             d.line(ox-4, py, ox+4, py)
-            if abs(y) > 1e-9:
+            if abs(y) > 1e-9 and abs((py+5)-min(282, oy+23)) >= 14:
                 d.text(f"{y:g}", max(28, ox-9), py+5, size=14, anchor="end")
     d.text("Re" if variant == "complex" else p.get("x_label", "x"), 460, min(278, oy+21), size=18)
     d.text("Im" if variant == "complex" else p.get("y_label", "y"), min(432, ox+16), 22, size=18)

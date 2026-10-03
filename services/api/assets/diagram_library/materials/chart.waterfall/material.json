@@ -1,0 +1,82 @@
+{
+  "id": "chart.waterfall",
+  "title": "瀑布图",
+  "english": "waterfall chart",
+  "category": "statistics",
+  "renderer": "chart",
+  "variant": "waterfall",
+  "version": 1,
+  "aliases": [],
+  "features": [],
+  "sample_params": {
+    "values": [
+      30,
+      45,
+      25
+    ],
+    "labels": [
+      "A",
+      "B",
+      "C"
+    ]
+  },
+  "license": "original-project-artwork",
+  "subjects": [
+    "statistics"
+  ],
+  "education_levels": [
+    "senior",
+    "undergraduate"
+  ],
+  "asset_kind": "chart",
+  "topics": [
+    "statistics",
+    "waterfall"
+  ],
+  "provenance": {
+    "origin": "project_procedural",
+    "creation_method": "ai_assisted_vector_code",
+    "source_module": "app/diagrams/mathematics.py",
+    "source_symbol": "chart:waterfall",
+    "source_hash": "sha256:ed2793ab359cd86b110a54909e7a471b84d548c61e33c6552a2e586def1012ab",
+    "external_graphics": [],
+    "derived_from": [],
+    "knowledge_references": [],
+    "statement": "项目独立编写矢量路径；通用符号与知识事实不代表独占造型。"
+  },
+  "review": {
+    "status": "passed",
+    "automatic": "passed",
+    "structure": "passed",
+    "visual": "passed",
+    "reviewer_type": "agent",
+    "reviewed_at": "2026-10-03",
+    "source_hash": "sha256:ed2793ab359cd86b110a54909e7a471b84d548c61e33c6552a2e586def1012ab",
+    "evidence": {
+      "profiles": [
+        "textbook",
+        "monochrome"
+      ],
+      "preview_rendered": true,
+      "parameter_boundary_checked": false,
+      "parameter_cases": 0,
+      "sheet_review": "/tmp/next-tutor-all-assets-contact-fixed",
+      "parameter_review": "/tmp/next-tutor-all-assets-review-final",
+      "individual_review": "/tmp/next-tutor-all-assets-review-oct3",
+      "review_note": "All 27 paired contact sheets inspected; changed families rerendered and inspected. Invalid cross-parameter endpoints explicitly rejected.",
+      "expansion_replay": {
+        "directory": "/tmp/next-tutor-expansion-review",
+        "baseline": "/tmp/next-tutor-wall-source-review",
+        "svg_hashes": {
+          "textbook": "sha256:5106a48d6ac601aa9ac666ab7c838b18d8119c121437ce6b89f0a72f73728d4c",
+          "monochrome": "sha256:8b24d35bcc1dc80be98055f798855db41659e0a6598f0a04bb7e23ef4dd091e8"
+        },
+        "unchanged_actual_svg": true,
+        "review_note": "Both re-rendered SVGs are byte-identical to reviewed baseline; prior visual evidence preserved."
+      }
+    }
+  },
+  "svg_file": "asset.svg",
+  "guidance_file": "usage_guide.json",
+  "svg_hash": "sha256:91f358725a9cddfde668ff66426f84f727588abeae9fb657168e6e11c22c3139"
+}

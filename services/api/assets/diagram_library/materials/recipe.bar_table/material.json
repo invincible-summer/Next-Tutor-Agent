@@ -1,0 +1,15 @@
+{
+  "id": "recipe.bar_table",
+  "title": "题目数据柱状图",
+  "aliases": [
+    "柱状图",
+    "柱状统计图"
+  ],
+  "version": 1,
+  "kind": "recipe",
+  "renderer": "registered_v2_recipe",
+  "preview_only": true,
+  "svg_file": "asset.svg",
+  "guidance_file": "usage_guide.json",
+  "svg_hash": "sha256:8dcf19978dd841feaa3eb11633550727fcc72e5bf71952835b43455b86aa5ed8"
+}

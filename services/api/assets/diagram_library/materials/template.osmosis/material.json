@@ -1,0 +1,78 @@
+{
+  "id": "template.osmosis",
+  "title": "渗透与透析",
+  "english": "osmosis experiment",
+  "category": "biology",
+  "renderer": "template",
+  "variant": "osmosis",
+  "version": 1,
+  "aliases": [],
+  "features": [],
+  "sample_params": {},
+  "license": "original-project-artwork",
+  "subjects": [
+    "biology"
+  ],
+  "education_levels": [
+    "junior",
+    "senior",
+    "undergraduate"
+  ],
+  "asset_kind": "scene",
+  "topics": [
+    "biology",
+    "osmosis"
+  ],
+  "provenance": {
+    "origin": "project_procedural",
+    "creation_method": "ai_assisted_vector_code",
+    "source_module": "app/diagrams/templates.py",
+    "source_symbol": "template:osmosis",
+    "source_hash": "sha256:6597a1e10782520c75ad0d147cfb867f02956768cfb43c7cc979aeb54c22769a",
+    "external_graphics": [],
+    "derived_from": [
+      "vessel.beaker",
+      "biology.dialysis_bag"
+    ],
+    "knowledge_references": [],
+    "statement": "项目独立编写矢量路径；通用符号与知识事实不代表独占造型。"
+  },
+  "review": {
+    "status": "passed",
+    "automatic": "passed",
+    "structure": "passed",
+    "visual": "passed",
+    "reviewer_type": "agent",
+    "reviewed_at": "2026-10-03",
+    "source_hash": "sha256:6597a1e10782520c75ad0d147cfb867f02956768cfb43c7cc979aeb54c22769a",
+    "evidence": {
+      "profiles": [
+        "textbook",
+        "monochrome"
+      ],
+      "preview_rendered": true,
+      "parameter_boundary_checked": true,
+      "parameter_cases": 2,
+      "sheet_review": "/tmp/next-tutor-all-assets-contact-fixed",
+      "parameter_review": "/tmp/next-tutor-all-assets-review-final",
+      "individual_review": "/tmp/next-tutor-wall-source-review",
+      "review_note": "All 27 paired contact sheets inspected; changed families rerendered and inspected. Invalid cross-parameter endpoints explicitly rejected.",
+      "revalidation": "/tmp/next-tutor-all-assets-post-composition-fixes",
+      "revalidation_note": "Chromium rerender; unchanged SVG compared byte-for-byte against reviewed corpus. Changed diagrams inspected on sheets 14/17/23 in both profiles.",
+      "expansion_replay": {
+        "directory": "/tmp/next-tutor-expansion-review",
+        "baseline": "/tmp/next-tutor-wall-source-review",
+        "svg_hashes": {
+          "textbook": "sha256:7f44ecaedc4a22c6508424287b5f662256ea8f6a7ee99d6dd8f95c391a6e9d8a",
+          "monochrome": "sha256:03fed86a7452ecdf6494daf1018b42722ec0311ab5ab3c83cef592d7b44837c5"
+        },
+        "unchanged_actual_svg": true,
+        "review_note": "Both re-rendered SVGs are byte-identical to reviewed baseline; prior visual evidence preserved."
+      }
+    },
+    "notes": "全目录双风格重新渲染无越界/文字碰撞，与前轮逐SVG字节核对仅墙体变化；墙体接触面双风格实图已审阅。"
+  },
+  "svg_file": "asset.svg",
+  "guidance_file": "usage_guide.json",
+  "svg_hash": "sha256:6cceab73c86d19fa262f2094f472e8c9b8d5dab85c810a9c38855aab3734cae3"
+}

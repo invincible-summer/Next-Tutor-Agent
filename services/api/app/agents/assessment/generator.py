@@ -217,7 +217,7 @@ async def generate_question(goal: AssessmentGoal, ctx: AssessmentContext, *,
         llm = llm.llm
     cat_mode = not use_blueprint
     budget = budget or new_quiz_budget()
-    if cat_mode:
+    if cat_mode and settings.quiz_illustration_pipeline != "v2":
         # CAT is text-first.  The same shared budget is capped here so outer
         # retry loops cannot silently turn a 27s text phase into multiple 27s
         # attempts.  Component enrichment runs later under its own bounded
@@ -282,9 +282,9 @@ async def generate_question(goal: AssessmentGoal, ctx: AssessmentContext, *,
                 return [candidate] if actual in {
                     "multiple_choice", "fill_blank", "short_answer"} else []
             candidates, meta = await generate_verified_questions(
-                BudgetedLLM(llm, budget, call_timeout=12 if cat_mode else None,
+                BudgetedLLM(llm, budget, call_timeout=12 if cat_mode and settings.quiz_illustration_pipeline != "v2" else None,
                             phase_deadline=phase_deadline),
-                make_prompt=lambda: prompt, parse=parse,
+                student_id=student_id, make_prompt=lambda: prompt, parse=parse,
                 topic=concept, grade=grade, difficulty=_difficulty_label(difficulty),
                 temperature=0.3, max_tokens=4500 if phase_policy != "off" else 3500,
                 grounding_context=grounding, illustration_policy=phase_policy,
@@ -308,7 +308,9 @@ async def generate_question(goal: AssessmentGoal, ctx: AssessmentContext, *,
             # Never regenerate a second complete question merely to obtain an
             # SVG.  The accepted text question is frozen first; the assessment
             # illustration endpoint enriches that exact question afterwards.
-            best = await attempt("off", budget.deadline)
+            # V2 sees the material role before publication; essential and
+            # required questions cannot enter the text-first supplement path.
+            best = await attempt(policy if settings.quiz_illustration_pipeline == "v2" else "off", budget.deadline)
             baseline = best
             if best is None:
                 # A dropped/self-check CAT is a real degradation; the critic

@@ -1,0 +1,137 @@
+{
+  "id": "economics_extended.compound_growth",
+  "title": "复利增长",
+  "english": "Compound growth",
+  "category": "economics",
+  "renderer": "economics_extended",
+  "variant": "compound_growth",
+  "version": 1,
+  "aliases": [],
+  "features": [
+    "数据驱动"
+  ],
+  "sample_params": {
+    "points": [
+      [
+        0,
+        100.0,
+        100
+      ],
+      [
+        1,
+        108.0,
+        108
+      ],
+      [
+        2,
+        116.64000000000001,
+        116
+      ],
+      [
+        3,
+        125.97120000000001,
+        124
+      ],
+      [
+        4,
+        136.04889600000004,
+        132
+      ],
+      [
+        5,
+        146.93280768000005,
+        140
+      ],
+      [
+        6,
+        158.68743229440005,
+        148
+      ],
+      [
+        7,
+        171.3824268779521,
+        156
+      ],
+      [
+        8,
+        185.09302102818825,
+        164
+      ],
+      [
+        9,
+        199.90046271044332,
+        172
+      ],
+      [
+        10,
+        215.89249972727882,
+        180
+      ],
+      [
+        11,
+        233.16389970546112,
+        188
+      ]
+    ]
+  },
+  "license": "original-project-artwork",
+  "subjects": [
+    "economics"
+  ],
+  "education_levels": [
+    "senior",
+    "undergraduate"
+  ],
+  "asset_kind": "scene",
+  "topics": [
+    "economics",
+    "compound_growth"
+  ],
+  "provenance": {
+    "origin": "project_procedural",
+    "creation_method": "ai_assisted_vector_code",
+    "source_module": "app/diagrams/extended_humanities.py",
+    "source_symbol": "draw:compound_growth",
+    "source_hash": "sha256:36bb3cd99a2977447c6629be475137d94e41ac218c17e4aa13e70490b497092d",
+    "external_graphics": [],
+    "derived_from": [],
+    "knowledge_references": [],
+    "statement": "项目独立编写矢量路径；通用符号与知识事实不代表独占造型。"
+  },
+  "review": {
+    "status": "passed",
+    "automatic": "passed",
+    "structure": "passed",
+    "visual": "passed",
+    "reviewer_type": "agent",
+    "reviewed_at": "2026-10-03",
+    "source_hash": "sha256:36bb3cd99a2977447c6629be475137d94e41ac218c17e4aa13e70490b497092d",
+    "evidence": {
+      "profiles": [
+        "textbook",
+        "monochrome"
+      ],
+      "preview_rendered": true,
+      "parameter_boundary_checked": false,
+      "parameter_cases": 0,
+      "sheet_review": "/tmp/next-tutor-all-assets-contact-fixed",
+      "parameter_review": "/tmp/next-tutor-all-assets-review-final",
+      "individual_review": "/tmp/next-tutor-wall-source-review",
+      "review_note": "All 27 paired contact sheets inspected; changed families rerendered and inspected. Invalid cross-parameter endpoints explicitly rejected.",
+      "expansion_replay": {
+        "directory": "/tmp/next-tutor-expansion-review",
+        "baseline": "/tmp/next-tutor-wall-source-review",
+        "svg_hashes": {
+          "textbook": "sha256:a0e0b1afe17891c792ae9951e26138a3171af5c169d46b3d8ffa19c91c8e7264",
+          "monochrome": "sha256:92c3100437453ab9120652282ae228d4db3cc7a106a1c4ef45b2048cd0d38e29"
+        },
+        "unchanged_actual_svg": true,
+        "review_note": "Both re-rendered SVGs are byte-identical to reviewed baseline; prior visual evidence preserved."
+      }
+    },
+    "notes": "全目录双风格重新渲染无越界/文字碰撞，与前轮逐SVG字节核对仅墙体变化；墙体接触面双风格实图已审阅。"
+  },
+  "svg_file": "asset.svg",
+  "guidance_file": "usage_guide.json",
+  "svg_hash": "sha256:fb4387400759838a020fa7b2ac7d55e47ab8560d82df0525fa5f6f2c5900a027"
+}

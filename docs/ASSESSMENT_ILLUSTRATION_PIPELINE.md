@@ -1,112 +1,131 @@
-# CAT 题目插图：文字先行 + 素材库组件补充
+# 题目配图 v2 与 CAT 文字先行协议
 
-本文件描述 `/assessment`（M4 CAT）当前有效的插图合同。题图统一走“需求声明 → 项目本地模糊检索 → 候选组件构图 → 确定性编译”链路；模型不能直接生成 SVG。聊天 `generate_quiz` / `fit_quiz` 也使用同一组件协议。
+题图由项目素材和受限场景编译得到，模型负责需求、构图与审核，最终 SVG 由服务端生成。v2 实现在 `services/api/app/illustration/`；普通出题在题目注册前完成题图，CAT 先交付自足文字题，再为同一题目身份生成补充图。
 
-## 1. 核心不变量
+代码兼容默认仍为 `QUIZ_ILLUSTRATION_PIPELINE=shadow`。本地部署配置已启用 `v2`、`active` 和已实测的图片输入能力，重启后生效；真实模型验收覆盖14类情境及两组数值，见[验收记录](DIAGRAM_LIBRARY_ACCEPTANCE.md)。
 
-CAT 题目分为两个彼此独立的阶段：
+## 1. 运行模式与发布门
 
-1. **文字题阶段**：`/assessment/start` 与 `/assessment/next` 生成、审核并注册一份完全自洽的文字题，硬截止 27 秒。即使请求 `illustration_request="required"`，题干也必须在无图时独立可答，不允许写入“如图”“见下图”之类尚不存在的必需条件，也不允许把内部回退说明写进题干。
-2. **插图 enrichment 阶段**：文字题已经在浏览器显示后，前端针对同一个 `(question_id, question_revision)` 调用 `POST /api/v1/assessment/questions/{question_id}/illustration`。该调用只可生成补充 `illustration`，不得改题干、选项、答案、解析、量规或 revision。
+| 配置 | 当前行为 |
+| --- | --- |
+| `QUIZ_ILLUSTRATION_PIPELINE=v1` | 使用兼容组件链路，继续读取历史题图 |
+| `QUIZ_ILLUSTRATION_PIPELINE=shadow`（默认） | 兼容链路对外交付；CAT 另起账户私有 v2 对照任务，其结果不经公开任务接口展示 |
+| `QUIZ_ILLUSTRATION_PIPELINE=v2` | 普通出题使用 v2 发布门；CAT 补图返回任务状态，前端轮询 |
+| `QUIZ_ILLUSTRATION_VISUAL_REVIEW=active`（默认） | v2 运行真实 PNG 的视觉审核和联合题图审核；两项都通过才允许交付 |
+| `QUIZ_ILLUSTRATION_VISUAL_REVIEW=off` 或 `shadow` | 不满足 v2 发布门，不能据此发布未经视觉审核的 v2 题图 |
 
-`TaskSnapshot`、`rubric_hash` 与 `question_revision` 仍是冻结学习证据，不因后到的插图改变。插图属于题目身份上的附加视觉 enrichment；它不得增加文字题中没有的解题必需条件，也不得泄露正确答案或待求结论。
+`QUIZ_SVG_ENABLED`、账户 `prefs.quiz_svg_enabled` 和本次 `auto/none/required` 意图共同控制新生成。关闭生成开关后，已冻结的历史题图仍可读取。`QUIZ_DIAGRAM_MODE` 只保留兼容配置含义，不能开启模型直接输出 SVG。
 
-## 2. API、所有权与历史读取
+v2 需要本地 Node/Playwright Chromium，以及支持图片输入的模型。使用 `LLM_SUPPORTS_IMAGES=1` 声明服务实际具备该能力；缺少浏览器、图片能力或审核结果时返回失败，不把结构可解析当成视觉审核通过。
 
-请求：
+## 2. 题目材料合同
+
+`QuestionMaterialContract` 由服务端绑定题目身份、revision、公开题面和私有答案/量规。实体、事实、必要关系、待求量和禁止添加的内容均使用闭合 schema。
+
+| `visual_role` | 语义与交付要求 |
+| --- | --- |
+| `none` | 不需要题图；`required` 意图不能以无图交付 |
+| `supplemental` | 文字已包含全部解题条件；题图只表达已有事实和关系 |
+| `essential` | 必要条件存在于图中，如仪器读数；完整材料与审核必须在题目注册、作答前完成 |
+
+CAT 的 `/assessment/start`、`/assessment/next` 先生成、审核并注册自足文字题。即使要求配图，题干也不能引用尚不存在的“如图”条件。补图只能提取题干或选项中可逐字核对的事实，不能把冻结题转为 `essential`，也不能改题干、选项、答案、解析、量规或 revision。缺少必要材料时返回 `question_material_incomplete`。
+
+普通出题可在注册前设计 `essential` 草稿。`Question/TaskSnapshot` 的发布检查要求最终图片、材料合同、题面、答案、量规和审核证据一致，缺图或未通过审核的必要图题不能成为可作答任务。
+
+读数、真实数据、函数及其他条件参数以 `fact_id` 绑定，由服务端解析并驱动几何。`depict_only`/`symbol_only` 的数值和原文摘录不会交给构图模型；`hidden` 事实不允许用于构图。答案和量规只供独立联合审核使用。预览样例不是题目事实源。
+
+## 3. v2 工作流
+
+```mermaid
+flowchart LR
+  A[题面草稿或冻结文字题] --> B[服务端材料合同]
+  B --> C[模型声明 VisualBriefV2]
+  C --> D[项目本地检索 CandidateBundleV2]
+  D --> E[模型提交 SceneDraftV2]
+  E --> F[确定性装配与静态检查]
+  F --> G[Chromium 实测与 PNG 预览]
+  G --> H[独立视觉审核]
+  H --> I[联合题图审核]
+  I --> J[冻结私有产物并交付]
+```
+
+1. **声明**：一次结构化调用确定用途、视图、素材需求和应表达的关系。需求没有搜索工具或目录文件访问权。
+2. **检索**：项目本地按名称、别名和语义能力筛选候选，每类最多六个。v2 当前使用 `semantics.py` 登记的首批 31 个组件与 10 个装配配方；完整浏览目录不等于全部素材已经具备 v2 装配能力。
+3. **构图**：模型只可选择本题候选 ID/版本，并声明实体关联、事实绑定、位置、统一缩放、连接及外置标签。可在原需求实体和事实不变的条件下请求一次重新检索。
+4. **编译**：实例按真实参数生成端口、液面、刻度和边界。编译器检查支撑、悬挂、浸没、连接等关系，使用 Chromium 的实际图形边界与字体尺寸检查出界、遮挡、文字可读性和连线。
+5. **审核**：对最终 SVG 渲染的真实 PNG 做视觉审核，再联合检查题面、答案、量规与图中条件。刻度题使用同一成图的局部放大。模型自报的 hash 或“已通过”字段不能跳过这些阶段。
+6. **冻结**：只有 `machine/visual/joint=passed` 才生成可交付产物；必要图材料须先完整冻结，再注册题目。
+
+可修复的布局或视觉问题采用带 `base_scene_hash` 的 `ScenePatchV2`，仅能移动、缩放、合法旋转、在已授权候选间替换组件、重排标签或路由，并保持冻结事实。修复后重新编译、渲染和审核。无法修复、信息不足或预算耗尽时明确失败，不发布半成品。
+
+## 4. 预算
+
+v2 每次配图默认最多 **5 次模型调用、2 次补丁修复**，未冻结草稿最多 **45 秒**，冻结 CAT 文字题补图最多 **30 秒**。配置为：
+
+- `QUIZ_ILLUSTRATION_MAX_CALLS=5`
+- `QUIZ_ILLUSTRATION_DEADLINE_SECONDS=45`
+- `QUIZ_ILLUSTRATION_MAX_REPAIRS=2`
+
+无修复的成功流程需要声明、构图、视觉审核、联合审核四次调用。重新检索或修复也消耗同一预算；补丁与后续两项审核至少还需要三次调用，因此修复上限不保证一定有足够预算执行全部修复。
+
+普通出题还受外层 `ASSESSMENT_GENERATION_*` 调用数和截止时间约束，不因嵌套 v2 工作流获得额外无界额度。CAT 文字题与补图分别计量；补图不重新生成文字题。兼容 v1 补图仍使用最多三次调用 / 30 秒。
+
+账户 `quiz_illustration_review_enabled` 控制兼容 v1 的可选语义审查；它不能取消 v2 的视觉和联合发布门。`quiz_critic_enabled` 继续控制普通独立审题，受运维 `QUIZ_VERIFY_MODE` 限制。
+
+## 5. API、所有权与任务生命周期
+
+以下路径均以 `/api/v1` 为前缀，并使用真实登录身份。客户端只能引用自己 journal 中已有的题目，不能提交账户 ID、题干、答案、场景或 SVG。
+
+| 方法 | 路径 | 行为 |
+| --- | --- | --- |
+| POST | `/assessment/questions/{question_id}/illustration` | 请求体为 `{"question_revision":1}`；按当前模式读历史或启动 CAT 补图 |
+| POST | `/quiz/illustration-jobs` | 请求体为 `{"question_id":"q_…","question_revision":1}`；读取已有结果或为当前活跃 CAT 题启动 v2 任务 |
+| GET | `/illustration-jobs/{job_id}` | 读取本人非 shadow 任务，含公开进度和结果 |
+| POST | `/illustration-jobs/{job_id}/retry` | 失败/中断任务显式重试；创建新 job/run，保留旧运行记录 |
+| GET | `/questions/{question_id}/illustration?question_revision=1` | 读取冻结题图或已有补图状态；不启动模型调用 |
+
+只有进行中 CAT 的当前/最后题目可以发起新的补图或重试。历史、停止测评和账户关图后仍可读已有审核产物。已开始的任务可在学生提交答案后完成，但发布前会复查账户生成权限。
+
+任务返回 `queued → running → ready | not_required | failed`。`not_required` 表示合法 `auto` 声明无需图；禁用策略不能新建 v2 任务。`required` 与开关冲突返回 409 `illustration_disabled`。他人或已删除任务返回 404；已就绪题图的重试返回 409 `illustration_frozen`。
+
+相同题目身份的重复启动复用已有任务；并发请求只创建一个运行。已就绪产物始终优先，不随目录、提示词或开关变化重画。改变冻结题图必须创建新题目 revision。进程重启后，读取无存活后台任务的遗留 `queued/running` 记录会标记 `failed/run_interrupted`，由显式重试开启新运行。
+
+学生接口只返回任务身份、视觉角色、进度、规范化图片和闭合失败码/重试标志。原始事实、gold、场景、候选轨迹、内部失败阶段和审核文字均留在账户私有记录中；shadow 任务不可通过公开任务接口读取。
+
+## 6. 持久化与删除
+
+v2 运行状态位于运行数据根：
 
 ```text
-POST /api/v1/assessment/questions/{question_id}/illustration
-{"question_revision": 1}
+illustrations/<owner>/
+  jobs/<job_id>.json
+  runs/<run_id>.json
+  artifacts/<artifact_id>.json
+  previews/<artifact_id>.png
 ```
 
-服务端只信任 JWT 解析出的 `student_id`，并从该学生的 learning-evidence journal 读取权威 `TaskSnapshot`。客户端不能提交题干、答案或 SVG。
+JSON 走文件锁和原子写；冻结 artifact 不允许覆盖，run 保存追加的阶段事件。普通题注册先准备私有产物，再以 journal 的题目引用作为交付点；未引用的产物不能通过题目接口读取。兼容 v1 历史缓存仍位于 `students/<owner>.question_illustrations.json`。
 
-新生成与历史读取采用不同权限：
+新根由 `core/paths.py` 绑定，并纳入存储沙箱、账户删除与孤儿清理。删除先失效 owner epoch，再取消后台任务和清除目录；旧任务或读后恢复不能重新创建已删除的目录。
 
-- 题目必须真实属于该学生的某个 CAT instance；否则 404。
-- **只有进行中 CAT 的当前/最后 question_ref 可以启动新的 LLM enrichment**。旧题、已结束测评的最后一题、手工重放请求都不能重新烧模型预算。
-- 已经通过审核并写入 cache 的历史 enrichment 仍可只读返回，即使账户或运维后来关闭“生成新插图”；关闭开关只禁止新生成，不破坏已经交付的历史题面。
-- 已经通过 active-current 校验并开始执行的单次 enrichment 可以在学生提交答案/结束本轮后自然完成并写 cache；后续重放不会再次生成。
+## 7. 前端与 SVG 安全
 
-响应状态：
+CAT 文字题立即可作答，题图进度独立显示“准备条件 / 检索素材 / 设计图面 / 检查图文”。题卡与反馈卡共享账户、题目 ID 和 revision 对应的状态；切卡不重复生成，失败由用户显式重试。历史题卡、报告与证据详情通过只读 GET 恢复冻结图。
 
-- `ready`：返回由本地素材组件编译、通过确定性安全检查和（开启时的）语义审图的规范化 SVG；
-- `not_required`：有效策略为 off，或 auto 判断不需要图；
-- `failed`：在本地素材无匹配、直接 SVG 被拒绝或（开启时）语义审图未通过。失败只影响图，文字题仍可作答；常见模型协议漂移、空 `diagram_scene`、构图超界和一次性 provider 超时会先走本地确定性恢复，不再直接落到该状态。
-- `illustration_disabled`：required 请求与账户/运维开关冲突，按现有 409 合同返回。
+`QuestionIllustration` 支持旧 schema 1 / sanitizer 1、2，兼容组件 schema 2 / sanitizer 3，以及 v2 schema 3 / sanitizer 3。组件图上限为 128 KiB、1200 节点、4000 路径段和 10 层深度；旧图仍使用原 24 KiB 限额。
 
-成功和 `not_required` 决策按 `(student_id, question_id, question_revision)` 写入账户私有 cache。并发控制采用真正的 **single-flight**：同题同时到达的请求 await 同一个后台 Task，因此成功与失败都只消耗一套 LLM 调用；单个浏览器请求取消不会取消共享底层生成。共享 Task 完成后从内存 registry 自动移除，只有后续显式重试才允许新一轮尝试。
+规范化器用 defusedxml 解析并重建白名单 SVG，禁止脚本、HTML、事件、外链图片、动画、DTD/实体和可执行引用。前端以 SVG data URI 的 `img` 展示，彩色组件图保留白纸配色，支持放大；不将 SVG 内联进 DOM。
 
-## 3. 预算合同
+## 8. 验证边界
 
-enrichment 在文字题已经显示之后异步执行，不再位于学生的阻塞路径上；两阶段预算独立计量：
+`test_illustration_v2.py` 使用合成材料和 fake LLM，实际运行 Chromium 测量/PNG，检查科学关系、事实绑定、补丁和审核门。`test_illustration_jobs.py` 经真实 JWT/ASGI 路由检查所有权、公开投影、历史读取、单次运行、重试、不可变产物与删除竞争。它们不使用真实模型凭证。
 
-- 文字题：≤27 秒（不变）；
-- 插图：≤30 秒，最多 3 次 LLM 调用；文字题已经冻结，不因配图重生成。
-
-插图阶段：
-
-1. Call 1：模型只声明需要的器材、物体、图表或几何对象；项目本地执行模糊检索；
-2. Call 2：模型读取候选的真实尺寸、锚点、参数契约、类别和场景意图，负责选择素材、组合结构、计算位置与比例、调整参数和已知标签，并只引用返回候选的 `asset_id` 输出 `diagram_scene`；项目确定性编译 SVG；
-3. Call 3（仅在账户开启“生成后审查题图”时）：独立核对图与冻结题目/答案的一致性。
-
-需求声明和构图响应都经过闭合字段投影，兼容常见的 `data`/`result` 包装、字符串需求、裸场景和 camelCase 字段。模型响应为空、超时或构图不可编译时，服务端使用已经检索并授权的强语义候选生成留白均衡的最小场景，并优先使用完整实验/几何模板，再走同一编译器；它不会把候选列表按顺序平铺成网格。候选不存在时才如实失败或按 `auto` 降级为无图。响应 `metrics.diagram_recovery=1` 表示使用过这条本地恢复路径。该恢复不读取网络图片、不接受 `fragments` 或模型 SVG，也不使用图表预览样例替代题目真实数据。
-
-构图缓存同时记录近期题图的素材 ID、场景 hash 和规范化图片 hash。自适应下一题会把近期素材作为“有替代时避开”的提示交给构图模型；若模型仍返回完全相同的构图，服务端优先保留模型已经选择的物理组合，仅对节点整体做可验证的小幅布局变体，只有变体无法编译时才启用本地恢复。成功去重会记录 `metrics.diagram_deduplicated=1`，不会改变文字题、答案或参数事实。
-
-实现保留约 4 秒尾部预算缓冲。预算不足时直接失败，不再启动“注定做不完”的新阶段，也绝不重新生成另一道完整题；审查失败也不会触发模型重画 SVG。
-
-### 3.1 每账户审查开关（2026-09-17 起）
-
-出题中心（`/assessment` ConfigCard「生成审查选项」）提供两个持久化用户偏好（`PUT /user/profile` prefs），默认均为关闭：
-
-- `quiz_illustration_review_enabled`（默认关）：开启后增加一次配图语义审计 LLM 调用，仅确定性组件编译仍始终执行；
-- `quiz_critic_enabled`（默认关）：开启后增加独立审题（critic），关闭时结构合格题作为正常可答习题交付（`q_` 正常 id + verification.status=unreviewed，不冒充已审核）。环境变量 `QUIZ_VERIFY_MODE` 保持最终裁量：运维设为 basic/off 时用户开关无法升档。
-
-### 3.2 草稿语义（2026-09-17 起）
-
-`q_draft_` 保底自检草稿只保留给“生成+修订+降档重试全部失败”的最后兜底。critic 未返回/自身失败/被用户关闭时，结构合格的题目按 A06 交付为正常 `q_` 题并诚实标注 unreviewed；外层 `_generate_cat_question` 循环不再把草稿当作交付成功，必须继续降档重采样（预算给 2 次修复额度）。
-
-## 4. SVG 安全边界
-
-`app/core/quiz_illustration.py` 使用 defusedxml 解析后**重新构建** canonical SVG；组件编译器只绘制项目素材的白名单节点和连接，绝不透传模型字符串。组件图使用 `sanitizer_version=3`。
-
-- `<defs>` + `<marker>`；
-- `marker-start|marker-mid|marker-end="url(#local-id)"`，仅允许本 SVG 内本地 id；
-- 有限 presentation inline `style`，解析后转换为显式属性；
-- 根节点少量无害 metadata/accessibility 属性可输入，但 canonical 输出会丢弃并重建根属性；
-- v2.1（2026-09-17）：`opacity/fill-opacity/stroke-opacity`、`font-weight/font-style/font-family`（归一为通用族）、`dominant-baseline`、`stroke-miterlimit`、`letter-spacing/word-spacing`、`text` 的 `dx/dy`；数值属性容忍并剥离 `px` 后缀；根节点忽略 `xmlns:xlink` 声明。模型侧额外 JSON 键被忽略而非整体拒绝，超长 alt/caption 截断到 600/120。
-
-仍禁止：`script`、`foreignObject`、`image`、`use`、`style` element、动画、事件处理器、外部 href/URL、任意 CSS、DTD/实体/处理指令、`class` 属性。尺寸、节点数、深度、path segment、数值范围、颜色、字体大小等原预算继续生效。
-
-历史题面仍可读取 sanitizer v1/v2；新组件图始终以 `img` 的 SVG data URI 图片上下文渲染，不把任何模型 SVG 以内联 DOM 方式执行。
-
-## 5. 前端状态与切换语义
-
-测评页收到文字题后立即进入可答状态。插图有独立局部状态：
-
-`idle -> generating -> ready | not_required | failed`
-
-`generating` 显示“文字题已可作答，正在生成并审核配图”，但输入、选项和提交按钮不被禁用；`ready` 原位显示图；`failed` 显示非阻塞失败提示和重试入口。
-
-`QuestionCard` 以题目序号 key 重挂，旧请求结果不会写入下一题。答题后切到 `FeedbackCard` 时会重新订阅同一题 enrichment；服务端 single-flight/cache 保证这不是第二次生成。移动端聊天“当前资料”侧栏默认只显示轻量入口，不再以 fixed 抽屉覆盖题卡和提交按钮，用户主动打开时才出现遮罩与抽屉。
-
-## 6. 测试边界
-
-普通 CI **不调用真实 LLM**。GitHub Actions 只运行：后端单元/安全回归、TypeScript/lint/build、repository invariants，以及使用 fake LLM 的 Playwright 产品链路测试。
-
-真实模型验收是显式的**本地开发机测试**，不使用部署域名：
+真实 v2 验收入口为：
 
 ```bash
-cd apps/web
-LIVE_LLM_TEST=1 \
-LLM_API_KEY=... \
-LLM_BASE_URL=... \
-LLM_MODEL=... \
-pnpm test:e2e:live-llm
+python3 scripts/illustration/acceptance.py --live-llm --output /tmp/illustration-v2-review
 ```
 
-该命令使用 `playwright.live.config.ts`，本地启动隔离 backend（默认 8125）与 Next frontend（默认 3031），继承开发者 shell 的真实 quiz provider 配置；测试目录是 `e2e-live/`，默认 CI 的 `playwright.config.ts` 不会扫描。默认连续 3 次验证 required CAT 的 `text ready -> generating -> reviewed SVG ready`，并打印 question_id、文字/配图耗时、调用数、repair 次数和 sanitizer 版本。可用 `LIVE_ILLUSTRATION_RUNS=N` 调整样本数。
+脚本使用已配置的真实 quiz provider、合成情境与临时运行根，输出模型答案通道 JSON、SVG、实际 PNG 和 `report.json`，目录必须在仓库外。逐轮检查不同场景的刻度、单位、关系、遮挡和图答一致性；脚本返回成功不能替代截图审阅，也不等于验证了前后端任务恢复与题目注册链路。
 
-在真实本地验收完成以前，不把 fake LLM 结果表述为“真实模型已验证”。
+既有 `pnpm test:e2e:live-llm` 当前按兼容 CAT 的即时响应协议验证，不等于完成 v2 任务协议验收。环境与运行命令见 [TESTING.md](TESTING.md)。当前真实模型验收尚未全部完成，不能用 fake LLM 或 XML 检查结果宣称已通过。

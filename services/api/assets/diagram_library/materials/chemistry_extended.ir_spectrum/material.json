@@ -1,0 +1,316 @@
+{
+  "id": "chemistry_extended.ir_spectrum",
+  "title": "红外吸收谱",
+  "english": "Infrared absorption spectrum",
+  "category": "chemistry",
+  "renderer": "chemistry_extended",
+  "variant": "ir_spectrum",
+  "version": 1,
+  "aliases": [],
+  "features": [
+    "数据驱动"
+  ],
+  "sample_params": {
+    "points": [
+      [
+        500,
+        85.0
+      ],
+      [
+        560,
+        85.0
+      ],
+      [
+        620,
+        85.0
+      ],
+      [
+        680,
+        85.0
+      ],
+      [
+        740,
+        85.0
+      ],
+      [
+        800,
+        85.0
+      ],
+      [
+        860,
+        85.0
+      ],
+      [
+        920,
+        85.0
+      ],
+      [
+        980,
+        84.99999999999999
+      ],
+      [
+        1040,
+        84.99999999999599
+      ],
+      [
+        1100,
+        84.99999999923617
+      ],
+      [
+        1160,
+        84.99999991171245
+      ],
+      [
+        1220,
+        84.99999381056539
+      ],
+      [
+        1280,
+        84.99973681854343
+      ],
+      [
+        1340,
+        84.99321246077514
+      ],
+      [
+        1400,
+        84.89382502250663
+      ],
+      [
+        1460,
+        83.99263986111202
+      ],
+      [
+        1520,
+        79.20304264903424
+      ],
+      [
+        1580,
+        64.76663073508459
+      ],
+      [
+        1640,
+        42.165956927621906
+      ],
+      [
+        1700,
+        29.999999977384988
+      ],
+      [
+        1760,
+        42.16595679425989
+      ],
+      [
+        1820,
+        64.76662997153544
+      ],
+      [
+        1880,
+        79.20303871036634
+      ],
+      [
+        1940,
+        83.99262111740231
+      ],
+      [
+        2000,
+        84.89374268237547
+      ],
+      [
+        2060,
+        84.99287855507467
+      ],
+      [
+        2120,
+        84.99848686880598
+      ],
+      [
+        2180,
+        84.99567446742235
+      ],
+      [
+        2240,
+        84.98622149528953
+      ],
+      [
+        2300,
+        84.95942697814951
+      ],
+      [
+        2360,
+        84.88971109405044
+      ],
+      [
+        2420,
+        84.72325310819421
+      ],
+      [
+        2480,
+        84.35895263889431
+      ],
+      [
+        2540,
+        83.62926367153545
+      ],
+      [
+        2600,
+        82.2943340844845
+      ],
+      [
+        2660,
+        80.06995526776342
+      ],
+      [
+        2720,
+        76.70752844612574
+      ],
+      [
+        2780,
+        72.12421955899951
+      ],
+      [
+        2840,
+        66.5447651584933
+      ],
+      [
+        2900,
+        60.581328587513916
+      ],
+      [
+        2960,
+        55.1749673861826
+      ],
+      [
+        3020,
+        51.37236962966869
+      ],
+      [
+        3080,
+        50.0
+      ],
+      [
+        3140,
+        51.37236962966869
+      ],
+      [
+        3200,
+        55.1749673861826
+      ],
+      [
+        3260,
+        60.581328587513916
+      ],
+      [
+        3320,
+        66.5447651584933
+      ],
+      [
+        3380,
+        72.12421955899951
+      ],
+      [
+        3440,
+        76.70752844612574
+      ],
+      [
+        3500,
+        80.06995526776342
+      ],
+      [
+        3560,
+        82.2943340844845
+      ],
+      [
+        3620,
+        83.62926367153545
+      ],
+      [
+        3680,
+        84.35895263889431
+      ],
+      [
+        3740,
+        84.72325310819423
+      ],
+      [
+        3800,
+        84.88971109405445
+      ],
+      [
+        3860,
+        84.95942697891334
+      ],
+      [
+        3920,
+        84.98622158357708
+      ],
+      [
+        3980,
+        84.99568065685696
+      ]
+    ],
+    "x_label": "wavenumber",
+    "y_label": "T (%)"
+  },
+  "license": "original-project-artwork",
+  "subjects": [
+    "chemistry"
+  ],
+  "education_levels": [
+    "junior",
+    "senior",
+    "undergraduate"
+  ],
+  "asset_kind": "scene",
+  "topics": [
+    "chemistry",
+    "ir_spectrum"
+  ],
+  "provenance": {
+    "origin": "project_procedural",
+    "creation_method": "ai_assisted_vector_code",
+    "source_module": "app/diagrams/extended_chemistry.py",
+    "source_symbol": "draw:ir_spectrum",
+    "source_hash": "sha256:c60cbd383629df3dc42d5bd2d28a5d86d736c7bf3eb692524016c8d3aac0e2da",
+    "external_graphics": [],
+    "derived_from": [],
+    "knowledge_references": [],
+    "statement": "项目独立编写矢量路径；通用符号与知识事实不代表独占造型。"
+  },
+  "review": {
+    "status": "passed",
+    "automatic": "passed",
+    "structure": "passed",
+    "visual": "passed",
+    "reviewer_type": "agent",
+    "reviewed_at": "2026-10-03",
+    "source_hash": "sha256:c60cbd383629df3dc42d5bd2d28a5d86d736c7bf3eb692524016c8d3aac0e2da",
+    "evidence": {
+      "profiles": [
+        "textbook",
+        "monochrome"
+      ],
+      "preview_rendered": true,
+      "parameter_boundary_checked": false,
+      "parameter_cases": 0,
+      "sheet_review": "/tmp/next-tutor-all-assets-contact-fixed",
+      "parameter_review": "/tmp/next-tutor-all-assets-review-final",
+      "individual_review": "/tmp/next-tutor-wall-source-review",
+      "review_note": "All 27 paired contact sheets inspected; changed families rerendered and inspected. Invalid cross-parameter endpoints explicitly rejected.",
+      "expansion_replay": {
+        "directory": "/tmp/next-tutor-expansion-review",
+        "baseline": "/tmp/next-tutor-wall-source-review",
+        "svg_hashes": {
+          "textbook": "sha256:580c310ed29c34f69b5745397906786269275f868972745567bd8adde6ad540c",
+          "monochrome": "sha256:83be616a4da2ab31b8b85ea1813da727b27c99547ab796361c65706242a446ea"
+        },
+        "unchanged_actual_svg": true,
+        "review_note": "Both re-rendered SVGs are byte-identical to reviewed baseline; prior visual evidence preserved."
+      }
+    },
+    "notes": "全目录双风格重新渲染无越界/文字碰撞，与前轮逐SVG字节核对仅墙体变化；墙体接触面双风格实图已审阅。"
+  },
+  "svg_file": "asset.svg",
+  "guidance_file": "usage_guide.json",
+  "svg_hash": "sha256:aa73f71209c54508454d1960d44d8918d0065528ed4cbd07a9a4fbc52de6fd77"
+}

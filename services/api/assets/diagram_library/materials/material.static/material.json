@@ -1,0 +1,10 @@
+{
+  "id": "material.static",
+  "title": "静态素材设计基底",
+  "version": 1,
+  "kind": "design_template",
+  "preview_only": true,
+  "svg_file": "asset.svg",
+  "guidance_file": "usage_guide.json",
+  "svg_hash": "sha256:1731a098b139bc8872e974a36fde19862ca9a39f194f5b62f064d85dab3942b6"
+}

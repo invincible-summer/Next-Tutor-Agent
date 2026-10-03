@@ -1,0 +1,8 @@
+{
+  "version": "1.0.0",
+  "hints": {
+    "authoring": "导管末端伸入烧杯并贴内壁，用connected表达端部连接。漏斗整体在杯上方，不用inside。只列题文明示器材。",
+    "requirements": "完整漏斗过滤装置包含funnel、beaker，单个need覆盖两个实体。",
+    "compose": "复用内部connected关系，relations=[]。定性滤液fill绑定liquid_present，non_quantitative声明fill。不要加铁架台或过滤步骤文字。"
+  }
+}

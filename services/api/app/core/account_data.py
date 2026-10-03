@@ -202,6 +202,7 @@ def scan_storage(user_ids: list[str]) -> dict[str, dict[str, Any]]:
     from app.identity import avatars
     for uid, buckets in out.items():
         buckets["avatar_bytes"] += _dir_size(avatars.owner_dir(uid))
+        buckets["knowledge_bytes"] += _dir_size(runtime_paths().diagram_assets / uid)
     for buckets in out.values():
         buckets["total_bytes"] = _total_of(buckets)
     return out
@@ -498,6 +499,10 @@ def _purge_account(user_id: str) -> dict[str, Any]:
 
     uid = _safe(user_id)
     before = scan_storage([uid]).get(uid, _empty_buckets())
+    from app.illustration.persistence import purge as purge_illustrations
+    purge_illustrations(uid)
+    from app.diagrams.materials import purge as purge_materials
+    purge_materials(uid)
     # §16.4：先吊销课堂工作资格（tombstone 防晚到写回），清理内再删根
     try:
         from app.classroom import lifecycle as classroom_lifecycle

@@ -1,0 +1,98 @@
+{
+  "id": "graph.class",
+  "title": "类关系框",
+  "english": "class diagram",
+  "category": "systems",
+  "renderer": "graph",
+  "variant": "class",
+  "version": 1,
+  "aliases": [],
+  "features": [],
+  "sample_params": {
+    "items": [
+      "A",
+      "B",
+      "C",
+      "D"
+    ],
+    "edges": [
+      [
+        0,
+        1
+      ],
+      [
+        0,
+        2
+      ],
+      [
+        1,
+        3
+      ],
+      [
+        2,
+        3
+      ]
+    ]
+  },
+  "license": "original-project-artwork",
+  "subjects": [
+    "systems"
+  ],
+  "education_levels": [
+    "junior",
+    "senior",
+    "undergraduate"
+  ],
+  "asset_kind": "object",
+  "topics": [
+    "systems",
+    "class"
+  ],
+  "provenance": {
+    "origin": "project_procedural",
+    "creation_method": "ai_assisted_vector_code",
+    "source_module": "app/diagrams/extended_deferred.py",
+    "source_symbol": "draw:class",
+    "source_hash": "sha256:2288e230bb5f526d1f85133677eb9560b790b0fca7596a861150e2f8201f0bd4",
+    "external_graphics": [],
+    "derived_from": [],
+    "knowledge_references": [],
+    "statement": "项目独立编写矢量路径；通用符号与知识事实不代表独占造型。"
+  },
+  "review": {
+    "status": "passed",
+    "automatic": "passed",
+    "structure": "passed",
+    "visual": "passed",
+    "reviewer_type": "agent",
+    "reviewed_at": "2026-10-03",
+    "source_hash": "sha256:2288e230bb5f526d1f85133677eb9560b790b0fca7596a861150e2f8201f0bd4",
+    "evidence": {
+      "profiles": [
+        "textbook",
+        "monochrome"
+      ],
+      "preview_rendered": true,
+      "parameter_boundary_checked": false,
+      "parameter_cases": 0,
+      "sheet_review": "/tmp/next-tutor-all-assets-contact-fixed",
+      "parameter_review": "/tmp/next-tutor-all-assets-review-final",
+      "individual_review": "/tmp/next-tutor-wall-source-review",
+      "review_note": "All 27 paired contact sheets inspected; changed families rerendered and inspected. Invalid cross-parameter endpoints explicitly rejected.",
+      "expansion_replay": {
+        "directory": "/tmp/next-tutor-expansion-review",
+        "baseline": "/tmp/next-tutor-wall-source-review",
+        "svg_hashes": {
+          "textbook": "sha256:481f30221bf3f41e9a734da309d5d939211f7b834f5615984620b46ff25c297b",
+          "monochrome": "sha256:ea9448cace58cf36b708fa513443ceee0035d2cb084b0e452782c15e8e34d1b3"
+        },
+        "unchanged_actual_svg": true,
+        "review_note": "Both re-rendered SVGs are byte-identical to reviewed baseline; prior visual evidence preserved."
+      }
+    },
+    "notes": "全目录双风格重新渲染无越界/文字碰撞，与前轮逐SVG字节核对仅墙体变化；墙体接触面双风格实图已审阅。"
+  },
+  "svg_file": "asset.svg",
+  "guidance_file": "usage_guide.json",
+  "svg_hash": "sha256:bbc5e063528d0df415425a526479ce7b5c2f5c274ebd8e52d0848009c67b0ac5"
+}

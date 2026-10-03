@@ -258,7 +258,7 @@ export function EvidenceDetailDrawer({
               <p className="mb-1 text-[0.7rem] font-medium text-fg-secondary">{t.task}</p>
               <div className="rounded-[8px] border border-border-light bg-surface px-2.5 py-2 text-xs leading-relaxed text-fg">
                 <p className="whitespace-pre-wrap">{detail.task.stem}</p>
-                <QuestionIllustration illustration={detail.task.illustration} />
+                <QuestionIllustration illustration={detail.task.illustration} questionId={detail.task.question_id} revision={detail.task.question_revision} visualRole={detail.task.visual_role} />
                 {Object.keys(detail.task.options || {}).length > 0 && (
                   <ul className="mt-1 space-y-0.5 text-fg-secondary">
                     {Object.entries(detail.task.options).map(([k, v]) => (

@@ -1,4 +1,5 @@
 import { defineConfig, devices } from "@playwright/test";
+import { resolve } from "node:path";
 
 /**
  * E2E（运行说明见 docs/TESTING.md）：真实 backend + frontend + fake LLM。
@@ -57,7 +58,9 @@ export default defineConfig({
       env: {
         EDU_TEST_KEYLESS: "1",
         AUTH_MODE: "1",
-        NEXT_TUTOR_DATA_DIR: "${E2E_BACKEND_HOME:-/tmp/edu-agent-e2e}/data",
+        NEXT_TUTOR_DATA_DIR: resolve(process.env.E2E_BACKEND_HOME || "/tmp/edu-agent-e2e", "data"),
+        ADMIN_EMAIL: "material-admin@e2e.example.com",
+        ADMIN_PASSWORD: "e2e-pass-123",
         OPENAI_API_KEY: "",
         AZURE_SPEECH_KEY: "",
         AZURE_SPEECH_REGION: "",

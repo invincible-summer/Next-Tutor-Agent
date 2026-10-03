@@ -1,0 +1,125 @@
+{
+  "id": "economics_extended.utility",
+  "title": "总边际效用",
+  "english": "Total and marginal utility",
+  "category": "economics",
+  "renderer": "economics_extended",
+  "variant": "utility",
+  "version": 1,
+  "aliases": [],
+  "features": [
+    "数据驱动"
+  ],
+  "sample_params": {
+    "points": [
+      [
+        0,
+        0.0
+      ],
+      [
+        1,
+        3.317988253928927
+      ],
+      [
+        2,
+        5.902040104310498
+      ],
+      [
+        3,
+        7.91450170888478
+      ],
+      [
+        4,
+        9.481808382428365
+      ],
+      [
+        5,
+        10.702428047097147
+      ],
+      [
+        6,
+        11.653047597773552
+      ],
+      [
+        7,
+        12.393390848243323
+      ],
+      [
+        8,
+        12.96997075145081
+      ],
+      [
+        9,
+        13.419011631572035
+      ],
+      [
+        10,
+        13.768725020641517
+      ],
+      [
+        11,
+        14.041082081899386
+      ]
+    ]
+  },
+  "license": "original-project-artwork",
+  "subjects": [
+    "economics"
+  ],
+  "education_levels": [
+    "senior",
+    "undergraduate"
+  ],
+  "asset_kind": "scene",
+  "topics": [
+    "economics",
+    "utility"
+  ],
+  "provenance": {
+    "origin": "project_procedural",
+    "creation_method": "ai_assisted_vector_code",
+    "source_module": "app/diagrams/extended_humanities.py",
+    "source_symbol": "draw:utility",
+    "source_hash": "sha256:36bb3cd99a2977447c6629be475137d94e41ac218c17e4aa13e70490b497092d",
+    "external_graphics": [],
+    "derived_from": [],
+    "knowledge_references": [],
+    "statement": "项目独立编写矢量路径；通用符号与知识事实不代表独占造型。"
+  },
+  "review": {
+    "status": "passed",
+    "automatic": "passed",
+    "structure": "passed",
+    "visual": "passed",
+    "reviewer_type": "agent",
+    "reviewed_at": "2026-10-03",
+    "source_hash": "sha256:36bb3cd99a2977447c6629be475137d94e41ac218c17e4aa13e70490b497092d",
+    "evidence": {
+      "profiles": [
+        "textbook",
+        "monochrome"
+      ],
+      "preview_rendered": true,
+      "parameter_boundary_checked": false,
+      "parameter_cases": 0,
+      "sheet_review": "/tmp/next-tutor-all-assets-contact-fixed",
+      "parameter_review": "/tmp/next-tutor-all-assets-review-final",
+      "individual_review": "/tmp/next-tutor-wall-source-review",
+      "review_note": "All 27 paired contact sheets inspected; changed families rerendered and inspected. Invalid cross-parameter endpoints explicitly rejected.",
+      "expansion_replay": {
+        "directory": "/tmp/next-tutor-expansion-review",
+        "baseline": "/tmp/next-tutor-wall-source-review",
+        "svg_hashes": {
+          "textbook": "sha256:5f4f7f40e85de89f15c80db5fa58fc5755a89cd563974613a017f5207cd313a4",
+          "monochrome": "sha256:88872532a923b2e05c8c8432f321b646ff0ab223e774fe7b1acbb77b9044696d"
+        },
+        "unchanged_actual_svg": true,
+        "review_note": "Both re-rendered SVGs are byte-identical to reviewed baseline; prior visual evidence preserved."
+      }
+    },
+    "notes": "全目录双风格重新渲染无越界/文字碰撞，与前轮逐SVG字节核对仅墙体变化；墙体接触面双风格实图已审阅。"
+  },
+  "svg_file": "asset.svg",
+  "guidance_file": "usage_guide.json",
+  "svg_hash": "sha256:aa215eda9631c3b1fde09045b0a60f7d77898e66a9202bcf4d22143e9474ab2d"
+}

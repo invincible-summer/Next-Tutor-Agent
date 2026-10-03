@@ -260,7 +260,7 @@ class GenerateQuizTool(Tool):
             return prompt
 
         questions, verification = await generate_verified_questions(
-            llm, make_prompt=make_prompt_with_feedback,
+            llm, student_id=getattr(provider, "student_id", ""), make_prompt=make_prompt_with_feedback,
             parse=parse_requested_type,
             topic=topic, grade=grade, difficulty=difficulty,
             temperature=0.4, max_tokens=(min(16000, 5000 + 2200 * count) if policy != "off" else 5000),

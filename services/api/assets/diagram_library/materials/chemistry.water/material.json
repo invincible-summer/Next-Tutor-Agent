@@ -1,0 +1,72 @@
+{
+  "id": "chemistry.water",
+  "title": "水分子",
+  "english": "water molecule",
+  "category": "chemistry",
+  "renderer": "chemistry",
+  "variant": "water",
+  "version": 2,
+  "aliases": [],
+  "features": [],
+  "sample_params": {},
+  "license": "original-project-artwork",
+  "subjects": [
+    "chemistry"
+  ],
+  "education_levels": [
+    "junior",
+    "senior",
+    "undergraduate"
+  ],
+  "asset_kind": "object",
+  "topics": [
+    "chemistry",
+    "water"
+  ],
+  "provenance": {
+    "origin": "project_procedural",
+    "creation_method": "ai_assisted_vector_code",
+    "source_module": "app/diagrams/systems.py",
+    "source_symbol": "chemistry:water",
+    "source_hash": "sha256:d4489571c90419d8a44b4415225411a789f62d32c72674110be6610d49ed937b",
+    "external_graphics": [],
+    "derived_from": [],
+    "knowledge_references": [
+      {
+        "url": "https://openstax.org/books/chemistry/pages/8-2-hybrid-atomic-orbitals",
+        "purpose": "水分子104.5°弯曲键角；仅核对事实，未使用外部图形",
+        "checked_at": "2026-10-03",
+        "type": "fact_only"
+      }
+    ],
+    "statement": "项目独立编写矢量路径；通用符号与知识事实不代表独占造型。"
+  },
+  "review": {
+    "status": "passed",
+    "automatic": "passed",
+    "structure": "passed",
+    "visual": "passed",
+    "reviewer_type": "agent",
+    "reviewed_at": "2026-10-03",
+    "source_hash": "sha256:d4489571c90419d8a44b4415225411a789f62d32c72674110be6610d49ed937b",
+    "evidence": {
+      "profiles": [
+        "textbook",
+        "monochrome"
+      ],
+      "preview_rendered": true,
+      "parameter_boundary_checked": true,
+      "parameter_cases": 2,
+      "sheet_review": "/tmp/next-tutor-expansion-scoped-final",
+      "correction_review": "/tmp/next-tutor-expansion-corrections",
+      "svg_hashes": {
+        "textbook": "sha256:6e4cb9d2f02cee69a19959e4a9c08c1659f4440303bb9f27c600112c17d28236",
+        "monochrome": "sha256:badbe8c7f270754f76ba762dcda8edce16adb8a2c611895d3ac4496a85d19a5f"
+      },
+      "review_note": "All 12 large paired sheets and both correction sheets inspected. Closed-pipe ends, electrode/ion directions, daylight, membrane layers, actual numeric controls checked. Final XML matches selected evidence."
+    }
+  },
+  "svg_file": "asset.svg",
+  "guidance_file": "usage_guide.json",
+  "svg_hash": "sha256:c1d28e483d8d53aab3e58f6827fb73185c7b5a0c8c62a1ef662393dc83354935"
+}

@@ -114,6 +114,13 @@ async def enrich_question_illustration(
             "metrics": {"generation_calls": 0, "cache_hit": 1},
         }
 
+    from app.illustration import persistence
+    from app.illustration.events import public_job
+    from .illustration_jobs import recovered_job
+    job = persistence.find_job(student_id, question_id, req.question_revision)
+    if job is not None:
+        return public_job(student_id, recovered_job(student_id, job))
+
     # Switches gate only *new* generation. A previously reviewed enrichment is
     # historical material for this question identity and must remain readable
     # after the user or operator disables future diagram generation.
@@ -136,6 +143,26 @@ async def enrich_question_illustration(
     except IllustrationDisabled:
         raise _error(409, "illustration_disabled",
                      "题目插图已关闭，请在习题中心开启后重试")
+    from app.core.config import settings
+    if settings.quiz_illustration_pipeline == "v2":
+        from .illustration_jobs import task_contract
+        from app.illustration.orchestrator import start_job
+        from app.illustration.contracts import IllustrationError
+        try:
+            job = start_job(student_id, task_contract(task), policy)
+        except IllustrationError as exc:
+            return {"status": "failed", "visual_role": "supplemental", "question_id": question_id,
+                "question_revision": req.question_revision, "illustration": None,
+                "code": exc.code, "failure": {"code": exc.code, "retryable": False}}
+        return public_job(student_id, job)
     result = await generate_assessment_illustration(
         student_id=student_id, task=task, policy=policy)
+    if settings.quiz_illustration_pipeline == "shadow":
+        from .illustration_jobs import task_contract
+        from app.illustration.orchestrator import start_job
+        from app.illustration.contracts import IllustrationError
+        try:
+            start_job(student_id, task_contract(task), policy, shadow=True)
+        except IllustrationError:
+            pass
     return _public_result(question_id, req.question_revision, result)

@@ -8,8 +8,6 @@ revision, and it never accepts model-authored SVG.
 from __future__ import annotations
 
 import asyncio
-import copy
-import hashlib
 import json
 import logging
 import re
@@ -109,73 +107,6 @@ def _read_cached(student_id: str, question_id: str,
     return None
 
 
-def _recent_diagram_context(student_id: str, question_id: str,
-                            question_revision: int, *, limit: int = 12) -> tuple[set[str], set[str]]:
-    """Read recent frozen diagrams for adaptive visual diversity.
-
-    The cache is the source of truth for delivered question material.  We use
-    only asset IDs and content hashes as generation hints; no private student
-    text is sent to the model.  The current question is excluded so retries
-    remain cache/idempotency safe.
-    """
-    current = _key(question_id, question_revision)
-    try:
-        path = _path(student_id)
-        with file_lock(path):
-            items = _load_store(student_id).get("items", {})
-    except (OSError, RuntimeError, ValueError):
-        return set(), set()
-    if not isinstance(items, dict):
-        return set(), set()
-    ordered = sorted(
-        ((str(key), value) for key, value in items.items() if isinstance(value, dict)),
-        key=lambda item: int(item[1].get("updated_at") or 0), reverse=True)
-    asset_ids: set[str] = set()
-    hashes: set[str] = set()
-    count = 0
-    for key, item in ordered:
-        if key == current or item.get("status") != "ready":
-            continue
-        illustration = item.get("illustration")
-        if isinstance(illustration, dict) and illustration.get("content_hash"):
-            hashes.add(str(illustration["content_hash"]))
-        source = item.get("diagram_source")
-        if isinstance(source, dict):
-            for asset_id in (source.get("asset_versions") or {}):
-                if isinstance(asset_id, str):
-                    asset_ids.add(asset_id)
-            scene_hash = source.get("scene_hash")
-            if scene_hash:
-                hashes.add(str(scene_hash))
-        count += 1
-        if count >= limit:
-            break
-    return asset_ids, hashes
-
-
-def _scene_variants(scene: dict, *, seed: str) -> list[dict]:
-    """Return small layout variants while retaining the LLM's composition."""
-    digest = hashlib.sha256(str(seed).encode("utf-8")).digest()
-    options = ((6, -4), (-6, 4), (4, 5), (-4, -5), (0, 6))
-    start = digest[0] % len(options)
-    width = float(scene.get("width") or 640)
-    height = float(scene.get("height") or 400)
-    variants = []
-    for offset in range(len(options)):
-        dx, dy = options[(start + offset) % len(options)]
-        candidate = copy.deepcopy(scene)
-        nodes = candidate.get("nodes", [])
-        for node in nodes:
-            if not isinstance(node, dict):
-                continue
-            node["x"] = max(4, min(max(4, width - 4),
-                                    float(node.get("x", 0)) + dx))
-            node["y"] = max(4, min(max(4, height - 4),
-                                    float(node.get("y", 0)) + dy))
-        variants.append(candidate)
-    return variants
-
-
 def get_cached_assessment_illustration(
     student_id: str, question_id: str, question_revision: int,
 ) -> dict[str, Any] | None:
@@ -210,14 +141,22 @@ def _write_cached(student_id: str, question_id: str, question_revision: int,
 
 
 def _task_payload(task: S.TaskSnapshot) -> dict[str, Any]:
+    """Student-visible question material for requirements and composition."""
     return {
         "question_id": task.question_id,
         "question_revision": task.question_revision,
         "type": task.q_type,
         "stem": task.stem,
         "options": task.options,
+    }
+
+
+def _authoring_gold(task: S.TaskSnapshot) -> dict[str, Any]:
+    """Private grading material is available only to the independent audit."""
+    return {
         "answer": task.answer,
         "explanation": task.explanation,
+        "rubric": [criterion.model_dump(mode="json") for criterion in task.rubric],
     }
 
 
@@ -287,6 +226,8 @@ def _clean_scene(raw: Any) -> dict[str, Any] | None:
     scene = raw.get("diagram_scene", raw)
     if not isinstance(scene, dict):
         return None
+    if any(key in scene for key in ("fragments", "svg", "illustration")):
+        raise DiagramError("diagram_model_svg_forbidden")
     out: dict[str, Any] = {}
     for key in ("schema_version", "width", "height", "profile", "alt", "caption"):
         if key in scene:
@@ -352,6 +293,7 @@ def _audit_messages(task: S.TaskSnapshot, illustration: QuestionIllustration) ->
             "独立检查补充题图与冻结题目是否一致。图只能帮助理解已有文字条件，不能新增必需条件、"
             "不能改变正确答案、不能泄露待求结论。"
             f"\n冻结题目={json.dumps(_task_payload(task), ensure_ascii=False)}"
+            f"\n审查专用 authoring_gold={json.dumps(_authoring_gold(task), ensure_ascii=False)}"
             f"\n规范化题图={json.dumps(illustration.model_dump(mode='json'), ensure_ascii=False)}"
             "\n只返回 JSON：通过 => {\"status\":\"passed\",\"issues\":[]}；"
             "不通过 => {\"status\":\"failed\",\"issues\":[...]}。"
@@ -392,9 +334,8 @@ async def _generate_uncached(*, student_id: str, task: S.TaskSnapshot,
     )
     model = llm or get_llm("quiz")
     from app.core.quiz_illustration_policy import account_allows_illustration_review
-    # The deterministic sanitizer always runs.  The independent semantic audit
-    # is the step most likely to time out or false-reject on a real model; the
-    # per-student switch skips it entirely (verified-ready, no audit trail).
+    # The deterministic sanitizer always runs. The per-student review switch
+    # controls the additional semantic audit for this legacy path.
     review_enabled = account_allows_illustration_review(student_id)
     try:
         # The component pipeline is mandatory.  It performs the model's
@@ -435,13 +376,10 @@ async def _generate_component_enrichment(*, student_id, task, policy, model, bud
     from app.diagrams.pipeline import (
         compile_questions,
         declare_and_retrieve,
-        fallback_scene,
         scene_contract,
     )
     client = BudgetedLLM(model, budget, call_timeout=GENERATION_CALL_TIMEOUT_SECONDS)
     context = "冻结文字题，仅补充已有条件，不改写题目：" + json.dumps(_task_payload(task), ensure_ascii=False)
-    recent_asset_ids, recent_hashes = _recent_diagram_context(
-        student_id, task.question_id, task.question_revision)
     bundle = await declare_and_retrieve(client, context=context, policy=policy)
     if policy == "auto" and not any(
             requirement.illustration_needed for requirement in bundle.requirements):
@@ -451,115 +389,24 @@ async def _generate_component_enrichment(*, student_id, task, policy, model, bud
                       status="not_required")
         return {"status": "not_required", "illustration": None,
                 "metrics": budget.summary()}
-    local_recovery = False
-    try:
-        text = await _complete(model, budget, [
-            {"role": "system", "content": scene_contract(
-                bundle, policy, avoid_asset_ids=recent_asset_ids) +
-             '\n冻结题只返回 {"questions":[{"diagram_scene":构图或null}]}；不得输出 illustration、SVG 或改变文字、答案、解析、量规。'},
-            {"role": "user", "content": context}],
-            timeout=max(.1, min(GENERATION_CALL_TIMEOUT_SECONDS,
-                                budget.remaining_seconds-FINAL_AUDIT_RESERVE_SECONDS)), max_tokens=2600)
-        data = extract_json_object(text)
-    except Exception as exc:
-        # Composition is an enrichment phase.  If the provider times out or
-        # returns a transport/protocol error after requirements were retrieved,
-        # compile the safe local arrangement immediately.  This keeps the
-        # frozen text question usable and avoids spending a redraw call.
-        logger.warning("diagram scene composition unavailable; using local recovery: %s",
-                       type(exc).__name__)
-        data = None
-        local_recovery = True
+    text = await _complete(model, budget, [
+        {"role": "system", "content": scene_contract(bundle, policy) +
+         '\n冻结题只返回 {"questions":[{"diagram_scene":构图或null}]}；不得输出 illustration、SVG 或改变文字、答案、解析、量规。'},
+        {"role": "user", "content": context}],
+        timeout=max(.1, min(GENERATION_CALL_TIMEOUT_SECONDS,
+                            budget.remaining_seconds-FINAL_AUDIT_RESERVE_SECONDS)), max_tokens=2600)
+    data = extract_json_object(text)
     row, direct_svg = _scene_row(data)
     if direct_svg:
-        # Preserve the compiler's explicit rejection code for the old direct
-        # SVG contract; local recovery must never turn that into acceptance.
-        row = row or {"illustration": {"kind": "svg"}}
-    else:
-        scene = _clean_scene(row.get("diagram_scene") if row else None)
-        if scene is None:
-            scene = fallback_scene(
-                bundle, alt="题目条件示意图", avoid_asset_ids=recent_asset_ids,
-                seed=f"{task.question_id}:{task.question_revision}")
-            local_recovery = True
-        row = {"diagram_scene": scene} if scene is not None else {"diagram_scene": None}
-    compiled = compile_questions(
-        [row], bundle, policy,
-        fallback_avoid_asset_ids=recent_asset_ids,
-        fallback_seed=f"{task.question_id}:{task.question_revision}")[0]
+        raise IllustrationValidationError("diagram_model_svg_forbidden")
+    if row is None:
+        raise IllustrationValidationError("diagram_invalid_scene")
+    scene = _clean_scene(row.get("diagram_scene"))
+    row = {"diagram_scene": scene}
+    compiled = compile_questions([row], bundle, policy)[0]
     if compiled.get("_diagram_error"):
         raise IllustrationValidationError(compiled["_diagram_error"])
 
-    deduplicated = False
-    current_illustration = compiled.get("illustration")
-    current_source = compiled.get("diagram_source")
-    current_hashes = {
-        str(value) for value in (
-            current_illustration.get("content_hash") if isinstance(current_illustration, dict) else None,
-            current_source.get("scene_hash") if isinstance(current_source, dict) else None,
-        ) if value
-    }
-    if current_hashes & recent_hashes and not direct_svg:
-        # Preserve the LLM's semantic composition first.  A small deterministic
-        # translation changes only presentation, so repeated CAT questions do
-        # not look identical while the physical relationships and parameters
-        # remain exactly those selected by the model.
-        scene = _clean_scene(row.get("diagram_scene"))
-        if scene is not None:
-            for variant in _scene_variants(
-                    scene, seed=f"{task.question_id}:{task.question_revision}"):
-                candidate = compile_questions(
-                    [{"diagram_scene": variant}], bundle, policy,
-                    fallback_avoid_asset_ids=recent_asset_ids,
-                    fallback_seed=f"{task.question_id}:{task.question_revision}")[0]
-                if candidate.get("_diagram_error"):
-                    continue
-                candidate_illustration = candidate.get("illustration")
-                candidate_source = candidate.get("diagram_source")
-                candidate_hashes = {
-                    str(value) for value in (
-                        candidate_illustration.get("content_hash")
-                        if isinstance(candidate_illustration, dict) else None,
-                        candidate_source.get("scene_hash")
-                        if isinstance(candidate_source, dict) else None,
-                    ) if value
-                }
-                if not candidate_hashes & recent_hashes:
-                    compiled = candidate
-                    deduplicated = True
-                    break
-        # If a translation cannot compile (for example a scene was already at
-        # the edge of the canvas), use the deterministic local compositor with
-        # alternative authorized assets and a stable seed.
-        if not deduplicated:
-            recovery = fallback_scene(
-                bundle, alt=str(current_illustration.get("alt")
-                                if isinstance(current_illustration, dict) else "题目条件示意图"),
-                allowed_assets={aid for need in bundle.needs
-                                if need.get("question_slot") == "q1"
-                                for aid in need.get("candidates", [])},
-                avoid_asset_ids=recent_asset_ids,
-                seed=f"{task.question_id}:{task.question_revision}")
-            if recovery is not None:
-                candidate = compile_questions(
-                    [{"diagram_scene": recovery}], bundle, policy,
-                    fallback_avoid_asset_ids=recent_asset_ids,
-                    fallback_seed=f"{task.question_id}:{task.question_revision}")[0]
-                if not candidate.get("_diagram_error"):
-                    candidate_illustration = candidate.get("illustration")
-                    candidate_source = candidate.get("diagram_source")
-                    candidate_hashes = {
-                        str(value) for value in (
-                            candidate_illustration.get("content_hash")
-                            if isinstance(candidate_illustration, dict) else None,
-                            candidate_source.get("scene_hash")
-                            if isinstance(candidate_source, dict) else None,
-                        ) if value
-                    }
-                    if not candidate_hashes & recent_hashes:
-                        compiled = candidate
-                        deduplicated = True
-                        local_recovery = True
     raw = compiled.get("illustration")
     if raw is None:
         if policy == "required":
@@ -574,12 +421,7 @@ async def _generate_component_enrichment(*, student_id, task, policy, model, bud
             raise IllustrationValidationError("illustration_audit_failed")
     _write_cached(student_id, task.question_id, task.question_revision, status="ready",
                   illustration=illustration, diagram_source=compiled.get("diagram_source"))
-    metrics = budget.summary()
-    if local_recovery or compiled.get("diagram_recovery"):
-        metrics["diagram_recovery"] = 1
-    if deduplicated:
-        metrics["diagram_deduplicated"] = 1
-    return {"status": "ready", "illustration": illustration, "metrics": metrics}
+    return {"status": "ready", "illustration": illustration, "metrics": budget.summary()}
 
 
 async def _run_singleflight(*, flight_key: str, student_id: str,

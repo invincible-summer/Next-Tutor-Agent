@@ -1,0 +1,14 @@
+{
+  "id": "recipe.series_circuit",
+  "title": "电池开关电阻电流表串联",
+  "aliases": [
+    "串联电路"
+  ],
+  "version": 1,
+  "kind": "recipe",
+  "renderer": "registered_v2_recipe",
+  "preview_only": true,
+  "svg_file": "asset.svg",
+  "guidance_file": "usage_guide.json",
+  "svg_hash": "sha256:6aaa7f6bb5cc879b9a5255f7af1cc5f24c2f1e85f1044d02b749104a7248c075"
+}

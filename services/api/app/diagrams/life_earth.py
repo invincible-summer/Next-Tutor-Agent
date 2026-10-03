@@ -109,12 +109,17 @@ def biology(variant: str, p: dict, mono=False) -> Drawing:
             d.ellipse(80, 80, 65, 34, fill=d.glass, color=d.blue)
             d.path("M 24 79 C 30 55 50 55 54 68 L 57 92 Q 65 103 69 73 Q 75 51 79 82 Q 84 107 93 72 Q 101 54 110 78 Q 123 99 135 77", color=d.blue)
         elif variant == "chloroplast":
-            d.ellipse(80, 80, 65, 36, fill="#e4efe8" if not mono else d.glass, color=d.green)
-            for x, y in [(40, 70), (80, 80), (119, 65)]:
+            d = Drawing(240, 160, mono)
+            membrane = d.ink if mono else d.green
+            d.ellipse(120, 80, 106, 60, fill="#e4efe8" if not mono else d.glass, color=membrane)
+            d.ellipse(120, 80, 99, 53, color=membrane, width=1)
+            # Lamellae join stacks without crossing the double envelope.
+            d.line(69, 83, 102, 83, color=membrane, width=2)
+            d.line(138, 92, 172, 74, color=membrane, width=2)
+            for x, y in [(51, 66), (120, 75), (190, 57)]:
                 for i in range(4):
-                    d.ellipse(x, y+i*5, 13, 3, fill=d.green, color=d.green, width=1)
-            d.line(53, 83, 68, 83, color=d.green)
-            d.line(92, 85, 107, 74, color=d.green)
+                    d.rect(x-18, y+i*6, 36, 5, fill=d.surface, color=membrane, radius=2, width=1)
+            d.facts["structure"] = ["double_envelope", "grana", "stroma_lamellae", "stroma"]
         elif variant in {"membrane", "cell_wall"}:
             for i in range(12):
                 x = 15+i*12

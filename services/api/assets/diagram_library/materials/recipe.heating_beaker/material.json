@@ -1,0 +1,15 @@
+{
+  "id": "recipe.heating_beaker",
+  "title": "加热烧杯",
+  "aliases": [
+    "烧杯加热装置",
+    "酒精灯加热烧杯"
+  ],
+  "version": 1,
+  "kind": "recipe",
+  "renderer": "registered_v2_recipe",
+  "preview_only": true,
+  "svg_file": "asset.svg",
+  "guidance_file": "usage_guide.json",
+  "svg_hash": "sha256:6f7c4bee64e53bcad46653eaa330218956bc5fd6391727ab1d146cd12fa792f9"
+}

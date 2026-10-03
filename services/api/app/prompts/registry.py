@@ -605,3 +605,8 @@ _register_classroom_prompts()
 # 站内学习助手三段 prompt（plan.md §10.5，A09）——文本在 prompts/site_assistant.py
 from .site_assistant import register as _register_site_assistant_prompts
 _register_site_assistant_prompts()
+
+from .diagram_material import register as _register_material_prompts
+_register_material_prompts()
+from app.diagrams.guidance import register as _register_asset_guidance
+_register_asset_guidance()

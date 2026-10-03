@@ -10,9 +10,9 @@ from fastapi.testclient import TestClient
 from app.core.config import settings
 from app.core.quiz_generation_budget import BudgetedLLM, GenerationBudget
 from app.core.quiz_illustration import QuestionIllustration, normalize_illustration
-from app.diagrams.catalog import catalog, retrieve, search
+from app.diagrams.catalog import CandidateBundle, catalog, retrieve, search
 from app.diagrams.compiler import compile_scene, preview_asset
-from app.diagrams.pipeline import compile_questions, fallback_requirements, fallback_scene, retrieve_declaration
+from app.diagrams.pipeline import compile_questions, fallback_requirements, retrieve_declaration
 from app.diagrams.schema import DiagramError, VisualRequirements
 from tests.storage_sandbox import StorageSandboxTestCase
 
@@ -74,36 +74,93 @@ class DiagramLibraryTest(StorageSandboxTestCase):
         formula = assets["chemistry.ethanol"].draw().facts["atoms"]
         self.assertEqual([formula.count(v) for v in ["C", "H", "O"]], [2, 6, 1])
 
-    def test_local_scene_recovery_never_uses_chart_preview_data(self):
+    def test_missing_chart_data_never_uses_gallery_or_renderer_defaults(self):
         requirements = [VisualRequirements.model_validate({
             "question_slot": "q1", "illustration_needed": True,
             "needs": [{"key": "chart", "name": "柱状图"}],
         })]
         bundle = retrieve(requirements)
-        self.assertIsNone(fallback_scene(bundle))
+        result = compile_questions([{"diagram_scene": {"alt": "题目数据",
+            "nodes": [{"id": "chart", "asset_id": "chart.bar", "x": 20, "y": 20}]}}],
+            bundle, "required")[0]
+        self.assertEqual(result["_diagram_error"], "diagram_missing_fact_binding")
+        self.assertIsNone(result["illustration"])
+        self.assertNotIn("diagram_recovery", result)
 
-    def test_local_recovery_keeps_semantic_need_names_and_prefers_complete_template(self):
+    def test_requirements_recovery_cannot_supply_default_template_conditions(self):
         declaration = fallback_requirements("用酒精灯给烧杯加热", policy="required")
         bundle = retrieve_declaration(declaration, policy="required")
         self.assertTrue(any(need["name"] == "烧杯" for need in bundle.needs))
-        scene = fallback_scene(bundle, seed="template-quality")
-        self.assertIsNotNone(scene)
-        self.assertEqual([node["asset_id"] for node in scene["nodes"]],
-                         ["template.heating_beaker"])
-        compiled = compile_scene(scene, allowed_assets={"template.heating_beaker"})
-        self.assertIn("template.heating_beaker", compiled.source.asset_versions)
+        result = compile_questions([{"diagram_scene": {"alt": "加热烧杯",
+            "nodes": [{"id": "scene", "asset_id": "template.heating_beaker",
+                       "x": 16, "y": 16, "scale": .9}]}}], bundle, "required")[0]
+        self.assertEqual(result["_diagram_error"], "diagram_missing_fact_binding")
+        self.assertIsNone(result["illustration"])
 
-    def test_local_recovery_does_not_treat_candidate_order_as_a_layout(self):
+    def test_missing_scene_cannot_turn_retrieved_components_into_a_layout(self):
         declaration = fallback_requirements("小车沿水平直线向右运动", policy="required")
         bundle = retrieve_declaration(declaration, policy="required")
-        scene = fallback_scene(bundle, seed="cart-quality")
-        self.assertIsNotNone(scene)
-        ids = [node["asset_id"] for node in scene["nodes"]]
-        self.assertEqual(ids[:3], ["mechanics.cart", "geometry.arrow", "geometry.line"])
-        # Related objects share a baseline and are individually scaled; they
-        # are no longer placed as four unrelated grid cells.
-        self.assertEqual(len({round(node["y"], 1) for node in scene["nodes"]}), 1)
-        self.assertLessEqual(len(scene["nodes"]), 3)
+        result = compile_questions([{"diagram_scene": None}], bundle, "required")[0]
+        self.assertEqual(result["_diagram_error"], "illustration_required_missing")
+        self.assertIsNone(result["illustration"])
+        self.assertNotIn("diagram_source", result)
+
+    def test_invalid_scene_preserves_its_error_instead_of_substituting_candidates(self):
+        bundle = retrieve_declaration(REQUIREMENTS, policy="required")
+        raw = copy.deepcopy(QUESTION)
+        raw["diagram_scene"]["nodes"][0]["x"] = 0
+        result = compile_questions([raw], bundle, "required")[0]
+        self.assertEqual(result["_diagram_error"], "diagram_component_out_of_bounds")
+        self.assertIsNone(result["illustration"])
+        self.assertNotIn("diagram_source", result)
+        self.assertNotIn("diagram_recovery", result)
+
+    def test_new_scenes_must_explicitly_choose_condition_parameters(self):
+        assets = catalog()[1]
+        choices = {
+            "measurement.dynamometer": {"reading": 3, "maximum": 5, "scale_labels": False},
+            "circuit.switch": {"closed": True},
+            "mechanics.incline": {"angle": 20},
+            "vessel.beaker": {"fill": .5, "show_scale": False},
+            "geometry.dice": {"face": 3},
+        }
+        for asset_id, parameters in choices.items():
+            with self.subTest(asset=asset_id):
+                bundle = retrieve_declaration({"requirements": [{
+                    "question_slot": "q1", "illustration_needed": True,
+                    "needs": [{"key": "object", "name": assets[asset_id].title}],
+                }]}, policy="required")
+                scene = {"alt": "题目已知条件", "nodes": [{"id": "object",
+                    "asset_id": asset_id, "x": 20, "y": 20}]}
+                missing = compile_questions([{"diagram_scene": scene}], bundle, "required")[0]
+                self.assertEqual(missing["_diagram_error"], "diagram_missing_fact_binding")
+                scene["nodes"][0]["params"] = parameters
+                explicit = compile_questions([{"diagram_scene": scene}], bundle, "required")[0]
+                self.assertNotIn("_diagram_error", explicit)
+                actual = explicit["diagram_facts"][0]["parameters"]
+                for key, value in parameters.items():
+                    self.assertEqual(actual[key], value)
+
+    def test_fixed_readout_templates_are_rejected_when_legacy_schema_cannot_bind_state(self):
+        # This gate is independent of catalog review/retrieval: even an
+        # authorized historical template cannot supply unexposed state.
+        assets = catalog()[1]
+        for asset_id, parameters in {
+            "template.buoyancy": {"fill": .65},
+            "template.overflow": {"fill": .2},
+            "template.thermal": {},
+        }.items():
+            with self.subTest(asset=asset_id):
+                requirement = VisualRequirements.model_validate({"question_slot": "q1",
+                    "illustration_needed": True, "needs": [{"key": "scene", "name": assets[asset_id].title}]})
+                bundle = CandidateBundle([requirement], {asset_id: assets[asset_id]}, [{
+                    "question_slot": "q1", "key": "scene", "candidates": [asset_id]}])
+                result = compile_questions([{"diagram_scene": {"alt": "已有条件",
+                    "nodes": [{"id": "scene", "asset_id": asset_id, "x": 16, "y": 16,
+                               "scale": .9, "params": parameters}]}}], bundle, "required")[0]
+                self.assertEqual(result["_diagram_error"], "diagram_missing_fact_binding")
+                self.assertIsNone(result["illustration"])
+                self.assertNotIn("diagram_source", result)
 
     def test_invalid_scientific_data_is_rejected_before_delivery(self):
         assets = catalog()[1]
@@ -130,7 +187,7 @@ class DiagramLibraryTest(StorageSandboxTestCase):
         bundle = retrieve(rows)
         question = {"id": "second", "diagram_source": {"forged": True},
                     "diagram_scene": {"alt": "已知骰子形态", "nodes": [{"id": "die",
-                        "asset_id": "geometry.dice", "x": 40, "y": 40}]}}
+                        "asset_id": "geometry.dice", "x": 40, "y": 40, "params": {"face": 3}}]}}
         compiled = compile_questions([question], bundle, "required", question_slots={"second": "q2"})[0]
         self.assertNotIn("_diagram_error", compiled)
         self.assertEqual(compiled["visual_requirements"]["question_slot"], "q2")

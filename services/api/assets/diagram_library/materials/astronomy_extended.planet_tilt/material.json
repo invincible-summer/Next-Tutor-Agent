@@ -1,0 +1,73 @@
+{
+  "id": "astronomy_extended.planet_tilt",
+  "title": "行星自转倾角",
+  "english": "Planetary axial tilt",
+  "category": "astronomy",
+  "renderer": "astronomy_extended",
+  "variant": "planet_tilt",
+  "version": 1,
+  "aliases": [],
+  "features": [],
+  "sample_params": {},
+  "license": "original-project-artwork",
+  "subjects": [
+    "astronomy"
+  ],
+  "education_levels": [
+    "junior",
+    "senior",
+    "undergraduate"
+  ],
+  "asset_kind": "scene",
+  "topics": [
+    "astronomy",
+    "planet_tilt"
+  ],
+  "provenance": {
+    "origin": "project_procedural",
+    "creation_method": "ai_assisted_vector_code",
+    "source_module": "app/diagrams/extended_engineering.py",
+    "source_symbol": "draw:planet_tilt",
+    "source_hash": "sha256:9e8143848fbd7748174804747bab0927d70a6043cc7de1a0914f2c8db4617ed5",
+    "external_graphics": [],
+    "derived_from": [],
+    "knowledge_references": [],
+    "statement": "项目独立编写矢量路径；通用符号与知识事实不代表独占造型。"
+  },
+  "review": {
+    "status": "passed",
+    "automatic": "passed",
+    "structure": "passed",
+    "visual": "passed",
+    "reviewer_type": "agent",
+    "reviewed_at": "2026-10-03",
+    "source_hash": "sha256:9e8143848fbd7748174804747bab0927d70a6043cc7de1a0914f2c8db4617ed5",
+    "evidence": {
+      "profiles": [
+        "textbook",
+        "monochrome"
+      ],
+      "preview_rendered": true,
+      "parameter_boundary_checked": true,
+      "parameter_cases": 2,
+      "sheet_review": "/tmp/next-tutor-all-assets-contact-fixed",
+      "parameter_review": "/tmp/next-tutor-all-assets-review-final",
+      "individual_review": "/tmp/next-tutor-wall-source-review",
+      "review_note": "All 27 paired contact sheets inspected; changed families rerendered and inspected. Invalid cross-parameter endpoints explicitly rejected.",
+      "expansion_replay": {
+        "directory": "/tmp/next-tutor-expansion-review",
+        "baseline": "/tmp/next-tutor-wall-source-review",
+        "svg_hashes": {
+          "textbook": "sha256:fbde910ef51d2e5c8a5a2d4f6da850eb7d11d34d14ccb1c95fa579da4cd32bc3",
+          "monochrome": "sha256:9ab8f502ee56d4d0f2a0943d7d1db715c95d8f58c6ce3560941158f71c22cc37"
+        },
+        "unchanged_actual_svg": true,
+        "review_note": "Both re-rendered SVGs are byte-identical to reviewed baseline; prior visual evidence preserved."
+      }
+    },
+    "notes": "全目录双风格重新渲染无越界/文字碰撞，与前轮逐SVG字节核对仅墙体变化；墙体接触面双风格实图已审阅。"
+  },
+  "svg_file": "asset.svg",
+  "guidance_file": "usage_guide.json",
+  "svg_hash": "sha256:deb2410a46b8a92e2b2cf5f07011345851e8b71a1caea70c7d3bf11f9f38e742"
+}

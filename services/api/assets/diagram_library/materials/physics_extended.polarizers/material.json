@@ -1,0 +1,80 @@
+{
+  "id": "physics_extended.polarizers",
+  "title": "偏振片组",
+  "english": "Polarizer pair",
+  "category": "physics",
+  "renderer": "physics_extended",
+  "variant": "polarizers",
+  "version": 1,
+  "aliases": [],
+  "features": [],
+  "sample_params": {},
+  "license": "original-project-artwork",
+  "subjects": [
+    "physics"
+  ],
+  "education_levels": [
+    "junior",
+    "senior",
+    "undergraduate"
+  ],
+  "asset_kind": "scene",
+  "topics": [
+    "physics",
+    "polarizers"
+  ],
+  "provenance": {
+    "origin": "project_procedural",
+    "creation_method": "ai_assisted_vector_code",
+    "source_module": "app/diagrams/extended_physics.py",
+    "source_symbol": "draw:polarizers",
+    "source_hash": "sha256:a58b50a5f2678d478b71313d195565a9c34a514c1364b4409bb4188eb5e0086b",
+    "external_graphics": [],
+    "derived_from": [],
+    "knowledge_references": [
+      {
+        "url": "https://openstax.org/books/university-physics-volume-3/pages/1-7-polarization",
+        "purpose": "偏振片方向与透射关系；未使用该书图形",
+        "checked_at": "2026-10-02",
+        "type": "fact_only"
+      }
+    ],
+    "statement": "项目独立编写矢量路径；通用符号与知识事实不代表独占造型。"
+  },
+  "review": {
+    "status": "passed",
+    "automatic": "passed",
+    "structure": "passed",
+    "visual": "passed",
+    "reviewer_type": "agent",
+    "reviewed_at": "2026-10-03",
+    "source_hash": "sha256:a58b50a5f2678d478b71313d195565a9c34a514c1364b4409bb4188eb5e0086b",
+    "evidence": {
+      "profiles": [
+        "textbook",
+        "monochrome"
+      ],
+      "preview_rendered": true,
+      "parameter_boundary_checked": true,
+      "parameter_cases": 2,
+      "sheet_review": "/tmp/next-tutor-all-assets-contact-fixed",
+      "parameter_review": "/tmp/next-tutor-all-assets-review-final",
+      "individual_review": "/tmp/next-tutor-wall-source-review",
+      "review_note": "All 27 paired contact sheets inspected; changed families rerendered and inspected. Invalid cross-parameter endpoints explicitly rejected.",
+      "expansion_replay": {
+        "directory": "/tmp/next-tutor-expansion-review",
+        "baseline": "/tmp/next-tutor-wall-source-review",
+        "svg_hashes": {
+          "textbook": "sha256:1f59fc62310ef9e699cc25e4b011deec8fbc86efd0000a59e1290b434668b0cc",
+          "monochrome": "sha256:be4ccc0b03523412f3dd61b307daee39b89df83041571f9b86a567a72bcd2b0e"
+        },
+        "unchanged_actual_svg": true,
+        "review_note": "Both re-rendered SVGs are byte-identical to reviewed baseline; prior visual evidence preserved."
+      }
+    },
+    "notes": "全目录双风格重新渲染无越界/文字碰撞，与前轮逐SVG字节核对仅墙体变化；墙体接触面双风格实图已审阅。"
+  },
+  "svg_file": "asset.svg",
+  "guidance_file": "usage_guide.json",
+  "svg_hash": "sha256:49bb9e0cf6879866232880586276e76f979b3881bf48b7db13901b25b57603d2"
+}

@@ -1,0 +1,89 @@
+{
+  "id": "chart.stacked_area",
+  "title": "堆叠面积图",
+  "english": "stacked area chart",
+  "category": "statistics",
+  "renderer": "chart",
+  "variant": "stacked_area",
+  "version": 1,
+  "aliases": [],
+  "features": [],
+  "sample_params": {
+    "values": [
+      [
+        12,
+        24,
+        18
+      ],
+      [
+        9,
+        15,
+        20
+      ]
+    ],
+    "labels": [
+      "A",
+      "B",
+      "C"
+    ]
+  },
+  "license": "original-project-artwork",
+  "subjects": [
+    "statistics"
+  ],
+  "education_levels": [
+    "senior",
+    "undergraduate"
+  ],
+  "asset_kind": "chart",
+  "topics": [
+    "statistics",
+    "stacked_area"
+  ],
+  "provenance": {
+    "origin": "project_procedural",
+    "creation_method": "ai_assisted_vector_code",
+    "source_module": "app/diagrams/mathematics.py",
+    "source_symbol": "chart:stacked_area",
+    "source_hash": "sha256:ed2793ab359cd86b110a54909e7a471b84d548c61e33c6552a2e586def1012ab",
+    "external_graphics": [],
+    "derived_from": [],
+    "knowledge_references": [],
+    "statement": "项目独立编写矢量路径；通用符号与知识事实不代表独占造型。"
+  },
+  "review": {
+    "status": "passed",
+    "automatic": "passed",
+    "structure": "passed",
+    "visual": "passed",
+    "reviewer_type": "agent",
+    "reviewed_at": "2026-10-03",
+    "source_hash": "sha256:ed2793ab359cd86b110a54909e7a471b84d548c61e33c6552a2e586def1012ab",
+    "evidence": {
+      "profiles": [
+        "textbook",
+        "monochrome"
+      ],
+      "preview_rendered": true,
+      "parameter_boundary_checked": false,
+      "parameter_cases": 0,
+      "sheet_review": "/tmp/next-tutor-all-assets-contact-fixed",
+      "parameter_review": "/tmp/next-tutor-all-assets-review-final",
+      "individual_review": "/tmp/next-tutor-all-assets-review-oct3",
+      "review_note": "All 27 paired contact sheets inspected; changed families rerendered and inspected. Invalid cross-parameter endpoints explicitly rejected.",
+      "expansion_replay": {
+        "directory": "/tmp/next-tutor-expansion-review",
+        "baseline": "/tmp/next-tutor-wall-source-review",
+        "svg_hashes": {
+          "textbook": "sha256:b298c3a6ff01319947d3929c9dab876320ef852b153fd2728d8c57f940107785",
+          "monochrome": "sha256:6fbefab79bb716f34741f44cac4b0cbcc0a0df42be86d52a1c22d57146e4a3d3"
+        },
+        "unchanged_actual_svg": true,
+        "review_note": "Both re-rendered SVGs are byte-identical to reviewed baseline; prior visual evidence preserved."
+      }
+    }
+  },
+  "svg_file": "asset.svg",
+  "guidance_file": "usage_guide.json",
+  "svg_hash": "sha256:fbeb68755660b2b9d633340642fce8324917e18c63674e3e6f96b39297ad20ba"
+}

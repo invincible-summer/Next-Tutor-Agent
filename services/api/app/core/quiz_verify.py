@@ -333,7 +333,8 @@ def prepare_illustrations(questions: list[dict], policy: str, *,
                   "knowledge_point", "difficulty", "bloom_level", "source_ref_ids",
                   "rubric_criteria", "equivalent_solutions", "illustration"}
         if component_metadata:
-            fields |= {"diagram_source", "diagram_facts", "visual_requirements"}
+            fields |= {"diagram_source", "diagram_facts", "visual_requirements", "visual_role",
+                       "material_contract", "illustration_review", "illustration_artifact_id"}
         q = {key: value for key, value in candidate.items() if key in fields}
         # Model-authored audit fields are never authoritative.
         q["verification"] = {}
@@ -358,6 +359,11 @@ def prepare_illustrations(questions: list[dict], policy: str, *,
                 # the local structural result; the optional LLM semantic
                 # review is a separate user-controlled cost center.
                 normalized["verification"]["illustration_check"] = "passed"
+                if normalized["illustration"].get("schema_version") == 3:
+                    gates = (normalized.get("diagram_source") or {}).get("review_gates")
+                    if gates != {"machine": "passed", "visual": "passed", "joint": "passed"}:
+                        raise IllustrationValidationError("illustration_publish_gate_failed")
+                    normalized["verification"]["status"] = "passed"
             kept.append(normalized)
         except (IllustrationValidationError, ValueError) as exc:
             q["illustration"] = None  # never propagate rejected SVG in error/repair data
@@ -525,7 +531,13 @@ async def _revise_dropped(llm: AsyncLLMClient,
     return out[:5] or None
 
 
-async def generate_verified_questions(
+async def generate_verified_questions(llm, *, student_id="", **kwargs):
+    from app.diagrams.materials import owner_context
+    with owner_context(student_id):
+        return await _generate_verified_questions(llm, **kwargs)
+
+
+async def _generate_verified_questions(
         llm: AsyncLLMClient, *,
         make_prompt: Callable[[], str],
         parse: Callable[[str], list[dict[str, Any]]],
@@ -570,7 +582,17 @@ async def generate_verified_questions(
     from app.diagrams.pipeline import enabled, declare_and_retrieve, scene_contract, compile_questions
     bundle = visual_bundle if illustration_policy != "off" else None
     diagram_contract = ""
-    if enabled(illustration_policy):
+    v2 = settings.quiz_illustration_pipeline == "v2" and illustration_policy != "off"
+    if v2:
+        bundle = None
+        from app.illustration.requirements import authoring_material_schema, capability_guide
+        from app.prompts.registry import get as get_registered_prompt
+        diagram_contract = (get_registered_prompt("quiz_illustration_authoring", "1.0.0").text +
+            "\nmaterial_contract schema：" + json.dumps(authoring_material_schema(), ensure_ascii=False) +
+            "\n相关素材信息（不是构图候选，不能复制预览条件）：" + json.dumps(
+                capability_guide(make_prompt()), ensure_ascii=False))
+        meta["diagram_mode"] = "v2"
+    elif enabled(illustration_policy):
         try:
             if bundle is None:
                 bundle = await declare_and_retrieve(llm, context=make_prompt(), policy=illustration_policy, grade=grade)
@@ -590,6 +612,9 @@ async def generate_verified_questions(
         meta["attempts"] = attempt
         try:
             prompt = make_prompt()
+            if v2 and attempt > 1 and meta.get("authoring_change_request"):
+                prompt += "\n发布前重新命题一次，保持知识点、题型和难度；同步修正答案与量规，重新建立材料合同。此前未发布草稿的素材能力问题：" + json.dumps(
+                    meta["authoring_change_request"], ensure_ascii=False)
             full, _usage = await llm.complete(
             messages=[{"role": "system", "content": prompt + "\n\n" +
                        (diagram_contract or generation_contract(illustration_policy))},
@@ -612,11 +637,45 @@ async def generate_verified_questions(
                 question_slots[str(question["id"])] = f"q{index}"
         if required_type:
             raw_questions = [q for q in raw_questions if q.get("type") == required_type]
-        if bundle is not None:
+        if v2:
+            from app.illustration.orchestrator import generate_question as illustrate
+            from app.illustration.contracts import IllustrationError
+            compiled_questions = []
+            for candidate in raw_questions:
+                if candidate.get("illustration") is not None or candidate.get("diagram_scene") is not None:
+                    compiled_questions.append({**candidate, "illustration": None, "_diagram_error": "diagram_model_svg_forbidden"})
+                    continue
+                # No model-supplied snapshots, reviews, facts or artifact IDs.
+                candidate = {key: value for key, value in candidate.items() if key not in {
+                    "diagram_source", "diagram_facts", "illustration_review", "illustration_artifact_id", "verification"}}
+                try:
+                    compiled_questions.append(await illustrate(llm, candidate, illustration_policy, grade=grade))
+                except (IllustrationError, ValueError) as exc:
+                    cause = exc
+                    if hasattr(exc, "errors"):
+                        for error in exc.errors():
+                            nested = error.get("ctx", {}).get("error")
+                            if isinstance(nested, IllustrationError):
+                                cause = nested
+                                break
+                    code = getattr(cause, "code", "invalid_contract")
+                    target = getattr(cause, "target", "contract")
+                    essential = (candidate.get("material_contract") or {}).get("visual_role") == "essential" or bool(
+                        re.search(r"如图|图中|下图|读图|看图|as shown", candidate.get("stem", ""), re.I))
+                    if illustration_policy == "required" or essential:
+                        compiled_questions.append({**candidate, "illustration": None, "_diagram_error": code})
+                    else:
+                        compiled_questions.append({**candidate, "illustration": None, "visual_role": "supplemental"})
+                    meta.setdefault("illustration_failures", []).append({"code": code, "target": target})
+                    if code in {"invalid_contract", "candidate_not_found", "parameter_unbound", "missing_fact_binding", "unsupported_domain", "question_material_incomplete"}:
+                        meta["authoring_change_request"] = {"code": code, "target": target,
+                            "allowed_action": "reauthor_before_publication", "max_reauthorings": 1}
+            raw_questions = compiled_questions
+        elif bundle is not None:
             raw_questions = compile_questions(raw_questions, bundle, illustration_policy,
                                               question_slots=question_slots)
         questions, bad = prepare_illustrations(raw_questions, illustration_policy,
-                                              component_metadata=bundle is not None)
+                                              component_metadata=v2 or bundle is not None)
         if mode != "off" or any(q.get("illustration") for q in questions):
             questions, ill = filter_well_formed(questions)
             meta["dropped_ill_formed"] += len(ill)
@@ -624,13 +683,22 @@ async def generate_verified_questions(
         # Component diagrams have already passed deterministic scene, asset,
         # parameter and canvas checks.  The independent LLM critic is opt-in;
         # do not spend a second model call merely because a safe SVG exists.
-        if questions and mode == "critic":
-            questions, audit_bad, critic_ok = await verify_questions(
-                llm, questions, topic=topic, grade=grade, difficulty=difficulty,
+        jointly_reviewed = bool(questions) and all((q.get("diagram_source") or {}).get("review_gates") == {
+            "machine": "passed", "visual": "passed", "joint": "passed"} for q in questions)
+        if jointly_reviewed:
+            # The independent v2 joint audit also verifies the answer/rubric.
+            meta["critic"] = "ok"
+        elif questions and mode == "critic":
+            reviewed = [q for q in questions if v2 and (q.get("diagram_source") or {}).get("review_gates") == {
+                "machine": "passed", "visual": "passed", "joint": "passed"}]
+            pending = [q for q in questions if q not in reviewed]
+            kept, audit_bad, critic_ok = await verify_questions(
+                llm, pending, topic=topic, grade=grade, difficulty=difficulty,
                 grounding_context=grounding_context, review_illustrations=illustration_review)
+            questions = [q for q in questions if q in reviewed or q in kept]
             bad.extend(audit_bad)
             meta["critic"] = "ok" if critic_ok else "error"
-        elif questions and illustration_review:
+        elif questions and illustration_review and not v2:
             questions, audit_bad = await verify_diagrams(llm, questions)
             bad.extend(audit_bad)
         meta["dropped_by_critic"] += len(bad)
@@ -640,7 +708,7 @@ async def generate_verified_questions(
                                   "reason": b.get("_drop_reason", "")} for b in bad]
         if feedback is not None:
             feedback["critic_flags"] = list(meta["critic_flags"])
-        if bad and not questions and (budget is None or budget.take_repair()):
+        if bad and not questions and not v2 and (budget is None or budget.take_repair()):
             revised = await _revise_dropped(
                 llm, bad, topic=topic, grade=grade, difficulty=difficulty,
                 grounding_context=grounding_context, illustration_policy=illustration_policy,

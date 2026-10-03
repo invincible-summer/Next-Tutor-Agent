@@ -1,0 +1,339 @@
+{
+  "id": "chemistry_extended.nmr_spectrum",
+  "title": "核磁共振峰图",
+  "english": "NMR spectrum",
+  "category": "chemistry",
+  "renderer": "chemistry_extended",
+  "variant": "nmr_spectrum",
+  "version": 1,
+  "aliases": [],
+  "features": [
+    "数据驱动"
+  ],
+  "sample_params": {
+    "points": [
+      [
+        0.0,
+        3.0
+      ],
+      [
+        0.125,
+        3.0
+      ],
+      [
+        0.25,
+        3.0
+      ],
+      [
+        0.375,
+        3.0
+      ],
+      [
+        0.5,
+        3.0
+      ],
+      [
+        0.625,
+        3.0
+      ],
+      [
+        0.75,
+        3.0
+      ],
+      [
+        0.875,
+        3.0
+      ],
+      [
+        1.0,
+        3.0000000000001417
+      ],
+      [
+        1.125,
+        3.0000000011804753
+      ],
+      [
+        1.25,
+        3.000002452359699
+      ],
+      [
+        1.375,
+        3.0012703537746064
+      ],
+      [
+        1.5,
+        3.1640886015793552
+      ],
+      [
+        1.625,
+        8.285004541879886
+      ],
+      [
+        1.75,
+        45.44490203093847
+      ],
+      [
+        1.875,
+        88.0
+      ],
+      [
+        2.0,
+        45.44490203093847
+      ],
+      [
+        2.125,
+        8.285004541879886
+      ],
+      [
+        2.25,
+        3.1640886015793552
+      ],
+      [
+        2.375,
+        3.0012703537746064
+      ],
+      [
+        2.5,
+        3.000002452359699
+      ],
+      [
+        2.625,
+        3.0000000011804753
+      ],
+      [
+        2.75,
+        3.0000000000001417
+      ],
+      [
+        2.875,
+        3.0
+      ],
+      [
+        3.0,
+        3.0
+      ],
+      [
+        3.125,
+        3.0
+      ],
+      [
+        3.25,
+        3.0
+      ],
+      [
+        3.375,
+        3.0
+      ],
+      [
+        3.5,
+        3.0
+      ],
+      [
+        3.625,
+        3.0
+      ],
+      [
+        3.75,
+        3.0000000000000004
+      ],
+      [
+        3.875,
+        3.000000000000998
+      ],
+      [
+        4.0,
+        3.000000000763837
+      ],
+      [
+        4.125,
+        3.0000002677286646
+      ],
+      [
+        4.25,
+        3.0000429631917456
+      ],
+      [
+        4.375,
+        3.0031564988806707
+      ],
+      [
+        4.5,
+        3.106174977492524
+      ],
+      [
+        4.625,
+        4.635106901238731
+      ],
+      [
+        4.75,
+        14.52862629331038
+      ],
+      [
+        4.875,
+        40.21486153889509
+      ],
+      [
+        5.0,
+        58.0
+      ],
+      [
+        5.125,
+        40.21486153889509
+      ],
+      [
+        5.25,
+        14.52862629331038
+      ],
+      [
+        5.375,
+        4.635106901238731
+      ],
+      [
+        5.5,
+        3.106174977492524
+      ],
+      [
+        5.625,
+        3.0031564988806707
+      ],
+      [
+        5.75,
+        3.0000429631917456
+      ],
+      [
+        5.875,
+        3.0000002677286646
+      ],
+      [
+        6.0,
+        3.000000000763837
+      ],
+      [
+        6.125,
+        3.000000000000998
+      ],
+      [
+        6.25,
+        3.0000000000000004
+      ],
+      [
+        6.375,
+        3.0
+      ],
+      [
+        6.5,
+        3.0
+      ],
+      [
+        6.625,
+        3.0
+      ],
+      [
+        6.75,
+        3.0
+      ],
+      [
+        6.875,
+        3.0
+      ],
+      [
+        7.0,
+        3.0
+      ],
+      [
+        7.125,
+        3.0
+      ],
+      [
+        7.25,
+        3.0
+      ],
+      [
+        7.375,
+        3.0
+      ],
+      [
+        7.5,
+        3.0
+      ],
+      [
+        7.625,
+        3.0
+      ],
+      [
+        7.75,
+        3.0
+      ],
+      [
+        7.875,
+        3.0
+      ],
+      [
+        8.0,
+        3.0
+      ]
+    ],
+    "x_label": "δ (ppm)",
+    "y_label": "I"
+  },
+  "license": "original-project-artwork",
+  "subjects": [
+    "chemistry"
+  ],
+  "education_levels": [
+    "senior",
+    "undergraduate"
+  ],
+  "asset_kind": "scene",
+  "topics": [
+    "chemistry",
+    "nmr_spectrum"
+  ],
+  "provenance": {
+    "origin": "project_procedural",
+    "creation_method": "ai_assisted_vector_code",
+    "source_module": "app/diagrams/extended_chemistry.py",
+    "source_symbol": "draw:nmr_spectrum",
+    "source_hash": "sha256:c60cbd383629df3dc42d5bd2d28a5d86d736c7bf3eb692524016c8d3aac0e2da",
+    "external_graphics": [],
+    "derived_from": [],
+    "knowledge_references": [],
+    "statement": "项目独立编写矢量路径；通用符号与知识事实不代表独占造型。"
+  },
+  "review": {
+    "status": "passed",
+    "automatic": "passed",
+    "structure": "passed",
+    "visual": "passed",
+    "reviewer_type": "agent",
+    "reviewed_at": "2026-10-03",
+    "source_hash": "sha256:c60cbd383629df3dc42d5bd2d28a5d86d736c7bf3eb692524016c8d3aac0e2da",
+    "evidence": {
+      "profiles": [
+        "textbook",
+        "monochrome"
+      ],
+      "preview_rendered": true,
+      "parameter_boundary_checked": false,
+      "parameter_cases": 0,
+      "sheet_review": "/tmp/next-tutor-all-assets-contact-fixed",
+      "parameter_review": "/tmp/next-tutor-all-assets-review-final",
+      "individual_review": "/tmp/next-tutor-wall-source-review",
+      "review_note": "All 27 paired contact sheets inspected; changed families rerendered and inspected. Invalid cross-parameter endpoints explicitly rejected.",
+      "expansion_replay": {
+        "directory": "/tmp/next-tutor-expansion-review",
+        "baseline": "/tmp/next-tutor-wall-source-review",
+        "svg_hashes": {
+          "textbook": "sha256:fffdcceb13197195fdeb73752aed3dd73dd524b462a19538e4e56f0acf90168f",
+          "monochrome": "sha256:3d28259d8a281509cf1c3965f98be0f51e63411e35b855a60675f59a89e57e59"
+        },
+        "unchanged_actual_svg": true,
+        "review_note": "Both re-rendered SVGs are byte-identical to reviewed baseline; prior visual evidence preserved."
+      }
+    },
+    "notes": "全目录双风格重新渲染无越界/文字碰撞，与前轮逐SVG字节核对仅墙体变化；墙体接触面双风格实图已审阅。"
+  },
+  "svg_file": "asset.svg",
+  "guidance_file": "usage_guide.json",
+  "svg_hash": "sha256:614fc42d567f4181708c2fabad8764a62a498c6cb4b166daf0a387696e9b874a"
+}

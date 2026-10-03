@@ -6,6 +6,7 @@ from . import extended_math, extended_physics, extended_chemistry, extended_biol
 from . import extended_earth, extended_statistics, extended_systems, extended_humanities
 from . import extended_engineering, extended_creative
 from . import extended_deferred, extended_experiments
+from . import curriculum_expansion
 from .extended_inventory import entries
 from .registry import Renderer
 
@@ -55,6 +56,8 @@ def registrations():
             for variant in extended_experiments.VARIANTS
         }
     )
+    rows.update({asset["id"]: Renderer(curriculum_expansion.draw, curriculum_expansion.parameters)
+        for asset in curriculum_expansion.entries()})
     return rows
 
 

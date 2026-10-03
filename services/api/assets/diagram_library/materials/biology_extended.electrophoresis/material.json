@@ -1,0 +1,106 @@
+{
+  "id": "biology_extended.electrophoresis",
+  "title": "电泳条带",
+  "english": "Gel electrophoresis bands",
+  "category": "biology",
+  "renderer": "biology_extended",
+  "variant": "electrophoresis",
+  "version": 1,
+  "aliases": [],
+  "features": [
+    "数据驱动"
+  ],
+  "sample_params": {
+    "lanes": [
+      [
+        8000,
+        5000,
+        2500,
+        1000,
+        300
+      ],
+      [
+        6500,
+        1800,
+        500
+      ],
+      [
+        5000,
+        2500,
+        700
+      ],
+      [
+        8000,
+        1000
+      ]
+    ]
+  },
+  "license": "original-project-artwork",
+  "subjects": [
+    "biology"
+  ],
+  "education_levels": [
+    "junior",
+    "senior",
+    "undergraduate"
+  ],
+  "asset_kind": "scene",
+  "topics": [
+    "biology",
+    "electrophoresis"
+  ],
+  "provenance": {
+    "origin": "project_procedural",
+    "creation_method": "ai_assisted_vector_code",
+    "source_module": "app/diagrams/extended_biology.py",
+    "source_symbol": "draw:electrophoresis",
+    "source_hash": "sha256:9e7554d48c6d3e7d7c8b895857ba4847801a84dd5dfe77a0d7bc4764951d7847",
+    "external_graphics": [],
+    "derived_from": [],
+    "knowledge_references": [
+      {
+        "url": "https://openstax.org/books/biology-2e/pages/17-1-biotechnology",
+        "purpose": "电泳分离方向及片段大小关系；未使用该书图形",
+        "checked_at": "2026-10-02",
+        "type": "fact_only"
+      }
+    ],
+    "statement": "项目独立编写矢量路径；通用符号与知识事实不代表独占造型。"
+  },
+  "review": {
+    "status": "passed",
+    "automatic": "passed",
+    "structure": "passed",
+    "visual": "passed",
+    "reviewer_type": "agent",
+    "reviewed_at": "2026-10-03",
+    "source_hash": "sha256:9e7554d48c6d3e7d7c8b895857ba4847801a84dd5dfe77a0d7bc4764951d7847",
+    "evidence": {
+      "profiles": [
+        "textbook",
+        "monochrome"
+      ],
+      "preview_rendered": true,
+      "parameter_boundary_checked": false,
+      "parameter_cases": 0,
+      "sheet_review": "/tmp/next-tutor-all-assets-contact-fixed",
+      "parameter_review": "/tmp/next-tutor-all-assets-review-final",
+      "individual_review": "/tmp/next-tutor-wall-source-review",
+      "review_note": "All 27 paired contact sheets inspected; changed families rerendered and inspected. Invalid cross-parameter endpoints explicitly rejected.",
+      "expansion_replay": {
+        "directory": "/tmp/next-tutor-expansion-review",
+        "baseline": "/tmp/next-tutor-wall-source-review",
+        "svg_hashes": {
+          "textbook": "sha256:cd745fa3eb066e45688f45448c406e9e2948d7b30f10a597c2db41d89450893a",
+          "monochrome": "sha256:8da86c186de3629e280916f6b2575899f294cd482c9b9a11b6930929897cc17c"
+        },
+        "unchanged_actual_svg": true,
+        "review_note": "Both re-rendered SVGs are byte-identical to reviewed baseline; prior visual evidence preserved."
+      }
+    },
+    "notes": "全目录双风格重新渲染无越界/文字碰撞，与前轮逐SVG字节核对仅墙体变化；墙体接触面双风格实图已审阅。"
+  },
+  "svg_file": "asset.svg",
+  "guidance_file": "usage_guide.json",
+  "svg_hash": "sha256:6c3b51b0b335d3351f8e7a274794430e68d65ac5fd90981a14d2d32799d7cb89"
+}

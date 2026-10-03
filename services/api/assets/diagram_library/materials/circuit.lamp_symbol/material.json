@@ -1,0 +1,74 @@
+{
+  "id": "circuit.lamp_symbol",
+  "title": "灯泡符号",
+  "english": "lamp symbol",
+  "category": "physics",
+  "renderer": "circuit",
+  "variant": "lamp_symbol",
+  "version": 1,
+  "aliases": [],
+  "features": [
+    "电接线"
+  ],
+  "sample_params": {},
+  "license": "original-project-artwork",
+  "subjects": [
+    "physics"
+  ],
+  "education_levels": [
+    "junior",
+    "senior",
+    "undergraduate"
+  ],
+  "asset_kind": "symbol",
+  "topics": [
+    "physics",
+    "lamp_symbol"
+  ],
+  "provenance": {
+    "origin": "project_procedural",
+    "creation_method": "ai_assisted_vector_code",
+    "source_module": "app/diagrams/physics.py",
+    "source_symbol": "circuit:lamp_symbol",
+    "source_hash": "sha256:15db561e0e7b6fb55797e51b9e2f632f4c99892f3b643989d5f663f619355cae",
+    "external_graphics": [],
+    "derived_from": [],
+    "knowledge_references": [],
+    "statement": "项目独立编写矢量路径；通用符号与知识事实不代表独占造型。"
+  },
+  "review": {
+    "status": "passed",
+    "automatic": "passed",
+    "structure": "passed",
+    "visual": "passed",
+    "reviewer_type": "agent",
+    "reviewed_at": "2026-10-03",
+    "source_hash": "sha256:15db561e0e7b6fb55797e51b9e2f632f4c99892f3b643989d5f663f619355cae",
+    "evidence": {
+      "profiles": [
+        "textbook",
+        "monochrome"
+      ],
+      "preview_rendered": true,
+      "parameter_boundary_checked": false,
+      "parameter_cases": 0,
+      "sheet_review": "/tmp/next-tutor-all-assets-contact-fixed",
+      "parameter_review": "/tmp/next-tutor-all-assets-review-final",
+      "individual_review": "/tmp/next-tutor-all-assets-review-oct3",
+      "review_note": "All 27 paired contact sheets inspected; changed families rerendered and inspected. Invalid cross-parameter endpoints explicitly rejected.",
+      "expansion_replay": {
+        "directory": "/tmp/next-tutor-expansion-review",
+        "baseline": "/tmp/next-tutor-wall-source-review",
+        "svg_hashes": {
+          "textbook": "sha256:67c75347b0e241a6dd03219d898675973d115b56a93796953abbc697c4da644b",
+          "monochrome": "sha256:6c107d516f3fab235ad74978679fcede4037a767059803e9be67e45bf8847394"
+        },
+        "unchanged_actual_svg": true,
+        "review_note": "Both re-rendered SVGs are byte-identical to reviewed baseline; prior visual evidence preserved."
+      }
+    }
+  },
+  "svg_file": "asset.svg",
+  "guidance_file": "usage_guide.json",
+  "svg_hash": "sha256:a0ce476b169b2b5b81eb84ebf79ff05d418a7572b0db9ac9660148299441754e"
+}

@@ -1,5 +1,7 @@
 export const STRINGS = {
   zh: {
+    mode: "允许模态序号", halflives: "展示半衰期个数", retention_a: "A 斑点相对位置", retention_b: "B 斑点相对位置",
+    shift: "谱线示意位移（像素）", step: "割线横向步长", p_a: "P(A)", p_b_given_a: "P(B|A)",
     subject: "学科", educationLevel: "适用学段", allLevels: "全部学段", assetKind: "图示形式", allKinds: "全部形式",
     zoomIn: "放大图示", zoomOut: "缩小图示",
     eccentricity: "离心率", rows: "行数", numerator: "分子", denominator: "分母", left: "区间左端", right: "区间右端",
@@ -23,6 +25,8 @@ export const STRINGS = {
     fill: "液面高度占比", liquid_color: "液体颜色", show_scale: "显示刻度", scale_labels: "显示读数", capacity: "刻度容量", lit: "点燃", reading: "读数", maximum: "量程", angle: "角度（°）", radius: "半径", length: "长度", show_angle: "显示角度标记", sides: "边数", count: "数量", filled: "涂色数量", face: "骰子点数", show_values: "显示数值", construction: "辅助构造", show_labels: "显示标签", closed: "闭合开关", displacement: "位移", show_poles: "标记磁极", values: "数值数据（JSON）", labels: "分类名称（JSON）", points: "坐标数据（JSON）", errors: "误差数据（JSON）", bin_edges: "分组边界（JSON）", density: "使用频数密度", df: "自由度", items: "对象名称（JSON）", edges: "连接关系（JSON）", columns: "列数", x_range: "横轴范围（JSON）", y_range: "纵轴范围（JSON）", interval: "区间（JSON）", vector: "向量（JSON）", x_label: "横轴名称", y_label: "纵轴名称", show_ticks: "显示坐标刻度", expression: "函数表达式", none: "无", altitude: "高", median: "中线", bisector: "角平分线",
   },
   en: {
+    mode: "Allowed mode index", halflives: "Half-lives shown", retention_a: "Relative spot A position", retention_b: "Relative spot B position",
+    shift: "Schematic spectral shift (px)", step: "Secant horizontal step", p_a: "P(A)", p_b_given_a: "P(B|A)",
     subject: "Subject", educationLevel: "Education level", allLevels: "All levels", assetKind: "Illustration kind", allKinds: "All kinds",
     zoomIn: "Zoom in", zoomOut: "Zoom out",
     eccentricity: "Eccentricity", rows: "Rows", numerator: "Numerator", denominator: "Denominator", left: "Left endpoint", right: "Right endpoint",

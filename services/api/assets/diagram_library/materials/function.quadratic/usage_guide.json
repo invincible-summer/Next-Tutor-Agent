@@ -1,0 +1,14 @@
+{
+  "version": "1.0.2",
+  "hints": {
+    "authoring": "函数表达式用x**2，不用y=或^。function、x_range、y_range是同一个完整函数图的事实。纵轴展示范围也必须实际写入题干（按用户要求），再逐字引用；不能仅写在source_quote。required_marks=[]，轴符号与刻度自动生成。",
+    "compose": "function、x_range、y_range绑定事实；只用entity_id。坐标符号、刻度由绑定函数标定，标签不写最值答案。",
+    "review": "轴刻度按真实数值等距标定，不要求纵轴刻度等于整数x的函数值；边界处曲线端点是完整区间表达，不是错误截断。"
+  },
+  "match_terms": [
+    "函数图",
+    "函数图像",
+    "x**2",
+    "x^2"
+  ]
+}

@@ -36,6 +36,11 @@ export interface DiagramAsset {
     reviewed_at?: string;
   };
   illustration: QuestionIllustrationData;
+  v2?: {
+    capabilities: string[];
+    nominal_geometry: { ports?: Record<string, { point: [number, number]; kind: string }>; regions?: Record<string, unknown> };
+    parameters: Record<string, ParameterSpec & { condition_bearing: boolean; unit?: string }>;
+  } | null;
 }
 export interface AssetPage {
   catalog_version: string;

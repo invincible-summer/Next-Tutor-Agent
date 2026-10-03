@@ -1,0 +1,117 @@
+{
+  "id": "astronomy_extended.hr_diagram",
+  "title": "赫罗图",
+  "english": "Hertzsprung-Russell diagram",
+  "category": "astronomy",
+  "renderer": "astronomy_extended",
+  "variant": "hr_diagram",
+  "version": 1,
+  "aliases": [],
+  "features": [
+    "数据驱动"
+  ],
+  "sample_params": {
+    "stars": [
+      [
+        30000,
+        30000
+      ],
+      [
+        15000,
+        500
+      ],
+      [
+        8000,
+        15
+      ],
+      [
+        5800,
+        1
+      ],
+      [
+        4000,
+        0.1
+      ],
+      [
+        3000,
+        0.01
+      ],
+      [
+        4000,
+        1000
+      ],
+      [
+        3000,
+        5000
+      ],
+      [
+        12000,
+        0.02
+      ],
+      [
+        20000,
+        0.05
+      ]
+    ]
+  },
+  "license": "original-project-artwork",
+  "subjects": [
+    "astronomy"
+  ],
+  "education_levels": [
+    "senior",
+    "undergraduate"
+  ],
+  "asset_kind": "scene",
+  "topics": [
+    "astronomy",
+    "hr_diagram"
+  ],
+  "provenance": {
+    "origin": "project_procedural",
+    "creation_method": "ai_assisted_vector_code",
+    "source_module": "app/diagrams/extended_engineering.py",
+    "source_symbol": "draw:hr_diagram",
+    "source_hash": "sha256:9e8143848fbd7748174804747bab0927d70a6043cc7de1a0914f2c8db4617ed5",
+    "external_graphics": [],
+    "derived_from": [],
+    "knowledge_references": [],
+    "statement": "项目独立编写矢量路径；通用符号与知识事实不代表独占造型。"
+  },
+  "review": {
+    "status": "passed",
+    "automatic": "passed",
+    "structure": "passed",
+    "visual": "passed",
+    "reviewer_type": "agent",
+    "reviewed_at": "2026-10-03",
+    "source_hash": "sha256:9e8143848fbd7748174804747bab0927d70a6043cc7de1a0914f2c8db4617ed5",
+    "evidence": {
+      "profiles": [
+        "textbook",
+        "monochrome"
+      ],
+      "preview_rendered": true,
+      "parameter_boundary_checked": false,
+      "parameter_cases": 0,
+      "sheet_review": "/tmp/next-tutor-all-assets-contact-fixed",
+      "parameter_review": "/tmp/next-tutor-all-assets-review-final",
+      "individual_review": "/tmp/next-tutor-wall-source-review",
+      "review_note": "All 27 paired contact sheets inspected; changed families rerendered and inspected. Invalid cross-parameter endpoints explicitly rejected.",
+      "expansion_replay": {
+        "directory": "/tmp/next-tutor-expansion-review",
+        "baseline": "/tmp/next-tutor-wall-source-review",
+        "svg_hashes": {
+          "textbook": "sha256:42f3d1937dfb6a24fd4863d2ca586dce2ebcc3ca62559e6b64ae4e5b7740f088",
+          "monochrome": "sha256:6c930d4af47bacade5df8de22faf3211d82699d6947bae737dc270cd71aaea3c"
+        },
+        "unchanged_actual_svg": true,
+        "review_note": "Both re-rendered SVGs are byte-identical to reviewed baseline; prior visual evidence preserved."
+      }
+    },
+    "notes": "全目录双风格重新渲染无越界/文字碰撞，与前轮逐SVG字节核对仅墙体变化；墙体接触面双风格实图已审阅。"
+  },
+  "svg_file": "asset.svg",
+  "guidance_file": "usage_guide.json",
+  "svg_hash": "sha256:143cb7873696546555d7ac237034a78a2c8c38415811320d508b776454ea32e5"
+}

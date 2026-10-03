@@ -11,6 +11,34 @@ from .taxonomy import LEVELS
 ROOT = Path(__file__).resolve().parents[2]
 REVIEW_PATH = ROOT / "assets" / "diagram_library" / "review.json"
 FACT_REFERENCES = {
+    "chemistry.water": (
+        "https://openstax.org/books/chemistry/pages/8-2-hybrid-atomic-orbitals",
+        "水分子104.5°弯曲键角；仅核对事实，未使用外部图形",
+    ),
+    "biology.chloroplast": (
+        "https://openstax.org/books/biology-2e/pages/8-1-overview-of-photosynthesis",
+        "双层包膜、基粒与基质；仅核对事实，未使用外部图形",
+    ),
+    "chemistry_extended.hydration_shell": (
+        "https://openstax.org/books/biology-2e/pages/2-2-water",
+        "氧端朝向阳离子的水合取向；仅核对事实，未使用外部图形",
+    ),
+    "geography_extended.artesian_aquifer": (
+        "https://www.usgs.gov/water-science-school/science/artesian-water-and-artesian-wells",
+        "承压水头与自流井条件；仅核对事实，未使用外部图形",
+    ),
+    "geography_extended.coastal_upwelling": (
+        "https://oceanservice.noaa.gov/facts/upwelling.html",
+        "离岸表层输运与深层补偿；仅核对事实，未使用外部图形",
+    ),
+    "geography_extended.inversion_layer": (
+        "https://www.weather.gov/lmk/inversion",
+        "逆温层气温随高度升高；仅核对事实，未使用外部图形",
+    ),
+    "physics_extended.closed_pipe_modes": (
+        "https://openstax.org/books/college-physics/pages/17-5-sound-interference-and-resonance-standing-waves-in-air-columns",
+        "闭端为位移节点、开端为位移腹点；仅核对事实，未使用外部图形",
+    ),
     "chemistry_extended.tetrahedral": (
         "https://openstax.org/books/chemistry-2e/pages/7-6-molecular-structure-and-polarity",
         "分子构型及键角；未使用该书图形",
@@ -124,7 +152,11 @@ def source_record(asset_id, renderer, variant):
             {
                 "url": url,
                 "purpose": purpose,
-                "checked_at": "2026-10-02",
+                "checked_at": "2026-10-03" if asset_id in {
+                    "chemistry.water", "biology.chloroplast", "chemistry_extended.hydration_shell",
+                    "geography_extended.artesian_aquifer", "geography_extended.coastal_upwelling",
+                    "geography_extended.inversion_layer", "physics_extended.closed_pipe_modes",
+                } else "2026-10-02",
                 "type": "fact_only",
             }
         ]

@@ -1,0 +1,8 @@
+{
+  "version": "1.0.1",
+  "hints": {
+    "authoring": "加热烧杯完整装置仅beaker、mesh、tripod、lamp四实体。水是烧杯liquid_present=true状态，不独立实体；灯lit=true。支撑关系用supported_by，不新增读数或器材。",
+    "requirements": "加热烧杯完整配方一个need覆盖四实体，可用complete_apparatus、heating、liquid_fill、support。",
+    "compose": "entity_map绑定beaker、mesh、tripod、lamp。fill绑定beaker的liquid_present，lit绑定lamp的lit。不要仅凭默认液面。内部支撑自动生成，relations=[]；名称标注引用对应子实例body，fact_refs=[]。"
+  }
+}

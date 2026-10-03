@@ -164,7 +164,7 @@ class FitQuizTool(Tool):
             return prompt
 
         questions, verification = await generate_verified_questions(
-            llm, make_prompt=make_prompt_with_feedback, parse=self._parse,
+            llm, student_id=getattr(provider, "student_id", ""), make_prompt=make_prompt_with_feedback, parse=self._parse,
             topic=reference[:60], grade=grade, difficulty=difficulty,
             temperature=0.5, max_tokens=(min(18000, 8000 + 2200 * count) if policy != "off" else 8000),
             raw_preview_chars=3000,

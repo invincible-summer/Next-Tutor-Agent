@@ -86,7 +86,7 @@ export function SummaryCard({
               {it.question && <details className="mb-2 text-sm">
                 <summary className="cursor-pointer">{tr("illustration.review")}</summary>
                 <MiniMarkdown>{it.question.stem}</MiniMarkdown>
-                <QuestionIllustration illustration={it.question.illustration} />
+                <QuestionIllustration illustration={it.question.illustration} questionId={it.question.question_id} revision={it.question.question_revision} visualRole={it.question.visual_role} />
               </details>}
               <SubmissionOutcome
                 lang={lang}

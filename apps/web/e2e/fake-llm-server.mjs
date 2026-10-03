@@ -85,7 +85,13 @@ function pickCompletion(body) {
     return JSON.stringify(result);
   }
   // 出题三段（非 stream complete）
-  if (text.includes("命题设计专家") || text.includes("本轮合并命题蓝图")) return BLUEPRINT;
+  if (text.includes("命题设计专家") || text.includes("本轮合并命题蓝图")) {
+    const blueprint = JSON.parse(BLUEPRINT);
+    if (!requiresIllustration) blueprint.requirements = blueprint.requirements.map(row => ({
+      ...row, illustration_needed: false, needs: [], scene_brief: "", layout_intent: "",
+    }));
+    return JSON.stringify(blueprint);
+  }
   if (text.includes("出题审核员") || text.includes("illustration_check")) {
     return auditsIllustrations ? CRITIC_WITH_ILLUSTRATION : CRITIC_OK;
   }

@@ -1,0 +1,13 @@
+{
+  "version": "1.0.1",
+  "hints": {
+    "authoring": "内置构造仅适用于正三角形内接圆，配方声明circle、triangle两个实体及inside关系。题文明示性质不再设depict_only事实。",
+    "compose": "复用同一构造。radius单位diagram_px，是示意尺寸；非按比例用non_quantitative，不把题文cm驱动像素。不加辅助线或答案。",
+    "requirements": "圆内接三角形完整配方覆盖circle和triangle，用geometry_construction即可，不加static_illustration。"
+  },
+  "match_terms": [
+    "正三角形内接",
+    "圆内接正三角形",
+    "内接于圆"
+  ]
+}

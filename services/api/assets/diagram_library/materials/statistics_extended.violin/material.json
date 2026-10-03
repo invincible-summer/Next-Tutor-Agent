@@ -1,0 +1,99 @@
+{
+  "id": "statistics_extended.violin",
+  "title": "小提琴图",
+  "english": "Violin plot",
+  "category": "statistics",
+  "renderer": "statistics_extended",
+  "variant": "violin",
+  "version": 1,
+  "aliases": [],
+  "features": [
+    "数据驱动"
+  ],
+  "sample_params": {
+    "groups": [
+      [
+        2,
+        3,
+        4,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      [
+        4,
+        5,
+        6,
+        7,
+        7,
+        8,
+        10,
+        11,
+        13
+      ]
+    ]
+  },
+  "license": "original-project-artwork",
+  "subjects": [
+    "statistics"
+  ],
+  "education_levels": [
+    "senior",
+    "undergraduate"
+  ],
+  "asset_kind": "chart",
+  "topics": [
+    "statistics",
+    "violin"
+  ],
+  "provenance": {
+    "origin": "project_procedural",
+    "creation_method": "ai_assisted_vector_code",
+    "source_module": "app/diagrams/extended_statistics.py",
+    "source_symbol": "draw:violin",
+    "source_hash": "sha256:d2b24d8678ddff0ca109a65021c8c58c5cc22528dd00a4bb9088704ffb481e4d",
+    "external_graphics": [],
+    "derived_from": [],
+    "knowledge_references": [],
+    "statement": "项目独立编写矢量路径；通用符号与知识事实不代表独占造型。"
+  },
+  "review": {
+    "status": "passed",
+    "automatic": "passed",
+    "structure": "passed",
+    "visual": "passed",
+    "reviewer_type": "agent",
+    "reviewed_at": "2026-10-03",
+    "source_hash": "sha256:d2b24d8678ddff0ca109a65021c8c58c5cc22528dd00a4bb9088704ffb481e4d",
+    "evidence": {
+      "profiles": [
+        "textbook",
+        "monochrome"
+      ],
+      "preview_rendered": true,
+      "parameter_boundary_checked": false,
+      "parameter_cases": 0,
+      "sheet_review": "/tmp/next-tutor-all-assets-contact-fixed",
+      "parameter_review": "/tmp/next-tutor-all-assets-review-final",
+      "individual_review": "/tmp/next-tutor-wall-source-review",
+      "review_note": "All 27 paired contact sheets inspected; changed families rerendered and inspected. Invalid cross-parameter endpoints explicitly rejected.",
+      "expansion_replay": {
+        "directory": "/tmp/next-tutor-expansion-review",
+        "baseline": "/tmp/next-tutor-wall-source-review",
+        "svg_hashes": {
+          "textbook": "sha256:d5761a1f37701bca347ad1803ea09a12d66aa85fc766207e6a1d8e40d6394e7e",
+          "monochrome": "sha256:21898e127121bb510694c3da5ea2f654a568a7e7f3c0b4d47caff937d416d21c"
+        },
+        "unchanged_actual_svg": true,
+        "review_note": "Both re-rendered SVGs are byte-identical to reviewed baseline; prior visual evidence preserved."
+      }
+    },
+    "notes": "全目录双风格重新渲染无越界/文字碰撞，与前轮逐SVG字节核对仅墙体变化；墙体接触面双风格实图已审阅。"
+  },
+  "svg_file": "asset.svg",
+  "guidance_file": "usage_guide.json",
+  "svg_hash": "sha256:baee079fc23e281b654e6651b26502069d6d7c436e77d1e864d2350b610b207f"
+}

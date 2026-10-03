@@ -750,6 +750,7 @@ RESTORED = {
 def build():
     from app.diagrams.extended import registrations, restored_sample, sample_params
     from app.diagrams.extended_inventory import entries
+    from app.diagrams.curriculum_expansion import entries as expansion_entries
     from app.diagrams.provenance import enrich
     registered = registrations()
     assets = []
@@ -830,7 +831,8 @@ def build():
                     sample["items"] = ["A", "B", "C"]
             assets.append({"id": f"{renderer}.{variant}", "title": title, "english": english,
                            "category": asset_category, "renderer": renderer, "variant": variant,
-                           "version": 1, "aliases": aliases, "features": features,
+                           "version": 2 if f"{renderer}.{variant}" in {"chemistry.water", "biology.chloroplast"} else 1,
+                           "aliases": aliases, "features": features,
                            "sample_params": sample, "license": "original-project-artwork"})
             if variant in RESTORED.get(renderer, set()):
                 if f"{renderer}.{variant}" not in registered:
@@ -840,8 +842,11 @@ def build():
                     if variant in {"box_comparison", "scatter_fit"}: assets[-1]["category"] = "statistics"
                     elif variant in {"germination", "respiration", "transpiration", "enzyme", "pedigree", "experiment_control"}: assets[-1]["category"] = "biology"
                     elif variant in {"distillation", "gas_water", "gas_up", "gas_down", "gas_preparation", "gas_wash", "gas_dry", "galvanic_cell", "electrolysis", "chromatography", "flame_test", "extraction", "crystallization"}: assets[-1]["category"] = "chemistry"
-    for asset in entries():
-        asset["sample_params"] = sample_params(asset["category"], asset["variant"])
+    expansion = expansion_entries()
+    expansion_ids = {row["id"] for row in expansion}
+    for asset in list(entries()) + expansion:
+        if asset["id"] not in expansion_ids:
+            asset["sample_params"] = sample_params(asset["category"], asset["variant"])
         schema = registered[asset["id"]].parameters(asset["variant"])
         asset["features"] = ["数据驱动"] if any(spec.get("required") for spec in schema.values()) else []
         if asset["variant"] in {"vernier_reading", "micrometer_reading", "scope_reading"}:

@@ -1,0 +1,89 @@
+{
+  "id": "chart.stacked",
+  "title": "堆叠柱状图",
+  "english": "stacked bar chart",
+  "category": "statistics",
+  "renderer": "chart",
+  "variant": "stacked",
+  "version": 1,
+  "aliases": [],
+  "features": [],
+  "sample_params": {
+    "values": [
+      [
+        12,
+        24,
+        18
+      ],
+      [
+        9,
+        15,
+        20
+      ]
+    ],
+    "labels": [
+      "A",
+      "B",
+      "C"
+    ]
+  },
+  "license": "original-project-artwork",
+  "subjects": [
+    "statistics"
+  ],
+  "education_levels": [
+    "senior",
+    "undergraduate"
+  ],
+  "asset_kind": "chart",
+  "topics": [
+    "statistics",
+    "stacked"
+  ],
+  "provenance": {
+    "origin": "project_procedural",
+    "creation_method": "ai_assisted_vector_code",
+    "source_module": "app/diagrams/mathematics.py",
+    "source_symbol": "chart:stacked",
+    "source_hash": "sha256:ed2793ab359cd86b110a54909e7a471b84d548c61e33c6552a2e586def1012ab",
+    "external_graphics": [],
+    "derived_from": [],
+    "knowledge_references": [],
+    "statement": "项目独立编写矢量路径；通用符号与知识事实不代表独占造型。"
+  },
+  "review": {
+    "status": "passed",
+    "automatic": "passed",
+    "structure": "passed",
+    "visual": "passed",
+    "reviewer_type": "agent",
+    "reviewed_at": "2026-10-03",
+    "source_hash": "sha256:ed2793ab359cd86b110a54909e7a471b84d548c61e33c6552a2e586def1012ab",
+    "evidence": {
+      "profiles": [
+        "textbook",
+        "monochrome"
+      ],
+      "preview_rendered": true,
+      "parameter_boundary_checked": true,
+      "parameter_cases": 2,
+      "sheet_review": "/tmp/next-tutor-all-assets-contact-fixed",
+      "parameter_review": "/tmp/next-tutor-all-assets-review-final",
+      "individual_review": "/tmp/next-tutor-all-assets-review-oct3",
+      "review_note": "All 27 paired contact sheets inspected; changed families rerendered and inspected. Invalid cross-parameter endpoints explicitly rejected.",
+      "expansion_replay": {
+        "directory": "/tmp/next-tutor-expansion-review",
+        "baseline": "/tmp/next-tutor-wall-source-review",
+        "svg_hashes": {
+          "textbook": "sha256:43e44b591202f32dd366364e2e95e8328a2e9353d9fa0d730f16f3adcb784bfc",
+          "monochrome": "sha256:33b39d6b465364b5f02bd4f6d7803c42718ef145cfc450a64d2fbe37430f781d"
+        },
+        "unchanged_actual_svg": true,
+        "review_note": "Both re-rendered SVGs are byte-identical to reviewed baseline; prior visual evidence preserved."
+      }
+    }
+  },
+  "svg_file": "asset.svg",
+  "guidance_file": "usage_guide.json",
+  "svg_hash": "sha256:f212d4b36531f646809ae579bae06ecdc7595f66f3999a231d217589f9a06dc3"
+}

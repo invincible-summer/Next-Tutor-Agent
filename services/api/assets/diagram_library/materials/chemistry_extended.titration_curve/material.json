@@ -1,0 +1,180 @@
+{
+  "id": "chemistry_extended.titration_curve",
+  "title": "酸碱滴定曲线",
+  "english": "Acid-base titration curve",
+  "category": "chemistry",
+  "renderer": "chemistry_extended",
+  "variant": "titration_curve",
+  "version": 1,
+  "aliases": [],
+  "features": [
+    "数据驱动"
+  ],
+  "sample_params": {
+    "points": [
+      [
+        0,
+        3.0000491533968177
+      ],
+      [
+        1,
+        3.000133611374785
+      ],
+      [
+        2,
+        3.0003631829496196
+      ],
+      [
+        3,
+        3.00098715660789
+      ],
+      [
+        4,
+        3.002682801043732
+      ],
+      [
+        5,
+        3.0072884095552053
+      ],
+      [
+        6,
+        3.019780985253078
+      ],
+      [
+        7,
+        3.0535428073942787
+      ],
+      [
+        8,
+        3.1438896796967324
+      ],
+      [
+        9,
+        3.3794069854205344
+      ],
+      [
+        10,
+        3.9536233761769406
+      ],
+      [
+        11,
+        5.151531370959961
+      ],
+      [
+        12,
+        7.0
+      ],
+      [
+        13,
+        8.848468629040038
+      ],
+      [
+        14,
+        10.046376623823058
+      ],
+      [
+        15,
+        10.620593014579466
+      ],
+      [
+        16,
+        10.856110320303268
+      ],
+      [
+        17,
+        10.946457192605722
+      ],
+      [
+        18,
+        10.980219014746922
+      ],
+      [
+        19,
+        10.992711590444795
+      ],
+      [
+        20,
+        10.997317198956269
+      ],
+      [
+        21,
+        10.999012843392109
+      ],
+      [
+        22,
+        10.99963681705038
+      ],
+      [
+        23,
+        10.999866388625216
+      ],
+      [
+        24,
+        10.999950846603182
+      ]
+    ],
+    "x_label": "V",
+    "y_label": "pH"
+  },
+  "license": "original-project-artwork",
+  "subjects": [
+    "chemistry"
+  ],
+  "education_levels": [
+    "junior",
+    "senior",
+    "undergraduate"
+  ],
+  "asset_kind": "scene",
+  "topics": [
+    "chemistry",
+    "titration_curve"
+  ],
+  "provenance": {
+    "origin": "project_procedural",
+    "creation_method": "ai_assisted_vector_code",
+    "source_module": "app/diagrams/extended_chemistry.py",
+    "source_symbol": "draw:titration_curve",
+    "source_hash": "sha256:c60cbd383629df3dc42d5bd2d28a5d86d736c7bf3eb692524016c8d3aac0e2da",
+    "external_graphics": [],
+    "derived_from": [],
+    "knowledge_references": [],
+    "statement": "项目独立编写矢量路径；通用符号与知识事实不代表独占造型。"
+  },
+  "review": {
+    "status": "passed",
+    "automatic": "passed",
+    "structure": "passed",
+    "visual": "passed",
+    "reviewer_type": "agent",
+    "reviewed_at": "2026-10-03",
+    "source_hash": "sha256:c60cbd383629df3dc42d5bd2d28a5d86d736c7bf3eb692524016c8d3aac0e2da",
+    "evidence": {
+      "profiles": [
+        "textbook",
+        "monochrome"
+      ],
+      "preview_rendered": true,
+      "parameter_boundary_checked": false,
+      "parameter_cases": 0,
+      "sheet_review": "/tmp/next-tutor-all-assets-contact-fixed",
+      "parameter_review": "/tmp/next-tutor-all-assets-review-final",
+      "individual_review": "/tmp/next-tutor-wall-source-review",
+      "review_note": "All 27 paired contact sheets inspected; changed families rerendered and inspected. Invalid cross-parameter endpoints explicitly rejected.",
+      "expansion_replay": {
+        "directory": "/tmp/next-tutor-expansion-review",
+        "baseline": "/tmp/next-tutor-wall-source-review",
+        "svg_hashes": {
+          "textbook": "sha256:30edbcb58c8d1d268f4f310371577cdfcc514c71f4dca9fac4a94b79d6f4397e",
+          "monochrome": "sha256:26e94183974d727030e650abdd02d080e2d0740451b078231a667098568d10ff"
+        },
+        "unchanged_actual_svg": true,
+        "review_note": "Both re-rendered SVGs are byte-identical to reviewed baseline; prior visual evidence preserved."
+      }
+    },
+    "notes": "全目录双风格重新渲染无越界/文字碰撞，与前轮逐SVG字节核对仅墙体变化；墙体接触面双风格实图已审阅。"
+  },
+  "svg_file": "asset.svg",
+  "guidance_file": "usage_guide.json",
+  "svg_hash": "sha256:fbd6008266678c83f0befcb3adf2e61b1603ca6af2787c866c827b502bdfc124"
+}

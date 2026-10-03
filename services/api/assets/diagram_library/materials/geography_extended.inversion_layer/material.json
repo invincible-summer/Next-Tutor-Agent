@@ -1,0 +1,75 @@
+{
+  "id": "geography_extended.inversion_layer",
+  "renderer": "geography_extended",
+  "variant": "inversion_layer",
+  "category": "geography",
+  "title": "近地逆温层示意",
+  "english": "Temperature inversion",
+  "aliases": [
+    "气温",
+    "污染扩散"
+  ],
+  "version": 1,
+  "features": [],
+  "sample_params": {},
+  "license": "original-project-artwork",
+  "subjects": [
+    "geography"
+  ],
+  "education_levels": [
+    "junior",
+    "senior",
+    "undergraduate"
+  ],
+  "asset_kind": "scene",
+  "topics": [
+    "geography",
+    "inversion_layer"
+  ],
+  "provenance": {
+    "origin": "project_procedural",
+    "creation_method": "ai_assisted_vector_code",
+    "source_module": "app/diagrams/curriculum_expansion.py",
+    "source_symbol": "draw:inversion_layer",
+    "source_hash": "sha256:5105f9387ffff241aab1a3fe717976c9c3daecb204895d419901214a9f1761d2",
+    "external_graphics": [],
+    "derived_from": [],
+    "knowledge_references": [
+      {
+        "url": "https://www.weather.gov/lmk/inversion",
+        "purpose": "逆温层气温随高度升高；仅核对事实，未使用外部图形",
+        "checked_at": "2026-10-03",
+        "type": "fact_only"
+      }
+    ],
+    "statement": "项目独立编写矢量路径；通用符号与知识事实不代表独占造型。"
+  },
+  "review": {
+    "status": "passed",
+    "automatic": "passed",
+    "structure": "passed",
+    "visual": "passed",
+    "reviewer_type": "agent",
+    "reviewed_at": "2026-10-03",
+    "source_hash": "sha256:5105f9387ffff241aab1a3fe717976c9c3daecb204895d419901214a9f1761d2",
+    "evidence": {
+      "profiles": [
+        "textbook",
+        "monochrome"
+      ],
+      "preview_rendered": true,
+      "parameter_boundary_checked": false,
+      "parameter_cases": 0,
+      "sheet_review": "/tmp/next-tutor-expansion-scoped-final",
+      "correction_review": "/tmp/next-tutor-expansion-corrections",
+      "svg_hashes": {
+        "textbook": "sha256:7732cb552487fd1a744557baa234c976180a64dc48050e9df4ce7efa679eae5c",
+        "monochrome": "sha256:cec4e0a30e5ac9db5ff52da11bdafdf0032b65f75fd6465bf9ab30f75a4678d0"
+      },
+      "review_note": "All 12 large paired sheets and both correction sheets inspected. Closed-pipe ends, electrode/ion directions, daylight, membrane layers, actual numeric controls checked. Final XML matches selected evidence."
+    }
+  },
+  "svg_file": "asset.svg",
+  "guidance_file": "usage_guide.json",
+  "svg_hash": "sha256:e4abde96f2e74dc22a59b1a1f09f33b68bd956c9a08d6a85d10a64a9d65a786d"
+}

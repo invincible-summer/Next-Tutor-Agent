@@ -71,6 +71,9 @@ class Question:
     source_refs: list[dict[str, Any]] = field(default_factory=list)
     illustration: QuestionIllustration | None = None
     diagram_source: dict[str, Any] | None = None
+    visual_role: str = "none"
+    illustration_artifact_id: str = ""
+    material_contract: dict[str, Any] | None = None
     visual_requirements: dict[str, Any] | None = None
 
     def __post_init__(self) -> None:
@@ -99,6 +102,9 @@ class Question:
             "source_refs": [dict(r) for r in self.source_refs],
             "illustration": self.illustration.model_dump() if self.illustration else None,
             "diagram_source": self.diagram_source,
+            "visual_role": self.visual_role,
+            "illustration_artifact_id": self.illustration_artifact_id,
+            "material_contract": self.material_contract,
             "visual_requirements": self.visual_requirements,
         }
 
@@ -153,5 +159,8 @@ class Question:
             illustration=(normalize_illustration(d["illustration"])
                           if d.get("illustration") is not None else None),
             diagram_source=d.get("diagram_source"),
+            visual_role=d.get("visual_role", "none"),
+            illustration_artifact_id=d.get("illustration_artifact_id", ""),
+            material_contract=d.get("material_contract"),
             visual_requirements=d.get("visual_requirements"),
         )

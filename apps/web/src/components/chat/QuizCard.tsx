@@ -202,7 +202,7 @@ export function QuizQuestionCard({
 
   async function submit() {
     if (DEMO_MODE) { demoReadOnly(); return; }
-    if (!hasIdentity || !selected?.trim() || restoring || submitting || submitted) return;
+    if (!hasIdentity || !selected?.trim() || restoring || submitting || submitted || (q.visual_role === "essential" && !q.illustration)) return;
     setSubmitting(true);
     setSubmitError("");
     try {
@@ -231,6 +231,7 @@ export function QuizQuestionCard({
   }
 
   const answerText = revealed?.answer ?? q.answer;
+  const essentialPending = q.visual_role === "essential" && !q.illustration;
 
   return (
     <div className="rounded-[10px] border border-border bg-surface p-3 shadow-sm" data-testid="quiz-card">
@@ -254,7 +255,7 @@ export function QuizQuestionCard({
       </div>
 
       <MiniMarkdown className="chat-prose mt-2 text-[0.82rem] font-medium text-fg">{q.stem}</MiniMarkdown>
-      <QuestionIllustration illustration={q.illustration} />
+      <QuestionIllustration illustration={q.illustration} questionId={q.question_id} revision={q.question_revision} visualRole={q.visual_role} />
 
       {isMC ? (
         <div className="mt-2.5 space-y-1.5">
@@ -269,7 +270,7 @@ export function QuizQuestionCard({
             return (
               <button
                 key={key}
-                disabled={submitted || submitting || restoring || !hasIdentity}
+                disabled={submitted || submitting || restoring || !hasIdentity || essentialPending}
                 onClick={guardDemoAction(() => updateDraft(key))}
                 className={cn(
                   "flex w-full items-center gap-2.5 rounded-[8px] border px-3 py-2 text-left text-[0.8rem] transition-all",
@@ -302,7 +303,7 @@ export function QuizQuestionCard({
       ) : (
         <div className="mt-2.5">
           <Textarea
-            disabled={DEMO_MODE || submitting || restoring || !hasIdentity}
+            disabled={DEMO_MODE || submitting || restoring || !hasIdentity || essentialPending}
             placeholder={hasIdentity ? tr("quiz.answer.placeholder") : tr("quiz.legacy.note", "旧题目仅供回看，新练习请让教练重新出题")}
             className="resize-none text-[0.8rem]"
             rows={2}
@@ -317,7 +318,7 @@ export function QuizQuestionCard({
         <div className="mt-2.5 flex items-center gap-3">
           <button
             onClick={guardDemoAction(() => void submit())}
-            disabled={!selected?.trim() || submitting || restoring}
+            disabled={!selected?.trim() || submitting || restoring || essentialPending}
             className="flex items-center gap-1.5 text-[0.75rem] font-medium text-accent transition-colors hover:text-accent-strong disabled:cursor-not-allowed disabled:opacity-40"
           >
             {submitting ? <Loader2 size={13} className="animate-spin" /> : <Send size={13} />}

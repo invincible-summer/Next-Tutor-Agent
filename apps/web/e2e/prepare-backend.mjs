@@ -9,7 +9,7 @@
  * sources only — fixtures under the copy are per-run state).
  */
 import { execFileSync, spawnSync } from "node:child_process";
-import { existsSync, rmSync, mkdirSync } from "node:fs";
+import { existsSync, rmSync, mkdirSync, copyFileSync, symlinkSync } from "node:fs";
 import { parse, resolve, sep } from "node:path";
 
 const REPO = resolve(import.meta.dirname, "../../..");
@@ -36,6 +36,15 @@ execFileSync("rsync", ["-a", "--delete", "--exclude=__pycache__",
   { stdio: "inherit", cwd: REPO });
 // .env must NOT leak into the E2E copy
 mkdirSync(resolve(DEST, "data"), { recursive: true });
+// Offline SVG preview is part of the backend contract. Keep its browser
+// script in the same architecture-relative location in the scratch checkout.
+const webScratch = resolve(DEST, "apps/web");
+mkdirSync(resolve(webScratch, "scripts"), { recursive: true });
+copyFileSync(resolve(REPO, "apps/web/scripts/render-illustration.mjs"),
+  resolve(webScratch, "scripts/render-illustration.mjs"));
+if (!existsSync(resolve(webScratch, "node_modules"))) {
+  symlinkSync(resolve(REPO, "apps/web/node_modules"), resolve(webScratch, "node_modules"), "dir");
+}
 
 // sanity: the copy has the app package
 if (!existsSync(resolve(backendSrc, "app/main.py"))) {

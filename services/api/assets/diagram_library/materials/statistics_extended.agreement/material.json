@@ -1,0 +1,113 @@
+{
+  "id": "statistics_extended.agreement",
+  "title": "一致性比较图",
+  "english": "Agreement plot",
+  "category": "statistics",
+  "renderer": "statistics_extended",
+  "variant": "agreement",
+  "version": 1,
+  "aliases": [],
+  "features": [
+    "数据驱动"
+  ],
+  "sample_params": {
+    "points": [
+      [
+        1,
+        2
+      ],
+      [
+        2,
+        4
+      ],
+      [
+        3,
+        3.5
+      ],
+      [
+        4,
+        6
+      ],
+      [
+        5,
+        5.5
+      ],
+      [
+        6,
+        8
+      ],
+      [
+        7,
+        7.5
+      ],
+      [
+        8,
+        10
+      ],
+      [
+        9,
+        11
+      ]
+    ]
+  },
+  "license": "original-project-artwork",
+  "subjects": [
+    "statistics"
+  ],
+  "education_levels": [
+    "senior",
+    "undergraduate"
+  ],
+  "asset_kind": "chart",
+  "topics": [
+    "statistics",
+    "agreement"
+  ],
+  "provenance": {
+    "origin": "project_procedural",
+    "creation_method": "ai_assisted_vector_code",
+    "source_module": "app/diagrams/extended_statistics.py",
+    "source_symbol": "draw:agreement",
+    "source_hash": "sha256:d2b24d8678ddff0ca109a65021c8c58c5cc22528dd00a4bb9088704ffb481e4d",
+    "external_graphics": [],
+    "derived_from": [],
+    "knowledge_references": [],
+    "statement": "项目独立编写矢量路径；通用符号与知识事实不代表独占造型。"
+  },
+  "review": {
+    "status": "passed",
+    "automatic": "passed",
+    "structure": "passed",
+    "visual": "passed",
+    "reviewer_type": "agent",
+    "reviewed_at": "2026-10-03",
+    "source_hash": "sha256:d2b24d8678ddff0ca109a65021c8c58c5cc22528dd00a4bb9088704ffb481e4d",
+    "evidence": {
+      "profiles": [
+        "textbook",
+        "monochrome"
+      ],
+      "preview_rendered": true,
+      "parameter_boundary_checked": false,
+      "parameter_cases": 0,
+      "sheet_review": "/tmp/next-tutor-all-assets-contact-fixed",
+      "parameter_review": "/tmp/next-tutor-all-assets-review-final",
+      "individual_review": "/tmp/next-tutor-wall-source-review",
+      "review_note": "All 27 paired contact sheets inspected; changed families rerendered and inspected. Invalid cross-parameter endpoints explicitly rejected.",
+      "expansion_replay": {
+        "directory": "/tmp/next-tutor-expansion-review",
+        "baseline": "/tmp/next-tutor-wall-source-review",
+        "svg_hashes": {
+          "textbook": "sha256:3b5eddb248974692d3e04c1190fe6009679faa166dad5306da5518fcbe1be615",
+          "monochrome": "sha256:73ccd709947cf5fddb9b52966fb14d4cb8dde04c9844d830fad82bf6b063e289"
+        },
+        "unchanged_actual_svg": true,
+        "review_note": "Both re-rendered SVGs are byte-identical to reviewed baseline; prior visual evidence preserved."
+      }
+    },
+    "notes": "全目录双风格重新渲染无越界/文字碰撞，与前轮逐SVG字节核对仅墙体变化；墙体接触面双风格实图已审阅。"
+  },
+  "svg_file": "asset.svg",
+  "guidance_file": "usage_guide.json",
+  "svg_hash": "sha256:7fb72d314f9924435737a07baa6423cffa5d1e1e1a40197954d7d3f42c148273"
+}

@@ -477,7 +477,8 @@ def mechanics(variant: str, p: dict, mono=False) -> Drawing:
             d.circle(80, 80, 50, color=d.muted)
         elif variant == "wall":
             d.line(80, 15, 80, 145, width=3)
-            d.hatch(82, 15, 15, 130)
+            d.hatch(63, 15, 15, 130)
+            d.anchors["fixed_end"] = (80, 80)
         elif variant == "step":
             d.poly([(12, 120), (58, 120), (58, 76), (103, 76),
                     (103, 32), (148, 32), (148, 141), (12, 141)],

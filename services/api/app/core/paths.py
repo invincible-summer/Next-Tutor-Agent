@@ -25,7 +25,7 @@ class RuntimePaths:
         "root", "users", "sessions", "transcripts", "library", "library_data",
         "workspaces", "classroom", "assistant", "trash", "policies",
         "knowledge", "knowledge_custom", "vector_db", "notes", "students",
-        "traces", "uploads", "artifacts", "public_vectors", "auth_secret",
+        "traces", "uploads", "artifacts", "public_vectors", "auth_secret", "illustrations", "diagram_assets",
     )
 
     def __init__(self, root: Path) -> None:
@@ -41,6 +41,8 @@ class RuntimePaths:
         self.workspaces = root / "chat_history" / "workspaces"
         self.classroom = root / "chat_history" / "classroom"
         self.assistant = root / "chat_history" / "assistant"
+        self.illustrations = root / "illustrations"
+        self.diagram_assets = root / "diagram_assets"
         self.trash = root / "chat_history" / "trash"
         self.policies = root / "chat_history" / "settings"
         self.knowledge = root / "knowledge"

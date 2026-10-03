@@ -25,6 +25,7 @@ from app.core.quiz_illustration import (
     normalize_illustration,
     normalize_svg,
 )
+from tests.storage_sandbox import StorageSandboxTestCase
 
 
 SVG_WITH_MARKER = """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 400" role="img" aria-label="velocity diagram">
@@ -73,18 +74,23 @@ def _illustration():
 
 
 class FakeLLM:
-    def __init__(self, responses: list[str], *, delay: float = 0.0):
+    def __init__(self, responses: list[str | Exception], *, delay: float = 0.0):
         self.responses = list(responses)
         self.calls = 0
+        self.requests = []
         self.delay = delay
 
     async def complete(self, **_kwargs):
         self.calls += 1
+        self.requests.append(_kwargs)
         if self.delay:
             await asyncio.sleep(self.delay)
         if not self.responses:
             raise AssertionError("unexpected extra LLM call")
-        return self.responses.pop(0), {"completion_tokens": 24}
+        response = self.responses.pop(0)
+        if isinstance(response, Exception):
+            raise response
+        return response, {"completion_tokens": 24}
 
 
 class TestSvgCompatibility(unittest.TestCase):
@@ -177,7 +183,7 @@ class TestAssessmentIllustrationBinding(unittest.TestCase):
         self.assertEqual(enrichment._safe_student("usr_valid_123"), "usr_valid_123")
 
 
-class TestAssessmentIllustrationApi(unittest.IsolatedAsyncioTestCase):
+class TestAssessmentIllustrationApi(StorageSandboxTestCase, unittest.IsolatedAsyncioTestCase):
     async def test_reviewed_cache_is_readable_after_new_generation_switch_is_off(self):
         task = _task("q_cached")
         instance = cat.CatInstance(
@@ -238,7 +244,7 @@ class TestAssessmentIllustrationApi(unittest.IsolatedAsyncioTestCase):
         )
 
 
-class TestIllustrationEnrichment(unittest.IsolatedAsyncioTestCase):
+class TestIllustrationEnrichment(StorageSandboxTestCase, unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self):
         enrichment._inflight.clear()
         from app.core.config import settings
@@ -278,15 +284,101 @@ class TestIllustrationEnrichment(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(result["status"], "not_required")
         self.assertEqual(llm.calls, 1)
 
-    async def test_required_null_uses_local_scene_recovery_without_text_regeneration(self):
+    async def test_required_null_fails_without_default_scene_or_text_regeneration(self):
         llm = FakeLLM([_requirements_response(), _scene_response(None)])
         with tempfile.TemporaryDirectory() as tmp, \
                 patch.object(enrichment, "_STUDENTS_DIR", Path(tmp)):
             result = await enrichment.generate_assessment_illustration(
                 student_id="usr_required_null", task=_task(), policy="required", llm=llm)
-        self.assertEqual(result["status"], "ready")
-        self.assertIsNotNone(result["illustration"])
+        self.assertEqual(result["status"], "failed")
+        self.assertEqual(result["code"], "illustration_required_missing")
+        self.assertIsNone(result["illustration"])
+        self.assertNotIn("diagram_recovery", result["metrics"])
         self.assertEqual(llm.calls, 2)
+
+    async def test_composition_transport_failure_does_not_build_an_unreviewed_default(self):
+        llm = FakeLLM([_requirements_response(), TimeoutError("provider_timeout")])
+        result = await enrichment.generate_assessment_illustration(
+            student_id="usr_composition_timeout", task=_task("q_composition_timeout"),
+            policy="required", llm=llm)
+        self.assertEqual(result["status"], "failed")
+        self.assertEqual(result["code"], "provider_timeout")
+        self.assertIsNone(result["illustration"])
+        self.assertEqual(llm.calls, 2)
+        self.assertIsNone(enrichment.get_cached_assessment_illustration(
+            "usr_composition_timeout", "q_composition_timeout", 1))
+
+    async def test_optional_missing_scene_remains_retryable_instead_of_caching_not_required(self):
+        task = _task("q_optional_missing")
+        result = await enrichment.generate_assessment_illustration(
+            student_id="usr_optional_missing", task=task, policy="auto",
+            llm=FakeLLM([_requirements_response(), _scene_response(None)]))
+        self.assertEqual(result["status"], "failed")
+        self.assertEqual(result["code"], "diagram_scene_missing")
+        self.assertIsNone(enrichment.get_cached_assessment_illustration(
+            "usr_optional_missing", task.question_id, 1))
+
+    async def test_composer_sees_public_question_and_audit_receives_gold_separately(self):
+        from app.core import quiz_illustration_policy as policy
+        task = _task("q_gold_boundary").model_copy(update={
+            "answer": "PRIVATE_ANSWER_SENTINEL",
+            "explanation": "PRIVATE_EXPLANATION_SENTINEL",
+            "rubric": [S.FrozenCriterion(id="private_rubric", description="PRIVATE_RUBRIC_SENTINEL", weight=1.0)],
+        })
+        before = task.model_dump_json()
+        llm = FakeLLM([_requirements_response(), _scene_response(),
+                       json.dumps({"status": "passed", "issues": []})])
+        # Compilation/reviewed catalog behavior is covered by library tests.
+        # Keep this data-distribution boundary independent of asset revisions.
+        with patch.object(policy, "account_allows_illustration_review", return_value=True), \
+                patch("app.diagrams.pipeline.compile_questions", return_value=[{
+                    "illustration": _illustration().model_dump(mode="json"),
+                }]):
+            result = await enrichment.generate_assessment_illustration(
+                student_id="usr_gold_boundary", task=task, policy="required", llm=llm)
+        self.assertEqual(result["status"], "ready")
+        for request in llm.requests[:2]:
+            context = request["messages"][1]["content"]
+            self.assertIn(task.stem, context)
+            self.assertNotIn("PRIVATE_", context)
+        self.assertNotIn("answer", enrichment._task_payload(task))
+        self.assertNotIn("explanation", enrichment._task_payload(task))
+        self.assertNotIn("rubric", enrichment._task_payload(task))
+        audit = llm.requests[2]["messages"][1]["content"]
+        self.assertIn("审查专用 authoring_gold=", audit)
+        self.assertIn(task.answer, audit)
+        self.assertIn(task.explanation, audit)
+        self.assertIn("PRIVATE_RUBRIC_SENTINEL", audit)
+        self.assertEqual(task.model_dump_json(), before)
+
+    async def test_direct_svg_or_fragments_are_not_repaired_into_a_scene(self):
+        for data in (
+            {"questions": [{"illustration": {"kind": "svg", "svg": "<svg/>"}}]},
+            {"questions": [{"diagram_scene": {**SCENE, "fragments": [{"svg": "<svg/>"}]}}]},
+        ):
+            with self.subTest(data=data):
+                llm = FakeLLM([_requirements_response(), json.dumps(data)])
+                result = await enrichment.generate_assessment_illustration(
+                    student_id="usr_model_svg", task=_task("q_model_svg"),
+                    policy="required", llm=llm)
+                self.assertEqual(result["status"], "failed")
+                self.assertEqual(result["code"], "diagram_model_svg_forbidden")
+                self.assertIsNone(result["illustration"])
+                self.assertEqual(llm.calls, 2)
+
+    async def test_cached_legacy_material_is_read_without_recompilation_or_gold_context(self):
+        task = _task("q_legacy_material")
+        historical = _illustration()
+        enrichment._write_cached("usr_legacy_material", task.question_id, 1,
+                                 status="ready", illustration=historical)
+        with patch("app.diagrams.pipeline.compile_questions",
+                   side_effect=AssertionError("legacy cache must not recompile")):
+            result = await enrichment.generate_assessment_illustration(
+                student_id="usr_legacy_material", task=task,
+                policy="required", llm=FakeLLM([]))
+        self.assertEqual(result["illustration"].content_hash, historical.content_hash)
+        self.assertEqual(result["illustration"].svg, historical.svg)
+        self.assertEqual(result["metrics"]["cache_hit"], 1)
 
     async def test_semantic_audit_failure_does_not_trigger_svg_redraw(self):
         failed_audit = json.dumps({"status": "failed", "issues": ["label_position"]})
@@ -336,9 +428,11 @@ class TestIllustrationEnrichment(unittest.IsolatedAsyncioTestCase):
                     student_id="usr_concurrent_failure", task=task,
                     policy="required", llm=llm),
             )
-        self.assertEqual(first["status"], "ready")
-        self.assertEqual(second["status"], "ready")
-        self.assertIsNotNone(first["illustration"])
+        self.assertEqual(first["status"], "failed")
+        self.assertEqual(second["status"], "failed")
+        self.assertEqual(first["code"], "illustration_required_missing")
+        self.assertEqual(first["code"], second["code"])
+        self.assertIsNone(first["illustration"])
         self.assertEqual(llm.calls, 2)
         self.assertEqual(enrichment._inflight, {})
 
@@ -351,13 +445,13 @@ class TestIllustrationEnrichment(unittest.IsolatedAsyncioTestCase):
                 patch.object(enrichment, "FINAL_AUDIT_RESERVE_SECONDS", 0.005):
             result = await enrichment.generate_assessment_illustration(
                 student_id="usr_timeout", task=_task("q_timeout"), policy="required", llm=llm)
-        self.assertEqual(result["status"], "ready")
-        self.assertIsNotNone(result["illustration"])
-        self.assertEqual(result["metrics"].get("diagram_recovery"), 1)
+        self.assertEqual(result["status"], "failed")
+        self.assertIsNone(result["illustration"])
+        self.assertNotIn("diagram_recovery", result["metrics"])
         self.assertEqual(llm.calls, 1)
         self.assertLessEqual(result["metrics"]["generation_calls"], 1)
 
-    async def test_adaptive_questions_do_not_reuse_an_identical_scene_hash(self):
+    async def test_identical_compositions_are_not_translated_to_change_the_hash(self):
         with tempfile.TemporaryDirectory() as tmp, \
                 patch.object(enrichment, "_STUDENTS_DIR", Path(tmp)):
             first = await enrichment.generate_assessment_illustration(
@@ -368,9 +462,10 @@ class TestIllustrationEnrichment(unittest.IsolatedAsyncioTestCase):
                 policy="required", llm=FakeLLM([_requirements_response(), _scene_response()]))
         self.assertEqual(first["status"], "ready")
         self.assertEqual(second["status"], "ready")
-        self.assertNotEqual(first["illustration"].content_hash,
-                            second["illustration"].content_hash)
-        self.assertEqual(second["metrics"].get("diagram_deduplicated"), 1)
+        self.assertEqual(first["illustration"].content_hash,
+                         second["illustration"].content_hash)
+        self.assertEqual(first["illustration"].svg, second["illustration"].svg)
+        self.assertNotIn("diagram_deduplicated", second["metrics"])
 
 
 SVG_V21 = """<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 400 300">
@@ -416,7 +511,7 @@ class TestSvgV21Compatibility(unittest.TestCase):
         self.assertEqual(round_trip.content_hash, illustration.content_hash)
 
 
-class TestReviewSwitchBehavior(unittest.IsolatedAsyncioTestCase):
+class TestReviewSwitchBehavior(StorageSandboxTestCase, unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self):
         enrichment._inflight.clear()
         from app.core.config import settings

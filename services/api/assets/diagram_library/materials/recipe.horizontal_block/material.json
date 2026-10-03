@@ -1,0 +1,14 @@
+{
+  "id": "recipe.horizontal_block",
+  "title": "水平面滑块",
+  "aliases": [
+    "水平面上的物体"
+  ],
+  "version": 1,
+  "kind": "recipe",
+  "renderer": "registered_v2_recipe",
+  "preview_only": true,
+  "svg_file": "asset.svg",
+  "guidance_file": "usage_guide.json",
+  "svg_hash": "sha256:b1b1eaac8de8abe80f707d0e85d3a7b8d5179c2fc08f4d749c3e310b520c2d89"
+}

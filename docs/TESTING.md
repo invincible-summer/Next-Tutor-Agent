@@ -1,10 +1,39 @@
 # 测试与 CI 维护
 
-教学 SVG 素材与出题专项说明见 [DIAGRAM_LIBRARY.md](DIAGRAM_LIBRARY.md)，完整库存见 [DIAGRAM_ASSETS.md](DIAGRAM_ASSETS.md)，首轮检查记录见 [DIAGRAM_REVIEW.md](DIAGRAM_REVIEW.md)。
+教学 SVG 素材与出题专项说明见 [DIAGRAM_LIBRARY.md](DIAGRAM_LIBRARY.md)，v2 合同、发布门和任务 API 见 [ASSESSMENT_ILLUSTRATION_PIPELINE.md](ASSESSMENT_ILLUSTRATION_PIPELINE.md)，完整库存见 [DIAGRAM_ASSETS.md](DIAGRAM_ASSETS.md)，既有首轮检查记录见 [DIAGRAM_REVIEW.md](DIAGRAM_REVIEW.md)。
 
-素材改动先从仓库根运行 `python3 services/api/scripts/build_diagram_catalog.py --check`，再在 `services/api` 运行 `python3 -m tests tests.test_diagram_library tests.test_quiz_illustration tests.test_quiz_illustration_enrichment`。新增素材必须生成目录与库存、检查两种风格，不只检查 XML 是否可解析。
+素材改动先从仓库根运行 `python3 services/api/scripts/build_diagram_catalog.py --check`，再在 `services/api` 运行相关回归：
 
-在 `apps/web` 运行 `node scripts/check-diagram-library.mjs /tmp/diagram-review`，检查所有正式素材的 Chromium 渲染与画布边界，逐张观看输出的 `sheet-*.png`；越界会返回失败，`review.json` 记录数量与问题。继续执行 `pnpm check`、`NEXT_PUBLIC_BACKEND_URL=http://127.0.0.1:8124 pnpm build` 和 `E2E_FRESH=1 E2E_PRODUCTION=1 pnpm test:e2e e2e/diagram-library.spec.ts e2e/quiz-illustration.spec.ts`。浏览器回归使用隔离账号和后端目录，遍历全部分页、验证图片及参数变化，并保存浅色、深色和较窄桌面截图。测试缓存路径由存储沙箱重定向，不能写生产 students 根。
+```bash
+# 共享目录与兼容题图：
+python3 -m tests tests.test_diagram_library tests.test_quiz_illustration tests.test_quiz_illustration_enrichment
+# v2 语义装配、真实浏览器 PNG、发布门和鉴权任务生命周期：
+python3 -m tests tests.test_illustration_v2 tests.test_illustration_jobs
+```
+
+这些测试使用合成材料、fake LLM 和临时存储，v2 的测量与 PNG 仍调用实际 Node/Chromium，不需要真实模型凭证。新增素材必须生成目录与库存、检查两种风格；加入 v2 还须覆盖真实参数、动态端口/区域、事实绑定和科学关系，不能只验证 XML 可解析。
+
+在 `apps/web` 运行 `node scripts/check-diagram-library.mjs /tmp/diagram-review`，检查全部正式素材的 Chromium 渲染与画布边界，逐张观看 `sheet-*.png` 和 `monochrome-*.png`；可追加 `--parameters` 检查参数端点。越界会返回失败，`review.json` 记录数量、边界问题和被参数约束拒绝的组合。人工审阅还要核对变形、位置、接头、刻度、液面和遮挡，自动通过不等于科学构图正确。
+
+前端改动继续执行 `pnpm check`、`NEXT_PUBLIC_BACKEND_URL=http://127.0.0.1:8124 pnpm build` 和 `E2E_FRESH=1 E2E_PRODUCTION=1 pnpm test:e2e e2e/diagram-library.spec.ts e2e/quiz-illustration.spec.ts`。浏览器回归使用隔离账号和后端目录，遍历全部分页、验证图片及参数变化，并保存浅色、深色和较窄桌面截图。测试缓存、v2 job/artifact/PNG 都由存储沙箱重定向，不能写生产 students 或 illustrations 根。
+
+## 真实 v2 配图验收
+
+当前默认 `QUIZ_ILLUSTRATION_PIPELINE=shadow`，真实多场景验收仍在进行。fake LLM 回归、目录结构检查或单轮成功不能作为真实模型全部通过或生产切换的结论。
+
+先完成下面的 Node/Chromium 准备，并在本地 shell 或仓库根 `.env` 配置实际 quiz provider。显式从仓库根运行：
+
+```bash
+python3 scripts/illustration/acceptance.py --live-llm \
+  --cases heating,reading,buoyancy,series,geometry,bar,thermal,function,spring,filtration \
+  --output /tmp/illustration-v2-round-1
+```
+
+脚本只在这次验收进程中启用 `v2` 与 `active` 审核，以真实 provider 调用合成题目；运行根为自动清理的 `TemporaryDirectory`。输出目录必须位于仓库外，包含每次调用的答案通道 JSON、场景 SVG、最终与中间实际 PNG 和 `report.json`，不保存原始推理或凭证。
+
+多轮复验使用不同输出目录保留每轮材料。逐张检查题意、仪器读数及单位、支撑/连接/浸没关系、遮挡、文字可读性和答案/量规一致性；检查必要图题具备完整、已审核材料，补充图没有增加条件，失败时没有交付半成品。报告的 `passed` 表示该轮产生了通过当前生成审核门的题目，仍须结合截图和题目内容确认效果；脚本不启动产品前后端，题目注册、任务权限和历史恢复另由 API 与浏览器回归验证。
+
+既有 `pnpm test:e2e:live-llm` 仍验证兼容 CAT 的即时 `ready` 响应与三次调用预算，不能作为 v2 异步 job/轮询协议的验收替代。普通 CI 保持 keyless，只运行 fake provider 与离线浏览器；真实模型测试需显式本地执行。
 
 ## 执行分层
 
@@ -41,7 +70,7 @@ pnpm exec playwright install --with-deps chromium
 pnpm build:classroom
 ```
 
-后端课堂回归也会调用真实 Node/Chromium 渲染器，必须先准备浏览器与离线课堂资源。缺失资源曾导致大量 `renderer_unavailable` 和级联发布失败。`requirements-test.txt` 只包含轻量测试依赖；运行向量回归时额外安装 `requirements-vector.txt`。
+后端课堂和 v2 题图回归都会调用真实 Node/Chromium 渲染器，须安装前端依赖与浏览器；课堂还需离线课件资源。缺失资源会导致 `renderer_unavailable` 或 `preview_unavailable`，不能用占位图片计为审核通过。`requirements-test.txt` 只包含轻量测试依赖；运行向量回归时额外安装 `requirements-vector.txt`。
 
 ## 本地命令
 
@@ -119,3 +148,7 @@ python -m tests tests.test_local_rag tests.test_rag_hybrid
 4. `GitHub Pages demo` 工作流在 main push 后自动重建静态演示站；产物契约（大小、无教材格式、manifest 完整）在 CI 内强制校验。
 
 版本 tag（v1.0.0–v2.1.0）是版权清洗后的历史里程碑，指向旧布局的净化快照：不移动、不重打，也不要求其通过当前 CI（工作流不监听 tag）。日常开发不自动移动发布标签。
+
+素材创作重点回归：`cd services/api && python3 -m tests tests.test_diagram_materials tests.test_diagram_guidance tests.test_illustration_jobs tests.test_guest_access`；前端 `pnpm check`、`pnpm build` 后运行 `E2E_FRESH=1 pnpm exec playwright test e2e/diagram-materials.spec.ts e2e/quiz-illustration.spec.ts`。浏览器隔离后端引导合成管理员，验证公有发布、普通用户403/只读历史与私有列表隔离；图片渲染脚本和依赖同样位于隔离架构。
+
+真实素材生成与使用验收：`python3 scripts/illustration/material_acceptance.py --live-llm --output /tmp/material-live-acceptance`。它创建隔离临时运行根，实际调用配置服务生成容器/几何/流程草稿、手动修改、冻结新版本并使用指定素材出题，两项审图均看真实PNG。浏览器AI草稿替身不计为该服务验收，详细结果见[验收记录](DIAGRAM_LIBRARY_ACCEPTANCE.md)。

@@ -1,0 +1,158 @@
+{
+  "id": "biology_extended.niche_resources",
+  "title": "生态位资源分布",
+  "english": "Resource niche distributions",
+  "category": "biology",
+  "renderer": "biology_extended",
+  "variant": "niche_resources",
+  "version": 1,
+  "aliases": [],
+  "features": [
+    "数据驱动"
+  ],
+  "sample_params": {
+    "points": [
+      [
+        0.0,
+        0.01803596753155114,
+        6.611204747594976e-06
+      ],
+      [
+        0.06666666666666667,
+        0.06254132175516641,
+        6.448223650763163e-05
+      ],
+      [
+        0.13333333333333333,
+        0.16953466230025632,
+        0.0004916583467265307
+      ],
+      [
+        0.2,
+        0.35926407787804654,
+        0.002930559748185525
+      ],
+      [
+        0.26666666666666666,
+        0.5951588886971264,
+        0.01365531061565275
+      ],
+      [
+        0.3333333333333333,
+        0.7707541871290191,
+        0.04974121921769301
+      ],
+      [
+        0.4,
+        0.7803019652838254,
+        0.1416429973276013
+      ],
+      [
+        0.4666666666666667,
+        0.6175517379156668,
+        0.3153099168668235
+      ],
+      [
+        0.5333333333333333,
+        0.3820743080288552,
+        0.5487114101444894
+      ],
+      [
+        0.6,
+        0.1847932747406066,
+        0.7464731512116606
+      ],
+      [
+        0.6666666666666666,
+        0.06986961137703325,
+        0.793867882355133
+      ],
+      [
+        0.7333333333333333,
+        0.020651629885365196,
+        0.6600033069580068
+      ],
+      [
+        0.8,
+        0.004771821372697767,
+        0.4289511442634035
+      ],
+      [
+        0.8666666666666667,
+        0.0008619416412644044,
+        0.2179382148617262
+      ],
+      [
+        0.9333333333333333,
+        0.00012171255697230922,
+        0.08656110410499533
+      ],
+      [
+        1.0,
+        1.3435590223095734e-05,
+        0.0268767050219843
+      ]
+    ]
+  },
+  "license": "original-project-artwork",
+  "subjects": [
+    "biology"
+  ],
+  "education_levels": [
+    "junior",
+    "senior",
+    "undergraduate"
+  ],
+  "asset_kind": "scene",
+  "topics": [
+    "biology",
+    "niche_resources"
+  ],
+  "provenance": {
+    "origin": "project_procedural",
+    "creation_method": "ai_assisted_vector_code",
+    "source_module": "app/diagrams/extended_biology.py",
+    "source_symbol": "draw:niche_resources",
+    "source_hash": "sha256:9e7554d48c6d3e7d7c8b895857ba4847801a84dd5dfe77a0d7bc4764951d7847",
+    "external_graphics": [],
+    "derived_from": [],
+    "knowledge_references": [],
+    "statement": "项目独立编写矢量路径；通用符号与知识事实不代表独占造型。"
+  },
+  "review": {
+    "status": "passed",
+    "automatic": "passed",
+    "structure": "passed",
+    "visual": "passed",
+    "reviewer_type": "agent",
+    "reviewed_at": "2026-10-03",
+    "source_hash": "sha256:9e7554d48c6d3e7d7c8b895857ba4847801a84dd5dfe77a0d7bc4764951d7847",
+    "evidence": {
+      "profiles": [
+        "textbook",
+        "monochrome"
+      ],
+      "preview_rendered": true,
+      "parameter_boundary_checked": false,
+      "parameter_cases": 0,
+      "sheet_review": "/tmp/next-tutor-all-assets-contact-fixed",
+      "parameter_review": "/tmp/next-tutor-all-assets-review-final",
+      "individual_review": "/tmp/next-tutor-wall-source-review",
+      "review_note": "All 27 paired contact sheets inspected; changed families rerendered and inspected. Invalid cross-parameter endpoints explicitly rejected.",
+      "expansion_replay": {
+        "directory": "/tmp/next-tutor-expansion-review",
+        "baseline": "/tmp/next-tutor-wall-source-review",
+        "svg_hashes": {
+          "textbook": "sha256:90dbfdef246054f532896ca071089c3d43c21e0f144e21c8f2dcc22d844b2f20",
+          "monochrome": "sha256:c31e5c568008f92e298ef4458465cbc621bc533e88390af503725d5c7f886be9"
+        },
+        "unchanged_actual_svg": true,
+        "review_note": "Both re-rendered SVGs are byte-identical to reviewed baseline; prior visual evidence preserved."
+      }
+    },
+    "notes": "全目录双风格重新渲染无越界/文字碰撞，与前轮逐SVG字节核对仅墙体变化；墙体接触面双风格实图已审阅。"
+  },
+  "svg_file": "asset.svg",
+  "guidance_file": "usage_guide.json",
+  "svg_hash": "sha256:dd1a09fb36f2c92fe3af2e2b96ed15d8b4aeeafc61646436d264532ad58f7473"
+}

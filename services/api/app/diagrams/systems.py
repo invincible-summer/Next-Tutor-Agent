@@ -46,7 +46,16 @@ def graph(variant: str, p: dict, mono=False) -> Drawing:
         n = len(items)
         positions = []
         for i in range(n):
-            if variant in {"timeline", "cashflow", "gantt", "sentence", "morpheme", "story"}:
+            if variant == "flow":
+                # Read process steps in sequence. Long flows continue in
+                # alternating rows, keeping each consecutive edge local.
+                columns = min(n, 4) if n > 5 else n
+                row, column = divmod(i, columns)
+                if row % 2:
+                    column = columns-1-column
+                rows = math.ceil(n/columns)
+                positions.append((38+(column+.5)*402/columns, 145 if rows == 1 else 45+row*210/(rows-1)))
+            elif variant in {"timeline", "cashflow", "gantt", "sentence", "morpheme", "story"}:
                 positions.append((38+(i+.5)*402/n, 136))
             elif variant in {"tree", "binary_tree", "heap", "probability_tree", "syntax_tree", "organization", "pedigree", "argument", "paragraph", "ecosystem"}:
                 level = int(math.log2(i+1))
@@ -55,6 +64,13 @@ def graph(variant: str, p: dict, mono=False) -> Drawing:
             else:
                 a = -math.pi/2+i*2*math.pi/max(n, 1)
                 positions.append((240+145*math.cos(a), 145+99*math.sin(a)))
+        def node_width(index):
+            # Keep edge endpoints attached to the actual adaptive node.
+            units = sum(1 if ord(c) > 255 else .58 for c in str(items[index]))
+            return max(62, min(180, units * 15 + 18))
+        def node_height(index):
+            units = sum(1 if ord(c) > 255 else .58 for c in str(items[index]))
+            return 40 if units <= 8 else 40 + 12 * math.ceil(units / 8 - 1)
         edges = p.get("edges")
         if edges is None:
             edges = [[(i-1)//2, i] for i in range(1, n)] if variant in {"tree", "binary_tree", "heap", "probability_tree", "syntax_tree", "organization", "pedigree", "argument", "paragraph", "ecosystem"} else [[i, i+1] for i in range(n-1)]
@@ -68,8 +84,9 @@ def graph(variant: str, p: dict, mono=False) -> Drawing:
             ux, uy = (x2-x1)/dist, (y2-y1)/dist
             rect_node = variant in {"flow", "state_machine", "dataflow", "linked_list", "network", "process", "comparison", "sentence", "morpheme"}
             def trim(index):
-                w = max(62, min(104, len(str(items[index]))*15+18))
-                return min(w/2/max(abs(ux), 1e-9), 20/max(abs(uy), 1e-9))+2 if rect_node else 24
+                w = node_width(index)
+                h = node_height(index)
+                return min(w/2/max(abs(ux), 1e-9), h/2/max(abs(uy), 1e-9))+2 if rect_node else 24
             a = (x1+ux*trim(start), y1+uy*trim(start))
             b = (x2-ux*trim(end), y2-uy*trim(end))
             if variant in {"undirected", "bipartite", "hasse", "tree", "binary_tree", "heap", "pedigree"}:
@@ -84,9 +101,10 @@ def graph(variant: str, p: dict, mono=False) -> Drawing:
                 d.line(x, y, x, y-35 if i % 2 == 0 else y+35, color=d.muted)
                 d.text(item, x, y-43 if i % 2 == 0 else y+58, size=16)
             elif variant in {"flow", "state_machine", "dataflow", "class", "er", "linked_list", "double_list", "network", "process", "comparison", "sentence", "morpheme"}:
-                w = max(62, min(104, len(str(item))*15+18))
-                d.rect(x-w/2, y-20, w, 40, fill=d.glass, radius=6)
-                label(item, x, y, w, 40)
+                w = node_width(i)
+                h = node_height(i)
+                d.rect(x-w/2, y-h/2, w, h, fill=d.glass, radius=6)
+                label(item, x, y, w, h)
             else:
                 d.circle(x, y, 22, fill=d.glass)
                 label(item, x, y, 44, 44)
@@ -154,6 +172,12 @@ def chemistry(variant: str, p: dict, mono=False) -> Drawing:
             "ethylene": [(53, 80, "C"), (107, 80, "C"), (27, 34, "H"), (27, 126, "H"), (133, 34, "H"), (133, 126, "H")],
             "acetylene": [(60, 80, "C"), (100, 80, "C"), (20, 80, "H"), (140, 80, "H")]}
         atoms = layouts[variant]
+        if variant == "water":
+            half_angle = math.radians(104.5/2)
+            atoms = [(80, 60, "O"),
+                (80-62*math.sin(half_angle), 60+62*math.cos(half_angle), "H"),
+                (80+62*math.sin(half_angle), 60+62*math.cos(half_angle), "H")]
+            d.facts["bond_angle_degrees"] = 104.5
         bonds = [(0, i) for i in range(1, len(atoms))] if variant in {"water", "ammonia", "methane"} else [(i, i+1) for i in range(len(atoms)-1)]
         if variant == "acetic_acid":
             bonds = [(0, 1), (1, 2), (1, 3), (2, 4), (0, 5), (0, 6), (0, 7)]

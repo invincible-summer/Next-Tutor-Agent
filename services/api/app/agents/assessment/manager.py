@@ -137,7 +137,7 @@ def register_task_snapshots(student_id: str, tasks: list[S.TaskSnapshot]) -> Non
         pending: dict[tuple[str, int], S.TaskSnapshot] = {}
         material = {"q_type", "stem", "options", "answer", "explanation",
                     "illustration", "diagram_source", "visual_requirements",
-                    "rubric", "rubric_hash", "equivalent_solutions"}
+                    "rubric", "rubric_hash", "equivalent_solutions", "visual_role", "material_contract"}
         for task in tasks:
             key = (task.question_id, task.question_revision)
             existing = pending.get(key) or state.tasks.get(key[0], {}).get(key[1])
@@ -156,6 +156,9 @@ def register_task_snapshots(student_id: str, tasks: list[S.TaskSnapshot]) -> Non
                     raise IllustrationDisabled("插图生成已关闭，请重新生成题目。")
             pending[key] = task
         if pending:
+            from app.illustration.persistence import freeze_task
+            for task in pending.values():
+                freeze_task(student_id, task)
             journal.append([S.OpQuestionRegistered(task=task) for task in pending.values()])
 
 
@@ -195,6 +198,9 @@ def task_snapshot_from_legacy(question: Any, *,
         answer=question.answer or "", explanation=question.explanation or "",
         illustration=question.illustration,
         diagram_source=question.diagram_source,
+        visual_role=question.visual_role,
+        illustration_artifact_id=question.illustration_artifact_id,
+        material_contract=question.material_contract,
         visual_requirements=question.visual_requirements,
         equivalent_solutions=[str(e) for e in
                               (legacy_rubric.get("equivalent_solutions")
@@ -262,6 +268,9 @@ def task_snapshot_from_quiz_dict(qd: dict, *,
         explanation=str(qd.get("explanation") or ""),
         illustration=qd.get("illustration"),
         diagram_source=qd.get("diagram_source"),
+        visual_role=qd.get("visual_role", "none"),
+        illustration_artifact_id=qd.get("illustration_artifact_id", ""),
+        material_contract=qd.get("material_contract"),
         visual_requirements=qd.get("visual_requirements"),
         equivalent_solutions=[str(e) for e in
                               (legacy.get("equivalent_solutions") or [])][:8],
@@ -359,6 +368,21 @@ def register_quiz_payload(*, student_id: str, workspace_id: str,
             source_session_ref=session_id, registered_at=registered_at)
         tasks.append(task)
     register_task_snapshots(student_id, tasks)
+    for question, task in zip([q for q in quiz_data.get("questions") or [] if isinstance(q, dict)], tasks):
+        question["illustration_artifact_id"] = task.illustration_artifact_id
+    project_quiz_payload(quiz_data)
+
+
+def project_quiz_payload(quiz_data: dict) -> None:
+    """Remove private material after registered or ephemeral snapshots freeze."""
+    for question in quiz_data.get("questions") or []:
+        if not isinstance(question, dict):
+            continue
+        for field in ("diagram_source", "diagram_facts", "material_contract", "illustration_review"):
+            question.pop(field, None)
+    verification = quiz_data.get("verification")
+    if isinstance(verification, dict):
+        verification.pop("authoring_change_request", None)
 
 
 # ---------------------------------------------------------------------------

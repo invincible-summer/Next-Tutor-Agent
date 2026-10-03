@@ -249,7 +249,7 @@ def draw(v, p, mono=False):
                 )
             text(d, str(i + 1), x, y + 37, size=10)
         ball(d, 240, 157, 30, d.blue)
-        text(d, "phase sequence · illumination schematic", 240, 314, size=11)
+        text(d, "phase sequence · illumination schematic", 240, 14, size=11)
     elif v in {"plate_boundary", "subduction"}:
         if v == "plate_boundary":
             for y, label in [

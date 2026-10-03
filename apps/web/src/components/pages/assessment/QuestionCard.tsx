@@ -14,6 +14,7 @@ import { useUIStore } from "@/lib/store";
 import type { AssessmentQuestion } from "@/lib/types-modules";
 import { DifficultyDots, difficultyOf, type PageTr } from "./common";
 import { useIllustrationEnrichment } from "./useIllustrationEnrichment";
+import { illustrationFailure, illustrationStage } from "@/lib/api-illustrations";
 
 export function isMultipleChoice(question: AssessmentQuestion): boolean {
   return (question.q_type === "multiple_choice" || question.type === "multiple_choice")
@@ -45,11 +46,12 @@ function QuestionBody({ tr, question, difficulty, answered, busy, onSubmit, onAb
   const draft = question.question_id.startsWith("q_draft_");
   const multipleChoice = isMultipleChoice(question);
   const answer = multipleChoice ? selected : text.trim();
-  const disabled = busy || working;
   const level = difficulty > 0 ? difficulty : difficultyOf(question);
   const options = multipleChoice ? Object.entries(question.options ?? {})
     .sort(([first], [second]) => first.localeCompare(second)) : [];
   const illustration = useIllustrationEnrichment(question);
+  const essentialPending = question.visual_role === "essential" && !illustration.illustration;
+  const disabled = busy || working || essentialPending;
 
   async function assistance(kind: "hint" | "reveal") {
     if (disabled || draft) return;
@@ -79,7 +81,7 @@ function QuestionBody({ tr, question, difficulty, answered, busy, onSubmit, onAb
         <div className="flex flex-wrap items-center gap-2">
           <Badge tone="muted">{tr("ask.answered")} {answered}</Badge>
           <Button type="button" variant="ghost" size="sm" icon={<Flag size={13} />}
-            disabled={disabled} onClick={onAbandon}>{tr("abandon")}</Button>
+            disabled={busy || working} onClick={onAbandon}>{tr("abandon")}</Button>
         </div>
       } />
       {draft && <div role="status" className="mb-3 rounded-lg border border-warning/30 bg-warning/5 p-3 text-sm leading-6">
@@ -91,18 +93,20 @@ function QuestionBody({ tr, question, difficulty, answered, busy, onSubmit, onAb
       {illustration.state === "generating" && <div data-testid="assessment-illustration-generating" role="status"
         className="mt-3 flex items-center gap-2 rounded-lg border border-border-light bg-surface-sunken px-3 py-2 text-xs leading-5 text-muted">
         <LoaderCircle size={14} aria-hidden="true" className="shrink-0 animate-spin" />
-        <span>{english
-          ? "The text question is ready. Generating and checking a diagram in the background…"
-          : "文字题已可作答，正在生成并审核配图…"}</span>
+        <span>{illustrationStage(illustration.stage, english)} · {essentialPending
+          ? (english ? "The diagram must be ready before answering." : "必要题图完成前不能作答。")
+          : (english ? "The text question is ready to answer." : "文字题已可作答。")}</span>
       </div>}
       {illustration.state === "failed" && <div data-testid="assessment-illustration-failed" role="status"
         className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-warning/30 bg-warning/5 px-3 py-2 text-xs leading-5 text-muted">
         <span className="flex min-w-0 items-center gap-2">
           <ImageIcon size={14} aria-hidden="true" className="shrink-0" />
-          {english ? "The question is usable, but the diagram did not finish." : "文字题仍可正常作答，但本次配图未完成。"}
+          {illustrationFailure(illustration.failureCode, english)} · {essentialPending
+            ? (english ? "Question material is incomplete." : "题目材料尚未完整，暂不能作答。")
+            : (english ? "The text question remains usable." : "补充图不是作答依据，文字题仍可正常作答。")}
         </span>
         <Button type="button" size="sm" variant="outline" icon={<RefreshCw size={13} aria-hidden="true" />}
-          onClick={illustration.retry}>{english ? "Retry diagram" : "重试配图"}</Button>
+          disabled={!illustration.retryable} onClick={illustration.retry}>{english ? "Retry diagram" : "重试配图"}</Button>
       </div>}
       <QuestionIllustration illustration={illustration.illustration} />
       {multipleChoice ? <div className="mt-4 flex flex-col gap-2">

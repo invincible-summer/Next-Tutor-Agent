@@ -1,0 +1,104 @@
+{
+  "id": "geography_extended.climate_plot",
+  "title": "气温降水组合",
+  "english": "Temperature and precipitation",
+  "category": "geography",
+  "renderer": "geography_extended",
+  "variant": "climate_plot",
+  "version": 1,
+  "aliases": [],
+  "features": [
+    "数据驱动"
+  ],
+  "sample_params": {
+    "temperature": [
+      3,
+      5,
+      10,
+      16,
+      21,
+      25,
+      28,
+      27,
+      23,
+      17,
+      10,
+      5
+    ],
+    "rainfall": [
+      30,
+      34,
+      50,
+      72,
+      90,
+      128,
+      145,
+      138,
+      83,
+      50,
+      36,
+      28
+    ]
+  },
+  "license": "original-project-artwork",
+  "subjects": [
+    "geography"
+  ],
+  "education_levels": [
+    "junior",
+    "senior",
+    "undergraduate"
+  ],
+  "asset_kind": "scene",
+  "topics": [
+    "geography",
+    "climate_plot"
+  ],
+  "provenance": {
+    "origin": "project_procedural",
+    "creation_method": "ai_assisted_vector_code",
+    "source_module": "app/diagrams/extended_earth.py",
+    "source_symbol": "draw:climate_plot",
+    "source_hash": "sha256:90c5bb2570d4621c0f02a0f9c271f6eb3943bd3735975757f3c62db783fb63c5",
+    "external_graphics": [],
+    "derived_from": [],
+    "knowledge_references": [],
+    "statement": "项目独立编写矢量路径；通用符号与知识事实不代表独占造型。"
+  },
+  "review": {
+    "status": "passed",
+    "automatic": "passed",
+    "structure": "passed",
+    "visual": "passed",
+    "reviewer_type": "agent",
+    "reviewed_at": "2026-10-03",
+    "source_hash": "sha256:90c5bb2570d4621c0f02a0f9c271f6eb3943bd3735975757f3c62db783fb63c5",
+    "evidence": {
+      "profiles": [
+        "textbook",
+        "monochrome"
+      ],
+      "preview_rendered": true,
+      "parameter_boundary_checked": false,
+      "parameter_cases": 0,
+      "sheet_review": "/tmp/next-tutor-all-assets-contact-fixed",
+      "parameter_review": "/tmp/next-tutor-all-assets-review-final",
+      "individual_review": "/tmp/next-tutor-wall-source-review",
+      "review_note": "All 27 paired contact sheets inspected; changed families rerendered and inspected. Invalid cross-parameter endpoints explicitly rejected.",
+      "expansion_replay": {
+        "directory": "/tmp/next-tutor-expansion-review",
+        "baseline": "/tmp/next-tutor-wall-source-review",
+        "svg_hashes": {
+          "textbook": "sha256:fb2c3a18d8372cb8ad3bc5b60d7d3b060bf177aebc3264688fb30a598154620f",
+          "monochrome": "sha256:dc1c11aa02980fa05a41c3f80d457fbc4a272d5b68a348b9636c4c89608ca04c"
+        },
+        "unchanged_actual_svg": true,
+        "review_note": "Both re-rendered SVGs are byte-identical to reviewed baseline; prior visual evidence preserved."
+      }
+    },
+    "notes": "全目录双风格重新渲染无越界/文字碰撞，与前轮逐SVG字节核对仅墙体变化；墙体接触面双风格实图已审阅。"
+  },
+  "svg_file": "asset.svg",
+  "guidance_file": "usage_guide.json",
+  "svg_hash": "sha256:0741c4d5155b50e44d90bbc27dee8bc08d775a9e94711b7627f7c70021bc14fb"
+}

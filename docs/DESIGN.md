@@ -90,6 +90,7 @@ SSE 为前端直连后端的流式通道（`POST /chat/stream`、`POST /quiz/gra
 - 会话历史：`GET /chat/sessions` 只返回登录账号本人的会话；游客始终返回空列表，不能读取旧 `student_default` 或未盖身份戳的遗留会话。
 - 工作区：创建打 `student_id` 戳、列表过滤、按 id 端点对外人 404（不泄露存在性），移入会话也校验归属。「共享」指同一 owner 的多个对话间共享，而非跨用户。
 - 资料库：每用户一份（`chat_history/library/<student_id>.json` + `data/<student_id>/`），互不可见。
+- 题图任务与产物：`illustrations/<student_id>/` 隔离 job、运行事件、冻结 artifact 和 PNG，面向学生的接口只投影本人已关联题目的公开材料；删除账户时使旧运行失效并清空该根。
 - **JWT 唯一事实源（铁律）**：任何端点的 student_id 只来自 `resolve_student_id()`，请求体/query 里的 student_id 字段仅为旧客户端兼容保留、一律忽略。回归实案：CAT 测评 5 个端点曾信任 body 的 `req.student_id`，登录用户的测评数据错落到游客命名空间且可跨用户读写——已修复并加 `test_assessment_identity` 回归（伪造他人 id 无效、游客伪造同样无效）。
 
 ### 2.3 账户 API 与安全
@@ -336,17 +337,23 @@ journal 纯读恢复受理、当前本题判分和学习反馈（未提交为 nu
 404，版本不匹配 409），不触发模型或追加受理。前端按返回的 `pending`
 有限轮询，独立于长期评价状态，支持无学习区的 task-only 判分；失败或
 未判定仍保留只读答案。旧会话丢失 result 缓存也可由题目身份恢复。
-组件题图链路已接入；自动化测试记录见 services/api/tests/test_quiz_illustration*.py（验收以测试为准）。默认部署开关为 `1`，运维可设置为 `0` 立即关闭所有新图生成。
+题图使用项目素材组件链路，运维总闸为默认 `1` 的 `QUIZ_SVG_ENABLED`。配图 v2 已接入，但默认 `QUIZ_ILLUSTRATION_PIPELINE=shadow`：普通出题仍走兼容组件路径，CAT 在兼容结果之外运行账户私有 v2 对照任务。设为 `v2` 才使用新的普通出题发布门与 CAT 任务协议，`v1` 保留兼容路径。真实LLM已完成14类情境与两组数值验收；本地忽略配置已设v2并声明实测图片输入能力，重启生效，代码兼容默认仍为shadow。详细合同见 [ASSESSMENT_ILLUSTRATION_PIPELINE.md](ASSESSMENT_ILLUSTRATION_PIPELINE.md)。
 
-**结构化题目 SVG 与教学素材库**：普通出题先声明素材需求，由项目本地检索，再生成题面和组件场景、编译、独立审核、冻结后交付；CAT 的自足文字题先冻结，随后独立补图，不改冻结内容。`QUIZ_DIAGRAM_MODE` 仅保留配置兼容字段，运行时始终使用项目组件素材链路，不再支持旧的模型直接生成 SVG。`QUIZ_SVG_ENABLED` 是默认 `1` 的运维总闸，设为 `0` 时所有入口 fail-closed；登录账户 `profile.prefs.quiz_svg_enabled` 缺省 true，读取失败或无可信账户则禁止新图。`/user/profile` 的 GET/PUT 响应增加 `quiz_svg_available`，PUT 在账户锁内浅合并偏好并严格校验新偏好为 bool。`illustration_request=auto|none|required` 是本次意图：关闭总闸时 auto/none 为 off、required 返回 `illustration_disabled`；开启后 auto 按题必要性选择，required 每题必须带图。Chat provider 绑定可信账户与当前用户意图，模型工具参数不能自行开启开关或伪造强制要求。CAT start 接收该枚举并在实例持久化，next/恢复复用，409 不终止已有实例。
+**材料角色与权限**：`illustration_request=auto|none|required` 是用户本次意图；账户 `profile.prefs.quiz_svg_enabled` 缺省 true，读取失败或无可信账户禁止新图，关闭总闸后 required 返回 `illustration_disabled`。Chat provider 绑定可信账户和当前用户意图，模型工具参数不能自行开启生成或伪造强制要求。CAT 的本次意图保存于实例，next/恢复复用。材料合同另以 `visual_role=none|supplemental|essential` 区分无图、文字自足的补充图和承载必要条件的题图。`essential` 必须在题目注册前获得完整、通过审核的图，不交付缺图可答任务；CAT 保持文字先冻结，后到补图不能增加必要条件或改题干、选项、答案、解析、量规和 revision。
 
-`app/diagrams/` 提供 1,079 个原创教材矢量素材、显式参数、具名锚点与完整构图模板。模型没有素材检索工具；名称/别名/功能约束由项目确定性模糊检索，每类需求最多三个候选。模型返回受限 `diagram_scene`，编译器只接受该题候选 ID，按真实数据生成统计/函数几何，再交给 `core/quiz_illustration.py` 的 defusedxml 闭合白名单。旧图 schema 1 / sanitizer 1、2 保留最多 24KiB、180 节点、800 路径段；组件图 schema 2 / sanitizer 3 最多 128KiB、1200 节点、4000 路径段，深度均为 10。禁止脚本、HTML、样式表、外链、可执行引用、动画和 DTD/实体；不把非法图删掉后原样交付依图题。规范化对象 `{kind,schema_version,sanitizer_version,svg,alt,caption,width,height,content_hash}` 沿 `Question → TaskSnapshot → QuestionPublic` 保存与投影，并进入本题评分上下文；来源场景、需求和素材版本仅保存于私有快照。模型提供的审核/内部字段不受信任；确定性组件编译始终校验素材、参数、锚点和画布；生成审查默认关闭，开启后才增加一次独立题图一致性审查。Chat/Fit 的蓝图可同时声明素材需求，项目本地检索后再生成构图，统一共享配置的调用次数/截止时间；CAT 补图最多三次调用/30 秒，不重生成文字题。CAT 首题使用 `get_llm("quiz")` 快速通道（同一主模型，SDK 重试关闭避免 provider 与应用层重试相乘；provider 内部网络重试仍受统一期限约束）。
+**v2 编排**：`app/illustration/` 统一合同、需求、检索、构图、实例化、静态检查、真实 PNG 审核、修复与冻结。`QuestionMaterialContract` 的身份、公开题面与私有 gold 由服务端绑定；补充图实体/事实须有可逐字核对的题面依据。`VisualBriefV2 → CandidateBundleV2 → SceneDraftV2` 均为闭合协议，模型没有素材搜索工具。完整图库有 1,079 个共享项目素材，31个组件和10个配方使用 `semantics.py` 的领域几何，全部登记素材通过 `adapters.py` 统一适配，每类需求最多六个候选，能力和视图为硬约束。条件参数使用事实 ID 绑定；图库样例不作为题目事实，待求读数和答案不进入构图模型的事实值投影。
 
-题组注册在账户锁与 journal 锁内复查图生成权限、检查同题同 revision 材料不可变，再一次事务写入整组。账户开关变化不修改历史图；重练同一冻结题图仍可复用。journal 重放使用 `JournalTransaction.from_persisted_json`，先校验磁盘原始 envelope 再解析新增默认字段，避免将历史记录误判为 checksum 损坏；不批量迁移或重写旧行。
+`layout.py` 按解析参数生成几何、动态端口、区域和分层，结合本地 Chromium 实测的 SVG 边界与字体尺寸检查支撑、连接、浸没、遮挡、出界、路由和可读性。`preview.py` 从最终 SVG 生成真实 PNG，独立视觉审核后再核对题面、答案、量规与图中条件。`QUIZ_ILLUSTRATION_VISUAL_REVIEW=active`（默认）且 `machine/visual/joint=passed` 才满足 v2 发布门；off/shadow 或旧账户可选审图偏好不能放行未经审核的 v2 图。可修复错误通过绑定基础场景 hash 的 `ScenePatchV2` 有界修改布局，冻结事实保持不变，修复后重走编译、PNG 与审核；缺少材料、模型图片能力或预算时明确失败。
 
-前端共用 `QuestionIllustration`：仅接收规范化版本对象，以 `img` 的 SVG data URI 图片上下文展示，不启用 Markdown raw HTML，不用 DOM 内联 SVG/object/iframe。题图自适应至 720px，旧黑白图在深色模式反转，彩色组件图保留白纸与原配色，支持放大、Esc 与焦点返回；失败显示图意说明。出题中心把账户开关和“本次必须配图”直接放在习题生成 `ConfigCard` 内（无学习区/加载态也显示），不再单独创建插图模块；“本次必须配图”仅在有效开关开启时可选。聊天结构化题卡、测评答题/反馈、报告回看与证据详情均复用该组件，保证题图始终位于结构化卡片内。源码摘要仅保存短 alt，trace 仅新增 hash/大小/版本/调用统计，不回灌完整 SVG。
+v2 默认最多五次模型调用、两次补丁，草稿最多 45 秒，冻结 CAT 题最多 30 秒；无修复成功流程使用声明、构图、视觉和联合审核四次调用。修复需留足补丁及两项审核额度，普通出题还受外层 `ASSESSMENT_GENERATION_*` 预算约束。兼容 v1 CAT 补图保留三次调用/30 秒及账户可选语义审核。CAT 首题仍使用 `get_llm("quiz")` 快速通道，不因补图重生成文字题。
 
-Workspace 左侧「教学素材库」进入 `/diagram-library`，可分页观看全部素材、筛选学科/类型、模糊搜索、放大、调节真实参数和切换黑白印刷。`GET /api/v1/diagram-assets`、`GET /api/v1/diagram-assets/{asset_id}` 与 `POST /api/v1/diagram-assets/{asset_id}/preview` 沿用既有 API 访问门；预览不调用模型、不写公共资源或学生记录。资源目录在 `services/api/assets/diagram_library/catalog.json`，生成与完整库存见 [DIAGRAM_LIBRARY.md](DIAGRAM_LIBRARY.md) 和 [DIAGRAM_ASSETS.md](DIAGRAM_ASSETS.md)。账户补图缓存沿用原有 students 根，纳入测试存储沙箱，不新增清理类别。
+**产物与任务 API**：`POST /quiz/illustration-jobs` 只接受已有题目 ID/revision；`POST /assessment/questions/{id}/illustration` 按当前模式启动补图。`GET /illustration-jobs/{job_id}` 读取本人非 shadow 任务，`POST /illustration-jobs/{job_id}/retry` 为失败/中断运行创建新 job/run；`GET /questions/{id}/illustration?question_revision=…` 只读冻结题图或已有状态。所有路径均在 `/api/v1` 下，身份只取 `resolve_student_id()`，他人任务 404。只有活跃 CAT 当前题可启动新的补图或重试；重复启动共享一个运行，ready 产物不能覆盖，改材料需新 revision。当前公开状态为 queued/running/ready/not_required/failed，进度仅投影准备、检索、构图、审核等阶段和百分比，不暴露事实、gold、场景、内部失败阶段或审核文字。
+
+v2 在运行根 `illustrations/<owner>/` 保存 jobs、追加事件 runs、不可变 artifacts 和 PNG previews，使用文件锁与 `core/atomic.py` 原子写；路径已绑定统一 runtime 根并登记沙箱、账户删除和孤儿清理。普通题先准备私有 artifact，再在账户锁/journal 锁内检查材料不可变性并整组注册；journal 题目引用是交付点。删除先失效 owner epoch 并取消后台任务，旧写入或读后恢复不能重建已删除目录。重启后读取无存活任务的遗留运行标为 `run_interrupted`，显式重试开启新运行。兼容历史缓存仍在 students 根；生成开关、目录或提示词变化不重绘已交付题图。
+
+**SVG 与前端**：图片规范化对象沿 `Question → TaskSnapshot → QuestionPublic` 保存和投影，并进入本题判分上下文；来源场景、材料合同与审核证据保留于私有快照。旧 schema 1 / sanitizer 1、2 可读；兼容组件图 schema 2 / sanitizer 3，v2 schema 3 / sanitizer 3。组件图上限 128 KiB、1200 节点、4000 路径段、深度 10，均经 defusedxml 白名单重建，禁止脚本、HTML、事件、外链、动画和 DTD/实体。`QuestionIllustration` 使用 SVG data URI 的 img 图片上下文，彩色图保留白纸配色并支持放大。CAT 文字题可作答时独立轮询题图进度；题卡、反馈、报告和证据详情通过只读 GET 恢复历史，不启动新生成。
+
+Workspace 左侧「教学素材库」进入 `/diagram-library`，可分页浏览、按学科/学段/类型筛选、模糊搜索、放大、调节真实参数和切换黑白印刷。`GET /diagram-assets`、`GET /diagram-assets/taxonomy`、`GET /diagram-assets/{asset_id}` 与 `POST /diagram-assets/{asset_id}/preview` 沿用既有登录访问门；共享目录仅列审核状态 passed 的素材，预览不调用模型、不修改库或学生记录。资源在 `services/api/assets/diagram_library/catalog.json`，v2 组件详情附带装配元数据，见 [DIAGRAM_LIBRARY.md](DIAGRAM_LIBRARY.md) 和 [DIAGRAM_ASSETS.md](DIAGRAM_ASSETS.md)。内置素材每项在 `materials/<asset_id>/` 中隔离保存SVG、元信息及按阶段短提示，模型只接收本轮相关提示。运行新增公有/个人素材在数据根 `diagram_assets/<public|owner>/materials/<id>/versions/<revision>/` 保存同样结构及PNG，索引在完整版本写入后原子发布。`/api/v1/diagram-materials` 支持分页、上传/模板编辑、模型草稿、预览、不可变历史版本与乐观锁；公有写操作仅管理员，私有仅属主可见，原始SVG默认只有静态整体能力，实际题图仍须两项审核。该根绑定路径、测试沙箱、账户删除和孤儿清理。
 
 - 前端渲染可交互卡片：MC 可点选（选中即高亮，揭晓后正确绿/错误红）、填空/简答可作答；先答后揭晓；出题后正文不复述题干。
 - **MC**：本地判对错，揭晓即 `POST /quiz/record` 回传 → 统一受理（MC 确定性判定随受理事务落 journal；修复了 MC 不回传的闭环缺口）。

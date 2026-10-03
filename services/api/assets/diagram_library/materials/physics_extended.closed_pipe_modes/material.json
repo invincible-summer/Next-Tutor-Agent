@@ -1,0 +1,75 @@
+{
+  "id": "physics_extended.closed_pipe_modes",
+  "renderer": "physics_extended",
+  "variant": "closed_pipe_modes",
+  "category": "physics",
+  "title": "闭端气柱位移模态",
+  "english": "Closed-pipe displacement modes",
+  "aliases": [
+    "驻波",
+    "声学"
+  ],
+  "version": 1,
+  "features": [],
+  "sample_params": {},
+  "license": "original-project-artwork",
+  "subjects": [
+    "physics"
+  ],
+  "education_levels": [
+    "junior",
+    "senior",
+    "undergraduate"
+  ],
+  "asset_kind": "scene",
+  "topics": [
+    "physics",
+    "closed_pipe_modes"
+  ],
+  "provenance": {
+    "origin": "project_procedural",
+    "creation_method": "ai_assisted_vector_code",
+    "source_module": "app/diagrams/curriculum_expansion.py",
+    "source_symbol": "draw:closed_pipe_modes",
+    "source_hash": "sha256:5105f9387ffff241aab1a3fe717976c9c3daecb204895d419901214a9f1761d2",
+    "external_graphics": [],
+    "derived_from": [],
+    "knowledge_references": [
+      {
+        "url": "https://openstax.org/books/college-physics/pages/17-5-sound-interference-and-resonance-standing-waves-in-air-columns",
+        "purpose": "闭端为位移节点、开端为位移腹点；仅核对事实，未使用外部图形",
+        "checked_at": "2026-10-03",
+        "type": "fact_only"
+      }
+    ],
+    "statement": "项目独立编写矢量路径；通用符号与知识事实不代表独占造型。"
+  },
+  "review": {
+    "status": "passed",
+    "automatic": "passed",
+    "structure": "passed",
+    "visual": "passed",
+    "reviewer_type": "agent",
+    "reviewed_at": "2026-10-03",
+    "source_hash": "sha256:5105f9387ffff241aab1a3fe717976c9c3daecb204895d419901214a9f1761d2",
+    "evidence": {
+      "profiles": [
+        "textbook",
+        "monochrome"
+      ],
+      "preview_rendered": true,
+      "parameter_boundary_checked": true,
+      "parameter_cases": 2,
+      "sheet_review": "/tmp/next-tutor-expansion-scoped-final",
+      "correction_review": "/tmp/next-tutor-expansion-corrections",
+      "svg_hashes": {
+        "textbook": "sha256:3fe1a6dfe4becf62d3779bcd4cbd75ee4a99e5f2113d864f3783612662ad68f4",
+        "monochrome": "sha256:194819c1e91ef710bd07cc8554940e9c4d8ad4234c97d819819c113f9cb2502f"
+      },
+      "review_note": "All 12 large paired sheets and both correction sheets inspected. Closed-pipe ends, electrode/ion directions, daylight, membrane layers, actual numeric controls checked. Final XML matches selected evidence."
+    }
+  },
+  "svg_file": "asset.svg",
+  "guidance_file": "usage_guide.json",
+  "svg_hash": "sha256:244bb5df8d5e9935c4c24691d419566a2ca42a77675d3617ad882ce791ded157"
+}

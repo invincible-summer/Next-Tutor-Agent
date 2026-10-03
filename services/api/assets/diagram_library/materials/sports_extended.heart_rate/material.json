@@ -1,0 +1,90 @@
+{
+  "id": "sports_extended.heart_rate",
+  "title": "心率运动时间图",
+  "english": "Exercise heart-rate timeline",
+  "category": "sports",
+  "renderer": "sports_extended",
+  "variant": "heart_rate",
+  "version": 1,
+  "aliases": [],
+  "features": [
+    "数据驱动"
+  ],
+  "sample_params": {
+    "values": [
+      72,
+      78,
+      94,
+      112,
+      130,
+      143,
+      149,
+      138,
+      117,
+      99,
+      84
+    ]
+  },
+  "license": "original-project-artwork",
+  "subjects": [
+    "sports"
+  ],
+  "education_levels": [
+    "elementary",
+    "junior",
+    "senior",
+    "undergraduate"
+  ],
+  "asset_kind": "scene",
+  "topics": [
+    "sports",
+    "heart_rate"
+  ],
+  "provenance": {
+    "origin": "project_procedural",
+    "creation_method": "ai_assisted_vector_code",
+    "source_module": "app/diagrams/extended_creative.py",
+    "source_symbol": "draw:heart_rate",
+    "source_hash": "sha256:429c828c919ca6ab710eb4ebd09161c8191b3c91e4dce491f0b41245756a1c10",
+    "external_graphics": [],
+    "derived_from": [],
+    "knowledge_references": [],
+    "statement": "项目独立编写矢量路径；通用符号与知识事实不代表独占造型。"
+  },
+  "review": {
+    "status": "passed",
+    "automatic": "passed",
+    "structure": "passed",
+    "visual": "passed",
+    "reviewer_type": "agent",
+    "reviewed_at": "2026-10-03",
+    "source_hash": "sha256:429c828c919ca6ab710eb4ebd09161c8191b3c91e4dce491f0b41245756a1c10",
+    "evidence": {
+      "profiles": [
+        "textbook",
+        "monochrome"
+      ],
+      "preview_rendered": true,
+      "parameter_boundary_checked": false,
+      "parameter_cases": 0,
+      "sheet_review": "/tmp/next-tutor-all-assets-contact-fixed",
+      "parameter_review": "/tmp/next-tutor-all-assets-review-final",
+      "individual_review": "/tmp/next-tutor-wall-source-review",
+      "review_note": "All 27 paired contact sheets inspected; changed families rerendered and inspected. Invalid cross-parameter endpoints explicitly rejected.",
+      "expansion_replay": {
+        "directory": "/tmp/next-tutor-expansion-review",
+        "baseline": "/tmp/next-tutor-wall-source-review",
+        "svg_hashes": {
+          "textbook": "sha256:ad1827d224768ce54603bee298a8a1a8d9f242d866fc9f006732ee83b5fc6299",
+          "monochrome": "sha256:26dda8d8e80e9bc0351f35d3fee759b4f13659dd42411cad7a8f305dd9f1b893"
+        },
+        "unchanged_actual_svg": true,
+        "review_note": "Both re-rendered SVGs are byte-identical to reviewed baseline; prior visual evidence preserved."
+      }
+    },
+    "notes": "全目录双风格重新渲染无越界/文字碰撞，与前轮逐SVG字节核对仅墙体变化；墙体接触面双风格实图已审阅。"
+  },
+  "svg_file": "asset.svg",
+  "guidance_file": "usage_guide.json",
+  "svg_hash": "sha256:e263ddd0d8e6933af2aae47a4a152b6cc81f37d1c0109356bf930bf911f6c9bb"
+}

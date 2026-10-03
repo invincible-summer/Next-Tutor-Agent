@@ -60,6 +60,30 @@ class GuestAccessTests(StorageSandboxTestCase):
         self.assertEqual(r.status_code, 200)
         self.assertTrue(self.client.get("/api/v1/auth/status").json()["guest_allowed"])
 
+    def test_guest_quiz_projects_private_illustration_material_after_snapshot(self):
+        context, _ = self.visitor()
+        from tests.test_illustration_v2 import cases
+        from app.illustration.layout import compile_scene
+        contract, brief, bundle, scene = cases()["dynamometer"]
+        compiled = compile_scene(scene, contract=contract, brief=brief, bundle=bundle)
+        compiled.source.review_gates = {"machine": "passed", "visual": "passed", "joint": "passed"}
+        compiled.source.contract_hash = contract.contract_hash
+        question = {"type": contract.public_question.type, "stem": contract.public_question.stem,
+            "options": {}, "answer": contract.authoring_gold["answer"], "visual_role": "essential",
+            "illustration": compiled.illustration.model_dump(mode="json"),
+            "material_contract": contract.model_dump(mode="json"),
+            "diagram_source": compiled.source.model_dump(mode="json"), "diagram_facts": [{"reading": 3}],
+            "illustration_review": {"gold": "internal"}}
+        payload = {"questions": [question], "verification": {
+            "answer_verified": True, "authoring_change_request": {"invalid_contract": question["material_contract"]}}}
+        guest_learning.register_quiz(context, TutorSession(session_id="gst_synthetic",
+            knowledge=KnowledgeStore(memory_only=True)), payload)
+        for field in ("material_contract", "diagram_source", "diagram_facts", "illustration_review"):
+            self.assertNotIn(field, payload["questions"][0])
+        self.assertNotIn("authoring_change_request", payload["verification"])
+        task = context.questions[question["question_id"]]
+        self.assertEqual(task.material_contract.facts[0].value, 3)
+
     def test_whitelist_and_invalid_jwt(self):
         _, headers = self.visitor()
         for method, path in [("GET", "/student/profile"), ("GET", "/workspaces"), ("GET", "/library"),

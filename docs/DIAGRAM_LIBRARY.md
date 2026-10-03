@@ -1,158 +1,159 @@
-# 教学 SVG 素材库与出题构图
+# 教学 SVG 素材库与题图装配
 
-系统已接入 **1,079 个正式矢量素材**，前端入口是左侧「教学素材库」，页面地址 `/diagram-library`。数学、物理、化学、统计、生物、地理、信息技术、语言、历史、经济、工程、天文、音乐、美术、体育、农业与环境科学共用一套教材配色、线条与构图规范。烧杯、滑块、小球、单摆、酒精灯、试管，以及柱状图、扇形图均有预构建素材。
+左侧「教学素材库」进入 `/diagram-library`，浏览项目维护的 **1,079 个矢量素材**。完整库存、名称、别名和功能见 [DIAGRAM_ASSETS.md](DIAGRAM_ASSETS.md)。目录按 17 个学科、34 个素材族组织；预览结构检查和实际题意审核分别进行。
 
-完整名称、英文、别名、功能和后续扩展候选逐项记录在 [DIAGRAM_ASSETS.md](DIAGRAM_ASSETS.md)。目录按 17 个学科、34 个素材族组织；所有已登记素材都经过目录检查、结构检查和双风格预览检查。
+v2 为 **31 个组件和 10 个装配配方**提供明确领域几何，登记在 `app/diagrams/semantics.py`；全部1079个登记素材经 `app/diagrams/adapters.py` 统一提供实际参数几何、可用能力、端口与标记。只允许登记的参数和物理端口，不把静态示意冒充任意科学构造。
 
-## 出题流程
+内置素材随代码发布为公有资源；运行新增素材分为管理员维护的公有库与用户自己的私有库。支持上传、模板和图元编辑、真实LLM生成或修改草稿，预览后显式保存和启用。题目产物按账户私有冻结，库变更不覆盖旧图。
+
+## 配图工作流与模式
 
 ```mermaid
 flowchart LR
-  A[题目任务与插图策略] --> B[模型一次声明素材需求]
-  B --> C[项目本地模糊检索]
-  C --> D[候选 ID、尺寸、参数与锚点]
-  D --> E[模型生成题目与场景 JSON]
-  E --> F[项目编译与 SVG 安全规范化]
-  F --> G[独立审题审图]
-  G --> H[冻结题目、SVG 与来源]
+  A[题目材料合同] --> B[模型声明需求]
+  B --> C[本地语义检索]
+  C --> D[授权候选卡与外观预览]
+  D --> E[模型提交受限场景]
+  E --> F[确定性几何与关系校验]
+  F --> G[Chromium PNG]
+  G --> H[视觉审核和联合题图审核]
+  H --> I[冻结题图]
 ```
 
-模型只描述「需要什么」，没有素材搜索工具，也不访问库文件。蓝图阶段可同时返回 `requirements`，项目在本地按名称、别名和功能约束模糊检索；候选返回后，模型选择组件、调整比例和参数、声明连接与已知标签。`compiler.py` 负责最终 SVG。聊天出题、练习适配与普通测评复用 `generate_verified_questions`。
+v2 实现在 `app/illustration/`，需求提示词注册为 `2.2.0`，构图、视觉审核和联合审核为 `2.1.0`。模型没有素材搜索工具，也不读取库文件；项目执行检索并决定可选 ID、版本、能力和参数。
 
-需求声明使用注册提示词 `quiz_visual_requirements`，构图使用 `quiz_component_scene`。确定性组件编译始终执行；生成审查默认关闭，用户开启后才增加一次独立题图一致性审查。模型自报的来源、计算事实、审核结果、hash 与规范化图片不能成为可信结果。
+默认 `QUIZ_ILLUSTRATION_PIPELINE=shadow`：兼容组件路径对外交付，CAT 另有不对外展示的 v2 对照任务。`v2` 模式才接入新的普通出题发布门和 CAT 任务返回协议。v2 必须通过实际 PNG 的视觉审核与联合审核；关闭旧账户可选审图偏好不会降低该门槛。详见 [ASSESSMENT_ILLUSTRATION_PIPELINE.md](ASSESSMENT_ILLUSTRATION_PIPELINE.md)。
 
-### 第一轮：声明需求
+普通出题以题面草稿和 `QuestionMaterialContract` 为基础，题图就绪后注册。CAT 的文字题先冻结、独立可答，后到的图只作 `supplemental`；读图才具备必要条件的 `essential` 题必须在注册前完成全部材料。
+
+## 声明、检索与构图协议
+
+| 合同 | 职责 |
+| --- | --- |
+| `QuestionMaterialContract` | 绑定题目身份、公开条件、事实、实体、关系和私有答案/量规 |
+| `VisualBriefV2` | 声明用途、视图、素材需求、事实引用及已知标签 |
+| `CandidateBundleV2` | 本地检索返回的授权 ID/版本、能力、参数语义、端口和区域 |
+| `SceneDraftV2` | 模型提交的实例、实体映射、事实绑定、关系、标签和分层 |
+| `ScenePatchV2` | 绑定基础场景 hash 的受限修复，冻结事实保持不变 |
+| `DiagramSourceV2` | 私有场景、实例事实、实测布局与审核证据 |
+
+例如，题面已明确“滑块 block 放在水平面 plane 上”，材料合同登记这两个实体和支撑关系后，需求声明可为：
 
 ```json
 {
-  "requirements": [{
-    "question_slot": "q1",
-    "illustration_needed": true,
-    "scene_brief": "烧杯间接加热装置",
-    "needs": [
-      {"key": "beaker", "name": "烧杯", "quantity": 1, "features": ["可加热", "可显示液面"], "category": "chemistry"},
-      {"key": "lamp", "name": "酒精灯", "quantity": 1, "features": ["点燃状态"]}
-    ],
-    "visible_labels": [],
-    "layout_intent": "主体居中，酒精灯在三脚架下方，留出题目标签位置"
+  "schema_version": 2,
+  "visual_role": "supplemental",
+  "purpose": "表示滑块与水平面的接触关系",
+  "view": "front_orthographic",
+  "needs": [{
+    "need_id": "main",
+    "name": "水平面滑块",
+    "entity_ids": ["block", "plane"],
+    "capabilities": ["support"],
+    "quantity": 1,
+    "fact_bindings": []
   }]
 }
 ```
 
-每题最多 12 类需求、24 个实例，每批最多 5 题、24 类需求。`q1..q5` 对应初始题目顺序；类型过滤和部分修订之后，通过题目 ID 保留原声明槽位。需求不是自由执行指令。候选返回失败时，`auto` 降级为无图；`required` 返回明确失败，不允许自行补画。候选素材不会自动按检索顺序平铺：正常构图由模型使用节点参数、锚点、连接、标签、比例和层次来完成；仅在模型响应不可用时才启用“强语义候选 + 完整模板优先”的确定性恢复。
+检索只在已登记的语义组件和配方中选择，每类需求最多六个候选。名称、中文/英文别名和模糊相似度用于匹配，能力与支持视图是硬约束；学段用于筛选。候选卡包含参数的条件含义、单位、定性许可、端口、敏感区域和配方关系。候选外观拼图由本地 Chromium 生成，展示读数和数据明确标为样例。
 
-### 项目检索
+每份声明最多 12 类需求、24 个实例。模型可基于同一实体/事实集合请求一次重新检索；缺少候选或必要材料时返回明确错误。响应 schema 为闭合字段，模型 SVG、外链和任意片段不进入构图。
 
-名称经 NFKC、大小写和标点归一化，中文名、英文名、常用别名共同进入索引。排序结合精确命中、名称包含、编辑相似度和 BM25；例如 `beakr` 可匹配烧杯。功能是硬约束，学科是排序参考。烧杯不会因为外形相似而匹配「带侧管」要求。
-
-每个需求最多返回五个候选，带原生尺寸、版本、允许旋转状态、实际支持的参数与具名锚点；候选卡同时提供类别、英文名和别名，帮助模型区分同义器材与专用变体。场景名称命中完整模板时，额外提供整体构图。不会把整个目录或全量 SVG 放进模型上下文。
-
-找不到素材时返回 `missing`。组件链路不接受 `fragments`、模型自定义 SVG、外链图片或任意补画；需要补充的通用素材由项目维护者绘制、检查后发布。
-
-### 第二轮：选择组件与构图
+该候选的当前版本为 1，场景示例：
 
 ```json
 {
-  "illustration": null,
-  "diagram_scene": {
-    "schema_version": 1,
-    "width": 640,
-    "height": 400,
-    "profile": "textbook",
-    "nodes": [{
-      "id": "apparatus",
-      "asset_id": "template.heating_beaker",
-      "version": 1,
-      "x": 16,
-      "y": 16,
-      "scale": 0.9,
-      "rotation": 0,
-      "params": {"fill": 0.35, "lit": true}
-    }],
-    "connections": [],
-    "labels": [],
-    "alt": "烧杯置于金属网和三脚架上，架下酒精灯点燃。",
-    "caption": ""
-  }
+  "schema_version": 2,
+  "action": "compose",
+  "canvas": {"profile": "question_landscape"},
+  "asset_instances": [{
+    "instance_id": "main",
+    "need_id": "main",
+    "asset_id": "recipe.horizontal_block",
+    "version": 1,
+    "entity_map": {"block": "block", "plane": "plane"},
+    "fact_bindings": {},
+    "non_quantitative": [],
+    "anchor_intent": "滑块底部接触水平面，周围留白",
+    "x": 30,
+    "y": 15,
+    "scale": 1,
+    "rotation": 0,
+    "layer": "body"
+  }],
+  "relations": [],
+  "annotations": [],
+  "alt": "水平面上的滑块"
 }
 ```
 
-节点位置指原生画布的左上角，统一缩放，旋转绕组件中心；图表、函数、关系图、容器和完整模板不接受整体旋转。模型只能引用该题检索到的 ID 与可用版本；编译器会拒绝模型直接传入的 illustration/SVG。连接必须指向具体节点的具名锚点，支持线、导线、绳、导管、箭头、虚线，以及直连或折线路由。节点顺序决定遮挡顺序。
+配方在实例化时展开具名子组件及其必要关系；省略显式 `relations` 不会跳过配方内部支撑检查。版本应始终使用本题候选卡返回的值。可选画布使用固定 profile：`question_landscape`、`question_square`、`coordinate_plane`、`comparison_split`、`tabletop`，尺寸不由模型任意扩张。
 
-编译器限制 24 个节点、48 条连接、24 个标签，画布宽 320–960、高 200–720，长宽比 0.75–3，保留 4px 边距。未知 ID、未知参数、缺失锚点、非法数值、超界构图都会进入已有修订或拒绝路径。`required` 不会静默交付缺图题；`auto` 声明失败可继续生成完整、自足的文字题。
+`layout.py` 根据实例参数生成真实几何，并实测边界和字体。端口用于连接、支撑和悬挂，区域用于液体、器材主体和不能遮盖的刻度；编译器检查接触、浸没、碰撞、画布边距和可读性，确定性安排连线路由与外置标签。允许的内部重叠由配方或材料关系限定。失败可提出补丁，再完整编译、渲染和审核。
 
-## 素材与视觉规范
+## 素材与科学约束
 
 | 层次 | 内容 | 实现位置 |
 | --- | --- | --- |
-| 基础图形 | 点线、箭头、角标、几何体、分数与计数对象 | `mathematics.py`、`extended_math.py` |
-| 数学与统计 | 坐标、函数、向量、积分、各类数据图 | `mathematics.py`、`extended_math.py` |
-| 仪器与物体 | 容器、玻璃仪器、实验配件、力学对象 | `instruments.py` |
-| 物理 | 电路、光学、测量、波动、流体 | `physics.py`、`extended_physics.py` |
-| 生物与地理 | 细胞、分子过程、器官、地形与地球 | `life_earth.py`、`extended_biology.py`、`extended_earth.py` |
-| 化学与通用 | 分子键型、物质微观图、关系图、逻辑门、生活对象 | `systems.py`、`extended_systems.py` |
-| 完整构图 | 加热、过滤、滴定、力学装置、电路、几何与统计场景 | `templates.py`、`extended_experiments.py`、`extended_deferred.py` |
+| 基础图形与数学 | 几何体、分数、坐标、函数、向量、统计 | `mathematics.py`、`extended_math.py` |
+| 仪器与物体 | 容器、实验配件、测量、力学对象 | `instruments.py`、`physics.py`、`extended_physics.py` |
+| 生物与地理 | 细胞、器官、地形与地球 | `life_earth.py`、`extended_biology.py`、`extended_earth.py` |
+| 化学与通用 | 分子键型、逻辑门、生活对象 | `systems.py`、`extended_systems.py` |
+| 兼容完整构图 | 实验、力学、电路、几何和统计模板 | `templates.py`、`extended_experiments.py`、`extended_deferred.py` |
+| v2 装配语义 | 实例参数、动态端口/区域、部件分层与配方 | `semantics.py` + `app/illustration/` |
 
-所有素材是项目原创 XML 矢量路径，没有外链图片或运行时生图依赖。默认使用深蓝灰轮廓、低饱和蓝/金/绿/红、小面积玻璃色与统一圆角。器材保留口沿、支架、刻度、接头、火焰、液面等识别细节；符号采用简洁教材线条。黑白模式使用灰度画面。复杂度来自真实结构，避免用标题框或装饰替代对象。
+素材是项目原创 XML 矢量路径，使用教材配色和简洁轮廓；黑白预览使用灰度画面。液面、刻度、接头、火焰和虚实线均按真实结构表达，器材名称放在图库卡片外，题图标签只表达允许公开的条件。
 
-预览中的名称放在卡片外部，识别题不会自动把学名写进图内。构图标签只允许题目已知条件；不填入正确选项、待求数值、解题辅助关系或量规。
-
-### 参数与科学约束
-
-只有渲染器真正使用的控制项才会出现在详情接口和前端面板，固定结构没有虚假旋钮。常见可调项包括液面及颜色、刻度容量、点燃状态、单摆角度与长度、球半径、弹簧长度、多边形边数、骰子点数、函数与数据。
-
-- `fill` 表示高度占比，不等同任意形状容器的体积占比。倾斜加热试管的液面按重力保持水平，并限制装液范围；普通装液容器禁止整体旋转。
-- 量筒容量、温度计和模拟表读数由项目计算相应刻度位置。量具的固定外形素材用于辨认和装置示意，不把未建模的量具读数冒充精确测量题。
-- 柱状图、饼图等正式出题必须提供真实 `values`，关系图必须提供 `items`。展示样例只有预览模式可用，不自动成为题目条件。
-- 饼图按数值比例计算圆心角；直方图支持分组边界，不等宽分组必须使用频数密度；堆叠图、累计图、误差范围、经验分布与箱线摘要由代码计算。
-- 统计图限制数据与标签密度，避免细柱、过密文字或大量对象挤出画布。结构不完整、数据类型错误和超密布局返回可读错误码。
-- 函数表达式使用受限 AST 数学解释器，不执行 `eval`、属性访问或用户代码；定义域和显示范围显式给出，断点分段绘制。切线、向量与积分区间必须处于有效范围。
-- 分子素材显式绘制常见单/双/三键和原子连接；通用示意不是任意化合物的自动化学建模器。科学完整性仍须结合实际题目审图。
+- 条件参数必须引用题目 `fact_id`，包括读数、量程、点燃/闭合状态、统计数据和函数。服务端绑定值驱动实例，不复制 `sample_params`。
+- 只在合同允许且非按比例表达时，使用显式声明的定性参数。例如 `fill` 是图示液面高度比例，不把任意形状容器的体积值直接当作高度。
+- 定性液体条件使用有原文依据的 `liquid_present`；浸没区域、器材前后部件与刻度区域参与关系和遮挡校验。
+- 测力计、温度计、电表和量筒的读数、单位、刻度及端口来自该实例的参数；读图题的待求读数不写入 alt、caption 或额外标签。
+- 柱状图等按真实数据生成，函数使用受限 AST 解释器；单位、数据类型和区间必须与参数合同匹配，不执行用户代码。
+- 几何图仅表达材料合同给定的构造、条件和标记；未按比例示意的像素半径不能冒充题目中的物理长度。
+- 科学可用性由静态检查和当前题目的视觉/联合审核共同判定；图库能够渲染不代表任意题意都可用。
 
 ## 冻结、兼容与存储
 
-`diagram_source` 包含目录版本、渲染器版本、场景 hash、素材版本与场景 JSON；`visual_requirements` 保留声明。两者随普通题进入私有 `Question/TaskSnapshot`，参与同 ID、同 revision 的材料不可变检查。`QuestionPublic` 继续只投影公开题面，不暴露内部来源或答案。历史显示使用冻结后的 SVG，不因素材升级重新绘制。
+公开图片仍使用 `illustration` 字段。历史 schema 1 / sanitizer 1、2 可读；兼容组件图为 schema 2 / sanitizer 3，v2 图为 **schema 3 / sanitizer 3**。组件图最大 128 KiB、1200 节点、4000 路径段、深度 10，必须经 defusedxml 白名单重建，禁止脚本、HTML、事件、外链和动画。
 
-最终图片仍沿 `illustration` 字段交付。旧 schema 1 / sanitizer 1、2 保持 24 KiB、180 节点、800 路径段；项目组件图使用 schema 2 / sanitizer 3，最多 128 KiB、1200 节点、4000 路径段，深度仍为 10。组件图也必须通过闭合白名单，禁止脚本、HTML、事件、外链、动画与 DTD/实体。资源不依赖 `<use>` 或外部字体。
+v2 的 `material_contract` 与 `diagram_source` 保存在账户私有题目快照；`QuestionPublic` 只返回题面、视觉角色、artifact 引用和规范化图。场景、事实绑定、内部审核文字和答案不随答前题卡下发。
 
-CAT 保持文字题先冻结并可作答，之后运行「声明 → 本地检索 → 编译」补图；生成审查默认关闭，开启后才增加独立审查。补图不改题干、答案、解析、选项或量规，不增加文字中没有的必要条件。缓存仍写到现有账户 `students/<owner>.question_illustrations.json`，采用账户隔离、文件锁与原子写入；并发请求共享生成任务，恢复后复用已审核图片。没有新增用户存储根。
+运行数据根下 `illustrations/<owner>/` 保存 job、追加阶段记录、不可变 artifact 与 PNG。该根已绑定统一路径，并登记测试沙箱、账户删除与孤儿清理。兼容 v1 补图缓存仍在原 `students` 根。历史图复用冻结 SVG，不因素材升级重画；同题重复启动共享任务，失败显式重试生成新的 job/run，不能覆盖 ready 产物。账户删除使旧运行失效并取消后台任务，避免数据重新出现。
 
-普通出题与修订共用有界预算：默认最多 6 次逻辑调用、90 秒截止时间、最多 2 次修订；声明也计入预算，可通过 `ASSESSMENT_GENERATION_MAX_CALLS`、`ASSESSMENT_GENERATION_DEADLINE_SECONDS` 和 `ASSESSMENT_GENERATION_MAX_ATTEMPTS` 调整。CAT 补图共用最多 3 次逻辑调用 / 30 秒预算；可审图时常规流程分别使用声明、构图和审核三次调用，不额外叠加无界重试。
+v2 默认每次配图最多五次调用、两次补丁，草稿最多 45 秒、CAT 补图最多 30 秒。普通出题还受整组生成预算约束。完整预算、API 所有权和 `essential` 发布门见 [配图协议](ASSESSMENT_ILLUSTRATION_PIPELINE.md)。
 
-## 前端与接口
+## 前端与目录接口
 
-素材库集成到原有 workspace 导航与中英双语系统。支持按学科、类型筛选，名称/别名模糊搜索，统一分页，点击放大，参数调节、更新预览、恢复示例，以及教材配色/黑白印刷切换。固定结构素材仍可切换风格。浅色和深色页面的彩色 SVG 都使用白色纸面，保留正确配色。
+图库支持学科、学段、类型筛选，名称/别名模糊搜索、共享分页、放大、真实参数调节、恢复展示样例，以及教材配色/黑白印刷切换。浅色和深色页面的彩色 SVG 保留白色纸面。
 
-前端经 `apiFetch` 访问以下接口，沿用 `/api/v1` 的访问门。素材是版本化公共项目资源，浏览与预览不会修改公共库，不调用模型，也不写入学生题库。
+前端经 `apiFetch` 访问，沿用 `/api/v1` 的登录访问门。目录仅列出审核状态为 `passed` 的共享素材；预览不调用模型、不修改库，也不写学生题目。
 
 | 方法 | 路径 | 行为 |
 | --- | --- | --- |
-| GET | `/api/v1/diagram-assets?q=&subject=&family=&education_level=&asset_kind=&page=0&per=12` | 返回目录版本、总数、分类计数、素材元信息与预览；分页从 0 开始，单页最多 48 |
-| GET | `/api/v1/diagram-assets/{asset_id}` | 返回尺寸、锚点、参数契约、展示样例及预览 |
-| POST | `/api/v1/diagram-assets/{asset_id}/preview` | 接收 `params` 与 `profile=textbook|monochrome`，校验并返回新预览；未知 ID 为 404、非法参数为 422 |
+| GET | `/api/v1/diagram-assets?q=&subject=&family=&education_level=&asset_kind=&page=0&per=12` | 元信息、分类计数和预览；分页从 0 开始，单页最多 48 |
+| GET | `/api/v1/diagram-assets/taxonomy` | 学科、学段、类型等筛选目录 |
+| GET | `/api/v1/diagram-assets/{asset_id}` | 尺寸、锚点、参数、展示样例及预览；已登记组件附带 v2 元数据 |
+| POST | `/api/v1/diagram-assets/{asset_id}/preview` | 以 `params` 和 `profile`（`textbook` 或 `monochrome`）生成预览；未知 ID 为 404，非法参数为 422 |
 
-前端通过 SVG data URI 的 `img` 图片上下文展示，不把 SVG 内联成可执行 DOM。题卡与放大弹窗复用现有 `QuestionIllustration`；公共素材库使用相同规范化图数据。
+SVG 用 data URI 的 `img` 图片上下文展示。题卡、报告和证据详情复用 `QuestionIllustration`，历史恢复通过只读题图接口进行。任务的阶段、失败码和重试入口独立于 CAT 文字题作答状态。
 
-## 开关与发布
+## 维护素材与验证
 
-`QUIZ_SVG_ENABLED=1` 是新图总闸，账户偏好与本次 `auto/none/required` 意图继续生效。`QUIZ_DIAGRAM_MODE` 仅为旧配置兼容字段，运行时始终使用素材组件链路，不能切回模型直接生成 SVG。关闭新图生成不影响历史图片和素材库浏览。不迁移旧记录、不修改账户配置、不上传或发布站点。
+项目维护者在 `services/api/scripts/build_diagram_catalog.py` 声明稳定 ID、名称、别名和能力，并在对应渲染器实现真实结构、参数与边界。静态素材统一经 `adapters.py` 适配；新增定量或科学装配能力时须登记单位、条件参数、实际动态端口、区域及关系规则，不能只靠标签或相似外形取得资格。
 
-重启项目后即可看到新导航与接口。生产部署按原有前后端发布方式构建；目录文件和渲染器必须一同发布。
+修改素材含义或参数时提升相应版本，旧场景版本不匹配则明确拒绝。目录和渲染器须一同发布，历史冻结图保持原样。
 
-## 添加素材与后续扩展
+`test_diagram_library.py` 覆盖共享目录、参数、规范化和兼容构图。`test_illustration_v2.py` 使用合成科学场景与 fake LLM，通过真实 Chromium 检查实例关系、绑定和 PNG；`test_illustration_jobs.py` 检查鉴权、公开投影、冻结复用、重试和删除竞争。
 
-先在 `services/api/scripts/build_diagram_catalog.py` 的库存中声明稳定 ID、中文/英文名称、别名、真实功能；在对应渲染器实现独立结构、原生边界、语义锚点、真实参数与确定性事实。数据图必须要求真实数据，展示值只进 `sample_params`。不要复制相似轮廓然后只改标题。
+`apps/web/scripts/check-diagram-library.mjs` 渲染全部目录素材，输出人工审查拼图与边界报告；应逐张核对变形、位置、刻度、接头、遮挡和两种风格。自动检查通过不能替代截图审阅。既有首轮记录见 [DIAGRAM_REVIEW.md](DIAGRAM_REVIEW.md)，运行命令及真实 v2 多场景验收见 [TESTING.md](TESTING.md)。已完成14类题图情境及两组数值的真实模型和PNG验收，详见[验收记录](DIAGRAM_LIBRARY_ACCEPTANCE.md)。目录适配只承诺已登记的能力，不承诺任意题意都能表达。
 
-新增或修改后执行目录生成、聚焦测试和全量渲染检查。逐一核对接头、刻度、键型、虚实线、可见/遮挡关系、边界与两种风格；完成检查才从扩展候选移除。已发布素材改变含义或参数时提升素材版本和目录/渲染器版本；冻结历史仍使用原 SVG，旧场景版本不匹配时明确拒绝，不能静默替换。
+## 公有与个人创作素材
 
-后续扩展顺序：气体制备/收集和蒸馏等严格管路装置；电化学、光路和读数量具；遗传系谱、根尖分区、地理动态过程；复杂化合物与专门信息结构。每项先补结构数据与参数，再补构图模板，最后跑同一套审查。具体候选 ID 已完整列在清单中。
+内置每项独立目录 `services/api/assets/diagram_library/materials/<asset_id>/` 保存 `asset.svg`、`material.json`、`usage_guide.json`；`python3 services/api/scripts/build_diagram_packages.py --check` 校验可重建与一致性。预览参数不是题目事实。主提示只含通用规范，子提示按本轮相关素材和阶段加载，审图只加载最终选用版本。
 
-## 验收
+运行新增素材保存在数据根 `diagram_assets/<public|owner>/materials/<id>/versions/<revision>/`，同样分离SVG、元信息与短提示，另存实际PNG。短使用说明可以编辑，每次保存形成不可变版本；索引仅在完整版本写入后原子发布。旧版JSON可读取，下次编辑使用新布局。
 
-`services/api/tests/test_diagram_library.py` 覆盖全部正式素材的双风格规范化、本地模糊检索与功能过滤、真实数据计算、受限编译、片段边界、调用预算、CAT 冻结与缓存、API 分页和非法预览参数。存储沙箱同时重定向补图缓存，避免测试读写运行数据。
+`/api/v1/diagram-materials` 提供分页列表、创建、详情、历史版本、编辑、删除；`/templates` 给出设计样例，`/preview` 安全规范化并真实渲染，`/generate` 调用配置模型生成可编辑草稿。scope=public的写操作仅管理员，身份只用 `resolve_student_id()`；其他账户私有素材不可读取或检索。保存需要最新base_revision，冲突返回409。模板/上传/生成均进入Modal编辑器，历史只读不会自动保存；生成不自动发布。
 
-`apps/web/scripts/check-diagram-library.mjs` 在 Chromium 中渲染全部素材，导出每页 40 个的人工审查拼图和边界报告；任何越界令检查失败。正式素材需逐张人工复核，自动检查通过不等于任何科学题意都正确。浏览器回归另外遍历前端的全部分页，核对图片加载、搜索、参数变化、放大、浅色/深色和 1024px 桌面窗口。
-
-运行命令和隔离环境说明见 [TESTING.md](TESTING.md)。截图与临时审查产物写到 `/tmp` 或 `apps/web/test-results`，不提交学生数据或运行缓存。
-
-首轮全部素材的逐项复核、修订内容与实际验证结果见 [DIAGRAM_REVIEW.md](DIAGRAM_REVIEW.md)。
+当前上传SVG只具备静态整体能力，无任意定量参数或物理端口；实际题图必须重新通过视觉与联合审核。删除账户和孤儿清理覆盖该根，公有库受保护，后台取消与epoch避免已删除账户被重新写入。

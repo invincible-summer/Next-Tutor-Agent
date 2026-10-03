@@ -1,0 +1,110 @@
+{
+  "id": "systems_extended.spanning_tree",
+  "title": "最小生成树过程",
+  "english": "Minimum spanning tree",
+  "category": "systems",
+  "renderer": "systems_extended",
+  "variant": "spanning_tree",
+  "version": 1,
+  "aliases": [],
+  "features": [
+    "数据驱动"
+  ],
+  "sample_params": {
+    "items": [
+      "A",
+      "B",
+      "C",
+      "D",
+      "E"
+    ],
+    "edges": [
+      [
+        0,
+        1,
+        2
+      ],
+      [
+        0,
+        2,
+        5
+      ],
+      [
+        1,
+        3,
+        3
+      ],
+      [
+        2,
+        3,
+        1
+      ],
+      [
+        3,
+        4,
+        2
+      ]
+    ]
+  },
+  "license": "original-project-artwork",
+  "subjects": [
+    "systems"
+  ],
+  "education_levels": [
+    "junior",
+    "senior",
+    "undergraduate"
+  ],
+  "asset_kind": "scene",
+  "topics": [
+    "systems",
+    "spanning_tree"
+  ],
+  "provenance": {
+    "origin": "project_procedural",
+    "creation_method": "ai_assisted_vector_code",
+    "source_module": "app/diagrams/extended_systems.py",
+    "source_symbol": "draw:spanning_tree",
+    "source_hash": "sha256:651484b9f4cd1b8b1d0533498bf2202e326bcfbf5dcc5d2c10104a833d9f0335",
+    "external_graphics": [],
+    "derived_from": [],
+    "knowledge_references": [],
+    "statement": "项目独立编写矢量路径；通用符号与知识事实不代表独占造型。"
+  },
+  "review": {
+    "status": "passed",
+    "automatic": "passed",
+    "structure": "passed",
+    "visual": "passed",
+    "reviewer_type": "agent",
+    "reviewed_at": "2026-10-03",
+    "source_hash": "sha256:651484b9f4cd1b8b1d0533498bf2202e326bcfbf5dcc5d2c10104a833d9f0335",
+    "evidence": {
+      "profiles": [
+        "textbook",
+        "monochrome"
+      ],
+      "preview_rendered": true,
+      "parameter_boundary_checked": true,
+      "parameter_cases": 1,
+      "sheet_review": "/tmp/next-tutor-all-assets-contact-fixed",
+      "parameter_review": "/tmp/next-tutor-all-assets-review-final",
+      "individual_review": "/tmp/next-tutor-wall-source-review",
+      "review_note": "All 27 paired contact sheets inspected; changed families rerendered and inspected. Invalid cross-parameter endpoints explicitly rejected.",
+      "expansion_replay": {
+        "directory": "/tmp/next-tutor-expansion-review",
+        "baseline": "/tmp/next-tutor-wall-source-review",
+        "svg_hashes": {
+          "textbook": "sha256:1e8cbef9d0e1a8fcd565663a1f0347db2383b498c97f61442caaa839a3395d52",
+          "monochrome": "sha256:a481082bf508c2076105409a7726e8ba5ececfe365ffde9e1a3ef7f2086e36be"
+        },
+        "unchanged_actual_svg": true,
+        "review_note": "Both re-rendered SVGs are byte-identical to reviewed baseline; prior visual evidence preserved."
+      }
+    },
+    "notes": "全目录双风格重新渲染无越界/文字碰撞，与前轮逐SVG字节核对仅墙体变化；墙体接触面双风格实图已审阅。"
+  },
+  "svg_file": "asset.svg",
+  "guidance_file": "usage_guide.json",
+  "svg_hash": "sha256:00dc46fe45abac48c1c366e3962262498f583681a01d0f0b4309654409d87280"
+}

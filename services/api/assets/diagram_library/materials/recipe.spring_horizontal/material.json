@@ -1,0 +1,14 @@
+{
+  "id": "recipe.spring_horizontal",
+  "title": "水平弹簧滑块",
+  "aliases": [
+    "弹簧连接滑块"
+  ],
+  "version": 1,
+  "kind": "recipe",
+  "renderer": "registered_v2_recipe",
+  "preview_only": true,
+  "svg_file": "asset.svg",
+  "guidance_file": "usage_guide.json",
+  "svg_hash": "sha256:77959838d58cab1b6248ef4406b5f84b30bb588e2da4fe239936bf9701aff7dc"
+}

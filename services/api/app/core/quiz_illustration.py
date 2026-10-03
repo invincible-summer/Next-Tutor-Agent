@@ -51,7 +51,7 @@ ELEMENT_ATTRIBUTES = {
     "title": set(), "desc": set(),
 }
 for _tag in set(ELEMENT_ATTRIBUTES) - {"svg", "defs", "marker", "title", "desc"}:
-    ELEMENT_ATTRIBUTES[_tag] |= PRESENTATION | {"style"}
+    ELEMENT_ATTRIBUTES[_tag] |= PRESENTATION | {"style", "id"}
 for _tag in {"line", "polyline", "polygon", "path"}:
     ELEMENT_ATTRIBUTES[_tag] |= MARKER_LINKS
 
@@ -237,6 +237,10 @@ def _attribute(name: str, raw: str) -> str:
     value = raw.strip()
     if len(value) > 2048:
         _reject("svg_forbidden_attribute")
+    if name == "id":
+        if not _ID_RE.fullmatch(value):
+            _reject("svg_forbidden_attribute")
+        return value
     if name in MARKER_LINKS:
         return _marker_link(value)[0]
     if "url(" in value.lower():
@@ -327,7 +331,7 @@ class NormalizedSvg:
 
 
 def normalize_svg(raw_svg: str, *, alt: str = "", caption: str = "",
-                  components: bool = False) -> NormalizedSvg:
+                  components: bool = False, preserve_presentation: bool = False) -> NormalizedSvg:
     max_bytes = COMPONENT_MAX_BYTES if components else MAX_SVG_BYTES
     max_nodes = COMPONENT_MAX_NODES if components else MAX_NODES
     max_segments = COMPONENT_MAX_SEGMENTS if components else MAX_SEGMENTS
@@ -512,7 +516,7 @@ def normalize_svg(raw_svg: str, *, alt: str = "", caption: str = "",
         tag = node.tag.split("}")[-1]
         if tag in {"text", "tspan"}:
             node.attrib.setdefault("fill", inherited.get("fill", "#000"))
-            node.attrib.setdefault("font-size", "18")
+            node.attrib.setdefault("font-size", inherited.get("font-size", "18"))
         elif tag not in {"svg", "g", "defs", "marker"}:
             for key, default in (("fill", "none"), ("stroke", "#000"),
                                  ("stroke-width", "2")):
@@ -521,7 +525,8 @@ def normalize_svg(raw_svg: str, *, alt: str = "", caption: str = "",
                                     if k in PRESENTATION and k != "transform"}}
         for child in node:
             defaults(child, effective)
-    defaults(root, {})
+    defaults(root, {"fill": "#000", "stroke": "none", "stroke-width": "1", "font-size": "16"}
+        if preserve_presentation else {})
     if caption:
         ET.SubElement(root, f"{{{SVG_NS}}}desc").text = caption
     if alt:
@@ -553,7 +558,7 @@ def _hash(svg: str, alt: str, caption: str, schema_version: int = 1) -> str:
 
 class QuestionIllustration(GeneratedIllustration):
     svg: str = Field(max_length=COMPONENT_MAX_BYTES)
-    schema_version: Literal[1, 2] = 1
+    schema_version: Literal[1, 2, 3] = 1
     sanitizer_version: Literal[1, 2, 3] = 2
     content_hash: str
     width: int
@@ -561,7 +566,7 @@ class QuestionIllustration(GeneratedIllustration):
 
     @model_validator(mode="after")
     def canonical(self) -> "QuestionIllustration":
-        if (self.sanitizer_version == 3) != (self.schema_version == 2):
+        if (self.sanitizer_version == 3) != (self.schema_version in {2, 3}):
             raise ValueError("illustration_version_mismatch")
         if not self.alt.strip():
             _reject("illustration_alt_missing")

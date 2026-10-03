@@ -582,7 +582,7 @@ def draw(v, p, mono=False):
             d.circle(*xy(0.4, 0.55), 4, fill=d.green)
             d.circle(*xy(0.75, 0.75), 4, fill=d.red)
             text(d, f"X max {p['capacity_x']:g}", 333, 297, size=12)
-            text(d, f"Y max {p['capacity_y']:g}", 105, 25, size=12)
+            text(d, f"Y max {p['capacity_y']:g}", 180, 25, size=12)
             d.facts["model"] = "elliptical_production_frontier"
         else:
             choices = p["choices"]

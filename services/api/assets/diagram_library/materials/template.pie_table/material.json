@@ -1,0 +1,85 @@
+{
+  "id": "template.pie_table",
+  "title": "饼图构型",
+  "english": "pie chart scene",
+  "category": "statistics",
+  "renderer": "template",
+  "variant": "pie_table",
+  "version": 1,
+  "aliases": [],
+  "features": [],
+  "sample_params": {
+    "values": [
+      30,
+      45,
+      25
+    ],
+    "labels": [
+      "A",
+      "B",
+      "C"
+    ]
+  },
+  "license": "original-project-artwork",
+  "subjects": [
+    "statistics"
+  ],
+  "education_levels": [
+    "senior",
+    "undergraduate"
+  ],
+  "asset_kind": "chart",
+  "topics": [
+    "statistics",
+    "pie_table"
+  ],
+  "provenance": {
+    "origin": "project_procedural",
+    "creation_method": "ai_assisted_vector_code",
+    "source_module": "app/diagrams/templates.py",
+    "source_symbol": "template:pie_table",
+    "source_hash": "sha256:6597a1e10782520c75ad0d147cfb867f02956768cfb43c7cc979aeb54c22769a",
+    "external_graphics": [],
+    "derived_from": [],
+    "knowledge_references": [],
+    "statement": "项目独立编写矢量路径；通用符号与知识事实不代表独占造型。"
+  },
+  "review": {
+    "status": "passed",
+    "automatic": "passed",
+    "structure": "passed",
+    "visual": "passed",
+    "reviewer_type": "agent",
+    "reviewed_at": "2026-10-03",
+    "source_hash": "sha256:6597a1e10782520c75ad0d147cfb867f02956768cfb43c7cc979aeb54c22769a",
+    "evidence": {
+      "profiles": [
+        "textbook",
+        "monochrome"
+      ],
+      "preview_rendered": true,
+      "parameter_boundary_checked": true,
+      "parameter_cases": 2,
+      "sheet_review": "/tmp/next-tutor-all-assets-contact-fixed",
+      "parameter_review": "/tmp/next-tutor-all-assets-review-final",
+      "individual_review": "/tmp/next-tutor-wall-source-review",
+      "review_note": "All 27 paired contact sheets inspected; changed families rerendered and inspected. Invalid cross-parameter endpoints explicitly rejected.",
+      "revalidation": "/tmp/next-tutor-all-assets-post-composition-fixes",
+      "revalidation_note": "Chromium rerender; unchanged SVG compared byte-for-byte against reviewed corpus. Changed diagrams inspected on sheets 14/17/23 in both profiles.",
+      "expansion_replay": {
+        "directory": "/tmp/next-tutor-expansion-review",
+        "baseline": "/tmp/next-tutor-wall-source-review",
+        "svg_hashes": {
+          "textbook": "sha256:34be5ab6c01695a7acd3172d8360e4619b8a826389ed669a1da2c0d2d4918624",
+          "monochrome": "sha256:dba9148597e399078a88beee08cec954b8543db50c0af9254c2c1ff8621c8594"
+        },
+        "unchanged_actual_svg": true,
+        "review_note": "Both re-rendered SVGs are byte-identical to reviewed baseline; prior visual evidence preserved."
+      }
+    },
+    "notes": "全目录双风格重新渲染无越界/文字碰撞，与前轮逐SVG字节核对仅墙体变化；墙体接触面双风格实图已审阅。"
+  },
+  "svg_file": "asset.svg",
+  "guidance_file": "usage_guide.json",
+  "svg_hash": "sha256:564a9ca803151ce74dee36c36fe4bb257b33ef97fe88fab9afe4f5aa1adba73d"
+}

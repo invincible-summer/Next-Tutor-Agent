@@ -1,0 +1,74 @@
+{
+  "id": "visual_art_extended.cast_shadow",
+  "title": "投影与光源",
+  "english": "Light and cast shadow",
+  "category": "visual_art",
+  "renderer": "visual_art_extended",
+  "variant": "cast_shadow",
+  "version": 1,
+  "aliases": [],
+  "features": [],
+  "sample_params": {},
+  "license": "original-project-artwork",
+  "subjects": [
+    "visual_art"
+  ],
+  "education_levels": [
+    "elementary",
+    "junior",
+    "senior",
+    "undergraduate"
+  ],
+  "asset_kind": "scene",
+  "topics": [
+    "visual_art",
+    "cast_shadow"
+  ],
+  "provenance": {
+    "origin": "project_procedural",
+    "creation_method": "ai_assisted_vector_code",
+    "source_module": "app/diagrams/extended_creative.py",
+    "source_symbol": "draw:cast_shadow",
+    "source_hash": "sha256:429c828c919ca6ab710eb4ebd09161c8191b3c91e4dce491f0b41245756a1c10",
+    "external_graphics": [],
+    "derived_from": [],
+    "knowledge_references": [],
+    "statement": "项目独立编写矢量路径；通用符号与知识事实不代表独占造型。"
+  },
+  "review": {
+    "status": "passed",
+    "automatic": "passed",
+    "structure": "passed",
+    "visual": "passed",
+    "reviewer_type": "agent",
+    "reviewed_at": "2026-10-03",
+    "source_hash": "sha256:429c828c919ca6ab710eb4ebd09161c8191b3c91e4dce491f0b41245756a1c10",
+    "evidence": {
+      "profiles": [
+        "textbook",
+        "monochrome"
+      ],
+      "preview_rendered": true,
+      "parameter_boundary_checked": false,
+      "parameter_cases": 0,
+      "sheet_review": "/tmp/next-tutor-all-assets-contact-fixed",
+      "parameter_review": "/tmp/next-tutor-all-assets-review-final",
+      "individual_review": "/tmp/next-tutor-wall-source-review",
+      "review_note": "All 27 paired contact sheets inspected; changed families rerendered and inspected. Invalid cross-parameter endpoints explicitly rejected.",
+      "expansion_replay": {
+        "directory": "/tmp/next-tutor-expansion-review",
+        "baseline": "/tmp/next-tutor-wall-source-review",
+        "svg_hashes": {
+          "textbook": "sha256:45caac1acf5b7d2d2f85dc6f8a2898d5cdf6c85a91c816a1b9bc632b09bb3928",
+          "monochrome": "sha256:2a6eae8526c97a45bc830c3179e32a42518492fee97673ad51105fb9500df3e7"
+        },
+        "unchanged_actual_svg": true,
+        "review_note": "Both re-rendered SVGs are byte-identical to reviewed baseline; prior visual evidence preserved."
+      }
+    },
+    "notes": "全目录双风格重新渲染无越界/文字碰撞，与前轮逐SVG字节核对仅墙体变化；墙体接触面双风格实图已审阅。"
+  },
+  "svg_file": "asset.svg",
+  "guidance_file": "usage_guide.json",
+  "svg_hash": "sha256:0a643350691cedd85e1c81c1d83dd934acb44984b825cc90fa856b08c11784bd"
+}

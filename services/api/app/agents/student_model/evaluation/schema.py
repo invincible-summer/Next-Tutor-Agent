@@ -19,6 +19,7 @@ from typing import Annotated, Any, Literal, Union
 from pydantic import (computed_field, BaseModel, ConfigDict, Field, PrivateAttr, field_validator,
                       model_validator)
 from app.core.quiz_illustration import QuestionIllustration
+from app.illustration.contracts import DiagramSourceV2, QuestionMaterialContract, VisualRole
 from app.diagrams.schema import DiagramSource, VisualRequirements
 
 # ---------------------------------------------------------------------------
@@ -503,7 +504,10 @@ class TaskSnapshot(StrictModel):
     answer: str = Field(min_length=1, max_length=4000)
     explanation: str = Field(default="", max_length=6000)
     illustration: QuestionIllustration | None = None
-    diagram_source: DiagramSource | None = None
+    diagram_source: DiagramSource | DiagramSourceV2 | None = None
+    visual_role: VisualRole = "none"
+    illustration_artifact_id: str = Field(default="", max_length=96)
+    material_contract: QuestionMaterialContract | None = None
     visual_requirements: VisualRequirements | None = None
     equivalent_solutions: list[str] = Field(default_factory=list,
                                             max_length=8)
@@ -541,6 +545,27 @@ class TaskSnapshot(StrictModel):
     def _compute_rubric_hash(self) -> "TaskSnapshot":
         """量规指纹由服务端从冻结内容计算（§7.4），调用方传入值只在不一致时
         拒绝，防止后台悄悄改量规而不换 revision。"""
+        if self.visual_role == "essential" and self.illustration is None:
+            raise ValueError("essential_material_not_ready")
+        if self.illustration and self.illustration.schema_version == 3:
+            if not isinstance(self.diagram_source, DiagramSourceV2) or self.diagram_source.review_gates != {
+                    "machine": "passed", "visual": "passed", "joint": "passed"}:
+                raise ValueError("illustration_publish_gate_failed")
+            if self.material_contract is None or self.material_contract.contract_hash != self.diagram_source.contract_hash:
+                raise ValueError("illustration_contract_mismatch")
+            if self.material_contract.public_question.stem != self.stem or self.material_contract.public_question.options != self.options:
+                raise ValueError("illustration_question_mismatch")
+            if self.material_contract.visual_role != self.visual_role or self.material_contract.authoring_gold.get("answer") != self.answer:
+                raise ValueError("illustration_gold_mismatch")
+            gold = self.material_contract.authoring_gold
+            reviewed = gold.get("rubric_criteria") or (gold.get("rubric") or {}).get("criteria")
+            if reviewed is not None:
+                keys = ("id", "description", "weight", "critical")
+                frozen = [{key: getattr(c, key) for key in keys} for c in self.rubric]
+                if reviewed != frozen:
+                    raise ValueError("illustration_rubric_mismatch")
+            if gold.get("explanation", self.explanation) != self.explanation:
+                raise ValueError("illustration_gold_mismatch")
         expected = "rh_" + hashlib.sha256(canonical_json(
             [c.model_dump() for c in self.rubric]).encode("utf-8")
         ).hexdigest()[:40]
@@ -569,6 +594,8 @@ class TaskSnapshot(StrictModel):
             source_badge=self.source_badge,
             hints_available=hints_available,
             illustration=self.illustration,
+            visual_role=self.visual_role,
+            illustration_artifact_id=self.illustration_artifact_id,
         )
 
 
@@ -591,6 +618,8 @@ class QuestionPublic(StrictModel):
     source_badge: str = ""
     hints_available: bool = False
     illustration: QuestionIllustration | None = None
+    visual_role: VisualRole = "none"
+    illustration_artifact_id: str = ""
 
 
 # ---------------------------------------------------------------------------

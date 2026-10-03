@@ -1,0 +1,16 @@
+{
+  "id": "recipe.inscribed_triangle",
+  "title": "圆内接三角形",
+  "aliases": [
+    "三角形外接圆",
+    "圆内接正三角形",
+    "圆内接等边三角形"
+  ],
+  "version": 1,
+  "kind": "recipe",
+  "renderer": "registered_v2_recipe",
+  "preview_only": true,
+  "svg_file": "asset.svg",
+  "guidance_file": "usage_guide.json",
+  "svg_hash": "sha256:21948198043ed3abbb5864fdd118221431bc57aa4afaea7ca38356e536517176"
+}

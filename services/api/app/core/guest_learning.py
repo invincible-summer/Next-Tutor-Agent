@@ -66,7 +66,7 @@ def public_knowledge(textbook_ids: list[str]) -> KnowledgeStore:
 
 
 def register_quiz(context: GuestContext, session, payload: dict) -> None:
-    from app.agents.assessment.manager import task_snapshot_from_quiz_dict
+    from app.agents.assessment.manager import task_snapshot_from_quiz_dict, project_quiz_payload
     context.check()
     pending = []
     for q in payload.get("questions") or []:
@@ -83,6 +83,7 @@ def register_quiz(context: GuestContext, session, payload: dict) -> None:
             context.submissions.pop(oldest, None)
             context.question_locks.pop(oldest, None)
     commit(context, store)
+    project_quiz_payload(payload)
 
 
 def tools_for(session):

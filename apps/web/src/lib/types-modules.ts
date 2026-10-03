@@ -547,6 +547,8 @@ export interface EvalAssistanceEvent {
 
 export interface EvalEvidenceTaskPublic {
   illustration?: QuestionIllustrationData | null;
+  visual_role?: "none" | "supplemental" | "essential";
+  illustration_artifact_id?: string;
   question_id: string;
   question_revision: number;
   q_type: string;
@@ -724,6 +726,8 @@ export interface ContextBudgetReport {
 /** QuestionPublic（A07 白名单投影；答案不在答前公开）。 */
 export interface AssessmentQuestion {
   illustration?: QuestionIllustrationData | null;
+  visual_role?: "none" | "supplemental" | "essential";
+  illustration_artifact_id?: string;
   question_id: string;
   question_revision: number;
   q_type?: string;

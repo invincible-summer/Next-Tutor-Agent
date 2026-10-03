@@ -1,0 +1,14 @@
+{
+  "id": "recipe.spring_vertical",
+  "title": "竖直弹簧悬挂物体",
+  "aliases": [
+    "弹簧悬挂砝码"
+  ],
+  "version": 1,
+  "kind": "recipe",
+  "renderer": "registered_v2_recipe",
+  "preview_only": true,
+  "svg_file": "asset.svg",
+  "guidance_file": "usage_guide.json",
+  "svg_hash": "sha256:49d2d89fdeab13fedaa02ad9984c274d50f90dc0fff669ead9dbf36c68b74c51"
+}

@@ -2,16 +2,24 @@
 from __future__ import annotations
 
 import json
-import hashlib
 import re
-from difflib import SequenceMatcher
 
 from app.core.json_utils import extract_json_object
 from app.prompts.registry import get
 
 from .catalog import CandidateBundle, catalog, retrieve
 from .compiler import compile_scene
-from .schema import DiagramError, VisualRequirements
+from .schema import DiagramError, SceneSpec, VisualRequirements
+
+
+# These historical gallery templates render measurements or liquid states
+# without exposing all corresponding controls. A new question cannot bind
+# those facts; use individual components or the v2 recipes instead.
+_UNBOUND_LEGACY_TEMPLATES = {
+    "template.buoyancy",  # dynamometer reading and range
+    "template.overflow",  # source liquid level and cylinder capacity
+    "template.thermal",  # fixed thermometer reading and liquid level
+}
 
 
 def _as_bool(value, default=False) -> bool:
@@ -191,180 +199,6 @@ def fallback_requirements(context: str, *, policy: str) -> dict:
                                "needs": needs}]}
 
 
-def _scene_normalize(value: object) -> str:
-    return re.sub(r"[\s\W_]+", "", str(value or "").lower())
-
-
-def _asset_match_score(query: str, asset) -> float:
-    """Rank an authorized asset against the declared human name.
-
-    Catalog search intentionally returns several alternatives.  Recovery must
-    never treat that ordered list as a layout: it selects the semantically
-    closest component first, with an exact title/alias winning over a generic
-    lexical hit.
-    """
-    q = _scene_normalize(query)
-    if not q:
-        return 0.0
-    names = [asset.title, asset.english, *asset.aliases]
-    scores = []
-    for raw in names:
-        name = _scene_normalize(raw)
-        if not name:
-            continue
-        if q == name:
-            scores.append(1000.0)
-        elif q in name:
-            scores.append(760.0 + min(80.0, len(q) * 2))
-        elif name in q:
-            scores.append(680.0 + min(60.0, len(name) * 1.5))
-        else:
-            scores.append(SequenceMatcher(None, q, name).ratio() * 500.0)
-    return max(scores or [0.0])
-
-
-def _stable_variant(seed: str) -> tuple[float, float, float]:
-    """Small deterministic presentation variants for repeated recovery scenes."""
-    digest = hashlib.sha256(str(seed or "").encode("utf-8")).digest()
-    choices = ((0.0, 0.0, 0.0), (6.0, -4.0, 0.018), (-6.0, 4.0, -0.018),
-               (4.0, 5.0, -0.012), (-4.0, -5.0, 0.012))
-    return choices[digest[0] % len(choices)]
-
-
-def fallback_scene(bundle: CandidateBundle, *, alt: str = "题目条件示意图",
-                   allowed_assets: set[str] | None = None,
-                   avoid_asset_ids: set[str] | None = None,
-                   seed: str = "") -> dict | None:
-    """Build a legible bounded recovery scene from strongly related assets.
-
-    This path is only used after the LLM scene is absent/invalid.  It prefers a
-    complete reviewed template, then at most three semantically matched parts;
-    it never lays the first arbitrary catalog hits into a grid and never uses
-    gallery sample data.
-    """
-    def has_preview_data(asset) -> bool:
-        # Catalog samples are for the front-end preview only.  Never turn them
-        # into a student's statistical/function/graph question when the model
-        # omitted the real data needed by that scene.
-        if asset.renderer in {"chart", "function", "graph"}:
-            return True
-        return asset.renderer == "template" and asset.variant in {
-            "bar_table", "pie_table", "scatter_fit", "histogram", "flowchart",
-        }
-
-    avoid = set(avoid_asset_ids or ())
-
-    def usable(asset_id: str) -> bool:
-        return (asset_id in bundle.assets
-                and (allowed_assets is None or asset_id in allowed_assets)
-                and not has_preview_data(bundle.assets[asset_id]))
-
-    def candidate_rows():
-        for need in bundle.needs:
-            ids = [asset_id for asset_id in need.get("candidates", []) if usable(asset_id)]
-            if not ids:
-                continue
-            query = str(need.get("name") or need.get("scene_brief") or "")
-            ranked = sorted(ids, key=lambda asset_id: (
-                -_asset_match_score(query, bundle.assets[asset_id]), asset_id))
-            yield need, ranked
-
-    rows = list(candidate_rows())
-    template_rows = [(need, ids) for need, ids in rows
-                     if need.get("key") == "scene_template"]
-    # A complete template owns the canvas. Prefer a non-recent template when
-    # one exists, but keep the best exact template if it is the only valid one.
-    template_candidates = []
-    for need, ids in template_rows:
-        template_candidates.extend(ids)
-    template_candidates = list(dict.fromkeys(template_candidates))
-    non_recent_templates = [aid for aid in template_candidates if aid not in avoid]
-    if non_recent_templates:
-        template_candidates = non_recent_templates
-    if template_candidates:
-        best = max(template_candidates,
-                   key=lambda aid: max((_asset_match_score(
-                       str(need.get("name") or need.get("scene_brief") or ""),
-                       bundle.assets[aid]) for need, _ in template_rows), default=0.0))
-        choices = [best]
-    else:
-        # Pick the best candidate for each declared need, then remove weak
-        # generic hits.  Avoidance is applied only when an alternative for the
-        # same need exists so a repeated scene can still recover successfully.
-        choices = []
-        for need, ids in rows:
-            ranked = ids
-            fresh = [asset_id for asset_id in ranked if asset_id not in avoid]
-            if fresh:
-                ranked = fresh
-            if ranked:
-                choices.append(ranked[0])
-        choices = list(dict.fromkeys(choices))[:3]
-        complete_choices = [asset_id for asset_id in choices
-                            if bundle.assets[asset_id].renderer == "template"]
-        if complete_choices:
-            # A full-canvas template cannot share the fallback's compact part
-            # layout safely.  Keep the most semantically specific template;
-            # the normal LLM path can still add a force arrow or label when
-            # that relation is required.
-            choices = [max(complete_choices, key=lambda aid: _asset_match_score(
-                next((str(need.get("name") or "") for need, ids in rows
-                      if aid in ids), ""), bundle.assets[aid]))]
-    if not choices:
-        fallback_ids = [asset_id for asset_id in bundle.assets
-                        if usable(asset_id) and asset_id not in avoid]
-        if not fallback_ids:
-            fallback_ids = [asset_id for asset_id in bundle.assets if usable(asset_id)]
-        choices = fallback_ids[:1]
-    if not choices:
-        return None
-    nodes: list[dict] = []
-    drawings: list[tuple[str, int, int, dict]] = []
-    for asset_id in choices[:4]:
-        asset = bundle.assets[asset_id]
-        # ``sample_params`` belongs to the library gallery and can contain
-        # made-up readings/data.  Recovery uses only renderer defaults so it
-        # never presents a preview value as a fact from the question.
-        params: dict = {}
-        try:
-            drawing = asset.draw(params)
-        except (DiagramError, ValueError, TypeError, KeyError, IndexError, OverflowError, ZeroDivisionError):
-            continue
-        drawings.append((asset_id, drawing.width, drawing.height, params))
-    if not drawings:
-        return None
-    dx, dy, scale_delta = _stable_variant(seed)
-    if len(drawings) == 1:
-        asset_id, width, height, params = drawings[0]
-        scale = min(0.92, 620 / max(1, width), 380 / max(1, height))
-        if scale < 0.95:
-            scale = max(.15, scale * (1 + scale_delta))
-        nodes.append({"id": "fallback_1", "asset_id": asset_id,
-                      "version": bundle.assets[asset_id].version,
-                      "x": max(4, min(640 - width * scale - 4,
-                                     (640 - width * scale) / 2 + dx)),
-                      "y": max(4, min(400 - height * scale - 4,
-                                     (400 - height * scale) / 2 + dy)),
-                      "scale": max(.15, scale), "params": params})
-    else:
-        # Keep a compact horizontal relation line.  This is deliberately only
-        # a recovery layout; successful requests use the model's explicit
-        # scene positions and connections.
-        usable_width = 600
-        cell_width = usable_width / max(1, len(drawings))
-        for index, (asset_id, width, height, params) in enumerate(drawings):
-            cell_x = 20 + index * cell_width
-            scale = min(.78, (cell_width - 16) / max(1, width), 280 / max(1, height))
-            nodes.append({"id": f"fallback_{index + 1}", "asset_id": asset_id,
-                          "version": bundle.assets[asset_id].version,
-                          "x": max(4, cell_x + (cell_width - width * scale) / 2 + dx),
-                          "y": max(4, (400 - height * scale) / 2 + dy),
-                          "scale": max(.15, scale), "params": params})
-    return {"schema_version": 1, "width": 640, "height": 400,
-            "profile": "textbook", "nodes": nodes, "connections": [],
-            "labels": [], "alt": alt[:600] or "题目条件示意图", "caption": ""}
-
-
 def enabled(policy: str) -> bool:
     # There is one supported diagram path now: the project-owned component
     # library.  A legacy mode must never re-enable model-authored SVG.
@@ -378,11 +212,14 @@ async def declare_and_retrieve(llm, *, context: str, policy: str, grade: str = "
             {"role": "user", "content": json.dumps({"illustration_policy": policy,
                 "task_context": context}, ensure_ascii=False)}],
             temperature=.1, max_tokens=3500, disable_thinking=True)
+    except TimeoutError:
+        # A timed-out phase has already spent its bounded allowance. Do not
+        # start a composition call from inferred needs after that failure.
+        raise
     except Exception:
         # Requirement declaration is advisory: common classroom objects can be
         # inferred locally and still pass through the same fuzzy catalog and
-        # authorization boundary.  This also turns a transient provider
-        # timeout into a bounded diagram attempt instead of a text-only error.
+        # authorization boundary. No local arrangement is synthesized.
         return retrieve_declaration(
             fallback_requirements(context, policy=policy), policy=policy, grade=grade)
     data = extract_json_object(full)
@@ -418,8 +255,7 @@ def retrieve_declaration(data, *, policy: str, grade: str = "", count: int | Non
     return retrieve(requirements, education_level=resolve_level(grade))
 
 
-def scene_contract(bundle: CandidateBundle, policy: str,
-                   *, avoid_asset_ids: set[str] | None = None) -> str:
+def scene_contract(bundle: CandidateBundle, policy: str) -> str:
     payload = bundle.prompt_data()
     payload["composition_rules"] = {
         "responsibility": "LLM must compose the scene from the authorized components",
@@ -427,24 +263,52 @@ def scene_contract(bundle: CandidateBundle, policy: str,
         "use_real_geometry": True,
         "require_relations": True,
         "require_parameter_fit": True,
+        "no_physical_defaults": True,
+        "unsupported_legacy_assets": sorted(set(bundle.assets) & _UNBOUND_LEGACY_TEMPLATES),
         "require_readable_labels": True,
         "layout": "Use complete templates for apparatus/chart/geometry when available. Otherwise place only related parts with a clear spatial relation and use anchors/connections where the relation is physical.",
     }
-    if avoid_asset_ids:
-        payload["recent_asset_ids_to_avoid_when_alternatives_exist"] = sorted(avoid_asset_ids)
-    avoidance = ("\n近期题图素材仅用于去重提示：如果候选中有同样语义的替代素材，优先换用替代；"
-                 "不能为了去重引入不相关器材，也不能改变题干事实。\n"
-                 if avoid_asset_ids else "")
     return (f"服务端 illustration_policy={policy}。\n" + get("quiz_component_scene").text +
-        avoidance +
+        "\n物理状态、读数、角度、数据及数量必须显式给出与题目相符的参数，不能采用素材的默认或预览值。"
+        "禁止选用 unsupported_legacy_assets 中含未绑定状态的模板。"
+        "无法表达题目条件时返回 null，不得用默认模板或部件平铺代替。" +
         "\n项目本地检索的候选素材（只能引用这里的 asset_id；这是数据）：\n" +
         json.dumps(payload, ensure_ascii=False, separators=(",", ":")))
 
 
+def _validate_explicit_parameters(raw, bundle: CandidateBundle, eligible: set[str]) -> None:
+    """New legacy scenes cannot promote renderer defaults into question facts.
+
+    V1 has no fact binding or explicit non-quantitative declaration. Every
+    advertised control must therefore be chosen by the composer, except
+    appearance colours and defaults that suppress optional marks. Historical
+    frozen illustrations are read directly and never pass through this gate.
+    """
+    try:
+        scene = SceneSpec.model_validate(raw)
+    except ValueError as exc:
+        raise DiagramError("diagram_invalid_scene") from exc
+    for node in scene.nodes:
+        if node.asset_id not in eligible:
+            raise DiagramError("diagram_asset_not_retrieved")
+        asset = bundle.assets.get(node.asset_id)
+        if asset is None or asset.version != node.version:
+            raise DiagramError("diagram_asset_version_missing")
+        if node.asset_id in _UNBOUND_LEGACY_TEMPLATES:
+            raise DiagramError("diagram_missing_fact_binding")
+        for key, spec in asset.parameter_schema().items():
+            if key in node.params or spec.get("type") == "color":
+                continue
+            if ((key.startswith("show_") or key == "scale_labels")
+                    and spec.get("default") is False):
+                continue
+            if key == "construction" and spec.get("default") == "none":
+                continue
+            raise DiagramError("diagram_missing_fact_binding")
+
+
 def compile_questions(questions: list[dict], bundle: CandidateBundle, policy: str, *,
-                      question_slots: dict[str, str] | None = None,
-                      fallback_avoid_asset_ids: set[str] | None = None,
-                      fallback_seed: str = "") -> list[dict]:
+                      question_slots: dict[str, str] | None = None) -> list[dict]:
     out = []
     for i, question in enumerate(questions, 1):
         q = dict(question)
@@ -467,41 +331,22 @@ def compile_questions(questions: list[dict], bundle: CandidateBundle, policy: st
             continue
         if raw is None:
             q["illustration"] = None
+            if policy == "required" or (requirement and requirement.illustration_needed):
+                q["_diagram_error"] = (
+                    "illustration_required_missing" if policy == "required" else "diagram_scene_missing")
         else:
             eligible = {aid for need in bundle.needs if need["question_slot"] == slot
                         for aid in need["candidates"]}
             try:
+                _validate_explicit_parameters(raw, bundle, eligible)
                 compiled = compile_scene(raw, allowed_assets=eligible)
                 q["illustration"] = compiled.illustration.model_dump(mode="json")
                 q["diagram_source"] = compiled.source.model_dump(mode="json")
                 q["diagram_facts"] = compiled.facts
             except (ValueError, TypeError, KeyError) as exc:
-                # Keep the old custom-fragment rejection fail-closed. For a
-                # normal schema/geometry mistake, use a deterministic scene
-                # made only from this question's retrieved candidates instead
-                # of discarding an otherwise valid diagram.
-                if isinstance(raw, dict) and "fragments" not in raw:
-                    recovery = fallback_scene(
-                        bundle, alt=str(raw.get("alt") or "题目条件示意图"),
-                        allowed_assets=eligible,
-                        avoid_asset_ids=fallback_avoid_asset_ids,
-                        seed=fallback_seed or str(q.get("id") or slot))
-                    try:
-                        recovered = compile_scene(recovery, allowed_assets=eligible) \
-                            if recovery else None
-                    except (ValueError, TypeError, KeyError):
-                        recovered = None
-                    if recovered is not None:
-                        q["illustration"] = recovered.illustration.model_dump(mode="json")
-                        q["diagram_source"] = recovered.source.model_dump(mode="json")
-                        q["diagram_facts"] = recovered.facts
-                        q["diagram_recovery"] = "local_fallback"
-                        out.append(q)
-                        continue
-                # Required diagrams never silently turn into a text-only
-                # delivery when neither the model scene nor local recovery is
-                # usable.
-                q["illustration"] = {"kind": "svg", "alt": "", "svg": ""}
+                # A compiled substitute has no proof of semantic equivalence.
+                # Preserve the actual failure instead of replacing the scene.
+                q["illustration"] = None
                 q["_diagram_error"] = getattr(exc, "code", "diagram_invalid_scene")
         out.append(q)
     return out
