@@ -186,4 +186,4 @@
 - ADR-0002 运行数据统一 `NEXT_TUTOR_DATA_DIR`（`chat_history/classroom/` 单一根）
 - ADR-0003 BM25 基线 + 向量可选（来源证据 chunk 冻结走 BM25）
 - ADR-0004 single-worker（生成 job 为进程内 asyncio 任务，靠检查点与 reaper 恢复）
-- [ADR-0013](../../adr/0013-durable-workflows.md) durable workflows（TEMPORAL_ADDRESS 配置后生成 worker 移交 worker 进程，检查点/预算/epoch 不变）
+- [ADR-0013](../adr/0013-durable-workflows.md) durable workflows（TEMPORAL_ADDRESS 配置后生成 worker 移交 worker 进程，检查点/预算/epoch 不变）

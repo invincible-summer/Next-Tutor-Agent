@@ -17,7 +17,9 @@ ADR-0004 以来，所有后台长任务（教材解析/OCR/图谱构建、课堂
 - **调度策略优先复用域调度器**：各域现有队列/选择/并发策略（textbook per-owner FIFO + 停滞看门狗、classroom 并发/轮转、evaluation claim/outbox）是经过测试的行为契约——迁移后它们随 activity 原样在 worker 进程内运行（进程角色标记 `app/workflows/config.is_worker_process` 使 activity 内的 enqueue/claim 走进程内路径、不递归派发 workflow），而不是在 workflow 里重写一份调度器。代价：每条队列保持单 worker 实例消费（与文件模式同一约束），按队列扩容而非按副本扩容；未来需要副本级扩容时再为对应域引入调度 workflow。
 - **五个 task queue**：`documents` / `classroom` / `evaluation` / `media` / `maintenance`，同一 worker 入口按 `--queues` 子集运行，可独立扩容。
 - **workflow id 与域 job id 稳定映射**：`classroom-job:{job_id}`、`quiz-illustration:{job_id}`、`scenario-illustration:{job_id}`、`textbook-queue:{owner}` 等；cancel/retry = 域 CAS 打标（事实源）+ workflow cancel / 同 id 新 run。id 只在 API/activity 侧铸造，workflow 代码保持确定性纪律（无直接 IO/时钟/随机）。
-- **配图双 workflow**：`QuizIllustrationWorkflow` 与 `ScenarioIllustrationWorkflow` 是两个独立业务 workflow（各自的审核输入与发布条件不共享），底层共享素材检索/V1V2V3 compose/sanitize/render/artifact activity（`app/illustration` 域代码）。
+- **配图双 workflow**：`QuizIllustrationWorkflow` 与 `ScenarioIllustrationWorkflow` 是两个独立业务 workflow（各自的审核输入与发布条件不共享），共享装配在 `app/workflows/illustration_common.py`，run activity 整体包住域 `orchestrator._run` / `scenario._run`（wrap-as-activity，不拆成细粒度 activity）。
+- **配图崩溃结算（as-built）**：run activity 不重试（`maximum_attempts=1`）——生成按次消耗模型预算，崩溃自动重跑等于隐性双倍扣费；非取消失败后由同一 workflow 的 settle activity 兜底把磁盘记录结算为 `failed/run_interrupted`（retryable，用户显式重试，与文件模式「任务消失 → 读路径标中断」同语义）。API 读路径在 durable 模式不再做 liveness RPC；worker 启动对账一次性结算 cutover 残留（磁盘 queued/running 且无存活 workflow）。
+- **owner epoch 磁盘化（as-built）**：`illustrations/.epochs/<owner>.json` 单调标记跨进程共享（内存 dict 在 API+worker 双进程下失效）；purge 只 bump 不清标记（tombstone，防迟到写复活已删目录），标记损坏时 fail-closed。`persistence.write` 落盘后复验 epoch 并补偿删除，关掉跨进程删除竞态窗口。
 - **不迁移清单**（保持进程内，属请求生命周期或可重建缓存）：站内助手 turns/站内多步 workflow/音频 job、语音 WS、课堂 TTS lane 与 voices 预热、向量索引单槽、file summary/workspace memory 等 fire-and-forget、guest sweep。
 
 ## Consequences
@@ -36,6 +38,6 @@ ADR-0004 以来，所有后台长任务（教材解析/OCR/图谱构建、课堂
 | 基建（config/runtime/worker.py/CI/依赖） | — | done |
 | textbook（构建 intent + 手动刷新；恢复移 worker 启动） | documents | done |
 | classroom（生成 job；监督 workflow + adopt 收养） | classroom | done |
-| illustration（quiz + scenario） | media | pending |
+| illustration（quiz + scenario；epoch 磁盘化 + settle 兜底） | media | done |
 | learner evaluation（含每日关窗） | evaluation | pending |
 | maintenance（retention/briefing/purge） | maintenance | pending |

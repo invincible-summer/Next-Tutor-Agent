@@ -112,13 +112,62 @@ def public_job(owner, job):
         "illustration": artifact["illustration"] if artifact else None}
 
 
+def _dispatching() -> bool:
+    from app.workflows.illustration_common import dispatching
+    return dispatching()
+
+
+def _dispatch_scenario_job(owner: str, job: dict) -> None:
+    """temporal 模式：把 job 交给 durable workflow（fire-and-forget）。"""
+    from app.workflows.illustration_common import ScenarioIllustrationIntent
+    from app.workflows.illustration_scenario import start_scenario_job
+
+    intent = ScenarioIllustrationIntent(
+        owner=owner, session_id=job["session_id"], job_id=job["job_id"])
+
+    async def _go() -> None:
+        try:
+            await start_scenario_job(intent)
+        except Exception:
+            # Temporal 不可达：结算中断（retryable），与文件模式同一语义。
+            try:
+                _settle_interrupted(owner, job["session_id"], job["job_id"])
+            except SceneError:
+                pass
+
+    asyncio.create_task(_go())
+
+
+def _settle_interrupted(owner: str, session_id: str, job_id: str) -> str:
+    """把 session 的遗留 active job 结算为 run_interrupted（幂等，epoch 闸内）。
+
+    durable 模式下由 workflow 的 settle activity 与 worker 启动对账调用；
+    文件模式下 _recover_session 内联同一逻辑。session 缺失/已删除时抛
+    SceneError（调用方决定如何处置）。
+    """
+    with file_lock(persistence.owner_dir(owner)):
+        session = _session(owner, session_id)
+        if session.get("active_job_id") != job_id:
+            return "superseded"
+        job = persistence.read(owner, "scenario_jobs", job_id)
+        if not job or job["status"] not in {"queued", "running"}:
+            return "already-settled"
+        if persistence.epoch(owner) != job.get("owner_epoch", 0):
+            return "fenced"
+        _fail(owner, session, job, "run_interrupted", retryable=True)
+        return "settled"
+
+
 def _recover_session(owner, session):
     if not session["active_job_id"]:
         return
     job = persistence.read(owner, "scenario_jobs", session["active_job_id"])
     key = (str(persistence.owner_dir(owner)), session["active_job_id"])
-    if job and job["status"] in {"queued", "running"} and key not in _running:
-        _fail(owner, session, job, "run_interrupted", retryable=True)
+    if job and job["status"] in {"queued", "running"}:
+        if key not in _running and not _dispatching():
+            _fail(owner, session, job, "run_interrupted", retryable=True)
+        # durable 模式：job 在 worker 进程执行，结算责任在 workflow
+        # （settle activity / worker 启动对账），读路径只返回现状。
     elif not job or job["status"] not in {"queued", "running"}:
         session["active_job_id"] = None
         _write_session(owner, session)
@@ -198,6 +247,9 @@ def start_turn(owner, session_id, body: SceneTurn, *, llm=None):
 
 def _launch(owner, job, llm):
     key = (str(persistence.owner_dir(owner)), job["job_id"])
+    if _dispatching():
+        _dispatch_scenario_job(owner, job)
+        return
     _running[key] = asyncio.create_task(_run(owner, job, llm))
 
 
@@ -298,6 +350,11 @@ async def _run(owner, job, llm):
             preview_path = persistence.owner_dir(owner)/"previews"/f"{artifact_id}.png"
             preview_path.parent.mkdir(parents=True, exist_ok=True)
             atomic_write_bytes(preview_path, result["png"])
+            if persistence.epoch(owner) != job["owner_epoch"]:
+                # 跨进程删除竞态：epoch 已失效，撤销刚落的预览；结构化
+                # 写入由 persistence.write 的补偿闸兜底。
+                preview_path.unlink(missing_ok=True)
+                return
             persistence.write(owner, "scenario_revisions", artifact_id, artifact,
                               expected_epoch=job["owner_epoch"], immutable=True)
             job.update(status="ready", stage="ready", revision=revision, artifact_id=artifact_id,
@@ -334,6 +391,12 @@ async def _run(owner, job, llm):
 def delete_session(owner, session_id):
     with file_lock(persistence.owner_dir(owner)):
         session = _session(owner, session_id)
+        if _dispatching():
+            # durable 模式：先 best-effort 取消在途 workflow 再删记录；即便
+            # 取消尚未落地，session 墓碑也会让迟到的 _alive 检查失效。
+            from app.workflows.illustration_common import cancel_owner_workflows
+            cancel_owner_workflows(
+                owner, scenario_ids=[turn["job_id"] for turn in session["turns"]])
         for turn in session["turns"]:
             job_id = turn["job_id"]
             running = _running.get((str(persistence.owner_dir(owner)), job_id))

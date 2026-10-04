@@ -182,5 +182,171 @@ class ClassroomSupervisorIntegrationTest(StorageSandboxTestCase,
             wf_runtime.reset_client_cache()
 
 
+@unittest.skipUnless(_TEMPORAL_ADDRESS,
+                     "TEST_TEMPORAL_ADDRESS not set — Temporal integration "
+                     "skipped")
+class IllustrationDurableIntegrationTest(StorageSandboxTestCase,
+                                         unittest.IsolatedAsyncioTestCase):
+    _saved_env: dict[str, str | None] = {}
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        from app.workflows import config as wf_config
+
+        cls._saved_env = {
+            "TEMPORAL_ADDRESS": os.environ.get("TEMPORAL_ADDRESS")}
+        os.environ["TEMPORAL_ADDRESS"] = _TEMPORAL_ADDRESS
+        wf_config._worker_process = True
+
+    @classmethod
+    def tearDownClass(cls) -> None:
+        from app.workflows import config as wf_config
+
+        wf_config._worker_process = False
+        for key, value in cls._saved_env.items():
+            if value is None:
+                os.environ.pop(key, None)
+            else:
+                os.environ[key] = value
+
+    def _seed_quiz_job(self, owner: str) -> str:
+        from app.illustration import persistence
+
+        job_id = "illjob_" + uuid.uuid4().hex[:12]
+        persistence.write(owner, "jobs", job_id, {
+            "job_id": job_id, "run_id": "illrun_" + job_id,
+            "status": "queued", "stage": "created",
+            "owner_epoch": persistence.epoch(owner),
+            "question_id": "q_i", "question_revision": 1})
+        return job_id
+
+    async def test_quiz_job_reaches_ready(self) -> None:
+        """API 派发 → media worker → 域 _run（桩）→ 磁盘终态。"""
+        from app.illustration import orchestrator, persistence
+        from app.workflows import illustration_quiz
+        from app.workflows import runtime as wf_runtime
+        from temporalio.worker import Worker
+
+        owner = f"stu_{uuid.uuid4().hex[:8]}"
+        job_id = self._seed_quiz_job(owner)
+
+        async def run_stub(owner_arg, job, llm) -> None:
+            job.update(status="ready")
+            persistence.write(owner_arg, "jobs", job["job_id"], job,
+                              expected_epoch=job["owner_epoch"])
+
+        wf_runtime.reset_client_cache()
+        worker = Worker(
+            await wf_runtime.get_client(),
+            task_queue=wf_runtime.TASK_QUEUE_MEDIA,
+            workflows=list(illustration_quiz.QUIZ_ILLUSTRATION_WORKFLOWS),
+            activities=list(illustration_quiz.QUIZ_ILLUSTRATION_ACTIVITIES))
+        try:
+            async with worker:
+                with mock.patch.object(orchestrator, "_run", run_stub):
+                    handle = await illustration_quiz.start_quiz_job(
+                        illustration_quiz.QuizIllustrationIntent(
+                            owner=owner, job_id=job_id))
+                    await asyncio.wait_for(handle.result(), timeout=60)
+            final = persistence.read(owner, "jobs", job_id) or {}
+            self.assertEqual(final.get("status"), "ready")
+        finally:
+            await worker.shutdown()
+            wf_runtime.reset_client_cache()
+
+    async def test_quiz_job_worker_crash_settles_interrupted(self) -> None:
+        """run activity 基建级失败 → settle activity 兜底结算 run_interrupted。"""
+        from app.illustration import persistence
+        from app.workflows import illustration_common, illustration_quiz
+        from app.workflows import runtime as wf_runtime
+        from temporalio.worker import Worker
+
+        owner = f"stu_{uuid.uuid4().hex[:8]}"
+        job_id = self._seed_quiz_job(owner)
+
+        def crashed_heartbeat(coro):
+            coro.close()  # 不留未 await 的协程
+            raise RuntimeError("worker died")
+
+        wf_runtime.reset_client_cache()
+        worker = Worker(
+            await wf_runtime.get_client(),
+            task_queue=wf_runtime.TASK_QUEUE_MEDIA,
+            workflows=list(illustration_quiz.QUIZ_ILLUSTRATION_WORKFLOWS),
+            activities=list(illustration_quiz.QUIZ_ILLUSTRATION_ACTIVITIES))
+        try:
+            async with worker:
+                with mock.patch.object(illustration_common,
+                                       "_run_with_heartbeat",
+                                       crashed_heartbeat):
+                    handle = await illustration_quiz.start_quiz_job(
+                        illustration_quiz.QuizIllustrationIntent(
+                            owner=owner, job_id=job_id))
+                    await asyncio.wait_for(handle.result(), timeout=60)
+            final = persistence.read(owner, "jobs", job_id) or {}
+            self.assertEqual(final.get("status"), "failed")
+            self.assertEqual(final.get("failure", {}).get("code"),
+                             "run_interrupted")
+            self.assertTrue(final.get("failure", {}).get("retryable"))
+        finally:
+            await worker.shutdown()
+            wf_runtime.reset_client_cache()
+
+    async def test_scenario_job_worker_crash_settles_interrupted(self) -> None:
+        """情景配图同一兜底链路：session active_job 清空、job 标中断。"""
+        from app.illustration import persistence, scenario
+        from app.illustration.scenario_contracts import CreateSession
+        from app.workflows import illustration_common, illustration_scenario
+        from app.workflows import runtime as wf_runtime
+        from temporalio.worker import Worker
+
+        owner = f"stu_{uuid.uuid4().hex[:8]}"
+        session_id = scenario.create_session(owner, CreateSession())["session_id"]
+        job_id = "scenejob_" + uuid.uuid4().hex[:12]
+        persistence.write(owner, "scenario_jobs", job_id, {
+            "job_id": job_id, "session_id": session_id, "turn_id": "turn_1",
+            "mode": "v1", "status": "queued", "stage": "preparing",
+            "base_revision": 0, "revision": None, "artifact_id": None,
+            "failure": None, "created_at": 0.0, "updated_at": 0.0,
+            "owner_epoch": persistence.epoch(owner), "attempt": 1})
+        session = persistence.read(owner, "sessions", session_id)
+        session.update(active_job_id=job_id, turns=[{
+            "turn_id": "turn_1", "message": "m", "mode": "v1",
+            "selected_materials": [], "job_id": job_id, "status": "queued",
+            "revision": None, "created_at": 0.0, "request_id": None,
+            "source_revision": 0}])
+        persistence.write(owner, "sessions", session_id, session)
+
+        def crashed_heartbeat(coro):
+            coro.close()
+            raise RuntimeError("worker died")
+
+        wf_runtime.reset_client_cache()
+        worker = Worker(
+            await wf_runtime.get_client(),
+            task_queue=wf_runtime.TASK_QUEUE_MEDIA,
+            workflows=list(illustration_scenario.SCENARIO_ILLUSTRATION_WORKFLOWS),
+            activities=list(illustration_scenario.SCENARIO_ILLUSTRATION_ACTIVITIES))
+        try:
+            async with worker:
+                with mock.patch.object(illustration_common,
+                                       "_run_with_heartbeat",
+                                       crashed_heartbeat):
+                    handle = await illustration_scenario.start_scenario_job(
+                        illustration_scenario.ScenarioIllustrationIntent(
+                            owner=owner, session_id=session_id, job_id=job_id))
+                    await asyncio.wait_for(handle.result(), timeout=60)
+            final = persistence.read(owner, "scenario_jobs", job_id) or {}
+            self.assertEqual(final.get("status"), "failed")
+            self.assertEqual(final.get("failure", {}).get("code"),
+                             "run_interrupted")
+            self.assertIsNone(
+                (persistence.read(owner, "sessions", session_id) or {})
+                .get("active_job_id"))
+        finally:
+            await worker.shutdown()
+            wf_runtime.reset_client_cache()
+
+
 if __name__ == "__main__":  # pragma: no cover
     unittest.main()

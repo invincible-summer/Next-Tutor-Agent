@@ -52,6 +52,7 @@ def build_lanes() -> dict[str, Lane]:
     from app.workflows.runtime import (
         TASK_QUEUE_CLASSROOM,
         TASK_QUEUE_DOCUMENTS,
+        TASK_QUEUE_MEDIA,
     )
     from app.workflows.textbook import TEXTBOOK_ACTIVITIES, TEXTBOOK_WORKFLOWS
     lanes[TASK_QUEUE_DOCUMENTS] = Lane(
@@ -64,6 +65,19 @@ def build_lanes() -> dict[str, Lane]:
     lanes[TASK_QUEUE_CLASSROOM] = Lane(
         workflows=CLASSROOM_WORKFLOWS, activities=CLASSROOM_ACTIVITIES,
         notes="classroom generation supervisor (ADR-0013 C2)")
+    from app.workflows.illustration_quiz import (
+        QUIZ_ILLUSTRATION_ACTIVITIES,
+        QUIZ_ILLUSTRATION_WORKFLOWS,
+    )
+    from app.workflows.illustration_scenario import (
+        SCENARIO_ILLUSTRATION_ACTIVITIES,
+        SCENARIO_ILLUSTRATION_WORKFLOWS,
+    )
+    lanes[TASK_QUEUE_MEDIA] = Lane(
+        workflows=QUIZ_ILLUSTRATION_WORKFLOWS + SCENARIO_ILLUSTRATION_WORKFLOWS,
+        activities=(QUIZ_ILLUSTRATION_ACTIVITIES
+                    + SCENARIO_ILLUSTRATION_ACTIVITIES),
+        notes="quiz + scenario illustration jobs (ADR-0013 C3)")
     return lanes
 
 
@@ -84,6 +98,56 @@ async def _bootstrap_documents_recovery() -> None:
         log.info("resumed %d interrupted textbook build(s)", resumed)
 
 
+async def _bootstrap_media_recovery() -> None:
+    """media lane 启动对账（ADR-0013 C3）。
+
+    磁盘上仍 queued/running、且没有存活 workflow 的 illustration 记录，
+    一律结算为 run_interrupted：覆盖 cutover 前的进程内残留与「持久化了
+    job 但派发未达」的窗口。此后单个 job 的崩溃结算由其 workflow 的
+    settle activity 兜底；worker 只在启动时做一次全量对账。
+    """
+    import json
+
+    from app.illustration import orchestrator, persistence, scenario
+    from app.workflows.illustration_common import (
+        quiz_workflow_id,
+        scenario_workflow_id,
+        workflow_alive,
+    )
+
+    settled = 0
+    for owner in persistence.iter_owners():
+        for kind in ("jobs", "scenario_jobs"):
+            base = persistence.owner_dir(owner) / kind
+            if not base.is_dir():
+                continue
+            for path in base.glob("*.json"):
+                try:
+                    row = json.loads(path.read_text("utf-8"))
+                except (OSError, ValueError):
+                    continue
+                if not isinstance(row, dict) or \
+                        row.get("status") not in {"queued", "running"}:
+                    continue
+                job_id = path.stem
+                if kind == "jobs":
+                    if not await workflow_alive(quiz_workflow_id(owner, job_id)):
+                        orchestrator._settle_interrupted(owner, job_id)
+                        settled += 1
+                    continue
+                if not await workflow_alive(
+                        scenario_workflow_id(owner, job_id)):
+                    try:
+                        scenario._settle_interrupted(
+                            owner, row["session_id"], job_id)
+                        settled += 1
+                    except (KeyError, scenario.SceneError):
+                        pass  # session 已删：记录失去挂载点，无需结算
+    if settled:
+        log.info("media recovery: settled %d interrupted illustration job(s)",
+                 settled)
+
+
 def _parse_args(argv: Sequence[str]) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         prog="worker.py",
@@ -97,7 +161,7 @@ def _parse_args(argv: Sequence[str]) -> argparse.Namespace:
 async def _serve(queues: Sequence[str]) -> int:
     from temporalio.worker import Worker
 
-    from app.workflows.runtime import TASK_QUEUE_DOCUMENTS, get_client
+    from app.workflows.runtime import TASK_QUEUE_DOCUMENTS, TASK_QUEUE_MEDIA, get_client
 
     client = await get_client()
     if TASK_QUEUE_DOCUMENTS in queues:
@@ -106,6 +170,12 @@ async def _serve(queues: Sequence[str]) -> int:
         except Exception:
             log.exception("documents recovery failed; queued intents will "
                           "be picked up on the next worker restart")
+    if TASK_QUEUE_MEDIA in queues:
+        try:
+            await _bootstrap_media_recovery()
+        except Exception:
+            log.exception("media recovery failed; interrupted jobs without a "
+                          "live workflow stay queued until the next restart")
     lanes = build_lanes()
     workers: list[Worker] = []
     for queue in queues:

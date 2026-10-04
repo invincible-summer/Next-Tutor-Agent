@@ -8,7 +8,7 @@
 
 - 门控与配置：`config.py`（`TEMPORAL_ADDRESS` / `TEMPORAL_NAMESPACE`，未配置即整层惰性——file 模式零行为变化）。
 - 共享 runtime：`runtime.py`（Task queue 常量、惰性缓存 Client、workflow id 构造器 `join_workflow_id`）。
-- 各域 workflow/activity 装配：`textbook.py`（构建 intent + 手动刷新，documents 队列）与 `classroom.py`（生成监督 supervisor，classroom 队列，adopt 收养模式）已落地；`illustration_*.py`、`evaluation.py`、`maintenance.py` 按迁移批次加入（状态表见 ADR-0013）。
+- 各域 workflow/activity 装配：`textbook.py`（构建 intent + 手动刷新，documents 队列）、`classroom.py`（生成监督 supervisor，classroom 队列，adopt 收养模式）与 `illustration_common.py` + `illustration_quiz.py`/`illustration_scenario.py`（配图 job + 崩溃 settle 兜底，media 队列）已落地；`evaluation.py`、`maintenance.py` 按迁移批次加入（状态表见 ADR-0013）。
 
 ## Does not own
 
