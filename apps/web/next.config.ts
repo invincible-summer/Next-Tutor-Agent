@@ -9,9 +9,9 @@ const nextConfig: NextConfig = {
   } : {}),
   // Hide the Next.js dev/build floating indicator.
   devIndicators: false,
-  // The fallback API proxy must cover V1's 90-second illustration budget
-  // and the browser's 120-second POST watchdog.
-  experimental: { proxyTimeout: 150_000 },
+  // Ordinary quiz requests can spend 90 seconds on text and 120 seconds on
+  // diagrams. Leave 30 seconds for transport and cleanup through this proxy.
+  experimental: { proxyTimeout: 240_000 },
   ...(demo ? {
     output: "export" as const,
     distDir: "out",

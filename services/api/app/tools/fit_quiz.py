@@ -88,6 +88,8 @@ class FitQuizTool(Tool):
         if request not in {"auto", "none", "required"}:
             return err(self.name, ErrorCode.BAD_ARGS, "illustration_request 无效。")
         provider = self._illustration_policy_provider
+        from ..core.quiz_illustration_policy import resolve_authoring_illustration_mode
+        illustration_mode = resolve_authoring_illustration_mode(getattr(provider, "student_id", ""))
         try:
             policy = provider(request) if provider is not None else "off"
             if provider is None and request == "required":
@@ -169,7 +171,8 @@ class FitQuizTool(Tool):
             temperature=0.5, max_tokens=(min(18000, 8000 + 2200 * count) if policy != "off" else 8000),
             raw_preview_chars=3000,
             grounding_context=grounding_context, feedback=gen_feedback,
-            illustration_policy=policy, illustration_review=illustration_review)
+            illustration_policy=policy, illustration_review=illustration_review,
+            illustration_mode=illustration_mode)
         inherited_refs: list[dict[str, Any]] = []
         if inherited_usable:
             inherited_refs = [r.to_dict() for r in inherited.source_refs[:6]]
@@ -205,8 +208,10 @@ class FitQuizTool(Tool):
                     "reason": "illustration_disabled", "verification": verification},
                     "插图生成已关闭，请重新生成无图题目。")
         if isinstance(llm, BudgetedLLM):
-            verification["generation_calls"] = llm.budget.calls
-            verification["illustration_repairs"] = llm.budget.repairs
+            verification["text_generation_calls"] = llm.budget.calls
+            metrics = verification.get("illustration_metrics", [])
+            verification["generation_calls"] = llm.budget.calls + sum(row.get("generation_calls", 0) for row in metrics)
+            verification["illustration_repairs"] = llm.budget.repairs + sum(row.get("illustration_repairs", 0) for row in metrics)
         verification["illustration_policy"] = policy
         note = "（已通过答案校验）" if verification.get("answer_verified") else ""
         # Deliver surviving validated variants as success; partial is used

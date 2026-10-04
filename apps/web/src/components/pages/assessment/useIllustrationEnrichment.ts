@@ -74,7 +74,7 @@ function terminalEntry(result: IllustrationEnrichmentResponse): ClientEntry {
   return {
     state: "failed",
     illustration: null,
-    failureCode: result.code || "illustration_generation_failed",
+    failureCode: result.failure?.code || result.code || "illustration_generation_failed",
     jobId: result.job_id,
     retryable: result.failure?.retryable ?? result.retryable ?? true,
   };
@@ -177,9 +177,9 @@ function startClientFlight(key: string, questionId: string, revision: number, ow
   return pending?.flight === flight ? remember(key, { ...pending, promise }) : pending ?? GENERATING_ENTRY;
 }
 
-function snapshotFor(key: string, enabled: boolean): ClientEntry {
+function snapshotFor(key: string, enabled: boolean, allowGeneration: boolean): ClientEntry {
   if (!enabled || !key) return IDLE_ENTRY;
-  return clientEntries.get(key) ?? GENERATING_ENTRY;
+  return clientEntries.get(key) ?? (allowGeneration ? GENERATING_ENTRY : IDLE_ENTRY);
 }
 
 /**
@@ -193,7 +193,7 @@ function snapshotFor(key: string, enabled: boolean): ClientEntry {
  * request nor silently retries a completed failure; only retry() starts a new
  * request after a failed terminal state.
  */
-export function useIllustrationEnrichment(question: AssessmentQuestion | null) {
+export function useIllustrationEnrichment(question: AssessmentQuestion | null, allowGeneration = true) {
   const owner = useAuthStore(store => store.user?.id ?? "local");
   const questionId = question?.question_id || "";
   const revision = question?.question_revision || 1;
@@ -205,7 +205,7 @@ export function useIllustrationEnrichment(question: AssessmentQuestion | null) {
 
   const clientEntry = useSyncExternalStore(
     subscribe,
-    () => snapshotFor(key, enabled),
+    () => snapshotFor(key, enabled, allowGeneration),
     () => IDLE_ENTRY,
   );
 
@@ -214,12 +214,12 @@ export function useIllustrationEnrichment(question: AssessmentQuestion | null) {
       if (key) forget(key);
       return;
     }
-    if (!enabled) return;
+    if (!enabled || !allowGeneration) return;
     startClientFlight(key, questionId, revision, owner);
-  }, [questionId, revision, key, enabled, hasFrozenIllustration, owner]);
+  }, [questionId, revision, key, enabled, hasFrozenIllustration, owner, allowGeneration]);
 
   function retry() {
-    if (!enabled || clientEntries.get(key) !== clientEntry || clientEntry.state !== "failed" || !clientEntry.retryable) return;
+    if (!enabled || !allowGeneration || clientEntries.get(key) !== clientEntry || clientEntry.state !== "failed" || !clientEntry.retryable) return;
     const jobId = clientEntry.jobId;
     forget(key);
     startClientFlight(key, questionId, revision, owner, jobId);
@@ -241,7 +241,7 @@ export function useIllustrationEnrichment(question: AssessmentQuestion | null) {
     state: clientEntry.state,
     failureCode: clientEntry.failureCode,
     stage: clientEntry.stage ?? "preparation",
-    retryable: clientEntry.retryable ?? true,
+    retryable: allowGeneration && (clientEntry.retryable ?? true),
     retry,
   };
 }

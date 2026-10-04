@@ -313,7 +313,7 @@ async function post<T>(path: string, body: unknown): Promise<T> {
 /** §11.5：concept_keys=ConceptRef.key 列表（0–20）；purpose=用户任务意图。 */
 export interface AssessmentStartPayload {
   illustration_request?: "auto" | "none" | "required";
-  illustration_mode?: "v1" | "v2";
+  illustration_mode?: "v1" | "v2" | "v3";
   generation_hint?: string;
   evaluation_mode?: "closed_loop" | "temporary";
   workspace_id?: string;

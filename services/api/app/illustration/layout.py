@@ -42,7 +42,10 @@ class Placed:
                 self.y+self.scale*(cy+dx*math.sin(a)+dy*math.cos(a))]
 
     def box(self, box=None):
-        x, y, w, h = self.local_bounds if box is None else box
+        bounds = self.local_bounds if box is None else box
+        if len(bounds) != 4:
+            raise IllustrationError("missing_material", target=self.id)
+        x, y, w, h = bounds
         points = [self.point(p) for p in [(x, y), (x+w, y), (x, y+h), (x+w, y+h)]]
         left, top = min(p[0] for p in points), min(p[1] for p in points)
         return [left, top, max(p[0] for p in points)-left, max(p[1] for p in points)-top]
@@ -283,6 +286,9 @@ def fit_schematic_containment(scene, contract, placed, bindings, internal):
             node.params[key] = proposed
             try:
                 candidate, candidate_bindings, candidate_internal = instantiate_scene(scene, contract)
+                candidate_metrics = measure([p.geometry.drawing.svg() for p in candidate.values()], [])
+                for p, box in zip(candidate.values(), candidate_metrics["bounds"]):
+                    p.local_bounds = box
                 fitted = candidate[a.id].region(subject_region)
                 if not contains(candidate[b.id].region(container_region), fitted, margin=2):
                     node.params = original
@@ -302,13 +308,19 @@ def compile_scene(scene: SceneDraftV2, *, contract, brief, bundle) -> CompiledIl
     validate_scene(scene, contract, brief, bundle)
     try:
         placed, bindings, internal = instantiate_scene(scene, contract)
+        # Whole-figure regions use painted extents. Measure before containment
+        # fitting so a body region cannot try unpacking an unmeasured box.
+        texts = [{"text": a.text, "size": 18} for a in scene.annotations]
+        metrics = measure([p.geometry.drawing.svg() for p in placed.values()], texts)
+        for p, box in zip(placed.values(), metrics["bounds"]):
+            p.local_bounds = box
         placed, bindings, internal, changes = fit_schematic_containment(scene, contract, placed, bindings, internal)
     except DiagramError as exc:
         raise IllustrationError("parameter_unbound") from exc
-    texts = [{"text": a.text, "size": 18} for a in scene.annotations]
-    metrics = measure([p.geometry.drawing.svg() for p in placed.values()], texts)
-    for p, box in zip(placed.values(), metrics["bounds"]):
-        p.local_bounds = box
+    if changes:
+        metrics = measure([p.geometry.drawing.svg() for p in placed.values()], texts)
+        for p, box in zip(placed.values(), metrics["bounds"]):
+            p.local_bounds = box
     report = LayoutReport(adjustments=changes)
     # A recipe is one rigid assembly. Uniformly fit its whole measured hull
     # into the selected canvas before solving contacts; never move parts or
@@ -471,11 +483,16 @@ def compile_scene(scene: SceneDraftV2, *, contract, brief, bundle) -> CompiledIl
         p = placed.get(annotation.target.instance)
         if p is None:
             raise IllustrationError("relation_unrealizable", target=annotation.annotation_id)
-        box = p.region(annotation.target.region) if annotation.target.region else p.box()
-        x, y, bw, bh = box
+        # A region locates the feature being named, while an outside label
+        # must clear the entire measured instance. Treating the small internal
+        # region as the outside envelope can put every candidate inside its
+        # own instrument and make an otherwise valid scene impossible.
+        x, y, bw, bh = p.box()
+        target_box = p.region(annotation.target.region) if annotation.target.region else [x, y, bw, bh]
+        px, py = target_box[0]+target_box[2]/2, target_box[1]+target_box[3]/2
         tw, th = metric["width"], max(18, metric["ascent"]+metric["descent"])
-        positions = {"outside_right": (x+bw+12, y+bh/2-th/2), "outside_left": (x-tw-12, y+bh/2-th/2),
-            "outside_top": (x+bw/2-tw/2, y-th-12), "outside_bottom": (x+bw/2-tw/2, y+bh+12),
+        positions = {"outside_right": (x+bw+12, py-th/2), "outside_left": (x-tw-12, py-th/2),
+            "outside_top": (px-tw/2, y-th-12), "outside_bottom": (px-tw/2, y+bh+12),
             "outside_top_right": (x+bw+12, y-th-12), "outside_right_lower": (x+bw+12, y+bh-th)}
         if annotation.target.port:
             # A terminal label belongs to its actual transformed port, not

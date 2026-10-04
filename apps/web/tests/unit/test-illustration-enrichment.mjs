@@ -47,6 +47,9 @@ await assert.rejects(api.startIllustration("q_api", 1), error => {
   return true;
 });
 assert.ok(timeouts.every(milliseconds => milliseconds === 120_000));
+for (const [value, expected] of [[undefined, "v1"], ["v1", "v1"], ["v2", "v2"], ["v3", "v3"], ["invalid", "v1"]]) {
+  assert.equal(api.illustrationMode(value), expected);
+}
 
 const picture = { kind: "svg", svg: "<svg></svg>", alt: "合成测试图", width: 640, height: 400 };
 const question = (id = "q_test", illustration) => ({ question_id: id, question_revision: 1, illustration });
@@ -93,8 +96,8 @@ function harness(handlers) {
   return {
     calls,
     owner: value => { owner = value; },
-    mount: input => {
-      const snapshot = hook(input);
+    mount: (input, allowGeneration = true) => {
+      const snapshot = hook(input, allowGeneration);
       for (const effect of effects.splice(0)) effect();
       return snapshot;
     },
@@ -120,6 +123,27 @@ function harness(handlers) {
   assert.equal(failed.retryable, false);
   failed.retry();
   h.mount(question());
+  assert.equal(h.calls.start.length, 1);
+}
+
+// A stopped assessment observes the shared job but cannot spend new budget.
+{
+  const flight = deferred();
+  const h = harness({ start: () => flight.promise });
+  h.mount(question());
+  assert.equal(h.mount(question(), false).state, "generating");
+  flight.resolve(result("q_test", "failed", {
+    job_id: "job_stopped", failure: { code: "budget_exhausted", retryable: true },
+  }));
+  await settle();
+  const stopped = h.mount(question(), false);
+  assert.equal(stopped.state, "failed");
+  assert.equal(stopped.failureCode, "budget_exhausted");
+  assert.equal(stopped.retryable, false);
+  stopped.retry();
+  assert.equal(h.calls.start.length, 1);
+  assert.equal(h.calls.retry.length, 0);
+  assert.equal(h.mount(question("q_historical"), false).state, "idle");
   assert.equal(h.calls.start.length, 1);
 }
 

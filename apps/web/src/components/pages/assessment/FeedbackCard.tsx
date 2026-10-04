@@ -1,7 +1,7 @@
 "use client";
 // feedback 阶段：两层反馈卡（§14.5）——本题结果 + 学习反馈走共用
 // SubmissionOutcome；提交身份由服务端记录（attempt_id），pending 可离开。
-import { ArrowRight, Flag, ListChecks, LoaderCircle } from "lucide-react";
+import { ArrowRight, Flag, ListChecks } from "lucide-react";
 import { Card, CardHeader } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { SubmissionOutcome } from "@/components/learning-evaluation/SubmissionOutcome";
@@ -11,6 +11,7 @@ import type { PageTr } from "./common";
 import { QuestionIllustration } from "@/components/quiz/QuestionIllustration";
 import { MiniMarkdown } from "@/components/chat/markdown";
 import { useIllustrationEnrichment } from "./useIllustrationEnrichment";
+import { IllustrationStatus } from "./IllustrationStatus";
 
 export interface AnswerResult {
   taskResult: {
@@ -44,7 +45,10 @@ export function FeedbackCard({
   onNext: () => void;
   onAbandon: () => void;
 }) {
-  const illustration = useIllustrationEnrichment(question);
+  // The last answered question may still belong to an active run. Stopped
+  // assessments can observe an existing flight, but cannot launch or retry it.
+  const allowGeneration = !stop && !busy;
+  const illustration = useIllustrationEnrichment(question, allowGeneration);
   return (
     <Card>
       <CardHeader
@@ -61,11 +65,7 @@ export function FeedbackCard({
           <div className="chat-prose">
             <MiniMarkdown>{question.stem}</MiniMarkdown>
           </div>
-          {illustration.state === "generating" && <p role="status"
-            className="mt-2 flex items-center gap-2 text-xs leading-5 text-muted">
-            <LoaderCircle size={13} aria-hidden="true" className="animate-spin" />
-            {lang === "en" ? "Finishing the diagram…" : "正在完成配图…"}
-          </p>}
+          <IllustrationStatus illustration={illustration} english={lang === "en"} answered allowRetry={allowGeneration} />
           <QuestionIllustration illustration={illustration.illustration} />
         </div>
       )}

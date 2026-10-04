@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Eye, FileQuestion, Flag, ImageIcon, Lightbulb, LoaderCircle, RefreshCw, Send } from "lucide-react";
+import { Eye, FileQuestion, Flag, Lightbulb, Send } from "lucide-react";
 import { QuestionIllustration } from "@/components/quiz/QuestionIllustration";
 import { MiniMarkdown } from "@/components/chat/markdown";
 import { Badge } from "@/components/ui/Badge";
@@ -14,7 +14,7 @@ import { useUIStore } from "@/lib/store";
 import type { AssessmentQuestion } from "@/lib/types-modules";
 import { DifficultyDots, difficultyOf, type PageTr } from "./common";
 import { useIllustrationEnrichment } from "./useIllustrationEnrichment";
-import { illustrationFailure, illustrationStage } from "@/lib/api-illustrations";
+import { IllustrationStatus } from "./IllustrationStatus";
 
 export function isMultipleChoice(question: AssessmentQuestion): boolean {
   return (question.q_type === "multiple_choice" || question.type === "multiple_choice")
@@ -90,24 +90,7 @@ function QuestionBody({ tr, question, difficulty, answered, busy, onSubmit, onAb
           : "正式题目未完成审核，先保留这一版供自检。本页不会提交草稿答案、自动评分或把它当作已审核题。输入内容仅保留在当前页面，离开前请自行复制。"}
       </div>}
       <div className="chat-prose min-w-0 break-words"><MiniMarkdown>{question.stem}</MiniMarkdown></div>
-      {illustration.state === "generating" && <div data-testid="assessment-illustration-generating" role="status"
-        className="mt-3 flex items-center gap-2 rounded-lg border border-border-light bg-surface-sunken px-3 py-2 text-xs leading-5 text-muted">
-        <LoaderCircle size={14} aria-hidden="true" className="shrink-0 animate-spin" />
-        <span>{illustrationStage(illustration.stage, english)} · {essentialPending
-          ? (english ? "The diagram must be ready before answering." : "必要题图完成前不能作答。")
-          : (english ? "The text question is ready to answer." : "文字题已可作答。")}</span>
-      </div>}
-      {illustration.state === "failed" && <div data-testid="assessment-illustration-failed" role="status"
-        className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-warning/30 bg-warning/5 px-3 py-2 text-xs leading-5 text-muted">
-        <span className="flex min-w-0 items-center gap-2">
-          <ImageIcon size={14} aria-hidden="true" className="shrink-0" />
-          {illustrationFailure(illustration.failureCode, english)} · {essentialPending
-            ? (english ? "Question material is incomplete." : "题目材料尚未完整，暂不能作答。")
-            : (english ? "The text question remains usable." : "补充图不是作答依据，文字题仍可正常作答。")}
-        </span>
-        <Button type="button" size="sm" variant="outline" icon={<RefreshCw size={13} aria-hidden="true" />}
-          disabled={!illustration.retryable} onClick={illustration.retry}>{english ? "Retry diagram" : "重试配图"}</Button>
-      </div>}
+      <IllustrationStatus illustration={illustration} english={english} essentialPending={essentialPending} />
       <QuestionIllustration illustration={illustration.illustration} />
       {multipleChoice ? <div className="mt-4 flex flex-col gap-2">
         {options.map(([key, value]) => <button key={key} type="button" disabled={disabled}

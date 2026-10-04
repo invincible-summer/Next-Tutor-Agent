@@ -36,11 +36,12 @@ export const STRINGS = {
     "illustration.saving": "保存中…",
 
     "review.sectionTitle": "生成审查选项",
-    "review.sectionDesc": "默认关闭以节省时间与额度；确定性的结构与素材安全校验始终执行，开启后会增加模型复核。",
+    "review.sectionDesc": "独立审题与 V1 题图复核默认关闭；V2/V3 配图会自动审查图文一致性，SVG 安全校验始终执行。",
     "review.critic": "生成后审核题目质量",
     "review.criticDesc": "关闭后出题跳过独立审题（critic），题目更快交付且不易落入保底草稿，但答案正确性未经二次核对。",
     "review.illustrationAudit": "生成后审查题图",
-    "review.illustrationAuditDesc": "默认关闭；题图仍会通过确定性的组件、参数、锚点和 SVG 安全校验，开启后再由 AI 复核图文一致性。",
+    "review.illustrationAuditDesc": "仅适用于 V1，默认关闭；SVG 安全校验始终执行，开启后由 AI 复核图文一致性。",
+    "review.automaticIllustration": "V2/V3 自动完成一次图文审查，检查实际图面与题目条件、可读性和答案泄露；无需另行开启。",
     "review.on": "开启",
     "review.off": "关闭",
 
@@ -155,11 +156,12 @@ export const STRINGS = {
     "illustration.saving": "Saving…",
 
     "review.sectionTitle": "Generation review options",
-    "review.sectionDesc": "Off by default to save time and quota; deterministic structure and asset safety checks always run, while enabling this adds model reviews.",
+    "review.sectionDesc": "Independent question and V1 diagram reviews are off by default. V2/V3 diagrams are reviewed automatically, and SVG safety checks always run.",
     "review.critic": "Review question quality after generation",
     "review.criticDesc": "Off skips the independent critic: questions arrive faster and rarely fall back to self-check drafts, but answer keys are not double-checked.",
     "review.illustrationAudit": "Review diagrams after generation",
-    "review.illustrationAuditDesc": "Off by default; component, parameter, anchor, and SVG safety checks still run. Enable it for an additional AI consistency review.",
+    "review.illustrationAuditDesc": "V1 only, off by default. SVG safety checks always run; enable this for an AI consistency review.",
+    "review.automaticIllustration": "V2/V3 automatically review the rendered diagram against question conditions, readability and answer disclosure. No extra switch is needed.",
     "review.on": "On",
     "review.off": "Off",
 

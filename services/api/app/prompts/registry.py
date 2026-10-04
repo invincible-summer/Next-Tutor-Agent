@@ -610,3 +610,6 @@ from .diagram_material import register as _register_material_prompts
 _register_material_prompts()
 from app.diagrams.guidance import register as _register_asset_guidance
 _register_asset_guidance()
+
+from .illustration_v3 import register as _register_v3_illustration_prompts
+_register_v3_illustration_prompts()

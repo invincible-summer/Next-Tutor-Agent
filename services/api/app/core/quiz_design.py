@@ -154,6 +154,7 @@ async def design_blueprint(llm: AsyncLLMClient, *, topic: str, grade: str,
                            grounding_context: str = "",
                            illustration_policy: str = "off",
                            diagram_feedback: dict | None = None,
+                           illustration_mode: str | None = None,
                            ) -> tuple[str, str]:
     """Run the blueprint design round（P1 v2）。
 
@@ -166,14 +167,16 @@ async def design_blueprint(llm: AsyncLLMClient, *, topic: str, grade: str,
         messages, _binding = build_blueprint_messages(
             topic=topic, grade=grade, difficulty=difficulty, count=count,
             focus=focus, avoid_stems=avoid_stems,
-            grounding_context=grounding_context, illustration_policy=illustration_policy)
+            grounding_context=grounding_context, illustration_policy=(
+                "off" if illustration_mode == "v3" else illustration_policy))
         full, _usage = await llm.complete(
             messages=messages,
             temperature=0.3, max_tokens=1800, disable_thinking=True)
         items = parse_blueprint(full)
         if not items:
             return "", "fallback"
-        if illustration_policy != "off" and diagram_feedback is not None and settings.quiz_illustration_pipeline != "v2":
+        if illustration_policy != "off" and diagram_feedback is not None and (
+                illustration_mode or settings.quiz_illustration_pipeline) not in {"v2", "v3"}:
             from .json_utils import extract_json_object
             from app.diagrams.pipeline import retrieve_declaration
             try:

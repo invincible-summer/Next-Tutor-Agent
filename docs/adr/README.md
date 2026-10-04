@@ -17,3 +17,4 @@
 | [ADR-0003](./0003-bm25-baseline.md) | BM25 检索基线 | BM25 是基础检索能力，向量检索为可选增强 |
 | [ADR-0004](./0004-single-worker-persistence.md) | Single-worker 持久层 | JSON/JSONL 文件持久层采用单 worker 不变量 |
 | [ADR-0005](./0005-synthetic-pages-demo.md) | Synthetic Pages demo | GitHub Pages 演示仅使用项目自制的 synthetic fixtures |
+| [ADR-0006](./0006-material-assisted-svg-authoring.md) | 素材参考 SVG 创作 | V3 允许加工、组合及自绘，实际 PNG 合并审核后兼容冻结发布 |

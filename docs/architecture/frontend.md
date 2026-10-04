@@ -51,7 +51,7 @@
 
 - 一切请求经 `apiFetch`（仓库规则）：JWT `Authorization` 注入、同飞行中请求去重、幂等 GET 30s 超时护栏、评价写 409 语义等待重试、`trustedRequestUrl` 目标校验。
 - `API_BASE` 三形态单一事实源：`NEXT_PUBLIC_BACKEND_URL` 直连 / 同源相对 `/api/v1`（nginx 反代）/ demo basePath。
-- 未设 `NEXT_PUBLIC_BACKEND_URL` 且请求经过 Next.js 时，`/api/*` 回退 rewrite 使用 `experimental.proxyTimeout=150_000`，覆盖 V1 配图 90 秒服务端预算及客户端 120 秒 POST 等待；`next dev` 与 `next start` 均适用。
+- 未设 `NEXT_PUBLIC_BACKEND_URL` 且请求经过 Next.js 时，`/api/*` 回退 rewrite 使用 `experimental.proxyTimeout=240_000`，覆盖普通出题最多 90 秒文字阶段、独立 120 秒配图阶段及传输余量；`next dev` 与 `next start` 均适用。CAT 补图使用异步任务，客户端任务观察时限独立为 150 秒。
 - 流式：`api.ts::streamChat`（fetch reader 解析 SSE，原生 EventSource 不能带 Authorization）；课堂进度复用同一 SSE 帧解析器；语音通话为 WebSocket JSON 控制帧 + 二进制音频帧（协议见 [voice.md](./voice.md)、[conversation.md](./conversation.md)）。
 - 后端契约文档：REST/SSE/WS 端点由各后端模块文档拥有（[backend-runtime.md](./backend-runtime.md) 及各域文档）；前端 `types*.ts` 与后端 schema 保持同步（assistant/classroom 为生成文件）。
 
@@ -63,7 +63,7 @@
 
 前端不拥有任何服务端存储；状态分三层：
 
-- **zustand store**：`lib/store.ts`（`useUIStore` 学段/语言/主题/字号/侧栏、`useChatStore` 会话与消息、`useEvaluationCacheStore`）、`lib/auth-store.ts`（token/user/authRequired，水合并行；账户默认配图方式 `quiz_illustration_mode` 缺省 V1）、`lib/ws-settings.ts`（工作区设置弹窗目标 + `WS_CHANGED_EVENT`/`SESSION_CHANGED_EVENT` 广播）、`lib/store-notes.ts`、`lib/assistant/store.ts`。store 初始化器不读 localStorage（SSR 水合安全），mount 后 `hydrateClient()` 恢复。
+- **zustand store**：`lib/store.ts`（`useUIStore` 学段/语言/主题/字号/侧栏、`useChatStore` 会话与消息、`useEvaluationCacheStore`）、`lib/auth-store.ts`（token/user/authRequired，水合并行；账户默认配图方式 `quiz_illustration_mode` 支持 `v1|v2|v3`，缺省 V1）、`lib/ws-settings.ts`（工作区设置弹窗目标 + `WS_CHANGED_EVENT`/`SESSION_CHANGED_EVENT` 广播）、`lib/store-notes.ts`、`lib/assistant/store.ts`。store 初始化器不读 localStorage（SSR 水合安全），mount 后 `hydrateClient()` 恢复。
 - **浏览器持久化**：localStorage——`edu-agent-token`（demo 模式换用独立 `edu-agent-pages-demo-token`）、`edu-agent-lang`、`edu-agent-theme`、`edu-agent-fs`（字号倍率，经 `--fs-scale` 驱动根字号）、`edu-agent-grade`/`edu-agent-output-lang` 等偏好、对话与答题草稿（`chat-drafts`/`quiz-drafts`，登出清空）、课堂折叠分组等页面级 UI 状态；sessionStorage——对话草稿正文（登出/换账号时随 `clearAllDrafts` 清空）。头像经 apiFetch 认证后转临时 blob URL，换号/退出/卸载时撤销，不做本地持久化。
 - **运行数据**：全部由后端落在 `NEXT_TUTOR_DATA_DIR` 单根（ADR-0002）；E2E 用隔离 scratch 目录，绝不落仓库。Pages 演示快照由后端导出流程在 storage sandbox 中读取 git 跟踪的 synthetic fixtures 生成（ADR-0001/0005），产物不入库。
 
@@ -150,6 +150,6 @@ apps/web 下的 Playwright E2E 与 node 单测（环境搭建、浏览器回归�
 - ADR-0002 运行数据单根——前端不拥有服务端存储，一切运行数据由后端落在统一数据根。
 - ADR-0005 Pages demo 仅 synthetic——静态演示站由 synthetic fixtures 快照构建，只读边界在请求层。
 
-图示素材创作 Modal 支持声明式参数规范 JSON、模板控件及独立预览值，AI 草稿可返回同一规范；测评配置支持 V1/V2 单次覆盖、出题提示词、工作区无概念自动检索和临时出题；保存与题图实例化规则由 [diagrams-illustration.md](./diagrams-illustration.md) 拥有。
+图示素材创作 Modal 支持声明式参数规范 JSON、模板控件及独立预览值，AI 草稿可返回同一规范；测评配置支持 V1/V2/V3 单次覆盖、出题提示词、工作区无概念自动检索和临时出题。V1 为旧版模型自行绘图，V2 为素材库参数组合，V3「素材辅助创作」允许模型选择、改造和组合 SVG 素材，并补画素材库中缺少的元素。账户设置可保存三种版本；测评内切换其他偏好不会重置本次选择。V1 题图复核开关保留，V2/V3 则显示自动图文审查说明并隐藏该开关；两者始终对实际图面进行一次合并审核。公开图片兼容 schema 1/2/3，V3 题图沿用 schema 3。保存与题图实例化规则由 [diagrams-illustration.md](./diagrams-illustration.md) 拥有。
 
-测评配图使用按账户/题号/revision 共享的请求，POST 最多 120 秒、整个任务观察最多 150 秒；轮询 GET 不超过剩余时间。进行中缓存不会被淘汰，换号或迟到请求不能覆盖新状态。服务端 `retryable=false` 保持不可重试；可重试失败先读取原任务，已经 ready 直接恢复冻结图，仍运行则继续观察，真正 failed 才发起新运行，避免网络超时后重复生图。
+测评配图使用按账户/题号/revision 共享的请求，POST 最多 120 秒、整个任务观察最多 150 秒；轮询 GET 不超过剩余时间。进行中缓存不会被淘汰，换号或迟到请求不能覆盖新状态。答题卡与作答反馈共用阶段和失败状态展示，读取公开失败码，不展示私有审核诊断。必要题图未完成前阻止作答，补充题图允许文字题先答。服务端 `retryable=false` 保持不可重试；可重试失败先读取原任务，已经 ready 直接恢复冻结图，仍运行则继续观察，真正 failed 才发起新运行，避免网络超时后重复生图。反馈页仅在本题仍为进行中测评的当前题时提供重试；测评结束后继续观察已启动任务，但不启动或重试生成。总结和历史题目只读取冻结图及现有任务，不提供生成入口。

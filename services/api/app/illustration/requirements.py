@@ -21,6 +21,41 @@ def structured(raw: str) -> dict:
     return result
 
 
+def validation_details(exc) -> dict:
+    """Actionable locations and rules without validation inputs/private data."""
+    errors = exc.errors(include_input=False, include_url=False) if hasattr(exc, "errors") else []
+    return {"validation_errors": [{"field": list(row["loc"]), "rule": row["msg"],
+        "type": row["type"]} for row in errors[:24]]}
+
+
+def compact_schema(schema):
+    """Discard unreachable definitions and decorative schema titles."""
+    def visit(value):
+        if isinstance(value, dict):
+            return {key: visit(item) for key, item in value.items() if key != "title"}
+        if isinstance(value, list):
+            return [visit(item) for item in value]
+        return value
+    schema = visit(schema)
+    definitions = schema.pop("$defs", {})
+    def references(value):
+        if isinstance(value, dict):
+            return {value["$ref"].split("/")[-1]} if "$ref" in value else set().union(
+                *(references(item) for item in value.values()))
+        if isinstance(value, list):
+            return set().union(*(references(item) for item in value))
+        return set()
+    used, pending = set(), references(schema)
+    while pending - used:
+        current = pending - used
+        used |= current
+        for key in current:
+            pending |= references(definitions.get(key, {}))
+    if used:
+        schema["$defs"] = {key: value for key, value in definitions.items() if key in used}
+    return schema
+
+
 def visible_text(contract: QuestionMaterialContract) -> str:
     return contract.public_question.stem + "\n" + "\n".join(contract.public_question.options.values())
 
@@ -167,7 +202,9 @@ def validate_brief(brief: VisualBriefV2, contract: QuestionMaterialContract, pol
     relation_ids = {r.id for r in contract.required_relations}
     for need in brief.needs:
         if set(need.fact_bindings) - facts or set(need.entity_ids) - entities:
-            raise IllustrationError("invalid_contract", target=need.need_id+":references")
+            raise IllustrationError("invalid_contract", target=need.need_id+":references", details={
+                "rule": "Reference only authorized material entities and visible fact IDs.",
+                "allowed_entity_ids": sorted(entities), "allowed_fact_ids": sorted(facts)})
         if not need.entity_ids:
             raise IllustrationError("invalid_contract", target=need.need_id+":entity_ids")
     if any(set(r.fact_refs) - facts - relation_ids for r in brief.relations_to_express):
@@ -220,8 +257,10 @@ async def declare(llm, contract: QuestionMaterialContract, policy: str, *, feedb
             "$defs": definitions,
             "properties": {"material": material_schema, "brief": schema},
             "required": ["material", "brief"]}
+    schema = compact_schema(schema)
+    prompt = get("quiz_illustration_extraction", "3.1.0") if extraction else get("quiz_illustration_requirements", "2.21.0")
     raw, _ = await llm.complete(messages=[
-        {"role": "system", "content": get("quiz_illustration_requirements", "2.20.0").text},
+        {"role": "system", "content": prompt.text},
         {"role": "user", "content": json.dumps({"question_material_contract": payload,
             "illustration_policy": policy, "schema": schema,
             "available_capability_summary": summary,
@@ -229,9 +268,21 @@ async def declare(llm, contract: QuestionMaterialContract, policy: str, *, feedb
             "repair_feedback": feedback}, ensure_ascii=False)}],
         temperature=.1, max_tokens=5000, disable_thinking=True)
     try:
-        return accept_declaration(raw, contract, policy)
+        accepted, brief = accept_declaration(raw, contract, policy)
+        if extraction:
+            # A recipe's registered child count is a generic capacity limit.
+            # Internal media/state must not become extra unrenderable owners.
+            for need in brief.needs:
+                card = next((row for row in summary["relevant_materials"] if row["name"] == need.name), None)
+                if card and len(need.entity_ids) > need.quantity * max(1, len(card["entities"])):
+                    raise IllustrationError("invalid_contract", target=need.need_id, details={
+                        "rule": "Declare only the registered drawable entities. Internal media/regions and states belong to their owning entity.",
+                        "validation_errors": [{"location": ["material", "entities"],
+                            "type": "material_entity_capacity", "allowed_children": card["entities"],
+                            "maximum": need.quantity * max(1, len(card["entities"]))}]})
+        return accepted, brief
     except (IllustrationError, ValueError) as exc:
-        error = exc if isinstance(exc, IllustrationError) else IllustrationError("invalid_contract")
+        error = exc if isinstance(exc, IllustrationError) else IllustrationError("invalid_contract", details=validation_details(exc))
         error.details = {**error.details, "invalid_response": raw[:64*1024]}
         raise error from exc
 
@@ -289,12 +340,13 @@ def accept_declaration(raw, contract, policy):
                     underlying = error.get("ctx", {}).get("error")
                     if isinstance(underlying, IllustrationError):
                         raise underlying from exc
-                raise IllustrationError("invalid_contract", details={"rule": "Follow the material schema and quoted public facts."}) from exc
+                raise IllustrationError("invalid_contract", details={"rule": "Follow the material schema and quoted public facts.",
+                    **validation_details(exc)}) from exc
         result = result["brief"]
     try:
         brief = VisualBriefV2.model_validate(result)
     except ValueError as exc:
-        raise IllustrationError("invalid_contract") from exc
+        raise IllustrationError("invalid_contract", details=validation_details(exc)) from exc
     if cosmetic_fact_ids:
         for need in brief.needs:
             need.fact_bindings = [ref for ref in need.fact_bindings if ref not in cosmetic_fact_ids]

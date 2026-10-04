@@ -16,6 +16,8 @@ class GenerationBudget:
     max_repairs: int = 1
     started_at: float = field(default_factory=time.monotonic)
     completion_tokens: int = 0
+    protocol_corrections: int = 0
+    max_protocol_corrections: int = 2
 
     @property
     def remaining_seconds(self) -> float:
@@ -31,10 +33,21 @@ class GenerationBudget:
         self.repairs += 1
         return True
 
+    def can_call(self, *, reserve_calls: int = 0) -> bool:
+        """Reserve the calls needed to finish and independently review a draft."""
+        return self.available and self.max_calls - self.calls > reserve_calls
+
+    def take_protocol_correction(self, *, reserve_calls: int = 0) -> bool:
+        if self.protocol_corrections >= self.max_protocol_corrections or not self.can_call(reserve_calls=reserve_calls):
+            return False
+        self.protocol_corrections += 1
+        return True
+
     def summary(self) -> dict[str, int]:
         return {
             "generation_calls": self.calls,
             "illustration_repairs": self.repairs,
+            "protocol_corrections": self.protocol_corrections,
             "completion_tokens": self.completion_tokens,
             "generation_elapsed_ms": round((time.monotonic() - self.started_at) * 1000),
         }
@@ -71,6 +84,18 @@ class BudgetedLLM:
         self.budget = budget
         self.call_timeout = call_timeout
         self.phase_deadline = phase_deadline
+
+    def unwrap_provider(self):
+        """Start an independent phase budget without charging the text budget.
+
+        Also callable as ``BudgetedLLM.unwrap_provider(provider)`` for callers
+        that accept either a provider or a wrapper. The enclosing phase owns
+        its deadline and cancellation; no provider retry bypass is introduced.
+        """
+        client = self
+        while isinstance(client, BudgetedLLM):
+            client = client.llm
+        return client
 
     async def complete(self, **kwargs):
         now = time.monotonic()

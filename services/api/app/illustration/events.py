@@ -6,11 +6,12 @@ from .contracts import FailureCode
 
 PERCENT = {"created": 0, "contract_validated": 10, "requirements_declared": 22,
     "candidates_retrieved": 35, "scene_proposed": 52, "compiled": 62, "static_checked": 68,
-    "preview_rendered": 74, "visually_reviewed": 84, "repairing": 60, "publish_ready": 96, "frozen": 100}
+    "preview_rendered": 74, "visually_reviewed": 84, "jointly_reviewed": 90,
+    "repairing": 60, "publish_ready": 96, "frozen": 100}
 PUBLIC_STAGE = {"created": "preparation", "contract_validated": "preparation",
     "requirements_declared": "retrieval", "candidates_retrieved": "retrieval",
     "scene_proposed": "composition", "compiled": "composition", "static_checked": "review",
-    "preview_rendered": "review", "visually_reviewed": "review", "repairing": "composition",
+    "preview_rendered": "review", "visually_reviewed": "review", "jointly_reviewed": "review", "repairing": "composition",
     "publish_ready": "review", "frozen": "complete", "failed": "failed"}
 
 

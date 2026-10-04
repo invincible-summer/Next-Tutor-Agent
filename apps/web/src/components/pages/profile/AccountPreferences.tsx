@@ -11,12 +11,13 @@ import { Hint } from "@/components/ui/Hint";
 import { useToast } from "@/components/ui/Toast";
 import { deleteAccount, updateUserProfile } from "@/lib/api-modules";
 import { useAuthStore } from "@/lib/auth-store";
+import { illustrationMode as resolveIllustrationMode, type IllustrationMode } from "@/lib/api-illustrations";
 import { cn } from "@/lib/cn";
 import { useUIStore } from "@/lib/store";
 import { makePageT } from "@/lib/i18n-page";
 import { STRINGS } from "@/app/(workspace)/settings/strings";
 
-import { Input } from "@/components/ui/Input";
+import { FIELD_CLS, Input } from "@/components/ui/Input";
 
 type Tr = (key: string, fallback?: string) => string;
 
@@ -56,7 +57,7 @@ export function AccountPreferences({ tr, section, onDirtyChange }: { tr: Tr; sec
   const canDelete = delPwd.length > 0 && delPhrase === phrase && !delBusy;
   // 未显式设置时与后端实例默认（PDF_OCR_CONCURRENCY>1）一致：视为开。
   const ocrParallel = p.prefs?.ocr_parallel ?? true;
-  const illustrationMode = p.prefs?.quiz_illustration_mode === "v2" ? "v2" : "v1";
+  const illustrationMode = resolveIllustrationMode(p.prefs?.quiz_illustration_mode);
   // 未显式设置时与后端实例默认（VOICE_TTS_SPEED=0.9）一致：视为 0.9。
   const ttsSpeed = speedDraft ?? p.prefs?.tts_speed ?? 0.9;
 
@@ -95,7 +96,7 @@ export function AccountPreferences({ tr, section, onDirtyChange }: { tr: Tr; sec
     }
   };
 
-  const changeIllustrationMode = async (next: "v1" | "v2") => {
+  const changeIllustrationMode = async (next: IllustrationMode) => {
     if (next === illustrationMode) return;
     setIllustrationModeBusy(true);
     try {
@@ -103,7 +104,7 @@ export function AccountPreferences({ tr, section, onDirtyChange }: { tr: Tr; sec
       useAuthStore.setState((state) => state.user?.id === user.id ? { user: { ...state.user, profile } } : {});
       notify(tr("account.saved"));
     } catch {
-      notify(tr("account.illustrationMode.failed"), "error");
+      notify(st("account.illustrationMode.failed"), "error");
     } finally {
       setIllustrationModeBusy(false);
     }
@@ -168,16 +169,17 @@ export function AccountPreferences({ tr, section, onDirtyChange }: { tr: Tr; sec
       <div className="mt-4 flex items-center justify-between gap-4">
         <div className="min-w-0">
           <div className="flex items-center gap-2 text-xs font-medium text-fg">
-            {tr("account.illustrationMode")}{help(tr("account.illustrationMode"), tr("account.illustrationMode.desc"))}
+            {st("account.illustrationMode")}{help(st("account.illustrationMode"), st("account.illustrationMode.desc"))}
           </div>
-          <p className="mt-1 text-xs leading-5 text-muted">{tr("account.illustrationMode.desc")}</p>
+          <p className="mt-1 text-xs leading-5 text-muted">{st("account.illustrationMode.desc")}</p>
         </div>
-        <select className="h-8 shrink-0 rounded-md border border-border bg-surface px-2 text-xs text-fg"
-          aria-label={tr("account.illustrationMode")} value={illustrationMode}
+        <select className={`${FIELD_CLS} !w-auto shrink-0 text-xs`}
+          aria-label={st("account.illustrationMode")} value={illustrationMode}
           disabled={illustrationModeBusy || ocrBusy || speedBusy}
-          onChange={(event) => void changeIllustrationMode(event.target.value as "v1" | "v2")}>
-          <option value="v1">V1 · {tr("account.illustrationMode.v1")}</option>
-          <option value="v2">V2 · {tr("account.illustrationMode.v2")}</option>
+          onChange={(event) => void changeIllustrationMode(resolveIllustrationMode(event.target.value))}>
+          <option value="v1">V1 · {st("account.illustrationMode.v1")}</option>
+          <option value="v2">V2 · {st("account.illustrationMode.v2")}</option>
+          <option value="v3">V3 · {st("account.illustrationMode.v3")}</option>
         </select>
       </div>
 

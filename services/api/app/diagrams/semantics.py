@@ -13,7 +13,7 @@ from .drawing import Drawing
 from .schema import DiagramError
 
 METADATA_VERSION = "2.1.0"
-V2_RENDERER_VERSION = "2.4.0"
+V2_RENDERER_VERSION = "2.4.3"
 
 # Explicitly registered, no family-wide promise of scientific validation.
 COMPONENTS = {

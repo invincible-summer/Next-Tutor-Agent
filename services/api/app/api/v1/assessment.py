@@ -401,7 +401,7 @@ class CatStartRequest(BaseModel):
     concept_keys: list[str] = Field(default_factory=list, max_length=20)
     goal: CatGoal = Field(default_factory=CatGoal)
     illustration_request: Literal["auto", "none", "required"] = "auto"
-    illustration_mode: Literal["v1", "v2"] | None = None
+    illustration_mode: Literal["v1", "v2", "v3"] | None = None
     generation_hint: str = Field("", max_length=1200)
     evaluation_mode: Literal["closed_loop", "temporary"] = "closed_loop"
     q_type: str = Field("", max_length=32)

@@ -1,4 +1,4 @@
-"""Independent actual-PNG review and joint question audit. Never self-review."""
+"""Independent PNG/question audit; historical separate audits remain readable."""
 from __future__ import annotations
 
 import json
@@ -9,7 +9,7 @@ from app.prompts.registry import get
 
 from .contracts import IllustrationError, ReviewResult
 from .preview import image_message, measurement_crops
-from .requirements import structured
+from .requirements import compact_schema, structured, validation_details
 
 
 def repair_feedback(issues, compiled):
@@ -32,11 +32,17 @@ def repair_feedback(issues, compiled):
         if node.asset_id in RECIPES:
             targets.update(node.instance_id+":"+role for role, *_ in RECIPES[node.asset_id].children)
     targets.discard("")
-    return [{"code": issue.code if issue.code in codes else "scientific_mismatch",
-        "target": issue.target if issue.target in targets else "canvas",
-        "severity": "error", "repairable": True,
-        "suggested_operation": issue.suggested_operation if issue.suggested_operation in operations else ""}
-        for issue in issues]
+    result = []
+    for issue in issues:
+        target = issue.target if issue.target in targets else "canvas"
+        result.append({"code": issue.code if issue.code in codes else "scientific_mismatch",
+            "target": target, "severity": "error", "repairable": True,
+            "suggested_operation": issue.suggested_operation if issue.suggested_operation in operations else "",
+            "allowed_operations": sorted(operations),
+            "geometry": {"canvas_size": [scene.canvas.width, scene.canvas.height],
+                "bounds": {key: value for key, value in compiled.source.layout_report.bounds.items()
+                    if key == target or key.startswith(target+":")}}})
+    return result
 
 
 def supports_images(llm) -> bool:
@@ -46,7 +52,7 @@ def supports_images(llm) -> bool:
     return bool(getattr(client, "supports_images", settings.llm_supports_images))
 
 
-async def review(llm, contract, compiled, png, *, joint=False):
+async def review(llm, contract, compiled, png, *, joint=False, combined=False, feedback=None):
     if not supports_images(llm):
         raise IllustrationError("provider_unavailable")
     schema = ReviewResult.model_json_schema()
@@ -58,7 +64,8 @@ async def review(llm, contract, compiled, png, *, joint=False):
         "review_facts": [fact.model_dump(mode="json") for fact in contract.facts],
         "machine_checks": compiled.source.layout_report.model_dump(mode="json"),
         "authoring_gold": contract.authoring_gold,
-        "frozen_question": contract.frozen_question, "review_schema": schema}
+        "frozen_question": contract.frozen_question, "review_schema": compact_schema(schema),
+        "protocol_feedback": feedback}
     payload["audit_scope"] = {"visual_role": contract.visual_role,
         "required_entity_ids": [entity.id for entity in contract.entities],
         "required_relation_ids": [relation.id for relation in contract.required_relations],
@@ -88,27 +95,36 @@ async def review(llm, contract, compiled, png, *, joint=False):
             if key in values:
                 params[parent] = values[key]
         payload["calibration_instances"][node.instance_id] = resolved_calibration(card, params)
-    name = "quiz_illustration_question_audit" if joint else "quiz_illustration_review"
+    name = "quiz_illustration_combined_review" if combined else "quiz_illustration_question_audit" if joint else "quiz_illustration_review"
     crops = await asyncio.to_thread(measurement_crops, compiled)
     raw, _ = await llm.complete(messages=[
-        {"role": "system", "content": get(name, "2.20.0").text},
+        {"role": "system", "content": get(name, "3.2.0" if combined else "2.20.0").text},
         {"role": "user", "content": [{"type": "text", "text": json.dumps(payload, ensure_ascii=False)},
                                       image_message(png), *crops]}],
         temperature=.1, max_tokens=1600, disable_thinking=True)
     try:
         result = ReviewResult.model_validate(structured(raw))
     except ValueError as exc:
-        raise IllustrationError("joint_review_failed" if joint else "visual_review_failed") from exc
+        raise IllustrationError("joint_review_failed" if joint or combined else "visual_review_failed", details={
+            "protocol_invalid": True, **validation_details(exc)}) from exc
+    except IllustrationError as exc:
+        exc.details = {**exc.details, "protocol_invalid": True}
+        raise
     if result.status == "failed" and result.issues and all(issue.severity == "warning" for issue in result.issues):
         result.status = "passed"
         result.rationale_codes = [*result.rationale_codes[:11], "warning_only_failed_status_normalized"]
     fact_ids = {fact.id for fact in contract.facts}
     if set(result.verified_facts) - fact_ids:
-        raise IllustrationError("visual_review_failed")
+        raise IllustrationError("visual_review_failed", details={"protocol_invalid": True,
+            "field": ["verified_facts"], "rule": "Use only schema-authorized fact IDs.", "allowed_ids": sorted(fact_ids)})
     if set(result.verified_relations) - relation_ids or result.status == "passed" and {
             relation.id for relation in contract.internal_relations} - set(result.verified_relations):
-        raise IllustrationError("joint_review_failed" if joint else "visual_review_failed")
+        raise IllustrationError("joint_review_failed" if joint or combined else "visual_review_failed", details={
+            "protocol_invalid": True, "field": ["verified_relations"],
+            "rule": "Verify all required internal relations and use only schema-authorized IDs.", "allowed_ids": sorted(relation_ids)})
     required = {fact.id for fact in contract.facts if fact.display_policy == "depict_only"}
     if result.status == "passed" and contract.visual_role == "essential" and required - set(result.verified_facts):
-        raise IllustrationError("visual_review_failed")
+        raise IllustrationError("visual_review_failed", details={"protocol_invalid": True,
+            "field": ["verified_facts"], "rule": "A passing essential image must verify each depicted required fact.",
+            "required_ids": sorted(required)})
     return result

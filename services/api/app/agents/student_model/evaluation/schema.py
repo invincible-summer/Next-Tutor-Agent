@@ -20,6 +20,8 @@ from pydantic import (computed_field, BaseModel, ConfigDict, Field, PrivateAttr,
                       model_validator)
 from app.core.quiz_illustration import QuestionIllustration
 from app.illustration.contracts import DiagramSourceV2, QuestionMaterialContract, VisualRole
+from app.illustration.v3_contracts import DiagramSourceV3, QuestionVisualContractV3
+from app.illustration.publishing import publish_gate_passed
 from app.diagrams.schema import DiagramSource, VisualRequirements
 
 # ---------------------------------------------------------------------------
@@ -504,10 +506,10 @@ class TaskSnapshot(StrictModel):
     answer: str = Field(min_length=1, max_length=4000)
     explanation: str = Field(default="", max_length=6000)
     illustration: QuestionIllustration | None = None
-    diagram_source: DiagramSource | DiagramSourceV2 | None = None
+    diagram_source: DiagramSource | DiagramSourceV2 | DiagramSourceV3 | None = None
     visual_role: VisualRole = "none"
     illustration_artifact_id: str = Field(default="", max_length=96)
-    material_contract: QuestionMaterialContract | None = None
+    material_contract: QuestionMaterialContract | QuestionVisualContractV3 | None = None
     visual_requirements: VisualRequirements | None = None
     equivalent_solutions: list[str] = Field(default_factory=list,
                                             max_length=8)
@@ -548,9 +550,15 @@ class TaskSnapshot(StrictModel):
         if self.visual_role == "essential" and self.illustration is None:
             raise ValueError("essential_material_not_ready")
         if self.illustration and self.illustration.schema_version == 3:
-            if not isinstance(self.diagram_source, DiagramSourceV2) or self.diagram_source.review_gates != {
-                    "machine": "passed", "visual": "passed", "joint": "passed"}:
+            if not isinstance(self.diagram_source, (DiagramSourceV2, DiagramSourceV3)) or not publish_gate_passed(self.diagram_source):
                 raise ValueError("illustration_publish_gate_failed")
+            if isinstance(self.diagram_source, DiagramSourceV3) != isinstance(self.material_contract, QuestionVisualContractV3):
+                raise ValueError("illustration_pipeline_mismatch")
+            if isinstance(self.diagram_source, DiagramSourceV3):
+                from app.diagrams.catalog import digest
+                if (self.diagram_source.content_hash != self.illustration.content_hash
+                        or self.diagram_source.svg_source_hash != digest(self.illustration.svg)):
+                    raise ValueError("illustration_source_mismatch")
             if self.material_contract is None or self.material_contract.contract_hash != self.diagram_source.contract_hash:
                 raise ValueError("illustration_contract_mismatch")
             if self.material_contract.public_question.stem != self.stem or self.material_contract.public_question.options != self.options:
@@ -558,7 +566,9 @@ class TaskSnapshot(StrictModel):
             if self.material_contract.visual_role != self.visual_role or self.material_contract.authoring_gold.get("answer") != self.answer:
                 raise ValueError("illustration_gold_mismatch")
             gold = self.material_contract.authoring_gold
-            reviewed = gold.get("rubric_criteria") or (gold.get("rubric") or {}).get("criteria")
+            gold_rubric = gold.get("rubric") or {}
+            reviewed = gold.get("rubric_criteria") or (gold_rubric.get("criteria")
+                if isinstance(gold_rubric, dict) else gold_rubric)
             if reviewed is not None:
                 keys = ("id", "description", "weight", "critical")
                 frozen = [{key: getattr(c, key) for key in keys} for c in self.rubric]

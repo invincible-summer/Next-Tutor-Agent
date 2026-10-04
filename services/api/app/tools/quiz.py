@@ -105,6 +105,8 @@ class GenerateQuizTool(Tool):
         if request not in {"auto", "none", "required"}:
             return err(self.name, ErrorCode.BAD_ARGS, "illustration_request 无效。")
         provider = self._illustration_policy_provider
+        from ..core.quiz_illustration_policy import resolve_authoring_illustration_mode
+        illustration_mode = resolve_authoring_illustration_mode(getattr(provider, "student_id", ""))
         try:
             policy = provider(request) if provider is not None else "off"
             if provider is None and request == "required":
@@ -165,7 +167,7 @@ class GenerateQuizTool(Tool):
             llm, topic=topic, grade=grade, difficulty=difficulty,
             count=count, focus=focus, avoid_stems=self._avoid_stems,
             grounding_context=grounding_context, illustration_policy=policy,
-            diagram_feedback=visual_plan)
+            diagram_feedback=visual_plan, illustration_mode=illustration_mode)
 
         def make_prompt() -> str:
             from ..agents.teaching_engine.stage_profile import (
@@ -265,7 +267,7 @@ class GenerateQuizTool(Tool):
             topic=topic, grade=grade, difficulty=difficulty,
             temperature=0.4, max_tokens=(min(16000, 5000 + 2200 * count) if policy != "off" else 5000),
             grounding_context=grounding_context, feedback=gen_feedback,
-            illustration_policy=policy, required_type=q_type,
+            illustration_policy=policy, required_type=q_type, illustration_mode=illustration_mode,
             illustration_review=illustration_review,
             visual_bundle=visual_plan.get("bundle"))
         if (not questions and q_type and type_feedback["last_parsed"] and policy == "off"):
@@ -327,8 +329,13 @@ class GenerateQuizTool(Tool):
             # required=true 时 critic 不可用可以 fail-open，但必须留审计标记
             # （grounding_verification="unavailable"）。
             verification["grounding_verification"] = (
-                "content_checked" if verification.get("critic") == "ok"
+                "content_checked" if questions and all(
+                    (q.get("verification") or {}).get("status") == "passed" for q in questions)
                 else "unavailable")
+            for q in questions:
+                q.setdefault("verification", {})["grounding_verification"] = (
+                    "content_checked" if (q.get("verification") or {}).get("status") == "passed"
+                    else "unavailable")
         if not questions:
             if dropped_no_ref or not grounding_context:
                 return partial_result(self.name,
@@ -364,8 +371,10 @@ class GenerateQuizTool(Tool):
                     "reason": "illustration_disabled", "verification": verification},
                     "插图生成已关闭，请重新生成无图题目。")
         if isinstance(llm, BudgetedLLM):
-            verification["generation_calls"] = llm.budget.calls
-            verification["illustration_repairs"] = llm.budget.repairs
+            verification["text_generation_calls"] = llm.budget.calls
+            metrics = verification.get("illustration_metrics", [])
+            verification["generation_calls"] = llm.budget.calls + sum(row.get("generation_calls", 0) for row in metrics)
+            verification["illustration_repairs"] = llm.budget.repairs + sum(row.get("illustration_repairs", 0) for row in metrics)
         verification["illustration_policy"] = policy
         note = "（已通过答案校验）" if verification.get("answer_verified") else ""
         tier_note = ""

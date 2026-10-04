@@ -259,6 +259,14 @@ def task_snapshot_from_quiz_dict(qd: dict, *,
                  if isinstance(r, dict)][:16] if isinstance(refs, list) else []
     question_id = str(qd.get("question_id") or qd.get("id") or
                       ("q_" + uuid.uuid4().hex[:10]))
+    if (qd.get("illustration") or {}).get("schema_version") == 3:
+        # Chat registrations replace the candidate id with a canonical task
+        # id. Bind that server identity without changing any reviewed content.
+        from copy import deepcopy
+        from app.illustration.authoring import bind_question_identity
+        qd = deepcopy(qd)
+        qd["id"] = question_id
+        bind_question_identity(qd)
     return S.TaskSnapshot(
         question_id=question_id, question_revision=int(qd.get("question_revision") or 1), q_type=q_type,
         stem=str(qd.get("stem") or "")[:4000],

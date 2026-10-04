@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Live illustration acceptance for six frozen, synthetic CAT questions.
+"""Live illustration acceptance for frozen, synthetic CAT questions.
 
 python3 scripts/acceptance/illustration/cat.py --live-llm --mode both \
     --output /tmp/cat-illustration-review --variation 0
@@ -18,7 +18,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(ROOT / "services/api"))
-CASE_NAMES = ("geometry", "heating", "thermal", "function", "bar", "series")
+CASE_NAMES = ("geometry", "heating", "thermal", "function", "bar", "series", "motion", "cells", "coast", "flow")
 
 
 def synthetic_questions(variation: int) -> dict[str, dict]:
@@ -55,6 +55,22 @@ def synthetic_questions(variation: int) -> dict[str, dict]:
             "电池、闭合开关、电阻和电流表组成一个完整串联回路。电流表应怎样连接，才能测量通过电阻的电流？",
             "电流表与电阻串联。", "串联回路各处电流相等，电流表应串联接入被测支路。",
         ),
+        "motion": (
+            "小车在水平导轨上向右匀速运动，题图展示小车、导轨及运动方向。小车受到的合外力有什么特点？",
+            "合外力为零。", "匀速直线运动的速度不变，加速度为零，合外力也为零。",
+        ),
+        "cells": (
+            "植物细胞和动物细胞均有细胞膜、细胞质及细胞核，植物细胞还具有细胞壁。比较二者共有的结构。",
+            "细胞膜、细胞质和细胞核。", "依据题面两类细胞的结构条件，找出它们共有的三个结构。",
+        ),
+        "coast": (
+            "海岸左侧为海面，右侧为陆地，近地面风由海面吹向陆地。判断此风向对应海风还是陆风。",
+            "海风。", "近地面由海面吹向陆地的风为海风，图中方向对应此定义。",
+        ),
+        "flow": (
+            "信息从输入端A依次经过筛选步骤B、处理步骤C，最后到达输出端D。途中经过几个处理步骤？",
+            "两个。", "信息依次经过筛选和处理两个中间步骤，输入输出端不计为处理步骤。",
+        ),
     }
     return {
         name: {"type": "short_answer", "stem": stem, "answer": answer,
@@ -63,9 +79,11 @@ def synthetic_questions(variation: int) -> dict[str, dict]:
     }
 
 
-def frozen_material(name: str, question: dict, variation: int):
+def frozen_material(name: str, question: dict, variation: int, mode="v2"):
     from app.agents.student_model.evaluation import schema as S
     from app.illustration.contracts import material_contract
+    if mode == "v3":
+        from app.illustration.v3_contracts import material_contract
 
     task = S.TaskSnapshot(
         question_id=f"q_cat_acceptance_{name}_v{variation}", question_revision=1,
@@ -87,7 +105,7 @@ async def run(output: Path, mode: str, selected: list[str], variation: int) -> b
 
     output.mkdir(parents=True, exist_ok=True, mode=0o700)
     previous_root = paths.current_override_root()
-    modes = ("v1", "v2") if mode == "both" else (mode,)
+    modes = ("v1", "v2", "v3") if mode == "all" else (("v1", "v2") if mode == "both" else (mode,))
     report = {"synthetic": True, "frozen_questions": True, "mode": mode,
               "variation": variation, "review_enabled": True, "cases": []}
     with tempfile.TemporaryDirectory(prefix="cat-illustration-live-") as sandbox:
@@ -100,6 +118,7 @@ async def run(output: Path, mode: str, selected: list[str], variation: int) -> b
             from app.identity.store import create_user, update_user
             from app.illustration import preview
             from app.illustration.orchestrator import PROMPT_VERSIONS, workflow
+            from app.illustration.v3 import PROMPT_VERSIONS as V3_PROMPT_VERSIONS
             from app.prompts.registry import get as prompt
 
             if not settings.llm_api_key:
@@ -113,6 +132,7 @@ async def run(output: Path, mode: str, selected: list[str], variation: int) -> b
                 "v1": {name: prompt(name).version for name in (
                     "quiz_visual_requirements", "quiz_component_scene", "quiz_illustration_enrichment_audit")},
                 "v2": PROMPT_VERSIONS,
+                "v3": V3_PROMPT_VERSIONS,
             }
             if not settings.llm_supports_images:
                 report["failure_code"] = "provider_unavailable"
@@ -158,7 +178,7 @@ async def run(output: Path, mode: str, selected: list[str], variation: int) -> b
                     for implementation in modes:
                         directory = output / f"{implementation}-{name}-v{variation}"
                         directory.mkdir(parents=True, exist_ok=True, mode=0o700)
-                        task, contract = frozen_material(name, questions[name], variation)
+                        task, contract = frozen_material(name, questions[name], variation, implementation)
                         before = task.model_dump_json()
                         write_json(directory / "frozen-task.json", task.model_dump(mode="json"))
                         write_json(directory / "input-contract.json", contract.model_dump(mode="json"))
@@ -192,7 +212,7 @@ async def run(output: Path, mode: str, selected: list[str], variation: int) -> b
                                 image = result.get("illustration")
                             else:
                                 result = await workflow(client, contract, "required", frozen=True,
-                                                        owner=owner, stage=record_stage)
+                                                        owner=owner, stage=record_stage, pipeline_mode=implementation)
                                 compiled = result.get("compiled")
                                 image = compiled.illustration if compiled else None
                                 actual_contract = result.get("contract")
@@ -255,10 +275,10 @@ async def run(output: Path, mode: str, selected: list[str], variation: int) -> b
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--live-llm", action="store_true", help="explicitly allow configured provider calls")
-    parser.add_argument("--mode", choices=("v1", "v2", "both"), default="both")
+    parser.add_argument("--mode", choices=("v1", "v2", "v3", "both", "all"), default="both")
     parser.add_argument("--output", type=Path, required=True, help="artifact directory outside the repository")
     parser.add_argument("--variation", type=int, choices=(0, 1), default=0)
-    parser.add_argument("--cases", default=",".join(CASE_NAMES), help="comma-separated subset of the six cases")
+    parser.add_argument("--cases", default=",".join(CASE_NAMES[:6]), help="comma-separated subset of the six cases")
     args = parser.parse_args()
     if not args.live_llm:
         parser.error("--live-llm is required")

@@ -60,13 +60,16 @@ def write(owner: str, kind: str, key: str, value: dict, *, expected_epoch=None, 
         atomic_write_text(path, json.dumps(value, ensure_ascii=False, sort_keys=True, allow_nan=False))
 
 
-def find_job(owner: str, question_id: str, revision: int, *, include_shadow=False):
+def find_job(owner: str, question_id: str, revision: int, *, include_shadow=False, pipeline_mode=None):
     root = owner_dir(owner) / "jobs"
     if not root.is_dir():
         return None
     rows = [read(owner, "jobs", path.stem) for path in root.glob("illjob_*.json")]
     rows = [r for r in rows if r and r["question_id"] == question_id and r["question_revision"] == revision
             and (include_shadow or not r.get("shadow"))]
+    if pipeline_mode is not None:
+        rows = [r for r in rows if r["status"] == "ready"
+                or r.get("pipeline_mode", "v2") == pipeline_mode]
     # Frozen material wins forever, independent of current catalog/config.
     return max(rows, key=lambda row: (row["status"] == "ready", row["created_at"]), default=None)
 
@@ -93,6 +96,7 @@ def freeze(owner: str, job: dict, compiled, png: bytes, *, contract, reviews, ex
         "scene_hash": compiled.source.scene_hash, "content_hash": compiled.illustration.content_hash,
         "catalog_version": compiled.source.catalog_version, "renderer_version": compiled.source.renderer_version,
         "prompt_versions": job["prompt_versions"], "visual_role": contract.visual_role,
+        "pipeline_mode": job.get("pipeline_mode", "v2"),
         "status": "frozen", "illustration": compiled.illustration.model_dump(mode="json"),
         "source": compiled.source.model_dump(mode="json"), "review": reviews,
         "created_at": time.time()}
@@ -134,7 +138,9 @@ def freeze_task(owner, task):
     from .orchestrator import _new_job
     from .layout import CompiledIllustration
     from .preview import render
-    job = _new_job(task.material_contract, "required" if task.visual_role == "essential" else "auto")
+    mode = "v3" if task.material_contract.schema_version == 3 else "v2"
+    job = _new_job(task.material_contract, "required" if task.visual_role == "essential" else "auto",
+                   pipeline_mode=mode)
     job.update(question_id=task.question_id, question_revision=task.question_revision,
                status="running", stage="publish_ready")
     artifact = freeze(owner, job, CompiledIllustration(task.illustration, task.diagram_source, []),

@@ -18,8 +18,8 @@ from .contracts import (CannotComplete, IllustrationError, MaterialRequest,
     QuestionMaterialContract, SceneDraftV2, VisualBriefV2, material_contract)
 from .layout import compile_scene
 
-PROMPT_VERSIONS = {name: "2.20.0" for name in ("requirements", "composer", "review", "question_audit")}
-PROMPT_VERSIONS["requirements"] = "2.20.0"
+PROMPT_VERSIONS = {"requirements": "2.21.0", "extraction": "3.1.0", "composer": "2.22.0",
+    "patch": "3.0.0", "combined_review": "3.2.0"}
 PROMPT_VERSIONS["authoring"] = "1.16.0"
 _running: dict[tuple[str, str], asyncio.Task] = {}
 
@@ -33,63 +33,97 @@ def stop_owner(owner: str):
                 pass
 
 
-def _new_job(contract, policy, *, shadow=False):
+def _implementation_versions(pipeline_mode):
+    if pipeline_mode == "v3":
+        from .v3 import PROMPT_VERSIONS as versions, V3_RENDERER_VERSION
+        return versions, V3_RENDERER_VERSION
+    if pipeline_mode != "v2":
+        raise IllustrationError("invalid_contract")
+    return PROMPT_VERSIONS, V2_RENDERER_VERSION
+
+
+def _new_job(contract, policy, *, shadow=False, pipeline_mode="v2"):
+    versions, renderer = _implementation_versions(pipeline_mode)
     return {"job_id": "illjob_"+uuid.uuid4().hex, "run_id": "illrun_"+uuid.uuid4().hex,
         "question_id": contract.question_ref, "question_revision": contract.question_revision,
         "visual_role": contract.visual_role, "contract_hash": contract.contract_hash,
         "contract": contract.model_dump(mode="json"), "policy": policy,
         "status": "queued", "stage": "created", "artifact_id": "", "failure": None,
-        "catalog_version": catalog_version(), "renderer_version": V2_RENDERER_VERSION,
-        "prompt_versions": PROMPT_VERSIONS, "created_at": time.time(), "shadow": shadow,
+        "catalog_version": catalog_version(), "renderer_version": renderer,
+        "prompt_versions": versions, "created_at": time.time(), "shadow": shadow,
+        "pipeline_mode": pipeline_mode,
         "idempotency_key": digest({"question_ref": contract.question_ref,
             "revision": contract.question_revision, "contract_hash": contract.contract_hash,
-            "catalog_version": catalog_version(), "prompt_versions": PROMPT_VERSIONS,
-            "renderer_version": V2_RENDERER_VERSION})}
+            "catalog_version": catalog_version(), "prompt_versions": versions,
+            "renderer_version": renderer, "pipeline_mode": pipeline_mode})}
+
+
+async def _protocol_call(call, budget, emit, *, reserve_calls=0, codes=()):
+    feedback = None
+    while True:
+        try:
+            return await call(feedback)
+        except IllustrationError as exc:
+            if not (exc.code in codes or exc.details.get("protocol_invalid")):
+                raise
+            if not budget.take_protocol_correction(reserve_calls=reserve_calls):
+                reason = "time" if not budget.remaining_seconds else "calls" if not budget.can_call(
+                    reserve_calls=reserve_calls) else "protocol_corrections"
+                exc.details = {**exc.details, "exhaustion": reason, **budget.summary()}
+                raise
+            emit("repairing", failure_code=exc.code, correction_kind="protocol")
+            feedback = {"code": exc.code, "target": exc.target, **exc.details}
 
 
 async def _compose(client, contract, brief, bundle, budget, emit):
-    try:
-        return await composition.compose(client, contract, brief, bundle)
-    except IllustrationError as exc:
-        # Protocol mistakes can be regenerated inside this same job, against
-        # the exact authorized bundle. Scientific contract failures stay hard.
-        if exc.code not in {"scene_schema_invalid", "scene_asset_not_authorized",
-                "parameter_unbound", "missing_material", "relation_unrealizable"} or (
-                budget.max_calls-budget.calls < 3 or not budget.take_repair()):
-            raise
-        emit("repairing", failure_code=exc.code)
-        return await composition.compose(client, contract, brief, bundle,
-            feedback={"code": exc.code, "target": exc.target, **exc.details})
+    return await _protocol_call(lambda feedback: composition.compose(
+        client, contract, brief, bundle, feedback=feedback), budget, emit,
+        reserve_calls=1, codes={"scene_schema_invalid", "scene_asset_not_authorized",
+            "parameter_unbound", "missing_fact_binding", "missing_material", "relation_unrealizable"})
 
 
-async def workflow(llm, contract, policy, *, stage=None, frozen=False, owner=None):
+async def workflow(llm, contract, policy, *, stage=None, frozen=False, owner=None,
+                   pipeline_mode="v2", phase_deadline=None):
+    if pipeline_mode == "v3":
+        from .v3 import workflow as v3_workflow
+        return await v3_workflow(llm, contract, policy, stage=stage, frozen=frozen,
+                                 owner=owner, phase_deadline=phase_deadline)
     if owner is None:
-        return await _workflow(llm, contract, policy, stage=stage, frozen=frozen)
+        return await _workflow(llm, contract, policy, stage=stage, frozen=frozen,
+                                phase_deadline=phase_deadline)
     from app.diagrams.materials import owner_context
     with owner_context(owner):
-        return await _workflow(llm, contract, policy, stage=stage, frozen=frozen)
+        return await _workflow(llm, contract, policy, stage=stage, frozen=frozen,
+                                phase_deadline=phase_deadline)
 
 
-async def _workflow(llm, contract, policy, *, stage=None, frozen=False):
+async def _workflow(llm, contract, policy, *, stage=None, frozen=False, phase_deadline=None):
+    deadline = time.monotonic()+settings.quiz_illustration_deadline_seconds
+    if phase_deadline is not None:
+        deadline = min(deadline, phase_deadline)
     budget = GenerationBudget(max_calls=settings.quiz_illustration_max_calls,
-        max_repairs=settings.quiz_illustration_max_repairs,
-        deadline=time.monotonic()+settings.quiz_illustration_deadline_seconds)
-    client = BudgetedLLM(llm, budget)
+        max_repairs=settings.quiz_illustration_max_repairs, deadline=deadline)
+    client = BudgetedLLM(BudgetedLLM.unwrap_provider(llm), budget)
+    last_stage = "contract_validated"
     def emit(name, **data):
+        nonlocal last_stage
+        last_stage = name
         if stage:
             stage(name, {**data, **budget.summary()})
     emit("contract_validated", contract_hash=contract.contract_hash)
+    if policy == "off":
+        raise IllustrationError("policy_disabled")
+    if contract.visual_role != "none":
+        if settings.quiz_illustration_visual_review != "active":
+            raise IllustrationError("visual_review_failed")
+        if not review.supports_images(client):
+            raise IllustrationError("provider_unavailable")
+    last_failure = None
     try:
         async with asyncio.timeout(budget.remaining_seconds):
-            try:
-                contract, brief = await requirements.declare(client, contract, policy)
-            except IllustrationError as exc:
-                if exc.code not in {"invalid_contract", "scene_schema_invalid"} or (
-                        budget.max_calls-budget.calls < 4 or not budget.take_repair()):
-                    raise
-                emit("repairing", failure_code=exc.code)
-                contract, brief = await requirements.declare(client, contract, policy,
-                    feedback={"code": exc.code, "target": exc.target, **exc.details})
+            contract, brief = await _protocol_call(lambda feedback: requirements.declare(
+                client, contract, policy, feedback=feedback), budget, emit,
+                reserve_calls=2, codes={"invalid_contract", "scene_schema_invalid"})
             emit("requirements_declared", contract_hash=contract.contract_hash, brief=brief.model_dump(mode="json"))
             if brief.visual_role == "none":
                 return {"status": "not_required", "contract": contract, "metrics": budget.summary()}
@@ -99,6 +133,8 @@ async def _workflow(llm, contract, policy, *, stage=None, frozen=False):
                  bundle=bundle.model_dump(mode="json"))
             scene = await _compose(client, contract, brief, bundle, budget, emit)
             if isinstance(scene, MaterialRequest):
+                if not budget.can_call(reserve_calls=1):
+                    raise IllustrationError("budget_exhausted", details={"exhaustion": "calls", "phase": "retrieval"})
                 old = {n.need_id: n for n in brief.needs}
                 for need in scene.needs:
                     prior = old.get(need.need_id)
@@ -128,62 +164,62 @@ async def _workflow(llm, contract, policy, *, stage=None, frozen=False):
                     emit("static_checked", relation_count=len(compiled.source.layout_report.verified_relations))
                     png = await asyncio.to_thread(preview.render, compiled.illustration)
                     emit("preview_rendered", content_hash=compiled.illustration.content_hash)
-                    if settings.quiz_illustration_visual_review != "active":
-                        raise IllustrationError("visual_review_failed")
-                    visual = await review.review(client, contract, compiled, png)
-                    emit("visually_reviewed", review_status=visual.status)
-                    if visual.status == "needs_question_revision":
+                    combined = await _protocol_call(lambda feedback: review.review(
+                        client, contract, compiled, png, combined=True, feedback=feedback), budget, emit)
+                    emit("visually_reviewed", review_status=combined.status)
+                    if combined.status == "needs_question_revision":
                         raise IllustrationError("question_material_incomplete")
-                    if visual.status != "passed":
-                        errors = [issue for issue in visual.issues if issue.severity == "error"]
-                        if not errors or any(not issue.repairable for issue in errors):
-                            raise IllustrationError("visual_review_failed")
-                        issues = review.repair_feedback(errors, compiled)
-                    else:
-                        joint = await review.review(client, contract, compiled, png, joint=True)
-                        if joint.status == "needs_question_revision":
-                            raise IllustrationError("question_material_incomplete")
-                        if joint.status != "passed":
-                            errors = [issue for issue in joint.issues if issue.severity == "error"]
-                            if not errors or any(not issue.repairable for issue in errors):
-                                raise IllustrationError("joint_review_failed")
-                            issues = review.repair_feedback(errors, compiled)
-                        else:
-                            compiled.source.contract_hash = contract.contract_hash
-                            compiled.source.review_gates = {"machine": "passed", "visual": "passed", "joint": "passed"}
-                            compiled.source.review_evidence = {"visual": visual, "joint": joint}
-                            emit("publish_ready", content_hash=compiled.illustration.content_hash)
-                            return {"status": "ready", "contract": contract, "compiled": compiled, "png": png,
-                                "reviews": {"machine": "passed", "visual": visual.model_dump(mode="json"),
-                                            "joint": joint.model_dump(mode="json")}, "metrics": budget.summary()}
+                    if combined.status == "passed":
+                        compiled.source.contract_hash = contract.contract_hash
+                        compiled.source.review_gates = {"machine": "passed", "combined": "passed"}
+                        compiled.source.review_evidence = {"combined": combined}
+                        emit("publish_ready", content_hash=compiled.illustration.content_hash)
+                        return {"status": "ready", "contract": contract, "compiled": compiled, "png": png,
+                            "reviews": {"machine": "passed", "combined": combined.model_dump(mode="json")},
+                            "metrics": budget.summary()}
+                    errors = [issue for issue in combined.issues if issue.severity == "error"]
+                    if not errors or any(not issue.repairable for issue in errors):
+                        raise IllustrationError("joint_review_failed")
+                    last_failure = IllustrationError("joint_review_failed", repairable=True)
+                    issues = review.repair_feedback(errors, compiled)
                 except IllustrationError as exc:
+                    last_failure = exc
                     if not exc.repairable:
-                        if png is None and exc.code in {"relation_unrealizable", "missing_material", "parameter_unbound"} and (
-                                budget.max_calls-budget.calls >= 3 and budget.take_repair()):
-                            emit("repairing", failure_code=exc.code)
-                            replacement = await composition.compose(client, contract, brief, bundle,
-                                feedback={"code": exc.code, "target": exc.target, "geometry": exc.details,
-                                    "invalid_response": scene.model_dump(mode="json"),
-                                    "rule": "Correct the scene with the same authorized entities/facts/materials. Recipe annotations target real child instances; never a non-rendered parent."})
-                            if not isinstance(replacement, SceneDraftV2):
-                                raise IllustrationError(replacement.code if isinstance(replacement, CannotComplete) else "scene_schema_invalid")
-                            scene = replacement
-                            emit("scene_proposed", scene_hash=digest(scene.model_dump(mode="json")))
-                            continue
-                        raise
+                        if png is None and exc.code in {"relation_unrealizable", "missing_material", "parameter_unbound"}:
+                            if budget.can_call(reserve_calls=1) and budget.take_repair():
+                                emit("repairing", failure_code=exc.code, correction_kind="scene")
+                                replacement = await _protocol_call(lambda feedback: composition.compose(
+                                    client, contract, brief, bundle, feedback=feedback or {
+                                        "code": exc.code, "target": exc.target, "geometry": exc.details,
+                                        "invalid_response": scene.model_dump(mode="json"),
+                                        "rule": "Correct the scene using only authorized entities/facts/materials and real child targets."}),
+                                    budget, emit, reserve_calls=1, codes={"scene_schema_invalid", "scene_asset_not_authorized"})
+                                if not isinstance(replacement, SceneDraftV2):
+                                    raise IllustrationError(replacement.code if isinstance(replacement, CannotComplete) else "scene_schema_invalid")
+                                scene = replacement
+                                emit("scene_proposed", scene_hash=digest(scene.model_dump(mode="json")))
+                                continue
+                        if exc.code != "missing_fact_binding":
+                            raise
                     issues = [{"code": exc.code, "target": exc.target, "severity": "error", "repairable": True,
                                "geometry": exc.details}]
-                # A patch plus its review and joint audit need three remaining
-                # calls. No partial publication when the shared budget expires.
-                if budget.max_calls-budget.calls < 3 or not budget.take_repair():
-                    raise IllustrationError("visual_review_failed" if png else "budget_exhausted")
-                emit("repairing", scene_hash=digest(scene.model_dump(mode="json")))
-                scene, patch = await composition.repair(client, scene, issues,
-                    contract=contract, brief=brief, bundle=bundle,
-                    png_message=preview.image_message(png) if png and review.supports_images(client) else None)
+                # Reserve a patch and a real combined audit. Protocol mistakes
+                # have a separate counter and cannot consume scene-repair slots.
+                if not budget.can_call(reserve_calls=1) or not budget.take_repair():
+                    reason = "time" if not budget.remaining_seconds else "calls" if budget.max_calls-budget.calls < 2 else "repairs"
+                    last_failure.details = {**last_failure.details, "exhaustion": reason, **budget.summary()}
+                    raise last_failure
+                emit("repairing", failure_code=last_failure.code, scene_hash=digest(scene.model_dump(mode="json")), correction_kind="scene")
+                scene, patch = await _protocol_call(lambda feedback: composition.repair(
+                    client, scene, issues, contract=contract, brief=brief, bundle=bundle,
+                    png_message=preview.image_message(png) if png else None, feedback=feedback), budget, emit,
+                    reserve_calls=1, codes={"scene_schema_invalid", "patch_conflict", "scene_asset_not_authorized", "parameter_unbound"})
                 emit("scene_proposed", scene_hash=digest(scene.model_dump(mode="json")), patch=patch.model_dump(mode="json"))
     except TimeoutError as exc:
-        raise IllustrationError("budget_exhausted") from exc
+        raise IllustrationError("budget_exhausted", details={"exhaustion": "time" if not budget.remaining_seconds else "calls",
+            "last_failure_code": last_failure.code if last_failure else "", **budget.summary()}) from exc
+    finally:
+        emit(last_stage, metrics_final=True)
 
 
 async def _run(owner, job, llm):
@@ -195,9 +231,14 @@ async def _run(owner, job, llm):
     try:
         if persistence.epoch(owner) != owner_epoch:
             return
-        contract = QuestionMaterialContract.model_validate(job["contract"])
+        mode = job.get("pipeline_mode", "v2")
+        if mode == "v3":
+            from .v3_contracts import QuestionVisualContractV3 as Contract
+        else:
+            Contract = QuestionMaterialContract
+        contract = Contract.model_validate(job["contract"])
         result = await workflow(llm or get_llm("quiz"), contract, job["policy"], stage=emit,
-            frozen=contract.frozen_question, owner=owner)
+            frozen=contract.frozen_question, owner=owner, pipeline_mode=mode)
         job["contract_hash"] = result["contract"].contract_hash
         job["contract"] = result["contract"].model_dump(mode="json")
         if result["status"] == "not_required":
@@ -232,21 +273,29 @@ async def _run(owner, job, llm):
                 "invalid_contract", "scene_schema_invalid", "scene_asset_not_authorized",
                 "parameter_unbound", "missing_fact_binding", "collision_unresolved",
                 "geometry_out_of_bounds", "text_not_legible", "joint_review_failed", "relation_unrealizable"},
-                "failed_stage": failed_stage})
+                "failed_stage": failed_stage,
+                "target": getattr(exc, "target", ""),
+                "diagnostics": {key: value for key, value in getattr(exc, "details", {}).items()
+                                if key in {"validation_errors", "budget_reason", "exhaustion", "terminal_reason",
+                                           "last_failure_code", "generation_calls", "protocol_corrections", "illustration_repairs", "rule"}}})
             emit("failed", {"failure_code": code, "failed_stage": failed_stage})
     finally:
         _running.pop(key, None)
 
 
-def start_job(owner: str, contract: QuestionMaterialContract, policy: str, *, llm=None, shadow=False, retry=False):
+def start_job(owner: str, contract, policy: str, *, llm=None, shadow=False, retry=False, pipeline_mode="v2"):
+    versions, renderer = _implementation_versions(pipeline_mode)
+    if (contract.schema_version == 3) != (pipeline_mode == "v3"):
+        raise IllustrationError("invalid_contract")
     root = persistence.owner_dir(owner)
     from app.core.atomic import file_lock
     with file_lock(root):
-        existing = persistence.find_job(owner, contract.question_ref, contract.question_revision, include_shadow=shadow)
+        existing = persistence.find_job(owner, contract.question_ref, contract.question_revision,
+                                        include_shadow=shadow, pipeline_mode=pipeline_mode)
         if existing and existing.get("shadow") == shadow:
             stale_failure = existing["status"] == "failed" and (
-                existing.get("prompt_versions") != PROMPT_VERSIONS or
-                existing.get("renderer_version") != V2_RENDERER_VERSION or
+                existing.get("prompt_versions") != versions or
+                existing.get("renderer_version") != renderer or
                 existing.get("catalog_version") != catalog_version())
             if existing["status"] in {"ready", "not_required", "queued", "running"} or not (retry or stale_failure):
                 if existing["status"] in {"queued", "running"} and (str(root), existing["job_id"]) not in _running:
@@ -255,7 +304,7 @@ def start_job(owner: str, contract: QuestionMaterialContract, policy: str, *, ll
                 return existing
         if policy == "off":
             raise IllustrationError("policy_disabled")
-        job = _new_job(contract, policy, shadow=shadow)
+        job = _new_job(contract, policy, shadow=shadow, pipeline_mode=pipeline_mode)
         job["owner_epoch"] = persistence.epoch(owner)
         persistence.stage(owner, job, "created")
         _running[(str(root), job["job_id"])] = asyncio.create_task(_run(owner, job, llm))
@@ -277,7 +326,12 @@ def recover_job(owner, job):
         return current
 
 
-async def generate_question(llm, question: dict, policy: str, *, grade="") -> dict:
+async def generate_question(llm, question: dict, policy: str, *, grade="", pipeline_mode="v2",
+                             phase_deadline=None, stage=None, grounding_context="") -> dict:
+    if pipeline_mode == "v3":
+        from .v3 import generate_question as v3_generate
+        return await v3_generate(llm, question, policy, grade=grade, phase_deadline=phase_deadline,
+                                 stage=stage, grounding_context=grounding_context)
     from app.core.quiz_verify import freeze_rubric
     question = dict(question)
     rubric = freeze_rubric(question, "draft")
@@ -286,16 +340,20 @@ async def generate_question(llm, question: dict, policy: str, *, grade="") -> di
         # must precede the joint audit, not change gold after publication.
         question["rubric_criteria"] = rubric["criteria"]
     contract = material_contract(question, question_ref="draft_"+uuid.uuid4().hex, grade=grade)
-    result = await workflow(llm, contract, policy)
+    from .authoring import bind_review_grounding
+    contract = bind_review_grounding(contract, grounding_context)
+    result = await workflow(llm, contract, policy, phase_deadline=phase_deadline, stage=stage)
     out = dict(question)
     out.pop("diagram_scene", None)
     if result["status"] == "not_required":
-        out.update(illustration=None, visual_role="none")
+        out.update(illustration=None, visual_role="none", material_contract=None,
+                   diagram_source=None, _illustration_metrics=result["metrics"])
         return out
     compiled = result["compiled"]
     out.update(illustration=compiled.illustration.model_dump(mode="json"),
         diagram_source=compiled.source.model_dump(mode="json"), visual_role=result["contract"].visual_role,
         material_contract=result["contract"].model_dump(mode="json"),
         illustration_review=compiled.source.review_gates,
-        verification={"illustration_check": "passed", "status": "passed"})
+        verification={"illustration_check": "passed", "status": "passed"},
+        _illustration_metrics=result["metrics"])
     return out

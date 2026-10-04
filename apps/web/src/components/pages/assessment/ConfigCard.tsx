@@ -8,6 +8,7 @@ import { FIELD_CLS, Input, LABEL_CLS, Textarea } from "@/components/ui/Input";
 import { Hint } from "@/components/ui/Hint";
 import { getEvalConcepts, getEvalWorkspaces, getUserProfile, updateUserProfile } from "@/lib/api-modules";
 import { useAuthStore } from "@/lib/auth-store";
+import { illustrationMode as resolveIllustrationMode, type IllustrationMode } from "@/lib/api-illustrations";
 import type { ConceptEvaluationView, WorkspaceEvaluationListItem } from "@/lib/types-modules";
 import type { PageTr } from "./common";
 
@@ -17,7 +18,7 @@ export interface AssessmentStartIntent {
   purpose: "adaptive" | "diagnose" | "practice";
   count: number;
   illustrationRequest: "auto" | "required";
-  illustrationMode: "v1" | "v2";
+  illustrationMode: IllustrationMode;
   generationHint: string;
   evaluationMode: "closed_loop" | "temporary";
 }
@@ -58,11 +59,10 @@ function Configuration({ tr, lang, busy, onStart, userId }: ConfigProps & { user
   const [available, setAvailable] = useState(false);
   const [enabled, setEnabled] = useState(false);
   const [required, setRequired] = useState(false);
-  // Both semantic review lanes are opt-in.  Deterministic question/diagram
-  // validation still runs on the server without spending another LLM call.
+  // Question review and V1 visual review are opt-in. V2/V3 always review the PNG.
   const [criticEnabled, setCriticEnabled] = useState(false);
   const [illustrationReviewEnabled, setIllustrationReviewEnabled] = useState(false);
-  const [illustrationMode, setIllustrationMode] = useState<"v1" | "v2">("v1");
+  const [illustrationMode, setIllustrationMode] = useState<IllustrationMode>("v1");
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState(false);
 
@@ -107,7 +107,7 @@ function Configuration({ tr, lang, busy, onStart, userId }: ConfigProps & { user
       setCriticEnabled(response.profile.prefs?.quiz_critic_enabled === true);
       setIllustrationReviewEnabled(
         response.profile.prefs?.quiz_illustration_review_enabled === true);
-      setIllustrationMode(response.profile.prefs?.quiz_illustration_mode === "v2" ? "v2" : "v1");
+      setIllustrationMode(resolveIllustrationMode(response.profile.prefs?.quiz_illustration_mode));
       setRequired(false);
       setProfileState("ready");
     }).catch(() => { if (active) setProfileState("error"); });
@@ -134,7 +134,6 @@ function Configuration({ tr, lang, busy, onStart, userId }: ConfigProps & { user
       setCriticEnabled(profile.prefs?.quiz_critic_enabled === true);
       setIllustrationReviewEnabled(
         profile.prefs?.quiz_illustration_review_enabled === true);
-      setIllustrationMode(profile.prefs?.quiz_illustration_mode === "v2" ? "v2" : "v1");
       if (profile.prefs?.quiz_svg_enabled === false) setRequired(false);
       useAuthStore.setState({ user: { ...user, profile } });
     } catch {
@@ -275,7 +274,7 @@ function Configuration({ tr, lang, busy, onStart, userId }: ConfigProps & { user
             </label>
             <label className="min-w-0">
               <span className={`${LABEL_CLS} flex items-center gap-1`}>{text("出题提示词（可选）", "Generation prompt (optional)")}
-                <Hint label={text("出题提示词", "Generation prompt")} text={text("可描述风格、背景、题型等方向；不会覆盖教材事实、答案和安全约束。V1/V2 配图都会使用。", "Describe style, background or question type. It cannot override textbook facts, answers or safety constraints, and is used by both V1 and V2 illustration.")} />
+                <Hint label={text("出题提示词", "Generation prompt")} text={text("可描述风格、背景、题型等方向；不会覆盖教材事实、答案和安全约束。所有配图方式都会使用。", "Describe style, background or question type. It cannot override textbook facts, answers or safety constraints, and is used by every illustration version.")} />
               </span>
               <Textarea value={generationHint} maxLength={1200} rows={3} disabled={busy}
                 placeholder={text("例如：生活化背景，简洁线稿，优先选择题", "e.g. everyday context, clean line art, prefer multiple choice")}
@@ -306,14 +305,18 @@ function Configuration({ tr, lang, busy, onStart, userId }: ConfigProps & { user
           <p className="mt-2 text-xs leading-5 text-muted">{tr("illustration.desc")}</p>
           <label className="mt-3 block">
             <span className={`${LABEL_CLS} flex items-center gap-1`}>{text("配图方式", "Illustration version")}
-              <Hint label={text("配图方式", "Illustration version")} text={text("选择仅用于本次出题；账户默认值在用户设置中调整。V1 保留旧版生成方式，V2 使用最新素材库方式。", "This choice applies only to this run. Change the account default in settings. V1 preserves the legacy path; V2 uses the latest material library pipeline.")} />
+              <Hint label={text("配图方式", "Illustration version")} text={text("选择仅用于本次出题；账户默认值在用户设置中调整。V1 由模型自行绘制，V2 按素材库参数组合，V3 可改造和组合素材，并自行绘制缺少的元素。", "This choice applies only to this run. Change the account default in settings. V1 draws from scratch; V2 assembles parameterized components; V3 modifies and combines assets and draws missing elements.")} />
             </span>
             <select className={FIELD_CLS} value={illustrationMode} disabled={busy || saving}
-              onChange={(event) => setIllustrationMode(event.target.value as "v1" | "v2")}>
+              onChange={(event) => setIllustrationMode(resolveIllustrationMode(event.target.value))}>
               <option value="v1">V1 · {text("旧版生成", "Legacy generation")}</option>
               <option value="v2">V2 · {text("素材库组合", "Material library")}</option>
+              <option value="v3">V3 · {text("素材辅助创作", "Asset-assisted creation")}</option>
             </select>
           </label>
+          {illustrationMode === "v3" && <p data-testid="assessment-v3-description" className="mt-2 text-xs leading-5 text-muted">
+            {text("模型可自行选择、改造和组合相关素材，并补画素材库中缺少的元素。", "The model selects, modifies and combines relevant assets, and draws elements missing from the library.")}
+          </p>}
           <label className="mt-3 grid cursor-pointer grid-cols-[1rem_minmax(0,1fr)] items-start gap-2">
             <Input type="checkbox" className="mt-0.5" checked={ready && required}
               disabled={!ready || saving || busy || saveError} aria-describedby={`${id}-required-help`}
@@ -348,11 +351,14 @@ function Configuration({ tr, lang, busy, onStart, userId }: ConfigProps & { user
               enabled={criticEnabled} disabled={!userId || profileState !== "ready" || saving || busy || saveError}
               saving={saving} onToggle={() => void toggleCritic()}
               onLabel={tr("review.on")} offLabel={tr("review.off")} />
-            <ReviewToggle id={`${id}-diagram-audit`} icon={<ImageIcon size={14} aria-hidden="true" />}
+            {illustrationMode === "v1" ? <ReviewToggle id={`${id}-diagram-audit`} icon={<ImageIcon size={14} aria-hidden="true" />}
               label={tr("review.illustrationAudit")} help={tr("review.illustrationAuditDesc")}
               enabled={illustrationReviewEnabled} disabled={!userId || profileState !== "ready" || saving || busy || saveError}
               saving={saving} onToggle={() => void toggleIllustrationReview()}
-              onLabel={tr("review.on")} offLabel={tr("review.off")} />
+              onLabel={tr("review.on")} offLabel={tr("review.off")} /> : <p data-testid="assessment-automatic-diagram-review"
+                className="rounded-lg border border-border-light bg-surface p-2.5 text-xs leading-5 text-muted">
+                {tr("review.automaticIllustration")}
+              </p>}
           </div>
         </section>
 

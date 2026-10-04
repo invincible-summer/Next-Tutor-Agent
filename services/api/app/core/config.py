@@ -125,11 +125,11 @@ class Settings:
     quiz_svg_enabled: bool = os.getenv("QUIZ_SVG_ENABLED", "1").strip().lower() in {"1", "true", "yes", "on"}
     quiz_diagram_mode: str = os.getenv("QUIZ_DIAGRAM_MODE", "components").strip().lower()
     quiz_illustration_pipeline: str = _resolve_mode(
-        "QUIZ_ILLUSTRATION_PIPELINE", {"v1", "shadow", "v2"}, "shadow")
+        "QUIZ_ILLUSTRATION_PIPELINE", {"v1", "shadow", "v2", "v3"}, "shadow")
     quiz_illustration_visual_review: str = _resolve_mode(
         "QUIZ_ILLUSTRATION_VISUAL_REVIEW", {"off", "shadow", "active"}, "active")
-    quiz_illustration_max_calls: int = max(1, min(10, int(os.getenv("QUIZ_ILLUSTRATION_MAX_CALLS", "8"))))
-    quiz_illustration_deadline_seconds: int = max(1, min(120, int(os.getenv("QUIZ_ILLUSTRATION_DEADLINE_SECONDS", "90"))))
+    quiz_illustration_max_calls: int = max(1, min(10, int(os.getenv("QUIZ_ILLUSTRATION_MAX_CALLS", "10"))))
+    quiz_illustration_deadline_seconds: int = max(1, min(120, int(os.getenv("QUIZ_ILLUSTRATION_DEADLINE_SECONDS", "120"))))
     quiz_illustration_max_repairs: int = max(0, min(2, int(os.getenv("QUIZ_ILLUSTRATION_MAX_REPAIRS", "2"))))
     llm_supports_images: bool = _env_bool("LLM_SUPPORTS_IMAGES", False)
     # 出题两轮化：two_pass = 生成前先做一轮命题蓝图设计（考查角度/认知层级/

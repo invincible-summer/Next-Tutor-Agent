@@ -49,6 +49,9 @@
 
 - journal 内的操作是封闭判别联合：`question_registered / source_registered / assistance_recorded / job_* / result_committed / review_* / interpretation_revoked / scope_* / synthesis_committed`。
 - `TaskSnapshot`（题干/选项/答案/等价解/量规）在出题时注册；`question_revision + rubric_hash` 不变即冻结，量规指纹由服务端从冻结内容计算。
+- 题图字段保留历史 V1/V2：`diagram_source` 为 `DiagramSource|DiagramSourceV2|DiagramSourceV3`，`material_contract` 为 `QuestionMaterialContract|QuestionVisualContractV3`；公开图片仍为 schema 1/2/3，V3 管线沿用图片 schema 3。V3 私有来源记录参考素材版本、源码 hash、最终图件 hash 与审查证据，不伪造 V2 的参数装配或几何证明。
+- schema 3 注册校验来源/合同属于同一管线、合同 hash 一致、公开题干/选项及视觉角色匹配，并核对合并审图使用的答案/解析/量规与最终冻结内容。V3 还校验实际成图内容哈希及 SVG 源码哈希；普通题卡注册时将私有合同重绑定到正式题目身份。必要读图任务缺图拒绝注册；新 V2/V3 须有 `machine/combined=passed`，历史 V2 兼容 `machine/visual/joint=passed`，已有 `combined` 时失败结果不能被历史字段覆盖。
+- 新题图先写入同一数据根下的不可变 artifact，再随 `question_registered` 原子绑定 journal；没有已注册本人题目的图件不能通过题目 API 发布。同题同 revision 的图文材料不能替换。CAT 后补图保存为独立冻结 artifact，保持原文字 `TaskSnapshot` 的题干、答案和量规不变。
 - index 与 `learner_views` 是可删除重建的投影（纯函数重放 journal，无需 LLM）；投影缓存不属持久承诺。
 - 账号删除/永久删除走 generation 重写（不追加墓碑行）。
 
@@ -76,6 +79,7 @@
 - 持久化纪律：短临界区按 journal key `file_lock`，锁内禁止 await，LLM 网络调用期间绝不持锁；中部损坏 `journal_corrupt` 阻止受影响写入、不当空档案。
 - 语义作业不阻塞对话/出题：`next` 的 409 `evaluation_pending` 只表示判断在途；硬故障 unavailable 不冒充 pending；`STUDENT_MODEL_MODE=0` 时评价层显式 `disabled`，不静默假装已评价。
 - `resolve_student_id()` 是唯一可信学生标识；所有钩子包 try/except，失败只记 trace，绝不影响对话流（统一护栏原则）。
+- 题图创作投影与学习评价答案隔离：V3 可接收描画所需数据及显示策略，私有 `authoring_gold` 只送审图模型；`QuestionPublic` 不含来源合同、答案、完整量规或审核正文。冻结 CAT 的补图条件只能来自公开题干/选项，不根据答案补出读数，也不能新增必要作答条件。补图身份、账户与当前测评版本从服务端解析，重试不切换管线、不覆盖冻结图；删除账户后迟到结果不得重建存储。
 
 ## Configuration
 
@@ -101,6 +105,7 @@
 - `test_evidence_journal.py`、`test_evidence_query_core.py`、`test_evidence_gate_tiers.py`、`test_evidence_context_recon.py`
 - `test_evaluation_jobs.py`、`test_evaluation_lifecycle.py`、`test_evaluation_worker.py`、`test_evaluation_review.py`、`test_evaluation_context.py`、`test_evaluation_routes.py`（均针对本模块 `student_model/evaluation`，非 M7）
 - `test_unified_submission.py`、`test_submission_identity.py`、`test_quiz_submission_state.py`
+- `tests.illustration.test_illustration_v3`、`tests.illustration.test_illustration_v3_integration`：V3 合同/来源注册、gold 与冻结量规一致、公开投影隔离及 CAT/任务重试身份。
 - `test_style_inference.py`、`test_learning_consumers.py`（outbox 消费幂等）、`test_projection_api.py`（`/student/*` 投影面）
 
 ## Related ADRs

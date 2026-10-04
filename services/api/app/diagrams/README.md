@@ -14,7 +14,7 @@
 
 ## Does not own
 
-- 题图 v2 装配管线（检索/构图/编译/审核/任务状态机）→ `app/illustration/`。
+- 题图 V2 装配与 V3 素材参考创作管线（检索/构图/编译/审核/任务状态机）→ `app/illustration/`。
 - 出题侧配图策略与兼容补图 → `app/core/quiz_illustration*.py`。
 - 公开 API → `app/api/v1/diagram_library.py`、`diagram_materials.py`。
 - 运行新增素材的存储根 `diagram_assets/`（`core/paths.py` 绑定，`core/orphan_cleanup.py` 扫描）。

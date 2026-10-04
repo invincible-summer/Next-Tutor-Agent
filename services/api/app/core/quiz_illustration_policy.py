@@ -7,10 +7,10 @@ from typing import Literal
 
 IllustrationRequest = Literal["auto", "none", "required"]
 IllustrationPolicy = Literal["off", "auto", "required"]
-IllustrationMode = Literal["v1", "v2"]
+IllustrationMode = Literal["v1", "v2", "v3"]
 REQUEST_SCHEMA = {"type": "string", "enum": ["auto", "none", "required"],
                   "description": "明确要求配图才用 required；明确不要图用 none；其余 auto。账户权限由服务端控制。"}
-ILLUSTRATION_MODES = ("v1", "v2")
+ILLUSTRATION_MODES = ("v1", "v2", "v3")
 
 
 class IllustrationDisabled(ValueError):
@@ -109,6 +109,24 @@ def account_allows_quiz_critic(student_id: str) -> bool:
     if not student_id:
         return True
     return _account_pref(student_id, "quiz_critic_enabled", False)
+
+
+def resolve_authoring_illustration_mode(student_id: str = "", requested: str | None = None) -> str:
+    """Select an authoring pipeline while preserving legacy deployment defaults.
+
+    CAT uses its persisted instance choice. Ordinary quiz callers historically
+    use the deployment switch, so only an explicit request or V3 preference
+    overrides that switch; legacy V1/V2 preferences keep their old scope.
+    """
+    if requested is not None:
+        if requested not in ILLUSTRATION_MODES:
+            raise ValueError("invalid_illustration_mode")
+        return requested
+    if resolve_illustration_mode(student_id) == "v3":
+        return "v3"
+    from .config import settings
+    mode = settings.quiz_illustration_pipeline
+    return "v1" if mode == "shadow" else mode
 
 
 def effective_quiz_verify_mode(student_id: str) -> str:

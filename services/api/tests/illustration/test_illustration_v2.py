@@ -4,6 +4,7 @@ from __future__ import annotations
 import asyncio
 import copy
 import json
+import time
 from types import SimpleNamespace
 from unittest.mock import patch
 
@@ -95,6 +96,49 @@ class QueueLLM:
 
 
 class IllustrationV2Test(StorageSandboxTestCase):
+    def test_missing_annotation_point_uses_external_placement_without_a_model_retry(self):
+        contract, brief, bundle, scene = cases()["thermal"]
+        raw = scene.model_dump(mode="json")
+        raw["annotations"] = [{"annotation_id": "given_value", "text": "45",
+            "target": {"instance": "main:thermometer", "region": "dial"},
+            "placement": "near_point", "fact_refs": ["f_reading"]}]
+        llm = QueueLLM(raw)
+        normalized = asyncio.run(composition.compose(llm, contract, brief, bundle))
+        self.assertEqual(len(llm.requests), 1)
+        self.assertEqual(normalized.annotations[0].placement, "outside_right")
+        self.assertEqual(normalized.annotations[0].text, "45")
+        compiled = compile_scene(normalized, contract=contract, brief=brief, bundle=bundle)
+        self.assertTrue(preview.render(compiled.illustration).startswith(b"\x89PNG"))
+
+    def test_internal_region_annotation_stays_outside_whole_instrument(self):
+        contract, brief, bundle, scene = cases()["thermal"]
+        raw = scene.model_dump(mode="json")
+        raw["annotations"] = [{"annotation_id": "given_value", "text": "45",
+            "target": {"instance": "main:thermometer", "region": "dial"},
+            "placement": "outside_right", "leader": False, "fact_refs": ["f_reading"]}]
+        compiled = compile_scene(SceneDraftV2.model_validate(raw), contract=contract, brief=brief, bundle=bundle)
+        bounds = compiled.source.layout_report.bounds
+        lx, ly, lw, lh = bounds["given_value"]
+        px, py, pw, ph = bounds["main:thermometer"]
+        self.assertTrue(lx+lw <= px or px+pw <= lx or ly+lh <= py or py+ph <= ly,
+                        "An external label must clear the whole instrument's measured paint bounds")
+        self.assertTrue(preview.render(compiled.illustration).startswith(b"\x89PNG"))
+
+    def test_whole_body_containment_is_measured_before_fitting(self):
+        from app.illustration.contracts import SceneRelation
+        contract, brief, bundle, scene = cases()["thermal"]
+        scene.relations = [SceneRelation(relation_id="immersed", contract_relation_id="r0", type="immersed_in",
+            start={"instance": "main:thermometer", "region": "body"},
+            end={"instance": "main:beaker", "region": "liquid"})]
+        # A physically incorrect whole-body target may require scene repair,
+        # but must not crash by unpacking an unmeasured empty paint box.
+        try:
+            compiled = compile_scene(scene, contract=contract, brief=brief, bundle=bundle)
+        except IllustrationError as exc:
+            self.assertEqual(exc.code, "relation_unrealizable")
+        else:
+            self.assertTrue(compiled.source.layout_report.bounds)
+
     def test_essential_public_fact_requires_literal_value_support(self):
         contract, _, _, _ = cases()["buoyancy"]
         raw = contract.model_dump(mode="json", exclude={"contract_hash"})
@@ -311,16 +355,107 @@ class IllustrationV2Test(StorageSandboxTestCase):
         self.assertNotIn("value", public["facts"][0])
         self.assertNotIn("source_quote", public["facts"][0])
 
-    def test_real_preview_review_workflow_four_calls(self):
+    def test_real_preview_review_workflow_three_calls(self):
         contract, brief, _, scene = cases()["horizontal_block"]
         review = {"status": "passed", "issues": [], "verified_facts": []}
-        llm = QueueLLM(brief.model_dump(mode="json"), scene.model_dump(mode="json"), review, review)
+        llm = QueueLLM(brief.model_dump(mode="json"), scene.model_dump(mode="json"), review)
         with patch.object(settings, "quiz_illustration_visual_review", "active"):
             result = asyncio.run(orchestrator.workflow(llm, contract, "required"))
         self.assertEqual(result["status"], "ready")
-        self.assertEqual(result["metrics"]["generation_calls"], 4)
-        self.assertEqual(result["compiled"].source.review_gates["visual"], "passed")
+        self.assertEqual(result["metrics"]["generation_calls"], 3)
+        self.assertEqual(result["compiled"].source.review_gates["combined"], "passed")
         self.assertEqual(llm.requests[2]["messages"][1]["content"][1]["type"], "image_url")
+        self.assertEqual(result["compiled"].source.review_gates, {"machine": "passed", "combined": "passed"})
+        self.assertEqual(set(result["compiled"].source.review_evidence), {"combined"})
+
+    def test_publish_gate_accepts_historical_and_combined_evidence(self):
+        from app.illustration.publishing import publish_gate_passed
+        self.assertTrue(publish_gate_passed({"review_gates": {"machine": "passed", "combined": "passed"}}))
+        self.assertTrue(publish_gate_passed(SimpleNamespace(review_gates={
+            "machine": "passed", "visual": "passed", "joint": "passed"})))
+        self.assertFalse(publish_gate_passed({"review_gates": {"machine": "passed", "visual": "passed"}}))
+        self.assertFalse(publish_gate_passed({"review_gates": {"machine": "passed", "combined": "failed",
+            "visual": "passed", "joint": "passed"}}))
+
+    def test_protocol_correction_does_not_spend_scene_repair_and_restores_existing_binding(self):
+        contract, brief, _, scene = cases()["dynamometer"]
+        malformed = brief.model_dump(mode="json")
+        malformed["needs"][0]["fact_bindings"].append("foreign")
+        scene.asset_instances[0].fact_bindings.pop("reading")
+        patch_data = {"action": "patch", "base_scene_hash": digest(scene.model_dump(mode="json")),
+            "operations": [{"op": "set_param", "instance_id": "main", "key": "reading", "fact_id": "f_reading"}]}
+        llm = QueueLLM(malformed, brief.model_dump(mode="json"), scene.model_dump(mode="json"),
+            patch_data, {"status": "passed", "verified_facts": ["f_reading"]})
+        result = asyncio.run(orchestrator.workflow(llm, contract, "required"))
+        self.assertEqual(result["status"], "ready")
+        self.assertEqual(result["metrics"]["protocol_corrections"], 1)
+        self.assertEqual(result["metrics"]["illustration_repairs"], 1)
+        self.assertEqual(result["metrics"]["generation_calls"], 5)
+        self.assertEqual(result["compiled"].source.scene.asset_instances[0].fact_bindings["reading"], "f_reading")
+        feedback = json.loads(llm.requests[1]["messages"][1]["content"])["repair_feedback"]
+        self.assertEqual(feedback["allowed_fact_ids"], ["f_maximum", "f_reading"])
+        self.assertNotIn("synthetic_gold", json.dumps(llm.requests[3]))
+
+    def test_malformed_audit_and_patch_have_bounded_protocol_recovery(self):
+        contract, brief, _, scene = cases()["horizontal_block"]
+        patch_data = {"action": "patch", "base_scene_hash": digest(scene.model_dump(mode="json")),
+            "operations": [{"op": "move_instance", "instance_id": "main", "x": 32, "y": 16}]}
+        failed = {"status": "failed", "issues": [{"code": "geometry_mismatch", "target": "main", "repairable": True}]}
+        llm = QueueLLM(brief.model_dump(mode="json"), scene.model_dump(mode="json"),
+            {"invalid": "audit"}, failed, {"invalid": "patch"}, patch_data, {"status": "passed"})
+        result = asyncio.run(orchestrator.workflow(llm, contract, "required"))
+        self.assertEqual(result["metrics"]["generation_calls"], 7)
+        self.assertEqual(result["metrics"]["protocol_corrections"], 2)
+        self.assertEqual(result["metrics"]["illustration_repairs"], 1)
+        feedback = json.loads(llm.requests[3]["messages"][1]["content"][0]["text"])["protocol_feedback"]
+        self.assertTrue(feedback["protocol_invalid"])
+        self.assertIn("field", feedback["validation_errors"][0])
+        self.assertNotIn("synthetic_gold", json.dumps(llm.requests[5]))
+
+    def test_budget_termination_preserves_actual_scene_failure(self):
+        contract, brief, _, scene = cases()["dynamometer"]
+        scene.asset_instances[0].fact_bindings.pop("reading")
+        llm = QueueLLM(brief.model_dump(mode="json"), scene.model_dump(mode="json"))
+        with patch.object(settings, "quiz_illustration_max_calls", 3):
+            with self.assertRaises(IllustrationError) as caught:
+                asyncio.run(orchestrator.workflow(llm, contract, "required"))
+        self.assertEqual(caught.exception.code, "missing_fact_binding")
+        self.assertEqual(caught.exception.details["exhaustion"], "calls")
+        self.assertEqual(len(llm.requests), 2)
+
+    def test_protocol_exhaustion_preserves_actual_schema_failure(self):
+        contract, brief, _, _ = cases()["horizontal_block"]
+        llm = QueueLLM(brief.model_dump(mode="json"), {}, {}, {})
+        with self.assertRaises(IllustrationError) as caught:
+            asyncio.run(orchestrator.workflow(llm, contract, "required"))
+        self.assertEqual(caught.exception.code, "scene_schema_invalid")
+        self.assertEqual(caught.exception.details["exhaustion"], "protocol_corrections")
+        self.assertEqual(caught.exception.details["protocol_corrections"], 2)
+        self.assertEqual(len(llm.requests), 4)
+
+    def test_image_budget_is_independent_of_exhausted_text_budget(self):
+        from app.core.quiz_generation_budget import BudgetedLLM, GenerationBudget
+        contract, brief, _, scene = cases()["horizontal_block"]
+        provider = QueueLLM(brief.model_dump(mode="json"), scene.model_dump(mode="json"), {"status": "passed"})
+        text_budget = GenerationBudget(max_calls=6, calls=6)
+        result = asyncio.run(orchestrator.workflow(BudgetedLLM(provider, text_budget), contract, "required"))
+        self.assertEqual(result["status"], "ready")
+        self.assertEqual(text_budget.calls, 6)
+        self.assertEqual(text_budget.completion_tokens, 0)
+
+    def test_image_phase_deadline_bounds_provider_calls(self):
+        contract, _, _, _ = cases()["horizontal_block"]
+        class SlowLLM(QueueLLM):
+            async def complete(self, **kwargs):
+                self.requests.append(kwargs)
+                await asyncio.sleep(.1)
+                return "{}", {}
+        async def run():
+            with self.assertRaises(IllustrationError) as caught:
+                await orchestrator.workflow(SlowLLM(), contract, "required", phase_deadline=time.monotonic()+.01)
+            self.assertEqual(caught.exception.code, "budget_exhausted")
+            self.assertEqual(caught.exception.details["exhaustion"], "time")
+        asyncio.run(run())
 
     def test_frozen_text_extraction_and_internal_protocol_recovery(self):
         from app.illustration.contracts import material_contract
@@ -331,11 +466,12 @@ class IllustrationV2Test(StorageSandboxTestCase):
         good = {"material": material, "brief": brief.model_dump(mode="json")}
         bad = brief.model_dump(mode="json")
         review = {"status": "passed"}
-        llm = QueueLLM(bad, good, scene.model_dump(mode="json"), review, review)
+        llm = QueueLLM(bad, good, scene.model_dump(mode="json"), review)
         result = asyncio.run(orchestrator.workflow(llm, frozen, "required", frozen=True))
         self.assertEqual(result["status"], "ready")
-        self.assertEqual(result["metrics"]["illustration_repairs"], 1)
-        self.assertEqual(result["metrics"]["generation_calls"], 5)
+        self.assertEqual(result["metrics"]["illustration_repairs"], 0)
+        self.assertEqual(result["metrics"]["protocol_corrections"], 1)
+        self.assertEqual(result["metrics"]["generation_calls"], 4)
         self.assertEqual(result["contract"].public_question, frozen.public_question)
         payload = json.loads(llm.requests[0]["messages"][1]["content"])
         self.assertTrue(payload["extract_material_from_public_question"])
@@ -410,10 +546,10 @@ class IllustrationV2Test(StorageSandboxTestCase):
         bad = scene.model_dump(mode="json")
         bad["asset_instances"][0]["entity_map"]["block"] = "foreign_entity"
         review = {"status": "passed"}
-        llm = QueueLLM(brief.model_dump(mode="json"), bad, scene.model_dump(mode="json"), review, review)
+        llm = QueueLLM(brief.model_dump(mode="json"), bad, scene.model_dump(mode="json"), review)
         result = asyncio.run(orchestrator.workflow(llm, contract, "required"))
         self.assertEqual(result["status"], "ready")
-        self.assertEqual(result["metrics"]["generation_calls"], 5)
+        self.assertEqual(result["metrics"]["generation_calls"], 4)
         payload = json.loads(llm.requests[2]["messages"][1]["content"])
         self.assertEqual(payload["repair_feedback"]["code"], "scene_asset_not_authorized")
         self.assertEqual(payload["visual_contract"], json.loads(llm.requests[1]["messages"][1]["content"])["visual_contract"])
@@ -429,19 +565,22 @@ class IllustrationV2Test(StorageSandboxTestCase):
         patch_data = {"action": "patch", "base_scene_hash": digest(scene.model_dump(mode="json")),
             "operations": [{"op": "move_instance", "instance_id": "main", "x": 32, "y": 16}]}
         warning = {"status": "failed", "issues": [{"code": "extra_whitespace", "target": "canvas", "severity": "warning"}]}
-        llm = QueueLLM(brief.model_dump(mode="json"), scene.model_dump(mode="json"), visual, joint,
-            patch_data, warning, visual)
+        llm = QueueLLM(brief.model_dump(mode="json"), scene.model_dump(mode="json"), joint,
+            patch_data, warning)
         result = asyncio.run(orchestrator.workflow(llm, contract, "required"))
         self.assertEqual(result["status"], "ready")
-        self.assertEqual(result["metrics"]["generation_calls"], 7)
-        self.assertEqual(result["reviews"]["visual"]["status"], "passed")
-        self.assertIn("warning_only_failed_status_normalized", result["reviews"]["visual"]["rationale_codes"])
-        content = llm.requests[4]["messages"][1]["content"]
+        self.assertEqual(result["metrics"]["generation_calls"], 5)
+        self.assertEqual(result["reviews"]["combined"]["status"], "passed")
+        self.assertIn("warning_only_failed_status_normalized", result["reviews"]["combined"]["rationale_codes"])
+        content = llm.requests[3]["messages"][1]["content"]
         self.assertNotIn(private, json.dumps(content))
         feedback = json.loads(content[0]["text"])["issues"]
         self.assertEqual(feedback[0]["target"], "main")
         self.assertEqual(feedback[1]["target"], "canvas")
         self.assertEqual(feedback[1]["code"], "scientific_mismatch")
+        self.assertIn("move_instance", feedback[0]["allowed_operations"])
+        self.assertEqual(feedback[0]["geometry"]["canvas_size"], [960, 560])
+        self.assertTrue(feedback[0]["geometry"]["bounds"])
 
     def test_invalid_persisted_contract_is_not_reported_as_provider_failure(self):
         contract, _, _, _ = cases()["horizontal_block"]
@@ -479,11 +618,11 @@ class IllustrationV2Test(StorageSandboxTestCase):
         valid = cases()["thermal"][3]
         review = {"status": "passed"}
         llm = QueueLLM(brief.model_dump(mode="json"), scene.model_dump(mode="json"),
-            valid.model_dump(mode="json"), review, review)
+            valid.model_dump(mode="json"), review)
         result = asyncio.run(orchestrator.workflow(llm, contract, "required"))
         self.assertEqual(result["status"], "ready")
         self.assertEqual(result["metrics"]["illustration_repairs"], 1)
-        self.assertEqual(result["metrics"]["generation_calls"], 5)
+        self.assertEqual(result["metrics"]["generation_calls"], 4)
 
         invalid = copy.deepcopy(valid)
         invalid.asset_instances[0].entity_map["invalid_registered_child"] = invalid.asset_instances[0].entity_map.pop("thermometer")
@@ -493,10 +632,10 @@ class IllustrationV2Test(StorageSandboxTestCase):
             composition.validate_scene(invalid, contract, brief, bundle)
         self.assertEqual(failure.exception.code, "scene_schema_invalid")
         llm = QueueLLM(brief.model_dump(mode="json"), invalid.model_dump(mode="json"),
-            valid.model_dump(mode="json"), review, review)
+            valid.model_dump(mode="json"), review)
         result = asyncio.run(orchestrator.workflow(llm, contract, "required"))
         self.assertEqual(result["status"], "ready")
-        self.assertEqual(result["metrics"]["generation_calls"], 5)
+        self.assertEqual(result["metrics"]["generation_calls"], 4)
 
     def test_review_resolves_recipe_scale_from_actual_child_parameters(self):
         from app.illustration.review import review
@@ -518,12 +657,22 @@ class IllustrationV2Test(StorageSandboxTestCase):
             with self.assertRaises(IllustrationError) as result:
                 asyncio.run(orchestrator.workflow(llm, contract, "required"))
         self.assertEqual(result.exception.code, "provider_unavailable")
+        self.assertFalse(llm.requests)
+
+    def test_review_disabled_preflight_spends_no_calls(self):
+        contract, _, _, _ = cases()["horizontal_block"]
+        llm = QueueLLM()
+        with patch.object(settings, "quiz_illustration_visual_review", "off"):
+            with self.assertRaises(IllustrationError) as caught:
+                asyncio.run(orchestrator.workflow(llm, contract, "required"))
+        self.assertEqual(caught.exception.code, "visual_review_failed")
+        self.assertFalse(llm.requests)
 
     def test_owner_singleflight_retry_and_purge_no_resurrection(self):
         contract, brief, _, scene = cases()["horizontal_block"]
         async def run():
             review = {"status": "passed"}
-            llm = QueueLLM(brief.model_dump(mode="json"), scene.model_dump(mode="json"), review, review)
+            llm = QueueLLM(brief.model_dump(mode="json"), scene.model_dump(mode="json"), review)
             first = orchestrator.start_job("usr_test", contract, "auto", llm=llm)
             same = orchestrator.start_job("usr_test", contract, "auto", llm=llm)
             self.assertEqual(first["job_id"], same["job_id"])

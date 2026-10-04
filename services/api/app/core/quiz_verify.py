@@ -34,6 +34,7 @@ from . import llm_policy
 from .quiz_design import grounding_block
 from .quiz_illustration import (IllustrationValidationError,
                                  normalize_question_illustration)
+from app.illustration.publishing import publish_gate_passed
 
 # W3/D04: 量规随出题同一次调用生成（§7.5 成本合并纪律）。这段要求追加到
 # 每个出题 prompt 末尾；花括号一律双写（{{}}），因为宿主 prompt 都会再
@@ -360,8 +361,7 @@ def prepare_illustrations(questions: list[dict], policy: str, *,
                 # review is a separate user-controlled cost center.
                 normalized["verification"]["illustration_check"] = "passed"
                 if normalized["illustration"].get("schema_version") == 3:
-                    gates = (normalized.get("diagram_source") or {}).get("review_gates")
-                    if gates != {"machine": "passed", "visual": "passed", "joint": "passed"}:
+                    if not publish_gate_passed(normalized.get("diagram_source")):
                         raise IllustrationValidationError("illustration_publish_gate_failed")
                     normalized["verification"]["status"] = "passed"
             kept.append(normalized)
@@ -532,6 +532,8 @@ async def _revise_dropped(llm: AsyncLLMClient,
 
 
 async def generate_verified_questions(llm, *, student_id="", **kwargs):
+    from .quiz_illustration_policy import resolve_authoring_illustration_mode
+    kwargs["illustration_mode"] = resolve_authoring_illustration_mode(student_id, kwargs.get("illustration_mode"))
     from app.diagrams.materials import owner_context
     with owner_context(student_id):
         return await _generate_verified_questions(llm, **kwargs)
@@ -554,6 +556,7 @@ async def _generate_verified_questions(
         verify_mode: str | None = None,
         illustration_review: bool = False,
         visual_bundle=None,
+        illustration_mode: str | None = None,
 ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     """Generate → structural filter → critic, with one regeneration retry.
 
@@ -579,23 +582,18 @@ async def _generate_verified_questions(
     if not isinstance(llm, BudgetedLLM):
         llm = BudgetedLLM(llm, new_quiz_budget())
     budget = llm.budget if isinstance(llm, BudgetedLLM) else None
+    if illustration_policy != "off" and illustration_mode in {"v2", "v3"}:
+        from app.illustration.authoring import generate
+        return await generate(llm, pipeline_mode=illustration_mode,
+            make_prompt=make_prompt, parse=parse, topic=topic, grade=grade,
+            difficulty=difficulty, temperature=temperature, max_tokens=max_tokens,
+            illustration_policy=illustration_policy, max_attempts=max_attempts,
+            required_type=required_type, verify_mode=mode,
+            grounding_context=grounding_context, feedback=feedback)
     from app.diagrams.pipeline import enabled, declare_and_retrieve, scene_contract, compile_questions
     bundle = visual_bundle if illustration_policy != "off" else None
     diagram_contract = ""
-    v2 = settings.quiz_illustration_pipeline == "v2" and illustration_policy != "off"
-    if v2:
-        bundle = None
-        from app.illustration.requirements import authoring_material_schema, capability_guide, named_material_sources
-        from app.prompts.registry import get as get_registered_prompt
-        named_sources = named_material_sources(topic)
-        related = capability_guide(make_prompt(), selected_asset_ids=[source["asset_id"] for source in named_sources])
-        related["named_material_svg_sources"] = named_sources
-        diagram_contract = (get_registered_prompt("quiz_illustration_authoring").text +
-            "\nmaterial_contract schema：" + json.dumps(authoring_material_schema(), ensure_ascii=False) +
-            "\n相关素材信息（不是构图候选，不能复制预览条件）：" + json.dumps(
-                related, ensure_ascii=False))
-        meta["diagram_mode"] = "v2"
-    elif enabled(illustration_policy):
+    if enabled(illustration_policy):
         try:
             if bundle is None:
                 bundle = await declare_and_retrieve(llm, context=make_prompt(), policy=illustration_policy, grade=grade)
@@ -615,9 +613,6 @@ async def _generate_verified_questions(
         meta["attempts"] = attempt
         try:
             prompt = make_prompt()
-            if v2 and attempt > 1 and meta.get("authoring_change_request"):
-                prompt += "\n发布前重新命题一次，保持知识点、题型和难度；同步修正答案与量规，重新建立材料合同。此前未发布草稿的素材能力问题：" + json.dumps(
-                    meta["authoring_change_request"], ensure_ascii=False)
             full, _usage = await llm.complete(
             messages=[{"role": "system", "content": prompt + "\n\n" +
                        (diagram_contract or generation_contract(illustration_policy))},
@@ -640,54 +635,11 @@ async def _generate_verified_questions(
                 question_slots[str(question["id"])] = f"q{index}"
         if required_type:
             raw_questions = [q for q in raw_questions if q.get("type") == required_type]
-        if v2:
-            from app.illustration.orchestrator import generate_question as illustrate
-            from app.illustration.contracts import IllustrationError
-            compiled_questions = []
-            for candidate in raw_questions:
-                if candidate.get("illustration") is not None or candidate.get("diagram_scene") is not None:
-                    compiled_questions.append({**candidate, "illustration": None, "_diagram_error": "diagram_model_svg_forbidden"})
-                    continue
-                # No model-supplied snapshots, reviews, facts or artifact IDs.
-                candidate = {key: value for key, value in candidate.items() if key not in {
-                    "diagram_source", "diagram_facts", "illustration_review", "illustration_artifact_id", "verification"}}
-                try:
-                    compiled_questions.append(await illustrate(llm, candidate, illustration_policy, grade=grade))
-                except (IllustrationError, ValueError) as exc:
-                    cause = exc
-                    if hasattr(exc, "errors"):
-                        for error in exc.errors():
-                            nested = error.get("ctx", {}).get("error")
-                            if isinstance(nested, IllustrationError):
-                                cause = nested
-                                break
-                    code = getattr(cause, "code", "invalid_contract")
-                    target = getattr(cause, "target", "contract")
-                    essential = (candidate.get("material_contract") or {}).get("visual_role") == "essential" or bool(
-                        re.search(r"如图|图中|下图|读图|看图|as shown", candidate.get("stem", ""), re.I))
-                    if illustration_policy == "required" or essential:
-                        compiled_questions.append({**candidate, "illustration": None, "_diagram_error": code})
-                    else:
-                        compiled_questions.append({**candidate, "illustration": None, "visual_role": "supplemental"})
-                    meta.setdefault("illustration_failures", []).append({"code": code, "target": target})
-                    if code in {"invalid_contract", "candidate_not_found", "parameter_unbound", "missing_fact_binding", "unsupported_domain", "question_material_incomplete"}:
-                        meta["authoring_change_request"] = {"code": code, "target": target,
-                            "allowed_action": "reauthor_before_publication", "max_reauthorings": 1}
-                        fact_id = target.partition(":")[0]
-                        fact = next((row for row in (candidate.get("material_contract") or {}).get("facts", [])
-                            if isinstance(row, dict) and row.get("id") == fact_id), None)
-                        if fact:
-                            meta["authoring_change_request"]["invalid_fact"] = {key: fact.get(key) for key in
-                                ("id", "type", "value", "unit", "predicate", "source_ref", "source_quote")}
-                            meta["authoring_change_request"]["binding_rule"] = "值必须由题文引用逐字支持，并符合实际选中接口；模板默认文字不是事实。"
-                        if target.endswith(":self_relation"):
-                            meta["authoring_change_request"]["binding_rule"] = "保持single_construction的一个整体实体，facts归该实体；不要把内部节点拆成独立实体。内部构造已由SVG表达，required_relations=[]，只在题文描述；只有不同独立素材之间才声明物理关系。"
-            raw_questions = compiled_questions
-        elif bundle is not None:
+        if bundle is not None:
             raw_questions = compile_questions(raw_questions, bundle, illustration_policy,
                                               question_slots=question_slots)
         questions, bad = prepare_illustrations(raw_questions, illustration_policy,
-                                              component_metadata=v2 or bundle is not None)
+                                              component_metadata=bundle is not None)
         if mode != "off" or any(q.get("illustration") for q in questions):
             questions, ill = filter_well_formed(questions)
             meta["dropped_ill_formed"] += len(ill)
@@ -695,14 +647,12 @@ async def _generate_verified_questions(
         # Component diagrams have already passed deterministic scene, asset,
         # parameter and canvas checks.  The independent LLM critic is opt-in;
         # do not spend a second model call merely because a safe SVG exists.
-        jointly_reviewed = bool(questions) and all((q.get("diagram_source") or {}).get("review_gates") == {
-            "machine": "passed", "visual": "passed", "joint": "passed"} for q in questions)
+        jointly_reviewed = bool(questions) and all(publish_gate_passed(q.get("diagram_source")) for q in questions)
         if jointly_reviewed:
             # The independent v2 joint audit also verifies the answer/rubric.
             meta["critic"] = "ok"
         elif questions and mode == "critic":
-            reviewed = [q for q in questions if v2 and (q.get("diagram_source") or {}).get("review_gates") == {
-                "machine": "passed", "visual": "passed", "joint": "passed"}]
+            reviewed = [q for q in questions if publish_gate_passed(q.get("diagram_source"))]
             pending = [q for q in questions if q not in reviewed]
             kept, audit_bad, critic_ok = await verify_questions(
                 llm, pending, topic=topic, grade=grade, difficulty=difficulty,
@@ -710,7 +660,7 @@ async def _generate_verified_questions(
             questions = [q for q in questions if q in reviewed or q in kept]
             bad.extend(audit_bad)
             meta["critic"] = "ok" if critic_ok else "error"
-        elif questions and illustration_review and not v2:
+        elif questions and illustration_review:
             questions, audit_bad = await verify_diagrams(llm, questions)
             bad.extend(audit_bad)
         meta["dropped_by_critic"] += len(bad)
@@ -720,7 +670,7 @@ async def _generate_verified_questions(
                                   "reason": b.get("_drop_reason", "")} for b in bad]
         if feedback is not None:
             feedback["critic_flags"] = list(meta["critic_flags"])
-        if bad and not questions and not v2 and (budget is None or budget.take_repair()):
+        if bad and not questions and (budget is None or budget.take_repair()):
             revised = await _revise_dropped(
                 llm, bad, topic=topic, grade=grade, difficulty=difficulty,
                 grounding_context=grounding_context, illustration_policy=illustration_policy,

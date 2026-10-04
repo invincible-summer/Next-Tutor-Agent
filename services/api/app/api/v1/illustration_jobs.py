@@ -33,19 +33,30 @@ def owned_task(owner, question_id, revision):
     return state, task
 
 
-def policy_for(owner, state, task):
+def policy_for(owner, state, task, *, pipeline_mode=None):
     instance = _bound_instance(state, task.question_id, task.question_revision)
     if instance is None:
         raise _error(404, "assessment_question_not_current", "只有进行中测评的当前题可启动新的补图任务")
-    if instance.illustration_mode != "v2":
+    if instance.illustration_mode not in {"v2", "v3"}:
         raise _error(409, "illustration_mode_mismatch", "当前测评选择的是 V1 配图方式")
+    if pipeline_mode is not None and instance.illustration_mode != pipeline_mode:
+        raise _error(409, "illustration_mode_mismatch", "配图任务与测评选择的版本不一致")
     try:
         return resolve_illustration_policy(owner, instance.illustration_request or "auto")
     except IllustrationDisabled:
         raise _error(409, "illustration_disabled", "题目插图已关闭") from None
 
 
-def task_contract(task, *, illustration_guidance: str = ""):
+def task_contract(task, *, illustration_guidance: str = "", pipeline_mode="v2"):
+    if pipeline_mode == "v3":
+        from app.illustration.v3_contracts import material_contract as v3_contract
+        # Frozen CAT supplements use public text, never gold-derived drawing
+        # inputs or an old V2 hidden-value projection.
+        return v3_contract({"type": task.q_type.value, "stem": task.stem,
+            "options": task.options, "answer": task.answer, "explanation": task.explanation,
+            "rubric": [c.model_dump(mode="json") for c in task.rubric]},
+            question_ref=task.question_id, revision=task.question_revision,
+            frozen=True, illustration_guidance=illustration_guidance)
     # Late diagrams cannot supply essential conditions or change a snapshot.
     if task.material_contract is not None:
         # CAT generation may already have produced and validated the complete
@@ -76,7 +87,9 @@ async def create_illustration_job(req: DraftReference, owner: str = Depends(reso
     # Browser clients may reference only already owned server material. New
     # essential drafts use the internal generation path before registration.
     state, task = owned_task(owner, req.question_id, req.question_revision)
-    existing = persistence.find_job(owner, req.question_id, req.question_revision)
+    instance = _bound_instance(state, task.question_id, task.question_revision)
+    mode = instance.illustration_mode if instance else None
+    existing = persistence.find_job(owner, req.question_id, req.question_revision, pipeline_mode=mode)
     if existing:
         existing = recovered_job(owner, existing)
         if existing["status"] != "failed":
@@ -91,8 +104,8 @@ async def create_illustration_job(req: DraftReference, owner: str = Depends(reso
     try:
         instance = _bound_instance(state, task.question_id, task.question_revision)
         job = start_job(owner, task_contract(
-            task, illustration_guidance=instance.generation_hint if instance else ""),
-            policy_for(owner, state, task))
+            task, illustration_guidance=instance.generation_hint if instance else "", pipeline_mode=mode or "v2"),
+            policy_for(owner, state, task), pipeline_mode=mode or "v2")
     except IllustrationError as exc:
         raise _error(409, exc.code, "题目材料无法补图，请修订题目或检查生成设置") from None
     return public_job(owner, job)
@@ -129,9 +142,10 @@ async def retry_illustration_job(job_id: str, owner: str = Depends(resolve_stude
         return public_job(owner, job)
     try:
         instance = _bound_instance(state, task.question_id, task.question_revision)
+        mode = job.get("pipeline_mode", "v2")
         new_job = start_job(owner, task_contract(
-            task, illustration_guidance=instance.generation_hint if instance else ""),
-            policy_for(owner, state, task), retry=True)
+            task, illustration_guidance=instance.generation_hint if instance else "", pipeline_mode=mode),
+            policy_for(owner, state, task, pipeline_mode=mode), retry=True, pipeline_mode=mode)
     except IllustrationError as exc:
         raise _error(409, exc.code, "题目材料无法补图") from None
     return public_job(owner, new_job)

@@ -4,7 +4,7 @@ M4 回答「学生真的学会了吗」：统一承载练习题生成、统一�
 
 ## Purpose / Scope
 
-- 测评域的**出题侧**：三条题目生成路径（聊天工具 `generate_quiz` / `fit_quiz`、M4 约束出题与 CAT）共用同一套质量门（结构校验 + critic 独立重解 + 命题蓝图两轮化）与生成预算。
+- 测评域的**出题侧**：聊天工具 `generate_quiz` / `fit_quiz`、M4 约束出题与 CAT 共用结构校验、量规冻结和有界生成预算；普通 V2/V3 出题另有独立配图预算，实际 PNG 与题目条件、答案、解析和量规在同一次合并审查中核对。
 - 测评域的**作答侧**：所有作答（聊天题卡、习题中心、CAT）经唯一受理入口 `evaluate_submission` 进入统一学习评价协议——服务端权威题目、答案指纹幂等、MC 确定性判分、开放题语义作业。
 - 量规（rubric）在学生作答前冻结；帮助事件在判分前入账；异议走 journal 复核生命周期。
 - 学习证据 journal 本身属 M2 统一学习评价域（`students/<id>.learning_evidence.jsonl`，见 [student-model.md](student-model.md)）；本文只描述 M4 视角的注册、受理与判分协议。
@@ -24,6 +24,7 @@ M4 回答「学生真的学会了吗」：统一承载练习题生成、统一�
   - `quiz_attempts.py` — 会话侧作答落点与 `latest_quiz_digest`、`record_quiz_attempt`。
   - `quiz_submission.py` — `GET /quiz/submission` 只读恢复投影。
   - `quiz_grounding.py` — 检索证据到命题输入的投影层（复用 `KnowledgeSearchTool`，不另造置信度标尺）。
+- `services/api/app/illustration/authoring.py` — 普通 V2/V3 出题的文字与配图阶段分离、批量配图与发布门。
 - `services/api/app/tools/quiz.py`（`generate_quiz`）、`services/api/app/tools/fit_quiz.py`（`fit_quiz`）— 出题工具（生成质量链归本文；通用工具协议归 [skill-runtime.md](skill-runtime.md)）。
 - API 路由：`services/api/app/api/v1/quiz.py`、`assessment.py`、`assessment_grounding.py`（教材 grounding）、`assessment_illustration.py`（CAT 补图启动，管线见 [diagrams-illustration.md](diagrams-illustration.md)）。
 
@@ -43,8 +44,9 @@ M4 回答「学生真的学会了吗」：统一承载练习题生成、统一�
 - `GET /questions/{qid}`（`QuestionPublic` 白名单投影，作答后揭晓 answer/explanation）、`POST /questions/{qid}/practice`（`mode=same|variant` 再练一次，新题带 `origin_question_ref`/`task_family`）、`POST /questions/{qid}/hint`、`POST /questions/{qid}/reveal`。
 - `GET /records` — 本人原始作答档案分页（assessment 来源）。
 - CAT：`POST /{start,answer,next,abandon}` + `GET /{report,active}`；`active` 三态（进行中当前题公开内容 / 终态 `stop_reason`+summary / 无会话 none）；停止结论是**诊断性** `stop_code` 枚举（`sufficient_for_current_claim|needs_clarification|max_questions|max_time|user_stopped|generation_failed`），前端映射为中性表述。start/next 载荷剥离 answer/explanation，判分全在服务端。
-  `start` 支持 `illustration_mode=v1|v2`、`generation_hint` 与 `evaluation_mode=closed_loop|temporary`。账户默认配图方式缺省为 V1，单次测评可覆盖；V1 保留旧模型主导的组件绘图链，V2 使用最新素材库装配链。
-  两条链都在一次补图请求内进行有界校正，V2 从冻结公开题文首次提取材料，不改题干/答案/量规；新版本可重建当前题的旧失败任务，已冻结图仍复用。配图预算和科学发布门见 [diagrams-illustration.md](diagrams-illustration.md)。
+  `start` 支持 `illustration_mode=v1|v2|v3`、`generation_hint` 与 `evaluation_mode=closed_loop|temporary`。账户缺省 V1，单次测评可覆盖；版本随实例保存并在 next/active 恢复。V1 保留旧模型主导绘图链，V2 按素材接口与参数装配，V3 让模型选择、改造和组合 SVG 素材，并补画库外元素。
+  CAT 先冻结自足文字题，再按实例版本补图。V2/V3 只从公开题干/选项提取有依据的绘图条件，不从答案或解析反推新增读数，也不把冻结题改成必要读图题；私有答案、解析与量规仅进入审图投影。题干、答案和量规不随补图改写。
+  `POST /questions/{qid}/illustration` 只接收题目 revision；V2/V3 返回可轮询的任务，`GET /illustration-jobs/{job_id}` 与 `POST /illustration-jobs/{job_id}/retry` 使用全局 `/api/v1` 前缀。重试保留任务和实例选择的版本，版本不匹配拒绝，不降级到其他配图方式。只有进行中 CAT 的当前题可以启动新生成；历史题与终止实例仍可读取已冻结图及已有任务。配图预算与发布门见 [diagrams-illustration.md](diagrams-illustration.md)。
   `workspace_id` 与 `concept_keys` 都可以为空：无工作区时不调用知识检索，题目统一为临时出题；选工作区但不选概念时，服务端只按提示词对工作区教材检索一次，把检索证据缓存到 CAT 实例后复用。
 
 **提示与异议（chat 侧）**
@@ -54,7 +56,9 @@ M4 回答「学生真的学会了吗」：统一承载练习题生成、统一�
 
 **出题与量规**
 
-- 三条生成路径统一过 `quiz_verify`（MC 答案字母须在选项内、选项非空去重、题干/解析非空；critic 独立重解 + `too_shallow`）与 `quiz_design` two_pass 蓝图（`generate_quiz` 与 M4 约束单题共用；`fit_quiz` 内置「拆题→五层变式策略」单轮两段式，不接蓝图）。
+- 各生成路径统一过 `quiz_verify` 结构检查（MC 答案字母须在选项内、选项非空去重、题干/解析非空）。V1 或无图题按部署/账户策略执行独立 critic；已通过 V2/V3 合并审查的题图不重复独立审题。`quiz_design` two_pass 蓝图供 `generate_quiz` 与普通 M4 约束单题共用；`fit_quiz` 内置「拆题→五层变式策略」单轮两段式，CAT 使用文字快速通道。
+- 聊天、`fit_quiz`、普通约束出题及 `practice mode=variant` 共用 V3 选择规则：可信内部调用可显式选择版本，账户 V3 偏好可覆盖部署管线；其他旧调用沿用部署配置，缺省 `shadow` 保持 V1 交付。V3 使用轻量 `VisualSpecV3{visual_role, description, drawing_inputs?}`，不要求 V2 的实体/端口/关系装配合同。
+- 新 V2/V3 题图必须通过 SVG/布局安全检查与实际 PNG 合并审查（`machine/combined=passed`），不受 V1 可选审图开关影响；非阻断风格建议只作 warning。历史 V2 的 `machine/visual/joint=passed` 产物仍可读，出现 `combined` 字段时必须以该字段的通过状态为准。普通 required/essential 题无有效图不发布；新必要读图题可携带绘图数据，`depict_only` 值允许用于画图而不得写成答案标签、alt 或 caption。
 - 题目通过校验获得稳定题号（每套唯一前缀 `q_<uid>_<i>`）后，以 `rubric_criteria[{id,description,weight,critical}]` + `equivalent_solutions` 按 `rubric_hash` 冻结随题落盘；改量规必须新 `question_revision`，指纹由服务端复核。
 - `GET /quiz/recent` 与错题本（`GET /student/error-notebook`，`evaluation/projections.py::wrong_answer_items`）均为 journal 实时投影，无物化副本；错题重练经 `?q=&send=1` 深链回到教练对话。
 
@@ -63,11 +67,12 @@ M4 回答「学生真的学会了吗」：统一承载练习题生成、统一�
 - `students/<id>.learning_evidence.jsonl` — 统一学习证据 journal（唯一事实源）：`question_registered` / `source_registered` / `assistance_recorded` / `job_*` / `result_committed` / `review_*` 等封闭操作；CAT 实例也持久化于 journal `assessments`（无单槽 `assessment.json`）。
 - 会话侧（受理后回写，属聊天内核存储）：session quiz_history 的 `result{verdict, student_answer, attempt_id}`、transcript【作答记录】/【出题记录】；流式回合保存前经 `merge_quiz_results_from_disk` 合并盘上作答防覆写。
 - 兼容缓存 `students/<owner>.question_illustrations.json`（v1 题图历史，见 [diagrams-illustration.md](diagrams-illustration.md)）。
+- schema 3 题图的 `TaskSnapshot` 私有来源兼容 `DiagramSourceV2|DiagramSourceV3`，材料合同兼容 `QuestionMaterialContract|QuestionVisualContractV3`；公开 `QuestionIllustration` 仍沿用 schema 3。新注册先准备不可变图件，再原子写入 journal；同题同 revision 的题面/图件/量规不可覆盖。CAT 后补图作为独立冻结图件保存，不改已注册文字题。
 - 所有账号数据经运行数据根统一管理，账户删除与孤儿清理按 `students/` 前缀覆盖。
 
 ## Main flows
 
-1. **出题**（三条路径之一）→ `quiz_grounding` 投影工作区教材证据（CAT 的无概念工作区模式只检索一次；无工作区不检索）→ `quiz_design` 蓝图轮（fail-open 回退 single）→ 生成（`complete(disable_thinking=True)`，`BudgetedLLM` 受 `ASSESSMENT_GENERATION_*` 约束）→ `quiz_verify` 两层校验，草稿题不再作为 CAT 结果交付 → 题目（含冻结量规）注册 journal `TaskSnapshot`。用户提示词会作为风格、背景和题型偏好传给出题及 V1/V2 配图链，但不能覆盖教材事实、答案或安全约束。
+1. **出题** → `quiz_grounding` 投影工作区教材证据（CAT 无概念工作区只检索一次；无工作区不检索）→ 按入口执行蓝图/变式设计 → 有界文字生成与结构校验。普通 V2/V3 题先规范量规，再独立配图及合并审查；CAT 只交付自足文字题，之后补图。通过的题目连同冻结量规注册 journal `TaskSnapshot`，自检草稿不作为 CAT 结果。用户提示词传给出题及 V1/V2/V3 配图链，但不能覆盖教材事实、答案或安全约束。
 2. **受理**：`/quiz/record`（MC）或 `/quiz/grade`（开放题）/`/assessment/submissions` → 归属校验（404 先于一切）→ `load_task_snapshot` 服务端权威题目 → `evaluate_submission`：帮助事件（`assistance_floor`）判独立资格 → 答案指纹判重 → MC 判定随事务落盘；开放题语义 `EvaluationJob` 入队 → `202` 受理回执。
 3. **语义评价**：lifespan 启动的评价 worker（`evaluation/worker.py`）按 JobKind 路由执行（重启恢复、wall-clock 预算、同 workspace 串行）→ `result_committed` 落 journal → outbox 事件由 M9 幂等消费（见 [learning-orchestration.md](learning-orchestration.md)）。
 4. **CAT**：工作区闭环 start（按评价投影门控）或无工作区/临时 start → next（当前题未答幂等重发；CAT 首题走 `get_llm("quiz")` 快速通道）→ answer。临时模式只保留本次运行的本地判分结果，不创建 `SourceReceipt`、语义评价作业或学习证据；report/active 可恢复本次运行状态。per-student 生命周期锁 + journal `file_lock` 防并发。
@@ -94,15 +99,16 @@ M4 回答「学生真的学会了吗」：统一承载练习题生成、统一�
 - 变式证据分级：fit_quiz 题套作答携带 `origin_question_ref` 同族关系进统一评价。
 - 游客（guest token）仅开放文字聊天、临时出题与本题批改（`guest_learning` 内存域），不进入 journal 长期评价。
 - 无工作区的测评中心出题与显式 `temporary` 模式均不进入学习评价闭环；只有绑定工作区且选择 `closed_loop` 才会提交正式评价观察。
+- schema 3 发布前校验来源/材料合同版本与合同 hash、公开题干/选项、视觉角色及审过的答案/解析/量规一致；创作模型不接收私有答案，审图正文与来源合同不下发学生。换号、账户删除或取消不能把迟到配图冻结到新身份下；已冻结图不能被失败重试覆盖。
 
 ## Configuration
 
 - `LEARNER_EVALUATION_MODE`（`active|off`，默认 `active`）：统一评价域总开关。`off` = 暂停长期评价而非关练习——受理与 MC 判分照常，语义解释降级跳过；CAT `start/next` 受门控（off 期间不开新实例，在途实例可继续作答）。（旧 `ASSESSMENT_ENGINE_MODE` 已删除。）
-- 账户 `profile.prefs.quiz_illustration_mode`（缺省 `v1`）控制测评中心默认 V1/V2；`POST /assessment/start` 的 `illustration_mode` 仅覆盖本次实例。
+- 账户 `profile.prefs.quiz_illustration_mode` 支持 `v1|v2|v3`，缺省 `v1`；CAT start 可单次覆盖，普通出题的 V3 偏好与部署选择规则见上。`quiz_illustration_review_enabled` 仅控制 V1 可选审图，V2/V3 合并审图为必需。
 - `QUIZ_VERIFY_MODE`（`critic|basic|off`，默认 `critic`）：出题质量门。
 - `QUIZ_DESIGN_MODE`（`two_pass|single`，默认 `two_pass`）：命题蓝图两轮化。
 - `STRUCTURED_ASSESSMENT_MODE`（`off|shadow|active`，默认 `off`）：`off` 旧三级文本批改；`shadow` 旁路计算量规条目分析并落盘对照（不改变判定/不写能力）；`active` 有冻结量规的开放题以结构化分析为权威判定（分数由服务端按量规权重本地计算），done 事件与 `/quiz/record` 结果携带 `structured` 块。
-- `ASSESSMENT_GENERATION_MAX_ATTEMPTS`（默认 2）/ `ASSESSMENT_GENERATION_MAX_CALLS`（默认 6）/ `ASSESSMENT_GENERATION_DEADLINE_SECONDS`（默认 90）：整组生成预算（嵌套题图也受此约束）。
+- `ASSESSMENT_GENERATION_MAX_ATTEMPTS`（默认 2）/ `ASSESSMENT_GENERATION_MAX_CALLS`（默认 6）/ `ASSESSMENT_GENERATION_DEADLINE_SECONDS`（默认 90）：文字生成预算。普通 V2/V3 在文字阶段后启动独立配图阶段（默认最多 120 秒、并发 2），每题配图最多 10 次调用、2 次协议纠正与 2 次绘图修复；图片调用不消耗文字的六次调用额度。具体 `QUIZ_ILLUSTRATION_*` 配置归题图文档。
 - `LEARNER_EVAL_*`：评价 worker 并发、租约、预算、合成等待等运行参数。
 - 管理员 `GET/POST /admin/learner-evaluation-policy`：语义解释即时（默认）或每日零点批次（业务 IANA 时区），策略文件 `chat_history/settings/learner_evaluation_policy.json`（expected_revision CAS）。
 
@@ -120,6 +126,7 @@ M4 回答「学生真的学会了吗」：统一承载练习题生成、统一�
 - 统一受理：`test_unified_submission.py`、`test_submission_identity.py`、`test_quiz_submission_state.py`、`test_quiz_ownership.py`。
 - 测评中心与 CAT：`test_assessment.py`、`test_assessment_lifecycle.py`、`test_assessment_identity.py`、`test_assessment_binding_cas.py`、`test_assessment_generation_fast.py`、`test_classroom_assessment.py`。
 - 出题质量：`test_quiz_quality.py`、`test_quiz_design.py`、`test_quiz_card_contract.py`、`test_chat_quiz_intent.py`、`test_quiz_grounding.py`、`test_quiz_grounding_provenance.py`。
+- 题图接入：`tests.illustration.test_illustration_v2`、`tests.illustration.test_illustration_v3`、`tests.illustration.test_illustration_v3_integration`、`tests.illustration.test_illustration_jobs`（版本恢复/重试、公开冻结条件、真实 PNG、普通题组独立图片预算与发布门）。
 - 评价域与复核：`test_evaluation_jobs.py`、`test_evaluation_worker.py`、`test_evaluation_review.py`、`test_learner_evaluation_policy.py`、`test_evidence_journal.py`、`test_question_audit.py`。
 
 ## Related ADRs

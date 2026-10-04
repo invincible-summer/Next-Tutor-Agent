@@ -170,6 +170,13 @@ def _lift(candidate: dict[str, Any], meta: dict[str, Any], *,
         # q_draft_ marker is reserved for the local self-check fallback.
         verification["status"] = "unreviewed"
     raw["id"] = "q_" + uuid.uuid4().hex[:24]
+    if raw.get("diagram_source"):
+        from app.illustration.authoring import bind_question_identity
+        bind_question_identity(raw)
+    if meta.get("illustration_metrics"):
+        verification["text_generation_calls"] = budget.calls
+        verification["generation_calls"] = budget.calls + sum(
+            row.get("generation_calls", 0) for row in meta["illustration_metrics"])
     result = Question.from_quiz_dict(raw, concept=concept, difficulty=difficulty)
     result.assesses = list(goal.assesses)
     result.forbidden = list(goal.forbidden)
@@ -216,6 +223,8 @@ async def generate_question(goal: AssessmentGoal, ctx: AssessmentContext, *,
     policy = resolve_illustration_policy(student_id, goal.illustration_request)
     verify_mode = effective_quiz_verify_mode(student_id)
     illustration_review = account_allows_illustration_review(student_id)
+    from ...core.quiz_illustration_policy import resolve_authoring_illustration_mode
+    illustration_mode = resolve_authoring_illustration_mode(student_id)
     if isinstance(llm, BudgetedLLM):
         budget = llm.budget
         llm = llm.llm
@@ -247,7 +256,8 @@ async def generate_question(goal: AssessmentGoal, ctx: AssessmentContext, *,
                 BudgetedLLM(llm, budget),
                 topic=concept, grade=grade, difficulty=_difficulty_label(difficulty),
                 count=1, focus="、".join(goal.assesses),
-                grounding_context=grounding, illustration_policy=policy)
+                grounding_context=grounding, illustration_policy=policy,
+                illustration_mode=illustration_mode)
         prompt = _build_gen_prompt(
             grade=grade, concept=concept, difficulty=difficulty,
             goal=goal, q_type=q_type, blueprint=blueprint)
@@ -295,7 +305,7 @@ async def generate_question(goal: AssessmentGoal, ctx: AssessmentContext, *,
                 max_attempts=1, repair_max_tokens=4500 if phase_policy != "off" else 3500,
                 required_type=q_type if strict_type else "",
                 verify_mode=verify_mode,
-                illustration_review=illustration_review)
+                illustration_review=illustration_review, illustration_mode=illustration_mode)
             last_meta.clear()
             last_meta.update(meta)
             for candidate in candidates:
@@ -338,7 +348,9 @@ async def generate_question(goal: AssessmentGoal, ctx: AssessmentContext, *,
     if best is None and cat_mode and not ctx.grounding_required:
         best = _self_check(concept, budget)
     if best is not None:
+        total_calls = best.verification.get("generation_calls", budget.calls)
         best.verification.update(budget.summary())
+        best.verification["generation_calls"] = max(total_calls, budget.calls)
         logger.info("assessment generation result=%s metrics=%s",
                     "draft" if best.id.startswith("q_draft_") else "verified", budget.summary())
     return best

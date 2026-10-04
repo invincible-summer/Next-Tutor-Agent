@@ -117,7 +117,9 @@ async def enrich_question_illustration(
     from app.illustration import persistence
     from app.illustration.events import public_job
     from .illustration_jobs import recovered_job
-    job = persistence.find_job(student_id, question_id, req.question_revision)
+    member = _assessment_instance(state, question_id, req.question_revision)
+    job = persistence.find_job(student_id, question_id, req.question_revision,
+                                pipeline_mode=member.illustration_mode)
     if job is not None:
         job = recovered_job(student_id, job)
         if job["status"] != "failed":
@@ -157,13 +159,14 @@ async def enrich_question_illustration(
     # CAT stores the selected implementation on its instance.  The deployment
     # pipeline switch remains relevant to other quiz surfaces, but must not
     # silently replace a learner's V1/V2 choice here.
-    if instance.illustration_mode == "v2":
+    if instance.illustration_mode in {"v2", "v3"}:
         from .illustration_jobs import task_contract
         from app.illustration.orchestrator import start_job
         from app.illustration.contracts import IllustrationError
         try:
             job = start_job(student_id, task_contract(
-                task, illustration_guidance=instance.generation_hint), policy)
+                task, illustration_guidance=instance.generation_hint,
+                pipeline_mode=instance.illustration_mode), policy, pipeline_mode=instance.illustration_mode)
         except IllustrationError as exc:
             return {"status": "failed", "visual_role": "supplemental", "question_id": question_id,
                 "question_revision": req.question_revision, "illustration": None,
