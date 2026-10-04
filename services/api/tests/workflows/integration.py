@@ -437,5 +437,102 @@ class EvaluationSupervisorIntegrationTest(StorageSandboxTestCase,
             wf_runtime.reset_client_cache()
 
 
+@unittest.skipUnless(_TEMPORAL_ADDRESS,
+                     "TEST_TEMPORAL_ADDRESS not set — Temporal integration "
+                     "skipped")
+class MaintenanceScheduleIntegrationTest(StorageSandboxTestCase,
+                                         unittest.IsolatedAsyncioTestCase):
+    _saved_env: dict[str, str | None] = {}
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        from app.workflows import config as wf_config
+
+        cls._saved_env = {
+            "TEMPORAL_ADDRESS": os.environ.get("TEMPORAL_ADDRESS")}
+        os.environ["TEMPORAL_ADDRESS"] = _TEMPORAL_ADDRESS
+        wf_config._worker_process = True
+
+    @classmethod
+    def tearDownClass(cls) -> None:
+        from app.workflows import config as wf_config
+
+        wf_config._worker_process = False
+        for key, value in cls._saved_env.items():
+            if value is None:
+                os.environ.pop(key, None)
+            else:
+                os.environ[key] = value
+
+    async def test_schedules_register_and_tick(self) -> None:
+        """ensure_schedules 幂等注册；trigger 触发一次真实 tick workflow。"""
+        from temporalio.worker import Worker
+        from app.workflows import maintenance as wf_maintenance
+        from app.workflows import runtime as wf_runtime
+
+        async def trash_stub() -> None:
+            pass  # cleanup_expired 在空沙箱数据根上本就无事务可做
+
+        wf_runtime.reset_client_cache()
+        client = await wf_runtime.get_client()
+        worker = Worker(
+            client, task_queue=wf_runtime.TASK_QUEUE_MAINTENANCE,
+            workflows=list(wf_maintenance.MAINTENANCE_WORKFLOWS),
+            activities=list(wf_maintenance.MAINTENANCE_ACTIVITIES))
+        try:
+            async with worker:
+                first = await wf_maintenance.ensure_schedules(client=client)
+                second = await wf_maintenance.ensure_schedules(client=client)
+                self.assertIn("maintenance-trash", first)
+                self.assertEqual(
+                    second["maintenance-trash"], "existing")
+                described = await client.get_schedule_handle(
+                    "maintenance-trash").describe()
+                self.assertTrue(described.schedule.spec.intervals)
+                # 手动触发一轮，确认 Schedule → workflow → activity 链路。
+                await client.get_schedule_handle(
+                    "maintenance-trash").trigger()
+                deadline = asyncio.get_running_loop().time() + 60
+                tick_done = False
+                while asyncio.get_running_loop().time() < deadline:
+                    async for row in client.list_workflows(
+                            query="ExecutionStatus = 'Completed'"):
+                        if row.workflow_id.startswith(
+                                "maintenance-tick-trash-"):
+                            tick_done = True
+                            break
+                    if tick_done:
+                        break
+                    await asyncio.sleep(0.5)
+                self.assertTrue(tick_done)
+                for schedule_id in first:
+                    await client.get_schedule_handle(schedule_id).delete()
+        finally:
+            await worker.shutdown()
+            wf_runtime.reset_client_cache()
+
+    async def test_account_purge_workflow(self) -> None:
+        from temporalio.worker import Worker
+        from app.workflows import maintenance as wf_maintenance
+        from app.workflows import runtime as wf_runtime
+
+        wf_runtime.reset_client_cache()
+        client = await wf_runtime.get_client()
+        worker = Worker(
+            client, task_queue=wf_runtime.TASK_QUEUE_MAINTENANCE,
+            workflows=list(wf_maintenance.MAINTENANCE_WORKFLOWS),
+            activities=list(wf_maintenance.MAINTENANCE_ACTIVITIES))
+        try:
+            async with worker:
+                # 沙箱数据根 + 不存在的账号：purge 链幂等完成并返回报告。
+                report = await wf_maintenance.purge_account_durable(
+                    f"usr_gone_{uuid.uuid4().hex[:8]}")
+            self.assertIsInstance(report, dict)
+            self.assertIn("status", report)
+        finally:
+            await worker.shutdown()
+            wf_runtime.reset_client_cache()
+
+
 if __name__ == "__main__":  # pragma: no cover
     unittest.main()

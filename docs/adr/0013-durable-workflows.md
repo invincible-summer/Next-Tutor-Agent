@@ -39,5 +39,5 @@ ADR-0004 以来，所有后台长任务（教材解析/OCR/图谱构建、课堂
 | textbook（构建 intent + 手动刷新；恢复移 worker 启动） | documents | done |
 | classroom（生成 job；监督 workflow + adopt 收养） | classroom | done |
 | illustration（quiz + scenario；epoch 磁盘化 + settle 兜底） | media | done |
-| learner evaluation（worker + daily planner 监督；as-built 为 supervisor 模式，每日关窗 Schedule 见 C5） | evaluation | done |
-| maintenance（retention/briefing/purge） | maintenance | pending |
+| learner evaluation（worker + daily planner 监督，as-built 为 supervisor 模式——每日关窗与 worker 同进程，notify 唤醒链保持） | evaluation | done |
+| maintenance（briefing/trash/draft Schedules + 账号 purge workflow） | maintenance | done |

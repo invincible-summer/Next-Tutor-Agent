@@ -14,7 +14,6 @@ from starlette.concurrency import run_in_threadpool
 from pydantic import BaseModel, Field, field_validator
 from typing import Any
 
-from app.core.account_data import purge_account
 from app.identity.deps import require_user, resolve_student_id
 from app.identity.models import User, VALID_GRADES
 from app.identity import avatars
@@ -174,18 +173,20 @@ class DeleteAccountRequest(BaseModel):
 
 
 @router.delete("/account")
-def delete_account(req: DeleteAccountRequest, user: User = Depends(require_user)):
+async def delete_account(req: DeleteAccountRequest, user: User = Depends(require_user)):
     """Self-service account deletion. Requires password re-confirmation so a
     borrowed session alone cannot destroy the account.
 
     名下全部数据（会话/转写/trace/上传/工作区/资料库/回收站/笔记/学习档案/
     知识图谱）随账号不可恢复地清除（account_data.purge_account），账号记录
     最后删，中途失败可重试且不残留孤儿数据；JWT 随账号记录消失（get_by_id
-    misses -> 401 everywhere）。"""
+    misses -> 401 everywhere）。durable 模式下经 maintenance workflow 执行
+    （ADR-0013 C5），file 模式线程内同步执行，响应契约一致。"""
     if not verify_password(req.password, user.password_hash):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,
                             detail="invalid_password")
-    report = purge_account(user.id)
+    from app.workflows.maintenance import purge_account_durable
+    report = await purge_account_durable(user.id)
     return {"status": "deleted", "report": report}
 
 

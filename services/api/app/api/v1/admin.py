@@ -139,14 +139,18 @@ def clear_user_chat(user_id: str, req: ClearChatRequest,
 
 
 @router.delete("/users/{user_id}")
-def delete_user_admin(user_id: str, admin: User = Depends(require_admin)) -> dict:
-    """彻底删除账号及名下全部数据，不可恢复。管理员账号（含自己）不可删。"""
+async def delete_user_admin(user_id: str, admin: User = Depends(require_admin)) -> dict:
+    """彻底删除账号及名下全部数据，不可恢复。管理员账号（含自己）不可删。
+
+    durable 模式下经 maintenance workflow 执行（ADR-0013 C5，大账号删除
+    不被请求超时中断），file 模式线程内同步执行，响应契约一致。"""
     target = id_store.get_by_id(user_id)
     if target is None:
         raise HTTPException(404, "用户不存在")
     if target.role == "admin":
         raise HTTPException(400, "不能删除管理员账号")
-    report = account_data.purge_account(user_id)
+    from app.workflows.maintenance import purge_account_durable
+    report = await purge_account_durable(user_id)
     return {"status": "purged", "user_id": user_id, "report": report}
 
 

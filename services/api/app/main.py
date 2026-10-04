@@ -209,6 +209,7 @@ async def _lifespan(app: FastAPI):
         voices_task = None
     try:
         from app.core.trash import get_global_policy
+        from app.workflows.config import temporal_configured
 
         async def _trash_cleanup_loop():
             while True:
@@ -220,7 +221,10 @@ async def _lifespan(app: FastAPI):
                     log.warning("trash cleanup loop iteration failed",
                                 exc_info=True)
 
-        cleanup_task = asyncio.create_task(_trash_cleanup_loop())
+        # durable lane（ADR-0013 C5）：定时清扫由 maintenance Schedule 持有
+        # （worker 启动幂等注册）；API 进程不再起循环。
+        cleanup_task = None if temporal_configured() else \
+            asyncio.create_task(_trash_cleanup_loop())
     except Exception:
         log.warning("trash cleanup loop not started", exc_info=True)
         cleanup_task = None
@@ -257,8 +261,11 @@ async def _lifespan(app: FastAPI):
                                   exc_info=True)
                     await asyncio.sleep(3600.0)
 
-            assistant_draft_task = asyncio.create_task(
-                _assistant_draft_purge_loop())
+            # durable lane（ADR-0013 C5）：草稿清扫由 maintenance Schedule
+            # 持有；API 进程不再起循环（runtime 的 turns/恢复不受影响）。
+            from app.workflows.config import temporal_configured
+            assistant_draft_task = None if temporal_configured() else \
+                asyncio.create_task(_assistant_draft_purge_loop())
     except Exception:
         log.warning("assistant runtime not started", exc_info=True)
         assistant_runtime = None

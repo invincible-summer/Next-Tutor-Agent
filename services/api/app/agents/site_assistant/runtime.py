@@ -88,9 +88,12 @@ class AssistantRuntime:
     async def start(self) -> None:
         await asyncio.to_thread(self._recover_interrupted)
         # §25.3-1 一分钟粒度订阅调度（SITE_ASSISTANT_PROACTIVE_ENABLED
-        # 独立开关；用户订阅仍默认逐项关闭）。
+        # 独立开关；用户订阅仍默认逐项关闭）。durable 模式（ADR-0013 C5）
+        # 下调度由 maintenance Schedule 驱动，API 进程不再起本地循环；
+        # turns/恢复逻辑不迁移（请求生命周期）。
         from . import notifications
-        if notifications.scheduler_enabled():
+        from app.workflows.config import temporal_configured
+        if notifications.scheduler_enabled() and not temporal_configured():
             self._scheduler_task = asyncio.create_task(
                 self._scheduler_loop())
 

@@ -53,6 +53,7 @@ def build_lanes() -> dict[str, Lane]:
         TASK_QUEUE_CLASSROOM,
         TASK_QUEUE_DOCUMENTS,
         TASK_QUEUE_EVALUATION,
+        TASK_QUEUE_MAINTENANCE,
         TASK_QUEUE_MEDIA,
     )
     from app.workflows.textbook import TEXTBOOK_ACTIVITIES, TEXTBOOK_WORKFLOWS
@@ -86,6 +87,14 @@ def build_lanes() -> dict[str, Lane]:
         activities=(QUIZ_ILLUSTRATION_ACTIVITIES
                     + SCENARIO_ILLUSTRATION_ACTIVITIES),
         notes="quiz + scenario illustration jobs (ADR-0013 C3)")
+    from app.workflows.maintenance import (
+        MAINTENANCE_ACTIVITIES,
+        MAINTENANCE_WORKFLOWS,
+    )
+    lanes[TASK_QUEUE_MAINTENANCE] = Lane(
+        workflows=MAINTENANCE_WORKFLOWS, activities=MAINTENANCE_ACTIVITIES,
+        notes="briefing/trash/draft ticks (Schedules) + account purge "
+              "(ADR-0013 C5)")
     return lanes
 
 
@@ -169,7 +178,12 @@ def _parse_args(argv: Sequence[str]) -> argparse.Namespace:
 async def _serve(queues: Sequence[str]) -> int:
     from temporalio.worker import Worker
 
-    from app.workflows.runtime import TASK_QUEUE_DOCUMENTS, TASK_QUEUE_MEDIA, get_client
+    from app.workflows.runtime import (
+        TASK_QUEUE_DOCUMENTS,
+        TASK_QUEUE_MAINTENANCE,
+        TASK_QUEUE_MEDIA,
+        get_client,
+    )
 
     client = await get_client()
     if TASK_QUEUE_DOCUMENTS in queues:
@@ -184,6 +198,14 @@ async def _serve(queues: Sequence[str]) -> int:
         except Exception:
             log.exception("media recovery failed; interrupted jobs without a "
                           "live workflow stay queued until the next restart")
+    if TASK_QUEUE_MAINTENANCE in queues:
+        try:
+            from app.workflows.maintenance import ensure_schedules
+            outcome = await ensure_schedules(client=client)
+            log.info("maintenance schedules: %s", outcome)
+        except Exception:
+            log.exception("maintenance schedule registration failed; ticks "
+                          "resume on the next worker restart")
     lanes = build_lanes()
     workers: list[Worker] = []
     for queue in queues:
