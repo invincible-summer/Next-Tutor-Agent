@@ -1,0 +1,10 @@
+# Optional observability lane (OpenTelemetry traces) for enterprise deployments.
+# The API must run without this file installed: tracing is wired lazily behind
+# OTEL_TRACES_ENABLED and degrades to a no-op when the packages are absent.
+-c constraints.txt
+
+opentelemetry-api>=1.44
+opentelemetry-sdk>=1.44
+opentelemetry-exporter-otlp-proto-grpc>=1.44
+opentelemetry-instrumentation-fastapi>=0.65b0
+opentelemetry-instrumentation-httpx>=0.65b0

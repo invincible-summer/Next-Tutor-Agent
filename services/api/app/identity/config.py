@@ -71,6 +71,10 @@ AUTH_JWT_SECRET = (os.getenv("AUTH_JWT_SECRET")
 AUTH_JWT_ALGORITHM = os.getenv("AUTH_JWT_ALGORITHM", "HS256")
 AUTH_TOKEN_EXPIRE_DAYS = int(os.getenv("AUTH_TOKEN_EXPIRE_DAYS", "30"))
 AUTH_BCRYPT_ROUNDS = int(os.getenv("AUTH_BCRYPT_ROUNDS", "12"))
+# Enterprise rotating sessions (only active with DATABASE_URL): short-lived
+# RS256 access tokens + 30-day rotating refresh families.
+AUTH_ACCESS_TOKEN_SECONDS = int(os.getenv("AUTH_ACCESS_TOKEN_SECONDS", "900"))
+AUTH_REFRESH_SESSION_DAYS = int(os.getenv("AUTH_REFRESH_SESSION_DAYS", "30"))
 
 USERS_DIR = paths.bind_storage_path(__name__, "USERS_DIR", "users")
 
@@ -82,6 +86,13 @@ def users_dir() -> Path:
 
 def using_default_secret() -> bool:
     return AUTH_JWT_SECRET == _DEFAULT_SECRET
+
+
+def enterprise_sessions_enabled() -> bool:
+    """Rotating auth sessions exist only in enterprise mode (DATABASE_URL)."""
+    from app.persistence import db
+
+    return db.enterprise_mode()
 
 
 def ensure_secret_safety() -> None:

@@ -191,7 +191,7 @@ def voice_ticket(student_id: str = Depends(resolve_student_id)):
 async def voice_ws(websocket: WebSocket):
     """One push-to-talk voice call; one connection = one session binding."""
     # Header auth first (non-browser clients); ticket otherwise.
-    user = _try_user_from_header(websocket.headers.get("Authorization"))
+    user = await _try_user_from_header(websocket.headers.get("Authorization"))
     if user is not None:
         student_id = user.id
     else:

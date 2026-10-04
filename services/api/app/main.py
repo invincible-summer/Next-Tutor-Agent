@@ -58,6 +58,24 @@ async def _lifespan(app: FastAPI):
         from app.identity.store import ensure_admin_account
         ensure_admin_account()
 
+    # 企业持久化探活：DATABASE_URL 未配置（文件模式）恒 ok；企业模式下
+    # 数据库不可达必须 fail-fast（critical），Redis 不可达仅记录（非事实源）。
+    async def _persistence_probe() -> dict:
+        from app.persistence.health import probe_persistence
+        return await probe_persistence()
+
+    from app.persistence import db as persistence_db
+    await run_bootstrap_step(report, "persistence", _persistence_probe,
+                             critical=persistence_db.enterprise_mode())
+
+    # 可观测性：OTel lazy 装配（OTEL_TRACES_ENABLED=1 且观测 lane 已安装
+    # 才生效；缺包/不可达一律降级 no-op，不影响服务）。
+    async def _init_observability() -> None:
+        from app.observability import tracing
+        tracing.init_tracing(app)
+
+    await run_bootstrap_step(report, "observability", _init_observability)
+
     # 保留启动报告步骤；学生模型仅在登录账号首次使用时加载。
     def _warm_default_student_model() -> None:
         # Guests have no persistent student model. Registered models load lazily.
@@ -216,6 +234,19 @@ async def _lifespan(app: FastAPI):
         yield
     finally:
         purge_guests()
+        # OTel span flush（未启用时为 no-op）。
+        try:
+            from app.observability import tracing
+            tracing.shutdown_tracing()
+        except Exception:
+            log.warning("shutdown: tracing flush failed", exc_info=True)
+        # 企业持久化：关闭连接池（文件模式下为 no-op）。
+        try:
+            from app.persistence import db as persistence_db
+            await persistence_db.dispose_engine_async()
+        except Exception:
+            log.warning("shutdown: persistence engine dispose failed",
+                        exc_info=True)
         guest_sweep_task.cancel()
         try:
             await guest_sweep_task
@@ -310,16 +341,20 @@ def create_app() -> FastAPI:
     # P2-C：file-backed 业务状态 + 进程内锁只支持单 worker。
     # WEB_CONCURRENCY>1（uvicorn/gunicorn 常用扩展变量）会在多进程下产生
     # 并发写同一 JSON 的竞态——显式 fail-fast，而不是默默数据损坏。
+    # 企业模式（DATABASE_URL）例外：持久化/锁/会话真相在 PostgreSQL 与
+    # Redis，多实例/多 worker 是该模式的运行形态。
     import os as _os
     try:
         _wc = int(_os.getenv("WEB_CONCURRENCY", "1") or "1")
     except ValueError:
         _wc = 1
-    if _wc > 1:
+    from app.persistence import db as _persistence_db
+    if _wc > 1 and not _persistence_db.enterprise_mode():
         raise RuntimeError(
             "WEB_CONCURRENCY>1 is unsupported: file-backed persistence uses "
             "process-local locks — run exactly one uvicorn worker "
-            "(deploy/edu-backend.service pins --workers 1).")
+            "(deploy/self-hosted/edu-backend.service pins --workers 1), or configure "
+            "DATABASE_URL for enterprise multi-instance persistence.")
     # Fail fast on the insecure default JWT secret when login is enforced.
     from app.identity.config import ensure_secret_safety
     ensure_secret_safety()
@@ -334,6 +369,9 @@ def create_app() -> FastAPI:
         openapi_url=None if _production else "/openapi.json",
     )
     app.middleware("http")(_process_time_header)
+    # X-Request-ID 进出贯通（§17.3 跨端关联）：客户端可带 id，服务端回显同值。
+    from app.observability.request_id import RequestIdMiddleware
+    app.add_middleware(RequestIdMiddleware)
     origins = _cors_origins()
     app.add_middleware(
         CORSMiddleware,

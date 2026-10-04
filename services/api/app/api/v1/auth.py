@@ -1,4 +1,4 @@
-"""M0 Auth API: register / login / logout / me / status.
+"""M0 Auth API: register / login / logout / me / status + enterprise sessions.
 
 These endpoints create and verify user identities. The chat stream and all
 projection APIs resolve the student_id from the JWT these endpoints issue --
@@ -8,14 +8,22 @@ Security notes:
   - password_hash is NEVER returned by any endpoint (User.to_public_dict).
   - JWT secret lives only in config, used only in security.py.
   - Guest learning is independently controlled by the live admin policy.
+
+Enterprise mode (DATABASE_URL set) additionally issues rotating sessions:
+login/register responses gain ``access_token``/``refresh_token``/
+``expires_in`` alongside the legacy ``token`` (the current Web client keeps
+working unchanged during the migration window). ``/auth/refresh``,
+``/auth/sessions`` and ``DELETE /auth/sessions/{id}`` manage the session
+families; they answer 409 ``enterprise_auth_required`` in file mode instead
+of pretending sessions exist.
 """
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from pydantic import BaseModel, EmailStr, Field, field_validator
 
 from app.identity import config, is_auth_required
-from app.identity.deps import optional_user, require_user
+from app.identity.deps import optional_user, require_user, resolve_principal
 from app.identity.models import User, UserProfile
 from app.identity.security import create_token, hash_password, verify_password
 from app.identity.store import (create_user, email_exists, get_by_email,
@@ -30,7 +38,7 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 class RegisterRequest(BaseModel):
     email: EmailStr
     # bcrypt 只取前 72 字节参与哈希：上限与之一致，超限在 validator 里
-    # 显式拒绝而不是静默截断（截断会让"长密码"的后半段形同虚设）。
+    # 显式拒绝而不是静截断（截断会让"长密码"的后半段形同虚设）。
     password: str = Field(min_length=8, max_length=128)
     username: str = Field(default="", max_length=40)
     name: str = Field(default="", max_length=40)
@@ -58,12 +66,76 @@ class LoginRequest(BaseModel):
 class AuthResponse(BaseModel):
     token: str
     user: dict
+    # Enterprise rotating sessions; excluded from the response while empty
+    # (file mode keeps the exact legacy payload shape).
+    access_token: str = ""
+    refresh_token: str = ""
+    expires_in: int | None = None
 
 
 class StatusResponse(BaseModel):
     auth_required: bool
     guest_allowed: bool
     using_default_secret: bool
+
+
+class RefreshRequest(BaseModel):
+    refresh_token: str = Field(min_length=8, max_length=256)
+
+
+class RefreshResponse(BaseModel):
+    access_token: str
+    refresh_token: str
+    expires_in: int
+
+
+class SessionInfo(BaseModel):
+    id: str
+    created_at: float
+    expires_at: float
+    last_refreshed_at: float | None = None
+    revoked_at: float | None = None
+    revoked_reason: str | None = None
+    client: dict = {}
+
+
+def _enterprise_error(code: str, message: str) -> HTTPException:
+    return HTTPException(
+        status_code=status.HTTP_409_CONFLICT,
+        detail={"error": {"code": code, "message": message,
+                          "retryable": False}})
+
+
+def _session_service():
+    from app.identity.sessions import get_session_service
+
+    service = get_session_service()
+    if service is None:
+        raise _enterprise_error(
+            "enterprise_auth_required",
+            "轮换会话需要企业持久化（配置 DATABASE_URL）；文件模式请继续"
+            "使用现有 token。")
+    return service
+
+
+def _request_id(request: Request) -> str:
+    return (request.headers.get("x-request-id") or "")[:80]
+
+
+async def _issue_enterprise_tokens(*, user: User, tenant_id: str | None,
+                                   request: Request) -> dict:
+    """Issue the rotating-session payload for a freshly logged-in user."""
+    from app.identity.backend import identity_backend
+
+    service = _session_service()
+    client = {"platform": request.headers.get("x-client-platform", ""),
+              "user_agent": request.headers.get("user-agent", "")}
+    issued = await service.start_session(
+        user_id=user.id, token_version=user.token_version,
+        tenant_id=tenant_id, client=client,
+        request_id=_request_id(request))
+    issued.pop("session_id", None)  # internal; clients don't need it yet
+    return issued
 
 
 # --- endpoints --------------------------------------------------------------
@@ -88,17 +160,45 @@ def auth_status(response: Response,
 
 
 @router.post("/register", response_model=AuthResponse,
+             response_model_exclude_defaults=True,
              dependencies=[Depends(rate_limit("auth_register", 5))])
-def register(req: RegisterRequest):
+async def register(req: RegisterRequest, request: Request):
     """Create a new user account. The user_id becomes the student namespace
     key for all M2-M9 data."""
-    if email_exists(req.email):
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT,
-                            detail="email_already_registered")
     profile = UserProfile(
         name=req.name or req.username or req.email.split("@")[0],
         grade=req.grade, subjects=list(req.subjects), school=req.school,
     )
+    from app.persistence import db as persistence_db
+    if persistence_db.enterprise_mode():
+        from app.identity.backend import EnterpriseIdentityBackend, \
+            identity_backend
+
+        backend = identity_backend()
+        assert isinstance(backend, EnterpriseIdentityBackend)
+        if await backend.email_exists(req.email):
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT,
+                                detail="email_already_registered")
+        try:
+            user, tenant_id = await backend.register_account(
+                email=req.email, username=req.username,
+                password_hash=hash_password(req.password),
+                role="student", profile=profile)
+        except HTTPException:
+            raise
+        except Exception:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="enterprise_registration_failed")
+        issued = await _issue_enterprise_tokens(
+            user=user, tenant_id=tenant_id, request=request)
+        return AuthResponse(
+            token=create_token(user.id, token_version=user.token_version),
+            user=user.to_public_dict(), **issued)
+    # 文件模式：行为与之前完全一致。
+    if email_exists(req.email):
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT,
+                            detail="email_already_registered")
     user = create_user(
         email=req.email, username=req.username,
         password_hash=hash_password(req.password),
@@ -117,16 +217,19 @@ _LOGIN_FAIL_WINDOW = 900
 
 
 @router.post("/login", response_model=AuthResponse,
+             response_model_exclude_defaults=True,
              dependencies=[Depends(rate_limit("auth_login", 10))])
-def login(req: LoginRequest):
-    """Authenticate and issue a JWT."""
+async def login(req: LoginRequest, request: Request):
+    """Authenticate and issue a JWT (plus rotating session in enterprise)."""
     acct_key = f"acct:{req.email.strip().lower()}"
     # 账号已锁定 → 直接 429：不为爆破流量付出 bcrypt 校验成本。
     if rate_limited("auth_login_fail", acct_key,
                     _LOGIN_FAIL_MAX, _LOGIN_FAIL_WINDOW):
         raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS,
                             detail="too_many_attempts")
-    user = get_by_email(req.email)
+    from app.identity.backend import identity_backend
+    backend = identity_backend()
+    user = await backend.get_by_email(req.email)
     if not user or not verify_password(req.password, user.password_hash):
         # 按账号的失败节流（独立于按 IP 的依赖规则）：轮换来源 IP 的暴力
         # 猜解也必须在单账号上减速。只计失败尝试，正确密码不受影响。
@@ -136,8 +239,20 @@ def login(req: LoginRequest):
                             detail="invalid_credentials")
     # 成功登录清空失败计数：正常用户偶尔输错不留下半锁定状态。
     reset_rate("auth_login_fail", acct_key)
-    touch_login(user.id)
+    await backend.touch_login(user.id)
     token = create_token(user.id, token_version=user.token_version)
+    from app.persistence import db as persistence_db
+    if persistence_db.enterprise_mode():
+        from app.identity.backend import EnterpriseIdentityBackend
+
+        assert isinstance(backend, EnterpriseIdentityBackend)
+        tenant_id = await backend.active_tenant_id(user.id)
+        issued = await _issue_enterprise_tokens(
+            user=user, tenant_id=tenant_id, request=request)
+        service = _session_service()
+        await service.audit_login(user_id=user.id, tenant_id=tenant_id,
+                                  request_id=_request_id(request))
+        return AuthResponse(token=token, user=user.to_public_dict(), **issued)
     return AuthResponse(token=token, user=user.to_public_dict())
 
 
@@ -152,3 +267,68 @@ def logout(_user: User = Depends(require_user)):
 def me(user: User = Depends(require_user)):
     """Return the current user's public profile."""
     return {"status": "ok", "user": user.to_public_dict()}
+
+
+# --- enterprise session endpoints -------------------------------------------
+
+@router.post("/refresh", response_model=RefreshResponse,
+             dependencies=[Depends(rate_limit("auth_refresh", 30))])
+async def refresh(body: RefreshRequest, request: Request):
+    """Rotate a refresh token; reuse of a rotated token revokes the family."""
+    from app.identity.sessions import SessionError
+
+    service = _session_service()
+    try:
+        issued = await service.refresh(
+            raw_refresh_token=body.refresh_token,
+            request_id=_request_id(request))
+    except SessionError as exc:
+        code = exc.code
+        http_status = (401 if code in {
+            "invalid_refresh_token", "session_revoked", "session_expired",
+            "refresh_token_expired", "refresh_token_reused"} else 400)
+        raise HTTPException(
+            status_code=http_status,
+            detail={"error": {"code": code,
+                              "message": "刷新令牌无效或已被撤销。",
+                              "retryable": False}}) from exc
+    return RefreshResponse(access_token=issued["access_token"],
+                           refresh_token=issued["refresh_token"],
+                           expires_in=issued["expires_in"])
+
+
+@router.get("/sessions")
+async def list_sessions(user: User = Depends(require_user)):
+    """Active + recently revoked refresh sessions for the current user."""
+    service = _session_service()
+    sessions = await service.list_sessions(user.id)
+    return {"status": "ok",
+            "sessions": [SessionInfo(**s).model_dump() for s in sessions]}
+
+
+@router.delete("/sessions/{session_id}")
+async def revoke_session(session_id: str, request: Request,
+                         user: User = Depends(require_user)):
+    """Revoke one of the current user's session families (logout a device)."""
+    service = _session_service()
+    revoked = await service.revoke_session(
+        owner_user_id=user.id, session_id=session_id,
+        actor_user_id=user.id, reason="user_logout",
+        request_id=_request_id(request))
+    if not revoked:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
+                            detail="session_not_found")
+    return {"status": "ok"}
+
+
+@router.get("/principal")
+async def principal(principal=Depends(resolve_principal)):
+    """Enterprise tenant context for the current request (debug/console)."""
+    return {"status": "ok", "principal": {
+        "user_id": principal.user_id,
+        "tenant_id": principal.tenant_id,
+        "membership_id": principal.membership_id,
+        "tenant_role": principal.tenant_role,
+        "platform_role": principal.platform_role,
+        "auth_session_id": principal.auth_session_id,
+    }}

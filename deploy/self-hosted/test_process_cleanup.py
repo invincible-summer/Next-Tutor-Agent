@@ -74,8 +74,8 @@ class ProcessCleanupTests(unittest.TestCase):
                                   "s.bind(('127.0.0.1',0)); s.listen(); "
                                   "print(s.getsockname()[1],flush=True); time.sleep(60)")
         port = int(replacement.stdout.readline())
-        repo = Path(__file__).resolve().parents[1]
-        script = (repo / "start.sh").read_text()
+        repo = Path(__file__).resolve().parents[2]
+        script = (repo / "scripts/dev/start.sh").read_text()
         cleanup = script[script.index("cleanup() {"):script.index("\npick_port() {")]
         env = {**os.environ, "ROOT": str(repo), "PYTHON_BIN": sys.executable,
                "BACK_PID": str(old.pid), "FRONT_PID": "", "VOICE_PID": "",
@@ -112,9 +112,14 @@ class ProcessCleanupTests(unittest.TestCase):
         self.assertEqual(proc.wait(timeout=5), -signal.SIGKILL)
 
     def test_noninteractive_launch_survives_external_parent_group_signals(self):
-        repo = Path(__file__).resolve().parents[1]
-        source = (repo / "start.sh").read_text()
+        repo = Path(__file__).resolve().parents[2]
+        source = (repo / "scripts/dev/start.sh").read_text()
         prefix = source[:source.index("# This deployment runs")]
+        # The launcher computes ROOT as its own location's ../.. (it lives at
+        # scripts/dev/); the temp copy sits at the sandbox root, so point ROOT
+        # at the sandbox itself for the detached re-exec.
+        prefix = prefix.replace('ROOT="$(cd "$(dirname "$0")/../.." && pwd)"',
+                                'ROOT="$(cd "$(dirname "$0")" && pwd)"')
         # Exercise the real detach entry point with a synthetic worker. No real
         # backend, ports, credentials, runtime storage or browser is involved.
         launcher = self.root / "start.sh"
@@ -145,27 +150,34 @@ time.sleep(60)
         stop_trees(self.root, [worker], grace=0.1)
 
     def test_stop_does_not_scan_unregistered_services_in_repository(self):
-        repo = Path(__file__).resolve().parents[1]
-        source = (repo / "start.sh").read_text()
+        repo = Path(__file__).resolve().parents[2]
+        source = (repo / "scripts/dev/start.sh").read_text()
         stop = source[source.index("stop_all() {"):source.index('\ncase "${1:-all}"')]
+        # stop_all ends by clearing the /tmp pid markers through this helper;
+        # slice it out too so the isolated shell defines everything it calls.
+        helper_fn = source[source.index("write_runtime_file() {"):
+                           source.index("\n\n# start.sh starts the latest")]
         unrelated = self.launch("print('ready',flush=True); import time; time.sleep(60)", title="next-server")
         unrelated.stdout.readline()
         # Former command matcher would have selected this same-cwd process.
         env = {**os.environ, "ROOT": str(self.root), "PYTHON_BIN": sys.executable,
                "RUNTIME_DIR": str(self.root / ".runtime")}
-        helper = self.root / "deploy"
-        helper.mkdir()
-        helper.joinpath("process_cleanup.py").write_text((repo / "deploy/process_cleanup.py").read_text())
+        helper = self.root / "deploy" / "self-hosted"
+        helper.mkdir(parents=True)
+        helper.joinpath("process_cleanup.py").write_text((repo / "deploy/self-hosted/process_cleanup.py").read_text())
         # Override legacy PID-file lookup in this isolated shell; it must never
         # interact with the actual launcher's /tmp/edu_* files.
         script = stop.replace('"/tmp/edu_${name}_pid"', '"$ROOT/legacy_${name}_pid"')
         script = script.replace(': > /tmp/edu_', ': > "$ROOT"/edu_')
+        script = script.replace('write_runtime_file /tmp/edu_',
+                                'write_runtime_file "$ROOT"/edu_')
+        script = helper_fn + "\n" + script
         subprocess.run(["bash", "-c", script + "\nstop_all"], env=env, check=True)
         self.assertIsNone(unrelated.poll())
 
     def test_failed_child_does_not_stop_other_live_service(self):
-        repo = Path(__file__).resolve().parents[1]
-        source = (repo / "start.sh").read_text()
+        repo = Path(__file__).resolve().parents[2]
+        source = (repo / "scripts/dev/start.sh").read_text()
         monitor = source[source.index("# Wait only for owned servers"):]
         script = """set -e
 BACK_PID=''; FRONT_PID=''; VOICE_PID=''

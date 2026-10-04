@@ -4,7 +4,7 @@
 
 ## 1. Repository map
 
-Textbook-driven AI teaching monorepo: `apps/web/` (Next.js), `services/api/` (FastAPI; routes `app/api/v1/`, agents `app/agents/`, shared infra `app/core/`, tests `tests/`), `services/voice/` (optional MeloTTS sidecar), `fixtures/demo/` (the only demo content source — synthetic), `scripts/` (per-domain READMEs), `deploy/` (templates).
+Textbook-driven AI teaching monorepo: `apps/web/` (Next.js), `services/api/` (FastAPI; routes `app/api/v1/`, agents `app/agents/`, shared infra `app/core/`, enterprise persistence `app/persistence/`, observability `app/observability/`, tests `tests/`), `services/voice/` (optional MeloTTS sidecar), `fixtures/demo/` (the only demo content source — synthetic), `scripts/` (per-domain READMEs), `deploy/` (`local/` infra compose + `self-hosted/` templates).
 
 All runtime state resolves through one data root (`NEXT_TUTOR_DATA_DIR`, `services/api/app/core/paths.py`). Never commit runtime data, uploads, conversations, traces, or `.env`; the repo ships no textbook or derived assets. Docs entry: [`docs/README.md`](docs/README.md).
 
@@ -17,6 +17,8 @@ For anything beyond mechanical edits, open the module README plus its canonical 
 | Frontend | `apps/web` | `frontend.md` |
 | Shared client packages | `packages/*` + `apps/web/src/platform` | `client-platform.md` |
 | Identity / accounts | `app/identity` | `identity.md` |
+| Enterprise persistence | `app/persistence` + `services/api/migrations` + `scripts/migrations` | `enterprise-infra.md`（`docs/development/`） |
+| Observability | `app/observability` | `backend-runtime.md`（Observability 节） |
 | Chat / supervisor | `app/agents` root + `api/v1/chat.py` | `conversation.md` |
 | Student model | `agents/student_model` | `student-model.md` |
 | Teaching engine | `agents/teaching_engine` | `teaching-engine.md` |

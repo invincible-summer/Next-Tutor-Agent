@@ -26,7 +26,7 @@
 
 Sidecar `services/voice/`：`app.py`（`GET /health`、`POST /tts`，请求 `{"text","speed"}` 返回 44.1 kHz WAV）、`melo_bootstrap.py`（固定 revision MeloTTS 引导：非中文 cleaner/BERT backend 用 fail-loud stubs，定向屏蔽固定依赖栈的两条 FutureWarning）、`requirements.txt`；`vendor/`、`models/`、`.venv/` 均为部署期产物、gitignored（ADR-0001）。
 
-部署：`deploy/install_voice.sh`（CPU-only PyTorch、中文 MeloTTS 直接运行依赖、固定 revision 源码、模型缓存与一次中文 warmup）、`deploy/edu-voice-sidecar.service`、`scripts/dev/start.sh::start_voice_sidecar`（启动判定、端口回退 8130–8132、PID 与 90s 健康检查）。
+部署：`deploy/self-hosted/install_voice.sh`（CPU-only PyTorch、中文 MeloTTS 直接运行依赖、固定 revision 源码、模型缓存与一次中文 warmup）、`deploy/self-hosted/edu-voice-sidecar.service`、`scripts/dev/start.sh::start_voice_sidecar`（启动判定、端口回退 8130–8132、PID 与 90s 健康检查）。
 
 前端 `apps/web/src/`：`lib/voice/useVoiceCall.ts`（通话状态机与 WS 客户端）、`lib/voice/browser-recognition.ts`（浏览器识别封装）、`components/chat/VoiceCallLayer.tsx`（通话 UI、板书黑板与播放 FIFO）。许可声明见 `docs/VOICE_LICENSES.md` 与 `THIRD-PARTY-NOTICES.md`。
 
@@ -129,7 +129,7 @@ C→S {"type":"end"}  S→C {"type":"bye"}
 | `AZURE_SPEECH_KEY`/`AZURE_SPEECH_REGION`/`AZURE_SPEECH_ENDPOINT` | — | 电话/课堂云端 TTS（`azure`/`auto`） |
 | `CLASSROOM_TTS_CLOUD_CONCURRENCY` | `2` | 共享云端合成并发（电话与课堂共用） |
 
-Sidecar 启动判定（`scripts/dev/start.sh`，任一成立即启动）：`VOICE_TTS_PROVIDER=melo|auto`；或 `CLASSROOM_ENABLED=1` 且 `CLASSROOM_LOCAL_TTS_ENABLED=1` 且课堂策略为 local/auto（cloud 时须 `CLASSROOM_TTS_LOCAL_FALLBACK=1`）。venv 缺失时 fail-open：只提示 `bash deploy/install_voice.sh`，语音降级为文字路径，绝不临时安装大型模型。
+Sidecar 启动判定（`scripts/dev/start.sh`，任一成立即启动）：`VOICE_TTS_PROVIDER=melo|auto`；或 `CLASSROOM_ENABLED=1` 且 `CLASSROOM_LOCAL_TTS_ENABLED=1` 且课堂策略为 local/auto（cloud 时须 `CLASSROOM_TTS_LOCAL_FALLBACK=1`）。venv 缺失时 fail-open：只提示 `bash deploy/self-hosted/install_voice.sh`，语音降级为文字路径，绝不临时安装大型模型。
 
 ## Observability（trace/日志/指标）
 

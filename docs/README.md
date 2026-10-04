@@ -8,7 +8,7 @@
 | --- | --- | --- |
 | [`architecture/`](./architecture/README.md) | 系统当前如何工作（系统级入口 + 各模块 architecture 文档） | 长期，随代码持续更新（现在时） |
 | [`adr/`](./adr/README.md) | 为什么做出关键架构决定（Architecture Decision Records） | 提交后结论不可改写；被取代时新建 superseding ADR |
-| [`development/`](./development/testing.md) | 开发与测试方法（环境、分层、命令） | 长期，随流程更新 |
+| [`development/`](./development/testing.md) | 开发与测试方法（环境、分层、命令、企业持久化运维） | 长期，随流程更新 |
 | [`operations/`](./operations/deployment.md) | 部署与运行（生产部署、Pages 演示、语义 RAG 运维） | 长期，随部署形态更新 |
 | [`compliance/`](./compliance/content-policy.md) | 版权、第三方与分发边界（内容政策、语音许可证） | 长期，规则稳定 |
 | [`reference/`](./reference/diagram-assets.md) | 生成型/清单型参考（由脚本生成，不可手改） | 随生成器重建 |
@@ -29,6 +29,7 @@
 
 - 想了解整个系统：[`architecture/README.md`](./architecture/README.md)
 - 想跑起来开发/测试：[`development/testing.md`](./development/testing.md)
+- 想接入企业持久化（PostgreSQL/Redis/Alembic/数据迁移）：[`development/enterprise-infra.md`](./development/enterprise-infra.md)
 - 想部署：[`operations/deployment.md`](./operations/deployment.md)
 - 想确认能否提交某类内容：[`compliance/content-policy.md`](./compliance/content-policy.md)
 - 想知道某个决定为什么如此：[`adr/README.md`](./adr/README.md)

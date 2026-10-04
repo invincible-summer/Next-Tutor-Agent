@@ -79,7 +79,7 @@ Full text: [`licenses/Apache-2.0.txt`](licenses/Apache-2.0.txt)
 ## Voice sidecar dependencies
 
 Exact versions are pinned in `services/voice/requirements.txt` (CPU
-PyTorch wheels are installed by `deploy/install_voice.sh`). License full
+PyTorch wheels are installed by `deploy/self-hosted/install_voice.sh`). License full
 texts kept in this repository are linked below; for everything else, preserve
 the notices shipped inside the actual wheels.
 

@@ -10,14 +10,14 @@
 | 层 | 来源 | 是否随仓库分发 |
 |---|---|---|
 | 语音输入（STT） | 浏览器 `SpeechRecognition` 平台 API | 否（浏览器/厂商服务，条款随浏览器） |
-| 本地 TTS（电话/课堂回退） | `deploy/install_voice.sh` 部署时下载 | 否（gitignored 目录） |
+| 本地 TTS（电话/课堂回退） | `deploy/self-hosted/install_voice.sh` 部署时下载 | 否（gitignored 目录） |
 | 课堂云端 TTS（首发 Azure） | 管理员配置 `AZURE_SPEECH_KEY/REGION` | 否（在线服务，按用量计费） |
 
 仓库不捆绑任何模型权重；部署或再分发后，相应开源义务随之生效。
 
 ## 2. 本地 MeloTTS 栈（钉住清单）
 
-安装脚本按固定 revision 下载（`deploy/install_voice.sh`；可用
+安装脚本按固定 revision 下载（`deploy/self-hosted/install_voice.sh`；可用
 `VOICE_MELO_REF` 等环境变量在审计后整体换版）：
 
 | 组件 | 钉住 revision | 许可证 |
@@ -55,7 +55,7 @@ sidecar venv 依赖（CPU torch 等）钉住在 `services/voice/requirements.txt
 
 ## 4. 复核与发布检查表
 
-1. `deploy/install_voice.sh` 全新环境安装，记录实际下载的 revision 哈希
+1. `deploy/self-hosted/install_voice.sh` 全新环境安装，记录实际下载的 revision 哈希
    与模型缓存清单，与本文件 §2 一致。
 2. `python3 -m unittest tests.voice.test_sentence_splitting tests.voice.test_speak_text \
    tests.voice.test_speakable_chunks tests.voice.test_wav_helpers \

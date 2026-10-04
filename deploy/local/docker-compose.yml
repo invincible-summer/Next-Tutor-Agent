@@ -1,0 +1,101 @@
+# Local infrastructure for the enterprise lane (Docker Compose).
+#
+# Compose provides ONLY dependencies — the application itself still runs via
+# ./start.sh (or uvicorn directly) so debugging stays on the host. Point the
+# backend at these services through the env vars noted per service below.
+#
+#   docker compose up -d postgres redis          # enterprise persistence lane
+#   docker compose --profile temporal up -d      # + durable-workflow placeholder
+#   docker compose --profile observability up -d # + OTel collector sink
+#
+# Volumes persist under Docker's named volumes; `docker compose down -v` wipes
+# them. Credentials below are local-loopback defaults — override before
+# exposing any port beyond 127.0.0.1.
+name: next-tutor-local
+
+services:
+  postgres:
+    image: postgres:18
+    environment:
+      POSTGRES_USER: tutor
+      POSTGRES_PASSWORD: tutor
+      POSTGRES_DB: tutor
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U tutor -d tutor"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+  # Backend wiring: DATABASE_URL=postgresql://tutor:tutor@localhost:5432/tutor
+  # (schema management is `alembic upgrade head` from services/api — startup
+  # never runs DDL itself). The CI enterprise lane (backend-enterprise job)
+  # runs the same version against the same migration set.
+
+  redis:
+    image: redis:8
+    ports:
+      - "127.0.0.1:6379:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+  # Backend wiring: REDIS_URL=redis://localhost:6379/0 (optional tier — the
+  # process falls back to in-process primitives when unset/unreachable).
+
+  minio:
+    # S3-compatible object storage stand-in. The local filesystem object
+    # store (data-root object_store/) stays the default until the remote
+    # adapter lands; MinIO exists so bucket wiring can be exercised early.
+    image: minio/minio:RELEASE.2024-08-17T01-24-54Z
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: tutor
+      MINIO_ROOT_PASSWORD: tutor-local
+    ports:
+      - "127.0.0.1:9000:9000"
+      - "127.0.0.1:9001:9001"
+    volumes:
+      - minio-data:/data
+
+  temporal:
+    # Durable workflows (Stage C) are NOT implemented yet — this placeholder
+    # lets TEMPORAL_ADDRESS wiring be exercised before that stage lands.
+    # auto-setup provisions its databases on the postgres service above; the
+    # pin gets revisited when the workflow lane is built.
+    image: temporalio/auto-setup:1.25.2
+    profiles: ["temporal"]
+    environment:
+      DB: postgres12
+      DB_PORT: 5432
+      POSTGRES_USER: tutor
+      POSTGRES_PWD: tutor
+      POSTGRES_SEEDS: postgres
+    ports:
+      - "127.0.0.1:7233:7233"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  otel-collector:
+    # Local trace sink for OTEL_TRACES_ENABLED=1 +
+    # OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317 (observability lane);
+    # opt-in profile — plain `docker compose up` skips it.
+    image: otel/opentelemetry-collector-contrib:0.116.0
+    profiles: ["observability"]
+    command: ["--config=/etc/otelcol/config.yaml"]
+    volumes:
+      - ./otel-collector.yaml:/etc/otelcol/config.yaml:ro
+    ports:
+      - "127.0.0.1:4317:4317"
+      - "127.0.0.1:4318:4318"
+
+volumes:
+  postgres-data:
+  redis-data:
+  minio-data:

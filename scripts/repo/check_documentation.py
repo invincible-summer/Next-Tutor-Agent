@@ -75,6 +75,7 @@ REQUIRED_READMES = [
     "services/api/app/identity/README.md",
     "services/api/app/illustration/README.md",
     "services/api/app/notes/README.md",
+    "services/api/app/persistence/README.md",
     "services/api/app/prompts/README.md",
     "services/api/app/schemas/README.md",
     "services/api/app/tools/README.md",
@@ -86,6 +87,7 @@ REQUIRED_READMES = [
     "scripts/contracts/README.md",
     "scripts/diagrams/README.md",
     "scripts/evaluation/README.md",
+    "scripts/migrations/README.md",
     "scripts/retrieval/README.md",
     "packages/contracts/README.md",
     "packages/api-client/README.md",
@@ -93,6 +95,8 @@ REQUIRED_READMES = [
     "packages/design-tokens/README.md",
     "packages/i18n/README.md",
     "deploy/README.md",
+    "deploy/local/README.md",
+    "deploy/self-hosted/README.md",
 ]
 
 # ---------------------------------------------------------------------------

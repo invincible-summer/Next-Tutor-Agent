@@ -97,7 +97,7 @@ EXIT_REASON="normal"
 
 record_service() {
     local name="$1" pid="$2" reference
-    reference="$("$PYTHON_BIN" "$ROOT/deploy/process_cleanup.py" --identity "$pid")"
+    reference="$("$PYTHON_BIN" "$ROOT/deploy/self-hosted/process_cleanup.py" --identity "$pid")"
     [ -n "$reference" ] || { echo "[start.sh] $name exited before registration"; return 1; }
     mkdir -p "$RUNTIME_DIR"
     chmod 700 "$RUNTIME_DIR"
@@ -113,7 +113,7 @@ cleanup() {
     # Repeated signals from a terminal, IDE, or process manager must not abort teardown.
     trap '' INT TERM HUP
     echo "[start.sh] launcher exit: reason=${EXIT_REASON:-normal} status=$exit_code; cleaning owned services"
-    "$PYTHON_BIN" "$ROOT/deploy/process_cleanup.py" "$ROOT" \
+    "$PYTHON_BIN" "$ROOT/deploy/self-hosted/process_cleanup.py" "$ROOT" \
         "${BACK_REF:-$BACK_PID}" "${FRONT_REF:-$FRONT_PID}" "${VOICE_REF:-$VOICE_PID}" || true
 }
 trap cleanup EXIT
@@ -219,7 +219,7 @@ start_voice_sidecar() {
         return 0
     fi
     if [ ! -x "$ROOT/services/voice/.venv/bin/python" ]; then
-        echo "[start.sh] 语音 sidecar 判定需要启动，但 venv 缺失（bash deploy/install_voice.sh）；语音 TTS 将不可用（文字课堂照常）"
+        echo "[start.sh] 语音 sidecar 判定需要启动，但 venv 缺失（bash deploy/self-hosted/install_voice.sh）；语音 TTS 将不可用（文字课堂照常）"
         return 0
     fi
     VOICE_PORT="$(pick_port 8130 8131 8132)"
@@ -396,7 +396,7 @@ stop_all() {
         if [ -n "$pid" ] && [ -d "/proc/$pid" ]; then
             cwd="$(readlink -f "/proc/$pid/cwd" 2>/dev/null || true)"
             if [[ "$cwd" == "$ROOT" || "$cwd" == "$ROOT/"* ]]; then
-                "$PYTHON_BIN" "$ROOT/deploy/process_cleanup.py" "$ROOT" "$reference"
+                "$PYTHON_BIN" "$ROOT/deploy/self-hosted/process_cleanup.py" "$ROOT" "$reference"
             fi
         fi
         rm -f "$pid_file"

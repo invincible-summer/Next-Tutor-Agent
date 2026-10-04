@@ -21,3 +21,5 @@
 | [ADR-0007](./0007-shared-illustration-tools.md) | 独立配图工具 | 配图引擎供测评与工具助手复用，情景配图支持选材与多轮版本 |
 | [ADR-0008](./0008-expo-react-native-mobile.md) | Expo/RN 单移动代码库 | 移动端唯一代码库走 Expo SDK 57 / RN 0.86，共享包起步，禁止复制 API |
 | [ADR-0009](./0009-root-monorepo-shared-packages.md) | 根 monorepo 共享包 | 根 pnpm workspace + 五个共享客户端包，契约生成单事实源 |
+| [ADR-0010](./0010-enterprise-persistence.md) | 企业持久化栈 | PostgreSQL/Object/Redis 企业模式，`DATABASE_URL` 门控，多 worker 放行（取代 ADR-0004 禁令） |
+| [ADR-0011](./0011-tenant-rotating-sessions.md) | 租户与轮换会话 | tenant/membership + RS256 短 access/轮换 refresh 会话族，复用即撤族 |
