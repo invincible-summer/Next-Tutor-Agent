@@ -22,6 +22,9 @@ env:
 jobs:
   repo-hygiene:
     # Copyright/distribution guard: runs first and blocks everything below.
+    # The documentation guard's --check-generated leg imports the diagrams
+    # catalog builder, so backend runtime dependencies must be installed
+    # before the checks (the pip cache keeps this step cheap).
     name: Repository hygiene
     runs-on: ubuntu-24.04
     timeout-minutes: 5
@@ -29,22 +32,58 @@ jobs:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: |
+            services/api/requirements*.txt
+            services/api/constraints.txt
+      - name: Install backend runtime dependencies
+        run: python -m pip install -r services/api/requirements.txt
       - name: Scan tracked files and full history
         run: python scripts/repo/check_repository_hygiene.py
       - name: Documentation links and layout
         run: python scripts/repo/check_documentation.py --check-generated
 
-  backend:
-    name: Backend
-    needs: repo-hygiene
+  backend-shards:
+    # Enumerates services/api/tests into the shard matrix below. Fails loudly
+    # when a new test package is not assigned in scripts/repo/plan_backend_shards.py.
+    name: Plan backend shards
     runs-on: ubuntu-24.04
-    timeout-minutes: 25
+    timeout-minutes: 3
+    outputs:
+      matrix: ${{ steps.plan.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v7
+      - name: Plan shards
+        id: plan
+        run: echo "matrix=$(python3 scripts/repo/plan_backend_shards.py)" >> "$GITHUB_OUTPUT"
+
+  backend:
+    name: Backend (${{ matrix.shard }})
+    needs: [repo-hygiene, backend-shards]
+    runs-on: ubuntu-24.04
+    timeout-minutes: ${{ matrix.timeout }}
+    strategy:
+      # Keep sibling shard results visible instead of cancelling them.
+      fail-fast: false
+      matrix:
+        # Entries: shard name, setup flavor (full = +node/Chromium/classroom
+        # for the renderer domains), space-separated suites, timeout minutes.
+        matrix: ${{ fromJSON(needs.backend-shards.outputs.matrix) }}
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-project
+        with:
+          node: ${{ matrix.setup == 'full' }}
+          playwright: ${{ matrix.setup == 'full' }}
+          classroom: ${{ matrix.setup == 'full' }}
       - name: Backend tests (isolated, BM25)
         working-directory: services/api
-        run: python -m tests
+        env:
+          SUITES: ${{ matrix.suites }}
+        run: python -m tests $SUITES
 
   frontend:
     name: Frontend and smoke
@@ -54,6 +93,10 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-project
+        with:
+          node: "true"
+          playwright: "true"
+          classroom: "true"
       - name: Typecheck, lint and unit tests
         working-directory: apps/web
         run: pnpm check
@@ -69,17 +112,13 @@ jobs:
         if: always()
         # A report-upload outage must not change the test/build result.
         continue-on-error: true
-        uses: actions/upload-artifact@v7
+        uses: ./.github/actions/upload-browser-report
         with:
-          name: smoke-report
-          path: |
-            apps/web/playwright-report
-            apps/web/test-results
-          if-no-files-found: ignore
-          retention-days: 7
+          report-name: smoke-report
 
   result:
-    # The single required check in main's branch protection.
+    # The single required check in main's branch protection. The backend
+    # matrix expands automatically: every shard leg must succeed.
     name: CI result
     if: always()
     needs: [repo-hygiene, backend, frontend]

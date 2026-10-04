@@ -60,22 +60,23 @@ python3 scripts/acceptance/illustration/live.py --live-llm --variation 1 \
 
 | 工作流 / 检查 | 触发条件 | 内容 | 是否阻止合并 |
 | --- | --- | --- | --- |
-| `CI` / `Repository hygiene` | PR → main、main push、手动 | 仓库卫生 guard：tracked 文件与全历史禁教材/派生数据/运行根、大文件门禁、fixtures synthetic 契约 | 是（首个 job，失败阻断后续） |
-| `CI` / `Backend` | 同上 | BM25 环境的全部后端 unittest，包括鉴权、数据隔离、课堂渲染和 API 行为 | 是 |
+| `CI` / `Repository hygiene` | PR → main、main push、手动 | 仓库卫生 guard：tracked 文件与全历史禁教材/派生数据/运行根、大文件门禁、fixtures synthetic 契约；文档 guard（链接/布局/生成目录一致）。`--check-generated` 会经 `build_catalog.py` 导入后端代码，因此该 job 先安装 `requirements.txt` | 是（首个 job，失败阻断后续） |
+| `CI` / `Plan backend shards` | 同上 | 运行 `scripts/repo/plan_backend_shards.py` 枚举 `services/api/tests` 并生成分片矩阵；新增测试域未登记时响亮失败 | 是 |
+| `CI` / `Backend (<shard>)` | 同上 | BM25 环境的全部后端 unittest，按域拆成并行分片（矩阵）。渲染域（classroom、diagrams+illustration、api/core/identity/notes/voice 平台片）安装完整前端工具链与 Chromium，agents 各片仅装 Python 依赖 | 是 |
 | `CI` / `Frontend and smoke` | 同上 | TypeScript、ESLint、Node 单元测试脚本、生产构建、关键浏览器旅程 | 是 |
-| `CI` / `CI result` | 上述两个 job 完成后 | 仅当两个 job 都成功才成功；失败、取消、跳过均不能冒充通过 | **main 唯一 required check** |
+| `CI` / `CI result` | 上述 job 全部完成后 | 仅当全部 job（含每个 backend 分片）都成功才成功；失败、取消、跳过均不能冒充通过 | **main 唯一 required check** |
 | `Extended regression` / `Optional vector backend` | 每周一 02:17（UTC+8）、手动 | 安装 Chroma 向量依赖，运行 local RAG / hybrid RAG 回归 | 否，发布更新前检查 |
 | `Extended regression` / `Full browser regression` | 同上 | 生产构建上的完整浏览器套件，包含编辑、恢复、冲突、语音、助手等路径 | 否，发布更新前检查 |
 
 历史 tag 不触发 CI（工作流只监听 PR 与 main push），旧布局的里程碑 tag 因此不会再触发流水线。
 
-主流程的两个执行 job 各限时 25 分钟。浏览器使用同一 runner，冒烟和全量各最多 10 分钟，生产编译最多 4 分钟，完整浏览器 job 连同安装最多 25 分钟。超时是故障信号，应查看具体步骤和 trace，不能靠无限延长上限解决。
+backend 分片各限时 15 分钟（classroom 渲染片 20 分钟），frontend 连同冒烟最多 25 分钟。浏览器使用同一 runner，冒烟和全量各最多 10 分钟，生产编译最多 4 分钟，完整浏览器 job 连同安装最多 25 分钟。超时是故障信号，应查看具体步骤和 trace，不能靠无限延长上限解决。
 
 主分支保护使用 `CI result`，要求 PR，但不要求人工批准；管理员保留应急绕过能力。不要求每个 PR 都同步到 main 最新提交，不增加覆盖率百分比、操作系统矩阵或新的静态检查工具。
 
 ## 环境与准备
 
-CI 使用 Ubuntu 24.04、Python 3.11、Node.js 22，pnpm 版本由 `apps/web/package.json` 的 `packageManager` 固定。Python 约束在 `services/api/constraints.txt`，前端依赖按 `pnpm-lock.yaml` 安装。共享准备步骤在 `.github/actions/setup-project/action.yml`，避免后端和浏览器 job 的环境漂移。
+CI 使用 Ubuntu 24.04、Python 3.11、Node.js 22，pnpm 版本由 `apps/web/package.json` 的 `packageManager` 固定。Python 约束在 `services/api/constraints.txt`，前端依赖按 `pnpm-lock.yaml` 安装。共享准备步骤在 `.github/actions/setup-project/action.yml`，以布尔 inputs（`python`/`node`/`playwright`/`classroom`）声明各 job 实际需要的环境，避免后端纯 Python 分片安装前端工具链；Playwright Chromium 按 pnpm-lock 哈希缓存。浏览器证据统一经 `.github/actions/upload-browser-report` 上传。
 
 从仓库根目录准备一个独立 Python 环境（以下以 Linux 为例）：
 
@@ -120,10 +121,12 @@ pnpm test:e2e tests/e2e/auth-isolation.spec.ts tests/e2e/textbook-bm25.spec.ts \
 
 `pnpm check` 包含类型检查、lint，以及播放器、i18n、助手导航、Pages 只读请求适配、题图恢复，以及 E2E 缓存/端口契约的轻量单元测试。`pnpm build` 统一使用 webpack 生产构建。生产模式的后端地址必须在**构建时**设置，不能仅在 `next start` 时改变。
 
-`GitHub Pages demo` 工作流单独验证静态演示：先跑仓库卫生 guard 与 fixtures 契约测试，
-再从 `fixtures/demo/` 合成数据导出只读快照（临时沙箱，不读任何真实运行数据），
-构建完整静态前端，并通过 `pnpm test:pages` 在纯文件服务器上检查全部导出页面、
-只读操作和课件翻页。通过后才发布 Pages，不依赖运行中的 API 或模型。详情见 [`operations/pages-demo.md`](../operations/pages-demo.md)。
+`GitHub Pages demo` 工作流单独验证静态演示：从 `fixtures/demo/`
+合成数据导出只读快照（临时沙箱，不读任何真实运行数据），
+校验产物契约，构建完整静态前端（`next build` 内置完整 TypeScript 检查），并通过 `pnpm test:pages`
+在纯文件服务器上检查全部导出页面、只读操作和课件翻页。通过后才发布 Pages，不依赖运行中的 API 或模型；
+仓库卫生 guard 与 `pnpm check` 不在该工作流重复执行（同一次 push 的 `CI` 已覆盖）。
+详情见 [`operations/pages-demo.md`](../operations/pages-demo.md)。
 
 `pnpm test:e2e --list` 只枚举测试，不启动服务或构建。单文件调试仍走同一生产 runner，例如 `pnpm test:e2e tests/e2e/i18n.spec.ts --headed`；不需要预设模式变量。
 

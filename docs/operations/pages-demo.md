@@ -57,7 +57,9 @@ example 登录、只读操作、课件翻页和浅色/深色/窄桌面窗口。�
 
 ## CI
 
-`.github/workflows/pages.yml` 在 main 更新或手动触发时先跑仓库卫生 guard 与
-fixtures 契约测试，再导出数据、校验产物契约、检查前端、构建、运行静态浏览器
-回归，然后上传和发布 Pages。仓库 Settings → Pages 的 Source 必须是 GitHub Actions。
+`.github/workflows/pages.yml` 在 main 更新或手动触发时导出数据、校验产物契约、
+构建静态站点（`next build` 本身执行完整 TypeScript 检查）、在纯文件服务器上运行
+静态浏览器回归，然后上传和发布 Pages。仓库卫生 guard、文档检查与 `pnpm check`
+不在此工作流中重复执行——同一次 main push 的 `CI` 工作流已经覆盖它们；
+Pages Source 必须是 GitHub Actions（Settings → Pages）。
 失败时保留浏览器证据，不部署未经验证的产物。

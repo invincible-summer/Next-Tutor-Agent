@@ -15,17 +15,20 @@ concurrency:
 
 jobs:
   build:
+    # Only the demo pipeline lives here: guards, pnpm check and the full test
+    # battery run in the CI workflow on the same push. This job exports the
+    # synthetic demo, builds the static site (Next still type-checks during
+    # the build) and accepts it on a plain file server before upload.
     runs-on: ubuntu-24.04
     timeout-minutes: 25
     steps:
-      - uses: actions/checkout@v6
-        with:
-          fetch-depth: 0
-      - name: Repository hygiene (copyright guard)
-        run: python scripts/repo/check_repository_hygiene.py
-      - name: Documentation links and layout
-        run: python scripts/repo/check_documentation.py --check-generated
+      - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-project
+        with:
+          python: "true"
+          node: "true"
+          playwright: "true"
+          classroom: "true"
       - name: Configure Pages
         uses: actions/configure-pages@v5
       - name: Export synthetic demo snapshots
@@ -34,13 +37,12 @@ jobs:
           python scripts/demo/export_pages_demo.py
       - name: Enforce demo artifact copyright/size contract
         run: python scripts/repo/check_pages_artifact.py apps/web/public/demo
-      - name: Frontend checks and static build
+      - name: Static build with demo data
         working-directory: apps/web
         env:
           NEXT_PUBLIC_DEMO_MODE: "1"
           NEXT_PUBLIC_BASE_PATH: /Next-Tutor-Agent
         run: |
-          pnpm check
           pnpm build
           pnpm test:pages
       - name: Disable Jekyll processing
@@ -59,15 +61,15 @@ jobs:
           path: apps/web/out
       - name: Upload browser evidence
         if: always()
-        uses: actions/upload-artifact@v7
+        continue-on-error: true
+        uses: ./.github/actions/upload-browser-report
         with:
-          name: pages-browser-evidence
-          path: apps/web/test-results
-          retention-days: 7
+          report-name: pages-browser-evidence
 
   deploy:
     needs: build
     runs-on: ubuntu-24.04
+    timeout-minutes: 10
     permissions:
       pages: write
       id-token: write

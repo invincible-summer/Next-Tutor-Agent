@@ -1,0 +1,23 @@
+name: Upload browser report
+description: >-
+  Shared artifact upload for the Playwright HTML report and test evidence
+  (apps/web/playwright-report + apps/web/test-results, kept 7 days).
+  Outage-tolerant by contract: callers wrap this with `if: always()` and
+  `continue-on-error: true` so a report-upload failure never changes the
+  test/build result.
+inputs:
+  report-name:
+    description: Artifact name shown on the run page.
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/upload-artifact@v7
+      with:
+        name: ${{ inputs.report-name }}
+        path: |
+          apps/web/playwright-report
+          apps/web/test-results
+        if-no-files-found: ignore
+        retention-days: 7

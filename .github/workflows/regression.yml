@@ -25,18 +25,17 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-python@v7
+      - uses: ./.github/actions/setup-project
         with:
-          python-version: "3.11"
-          cache: pip
-          cache-dependency-path: |
-            services/api/requirements*.txt
-            services/api/constraints.txt
+          python: "true"
+          node: "false"
+          playwright: "false"
+          classroom: "false"
       - name: Install optional vector dependencies
-        run: python -m pip install -r services/api/requirements.txt -r services/api/requirements-test.txt -r services/api/requirements-vector.txt
+        run: python -m pip install -r services/api/requirements-vector.txt
       - name: Vector and public-artifact regressions
         working-directory: services/api
-        run: python -m tests tests.test_local_rag tests.test_rag_hybrid
+        run: python -m tests tests.agents.knowledge.test_local_rag tests.agents.knowledge.test_rag_hybrid
 
   browser:
     name: Full browser regression
@@ -45,6 +44,10 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-project
+        with:
+          node: "true"
+          playwright: "true"
+          classroom: "true"
       - name: Browser regressions (production build included)
         working-directory: apps/web
         run: pnpm test:e2e
@@ -52,11 +55,6 @@ jobs:
         timeout-minutes: 3
         if: always()
         continue-on-error: true
-        uses: actions/upload-artifact@v7
+        uses: ./.github/actions/upload-browser-report
         with:
-          name: regression-report
-          path: |
-            apps/web/playwright-report
-            apps/web/test-results
-          if-no-files-found: ignore
-          retention-days: 7
+          report-name: regression-report
