@@ -35,7 +35,7 @@ ADR-0004 以来，所有后台长任务（教材解析/OCR/图谱构建、课堂
 |---|---|---|
 | 基建（config/runtime/worker.py/CI/依赖） | — | done |
 | textbook（构建 intent + 手动刷新；恢复移 worker 启动） | documents | done |
-| classroom（生成 job） | classroom | pending |
+| classroom（生成 job；监督 workflow + adopt 收养） | classroom | done |
 | illustration（quiz + scenario） | media | pending |
 | learner evaluation（含每日关窗） | evaluation | pending |
 | maintenance（retention/briefing/purge） | maintenance | pending |

@@ -49,11 +49,21 @@ def build_lanes() -> dict[str, Lane]:
     ``--help`` and file-mode imports.
     """
     lanes: dict[str, Lane] = {}
-    from app.workflows.runtime import TASK_QUEUE_DOCUMENTS
+    from app.workflows.runtime import (
+        TASK_QUEUE_CLASSROOM,
+        TASK_QUEUE_DOCUMENTS,
+    )
     from app.workflows.textbook import TEXTBOOK_ACTIVITIES, TEXTBOOK_WORKFLOWS
     lanes[TASK_QUEUE_DOCUMENTS] = Lane(
         workflows=TEXTBOOK_WORKFLOWS, activities=TEXTBOOK_ACTIVITIES,
         notes="textbook build intents + manual refresh (ADR-0013 C1)")
+    from app.workflows.classroom import (
+        CLASSROOM_ACTIVITIES,
+        CLASSROOM_WORKFLOWS,
+    )
+    lanes[TASK_QUEUE_CLASSROOM] = Lane(
+        workflows=CLASSROOM_WORKFLOWS, activities=CLASSROOM_ACTIVITIES,
+        notes="classroom generation supervisor (ADR-0013 C2)")
     return lanes
 
 

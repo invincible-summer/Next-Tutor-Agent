@@ -29,6 +29,8 @@ log = logging.getLogger(__name__)
 MAX_AUTO_RECOVERY = limits.JOB_AUTO_RECOVERY_MAX
 SHUTDOWN_GRACE_SECONDS = 10.0
 SCAN_INTERVAL_SECONDS = 0.5
+#: adopt 模式下扫描磁盘 queued job 的默认间隔（durable lane）。
+ADOPT_INTERVAL_SECONDS = 2.0
 
 
 @dataclass(frozen=True)
@@ -64,8 +66,66 @@ class ClassroomWorker:
         self._wake = asyncio.Event()
         self._stopping = False
         self._loop_task: asyncio.Task | None = None
+        # adopt 模式（durable lane，ADR-0013）：API 进程不再持有本 worker，
+        # enqueue 钩子不存在——调度循环周期性扫描磁盘 queued job 补登记。
+        # 文件模式默认关闭，行为零变化。
+        self._adopt_interval: float | None = None
+        self._last_adopt = 0.0
 
     # ------------------------------------------------------------------ 生命周期
+
+    def is_running(self) -> bool:
+        return self._loop_task is not None and not self._loop_task.done()
+
+    def enable_adopt_mode(self, interval: float = ADOPT_INTERVAL_SECONDS
+                          ) -> None:
+        """启用磁盘 queued job 周期收养（durable lane）。"""
+        self._adopt_interval = max(0.5, float(interval))
+
+    def adopt_queued_jobs(self) -> int:
+        """扫描全部 owner 的 queued job 并补登记到内存 pending 表。
+
+        事实源是磁盘 job.json；内存 pending 只是加速。幂等：已在队列的
+        key 不重复登记（`enqueue` 自带去重）。返回本轮新登记数。
+        """
+        root = store.classroom_root()
+        if not root.is_dir():
+            return 0
+        adopted = 0
+        for owner_dir in sorted(root.iterdir()):
+            if not owner_dir.is_dir() or owner_dir.name.startswith("."):
+                continue
+            owner = owner_dir.name
+            for ws_dir in sorted((owner_dir / "workspaces").glob("*")):
+                if not ws_dir.is_dir():
+                    continue
+                workspace = ws_dir.name
+                for lesson_id in store.list_lesson_ids(owner, workspace):
+                    jobs_dir = store.jobs_root(owner, workspace, lesson_id)
+                    if not jobs_dir.is_dir():
+                        continue
+                    for meta in jobs_dir.glob("*/job.json"):
+                        try:
+                            import json as _json
+                            data = _json.loads(
+                                meta.read_text(encoding="utf-8"))
+                        except (OSError, ValueError):
+                            continue
+                        if data.get("state") != sc.JobState.queued.value:
+                            continue
+                        job_id = meta.parent.name
+                        queue = self._pending.setdefault(owner, deque())
+                        already = any(
+                            k.job == job_id and k.workspace == workspace
+                            and k.lesson == lesson_id for k in queue)
+                        running = any(
+                            k.job == job_id and k.workspace == workspace
+                            and k.lesson == lesson_id for k in self._tasks)
+                        if already or running:
+                            continue
+                        self.enqueue(owner, workspace, lesson_id, job_id)
+                        adopted += 1
+        return adopted
 
     async def start(self) -> None:
         await self._startup_scan()
@@ -192,6 +252,15 @@ class ClassroomWorker:
             self._wake.clear()
             if self._stopping:
                 break
+            if self._adopt_interval is not None:
+                now = time.monotonic()
+                if now - self._last_adopt >= self._adopt_interval:
+                    self._last_adopt = now
+                    try:
+                        self.adopt_queued_jobs()
+                    except Exception:
+                        log.warning("classroom: adopt scan failed",
+                                    exc_info=True)
             try:
                 self._spawn_runnable()
             except Exception:

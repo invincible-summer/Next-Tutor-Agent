@@ -146,20 +146,35 @@ async def _lifespan(app: FastAPI):
         from app.core.config import settings
         if settings.classroom_enabled:
             from app.classroom import service as classroom_service
-            from app.classroom.worker import get_worker
+            from app.workflows.config import temporal_configured
+            if temporal_configured():
+                # durable lane（ADR-0013 C2）：API 进程不再持有 classroom
+                # worker；只确保监督 workflow 存在。执行/恢复/收养都在
+                # worker 进程的 ClassroomWorker（adopt 模式）内，API 的
+                # enqueue 钩子保持 None（queued job 落盘后 ≤2s 被收养）。
+                async def _ensure_classroom_supervisor() -> None:
+                    from app.workflows import classroom as wf_classroom
+                    classroom_service.enqueue_job = None
+                    await asyncio.wait_for(wf_classroom.ensure_supervisor(),
+                                           timeout=10)
 
-            async def _start_classroom_worker() -> None:
-                worker = get_worker()
-                await worker.start()
-                classroom_service.enqueue_job = worker.enqueue
+                await run_bootstrap_step(report, "classroom_worker",
+                                         _ensure_classroom_supervisor)
+            else:
+                from app.classroom.worker import get_worker
 
-            async def _stop_classroom_worker() -> None:
-                await get_worker().stop()
-                classroom_service.enqueue_job = None
+                async def _start_classroom_worker() -> None:
+                    worker = get_worker()
+                    await worker.start()
+                    classroom_service.enqueue_job = worker.enqueue
 
-            await run_bootstrap_step(report, "classroom_worker",
-                                     _start_classroom_worker)
-            classroom_worker = _stop_classroom_worker
+                async def _stop_classroom_worker() -> None:
+                    await get_worker().stop()
+                    classroom_service.enqueue_job = None
+
+                await run_bootstrap_step(report, "classroom_worker",
+                                         _start_classroom_worker)
+                classroom_worker = _stop_classroom_worker
     except Exception:
         log.warning("classroom worker not started", exc_info=True)
 

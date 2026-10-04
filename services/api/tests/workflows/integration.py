@@ -101,5 +101,86 @@ class TextbookDurableIntegrationTest(StorageSandboxTestCase,
             wf_runtime.reset_client_cache()
 
 
+@unittest.skipUnless(_TEMPORAL_ADDRESS,
+                     "TEST_TEMPORAL_ADDRESS not set — Temporal integration "
+                     "skipped")
+class ClassroomSupervisorIntegrationTest(StorageSandboxTestCase,
+                                         unittest.IsolatedAsyncioTestCase):
+    _saved_env: dict[str, str | None] = {}
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        from app.workflows import config as wf_config
+
+        cls._saved_env = {
+            "TEMPORAL_ADDRESS": os.environ.get("TEMPORAL_ADDRESS")}
+        os.environ["TEMPORAL_ADDRESS"] = _TEMPORAL_ADDRESS
+        wf_config._worker_process = True
+
+    @classmethod
+    def tearDownClass(cls) -> None:
+        from app.workflows import config as wf_config
+
+        wf_config._worker_process = False
+        for key, value in cls._saved_env.items():
+            if value is None:
+                os.environ.pop(key, None)
+            else:
+                os.environ[key] = value
+
+    async def test_supervisor_drives_domain_worker(self) -> None:
+        """监督 workflow → slice activity → 域 worker 启动/心跳/取消停机。
+
+        域 worker 以替身注入（真实 ClassroomWorker 的调度/恢复行为由
+        tests/classroom 套件覆盖）；这里验证 durable 链路本身。
+        """
+        from temporalio.worker import Worker
+        from app.classroom import worker as classroom_worker_module
+        from app.workflows import classroom as wf_classroom
+        from app.workflows import runtime as wf_runtime
+
+        events: list[str] = []
+
+        class FakeDomainWorker:
+            def is_running(self) -> bool:
+                return "start" in events
+
+            def enable_adopt_mode(self, interval: float = 2.0) -> None:
+                events.append(f"adopt:{interval}")
+
+            async def start(self) -> None:
+                events.append("start")
+
+            async def stop(self) -> None:
+                events.append("stop")
+
+        def fake_get_worker() -> FakeDomainWorker:
+            return fake
+
+        fake = FakeDomainWorker()
+        wf_runtime.reset_client_cache()
+        worker = Worker(
+            await wf_runtime.get_client(),
+            task_queue=wf_runtime.TASK_QUEUE_CLASSROOM,
+            workflows=list(wf_classroom.CLASSROOM_WORKFLOWS),
+            activities=list(wf_classroom.CLASSROOM_ACTIVITIES))
+        try:
+            with mock.patch.object(classroom_worker_module, "get_worker",
+                                   fake_get_worker):
+                async with worker:
+                    handle = await wf_classroom.ensure_supervisor()
+                    deadline = asyncio.get_running_loop().time() + 30
+                    while "start" not in events and \
+                            asyncio.get_running_loop().time() < deadline:
+                        await asyncio.sleep(0.1)
+                    self.assertIn("start", events)
+                    self.assertTrue(any(e.startswith("adopt:")
+                                        for e in events))
+                    await handle.cancel()
+        finally:
+            await worker.shutdown()
+            wf_runtime.reset_client_cache()
+
+
 if __name__ == "__main__":  # pragma: no cover
     unittest.main()
