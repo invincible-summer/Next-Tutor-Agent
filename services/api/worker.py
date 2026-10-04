@@ -52,6 +52,7 @@ def build_lanes() -> dict[str, Lane]:
     from app.workflows.runtime import (
         TASK_QUEUE_CLASSROOM,
         TASK_QUEUE_DOCUMENTS,
+        TASK_QUEUE_EVALUATION,
         TASK_QUEUE_MEDIA,
     )
     from app.workflows.textbook import TEXTBOOK_ACTIVITIES, TEXTBOOK_WORKFLOWS
@@ -65,6 +66,13 @@ def build_lanes() -> dict[str, Lane]:
     lanes[TASK_QUEUE_CLASSROOM] = Lane(
         workflows=CLASSROOM_WORKFLOWS, activities=CLASSROOM_ACTIVITIES,
         notes="classroom generation supervisor (ADR-0013 C2)")
+    from app.workflows.evaluation import (
+        EVALUATION_ACTIVITIES,
+        EVALUATION_WORKFLOWS,
+    )
+    lanes[TASK_QUEUE_EVALUATION] = Lane(
+        workflows=EVALUATION_WORKFLOWS, activities=EVALUATION_ACTIVITIES,
+        notes="evaluation worker + daily planner supervisor (ADR-0013 C4)")
     from app.workflows.illustration_quiz import (
         QUIZ_ILLUSTRATION_ACTIVITIES,
         QUIZ_ILLUSTRATION_WORKFLOWS,

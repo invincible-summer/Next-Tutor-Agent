@@ -20,7 +20,7 @@
   - `service.py`——`LearnerEvaluationService`，唯一事务提交 facade（提交前校验身份/范围/source revision/lease/generation）。
   - `dialogue.py`——对话来源划分与 eligibility、`register_dialogue_source`、`after_turn_hook`。
   - `grading.py` / `evaluator.py` / `llm.py`——MC 确定性判定、开放题语义评价与 LLM 调用。
-  - `jobs.py` / `worker.py` / `schedule.py`——评价作业调度（lease/重试/优先级）、后台 worker（lifespan 启动、按 JobKind 路由、重启恢复、outbox 推进）、每日批次调度。
+  - `jobs.py` / `worker.py` / `schedule.py`——评价作业调度（lease/重试/优先级）、后台 worker（按 JobKind 路由、重启恢复、outbox 推进）、每日批次调度。执行位置双模式（ADR-0013）：文件模式由 API lifespan 启动 worker+planner；配置 `TEMPORAL_ADDRESS` 后两者由 `evaluation.supervisor` 监督 workflow（`app/workflows/evaluation.py`，evaluation 队列）在 worker 进程内驱动，API 进程的 `notify_evaluation_worker()` 自然 no-op，新作业由 worker 空闲轮询（2s）认领。
   - `scope.py` / `ports.py`——工作区→卷级授权范围解析；workspace/textbook/图谱读取经 ports 协议注入（默认适配在 `core/learner_runtime.py`，评价核心不 import API 层）。
   - `projections.py` / `readers.py`——可删除重建的 index/views 投影；教学消费者的唯一合法评价读取口。
   - `lifecycle.py`——复核、撤销、删除（generation 重写）。
@@ -59,7 +59,7 @@
 
 1. **对话来源受理（统一 turn hook）**：supervisor 回合结束后，`chat_agent._after_turn_dialogue_receipt` 从磁盘重新加载会话（只受理已可靠保存的学生消息），调用 `dialogue.after_turn_hook`——eligibility 排除空消息/纯操作命令/问候感谢/已被 assessment 拥有的片段，范围内教学语境进入 LLM applicability 判断，注册 dialogue 来源并按需排队语义作业。失败静默，不影响对话流。
 2. **统一受理**：`/quiz/grade`、`/quiz/record`、`/assessment/answer` 全部经 `evaluate_submission` 进 journal；题卡/测评中心的作答与聊天轮解耦。
-3. **语义评价作业**：lifespan 启动的 worker（`worker.py`）按 JobKind 路由执行，wall-clock 预算、同 workspace 串行、重启恢复（扫描认领 queued/retry_wait/过期 lease）；作业终态后推进 outbox（`consumer="m9"` 等消费方幂等消费，journal `consumer_ack`）。管理员可经 `/admin/learner-evaluation-policy` 选择即时（默认）或每日零点批次（业务时区）。
+3. **语义评价作业**：worker（`worker.py`）按 JobKind 路由执行，wall-clock 预算、同 workspace 串行、重启恢复（扫描认领 queued/retry_wait/过期 lease，journal 的 claimable 语义使 durable 模式无需额外对账）；作业终态后推进 outbox（`consumer="m9"` 等消费方幂等消费，journal `consumer_ack`）。管理员可经 `/admin/learner-evaluation-policy` 选择即时（默认）或每日零点批次（业务时区）。lease/重试/串行/outbox 语义在两种执行位置下完全一致（ADR-0013：Temporal 只保证「worker 进程在，调度就在」）。
 4. **读侧投影**：前端学习评价页、M3 概念证据状态、M5 前置补缺、M9 弱项全部经 `readers.py`/`projections.py` 读取统一评价，不再各存一套掌握度。
 5. **风格折叠**：M8 每轮把反馈分类写入 `UXProfile.recent_feedback`（近 12 条）；`style_inference.py` 读取窗口折叠成风格翻转——「太长」≥2→basic、「太短」≥2→deep、「太难」≥2→step_by_step、矛盾或不足不动。纯规则、零 LLM。
 6. **supervisor 读钩子（3b）**：`_adapt_for_turn` 读画像与评价投影，组装 TeachingContext 交给 [teaching-engine.md](teaching-engine.md)，渲染 `[学生智能·…]` 软指令（`STUDENT_MODEL_MODE=0` 时返回空）。

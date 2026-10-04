@@ -120,20 +120,34 @@ async def _lifespan(app: FastAPI):
         from app.core import learner_runtime
         from app.agents.student_model.evaluation.worker import (
             EvaluationWorker, get_evaluation_worker)
+        from app.workflows.config import temporal_configured
         if learner_runtime.evaluation_enabled():
-            async def _start_worker() -> None:
-                # run_bootstrap_step 会 await 步骤函数；asyncio.create_task
-                # 需在运行中的事件循环内执行（lifespan 线程即循环线程）
-                get_evaluation_worker().start()
+            if temporal_configured():
+                # durable lane（ADR-0013 C4）：API 进程不再持有评价 worker/
+                # planner；只确保监督 workflow 存在。执行/恢复/outbox 都在
+                # worker 进程的 EvaluationWorker 内（journal claimable 语义
+                # 覆盖重启恢复），notify_evaluation_worker 在 API 进程 no-op，
+                # 新作业由 worker 的空闲轮询认领。
+                async def _ensure_evaluation_supervisor() -> None:
+                    from app.workflows import evaluation as wf_evaluation
+                    await asyncio.wait_for(
+                        wf_evaluation.ensure_supervisor(), timeout=10)
+                await run_bootstrap_step(report, "evaluation_worker",
+                                         _ensure_evaluation_supervisor)
+            else:
+                async def _start_worker() -> None:
+                    # run_bootstrap_step 会 await 步骤函数；asyncio.create_task
+                    # 需在运行中的事件循环内执行（lifespan 线程即循环线程）
+                    get_evaluation_worker().start()
 
-            async def _start_planner() -> None:
-                from app.agents.student_model.evaluation.schedule import (
-                    get_daily_planner)
-                get_daily_planner().start()
-            await run_bootstrap_step(report, "evaluation_worker",
-                                     _start_worker)
-            await run_bootstrap_step(report, "evaluation_daily_planner",
-                                     _start_planner)
+                async def _start_planner() -> None:
+                    from app.agents.student_model.evaluation.schedule import (
+                        get_daily_planner)
+                    get_daily_planner().start()
+                await run_bootstrap_step(report, "evaluation_worker",
+                                         _start_worker)
+                await run_bootstrap_step(report, "evaluation_daily_planner",
+                                         _start_planner)
     except Exception:
         log.warning("evaluation worker not started", exc_info=True)
 
@@ -280,21 +294,24 @@ async def _lifespan(app: FastAPI):
             except Exception:
                 log.warning("shutdown: classroom worker stop failed",
                             exc_info=True)
-        # R01：先停评价 worker（停止认领、等待在途租约、关闭共享 LLM 客户端）
-        try:
-            from app.agents.student_model.evaluation.worker import (
-                get_evaluation_worker)
-            await get_evaluation_worker().stop()
-        except Exception:
-            log.warning("shutdown: evaluation worker stop failed",
-                        exc_info=True)
-        try:
-            from app.agents.student_model.evaluation.schedule import (
-                get_daily_planner)
-            await get_daily_planner().stop()
-        except Exception:
-            log.warning("shutdown: daily planner stop failed",
-                        exc_info=True)
+        # R01：先停评价 worker（停止认领、等待在途租约、关闭共享 LLM 客户端）。
+        # durable 模式下两者在 worker 进程，API 进程无实例可停。
+        from app.workflows.config import temporal_configured
+        if not temporal_configured():
+            try:
+                from app.agents.student_model.evaluation.worker import (
+                    get_evaluation_worker)
+                await get_evaluation_worker().stop()
+            except Exception:
+                log.warning("shutdown: evaluation worker stop failed",
+                            exc_info=True)
+            try:
+                from app.agents.student_model.evaluation.schedule import (
+                    get_daily_planner)
+                await get_daily_planner().stop()
+            except Exception:
+                log.warning("shutdown: daily planner stop failed",
+                            exc_info=True)
         try:
             from app.core.textbook_ocr import cancel_all_textbook_ocr
             cancel_all_textbook_ocr()

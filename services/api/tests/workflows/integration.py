@@ -348,5 +348,94 @@ class IllustrationDurableIntegrationTest(StorageSandboxTestCase,
             wf_runtime.reset_client_cache()
 
 
+@unittest.skipUnless(_TEMPORAL_ADDRESS,
+                     "TEST_TEMPORAL_ADDRESS not set — Temporal integration "
+                     "skipped")
+class EvaluationSupervisorIntegrationTest(StorageSandboxTestCase,
+                                          unittest.IsolatedAsyncioTestCase):
+    _saved_env: dict[str, str | None] = {}
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        from app.workflows import config as wf_config
+
+        cls._saved_env = {
+            "TEMPORAL_ADDRESS": os.environ.get("TEMPORAL_ADDRESS")}
+        os.environ["TEMPORAL_ADDRESS"] = _TEMPORAL_ADDRESS
+        wf_config._worker_process = True
+
+    @classmethod
+    def tearDownClass(cls) -> None:
+        from app.workflows import config as wf_config
+
+        wf_config._worker_process = False
+        for key, value in cls._saved_env.items():
+            if value is None:
+                os.environ.pop(key, None)
+            else:
+                os.environ[key] = value
+
+    async def test_supervisor_drives_domain_worker_and_planner(self) -> None:
+        """监督 workflow → slice activity → 域 worker/planner 启动/心跳。
+
+        域 worker/planner 以替身注入（真实 claim/lease/outbox/关窗行为由
+        tests/agents/student_model 套件覆盖）；这里验证 durable 链路本身。
+        """
+        from temporalio.worker import Worker
+        from app.agents.student_model.evaluation import schedule as sched_mod
+        from app.agents.student_model.evaluation import worker as worker_mod
+        from app.core import learner_runtime
+        from app.workflows import evaluation as wf_evaluation
+        from app.workflows import runtime as wf_runtime
+
+        events: list[str] = []
+
+        class FakeWorker:
+            def status(self) -> dict:
+                return {"running": "worker:start" in events}
+
+            def start(self) -> None:
+                events.append("worker:start")
+
+            async def stop(self) -> None:
+                events.append("worker:stop")
+
+        class FakePlanner:
+            def status(self) -> dict:
+                return {"running": "planner:start" in events}
+
+            def start(self) -> None:
+                events.append("planner:start")
+
+            async def stop(self) -> None:
+                events.append("planner:stop")
+
+        wf_runtime.reset_client_cache()
+        worker = Worker(
+            await wf_runtime.get_client(),
+            task_queue=wf_runtime.TASK_QUEUE_EVALUATION,
+            workflows=list(wf_evaluation.EVALUATION_WORKFLOWS),
+            activities=list(wf_evaluation.EVALUATION_ACTIVITIES))
+        try:
+            with mock.patch.object(learner_runtime, "evaluation_enabled",
+                                   return_value=True), \
+                    mock.patch.object(worker_mod, "get_evaluation_worker",
+                                      return_value=FakeWorker()), \
+                    mock.patch.object(sched_mod, "get_daily_planner",
+                                      return_value=FakePlanner()):
+                async with worker:
+                    handle = await wf_evaluation.ensure_supervisor()
+                    deadline = asyncio.get_running_loop().time() + 30
+                    while "planner:start" not in events and \
+                            asyncio.get_running_loop().time() < deadline:
+                        await asyncio.sleep(0.1)
+                    self.assertIn("worker:start", events)
+                    self.assertIn("planner:start", events)
+                    await handle.cancel()
+        finally:
+            await worker.shutdown()
+            wf_runtime.reset_client_cache()
+
+
 if __name__ == "__main__":  # pragma: no cover
     unittest.main()
