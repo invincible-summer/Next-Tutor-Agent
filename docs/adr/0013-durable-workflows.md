@@ -41,3 +41,5 @@ ADR-0004 以来，所有后台长任务（教材解析/OCR/图谱构建、课堂
 | illustration（quiz + scenario；epoch 磁盘化 + settle 兜底） | media | done |
 | learner evaluation（worker + daily planner 监督，as-built 为 supervisor 模式——每日关窗与 worker 同进程，notify 唤醒链保持） | evaluation | done |
 | maintenance（briefing/trash/draft Schedules + 账号 purge workflow） | maintenance | done |
+
+全部五个队列迁移完成（C0–C5）。每日关窗（DailyPlanner）as-built 留在 evaluation 监督 workflow 内与 worker 同进程——保持「关窗 → notify → worker 唤醒」进程内链路，未单独拆 Schedule。

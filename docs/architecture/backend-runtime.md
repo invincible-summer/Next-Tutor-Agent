@@ -142,7 +142,7 @@ SSE 为前端直连后端的流式通道（`POST /chat/stream`、`POST /quiz/gra
 
 - 外部：LLM（必配，OpenAI 兼容）、Embedding/本地向量模型（可选）、多模态视觉 API（可选，回退 tesseract）、Chroma（可选向量轨；BM25 基线零依赖，ADR-0003）。
 - 被依赖：前端（唯一后端）；OpenAI 兼容门面供第三方平台挂载。
-- 进程形态：文件模式 FastAPI 单 worker（JSON 持久层前提，ADR-0004），后台任务由 API lifespan/`create_task` 持有；企业模式（`DATABASE_URL`）多 worker 放行（ADR-0010，`WEB_CONCURRENCY>1` 时文件模式启动 fail-fast）；`TEMPORAL_ADDRESS` 已设时后台任务所有权移交 durable worker 进程（ADR-0013，API lifespan 不再启动对应 in-process worker）；语音 sidecar 独立进程由 start.sh 托管；教材图谱构建在文件模式为进程内 asyncio 后台任务（启动 lifespan reaper 将残留 `building` 置 `graph_failed`），durable 模式由 workflow 持有。
+- 进程形态：文件模式 FastAPI 单 worker（JSON 持久层前提，ADR-0004），后台任务由 API lifespan/`create_task` 持有；企业模式（`DATABASE_URL`）多 worker 放行（ADR-0010，`WEB_CONCURRENCY>1` 时文件模式启动 fail-fast）；`TEMPORAL_ADDRESS` 已设时后台任务所有权移交 durable worker 进程（ADR-0013，API lifespan 不再启动对应 in-process worker）——五个队列（documents/classroom/evaluation/media/maintenance）已全部迁移：维护定时（briefing/trash/draft）由 worker 启动幂等注册的 Temporal Schedule 驱动，账号删除走 `account.purge` workflow（状态表见 ADR-0013）；语音 sidecar 独立进程由 start.sh 托管；教材图谱构建在文件模式为进程内 asyncio 后台任务（启动 lifespan reaper 将残留 `building` 置 `graph_failed`），durable 模式由 workflow 持有。
 - 改 agent 管线代码后必须重启 uvicorn（无热重载假设）。
 
 ## Invariants / security boundaries（不变量与安全边界）

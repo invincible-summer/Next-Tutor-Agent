@@ -111,7 +111,7 @@
 
 ### 订阅调度与收件箱（C04–C05）
 
-- 四类订阅默认关闭、须用户逐项开启；AssistantRuntime 一分钟粒度 tick（每批 ≤20）；执行 key = subscription_id + 本地计划日期 + schedule_revision，delivery ledger 原子认领防重复投递；停机只补 48 小时内最新一次；quiet_hours 内只准备（pending_delivery 出窗释放）；每日主动上限 3；weekly_brief 用确定性事实模板（不调用模型）；`manage_subscription` 对话动作幂等（client_request_id=action_id）。
+- 四类订阅默认关闭、须用户逐项开启；一分钟粒度 tick（每批 ≤20；文件模式由 AssistantRuntime 本地循环驱动，durable 模式由 maintenance Schedule 每分钟触发 `scheduler_tick`——ADR-0013 C5，turns/恢复仍在 API 进程）；执行 key = subscription_id + 本地计划日期 + schedule_revision，delivery ledger 原子认领防重复投递；停机只补 48 小时内最新一次；quiet_hours 内只准备（pending_delivery 出窗释放）；每日主动上限 3；weekly_brief 用确定性事实模板（不调用模型）；`manage_subscription` 对话动作幂等（client_request_id=action_id）。
 - 收件箱（`AssistantInbox`）：未读点、已读/忽略、mute 未完成课程提醒、简报固定统计窗口；设置页 `AssistantSettings` 提供偏好白名单（base_revision 乐观并发）与订阅管理、最近投递入口。
 
 ### 面板语音（B11）

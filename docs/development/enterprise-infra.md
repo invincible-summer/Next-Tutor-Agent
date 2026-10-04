@@ -48,7 +48,9 @@ python worker.py --queues documents       # 子集运行（队列独立扩容）
 - Task queue 划分（`app/workflows/runtime.py`）：`documents` / `classroom` / `evaluation` / `media` / `maintenance`。
 - 域事实源不变（job.json/journal 等仍由域代码原子写）；workflow id 由域 job id 稳定派生（`join_workflow_id`）。
 - 已迁移域的启动恢复移到 worker 启动时执行（API lifespan durable 分支不再驱动，避免双进程重复入队）；每条队列保持单 worker 实例消费（域调度器在 worker 进程内存中，与文件模式同一约束，见 ADR-0013「调度策略优先复用域调度器」）。
-- 各域迁移状态表见 [../adr/0013-durable-workflows.md](../adr/0013-durable-workflows.md)。
+- 各域迁移状态表见 [../adr/0013-durable-workflows.md](../adr/0013-durable-workflows.md)——五域已全部迁移。
+- 维护定时（briefing tick / trash cleanup / assistant 草稿清扫）由 worker 启动时幂等注册的 Temporal Schedule 驱动（间隔变更需删除对应 Schedule 后重启 worker 重建）；账号删除（`DELETE /account`、管理员删用户）在 durable 模式经 `account.purge` workflow 执行，路由 await 终态、响应契约与 file 模式一致。
+- systemd 部署：`deploy/self-hosted/edu-worker.service`（与 backend 同账号/数据根/加固）。
 - 本地 Temporal：`cd deploy/local && docker compose --profile temporal up -d`（端口 127.0.0.1:7233，库建在同一 compose 的 PostgreSQL 上）。
 
 ## Schema 迁移（Alembic）
@@ -103,5 +105,5 @@ TEST_TEMPORAL_ADDRESS=127.0.0.1:7233 \
 - 单元 lane（沙箱 sqlite）：`tests/persistence/test_db_and_models.py`（engine/models/repository）、`test_object_store_and_cache.py`（object store + 内存缓存原语）、`test_migrations.py`（Alembic 契约）、`test_runtime_import.py`（迁移 CLI 冒烟）
 - 企业认证：`tests/identity/test_enterprise_auth.py`（双写、token 双轨、轮换/撤族、会话管理、文件模式 409）
 - 可观测性：`tests/observability/test_observability.py`（request-id、脱敏、OTel 降级）
-- Durable workflow：`tests/workflows/test_config.py`（门控/queue/worker 入口；各域确定性 workflow 测试随迁移批次加入）
+- Durable workflow：`tests/workflows/*`（门控/queue/worker 入口、textbook/classroom/evaluation/media/maintenance 各域确定性 workflow 与双模式接缝测试；真服务器集成车道由 `TEST_TEMPORAL_ADDRESS` 门控，含 Schedule 注册/触发）
 - CI 分片归属：`scripts/repo/plan_backend_shards.py` 的 `persistence` / `observability` / `workflows` shard

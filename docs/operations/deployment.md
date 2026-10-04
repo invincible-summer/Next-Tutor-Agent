@@ -26,6 +26,7 @@
 模板（复制到 `/etc/systemd/system/` 后按机器调整）：
 
 - `deploy/self-hosted/edu-backend.service`：uvicorn `--host 127.0.0.1 --port 8123 --workers 1 --proxy-headers`；`ProtectSystem=strict`/`ProtectHome=true`/`NoNewPrivileges` 等加固；`EnvironmentFile` 加载 `.env`。
+- `deploy/self-hosted/edu-worker.service`：Temporal durable worker 进程（ADR-0013）——仅在 `.env` 设置 `TEMPORAL_ADDRESS` 时部署（file/self-hosted 模式不需要）；与 backend 共用 `.env`/数据根，维护定时 Schedule 在其启动时幂等注册。
 - `deploy/self-hosted/edu-frontend.service`：`next start`（依赖 backend unit）。
 - `deploy/self-hosted/edu-voice-sidecar.service`：可选 MeloTTS sidecar（独立 venv）。
 - `deploy/self-hosted/nginx.conf.example`：同源站点模板——TLS（Mozilla intermediate 档）、HSTS、`/api/*` 反代（**SSE 端点禁用 proxy_buffering/缓存/gzip**）、WebSocket upgrade map、`client_max_body_size`（前端 10m、API 按上传端点放宽）。
