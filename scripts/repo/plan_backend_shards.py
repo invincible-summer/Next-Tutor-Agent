@@ -11,9 +11,11 @@ Two invariants keep the matrix honest:
 1. every discovered test package must be assigned to exactly one shard — a new
    domain fails the planner loudly instead of silently never running in CI;
 2. packages whose tests invoke the real Node/Chromium renderer (classroom
-   render pipeline, illustration PNG preview, diagram library checks, and the
-   guest-access suite that compiles illustration scenes) live in ``full``
-   shards; see docs/development/testing.md ("环境与准备").
+   render pipeline, illustration PNG preview, diagram library checks, the
+   guest-access suite that compiles illustration scenes, and the site
+   assistant's lesson generate/retry/export actions that run the classroom
+   pipeline) live in ``full`` shards; see docs/development/testing.md
+   ("环境与准备").
 
 Usage::
 
@@ -48,7 +50,9 @@ SHARDS: dict[str, tuple[str, list[str]]] = {
                               "agents/teaching_engine",
                               "agents/learning_orchestration",
                               "agents/skill_runtime"]),
-    "supervisor": ("python", ["agents/supervisor", "agents/site_assistant"]),
+    # The site assistant's lesson actions (generate/retry/export) run the
+    # real classroom pipeline, so this shard needs the renderer toolchain.
+    "supervisor": ("full", ["agents/supervisor", "agents/site_assistant"]),
 }
 
 def discover() -> dict[str, list[str]]:

@@ -62,7 +62,7 @@ python3 scripts/acceptance/illustration/live.py --live-llm --variation 1 \
 | --- | --- | --- | --- |
 | `CI` / `Repository hygiene` | PR → main、main push、手动 | 仓库卫生 guard：tracked 文件与全历史禁教材/派生数据/运行根、大文件门禁、fixtures synthetic 契约；文档 guard（链接/布局/生成目录一致）。`--check-generated` 会经 `build_catalog.py` 导入后端代码，因此该 job 先安装 `requirements.txt` | 是（首个 job，失败阻断后续） |
 | `CI` / `Plan backend shards` | 同上 | 运行 `scripts/repo/plan_backend_shards.py` 枚举 `services/api/tests` 并生成分片矩阵；新增测试域未登记时响亮失败 | 是 |
-| `CI` / `Backend (<shard>)` | 同上 | BM25 环境的全部后端 unittest，按域拆成并行分片（矩阵）。渲染域（classroom、diagrams+illustration、api/core/identity/notes/voice 平台片）安装完整前端工具链与 Chromium，agents 各片仅装 Python 依赖 | 是 |
+| `CI` / `Backend (<shard>)` | 同上 | BM25 环境的全部后端 unittest，按域拆成并行分片（矩阵）。渲染依赖域（classroom、diagrams+illustration、api/core/identity/notes/voice 平台片、supervisor+site_assistant——课程动作复用真实课堂管线）安装完整前端工具链与 Chromium，knowledge 与 assessment 两片仅装 Python 依赖 | 是 |
 | `CI` / `Frontend and smoke` | 同上 | TypeScript、ESLint、Node 单元测试脚本、生产构建、关键浏览器旅程 | 是 |
 | `CI` / `CI result` | 上述 job 全部完成后 | 仅当全部 job（含每个 backend 分片）都成功才成功；失败、取消、跳过均不能冒充通过 | **main 唯一 required check** |
 | `Extended regression` / `Optional vector backend` | 每周一 02:17（UTC+8）、手动 | 安装 Chroma 向量依赖，运行 local RAG / hybrid RAG 回归 | 否，发布更新前检查 |
