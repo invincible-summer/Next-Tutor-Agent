@@ -14,14 +14,15 @@
 ```bash
 cd deploy/local
 docker compose up -d postgres redis              # 企业持久化（DATABASE_URL/REDIS_URL）
+docker compose --profile temporal up -d          # + Temporal（durable workflow，ADR-0013）
 docker compose --profile observability up -d     # + 本地 OTel sink（OTEL_* env）
-docker compose --profile temporal up -d          # + durable workflow 占位（Stage C 未实现）
 ```
 
 对应环境变量（本地回环默认口令，见 compose 注释）：
 
 - `DATABASE_URL=postgresql://tutor:tutor@localhost:5432/tutor`（建表走 `alembic upgrade head`，应用启动不做 DDL）
 - `REDIS_URL=redis://localhost:6379/0`（可选；未设/不可达时回退进程内原语）
+- `TEMPORAL_ADDRESS=127.0.0.1:7233`（可选；未设时各域保持进程内任务执行，设了则需另跑 worker 进程：`cd services/api && python worker.py`，见 [docs/development/enterprise-infra.md](../../docs/development/enterprise-infra.md)）
 - `OTEL_TRACES_ENABLED=1` + `OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317`
 - MinIO（9000/9001）：远程对象存储适配落地前的 wiring 演练位
 

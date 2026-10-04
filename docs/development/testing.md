@@ -62,7 +62,7 @@ python3 scripts/acceptance/illustration/live.py --live-llm --variation 1 \
 | --- | --- | --- | --- |
 | `CI` / `Repository hygiene` | PR → main、main push、手动 | 仓库卫生 guard：tracked 文件与全历史禁教材/派生数据/运行根、大文件门禁、fixtures synthetic 契约；文档 guard（链接/布局/生成目录一致）。`--check-generated` 会经 `build_catalog.py` 导入后端代码，因此该 job 先安装 `requirements.txt` | 是（首个 job，失败阻断后续） |
 | `CI` / `Plan backend shards` | 同上 | 运行 `scripts/repo/plan_backend_shards.py` 枚举 `services/api/tests` 并生成分片矩阵；新增测试域未登记时响亮失败 | 是 |
-| `CI` / `Backend (<shard>)` | 同上 | BM25 环境的全部后端 unittest，按域拆成并行分片（矩阵）。渲染依赖域（classroom、diagrams+illustration、api/core/identity/notes/voice 平台片、supervisor+site_assistant——课程动作复用真实课堂管线）安装完整前端工具链与 Chromium，knowledge、assessment、persistence、observability 四片仅装 Python 依赖 | 是 |
+| `CI` / `Backend (<shard>)` | 同上 | BM25 环境的全部后端 unittest，按域拆成并行分片（矩阵）。渲染依赖域（classroom、diagrams+illustration、api/core/identity/notes/voice 平台片、supervisor+site_assistant——课程动作复用真实课堂管线）安装完整前端工具链与 Chromium，knowledge、assessment、persistence、observability、workflows 五片仅装 Python 依赖（workflows 片的确定性 workflow 测试用 temporalio 内置 time-skipping test server，无需外部服务） | 是 |
 | `CI` / `Detect enterprise path changes` + `Backend enterprise (PostgreSQL + Redis)` | 同上 | 路径门控（`services/api/app/persistence/`、`migrations/`、`tests/persistence/`、依赖清单或 CI 配置变更，main push 恒触发）→ 起 postgres:18 + redis:8 service containers 跑 `tests/persistence/integration.py`（双实例并发验收、跨实例缓存/lease、Alembic on PostgreSQL）；门控未命中时显式校验其 skipped | 是 |
 | `CI` / `Shared packages and contracts` | 同上 | `packages/*` 的 tsc typecheck 与 `node --test`；设计令牌生成 `--check`；契约生成 `--check`（TS 类型 + OpenAPI 快照）与 response schema 缺口棘轮 | 是 |
 | `CI` / `Frontend and smoke` | 同上 | TypeScript、ESLint、Node 单元测试脚本、生产构建、关键浏览器旅程 | 是 |

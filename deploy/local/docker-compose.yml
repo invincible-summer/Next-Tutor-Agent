@@ -5,7 +5,7 @@
 # backend at these services through the env vars noted per service below.
 #
 #   docker compose up -d postgres redis          # enterprise persistence lane
-#   docker compose --profile temporal up -d      # + durable-workflow placeholder
+#   docker compose --profile temporal up -d      # + durable workflow server
 #   docker compose --profile observability up -d # + OTel collector sink
 #
 # Volumes persist under Docker's named volumes; `docker compose down -v` wipes
@@ -64,10 +64,11 @@ services:
       - minio-data:/data
 
   temporal:
-    # Durable workflows (Stage C) are NOT implemented yet — this placeholder
-    # lets TEMPORAL_ADDRESS wiring be exercised before that stage lands.
-    # auto-setup provisions its databases on the postgres service above; the
-    # pin gets revisited when the workflow lane is built.
+    # Durable workflow server (ADR-0013). auto-setup provisions its
+    # databases on the postgres service above. Pair it with the worker
+    # process: TEMPORAL_ADDRESS=127.0.0.1:7233 + `python worker.py` from
+    # services/api (see docs/development/enterprise-infra.md). Pin verified
+    # against temporalio 1.33 in the CI temporal lane; revisit together.
     image: temporalio/auto-setup:1.25.2
     profiles: ["temporal"]
     environment:

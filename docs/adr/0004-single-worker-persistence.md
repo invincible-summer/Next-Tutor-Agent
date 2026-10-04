@@ -1,6 +1,6 @@
 # ADR-0004: JSON/JSONL 文件持久层采用 single-worker 不变量
 
-- 状态：superseded by [ADR-0010](./0010-enterprise-persistence.md)（仅多 worker 禁令被取代；文件模式内本 ADR 结论继续有效）
+- 状态：superseded by [ADR-0010](./0010-enterprise-persistence.md)（仅多 worker 禁令被取代）与 [ADR-0013](./0013-durable-workflows.md)（后台任务的进程内持有被 durable worker 取代）；文件模式内本 ADR 结论继续有效
 - 日期：2026-10
 
 ## Context

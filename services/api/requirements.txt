@@ -28,3 +28,7 @@ greenlet>=3.0
 alembic>=1.20
 redis>=8.1
 cryptography>=43
+# Durable workflow lane (ADR-0013): TEMPORAL_ADDRESS unset keeps every
+# domain on its in-process job execution; set → jobs move to the worker
+# process (services/api/worker.py) over the task queues in app/workflows.
+temporalio>=1.33

@@ -1,6 +1,6 @@
 # backend-runtime — 后端运行时与系统全景
 
-FastAPI 单进程后端的宿主形态：模块地图、物理拓扑、智能层开关、统一存储布局、API 面概览与部署/运维边界。各领域的内部设计见 [identity.md](./identity.md)（M0）、[conversation.md](./conversation.md)（M1 对话内核）。
+FastAPI 后端的宿主形态：模块地图、物理拓扑、智能层开关、统一存储布局、API 面概览与部署/运维边界；企业模式下另有一个 durable workflow worker 进程（ADR-0013）。各领域的内部设计见 [identity.md](./identity.md)（M0）、[conversation.md](./conversation.md)（M1 对话内核）。
 
 ## Purpose / Scope（职责与边界）
 
@@ -18,6 +18,7 @@ FastAPI 单进程后端的宿主形态：模块地图、物理拓扑、智能层
 | `services/api/app/main.py` | 应用工厂、lifespan（管理员引导、持久化/可观测性装配、图谱 reaper、定时清理）、CORS、`X-Process-Time` 与 RequestId 中间件、总路由挂载 |
 | `services/api/app/persistence/` | 企业持久化 lane：async engine/session、SQLAlchemy models（schema 单事实源）、repository、object store、Redis/内存缓存原语、健康探测（`DATABASE_URL` 未设=完全惰性，见 [enterprise-infra.md](../development/enterprise-infra.md)） |
 | `services/api/app/observability/` | `X-Request-ID` 进出贯通、脱敏工具（默认禁 prompt/正文/JWT/refresh/audio/provider key）、OTel lazy 装配（`OTEL_TRACES_ENABLED` 门控） |
+| `services/api/app/workflows/` + `services/api/worker.py` | Temporal durable workflow lane（ADR-0013）：门控/queue 常量/Client 工厂与各域 workflow+activity；`worker.py` 是独立 worker 进程入口（`TEMPORAL_ADDRESS` 未设整层惰性，file 模式零行为变化） |
 | `services/api/migrations/` | Alembic 迁移（models 单事实源；显式 `alembic upgrade`，启动不做 DDL） |
 | `services/api/app/core/config.py` | 全量环境变量/开关集中读取（`settings`） |
 | `services/api/app/core/paths.py` | `RuntimePaths` 单一存储根所有权：`NEXT_TUTOR_DATA_DIR` 解析、`bind_storage_path` 绑定与批量重定向（测试沙箱/demo 导出器复用） |
@@ -44,6 +45,7 @@ FastAPI 单进程后端的宿主形态：模块地图、物理拓扑、智能层
                                                                 ├──> 本地自备向量模型 / Embedding API（可选，RAG 向量轨）
                                                                 └──> 多模态视觉 API（可选，拍照识题/OCR；缺省回退本地 tesseract）
 语音：浏览器 ──WS──> FastAPI /voice/ws ──> MeloTTS sidecar (:8130)
+durable lane（可选，ADR-0013）：worker.py 进程 ──gRPC──> Temporal (:7233)；API 进程只在 TEMPORAL_ADDRESS 已设时经 Client 提交/取消 workflow，不执行它们
 ```
 
 SSE 为前端直连后端的流式通道（`POST /chat/stream`、`POST /quiz/grade`）；同源生产经 nginx 反代（需 `proxy_buffering off`）。每个响应带 `X-Process-Time` 头（>1s 终端告警）。
@@ -140,7 +142,7 @@ SSE 为前端直连后端的流式通道（`POST /chat/stream`、`POST /quiz/gra
 
 - 外部：LLM（必配，OpenAI 兼容）、Embedding/本地向量模型（可选）、多模态视觉 API（可选，回退 tesseract）、Chroma（可选向量轨；BM25 基线零依赖，ADR-0003）。
 - 被依赖：前端（唯一后端）；OpenAI 兼容门面供第三方平台挂载。
-- 进程形态：文件模式 FastAPI 单 worker（JSON 持久层前提，ADR-0004）；企业模式（`DATABASE_URL`）多 worker 放行（ADR-0010，`WEB_CONCURRENCY>1` 时文件模式启动 fail-fast）；语音 sidecar 独立进程由 start.sh 托管；教材图谱构建为进程内 asyncio 后台任务，启动 lifespan reaper 将残留 `building` 置 `graph_failed`。
+- 进程形态：文件模式 FastAPI 单 worker（JSON 持久层前提，ADR-0004），后台任务由 API lifespan/`create_task` 持有；企业模式（`DATABASE_URL`）多 worker 放行（ADR-0010，`WEB_CONCURRENCY>1` 时文件模式启动 fail-fast）；`TEMPORAL_ADDRESS` 已设时后台任务所有权移交 durable worker 进程（ADR-0013，API lifespan 不再启动对应 in-process worker）；语音 sidecar 独立进程由 start.sh 托管；教材图谱构建在文件模式为进程内 asyncio 后台任务（启动 lifespan reaper 将残留 `building` 置 `graph_failed`），durable 模式由 workflow 持有。
 - 改 agent 管线代码后必须重启 uvicorn（无热重载假设）。
 
 ## Invariants / security boundaries（不变量与安全边界）
@@ -185,6 +187,7 @@ SSE 为前端直连后端的流式通道（`POST /chat/stream`、`POST /quiz/gra
 - 教材管线：`TEXTBOOK_GRAPH_ENABLED`（默认 1）、`TEXTBOOK_GRAPH_MAX_CHAPTERS=30`、`TEXTBOOK_GRAPH_MAX_CONCEPTS=400`、`TEXTBOOK_PARSE_MODE`/`TEXTBOOK_BUILD_CONCURRENCY` 等。
 - 门面与语音：`COMPAT_API_KEY`（未配置=门面 503 关闭）、`COMPAT_GRADE`；`VOICE_TTS_PROVIDER`（默认 off）、`VOICE_TTS_BASE_URL`（127.0.0.1:8130）。
 - 企业持久化与可观测性：`DATABASE_URL`/`REDIS_URL`/`OBJECT_STORE_*`/`OTEL_*` —— 变量清单、迁移与运维手册见 [enterprise-infra.md](../development/enterprise-infra.md)。
+- Durable workflow：`TEMPORAL_ADDRESS`/`TEMPORAL_NAMESPACE`（未设=各域进程内执行零变化；队列/worker 运行见 [ADR-0013](../adr/0013-durable-workflows.md) 与 [enterprise-infra.md](../development/enterprise-infra.md)）。
 - 鉴权/管理员：见 [identity.md](./identity.md)。
 - 生产清单：`AUTH_MODE=1` + 强 `AUTH_JWT_SECRET` + `CORS_ORIGINS` 白名单 + `chmod 600 .env`；Python 依赖用 `services/api/requirements.txt` + `constraints.txt` 约束。
 
@@ -216,7 +219,7 @@ GitHub Pages 静态演示（`NEXT_PUBLIC_DEMO_MODE=1` 只读导出形态）见 [
 - `test_bootstrap_readiness.py`（启动引导）
 - `test_compat_api.py`（OpenAI 兼容门面）
 - `test_docs.py`（使用文档）、`test_allowlist_sanitize.py`
-- `tests/persistence/*`（engine/models/repository/object store/cache 原语 + Alembic 契约 + `integration.py` 真 PostgreSQL/Redis 集成车道）、`tests/observability/test_observability.py`（request-id/脱敏/OTel 降级）——CI 分片见 [../development/testing.md](../development/testing.md)
+- `tests/persistence/*`（engine/models/repository/object store/cache 原语 + Alembic 契约 + `integration.py` 真 PostgreSQL/Redis 集成车道）、`tests/observability/test_observability.py`（request-id/脱敏/OTel 降级）、`tests/workflows/*`（Temporal lane 门控/worker 入口 + 各域 workflow 确定性测试，temporalio 内置 test server；真服务器集成车道由 `TEST_TEMPORAL_ADDRESS` 门控）——CI 分片见 [../development/testing.md](../development/testing.md)
 - 其余各域测试索引见 [identity.md](./identity.md)、[conversation.md](./conversation.md) 及 [../development/testing.md](../development/testing.md)（环境搭建、浏览器 smoke/full 回归与 CI 所有权）。
 
 ## Related ADRs
@@ -228,3 +231,4 @@ GitHub Pages 静态演示（`NEXT_PUBLIC_DEMO_MODE=1` 只读导出形态）见 [
 - ADR-0005 Pages demo 仅 synthetic fixtures
 - [ADR-0010](../adr/0010-enterprise-persistence.md) 企业持久化栈（PostgreSQL/Object/Redis）
 - [ADR-0011](../adr/0011-tenant-rotating-sessions.md) 租户模型与轮换认证会话
+- [ADR-0013](../adr/0013-durable-workflows.md) Durable workflows（Temporal 任务所有权分离）

@@ -80,6 +80,7 @@ REQUIRED_READMES = [
     "services/api/app/schemas/README.md",
     "services/api/app/tools/README.md",
     "services/api/app/voice/README.md",
+    "services/api/app/workflows/README.md",
     "services/api/tests/README.md",
     "services/voice/README.md",
     "scripts/README.md",

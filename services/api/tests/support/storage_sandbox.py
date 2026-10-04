@@ -105,6 +105,13 @@ def reset_shared_caches() -> None:
         classroom_audio.reset_audio_engine()
     except ImportError:
         pass
+    # Temporal lane（ADR-0013）：进程级 client 缓存可能指向上一用例的
+    # test server / 地址，跨用例必须丢弃。
+    try:
+        from app.workflows import runtime as workflow_runtime
+        workflow_runtime.reset_client_cache()
+    except ImportError:
+        pass
 
 
 class StorageSandboxTestCase(unittest.TestCase):
