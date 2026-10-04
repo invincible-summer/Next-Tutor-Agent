@@ -42,7 +42,7 @@ import type {
   AssistantRouteId,
   AssistantSseEvent,
   ConversationSummary,
-} from "./types.generated";
+} from "@next-tutor/contracts/assistant";
 
 export type PanelMode = "collapsed" | "standard" | "expanded";
 export type PanelView = "conversation" | "history" | "tasks" | "inbox";

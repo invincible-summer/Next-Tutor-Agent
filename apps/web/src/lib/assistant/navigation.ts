@@ -1,5 +1,5 @@
 // 页面适配器返回已应用的视图/实体状态；null 只表示还需等待。
-import type { PageCommandResult } from "./types.generated";
+import type { PageCommandResult } from "@next-tutor/contracts/assistant";
 
 export const navigationSucceeded: PageCommandResult = { status: "succeeded" };
 export const navigationMissing: PageCommandResult = { status: "failed", code: "entity_not_found" };

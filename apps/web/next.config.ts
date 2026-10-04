@@ -3,6 +3,16 @@ import type { NextConfig } from "next";
 const demo = process.env.NEXT_PUBLIC_DEMO_MODE === "1";
 
 const nextConfig: NextConfig = {
+  // Workspace packages ship raw TypeScript sources (no build step); the web
+  // bundler compiles them. This is the single sanctioned coupling point
+  // between apps/web and packages/* (see docs/architecture/client-platform.md).
+  transpilePackages: [
+    "@next-tutor/contracts",
+    "@next-tutor/api-client",
+    "@next-tutor/domain",
+    "@next-tutor/design-tokens",
+    "@next-tutor/i18n",
+  ],
   ...(process.env.NEXT_TUTOR_E2E === "1" ? {
     distDir: ".next-e2e",
     typescript: { tsconfigPath: "tsconfig.e2e.json" },

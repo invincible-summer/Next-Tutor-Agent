@@ -1,101 +1,13 @@
 @import "tailwindcss";
+@import "../styles/tokens.generated.css";
 @custom-variant dark (&:where(.dark, .dark *));
 
 /* ==========================================================================
-   Next Tutor Agent · 「纸墨书院 × 现代工作台」设计令牌
-   浅色 = 宣纸底 + 墨色 + 黛青主色 + 朱砂点缀
-   深色 = 墨夜底 + 同系高明度色
+   设计令牌已迁移到 packages/design-tokens（单一事实源 data/tokens.json）：
+   颜色/阴影/字体由 scripts/dev/generate_design_tokens.mjs 生成到
+   src/styles/tokens.generated.css（根 `pnpm tokens:generate`，CI --check 防漂移）。
+   本文件保留 Web 专属样式：全局基础、chat-prose 排版、组件层 CSS。
    ========================================================================== */
-
-:root {
-  /* 基底 */
-  --bg: 246 245 241;            /* 宣纸 */
-  --surface: 255 254 250;       /* 纸面 */
-  --surface-hover: 240 238 231; /* 纸面悬浮 */
-  --surface-sunken: 238 236 229;/* 凹陷区（代码块/表格头） */
-  --border: 224 221 212;
-  --border-light: 233 230 223;
-  /* 墨色 */
-  --fg: 30 30 36;
-  --fg-secondary: 82 80 74;
-  --fg-tertiary: 140 137 128;   /* 弱提示（= muted 别名，供 text-fg-tertiary 使用） */
-  --muted: 140 137 128;
-  /* 黛青（主色） */
-  --accent: 37 109 102;
-  --accent-strong: 29 86 80;
-  --accent-soft: 221 234 230;
-  /* 朱砂（强调：连续天数/重要提醒） */
-  --accent2: 194 64 42;
-  --accent2-strong: 160 50 32;
-  --accent2-soft: 245 227 221;
-  /* 语义 */
-  --success: 46 125 82;
-  --warning: 176 126 12;
-  --danger: 180 56 46;
-  --info: 74 98 138;
-  /* 阴影：低存在感 */
-  --shadow-sm: 0 1px 2px 0 rgb(30 26 18 / 0.05);
-  --shadow-md: 0 4px 14px -4px rgb(30 26 18 / 0.08), 0 2px 4px -1px rgb(30 26 18 / 0.03);
-  --shadow-lg: 0 10px 30px -8px rgb(30 26 18 / 0.12), 0 4px 8px -2px rgb(30 26 18 / 0.05);
-  --font-sans: "Inter", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", ui-sans-serif, system-ui, -apple-system, sans-serif;
-  --font-serif: "Songti SC", "Noto Serif CJK SC", "Source Han Serif SC", Georgia, ui-serif, serif;
-  --font-mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
-}
-
-.dark {
-  --bg: 16 18 22;
-  --surface: 24 27 33;
-  --surface-hover: 33 36 44;
-  --surface-sunken: 20 22 28;
-  --border: 45 48 58;
-  --border-light: 36 39 48;
-  --fg: 232 230 225;
-  --fg-secondary: 192 190 182;
-  --fg-tertiary: 138 141 150;
-  --muted: 138 141 150;
-  --accent: 86 173 161;
-  --accent-strong: 122 199 187;
-  --accent-soft: 25 51 49;
-  --accent2: 226 108 82;
-  --accent2-strong: 238 138 114;
-  --accent2-soft: 60 32 27;
-  --success: 84 176 120;
-  --warning: 212 164 42;
-  --danger: 224 106 94;
-  --info: 122 148 190;
-  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.25);
-  --shadow-md: 0 4px 14px -4px rgb(0 0 0 / 0.3), 0 2px 4px -1px rgb(0 0 0 / 0.18);
-  --shadow-lg: 0 10px 30px -8px rgb(0 0 0 / 0.35), 0 4px 8px -2px rgb(0 0 0 / 0.22);
-}
-
-@theme inline {
-  --color-bg: rgb(var(--bg));
-  --color-surface: rgb(var(--surface));
-  --color-surface-hover: rgb(var(--surface-hover));
-  --color-surface-sunken: rgb(var(--surface-sunken));
-  --color-border: rgb(var(--border));
-  --color-border-light: rgb(var(--border-light));
-  --color-fg: rgb(var(--fg));
-  --color-fg-secondary: rgb(var(--fg-secondary));
-  --color-fg-tertiary: rgb(var(--fg-tertiary));
-  --color-muted: rgb(var(--muted));
-  --color-accent: rgb(var(--accent));
-  --color-accent-strong: rgb(var(--accent-strong));
-  --color-accent-soft: rgb(var(--accent-soft));
-  --color-accent2: rgb(var(--accent2));
-  --color-accent2-strong: rgb(var(--accent2-strong));
-  --color-accent2-soft: rgb(var(--accent2-soft));
-  --color-success: rgb(var(--success));
-  --color-warning: rgb(var(--warning));
-  --color-danger: rgb(var(--danger));
-  --color-info: rgb(var(--info));
-  --font-sans: var(--font-sans);
-  --font-serif: var(--font-serif);
-  --font-mono: var(--font-mono);
-  --shadow-sm: var(--shadow-sm);
-  --shadow-md: var(--shadow-md);
-  --shadow-lg: var(--shadow-lg);
-}
 
 html, body {
   background-color: rgb(var(--bg));

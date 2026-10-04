@@ -17,7 +17,10 @@ export function buildFingerprint(root, env) {
   }
   for (const path of ["src", "public", "scripts", "tests/e2e/support/build-front.mjs",
     "next.config.ts", "tsconfig.json", "tsconfig.e2e.json", "tsconfig.classroom.json",
-    "postcss.config.mjs", "package.json", "pnpm-lock.yaml"]) add(path);
+    "postcss.config.mjs", "package.json",
+    // Workspace-level build inputs: the shared packages and the single root
+    // lockfile are compiled into the web bundle (transpilePackages).
+    "../../packages", "../../pnpm-lock.yaml", "../../tsconfig.base.json"]) add(path);
   // Next reads these even when backend dotenv loading is disabled. Hash only;
   // never put their contents or environment values in the diagnostic stamp.
   readdirSync(root).filter(name => /^\.env($|\.)/.test(name)).sort().forEach(add);

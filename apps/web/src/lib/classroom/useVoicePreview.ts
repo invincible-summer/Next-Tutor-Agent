@@ -13,7 +13,7 @@ import {
 } from "@/lib/api-classroom";
 import type {
   LessonLanguage, VoicePreferences,
-} from "@/lib/types-classroom.generated";
+} from "@next-tutor/contracts/classroom";
 
 export interface VoicePreviewRequest {
   language: LessonLanguage;

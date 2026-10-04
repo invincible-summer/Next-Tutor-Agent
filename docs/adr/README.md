@@ -19,3 +19,5 @@
 | [ADR-0005](./0005-synthetic-pages-demo.md) | Synthetic Pages demo | GitHub Pages 演示仅使用项目自制的 synthetic fixtures |
 | [ADR-0006](./0006-material-assisted-svg-authoring.md) | 素材参考 SVG 创作 | V3 允许加工、组合及自绘，实际 PNG 合并审核后兼容冻结发布 |
 | [ADR-0007](./0007-shared-illustration-tools.md) | 独立配图工具 | 配图引擎供测评与工具助手复用，情景配图支持选材与多轮版本 |
+| [ADR-0008](./0008-expo-react-native-mobile.md) | Expo/RN 单移动代码库 | 移动端唯一代码库走 Expo SDK 57 / RN 0.86，共享包起步，禁止复制 API |
+| [ADR-0009](./0009-root-monorepo-shared-packages.md) | 根 monorepo 共享包 | 根 pnpm workspace + 五个共享客户端包，契约生成单事实源 |

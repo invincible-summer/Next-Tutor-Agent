@@ -19,7 +19,7 @@ import {
 import type {
   BulletsBlock, ChangeThemeOperation, ImageBlock, ImageCandidate, JobPublic, LessonDetailPublic,
   RevisionOperation, RevisionPublic, SlideSpec, ThemeTemplateInfo,
-} from "@/lib/types-classroom.generated";
+} from "@next-tutor/contracts/classroom";
 import { Button } from "@/components/ui/Button";
 import { Input, Textarea, Field } from "@/components/ui/Input";
 import SlideFrame, { type SlideFrameHandle } from "./SlideFrame";

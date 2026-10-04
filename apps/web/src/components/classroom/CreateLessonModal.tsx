@@ -22,7 +22,7 @@ import {
 } from "@/lib/api-classroom";
 import type {
   ClassroomCapabilities, ClassroomTemplates, LessonBrief, LessonLanguage,
-} from "@/lib/types-classroom.generated";
+} from "@next-tutor/contracts/classroom";
 import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
 import { Field, Input, Textarea, FIELD_CLS } from "@/components/ui/Input";

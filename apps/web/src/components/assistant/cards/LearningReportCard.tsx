@@ -4,7 +4,7 @@
 // 五段固定结构：范围/日期/截至 → 学习事实 → 已有学习评价 → 需要关注 →
 // 下一步 → 依据与限制。数字与主张全部来自服务端报告，不在前端计算。
 import { useAssistantStore } from "@/lib/assistant/store";
-import type { LearningReport } from "@/lib/assistant/types.generated";
+import type { LearningReport } from "@next-tutor/contracts/assistant";
 
 export function LearningReportCard({ report }: { report: LearningReport }) {
   const lang = useAssistantStore((s) => s.lang);

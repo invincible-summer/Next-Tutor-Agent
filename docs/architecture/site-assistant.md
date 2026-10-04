@@ -43,7 +43,7 @@
 
 前端 `apps/web/src/`：`components/assistant/`（`AssistantLauncher`、`AssistantPanel`、`AssistantComposer`、`AssistantMessages`、`AssistantTaskCenter`、`AssistantInbox`、`AssistantSettings`、`AssistantVoiceControls`、`AssistantHost`/`Provider` + `cards/` 报告/动作/选择/来源卡）、`lib/assistant/`（`store.ts`、`routes.ts` 导航白名单、`navigation.ts`/`page-context.ts` 页面适配器、`deep-link.ts`、`overlay.ts`、`actions.ts`、`api.ts`、`types.generated.ts`）。
 
-类型生成：`scripts/dev/generate_assistant_types.py` 由 `schemas/assistant.py` 生成前端 `types.generated.ts`（`--check` 在 `test_assistant_schema.py` 中强制同步）。
+类型生成：`scripts/contracts/generate_types.py` 由 `schemas/assistant.py` 生成共享包 `packages/contracts/src/generated/assistant.ts`（`--check` 在 `test_assistant_schema.py` 中强制同步；Web 经 `@next-tutor/contracts/assistant` 引用）。
 
 ## Public contracts（对外契约：API 端点/SSE/WS/数据结构）
 

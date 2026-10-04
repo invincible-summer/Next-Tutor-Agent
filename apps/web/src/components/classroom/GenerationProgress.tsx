@@ -14,7 +14,7 @@ import { useUIStore } from "@/lib/store";
 import { makePageT } from "@/lib/i18n-page";
 import { cn } from "@/lib/cn";
 import { cancelJob, continueJob, getJob, retryJob, subscribeJobEvents } from "@/lib/api-classroom";
-import type { JobPublic } from "@/lib/types-classroom.generated";
+import type { JobPublic } from "@next-tutor/contracts/classroom";
 import { Button } from "@/components/ui/Button";
 import { STRINGS } from "./strings";
 

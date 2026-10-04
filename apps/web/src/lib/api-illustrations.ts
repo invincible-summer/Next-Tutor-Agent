@@ -1,6 +1,9 @@
-import { API_BASE } from "./api";
-import { apiFetch } from "./api-fetch";
+// 题图（V1/V2/V3）读模型客户端：传输与错误映射在共享包
+// @next-tutor/api-client（illustration 域），本文件保留 Web 的类型与
+// 展示层辅助函数（阶段/失败文案），并把 typed 错误适配为 Web 既有错误类型。
 import type { QuestionIllustrationData } from "./types";
+import { IllustrationApiError } from "@next-tutor/api-client";
+import { apiClient } from "@/platform/api-client";
 
 export type VisualRole = "none" | "supplemental" | "essential";
 export type IllustrationMode = "v1" | "v2" | "v3";
@@ -29,45 +32,32 @@ export class IllustrationRequestError extends Error {
   }
 }
 
-// Jobs are queued promptly; polling observes the server's 120-second budget.
-const ILLUSTRATION_POST_TIMEOUT_MS = 120_000;
-
-async function request(path: string, init?: RequestInit): Promise<IllustrationJob> {
-  let response: Response;
-  try {
-    response = await apiFetch(`${API_BASE}${path}`, init);
-  } catch (error) {
-    if (error instanceof Error && (error.name === "TimeoutError" || error.name === "AbortError")) {
-      throw new IllustrationRequestError("run_interrupted", true);
-    }
-    throw error;
+function adapt(error: unknown): never {
+  if (error instanceof IllustrationApiError) {
+    throw new IllustrationRequestError(error.code, error.retryable);
   }
-  const payload = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    const failure = payload?.detail?.error ?? payload?.error;
-    const retryable = typeof failure?.retryable === "boolean" ? failure.retryable
-      : response.status === 408 || response.status === 429 || response.status >= 500;
-    throw new IllustrationRequestError(String(failure?.code || `status_${response.status}`), retryable);
-  }
-  return payload as IllustrationJob;
+  throw error;
 }
 
 export function startIllustration(questionId: string, revision: number, signal?: AbortSignal) {
-  return request(`/assessment/questions/${encodeURIComponent(questionId)}/illustration`, {
-    method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ question_revision: revision }),
-    signal: signal ?? AbortSignal.timeout(ILLUSTRATION_POST_TIMEOUT_MS),
-  });
+  return apiClient()
+    .illustration.start(questionId, revision, { signal })
+    .then((view) => view as IllustrationJob, adapt);
 }
 export function getIllustrationJob(jobId: string, signal?: AbortSignal) {
-  return request(`/illustration-jobs/${encodeURIComponent(jobId)}`, signal ? { signal } : undefined);
+  return apiClient()
+    .illustration.getJob(jobId, signal)
+    .then((view) => view as IllustrationJob, adapt);
 }
 export function retryIllustrationJob(jobId: string, signal?: AbortSignal) {
-  return request(`/illustration-jobs/${encodeURIComponent(jobId)}/retry`, {
-    method: "POST", signal: signal ?? AbortSignal.timeout(ILLUSTRATION_POST_TIMEOUT_MS),
-  });
+  return apiClient()
+    .illustration.retry(jobId, { signal })
+    .then((view) => view as IllustrationJob, adapt);
 }
 export function getFrozenIllustration(questionId: string, revision: number, signal?: AbortSignal) {
-  return request(`/questions/${encodeURIComponent(questionId)}/illustration?question_revision=${revision}`, signal ? { signal } : undefined);
+  return apiClient()
+    .illustration.frozen(questionId, revision, signal)
+    .then((view) => view as IllustrationJob, adapt);
 }
 
 export function illustrationStage(stage: string, english: boolean): string {

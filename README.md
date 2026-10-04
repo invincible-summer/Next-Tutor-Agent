@@ -83,9 +83,8 @@ python3.11 -m venv .venv
 source .venv/bin/activate
 pip install -r services/api/requirements.txt
 
-cd apps/web
+# 根目录是唯一的 pnpm workspace：安装会同时链接 apps/web 与 packages/* 共享包
 pnpm install
-cd ..
 ```
 
 如果已使用 Conda，可建立名为 `edu_agent` 的 Python 3.11 环境代替 `.venv`；启动脚本会优先尝试激活该环境。
@@ -122,6 +121,9 @@ cd ..
 ./start.sh
 ```
 
+> pnpm 命令也可以在仓库根用 `pnpm --filter @next-tutor/web run <script>` 执行；
+> Node 版本与 pnpm 版本由根 `package.json` 的 `engines`/`packageManager` 固定。
+
 前端优先使用 http://localhost:3001，后端优先使用 `8123` 端口；端口占用时自动尝试其他端口，请以终端输出为准。首次启动会构建前端，后续可复用构建。使用热更新开发模式：
 
 ```bash
@@ -154,14 +156,18 @@ cd ..
 ## 项目结构
 
 ```text
-apps/web/           Next.js 前端（页面、学习交互与共享组件）
+apps/web/           Next.js 前端（页面、学习交互与共享组件；@next-tutor/web）
+packages/           跨端共享包（contracts 契约 / api-client 传输 / domain 纯逻辑 /
+                    design-tokens 设计令牌 / i18n 文案协议，见 docs/architecture/client-platform.md）
 services/api/       FastAPI 后端（API、教学智能体、教材处理与学习数据，tests/ 为后端测试）
 services/voice/     本地 MeloTTS 语音 sidecar（可选）
 fixtures/demo/      GitHub Pages 演示的合成数据源（synthetic-only）
-scripts/            按域组织的仓库脚本（repo 卫生 guard / demo 导出 / 开发与验收工具）
+scripts/            按域组织的仓库脚本（repo 卫生 guard / contracts 生成链 / demo 导出 / 开发与验收工具）
 deploy/             systemd、nginx 等部署模板
 docs/               架构文档、ADR、开发/运维/合规/验证手册（入口 docs/README.md）
 ```
+
+根目录是唯一的 pnpm workspace（Node >=22.13、pnpm 11，唯一 lockfile 在根）。
 
 仓库只包含源码、测试、部署模板与合成演示数据：教材原件、解析文本、切片、
 知识图谱与用户运行数据均为部署本地状态（`.runtime/data`，见

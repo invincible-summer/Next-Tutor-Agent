@@ -3,7 +3,7 @@
 // 候选选择卡（A06 视觉）。
 import { useAssistantStore } from "@/lib/assistant/store";
 import { stringsFor } from "../strings";
-import type { ChoiceOption } from "@/lib/assistant/types.generated";
+import type { ChoiceOption } from "@next-tutor/contracts/assistant";
 
 export function ChoiceCard({
   blockId, prompt, options,

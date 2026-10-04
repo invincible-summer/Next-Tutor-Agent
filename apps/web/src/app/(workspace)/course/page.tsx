@@ -24,7 +24,7 @@ import {
 import type { ClassroomSummary, WorkspaceItem } from "@/lib/types";
 import type {
   LessonSummaryPublic, ResumeCardPublic,
-} from "@/lib/types-classroom.generated";
+} from "@next-tutor/contracts/classroom";
 import { startLessonRun } from "@/lib/classroom/useClassroomPlayer";
 import { classroomPath, lessonPath } from "@/lib/classroom/paths";
 import { Button } from "@/components/ui/Button";

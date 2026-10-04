@@ -263,8 +263,10 @@ frontend_build_needed() {
     [ ! -f .next/edu-build-port ] && return 0
     [ "$(cat .next/edu-build-port)" != "$bport" ] && return 0
     [ .next/edu-build-port -ot .next/BUILD_ID ] && return 0
-    # Source newer than the last build -> stale bundle.
-    [ -n "$(find src public next.config.ts package.json -newer .next/BUILD_ID -print -quit 2>/dev/null)" ] && return 0
+    # Source newer than the last build -> stale bundle. Shared workspace
+    # packages and the root lockfile are build inputs too: a change anywhere
+    # in packages/* must invalidate the apps/web bundle.
+    [ -n "$(find src public next.config.ts package.json ../../packages ../../pnpm-lock.yaml ../../tsconfig.base.json -newer .next/BUILD_ID -print -quit 2>/dev/null)" ] && return 0
     return 1
 }
 
@@ -277,7 +279,7 @@ build_classroom_assets() {
     if [ ! -f "$classroom_manifest" ] \
         || [ "$ROOT/apps/web/src/lib/classroom/frame-runtime.ts" -nt "$classroom_manifest" ] \
         || [ "$ROOT/apps/web/scripts/build-classroom-assets.mjs" -nt "$classroom_manifest" ] \
-        || [ "$ROOT/apps/web/pnpm-lock.yaml" -nt "$classroom_manifest" ]; then
+        || [ "$ROOT/pnpm-lock.yaml" -nt "$classroom_manifest" ]; then
         echo "[start.sh] building classroom renderer assets"
         (cd "$ROOT/apps/web" && pnpm run build:classroom) || {
             echo "[start.sh] classroom assets build failed; classroom renderer will be unavailable"

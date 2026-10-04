@@ -1,7 +1,7 @@
 // 助手导航目标 → 站内 URL 的唯一白名单拼装点（A10）。
 // 只认契约内 NavigationTarget；未知目标一律返回 null，不得由模型文本
 // 构造 URL。A11 会为 memory/orchestration/insights 等扩展深链参数。
-import type { NavigationTarget } from "./types.generated";
+import type { NavigationTarget } from "@next-tutor/contracts/assistant";
 
 /** route_id → 站内路径（与 lib/nav.ts 的 NAV 一致）。 */
 const MODULE_PATHS: Record<string, string> = {

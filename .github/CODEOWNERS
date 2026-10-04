@@ -1,0 +1,30 @@
+# CODEOWNERS: review routing for long-lived boundaries (plan §21.2).
+# Keep teams/roles as placeholders until org teams exist; default owner is
+# the repository maintainer.
+
+* @invincible-summer
+
+# CI / governance
+/.github/            @invincible-summer
+/scripts/repo/       @invincible-summer
+/scripts/contracts/  @invincible-summer
+
+# Identity, persistence and migrations (tenant/security invariants)
+/services/api/app/identity/      @invincible-summer
+/services/api/app/persistence/   @invincible-summer
+/services/api/migrations/        @invincible-summer
+
+# Shared cross-client packages (contract + transport single source of truth)
+/packages/contracts/     @invincible-summer
+/packages/api-client/    @invincible-summer
+/packages/domain/        @invincible-summer
+/packages/design-tokens/ @invincible-summer
+/packages/i18n/          @invincible-summer
+
+# Web core transport/platform adapters
+/apps/web/src/lib/api-fetch.ts      @invincible-summer
+/apps/web/src/platform/             @invincible-summer
+/apps/web/next.config.ts            @invincible-summer
+
+# Deployment templates
+/deploy/             @invincible-summer

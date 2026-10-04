@@ -15,6 +15,7 @@ For anything beyond mechanical edits, open the module README plus its canonical 
 | Area | Code | Doc |
 | :--- | :--- | :--- |
 | Frontend | `apps/web` | `frontend.md` |
+| Shared client packages | `packages/*` + `apps/web/src/platform` | `client-platform.md` |
 | Identity / accounts | `app/identity` | `identity.md` |
 | Chat / supervisor | `app/agents` root + `api/v1/chat.py` | `conversation.md` |
 | Student model | `agents/student_model` | `student-model.md` |

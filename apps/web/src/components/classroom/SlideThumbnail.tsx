@@ -1,5 +1,5 @@
 "use client";
-import type { SlideSpec } from "@/lib/types-classroom.generated";
+import type { SlideSpec } from "@next-tutor/contracts/classroom";
 import { cardPaletteFor } from "./theme-palette";
 
 /** Content-based miniature; the live, sandboxed slide remains the main preview. */

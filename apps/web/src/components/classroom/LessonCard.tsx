@@ -11,7 +11,7 @@ import {
 import { cn } from "@/lib/cn";
 import { useUIStore } from "@/lib/store";
 import { localeFor } from "@/lib/i18n";
-import type { LessonSummaryPublic } from "@/lib/types-classroom.generated";
+import type { LessonSummaryPublic } from "@next-tutor/contracts/classroom";
 import { classroomPath } from "@/lib/classroom/paths";
 import { cardPaletteFor } from "./theme-palette";
 

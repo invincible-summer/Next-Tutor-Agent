@@ -13,10 +13,23 @@ from app.illustration.contracts import (IllustrationError,
                                         material_contract)
 from app.illustration.events import public_job
 from app.illustration.orchestrator import recover_job, start_job
+from app.schemas.illustration import QuizIllustrationJob
 
 from .assessment_illustration import _bound_instance, _error
 
 router = APIRouter(tags=["illustrations"])
+
+
+def _static_job_status(status: str, question_id: str, question_revision: int, *,
+                       visual_role: str = "supplemental", artifact_id: str | None = None,
+                       illustration: dict | None = None) -> dict:
+    """Ready/not-required projections without a live job, in the same public
+    envelope as `events.public_job` so the response model stays uniform."""
+    return {"status": status, "job_id": "", "question_id": question_id,
+            "question_revision": question_revision, "visual_role": visual_role,
+            "artifact_id": artifact_id, "illustration": illustration,
+            "failure": None, "code": "", "retryable": False,
+            "progress": {"stage": "ready", "percent": 100}}
 
 
 class DraftReference(BaseModel):
@@ -82,7 +95,7 @@ def recovered_job(owner, job):
         raise _error(404, "illustration_job_not_found", "配图任务不存在") from None
 
 
-@router.post("/quiz/illustration-jobs")
+@router.post("/quiz/illustration-jobs", response_model=QuizIllustrationJob)
 async def create_illustration_job(req: DraftReference, owner: str = Depends(resolve_student_id)):
     # Browser clients may reference only already owned server material. New
     # essential drafts use the internal generation path before registration.
@@ -97,10 +110,10 @@ async def create_illustration_job(req: DraftReference, owner: str = Depends(reso
         # A failed job cannot bypass policy/current-question checks. The
         # orchestrator may replace it when its implementation version changed.
     if task.illustration is not None:
-        return {"status": "ready", "question_id": task.question_id,
-            "question_revision": task.question_revision, "visual_role": task.visual_role,
-            "artifact_id": task.illustration_artifact_id,
-            "illustration": task.illustration.model_dump(mode="json")}
+        return _static_job_status("ready", task.question_id, task.question_revision,
+                                  visual_role=task.visual_role,
+                                  artifact_id=task.illustration_artifact_id,
+                                  illustration=task.illustration.model_dump(mode="json"))
     try:
         instance = _bound_instance(state, task.question_id, task.question_revision)
         job = start_job(owner, task_contract(
@@ -111,7 +124,7 @@ async def create_illustration_job(req: DraftReference, owner: str = Depends(reso
     return public_job(owner, job)
 
 
-@router.get("/illustration-jobs/{job_id}")
+@router.get("/illustration-jobs/{job_id}", response_model=QuizIllustrationJob)
 def get_illustration_job(job_id: str, owner: str = Depends(resolve_student_id)):
     try:
         job = persistence.read(owner, "jobs", job_id)
@@ -123,7 +136,7 @@ def get_illustration_job(job_id: str, owner: str = Depends(resolve_student_id)):
     return public_job(owner, recovered_job(owner, job))
 
 
-@router.post("/illustration-jobs/{job_id}/retry")
+@router.post("/illustration-jobs/{job_id}/retry", response_model=QuizIllustrationJob)
 async def retry_illustration_job(job_id: str, owner: str = Depends(resolve_student_id)):
     try:
         job = persistence.read(owner, "jobs", job_id)
@@ -151,19 +164,21 @@ async def retry_illustration_job(job_id: str, owner: str = Depends(resolve_stude
     return public_job(owner, new_job)
 
 
-@router.get("/questions/{question_id}/illustration")
+@router.get("/questions/{question_id}/illustration", response_model=QuizIllustrationJob)
 def frozen_illustration(question_id: str, question_revision: int = Query(ge=1),
                         owner: str = Depends(resolve_student_id)):
     _, task = owned_task(owner, question_id, question_revision)
     if task.illustration:
-        return {"status": "ready", "question_id": question_id, "question_revision": question_revision,
-            "visual_role": task.visual_role, "artifact_id": task.illustration_artifact_id,
-            "illustration": task.illustration.model_dump(mode="json")}
+        return _static_job_status("ready", question_id, question_revision,
+                                  visual_role=task.visual_role,
+                                  artifact_id=task.illustration_artifact_id,
+                                  illustration=task.illustration.model_dump(mode="json"))
     job = persistence.find_job(owner, question_id, question_revision)
     if job:
         return public_job(owner, recovered_job(owner, job))
     from app.core.quiz_illustration_enrichment import get_cached_assessment_illustration
     cached = get_cached_assessment_illustration(owner, question_id, question_revision)
-    return {"status": cached["status"] if cached else "not_required", "question_id": question_id,
-        "question_revision": question_revision, "visual_role": "supplemental",
-        "illustration": cached["illustration"].model_dump(mode="json") if cached and cached.get("illustration") else None}
+    return _static_job_status(cached["status"] if cached else "not_required",
+                              question_id, question_revision,
+                              illustration=cached["illustration"].model_dump(mode="json")
+                              if cached and cached.get("illustration") else None)

@@ -3,7 +3,7 @@
 // 统计事实卡（A06 视觉；数字由服务端确定性生成）。
 import { useAssistantStore } from "@/lib/assistant/store";
 import { stringsFor } from "../strings";
-import type { MetricItem } from "@/lib/assistant/types.generated";
+import type { MetricItem } from "@next-tutor/contracts/assistant";
 
 export function MetricsCard({ items }: { items: MetricItem[] }) {
   const lang = useAssistantStore((s) => s.lang);

@@ -1,59 +1,12 @@
-// 全站共享的领域标签：教学模式、边的类型、反馈信号等。
-// 双语内置，避免每个页面重复定义。评价状态标签见 evaluation-labels.ts。
+// 全站共享的领域标签字典已迁入 @next-tutor/domain（跨端复用）。
+// 本文件 re-export 纯语义映射，并保留 Web 表现层的 Badge 色调；
+// 评价状态标签见 evaluation-labels.ts。
 import type { Lang } from "./i18n";
 import type { BadgeTone } from "@/components/ui/Badge";
 
 export type { Lang };
 
-type Dict = Record<string, string>;
-
-/** 学段固定展示顺序（未知学段按字典序追加在后）。后端 taxonomy/catalog 同序。 */
-export const KNOWLEDGE_LEVEL_ORDER: string[] = ["小学", "初中", "高中", "本科", "其他"];
-
-const ZH: Dict = {
-  "mode.introduction": "新知引入",
-  "mode.explanation": "概念讲解",
-  "mode.remediation": "纠错巩固",
-  "mode.practice": "练习训练",
-  "mode.review": "复习回顾",
-  "mode.challenge": "挑战拓展",
-  "edge.prerequisite": "前置",
-  "edge.related": "相关",
-  "edge.part_of": "组成",
-  "edge.application": "应用",
-  "edge.misconception": "易混",
-  "event.concept_taught": "学习概念",
-  "event.quiz_graded": "完成测验",
-  "event.goal_set": "设定目标",
-  "verdict.correct": "回答正确",
-  "verdict.partial": "部分正确",
-  "verdict.wrong": "回答错误",
-};
-
-const EN: Dict = {
-  "mode.introduction": "Introduction",
-  "mode.explanation": "Explanation",
-  "mode.remediation": "Remediation",
-  "mode.practice": "Practice",
-  "mode.review": "Review",
-  "mode.challenge": "Challenge",
-  "edge.prerequisite": "Prerequisite",
-  "edge.related": "Related",
-  "edge.part_of": "Part of",
-  "edge.application": "Application",
-  "edge.misconception": "Confusable",
-  "event.concept_taught": "Concept taught",
-  "event.quiz_graded": "Quiz graded",
-  "event.goal_set": "Goal set",
-  "verdict.correct": "Correct",
-  "verdict.partial": "Partially correct",
-  "verdict.wrong": "Wrong",
-};
-
-/** 领域标签翻译：state.* / mode.* / edge.* / event.* / verdict.* */
-export function dt(lang: Lang, key: string, fallback?: string): string {
-  return (lang === "en" ? EN : ZH)[key] ?? fallback ?? key;
-}
+export { KNOWLEDGE_LEVEL_ORDER, dt } from "@next-tutor/domain";
 
 /** 教学模式 → Badge 色调（六模式一组柔和区分色）。 */
 export function modeTone(mode: string): BadgeTone {

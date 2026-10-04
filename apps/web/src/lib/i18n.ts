@@ -1,4 +1,9 @@
-export type Lang = "zh" | "en";
+// 语言类型协议来自共享包 @next-tutor/i18n（type-only，VM 单测运行时可擦除）；
+// localeFor 在 Web 侧本地实现（与共享包同形），页面级字典仍留 Web，
+// 跨端 key 进入移动端时再迁入共享包。
+import type { Lang } from "@next-tutor/i18n";
+
+export type { Lang };
 
 export function localeFor(lang: Lang): "zh-CN" | "en-US" {
   return lang === "en" ? "en-US" : "zh-CN";

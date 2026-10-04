@@ -254,7 +254,7 @@ function OwnedIllustrationWorkspace() {
     finally { setDeleteBusy(false); }
   }
   function download() {
-    if (!revision) return;
+    if (!revision?.illustration) return;
     const url = URL.createObjectURL(new Blob([revision.illustration.svg], { type: "image/svg+xml;charset=utf-8" }));
     const anchor = document.createElement("a"); anchor.href = url; anchor.download = `illustration-v${revision.revision}.svg`;
     anchor.click(); setTimeout(() => URL.revokeObjectURL(url), 0);
@@ -318,7 +318,7 @@ function OwnedIllustrationWorkspace() {
       </section>
       <aside className="min-h-0 min-w-0 overflow-y-auto border-l border-border-light bg-surface px-4 py-5" aria-label={tr("preview")} data-testid="illustration-result">
         <h2 className="mb-4 text-sm font-medium text-fg">{tr("preview")}</h2>
-        {revision ? <><div className="mb-2 flex items-center justify-between gap-2"><span className="text-xs text-muted">{tr("revision").replace("%n", String(revision.revision))} · {revision.mode.toUpperCase()}</span>{revision.revision === session?.revision && <span className="text-[10px] text-accent-strong">{tr("latest")}</span>}</div><QuestionIllustration illustration={revision.illustration} />
+        {revision ? <><div className="mb-2 flex items-center justify-between gap-2"><span className="text-xs text-muted">{tr("revision").replace("%n", String(revision.revision))} · {revision.mode.toUpperCase()}</span>{revision.revision === session?.revision && <span className="text-[10px] text-accent-strong">{tr("latest")}</span>}</div>{revision.illustration ? <QuestionIllustration illustration={revision.illustration as import("@/lib/types").QuestionIllustrationData} /> : null}
           <Button variant="outline" size="sm" icon={<Download size={13} aria-hidden="true" />} onClick={download}>{tr("download")}</Button>
           <Button variant="outline" size="sm" className="mt-2" disabled={busy} onClick={() => setSourceRevision(revision.revision)} data-testid="use-illustration-revision">{revision.revision === (sourceRevision ?? session?.revision) ? tr("usingAsBase") : tr("useAsBase")}</Button>
           <div className="mt-6 border-t border-border-light pt-4"><h3 className="mb-2 text-xs font-medium text-fg">{tr("revisions")}</h3><p className="mb-3 text-[10px] leading-5 text-muted">{tr("chooseBase")}</p><div className="space-y-1">{paged(revisions, visibleRevisionPage).map(row => <button key={row.revision} type="button" className={`flex w-full cursor-pointer items-center justify-between gap-2 rounded-lg px-3 py-2 text-xs ${row.revision === revision.revision ? "bg-accent-soft text-accent-strong" : "text-muted hover:bg-surface-hover"}`} onClick={() => setViewRevision(row.revision)} data-testid="illustration-revision" data-revision={row.revision} aria-pressed={row.revision === revision.revision}><span>{tr("revision").replace("%n", String(row.revision))}</span><span>{row.mode.toUpperCase()}</span></button>)}</div><Pager page={visibleRevisionPage} total={revisions.length} onPage={setRevisionPage} /></div></>

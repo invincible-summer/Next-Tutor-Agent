@@ -4,6 +4,7 @@ import { useUIStore } from "@/lib/store";
 // 全部走 apiFetch（带 Authorization）；SSE 用 ReadableStream 手解析——
 // 原生 EventSource 不能设置 Authorization 头（§14.4）。
 import { apiFetch } from "./api-fetch";
+import { readSseFrames } from "@next-tutor/api-client";
 import { API_BASE } from "./api";
 import type {
   AudioProfileRequest, AudioRequest, AudioResponse, ClipStatus,
@@ -15,7 +16,7 @@ import type {
   CreateRunRequest, LeaseAcquireRequest, LeaseRenewRequest, LeaseResponse,
   OutlinePatchRequest, ProgressRequest, ProgressResponse, RetryJobRequest,
   RunCreateResponse, VoicePreviewRequest, VoicePreviewResponse,
-} from "./types-classroom.generated";
+} from "@next-tutor/contracts/classroom";
 
 const BASE = API_BASE;
 
@@ -233,37 +234,13 @@ export interface JobEventsHandlers {
   onError?: (err: unknown) => void;
 }
 
-/** 解析 text/event-stream 帧（id/event/data 多行合并；注释行忽略）。 */
+/** 解析 text/event-stream 帧：实现已迁入 @next-tutor/api-client 的共享
+ *  SSE decoder（跨 chunk/UTF-8/多行 data/尾帧 flush），这里保持既有签名。 */
 export async function* parseSSE(
   stream: ReadableStream<Uint8Array>,
 ): AsyncGenerator<{ id?: string; event?: string; data: string }> {
-  const reader = stream.getReader();
-  const decoder = new TextDecoder();
-  let buffer = "";
-  try {
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      buffer += decoder.decode(value, { stream: true });
-      // 帧以空行分隔；保留不完整尾部。
-      let idx: number;
-      while ((idx = buffer.indexOf("\n\n")) >= 0) {
-        const raw = buffer.slice(0, idx);
-        buffer = buffer.slice(idx + 2);
-        const frame: { id?: string; event?: string; data: string[] } = { data: [] };
-        for (const line of raw.split("\n")) {
-          if (line.startsWith(":")) continue; // heartbeat comment
-          if (line.startsWith("id:")) frame.id = line.slice(3).trim();
-          else if (line.startsWith("event:")) frame.event = line.slice(6).trim();
-          else if (line.startsWith("data:")) frame.data.push(line.slice(5).trimStart());
-        }
-        if (frame.data.length > 0) {
-          yield { id: frame.id, event: frame.event, data: frame.data.join("\n") };
-        }
-      }
-    }
-  } finally {
-    reader.releaseLock();
+  for await (const frame of readSseFrames(stream)) {
+    yield frame;
   }
 }
 
@@ -306,7 +283,7 @@ const R = (ws: string, lesson: string) =>
 
 export interface RunPublicExtra {
   /** Frozen example annotations, available only in the static demo. */
-  demo_annotations?: import("./types-classroom.generated").RunAnnotation[];
+  demo_annotations?: import("@next-tutor/contracts/classroom").RunAnnotation[];
   run_id: string;
   lesson_id: string;
   lesson_revision: number;

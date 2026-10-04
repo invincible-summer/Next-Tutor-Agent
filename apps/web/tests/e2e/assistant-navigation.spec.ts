@@ -1,6 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import { loginViaStorage, registerAndLogin } from "./support/helpers";
-import type { NavigationTarget } from "../../src/lib/assistant/types.generated";
+import type { NavigationTarget } from "@next-tutor/contracts/assistant";
 
 // Keep real conversation/execute/ack transport; replace only the destination in
 // the execute response to deterministically exercise the browser adapter contract.

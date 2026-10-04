@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { Check, Sparkles } from "lucide-react";
-import type { InlineSpan, SlideBlock, SlideSpec } from "@/lib/types-classroom.generated";
+import type { InlineSpan, SlideBlock, SlideSpec } from "@next-tutor/contracts/classroom";
 import { useUIStore } from "@/lib/store";
 import { Button } from "@/components/ui/Button";
 import { Field, Input, Textarea } from "@/components/ui/Input";

@@ -67,6 +67,7 @@ SSE 为前端直连后端的流式通道（`POST /chat/stream` 等），生产�
 | 图库与配图引擎 | 教学 SVG 素材库、共享 V1–V3 绘图与测评适配 | `app/diagrams/` + `app/illustration/` | [diagrams-illustration.md](./diagrams-illustration.md) |
 | 语音 | 电话式语音对话（WS）+ TTS | `app/voice/` + `services/voice/` | [voice.md](./voice.md) |
 | 前端 | 学生学习空间 UI | `apps/web/` | [frontend.md](./frontend.md) |
+| 客户端平台 | 根 workspace 与共享客户端包 | `packages/*` | [client-platform.md](./client-platform.md) |
 | 后端运行时 | 组装、配置、存储布局、API 面、开关体系 | `app/main.py` + `app/core/`（primitive） | [backend-runtime.md](./backend-runtime.md) |
 | 教学法依据 | ECDL/CLT/RBT 在系统中的落点 | 分布于 M3/M4/出题链路 | [pedagogy.md](./pedagogy.md) |
 

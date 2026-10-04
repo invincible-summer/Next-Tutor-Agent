@@ -2,7 +2,7 @@
 
 分层纪律：
 - 本文件是助手全部对外契约的唯一事实源；前端类型由
-  scripts/generate_assistant_types.py 生成，禁止手工漂移（GAP-09）。
+  scripts/contracts/generate_types.py 生成，禁止手工漂移（GAP-09）。
 - 全部模型 extra="forbid"；判别联合用 Literal kind/type 判别，
   不接受任意字典或字符串函数名。
 - 助手会话与教学链路隔离：这些模型不进入学习证据账本。
@@ -1755,7 +1755,7 @@ class ErrorResponse(_StrictModel):
 
 
 # ---------------------------------------------------------------------------
-# 类型生成导出（供 scripts/generate_assistant_types.py 使用）
+# 类型生成导出（供 scripts/contracts/generate_types.py 使用）
 # ---------------------------------------------------------------------------
 
 PUBLIC_TYPE_UNIONS: dict[str, tuple[str, ...]] = {

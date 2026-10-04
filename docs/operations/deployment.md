@@ -11,9 +11,9 @@
 ## 环境要求
 
 - Python 3.11（`services/api/requirements.txt` + `services/api/constraints.txt`）；BM25 基础环境**不安装**可选向量/本地模型 requirements（见 [ADR-0003](../adr/0003-bm25-baseline.md)、[semantic-rag.md](./semantic-rag.md)）。
-- Node.js 22 + pnpm（版本由 `apps/web/package.json` 的 `packageManager` 固定）。
+- Node.js 22 + pnpm（版本由根 `package.json` 的 `packageManager` 固定；依赖从仓库根 `pnpm install --frozen-lockfile` 安装，唯一 lockfile 在根目录）。
 - 后端固定**单 uvicorn worker**（`--workers 1`）：JSON 文件持久层以 single-worker 为不变量（[ADR-0004](../adr/0004-single-worker-persistence.md)），多 worker 不受支持。
-- 课堂模式 renderer（可选能力）：需要 Node + Playwright Chromium，以服务账号运行、禁止 `--no-sandbox`；部署期在 `apps/web` 执行 `pnpm install && pnpm build:classroom` 生成 `services/api/app/classroom/static/generated/`。缺失时课堂能力端点显式 `renderer_unavailable`，普通聊天不受影响。
+- 课堂模式 renderer（可选能力）：需要 Node + Playwright Chromium，以服务账号运行、禁止 `--no-sandbox`；部署期在仓库根执行 `pnpm install --frozen-lockfile && pnpm --filter @next-tutor/web run build:classroom` 生成 `services/api/app/classroom/static/generated/`。缺失时课堂能力端点显式 `renderer_unavailable`，普通聊天不受影响。
 - 语音 sidecar（可选）：`deploy/install_voice.sh` 安装 MeloTTS 栈（独立 venv + CPU torch + 模型预热），模型缓存 gitignored，不入库（见 [../compliance/voice-licenses.md](../compliance/voice-licenses.md)）。
 
 ## 运行数据

@@ -1,15 +1,14 @@
 import { endGuestSession, getGuestToken } from "./guest-session";
 import { API_BASE } from "./api";
-import { DEMO_MODE, DEMO_TOKEN_KEY } from "./demo";
+import { DEMO_MODE } from "./demo";
 import { demoFetch } from "./demo-fetch";
+import { getToken } from "@/platform/token";
 
-const TOKEN_KEY = DEMO_MODE ? DEMO_TOKEN_KEY : "edu-agent-token";
+// 遗留传输层：服务未迁移域（admin/trash/quiz/UX 等）与任意 URL 下载。
+// token 存取与共享客户端同源（platform/token）；已迁移域走
+// platform/api-client 的共享客户端。
+export { getToken };
 const pendingRequests = new Map<string, Promise<Response>>();
-
-export function getToken(): string | null {
-  if (typeof window === "undefined") return null;
-  return localStorage.getItem(TOKEN_KEY);
-}
 
 export function authHeaders(extra?: Record<string, string>): Record<string, string> {
   const headers = { ...(extra || {}) };

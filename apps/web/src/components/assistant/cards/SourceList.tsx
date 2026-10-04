@@ -9,7 +9,7 @@ import { ChevronDown, ExternalLink, FileText } from "lucide-react";
 import { useAssistantStore } from "@/lib/assistant/store";
 import { resolveTargetUrl } from "@/lib/assistant/routes";
 import { stringsFor } from "../strings";
-import type { AssistantSource } from "@/lib/assistant/types.generated";
+import type { AssistantSource } from "@next-tutor/contracts/assistant";
 
 export function SourceList({ sources }: { sources: AssistantSource[] }) {
   const lang = useAssistantStore((s) => s.lang);

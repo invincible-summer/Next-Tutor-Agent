@@ -1,5 +1,7 @@
 import type { ChatSSEEvent, SessionDetail, SessionItem, AttachmentMeta, LibraryFolder, LibraryFile, LibraryTree, WorkspaceDetail, WorkspaceItem, UxProfileSummary, UxMotivation, UxActivity, UxGreeting } from "./types";
 import { apiFetch } from "./api-fetch";
+import { ApiError } from "@next-tutor/api-client";
+import { apiClient } from "@/platform/api-client";
 
 // Single source of truth for the API origin. Covers all three deployment
 // shapes without code changes:
@@ -30,12 +32,26 @@ export const API_BASE = process.env.NEXT_PUBLIC_DEMO_MODE === "1"
   : "/api/v1";
 const BASE = API_BASE;
 
+// --- workspace / session / chat stream：已迁移到共享客户端 ------------------
+// （@next-tutor/api-client；浏览器 adapter 在 platform/api-client.ts）。
+// 迁移保持每个方法的错误语义不变：原先不检查 res.ok 的方法在 HTTP 错误时
+// 依旧 resolve 错误体（looseJson），原先显式 throw 的方法继续抛同形 Error。
+
+async function looseJson<T>(run: () => Promise<T>): Promise<T> {
+  try {
+    return await run();
+  } catch (error) {
+    if (error instanceof ApiError) return (error.details ?? {}) as T;
+    throw error;
+  }
+}
+
 export async function listWorkspaces(): Promise<{ workspaces: import("./types").WorkspaceItem[] }> {
-  return apiFetch(`${BASE}/workspaces`).then((r) => r.json());
+  return looseJson(() => apiClient().workspace.list());
 }
 
 export async function getWorkspace(id: string): Promise<import("./types").WorkspaceDetail> {
-  return apiFetch(`${BASE}/workspaces/${encodeURIComponent(id)}`).then((r) => r.json());
+  return looseJson(() => apiClient().workspace.get<WorkspaceDetail>(id));
 }
 
 export async function createWorkspace(
@@ -43,63 +59,56 @@ export async function createWorkspace(
   folderIds: string[] = [],
   fileIds: string[] = [],
 ): Promise<{ workspace_id: string; name: string; library_folder_id?: string }> {
-  const res = await apiFetch(`${BASE}/workspaces`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ name, folder_ids: folderIds, file_ids: fileIds }),
-  });
-  if (!res.ok) throw new Error(`Create workspace failed: ${res.status}`);
-  return res.json();
+  try {
+    return await apiClient().workspace.create(name, folderIds, fileIds);
+  } catch (error) {
+    if (error instanceof ApiError) throw new Error(`Create workspace failed: ${error.status}`);
+    throw error;
+  }
 }
 
 export async function updateWorkspace(
   id: string,
   patch: { name?: string; folder_ids?: string[]; file_ids?: string[] },
 ): Promise<void> {
-  const res = await apiFetch(`${BASE}/workspaces/${encodeURIComponent(id)}`, {
-    method: "PATCH",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(patch),
-  });
-  if (!res.ok) throw new Error(`Update workspace failed: ${res.status}`);
+  try {
+    await apiClient().workspace.update(id, patch);
+  } catch (error) {
+    if (error instanceof ApiError) throw new Error(`Update workspace failed: ${error.status}`);
+    throw error;
+  }
 }
 
 export async function renameWorkspace(id: string, name: string): Promise<void> {
-  await apiFetch(`${BASE}/workspaces/${encodeURIComponent(id)}`, {
-    method: "PATCH",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ name }),
-  });
+  await looseJson(() => apiClient().workspace.rename(id, name));
 }
 
 export async function deleteWorkspace(id: string): Promise<void> {
-  await apiFetch(`${BASE}/workspaces/${encodeURIComponent(id)}`, { method: "DELETE" });
+  await looseJson(() => apiClient().workspace.remove(id));
 }
 
 export async function moveSessionToWorkspace(wsId: string, sessionId: string): Promise<void> {
-  await apiFetch(`${BASE}/workspaces/${encodeURIComponent(wsId)}/sessions`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ session_id: sessionId }),
-  });
+  await looseJson(() => apiClient().workspace.moveSession(wsId, sessionId));
 }
 
 export async function removeSessionFromWorkspace(wsId: string, sessionId: string): Promise<void> {
-  await apiFetch(`${BASE}/workspaces/${encodeURIComponent(wsId)}/sessions/${encodeURIComponent(sessionId)}`, {
-    method: "DELETE",
-  });
+  await looseJson(() => apiClient().workspace.removeSession(wsId, sessionId));
 }
 
 export async function uploadWorkspaceFiles(wsId: string, files: File[]): Promise<{ results: AttachmentMeta[]; workspace_id: string }> {
   const form = new FormData();
   for (const f of files) form.append("files", f, f.name);
-  const res = await apiFetch(`${BASE}/workspaces/${encodeURIComponent(wsId)}/upload`, { method: "POST", body: form });
-  if (!res.ok) throw new Error(`Workspace upload failed: ${res.status}`);
-  return res.json();
+  try {
+    return await apiClient().workspace.uploadFiles<{ results: AttachmentMeta[]; workspace_id: string }>(wsId, form);
+  } catch (error) {
+    if (error instanceof ApiError) throw new Error(`Workspace upload failed: ${error.status}`);
+    throw error;
+  }
 }
 
 export const listSessions = (): Promise<{ sessions: SessionItem[] }> =>
-  apiFetch(`${BASE}/chat/sessions`).then((r) => r.json());
+  looseJson(() => apiClient().chat.listSessions<{ sessions: SessionItem[] }>());
+
 
 export async function getModelInfo(): Promise<{
   llm_model: string;
@@ -117,15 +126,16 @@ export async function getModelInfo(): Promise<{
   return res.json();
 }
 
-export const loadSession = (id: string, tail?: number): Promise<SessionDetail> =>
-  apiFetch(`${BASE}/chat/sessions/${encodeURIComponent(id)}${tail ? `?tail=${tail}` : ""}`).then((r) => {
-    // apiFetch is a bare fetch wrapper: HTTP errors (404 foreign/missing
-    // session) do NOT reject. Throw here so callers' .catch paths (not-found
-    // UI) actually fire instead of passing an error body downstream, where
-    // `detail.messages === undefined` would poison the store and crash render.
-    if (!r.ok) throw new Error(`load session failed: ${r.status}`);
-    return r.json();
-  });
+export async function loadSession(id: string, tail?: number): Promise<SessionDetail> {
+  // HTTP 错误（跨账户/不存在的会话）必须 reject，调用方的 .catch（未找到
+  // UI）依赖这里抛错，错误体直传会让 store 渲染崩溃（见 types 中 detail）。
+  try {
+    return await apiClient().chat.loadSession<SessionDetail>(id, tail);
+  } catch (error) {
+    if (error instanceof ApiError) throw new Error(`load session failed: ${error.status}`);
+    throw error;
+  }
+}
 
 /** P2 组合快照：一次返回侧边栏所需的会话摘要 + 工作区列表 + 各工作区详情
  *  （带 ETag，数据未变 304 由浏览器缓存复用）。替代原来的三级 N+1 瀑布。
@@ -142,24 +152,14 @@ export const getSidebarSnapshot = (): Promise<{
   });
 
 export const deleteSession = (id: string, forgetPromptMemory = false) =>
-  apiFetch(`${BASE}/chat/sessions/${encodeURIComponent(id)}?forget_prompt_memory=${forgetPromptMemory}`, {
-    method: "DELETE",
-  }).then((r) => r.json());
+  looseJson(() => apiClient().chat.deleteSession(id, forgetPromptMemory));
 
 export const renameSession = (id: string, title: string) =>
-  apiFetch(`${BASE}/chat/sessions/${encodeURIComponent(id)}`, {
-    method: "PATCH",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ title }),
-  }).then((r) => r.json());
+  looseJson(() => apiClient().chat.renameSession(id, title));
 
 /** P1: 会话内切换学段并持久化（grade 已是后端事实源形式："" = 自动）。 */
 export const patchSession = (id: string, body: { title?: string; grade?: string }) =>
-  apiFetch(`${BASE}/chat/sessions/${encodeURIComponent(id)}`, {
-    method: "PATCH",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  }).then((r) => r.json());
+  looseJson(() => apiClient().chat.patchSession(id, body));
 
 /** P2/P3 教材库：列表（供资料中心教材库视图 + 对话学段跟随教材预填）。 */
 export async function getTextbooks(): Promise<TextbookListItem[]> {
@@ -748,37 +748,15 @@ export async function* chatStream(
   body: { message: string; session_id?: string | null; workspace_id?: string | null; grade?: string; lang?: string; output_language?: string | null; attachments?: unknown[]; classroom_ref?: unknown; public_textbook_ids?: string[] },
   signal?: AbortSignal,
 ): AsyncGenerator<ChatSSEEvent> {
-  const res = await apiFetch(`${BASE}/chat/stream`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-    signal,
-  });
-  if (!res.ok || !res.body) throw new Error(`Chat stream failed: ${res.status}`);
-  const reader = res.body.getReader();
-  const decoder = new TextDecoder();
-  let buffer = "";
-  let currentEvent = "message";
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    buffer += decoder.decode(value, { stream: true });
-    const lines = buffer.split("\n");
-    buffer = lines.pop() || "";
-    for (const line of lines) {
-      const trimmed = line.trim();
-      if (trimmed.startsWith("event:")) {
-        currentEvent = trimmed.slice(6).trim();
-      } else if (trimmed.startsWith("data:")) {
-        try {
-          const payload = JSON.parse(trimmed.slice(5).trim());
-          payload.type = currentEvent;
-          yield payload as ChatSSEEvent;
-        } catch {
-          // skip malformed
-        }
-      }
+  // 共享客户端：SSE 解码（跨 chunk/UTF-8/多行 data）与事件联合类型都在
+  // @next-tutor/api-client；这里只保留 Web 的错误语义。
+  try {
+    for await (const event of apiClient().chat.stream(body, signal)) {
+      yield { ...event } as ChatSSEEvent;
     }
+  } catch (error) {
+    if (error instanceof ApiError) throw new Error(`Chat stream failed: ${error.status}`);
+    throw error;
   }
 }
 

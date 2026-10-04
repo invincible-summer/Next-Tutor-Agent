@@ -6,7 +6,7 @@ import { ChevronLeft, ChevronRight, BookOpen } from "lucide-react";
 import { getLesson, getRevisionFrame, getRun, type RunPublicExtra } from "@/lib/api-classroom";
 import { demoLessonRuns } from "@/lib/demo-fetch";
 import { localeFor } from "@/lib/i18n";
-import type { LessonDetailPublic } from "@/lib/types-classroom.generated";
+import type { LessonDetailPublic } from "@next-tutor/contracts/classroom";
 import { useUIStore } from "@/lib/store";
 import { Button } from "@/components/ui/Button";
 import { ErrorNote, PageSkeleton } from "@/components/ui/EmptyState";

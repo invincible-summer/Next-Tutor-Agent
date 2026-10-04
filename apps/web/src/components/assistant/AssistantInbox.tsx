@@ -19,7 +19,7 @@ import {
   type AssistantNotification,
   type AssistantReport,
 } from "@/lib/assistant/api";
-import type { NavigationTarget } from "@/lib/assistant/types.generated";
+import type { NavigationTarget } from "@next-tutor/contracts/assistant";
 import { stringsFor } from "./strings";
 
 const PAGE_SIZE = 20;

@@ -83,9 +83,15 @@ REQUIRED_READMES = [
     "services/voice/README.md",
     "scripts/README.md",
     "scripts/acceptance/README.md",
+    "scripts/contracts/README.md",
     "scripts/diagrams/README.md",
     "scripts/evaluation/README.md",
     "scripts/retrieval/README.md",
+    "packages/contracts/README.md",
+    "packages/api-client/README.md",
+    "packages/domain/README.md",
+    "packages/design-tokens/README.md",
+    "packages/i18n/README.md",
     "deploy/README.md",
 ]
 

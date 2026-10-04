@@ -2,7 +2,7 @@
 
 覆盖：extra=forbid、判别联合、ID 模式、PageContext 8KiB 上限、
 数组上限、错误 envelope、TurnSnapshot 完整往返，以及前端生成类型
-与 schema 同步（generate_assistant_types.py --check）。
+与 schema 同步（scripts/contracts/generate_types.py --check assistant）。
 """
 from __future__ import annotations
 
@@ -339,8 +339,8 @@ class AssistantSchemaContractTest(unittest.TestCase):
 
     def test_generated_frontend_types_in_sync(self) -> None:
         result = subprocess.run(
-            [sys.executable, str(ROOT / "scripts" / "dev" / "generate_assistant_types.py"),
-             "--check"],
+            [sys.executable, str(ROOT / "scripts" / "contracts" / "generate_types.py"),
+             "--check", "assistant"],
             capture_output=True, text=True, cwd=ROOT,
         )
         self.assertEqual(result.returncode, 0,

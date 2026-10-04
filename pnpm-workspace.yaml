@@ -1,0 +1,12 @@
+packages:
+  - apps/*
+  - packages/*
+
+# Isolated installs by default: undeclared dependencies must fail at the
+# workspace boundary instead of being masked by hoisting. pnpm 11's
+# allowBuilds map makes every dependency build script an explicit decision
+# (strict-dep-builds is the v11 default): sharp ships prebuilt binaries we
+# want; unrs-resolver needs no build step for this workload.
+allowBuilds:
+  sharp: true
+  unrs-resolver: false

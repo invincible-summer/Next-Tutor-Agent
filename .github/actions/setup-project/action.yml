@@ -32,28 +32,30 @@ runs:
     - uses: pnpm/action-setup@v6
       if: inputs.node == 'true' || inputs.playwright == 'true' || inputs.classroom == 'true'
       with:
-        package_json_file: apps/web/package.json
+        package_json_file: package.json
     - uses: actions/setup-node@v7
       if: inputs.node == 'true' || inputs.playwright == 'true' || inputs.classroom == 'true'
       with:
         node-version: "22"
         cache: pnpm
-        cache-dependency-path: apps/web/pnpm-lock.yaml
+        cache-dependency-path: pnpm-lock.yaml
     - name: Install backend test dependencies
       if: inputs.python == 'true'
       shell: bash
       run: python -m pip install -r services/api/requirements.txt -r services/api/requirements-test.txt
     - name: Install frontend dependencies
+      # Root workspace install: pnpm resolves the single root lockfile and
+      # links every workspace package (apps/web consumes packages/* via the
+      # workspace: protocol).
       if: inputs.node == 'true' || inputs.playwright == 'true' || inputs.classroom == 'true'
       shell: bash
-      working-directory: apps/web
       run: pnpm install --frozen-lockfile
     - name: Cache Playwright Chromium
       if: inputs.playwright == 'true'
       uses: actions/cache@v4
       with:
         path: ~/.cache/ms-playwright
-        key: ${{ runner.os }}-playwright-${{ hashFiles('apps/web/pnpm-lock.yaml') }}
+        key: ${{ runner.os }}-playwright-${{ hashFiles('pnpm-lock.yaml') }}
     - name: Prepare Chromium and classroom resources
       if: inputs.playwright == 'true' || inputs.classroom == 'true'
       shell: bash

@@ -1,26 +1,26 @@
 {
+  "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "target": "ES2017",
     "lib": ["dom", "dom.iterable", "esnext"],
     "allowJs": true,
-    "skipLibCheck": true,
-    "strict": true,
-    "noEmit": true,
-    "esModuleInterop": true,
-    "module": "esnext",
-    "moduleResolution": "bundler",
-    "resolveJsonModule": true,
-    "isolatedModules": true,
-    "jsx": "react-jsx",
     "incremental": true,
+    "jsx": "react-jsx",
+    // Shared packages import with explicit .ts extensions (required by the
+    // Node type-stripping test runner); web typecheck is noEmit so this is safe.
+    "allowImportingTsExtensions": true,
     "plugins": [
       {
-        "name": "next"
+        "next": true
       }
     ],
     "paths": {
       "@/*": ["./src/*"]
-    }
+    },
+    // Deferred (tracked in docs/architecture/client-platform.md): the existing web codebase migrates onto these
+    // progressively; shared packages under packages/* already enforce both.
+    "noUncheckedIndexedAccess": false,
+    "exactOptionalPropertyTypes": false
   },
   "include": [
     "next-env.d.ts",

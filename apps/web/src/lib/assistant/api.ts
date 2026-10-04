@@ -23,7 +23,7 @@ import type {
   TurnCancelResponse,
   TurnSnapshot,
   AssistantTurnRequest,
-} from "./types.generated";
+} from "@next-tutor/contracts/assistant";
 
 export class AssistantApiError extends Error {
   code: string;

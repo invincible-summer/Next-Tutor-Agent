@@ -86,7 +86,7 @@ jobs:
 
   frontend:
     name: Frontend and smoke
-    needs: repo-hygiene
+    needs: [repo-hygiene, shared-packages]
     runs-on: ubuntu-24.04
     timeout-minutes: 25
     steps:
@@ -115,12 +115,36 @@ jobs:
         with:
           report-name: smoke-report
 
+  shared-packages:
+    # Shared client packages (contracts / api-client / domain / design-tokens /
+    # i18n): typecheck + node:test at the root, plus the contract drift guard
+    # (generated types and the OpenAPI snapshot must match the server schemas).
+    name: Shared packages and contracts
+    needs: repo-hygiene
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup-project
+        with:
+          node: "true"
+      - name: Typecheck shared packages
+        run: pnpm run packages:check
+      - name: Shared package tests (node:test)
+        run: pnpm run packages:test
+      - name: Design tokens generation drift
+        run: node scripts/dev/generate_design_tokens.mjs --check
+      - name: Contract generation drift (types + OpenAPI snapshot)
+        run: python3 scripts/contracts/generate_types.py --check && python3 scripts/contracts/export_openapi.py --check
+      - name: Contract lint (response schema gaps ratchet)
+        run: python3 scripts/contracts/check_contracts.py
+
   result:
     # The single required check in main's branch protection. The backend
     # matrix expands automatically: every shard leg must succeed.
     name: CI result
     if: always()
-    needs: [repo-hygiene, backend, frontend]
+    needs: [repo-hygiene, backend, shared-packages, frontend]
     runs-on: ubuntu-24.04
     timeout-minutes: 2
     steps:
@@ -128,8 +152,10 @@ jobs:
         env:
           HYGIENE_RESULT: ${{ needs.repo-hygiene.result }}
           BACKEND_RESULT: ${{ needs.backend.result }}
+          PACKAGES_RESULT: ${{ needs.shared-packages.result }}
           FRONTEND_RESULT: ${{ needs.frontend.result }}
         run: |
           test "$HYGIENE_RESULT" = success
           test "$BACKEND_RESULT" = success
+          test "$PACKAGES_RESULT" = success
           test "$FRONTEND_RESULT" = success
