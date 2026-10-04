@@ -14,6 +14,7 @@ import {
   Target,
   UserRound,
   Settings,
+  Wrench,
   type LucideIcon,
 } from "lucide-react";
 
@@ -53,6 +54,7 @@ export const NAV: NavGroup[] = [
     items: [
       { href: "/memory", i18nKey: "nav.memory", icon: Brain, module: "M6" },
       { href: "/resources", i18nKey: "nav.resources", icon: FolderOpen, module: "RAG" },
+      { href: "/tools", i18nKey: "nav.tools", icon: Wrench },
       { href: "/diagram-library", i18nKey: "nav.diagramLibrary", icon: Shapes },
       { href: "/archive", i18nKey: "nav.archive", icon: Archive },
     ],

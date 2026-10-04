@@ -1,10 +1,11 @@
-# Diagrams & Illustration（教学图库与题图装配）
+# Diagrams & Illustration（教学图库与共享配图引擎）
 
-本域维护 1,119 项原创教学 SVG 素材库，提供 V1 兼容绘图、V2 受限素材装配及 V3 素材参考创作。V3 由模型自由加工完整 SVG、组合素材并绘制缺失元素；服务端检索素材、安全重建 SVG、实际渲染、审核及冻结发布。长期决定见 [ADR-0006](../adr/0006-material-assisted-svg-authoring.md)。
+本域维护 1,119 项原创教学 SVG 素材库，提供 V1 兼容绘图、V2 受限素材装配及 V3 素材参考创作。V3 由模型自由加工完整 SVG、组合素材并绘制缺失元素；服务端检索素材、安全重建 SVG、实际渲染、审核及冻结发布。配图作为共享能力供测评和独立 [工具助手情景配图](./tool-assistant.md) 消费，业务上下文和审核分别适配。长期决定见 [ADR-0006](../adr/0006-material-assisted-svg-authoring.md)、[ADR-0007](../adr/0007-shared-illustration-tools.md)。
 
 ## Purpose / Scope
 
 - **共享图库**：随代码发布的公有素材目录（`services/api/assets/diagram_library/`，1,119 项素材 / 17 学科 / 34 素材族），以及运行期新增的公有（管理员维护）与个人创作素材。资产清单与逐项能力见 [../reference/diagram-assets.md](../reference/diagram-assets.md)。
+- **通用情景配图**：复用 V1–V3 绘图、素材读取、编译和安全渲染，使用显式情景需求与审核合同；支持用户选材和基础图片修改，不创建 TaskSnapshot，不依赖答案/量规。会话和多轮 API 由 [tool-assistant.md](./tool-assistant.md) 拥有。
 - **题图 v2 装配**（`app/illustration/`）：`QuestionMaterialContract` → `VisualBriefV2` 声明 → 本地检索 `CandidateBundleV2` → `SceneDraftV2` 受限构图 → 确定性装配与静态检查 → Chromium 实测与 PNG → 一次合并 PNG/题目/答案量规审核 → 冻结交付。
 - **题图 V3 创作**（`app/illustration/v3*.py`）：轻量绘图需求 → 模型提出素材名称/同义词 → 本地模糊检索完整 SVG → 模型取舍、改绘、拼接或自绘 → SVG 规范化与实际 PNG → 一次合并审核 → 冻结交付。普通出题、聊天 `generate_quiz`/`fit_quiz` 和 CAT 均可使用。
 - **CAT 文字先行协议**：CAT 先交付自足文字题，后为同一题目身份按实例选择 V1、V2 或 V3 生成 `supplemental` 补充图；V1 是旧版模型主导的组件绘图链，V2 是受限素材库装配链，V3 是素材参考创作链。用户提示词会进入各链的构图上下文；出题/批改的受理与判分协议属 [assessment.md](assessment.md)。
@@ -19,6 +20,7 @@
 - `services/api/app/illustration/`：`contracts.py`（闭合 schema 全集）、`requirements.py`、`retrieval.py`、`composition.py`、`layout.py`（`compile_scene` 实测编译）、`preview.py`（Chromium PNG/测量）、`review.py`、`publishing.py`（兼容发布门）、`authoring.py`（普通出题阶段分离）、`v3.py` / `v3_contracts.py` / `v3_retrieval.py`（自由创作）、`validators.py`、`orchestrator.py`（job/run 状态机）、`persistence.py`、`events.py`（公开投影）。
 - `services/api/app/core/`：`quiz_illustration.py`（SVG 规范化与白名单重建）、`quiz_illustration_policy.py`（`resolve_illustration_policy`：总闸/账户偏好/本次意图三态合成）、`quiz_illustration_enrichment.py`（兼容链路补图）。
 - API 路由：`services/api/app/api/v1/diagram_library.py`（共享目录）、`diagram_materials.py`（公私创作）、`illustration_jobs.py`（题图任务）、`assessment_illustration.py`（CAT 补图启动）。
+- 通用入口：`illustration/scenario_engine.py::generate_scene` 复用 `diagrams/pipeline.py::compile_authorized_scene`、V2 `composition/compile_scene` 与 V3 `compose/compile_svg`，业务层 `scenario.py` 保存会话与图片版本；`scenario_contracts.py` 无题目 ID 和私有答案，`references.py` 读取可见指定版本。`prompts/scenario_illustration.py` 提供独立场景需求/创作/审核合同，任务用途不会改变测评既有默认路径。
 - 构建脚本：`scripts/diagrams/build_catalog.py`（稳定 ID/名称/别名/能力声明）、`scripts/diagrams/build_packages.py --check`（素材包可重建与一致性校验）。
 
 ## Public contracts
@@ -113,6 +115,7 @@ V3 不使用 V2 的实体映射、能力/视角硬过滤、端口、参数绑定
 - 运行新增素材：数据根 `diagram_assets/<public|owner>/materials/<id>/versions/<revision>/`（同一版本目录内独立保存 `asset.svg`、`material.json`、`usage_guide.json` 和 `preview.png`；每次保存形成不可变版本，索引在完整版本写入后原子发布）。
 - 素材子提示词与 SVG 按素材隔离存储。`usage_guide.json` 按出题、需求、构图、审图四阶段保存简短说明并独立版本化；主提示词只维护通用合同规则。出题/需求阶段仅提供当前语境相关的至多 12 项素材说明，构图阶段仅提供本轮候选的对应阶段说明，审图阶段仅提供实际选中素材的说明；不会将全库子提示词传给模型。私有素材读取指定不可变版本的说明，冻结题图保存素材版本、指南版本与最终图件内容哈希。
 - V2/V3 运行状态：数据根 `illustrations/<owner>/{jobs,runs,artifacts,previews}`——jobs 快照、runs 追加阶段事件、artifacts 不可变冻结、PNG 预览；JSON 走文件锁与 `core/atomic.py` 原子写。
+- 工具助手的情景会话、轮次和成功版本复用 `illustrations/<owner>/` 根，独立于题目任务身份。多轮生成只新增成果版本，历史图不覆盖；账户删除同时取消两类任务并失效 owner epoch。详细合同见 [tool-assistant.md](./tool-assistant.md)。
 - 兼容 v1 缓存：`students/<owner>.question_illustrations.json`。
 - 两个运行根均由 `core/paths.py` 绑定并登记测试沙箱、账户删除（owner epoch 失效 + 后台任务取消）与孤儿清理（`core/orphan_cleanup.py` 类别 `illustrations`/`diagram_assets`）；重启后无存活任务的遗留 `queued/running` 记录标 `failed/run_interrupted`，显式重试开启新运行。
 

@@ -3,7 +3,7 @@
 // Regenerate with: python scripts/generate_assistant_types.py
 
 
-export type AssistantRouteId = "home" | "chat" | "course" | "notes" | "dashboard" | "knowledge" | "orchestration" | "assessment" | "memory" | "resources_files" | "resources_textbooks" | "archive" | "profile" | "account" | "settings" | "insights" | "docs" | "admin" | "login" | "register";
+export type AssistantRouteId = "home" | "chat" | "course" | "notes" | "dashboard" | "knowledge" | "orchestration" | "assessment" | "tools" | "tools_illustration" | "memory" | "resources_files" | "resources_textbooks" | "archive" | "profile" | "account" | "settings" | "insights" | "docs" | "admin" | "login" | "register";
 
 export type LearningArchiveTab = "changes" | "sessions" | "concepts";
 

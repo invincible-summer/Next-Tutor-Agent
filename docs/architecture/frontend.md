@@ -45,6 +45,7 @@
 `(workspace)` 路由组内（经 `AppShell`）：`/chat/[[...sessionId]]`（catch-all 唯一事实源）、`/course`（课堂 Hub，受 `CLASSROOM_ENABLED` 隐藏）、`/notes/[[...noteId]]`、`/dashboard`、`/knowledge`、`/orchestration`、`/assessment`、`/memory`、`/resources/files` 与 `/resources/textbooks`（`/resources` 在 `next.config.ts` 307 落到 files，兼容 `?tab=textbooks` 旧深链）、`/diagram-library`、`/archive`、`/insights`、`/plan`、`/profile`、`/account`、`/settings`（`?section=` 分类深链）、`/admin`（仅 admin）、`/docs`（匿名可读的使用文档）、`/workspaces/[workspaceId]/classroom`（`/[lessonId]`、`/learn/[runId]`）。组外：`/` 落地页、`/login`、`/register`。
 
 - 对话深链契约：`/chat?q=<问题>` 预填不发送；追加 `&send=1` 在裸 `/chat` 自动发送后 `history.replaceState` 清参（StrictMode 安全）。
+- 工具助手：`/tools` 工具目录与 `/tools/illustration?session=<id>` 情景配图工作台均为静态路由；需要登录，会话在服务端恢复。产品合同见 [tool-assistant.md](./tool-assistant.md)。
 - 概念/任务/复盘等跨模块跳转（图谱双 CTA、编排行动按钮、周复盘）均经此契约，消息携带概念上下文；助手 `NavigationTarget` 深链走 `lib/assistant/routes.ts` 白名单。
 
 ### API 消费面
@@ -84,6 +85,10 @@ chat 页右上角电话按钮为唯一入口（`GET /voice/status` 决定显隐�
 ### 资料中心与列表分页
 
 教材库/文件库双 Tab 路由段化；教材构建状态条件轮询（building 2s / ocr_waiting 15s，空闲零轮询），焦点与 `WS_CHANGED_EVENT` 驱动刷新。所有条目列表走 `ui/Pager`：页码为可输入框（Enter/失焦提交、自动钳位、Esc 取消），回源后条数变少先钳位页码再切片；情景记忆时间线按日分组、一页一天、「加载更多」向服务器取更早分组。
+
+### 工具助手与情景配图
+
+一级导航「工具助手」与测评、资料并列。情景配图工作台包含会话列表、聊天轮次和成果预览；V1/V2/V3 每轮选择，V2/V3 可打开素材 Modal 搜索、筛选及多选。未选时由模型提出需求、服务端检索。会话和素材列表使用共享 Pager，任务通过 `apiFetch` 观察，切会话/换账户防止迟到响应覆盖；成功图沿用规范化 SVG 展示，支持历史版本作为修改基础和下载 SVG。演示模式只显示只读入口，不生成图片。服务端合同由 [tool-assistant.md](./tool-assistant.md) 拥有。
 
 ### i18n 与主题
 

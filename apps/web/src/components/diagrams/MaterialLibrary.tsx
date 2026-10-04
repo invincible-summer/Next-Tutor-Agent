@@ -54,7 +54,7 @@ function OwnedLibrary({ scope, admin }: { scope: MaterialScope; admin: boolean }
   return <section className="space-y-4" data-testid="custom-material-library">
     <div className="flex items-center justify-between gap-4">
       <div><h2 className="text-lg font-medium text-fg">{scope === "public" ? text("新增公有素材", "Added public materials") : text("我的素材", "My materials")}</h2>
-        <p className="mt-1 text-xs text-muted">{text("上传 SVG、按模板设计，或生成 AI 草稿后继续修改。保存并启用的素材可用于出题。", "Upload an SVG, design from a template, or edit an AI draft. Saved and enabled materials can be used in questions.")}</p></div>
+        <p className="mt-1 text-xs text-muted">{text("上传 SVG、按模板设计，或生成 AI 草稿后继续修改。保存并启用的素材可用于测评与情景配图。", "Upload an SVG, design from a template, or edit an AI draft. Saved and enabled materials can be used in assessment and scene illustrations.")}</p></div>
       {(scope === "private" || admin) && <Button icon={<Plus size={15} />} onClick={() => setEditor("new")} data-testid="new-material">{text("新增素材", "New material")}</Button>}
     </div>
     <Input aria-label={text("搜索自建素材", "Search custom materials")} placeholder={text("搜索标题、说明或别名", "Search title, description or aliases")} className="max-w-xl" value={query} onChange={e => { setQuery(e.target.value); setPage(0); }} />
@@ -202,7 +202,7 @@ function MaterialEditor({ material, scope: initialScope, admin, onClose, onSaved
         <Field label={text("素材标题", "Material title")}><Input aria-label={text("素材标题", "Material title")} value={title} maxLength={80} onChange={e => setTitle(e.target.value)} /></Field>
         <Field label={text("学科", "Subject")}><select aria-label={text("学科", "Subject")} className={FIELD_CLS} value={subject} onChange={e => setSubject(e.target.value)}>{Object.entries(SUBJECT_LABELS).map(([v, label]) => <option key={v} value={v}>{label[en ? 1 : 0]}</option>)}</select></Field>
         <Field label={text("范围", "Scope")}><select aria-label={text("范围", "Scope")} className={FIELD_CLS} value={scope} disabled={!!material} onChange={e => setScope(e.target.value as MaterialScope)}><option value="private">{text("我的素材", "My materials")}</option>{(admin || scope === "public") && <option value="public">{text("公有素材", "Public materials")}</option>}</select></Field>
-        <label className="flex items-center gap-2 text-sm"><Input type="checkbox" checked={enabled} onChange={e => setEnabled(e.target.checked)} />{text("用于出题", "Use in questions")}</label>
+        <label className="flex items-center gap-2 text-sm"><Input type="checkbox" checked={enabled} onChange={e => setEnabled(e.target.checked)} />{text("用于配图", "Use in illustrations")}</label>
         <Field label={text("说明", "Description")} className="col-span-2"><Input value={description} maxLength={600} onChange={e => setDescription(e.target.value)} /></Field>
         <Field label={text("别名（逗号分隔）", "Aliases (comma separated)")} className="col-span-2"><Input value={aliases} onChange={e => setAliases(e.target.value)} /></Field>
         <Field label={text("素材使用说明（选中时供 AI 参考）", "Usage note (shown to AI when selected)")} className="col-span-4"><Textarea aria-label={text("素材使用说明", "Material usage note")} rows={2} maxLength={400} value={guidanceNote} onChange={e => setGuidanceNote(e.target.value)} placeholder={text("简要描述适用情景、图中标签和需保留的结构。", "Describe suitable scenarios, labels and structures to preserve.")} /></Field>
@@ -225,7 +225,7 @@ function MaterialEditor({ material, scope: initialScope, admin, onClose, onSaved
       <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-4">
         <div className="min-w-0 space-y-3"><div className="h-[330px] rounded-xl border border-border bg-white" data-testid="material-preview" onDragOver={e => e.preventDefault()} onDrop={e => { e.preventDefault(); if (canEdit && !busy) void upload(e.dataTransfer.files[0]); }}>
           {image ? <Art image={image} /> : <p className="p-8 text-sm text-slate-500">{text("检查后显示安全预览；也可拖入 SVG 文件。", "Check the draft to preview it, or drop an SVG file here.")}</p>}</div>
-          <p className="text-xs text-muted">{svg !== validated || parameterJson !== validatedParameters || JSON.stringify(previewParams) !== validatedPreviewParams ? text("当前显示上一次校验预览。点击“检查并预览”查看修改。", "Showing the last checked preview. Check again to see edits.") : text("白色画布与实际题图一致。", "The white canvas matches question rendering.")}</p>
+            <p className="text-xs text-muted">{svg !== validated || parameterJson !== validatedParameters || JSON.stringify(previewParams) !== validatedPreviewParams ? text("当前显示上一次校验预览。点击“检查并预览”查看修改。", "Showing the last checked preview. Check again to see edits.") : text("白色画布与实际配图一致。", "The white canvas matches illustration rendering.")}</p>
           <details className="text-xs leading-6 text-muted"><summary className="cursor-pointer">{text("设计说明与样例", "Design guide and examples")}</summary><ul className="list-disc pl-5">{guide.map(v => <li key={v}>{v}</li>)}</ul><p>{templates.find(v => v.subject === subject)?.description}</p></details>
         </div>
         <fieldset disabled={!!busy || !canEdit} className="min-w-0 space-y-3">
@@ -234,7 +234,7 @@ function MaterialEditor({ material, scope: initialScope, admin, onClose, onSaved
           {element && <div className="grid grid-cols-3 gap-2">{[...ATTRIBUTES[element.tag], "fill", "stroke", ...(element.tag === "text" ? ["text"] : [])].map(key => <Field label={key} key={key}><Input aria-label={`element ${key}`} value={key === "text" ? element.content : element.attrs[key] ?? ""} onChange={e => modify(key, e.target.value)} /></Field>)}</div>}
           <details open={controls.length > 0} className="space-y-3 text-sm" data-testid="material-parameters">
             <summary className="cursor-pointer text-fg">{text("可调参数与文字", "Adjustable parameters and text")}</summary>
-            <p className="text-xs text-muted">{text("模板会提供参数规范。修改预览值后检查效果；保存的是规范与默认值，出题时按题面条件调整。", "Templates include controls. Check preview values; questions supply their own facts. Saving preserves the specification and defaults.")}</p>
+            <p className="text-xs text-muted">{text("模板会提供参数规范。修改预览值后检查效果；保存的是规范与默认值，测评或情景配图时按需求调整。", "Templates include controls. Check preview values; saving preserves the specification and defaults for assessment or scene illustration.")}</p>
             <div className="grid grid-cols-2 gap-2">{controls.map(([key, spec]) => <Field key={key} label={spec.description || key}>
               <Input aria-label={`preview parameter ${key}`} type={spec.type === "number" || spec.type === "integer" ? "number" : "text"}
                 min={spec.minimum} max={spec.maximum} step={spec.type === "integer" ? 1 : "any"}
@@ -249,7 +249,7 @@ function MaterialEditor({ material, scope: initialScope, admin, onClose, onSaved
         </fieldset>
       </div>
       {material && canEdit && <Button variant="danger" disabled={!!busy} onClick={() => setConfirmDelete(true)}>{text("删除素材", "Delete material")}</Button>}
-      <ConfirmModal open={confirmDelete} onClose={() => setConfirmDelete(false)} title={text("删除素材", "Delete material")} desc={text("删除后不再用于新题。已冻结的题图仍保留。", "It will no longer be used for new questions. Frozen question images remain available.")} confirmText={text("删除", "Delete")} cancelText={text("取消", "Cancel")} onConfirm={() => { setConfirmDelete(false); if (material) void run("delete", async () => { await deleteMaterial(material.id, revision, controller.current?.signal); if (!controller.current?.signal.aborted) onSaved(); }); }} />
+      <ConfirmModal open={confirmDelete} onClose={() => setConfirmDelete(false)} title={text("删除素材", "Delete material")} desc={text("删除后不再用于新的测评或情景配图。已冻结的配图仍保留。", "It will no longer be used for new assessment or scene illustrations. Frozen illustrations remain available.")} confirmText={text("删除", "Delete")} cancelText={text("取消", "Cancel")} onConfirm={() => { setConfirmDelete(false); if (material) void run("delete", async () => { await deleteMaterial(material.id, revision, controller.current?.signal); if (!controller.current?.signal.aborted) onSaved(); }); }} />
     </div>
   </Modal>;
 }

@@ -23,7 +23,7 @@ test("个人SVG模板、图元编辑、上传、历史和AI草稿在深浅色桌
     await dialog.getByRole("button", { name: "检查并预览", exact: true }).click();
     await expect(dialog.getByRole("textbox", { name: "SVG 源码", exact: true })).toHaveValue(/cx="330"/);
     await expect(dialog.getByRole("status")).toHaveText("预览已更新");
-    await dialog.getByRole("checkbox", { name: "用于出题", exact: true }).check();
+    await dialog.getByRole("checkbox", { name: "用于配图", exact: true }).check();
     await dialog.getByTestId("material-preview").scrollIntoViewIfNeeded();
     await page.screenshot({ path: "test-results/diagram-material-editor-light.png", animations: "disabled" });
     await dialog.getByRole("button", { name: "保存素材", exact: true }).click();

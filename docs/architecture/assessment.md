@@ -86,7 +86,7 @@ M4 回答「学生真的学会了吗」：统一承载练习题生成、统一�
 - **M3 教学引擎**：「部分对」是 REMEDIATION 根因信号；难度投影与 stage_profile 锚点注入出题 prompt。
 - **M5 知识智能**：教材 grounding 检索域；概念 id 规范化。
 - **M9 编排**：`record_quiz_evidence`（SRS 复习质量 + 任务归因，attempt_id 幂等）。
-- **题图**：[diagrams-illustration.md](diagrams-illustration.md)（材料合同 `visual_role`、`essential` 发布门）。
+- **共享配图引擎**：[diagrams-illustration.md](diagrams-illustration.md)（材料合同 `visual_role`、`essential` 发布门）。V1–V3 配图作为独立能力由测评消费，情景聊天、选材和多轮版本的产品归属为 [工具助手](tool-assistant.md)。测评保留本次版本选择、出题合同和联合审核，原有题图 API、必要图作答门控及冻结图片保持兼容；情景会话不进入测评和学习评价。
 - **LLM**：`core/llm_async.py` 单通道（`get_llm("quiz")` 等 profile），提取型调用固定关闭思考。
 
 ## Invariants / security boundaries

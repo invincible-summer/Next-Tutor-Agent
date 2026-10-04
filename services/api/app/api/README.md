@@ -12,7 +12,7 @@
   - 学习数据投影：`student.py`、`memory.py`、`ux.py`、`orchestration.py`、`evaluation.py`、`trace.py`
   - 知识与资料：`knowledge.py`、`library.py`、`textbook.py`、`trash.py`、`notes.py`
   - 课堂与站内助手：`classroom.py`、`assistant.py`
-  - 图示与语音：`diagram_library.py`、`diagram_materials.py`、`illustration_jobs.py`、`voice.py`（WS）
+  - 图示与语音：`diagram_library.py`、`diagram_materials.py`、`illustration_jobs.py`、`tool_illustration.py`、`voice.py`（WS）
   - 门面与健康：`health.py`、`compat.py`（OpenAI 兼容门面）、`docs.py`
 
 ## Does not own

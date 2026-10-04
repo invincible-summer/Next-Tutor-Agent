@@ -369,6 +369,15 @@ async def _generate_uncached(*, student_id: str, task: S.TaskSnapshot,
         return {**cached, "metrics": {"generation_calls": 0,
                                       "generation_elapsed_ms": 0, "cache_hit": 1}}
 
+    # Warm the shared diagram pipeline before starting the generation clock.
+    # Its first import also loads the catalog/compiler stack; counting that
+    # one-time Python import against a very short provider deadline can make
+    # the first (and only) provider attempt disappear before it starts.
+    from app.diagrams import pipeline as _diagram_pipeline
+    # Catalog initialization is also lazy and can read/validate the complete
+    # material registry on the first request. Warm it before the provider
+    # deadline so cold-start bookkeeping cannot consume the only short call.
+    _diagram_pipeline.catalog()
     budget = GenerationBudget(
         max_calls=MAX_ILLUSTRATION_CALLS,
         max_repairs=MAX_ILLUSTRATION_REPAIRS,

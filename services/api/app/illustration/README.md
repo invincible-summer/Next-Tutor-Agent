@@ -1,11 +1,12 @@
-# illustration — V2 装配与 V3 素材参考创作
+# illustration — 共享 V1–V3 引擎与情景配图
 
-题目配图装配：从 `diagrams` 素材库按 `VisualBriefV2` 声明检索候选、受限构图（`SceneDraftV2`）、确定性编译与 Chromium 实测、一次实际 PNG 合并审核后冻结交付。V3 通过自然语言需求检索 SVG 参考，模型自由加工、组合及自绘，服务端规范化、渲染及审核。
+共享题图与情景配图：V1 组件构图、从 `diagrams` 素材库按 `VisualBriefV2` 声明检索候选、受限构图（`SceneDraftV2`）、确定性编译与 Chromium 实测、一次实际 PNG 合并审核后冻结交付。V3 通过自然语言需求检索 SVG 参考，模型自由加工、组合及自绘，服务端规范化、渲染及审核。
 
-域设计（闭合协议、发布门、任务状态机、配置）见 [docs/architecture/diagrams-illustration.md](../../../../docs/architecture/diagrams-illustration.md)，本 README 只做导航。
+工具助手会话导航见 [docs/architecture/tool-assistant.md](../../../../docs/architecture/tool-assistant.md)。域设计（闭合协议、发布门、任务状态机、配置）见 [docs/architecture/diagrams-illustration.md](../../../../docs/architecture/diagrams-illustration.md)，本 README 只做导航。
 
 ## Owns
 
+- 情景工具：`scenario.py`（独立会话与版本）、`scenario_engine.py`（共享引擎调度）、`scenario_contracts.py`（无题目身份的需求合同）、`references.py`（授权选材）。
 - 协议契约：`contracts.py` — 闭合 schema 全集（`QuestionMaterialContract` / `VisualBriefV2` / `CandidateBundleV2` / `SceneDraftV2` / `ScenePatchV2` / `DiagramSourceV2`），模型无素材搜索工具、不读库文件。
 - 声明与检索：`requirements.py`（需求声明调用）、`retrieval.py`（本地词法检索 + 能力/视图硬约束，每类 ≤6 候选）。
 - 构图与编译：`composition.py`（受限构图）、`layout.py`（`compile_scene` 按解析参数生成端口/液面/刻度并实测边界与字体支撑）、`preview.py`（Chromium PNG 渲染与测量）。
@@ -17,7 +18,7 @@
 
 - 素材几何、目录与 review ledger → `app/diagrams/`。
 - 出题侧是否配图的三态策略合成 → `app/core/quiz_illustration_policy.py`；兼容链路补图 → `quiz_illustration_enrichment.py`；SVG 白名单重建 → `quiz_illustration.py`。
-- API 路由 → `app/api/v1/illustration_jobs.py`、`assessment_illustration.py`。
+- API 路由 → `app/api/v1/illustration_jobs.py`、`assessment_illustration.py`、`tool_illustration.py`。
 - 题目注册与判分（CAT 文字先行协议的受理侧）→ `app/agents/assessment/`。
 - Chromium/Playwright 运行环境 → 本地部署依赖（缺浏览器即明确失败）。
 

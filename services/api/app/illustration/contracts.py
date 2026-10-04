@@ -186,6 +186,76 @@ def literal_source_span(quote: str, source: str) -> str:
     return matches[0] if matches else quote
 
 
+
+def validate_scientific_material(self):
+    for rows in (self.entities, self.facts, [*self.required_relations, *self.internal_relations], self.unknowns):
+        if len({row.id for row in rows}) != len(rows):
+            raise ValueError("duplicate material id")
+    entities = {row.id for row in self.entities}
+    facts = {row.id for row in self.facts}
+    if any(f.entity_id and f.entity_id not in entities for f in self.facts):
+        raise ValueError("unknown fact entity")
+    for relation in self.required_relations:
+        if {relation.from_entity, relation.to_entity} - entities or set(relation.fact_refs) - facts:
+            raise ValueError("unknown relation reference")
+        if relation.from_entity == relation.to_entity:
+            # One material's internal construction belongs to its SVG,
+            # rather than to the inter-object connection solver. Reject
+            # this before retrieval spends the shared generation budget.
+            raise IllustrationError("invalid_contract", target=relation.id+":self_relation")
+    for relation in self.internal_relations:
+        if relation.from_entity != relation.to_entity or relation.from_entity not in entities or set(relation.fact_refs) - facts:
+            raise IllustrationError("invalid_contract", target=relation.id+":internal_relation")
+    if self.visual_role == "none" and (self.entities or self.required_relations):
+        raise ValueError("none has visual material")
+    for text in self.required_marks + self.prohibited_additions:
+        if not text.strip() or len(text) > 120:
+            raise ValueError("unbounded mark")
+    if self.frozen_question and self.visual_role == "essential":
+        raise IllustrationError("question_material_incomplete")
+    for row in [*self.entities, *self.facts, *self.required_relations, *self.internal_relations]:
+        if not self.frozen_question and self.visual_role == "essential" and (
+                row.source_ref == "blueprint" or
+                (isinstance(row, Entity) and not row.source_quote)):
+            continue
+        if self.frozen_question or self.visual_role in {"essential", "supplemental"}:
+            source = self.source_text(row.source_ref)
+            if row.source_quote and row.source_quote not in source and len(row.source_quote) >= 6:
+                # Resolve a unique literal span when the model omitted a
+                # grammatical particle. Only these particles may be
+                # inserted, never negations, digits, units or conditions.
+                row.source_quote = literal_source_span(row.source_quote, source)
+            if not row.source_quote or row.source_quote not in source:
+                raise IllustrationError("invalid_contract", target=row.id+":source_quote")
+            if isinstance(row, MaterialFact) and row.predicate == "liquid_present":
+                if not re.search(r"水|液|liquid|water|solution", row.source_quote, re.I) or (
+                    row.value is True and re.search(r"无水|无[^，。；]{0,8}液|空烧杯|没有|不含|未加|not|empty|without", row.source_quote, re.I)):
+                    raise IllustrationError("invalid_contract")
+            if isinstance(row, MaterialFact) and row.type in {"scalar", "label", "function", "range", "data"}:
+                def supported(value):
+                    if isinstance(value, list):
+                        return all(supported(item) for item in value)
+                    if isinstance(value, dict):
+                        return all(supported(item) for item in value.values())
+                    if isinstance(value, (int, float)) and not isinstance(value, bool):
+                        return literal_number_supported(value, row.source_quote)
+                    if row.type == "function":
+                        return canonical_function_expression(value) in canonical_function_expression(row.source_quote)
+                    return str(value) in row.source_quote
+                if not supported(row.value):
+                    raise IllustrationError("invalid_contract", target=row.id+":value")
+    # Creative direction does not change the scientific material identity;
+    # keep it outside the hash so older persisted contracts remain valid
+    # when this optional field is introduced or edited.
+    expected = digest(self.model_dump(mode="json",
+                                      exclude={"contract_hash",
+                                               "illustration_guidance"}))
+    if self.contract_hash and self.contract_hash != expected:
+        raise ValueError("contract hash mismatch")
+    self.contract_hash = expected
+    return self
+
+
 class QuestionMaterialContract(StrictModel):
     schema_version: Literal[2] = 2
     question_ref: str = Field(min_length=1, max_length=96)
@@ -210,72 +280,7 @@ class QuestionMaterialContract(StrictModel):
 
     @model_validator(mode="after")
     def validate_contract(self):
-        for rows in (self.entities, self.facts, [*self.required_relations, *self.internal_relations], self.unknowns):
-            if len({row.id for row in rows}) != len(rows):
-                raise ValueError("duplicate material id")
-        entities = {row.id for row in self.entities}
-        facts = {row.id for row in self.facts}
-        if any(f.entity_id and f.entity_id not in entities for f in self.facts):
-            raise ValueError("unknown fact entity")
-        for relation in self.required_relations:
-            if {relation.from_entity, relation.to_entity} - entities or set(relation.fact_refs) - facts:
-                raise ValueError("unknown relation reference")
-            if relation.from_entity == relation.to_entity:
-                # One material's internal construction belongs to its SVG,
-                # rather than to the inter-object connection solver. Reject
-                # this before retrieval spends the shared generation budget.
-                raise IllustrationError("invalid_contract", target=relation.id+":self_relation")
-        for relation in self.internal_relations:
-            if relation.from_entity != relation.to_entity or relation.from_entity not in entities or set(relation.fact_refs) - facts:
-                raise IllustrationError("invalid_contract", target=relation.id+":internal_relation")
-        if self.visual_role == "none" and (self.entities or self.required_relations):
-            raise ValueError("none has visual material")
-        for text in self.required_marks + self.prohibited_additions:
-            if not text.strip() or len(text) > 120:
-                raise ValueError("unbounded mark")
-        if self.frozen_question and self.visual_role == "essential":
-            raise IllustrationError("question_material_incomplete")
-        for row in [*self.entities, *self.facts, *self.required_relations, *self.internal_relations]:
-            if not self.frozen_question and self.visual_role == "essential" and (
-                    row.source_ref == "blueprint" or
-                    (isinstance(row, Entity) and not row.source_quote)):
-                continue
-            if self.frozen_question or self.visual_role in {"essential", "supplemental"}:
-                source = self.source_text(row.source_ref)
-                if row.source_quote and row.source_quote not in source and len(row.source_quote) >= 6:
-                    # Resolve a unique literal span when the model omitted a
-                    # grammatical particle. Only these particles may be
-                    # inserted, never negations, digits, units or conditions.
-                    row.source_quote = literal_source_span(row.source_quote, source)
-                if not row.source_quote or row.source_quote not in source:
-                    raise IllustrationError("invalid_contract", target=row.id+":source_quote")
-                if isinstance(row, MaterialFact) and row.predicate == "liquid_present":
-                    if not re.search(r"水|液|liquid|water|solution", row.source_quote, re.I) or (
-                        row.value is True and re.search(r"无水|无[^，。；]{0,8}液|空烧杯|没有|不含|未加|not|empty|without", row.source_quote, re.I)):
-                        raise IllustrationError("invalid_contract")
-                if isinstance(row, MaterialFact) and row.type in {"scalar", "label", "function", "range", "data"}:
-                    def supported(value):
-                        if isinstance(value, list):
-                            return all(supported(item) for item in value)
-                        if isinstance(value, dict):
-                            return all(supported(item) for item in value.values())
-                        if isinstance(value, (int, float)) and not isinstance(value, bool):
-                            return literal_number_supported(value, row.source_quote)
-                        if row.type == "function":
-                            return canonical_function_expression(value) in canonical_function_expression(row.source_quote)
-                        return str(value) in row.source_quote
-                    if not supported(row.value):
-                        raise IllustrationError("invalid_contract", target=row.id+":value")
-        # Creative direction does not change the scientific material identity;
-        # keep it outside the hash so older persisted contracts remain valid
-        # when this optional field is introduced or edited.
-        expected = digest(self.model_dump(mode="json",
-                                          exclude={"contract_hash",
-                                                   "illustration_guidance"}))
-        if self.contract_hash and self.contract_hash != expected:
-            raise ValueError("contract hash mismatch")
-        self.contract_hash = expected
-        return self
+        return validate_scientific_material(self)
 
     def source_text(self, ref: str) -> str:
         if ref == "stem":

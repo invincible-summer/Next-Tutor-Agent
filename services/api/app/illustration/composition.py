@@ -193,7 +193,8 @@ def compatible_parameter_fact(fact, spec, key, *, to_scale=False):
     return compatible_fact(fact, spec, key, to_scale=to_scale)
 
 
-async def compose(llm, contract, brief, bundle, *, feedback=None):
+async def compose(llm, contract, brief, bundle, *, feedback=None, revision_context=None,
+                  prompt_id="quiz_illustration_composer"):
     from app.diagrams.guidance import bundle_view
     from .preview import material_sources
     binding_choices = {card["asset_id"]: {key: [fact.id for fact in contract.facts
@@ -241,10 +242,11 @@ async def compose(llm, contract, brief, bundle, *, feedback=None):
         "candidate_bundle": bundle_view(bundle, "compose"), "scene_schema": compact_schema(schema),
         "parameter_fact_choices": binding_choices,
         "material_svg_sources": material_sources(bundle),
-        "request_schema": MaterialRequest.model_json_schema(), "repair_feedback": feedback}
+        "request_schema": MaterialRequest.model_json_schema(), "repair_feedback": feedback,
+        "revision_context": revision_context}
     content = [{"type": "text", "text": json.dumps(payload, ensure_ascii=False)}]
     raw, _ = await llm.complete(messages=[
-        {"role": "system", "content": get("quiz_illustration_composer", "2.22.0").text},
+        {"role": "system", "content": get(prompt_id, "2.22.0" if prompt_id == "quiz_illustration_composer" else None).text},
         {"role": "user", "content": content[0]["text"]}],
         temperature=.2, max_tokens=5500, disable_thinking=True)
     data = structured(raw)

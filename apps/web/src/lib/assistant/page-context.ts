@@ -113,6 +113,8 @@ export function routeIdFromPathname(pathname: string): AssistantRouteId {
     ["/knowledge", "knowledge"],
     ["/orchestration", "orchestration"],
     ["/assessment", "assessment"],
+    ["/tools/illustration", "tools_illustration"],
+    ["/tools", "tools"],
     ["/memory", "memory"],
     ["/resources/files", "resources_files"],
     ["/resources/textbooks", "resources_textbooks"],

@@ -613,3 +613,6 @@ _register_asset_guidance()
 
 from .illustration_v3 import register as _register_v3_illustration_prompts
 _register_v3_illustration_prompts()
+
+from .scenario_illustration import register as _register_scenario_illustration_prompts
+_register_scenario_illustration_prompts()

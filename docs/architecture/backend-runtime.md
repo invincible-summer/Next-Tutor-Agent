@@ -60,6 +60,7 @@ SSE 为前端直连后端的流式通道（`POST /chat/stream`、`POST /quiz/gra
 - 课堂：`/classroom/*`（生成管线、revisions、runs、音频、导出）
 - 站点助手：`/assistant/*`（catalog/search/preview/actions/handoff/notifications/undo）
 - 图示与题图：`/diagram-assets/*`、`/diagram-materials/*`、`/illustration-jobs/*`
+- 工具助手情景配图：`/tools/illustration/sessions/*`、`/tools/illustration/jobs/*`；独立会话与多轮任务，见 [tool-assistant.md](./tool-assistant.md)。
 - 语音：`GET /voice/status`、`POST /voice/ticket`、`WS /voice/ws?ticket=`
 - Trace：`GET /trace/{run_id}`、`GET /trace/{run_id}/html`
 - 使用文档：`GET /docs/content?lang=zh|en`（公开读）、`PUT /docs/content`（admin）
@@ -86,7 +87,7 @@ SSE 为前端直连后端的流式通道（`POST /chat/stream`、`POST /quiz/gra
 | `knowledge/vector_db/` | Chroma 向量索引 | 全局 |
 | `notes/<sid>/` | M-Notes 笔记仓库（vault/正文/修订/agent/附件） | 账号 |
 | `uploads/` | 会话上传解析文本 + 原件 | 会话 |
-| `illustrations/<sid>/` | 题图任务、运行事件、冻结 artifact 与 PNG | 账号 |
+| `illustrations/<sid>/` | 题图与情景配图任务、会话版本、冻结 artifact 与 PNG | 账号 |
 | `diagram_assets/` | 图示库资产 | 账号 / 公用 |
 | `artifacts/`（含 `public_vectors/`） | 公共向量 artifact 等 | 全局 |
 | `traces/` | 每轮 trace（JSONL） | 全局 |
@@ -122,6 +123,7 @@ SSE 为前端直连后端的流式通道（`POST /chat/stream`、`POST /quiz/gra
 | 领域 | 笔记（M-Notes） | 笔记仓库 + 每笔记专属智能体 | `api/v1/notes.py` + `agents/notes_agent.py` + `notes/` |
 | 领域 | 图示库 | 配图资产与教材图示材料 | `api/v1/diagram_library.py` `diagram_materials.py`（`diagram_assets/` 根） |
 | 领域 | 题图 | 题目插图任务管线与冻结 artifact | `api/v1/illustration_jobs.py` `assessment_illustration.py` + `core/quiz_illustration*.py` |
+| 领域 | 工具助手 | 情景配图会话与多轮版本，复用 V1–V3 绘图底层 | `app/illustration/` + `/tools/illustration/*` |
 | 领域 | 语音通话 | push-to-talk 电话模式 + 板书同步 | `api/v1/voice.py` + `services/voice/` sidecar |
 | 领域 | 资料库/教材库 | 私有资料 + 教材注册与图谱构建 | `api/v1/library.py` `textbook.py` + `core/library.py` `textbook*.py` |
 

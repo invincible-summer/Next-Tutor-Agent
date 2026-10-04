@@ -1,5 +1,5 @@
 {
-  "catalog_version": "2026-09-30-account",
+  "catalog_version": "2026-10-04-tools",
   "modules": [
     {
       "route_id": "home",
@@ -120,6 +120,36 @@
         "en": ["Open Assessment", "Start with a concept scope", "Answer and submit", "Review the report and errors"]
       },
       "prerequisites": { "zh": "需要登录；建议在学习区中选定教材范围。", "en": "Login required; a textbook scope in a workspace is recommended." }
+    },
+    {
+      "route_id": "tools",
+      "public": false,
+      "name": { "zh": "工具助手", "en": "Tool Assistant" },
+      "summary": {
+        "zh": "独立教学工具入口：使用情景配图生成教学图示，并在多轮对话中修改完善。",
+        "en": "Independent teaching tools: create scenario illustrations and refine them through conversation."
+      },
+      "aliases": ["工具助手", "工具中心", "教学工具", "tools", "tool assistant"],
+      "steps": {
+        "zh": ["进入工具助手", "选择情景配图", "描述需求并生成", "通过追问优化配图"],
+        "en": ["Open Tool Assistant", "Choose Scenario Illustration", "Describe the image and generate", "Refine it with follow-up requests"]
+      },
+      "prerequisites": { "zh": "需要登录；配图生成需要已配置的模型服务。", "en": "Login required; generation needs a configured model provider." }
+    },
+    {
+      "route_id": "tools_illustration",
+      "public": false,
+      "name": { "zh": "情景配图", "en": "Scenario Illustration" },
+      "summary": {
+        "zh": "通过聊天生成与修改配图，支持 V1、V2 和 V3。V2/V3 可选素材或自动检索；保存会话和图片版本，并下载 SVG。",
+        "en": "Generate and refine illustrations in chat with V1, V2 or V3. Select references or search automatically in V2/V3, keep sessions and image revisions, and download SVG."
+      },
+      "aliases": ["情景配图", "智能配图", "生成配图", "绘制图示", "scenario illustration", "illustration tool"],
+      "steps": {
+        "zh": ["打开情景配图并新建会话", "选择 V1/V2/V3，V2/V3 可打开素材库搜索和选材", "描述情景并生成", "选定历史图片作为基础，继续提出修改要求"],
+        "en": ["Open Scenario Illustration and create a session", "Choose V1/V2/V3; optionally search and select references in V2/V3", "Describe the scene and generate", "Choose a previous image as the base and request changes"]
+      },
+      "prerequisites": { "zh": "需要登录和可用的模型服务；图片审核需要支持图片输入的模型与 Chromium。", "en": "Login and a model provider required; image review needs image input support and Chromium." }
     },
     {
       "route_id": "memory",

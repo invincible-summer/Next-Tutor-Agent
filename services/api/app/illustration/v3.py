@@ -114,7 +114,8 @@ def _composer_bundle(bundle):
 
 
 async def compose(llm, contract, bundle, *, draft=None, feedback=None, png=None,
-                  additional_retrieval_allowed=True):
+                  additional_retrieval_allowed=True, revision_context=None,
+                  prompt_id="quiz_illustration_v3_composer"):
     from .contracts import PROFILES
     width, height = PROFILES[contract.presentation_constraints.profile]
     payload = {"question_visual_contract": contract.composer_view(),
@@ -123,14 +124,14 @@ async def compose(llm, contract, bundle, *, draft=None, feedback=None, png=None,
         "schema": SvgDraftV3.model_json_schema(),
         "additional_retrieval_allowed": additional_retrieval_allowed,
         "previous_draft": draft.model_dump(mode="json") if draft else None,
-        "repair_feedback": feedback}
+        "repair_feedback": feedback, "revision_context": revision_context}
     if additional_retrieval_allowed:
         payload["additional_request_schema"] = MaterialRequestV3.model_json_schema()
     content = json.dumps(payload, ensure_ascii=False)
     if png:
         content = [{"type": "text", "text": content}, preview.image_message(png)]
     raw, _ = await llm.complete(messages=[
-        {"role": "system", "content": get("quiz_illustration_v3_composer", PROMPT_VERSIONS["composer"]).text},
+        {"role": "system", "content": get(prompt_id, PROMPT_VERSIONS["composer"] if prompt_id == "quiz_illustration_v3_composer" else None).text},
         {"role": "user", "content": content}],
         temperature=.3, max_tokens=16000, disable_thinking=True)
     data = _structured(raw, allow_svg=True)

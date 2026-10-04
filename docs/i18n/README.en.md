@@ -28,6 +28,7 @@ Beyond answering questions, it considers **what supports the answer, what your w
 | **Courses** | Generate slides and scripts from chapters or topics, preview and edit lessons, start AI teaching, resume unfinished lessons, and export slides and scripts. |
 | **Resources** | Use public textbooks, upload personal materials, and associate them with workspaces. Search becomes available after indexing while the knowledge graph continues building. |
 | **Practice & assessment** | Generate questions in chat, create variations of a reference problem, or start an assessment that adjusts difficulty to your answers. Review explanations, recent questions, mistakes, and optional diagrams. |
+| **Tool Assistant · Scenario Illustration** | Describe and refine images through chat with V1/V2/V3. Search, filter and select references in V2/V3 or retrieve them automatically; keep sessions and image revisions and download SVG. |
 | **Knowledge map & dashboard** | Explore concepts and their connections, review learning records and current evaluations, and identify areas to revisit. |
 | **Notes & review** | Organize Markdown notes with backlinks, tags, and folders. Create notes from conversations, textbooks, or mistakes, and schedule reviews. |
 | **Learning orchestration** | Break long-term goals into weekly plans and daily tasks, with study and review in one routine. |

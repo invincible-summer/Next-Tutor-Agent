@@ -67,6 +67,13 @@ class ProductCatalogTest(unittest.TestCase):
             "笔记", route_hint=AssistantRouteId.DASHBOARD)
         self.assertEqual(matches[0].route_id, AssistantRouteId.DASHBOARD)
 
+    def test_tool_assistant_and_illustration_navigation(self) -> None:
+        for query, route in (("工具助手", AssistantRouteId.TOOLS),
+                             ("情景配图", AssistantRouteId.TOOLS_ILLUSTRATION),
+                             ("智能配图", AssistantRouteId.TOOLS_ILLUSTRATION)):
+            self.assertEqual(catalog.find_module_matches(query)[0].route_id,
+                             route, query)
+
     def test_catalog_digest_compact(self) -> None:
         digest = catalog.catalog_digest("zh")
         self.assertIn("[chat] 聊天辅导", digest)

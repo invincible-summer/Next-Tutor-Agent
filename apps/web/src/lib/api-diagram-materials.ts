@@ -34,8 +34,9 @@ function json(body: unknown, method = "POST"): RequestInit {
   return { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) };
 }
 export const materialTemplates = (signal?: AbortSignal) => read<{ templates: MaterialTemplate[]; guide: string[] }>("/templates", undefined, signal);
-export const listMaterials = (scope: MaterialScope, q: string, page: number, signal?: AbortSignal) =>
-  read<{ items: DiagramMaterial[]; total: number }>(`?${new URLSearchParams({ scope, q, page: String(page), per: "12" })}`, undefined, signal);
+export const listMaterials = (scope: MaterialScope, q: string, page: number, signal?: AbortSignal, filters?: { subject?: string; enabled_only?: boolean }) =>
+  read<{ items: DiagramMaterial[]; total: number }>(`?${new URLSearchParams({ scope, q, page: String(page), per: "12",
+    ...(filters?.subject ? { subject: filters.subject } : {}), ...(filters?.enabled_only ? { enabled_only: "true" } : {}) })}`, undefined, signal);
 export const getMaterial = (id: string, revision?: number, signal?: AbortSignal) =>
   read<DiagramMaterial>(`/${encodeURIComponent(id)}${revision ? `?revision=${revision}` : ""}`, undefined, signal);
 export const previewMaterial = (svg: string, signal?: AbortSignal, parameterization: MaterialParameterization = STATIC_PARAMETERIZATION, params: Record<string, string | number> = {}) =>

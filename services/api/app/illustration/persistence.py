@@ -32,7 +32,7 @@ def epoch(owner: str) -> int:
 
 
 def read(owner: str, kind: str, key: str) -> dict | None:
-    if kind not in {"jobs", "runs", "artifacts"}:
+    if kind not in {"jobs", "runs", "artifacts", "sessions", "scenario_jobs", "scenario_revisions"}:
         raise ValueError("invalid_illustration_kind")
     path = owner_dir(owner) / kind / f"{safe(key)}.json"
     try:
@@ -49,7 +49,7 @@ def write(owner: str, kind: str, key: str, value: dict, *, expected_epoch=None, 
     with file_lock(root):
         if expected_epoch is not None and epoch(owner) != expected_epoch:
             raise IllustrationError("policy_disabled")
-        if kind not in {"jobs", "runs", "artifacts"}:
+        if kind not in {"jobs", "runs", "artifacts", "sessions", "scenario_jobs", "scenario_revisions"}:
             raise ValueError("invalid_illustration_kind")
         path = root / kind / f"{safe(key)}.json"
         if immutable and path.exists():
@@ -119,6 +119,8 @@ def purge(owner: str):
         _epochs[str(root)] = epoch(owner)+1
         from .orchestrator import stop_owner
         stop_owner(owner)
+        from .scenario import stop_owner as stop_scenario_owner
+        stop_scenario_owner(owner)
         shutil.rmtree(root, ignore_errors=True)
 
 

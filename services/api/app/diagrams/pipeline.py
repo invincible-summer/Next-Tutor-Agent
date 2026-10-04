@@ -295,7 +295,14 @@ async def declare_and_retrieve(llm, *, context: str, policy: str, grade: str = "
                                count: int | None = None, public_source: str | None = None) -> CandidateBundle:
     feature_vocabulary = sorted({feature for asset in catalog()[1].values()
                                  for feature in asset.features})
-    context_candidates = [
+    # When a bounded provider phase is already close to its deadline, spend
+    # the remaining time on the declaration call instead of a second local
+    # BM25 ranking pass. The model can still declare from the closed feature
+    # vocabulary; retrieval remains deterministic after the declaration.
+    budget = getattr(llm, "budget", None)
+    call_timeout = float(getattr(llm, "call_timeout", 0.0) or 0.0)
+    near_deadline = budget is not None and budget.remaining_seconds <= call_timeout + 0.01
+    context_candidates = [] if near_deadline else [
         {"name": asset.title, "aliases": list(asset.aliases), "features": list(asset.features),
          "parameters": list(asset.parameter_schema()),
          "unsupported_quantity_controls": _unsupported_quantity_controls(asset, public_source)}
@@ -741,6 +748,19 @@ def scene_repair_feedback(raw, bundle: CandidateBundle, code: str, *, geometry=N
     return feedback
 
 
+def compile_authorized_scene(raw, bundle: CandidateBundle, *, slot="q1"):
+    """Compile one visual without requiring a question or assessment identity."""
+    eligible = {aid for need in bundle.needs if need["question_slot"] == slot
+                for aid in need["candidates"]}
+    _validate_explicit_parameters(raw, bundle, eligible)
+    try:
+        return compile_scene(raw, allowed_assets=eligible)
+    except DiagramError as exc:
+        if exc.code != "diagram_component_out_of_bounds":
+            raise
+        return compile_scene(_fit_scene_to_canvas(raw, bundle), allowed_assets=eligible)
+
+
 def compile_questions(questions: list[dict], bundle: CandidateBundle, policy: str, *,
                       question_slots: dict[str, str] | None = None) -> list[dict]:
     out = []
@@ -772,14 +792,7 @@ def compile_questions(questions: list[dict], bundle: CandidateBundle, policy: st
             eligible = {aid for need in bundle.needs if need["question_slot"] == slot
                         for aid in need["candidates"]}
             try:
-                _validate_explicit_parameters(raw, bundle, eligible)
-                try:
-                    compiled = compile_scene(raw, allowed_assets=eligible)
-                except DiagramError as exc:
-                    if exc.code != "diagram_component_out_of_bounds":
-                        raise
-                    fitted = _fit_scene_to_canvas(raw, bundle)
-                    compiled = compile_scene(fitted, allowed_assets=eligible)
+                compiled = compile_authorized_scene(raw, bundle, slot=slot)
                 q["illustration"] = compiled.illustration.model_dump(mode="json")
                 q["diagram_source"] = compiled.source.model_dump(mode="json")
                 q["diagram_facts"] = compiled.facts

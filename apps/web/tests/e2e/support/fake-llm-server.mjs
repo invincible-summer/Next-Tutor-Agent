@@ -63,7 +63,8 @@ const CRITIC_WITH_ILLUSTRATION = JSON.stringify({
 });
 
 function pickCompletion(body) {
-  const text = (body.messages || []).map((m) => m.content || "").join("\n");
+  const contentText = (content) => Array.isArray(content) ? content.filter(part => part.type === "text").map(part => part.text).join("\n") : String(content || "");
+  const text = (body.messages || []).map((m) => contentText(m.content)).join("\n");
   const userMsgs = (body.messages || []).filter((m) => m.role === "user");
   const userText = userMsgs.map((m) => String(m.content)).join("\n");
   const requiresIllustration = text.includes("illustration_policy=required");
@@ -71,6 +72,30 @@ function pickCompletion(body) {
   const scene = { schema_version: 1, width: 640, height: 400, profile: "textbook",
     nodes: [{ id: "scene", asset_id: "template.horizontal_block", version: 1, x: 16, y: 16, scale: .9, rotation: 0, params: {}, label: "" }],
     connections: [], labels: [], alt: "水平面上的物体示意图", caption: "示意图" };
+  if (text.includes("你是独立情景配图审查员")) return JSON.stringify({ status: "passed", issues: [] });
+  if (text.includes("你是情景配图助手")) {
+    let payload = {};
+    try { payload = JSON.parse(contentText(userMsgs.at(-1)?.content)); } catch { /* malformed requests fail the product schema */ }
+    if (text.includes("返回 description、drawing_inputs、needs")) return JSON.stringify({
+      description: payload.latest_request || "烧杯示意图", drawing_inputs: [],
+      needs: [{ need_id: "beaker", name: "烧杯", synonyms: ["beaker"], purpose: "情景主体" }], presentation_constraints: {},
+    });
+    if (text.includes("素材只作为可加工参考") || payload.reference_materials) {
+      const request = payload.revision_context?.latest_request || "";
+      const right = request.includes("右侧");
+      const left = request.includes("左侧");
+      const label = right ? '<text x="450" y="200" font-size="22" fill="#26364a">水</text>'
+        : left ? '<text x="90" y="200" font-size="22" fill="#26364a">烧杯</text>' : "";
+      const width = payload.canvas?.width || 640;
+      const height = payload.canvas?.height || 400;
+      return JSON.stringify({ schema_version: 3, action: "draw",
+        svg: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}"><path d="M230 100 L230 300 L410 300 L410 100" fill="none" stroke="#26364a" stroke-width="3"/><path d="M233 205 L407 205 L407 297 L233 297 Z" fill="#d7eaf6"/>${label}</svg>`,
+        alt: right ? "烧杯右侧标注水" : left ? "烧杯左侧有标签" : "一个烧杯示意图", caption: "烧杯示意",
+        used_materials: (payload.reference_materials?.materials || []).slice(0, 12).map(row => ({ asset_id: row.asset_id, version: row.version })),
+      });
+    }
+    if (payload.candidate_protocol) return JSON.stringify(scene);
+  }
   if (text.includes("教材题图构想师")) {
     return JSON.stringify({ requirements: Array.from({ length: text.includes("冻结文字题") ? 1 : 2 }, (_, i) => ({
       question_slot: `q${i+1}`, illustration_needed: requiresIllustration || !userText.includes('"illustration_policy": "auto"'),

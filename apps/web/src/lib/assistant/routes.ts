@@ -13,6 +13,8 @@ const MODULE_PATHS: Record<string, string> = {
   knowledge: "/knowledge",
   orchestration: "/orchestration",
   assessment: "/assessment",
+  tools: "/tools",
+  tools_illustration: "/tools/illustration",
   memory: "/memory",
   resources_files: "/resources/files",
   resources_textbooks: "/resources/textbooks",

@@ -12,6 +12,7 @@ export function backendEnv(env) {
     TAVILY_API_KEY: "", PEXELS_API_KEY: "", PIXABAY_API_KEY: "",
     LLM_BASE_URL: `http://127.0.0.1:${env.E2E_LLM_PORT}/v1`,
     LLM_API_KEY: "fake-e2e-key", LLM_MODEL: "fake-llm", LLM_PROVIDER: "openai_compatible",
+    LLM_SUPPORTS_IMAGES: "1",
     SITE_ASSISTANT_ENABLED: "1", QUIZ_SVG_ENABLED: "1",
     QUIZ_ILLUSTRATION_PIPELINE: "shadow", QUIZ_ILLUSTRATION_VISUAL_REVIEW: "active",
     SUPERVISOR_LLM_PLAN: "0", TEXTBOOK_GRAPH_ENABLED: "0",

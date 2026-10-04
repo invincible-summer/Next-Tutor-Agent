@@ -30,6 +30,7 @@ For anything beyond mechanical edits, open the module README plus its canonical 
 | Site assistant | `agents/site_assistant` | `site-assistant.md` |
 | Notes | `app/notes` + `agents/notes_agent.py` | `notes.md` |
 | Diagrams / illustration | `app/diagrams` + `app/illustration` | `diagrams-illustration.md` |
+| Tool assistant / scenario illustration | `app/illustration` + frontend `/tools` | `tool-assistant.md` |
 | Voice | `app/voice` + `services/voice` | `voice.md` |
 | Backend runtime / core | `app/core` + `app/main.py` | `backend-runtime.md` |
 

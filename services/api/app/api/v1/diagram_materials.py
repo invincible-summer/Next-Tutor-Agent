@@ -27,8 +27,11 @@ def _invoke(fn, *args, **kwargs):
 @router.get("")
 def listing(scope: Literal["private", "public"] = "private", q: str = Query("", max_length=100),
         page: int = Query(0, ge=0, le=1000), per: int = Query(12, ge=1, le=48),
+        subject: str = Query("", max_length=40), enabled_only: bool = False,
         owner: str = Depends(resolve_student_id)):
-    rows = store.visible(owner, scope=scope)
+    rows = store.visible(owner, scope=scope, enabled_only=enabled_only)
+    if subject:
+        rows = [row for row in rows if row.get("subject") == subject]
     if q.strip():
         query = q.strip().casefold()
         rows = [row for row in rows if query in " ".join([row["title"], row["description"], *row["aliases"]]).casefold()]
