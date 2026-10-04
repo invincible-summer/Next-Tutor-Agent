@@ -163,7 +163,7 @@ services/api/       FastAPI 后端（API、教学智能体、教材处理与学�
 services/voice/     本地 MeloTTS 语音 sidecar（可选）
 fixtures/demo/      GitHub Pages 演示的合成数据源（synthetic-only）
 scripts/            按域组织的仓库脚本（repo 卫生 guard / contracts 生成链 / demo 导出 / 开发与验收工具）
-deploy/             systemd、nginx 等部署模板
+deploy/             部署模板（local/ 开发基础设施 compose；self-hosted/ 单机 systemd+nginx）
 docs/               架构文档、ADR、开发/运维/合规/验证手册（入口 docs/README.md）
 ```
 
