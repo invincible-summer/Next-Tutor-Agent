@@ -1,6 +1,7 @@
 # Client Platform（共享客户端包）
 
-> 状态：Stage A 已落地（根 workspace、contracts、api-client、design-tokens、i18n 骨架、Web 渐进迁移）。
+> 状态：Stage A 已落地（根 workspace、contracts、api-client、design-tokens、i18n 骨架、Web 渐进迁移）；
+> api-client 领域模块已按 §5.2 目标树补齐（0.3.0，Stage E 前提）。
 > 决策记录：[ADR-0009](../adr/0009-root-monorepo-shared-packages.md)、
 > [ADR-0008](../adr/0008-expo-react-native-mobile.md)。
 
@@ -55,16 +56,45 @@ Web 与未来的 Expo/React Native 移动端不复制 API 代码：传输、契�
 - 401：`onUnauthorized` 单飞（并发 401 共享一次 refresh）；只有 token 变化才
   重试一次，否则立即抛 `UnauthorizedError`；
 - 409：透传为 `ConflictError`；仅当调用方声明 `waitForConflict`（如
-  `evaluation_pending`）时有界重轮询。
+  `evaluation_pending`）时有界重轮询；
+- 响应体解析支持 `json`/`text`/`bytes`/`none`——`bytes` 走
+  `response.arrayBuffer()`（语音 WAV、课件音频剪辑、导出 zip、PDF 页快照、
+  原件下载），平台层再把字节变成 Blob URL/文件。
+
+错误信封（`src/errors.ts`）：识别 `detail.error.{code}`、扁平 `error.{code}`、
+`detail` 字符串与 speech 端点的裸 `detail.code` 四种形状；未知形状降级
+`status_<n>`，绝不静默吞错。classroom/assessment 错误码（`classroom_disabled`、
+`revision_conflict`、`lease_conflict`、`evaluation_pending`、`material_*` 等）
+经 `ApiError.code`/`ConflictError.code` 透传，域内不另造包装类。
 
 SSE（`src/sse/decoder.ts`）：跨 chunk 行边界、UTF-8 多字节边界、多行 data、
 heartbeat 注释、无结尾空行的尾帧 flush；reader lock 总是释放。chat 事件映射在
 `src/sse/events.ts`（`event:` 名优先，裸 data 默认 `message`）。
 
-域方法：`auth` / `chat`（流 + 会话投影）/ `workspace` / `illustration`
-（V1/V2/V3 题图读模型，中断映射 `run_interrupted`）/ `tools.illustration`
-（情景配图，见下）。契约类型一律 type-only 引入 `@next-tutor/contracts`，
-Node type-stripping 运行时不解析该包。
+域方法（`client.<domain>`）：`auth` / `chat`（流 + 会话投影）/ `workspace` /
+`guest`（访客会话）/ `illustration`（V1/V2/V3 题图读模型，中断映射
+`run_interrupted`）/ `tools.illustration`（情景配图，见下）/
+`assessment`（CAT + 单题提交 + `/quiz` 会话内练习；`next()` 默认接
+`evaluation_pending` 有界重轮询）/ `capabilities`（产品能力探针，点号键
+`illustration.quiz` 等按 wire 原样保留）/ `classroom`（课件创作 + 播放 run/
+lease/进度/音频 + checkpoint；类型 type-only 引
+`@next-tutor/contracts/classroom`；`jobEvents` 为 SSE AsyncGenerator，断线重连
+归调用方）/ `notes`（vault CRUD + 409 乐观并发 + agent SSE 流 + 字节导出）/
+`library`（资料库 + 嵌套 `textbooks` 教材库）/ `learning`（orchestration
+计划/任务/复习）/ `diagrams`（自有 SVG 素材 + 只读公共图示目录）/
+`voice`（ADR-0012 服务端语音：能力/转写/合成）。契约类型一律 type-only 引入
+`@next-tutor/contracts`（未生成的域用包内结构化类型 + `<T = 默认形状>` 泛型
+逃生口），Node type-stripping 运行时不解析该包。
+
+multipart 约定：平台负责构造 FormData 实例并 append 文件部件（浏览器
+`File`/RN `{uri,name,type}`），wire 字段名归共享层注入——`voice.transcribe`
+补 `file`/`duration_ms`/`language`，`library.textbooks.upload` 补
+level/scope/volume_overrides 等标量字段；纯 `files` 上传（workspace/
+library/notes/classroom asset）由调用方整表传入。带 `Idempotency-Key` 的
+classroom 写操作收显式 key 参数（只带头、不自动重试）；checkpoint submit 的
+幂等键在 body。admin、`/voice/ws`（浏览器 WS 通话）、评价洞察
+（`/evaluation`、`/learner-evaluation`、`/student`、`/memory`、`/ux`、
+`/user`）不在共享包内——admin 是 Web-only，其余按域渐进迁移。
 
 ### 情景配图 observer 语义（tools/illustration）
 

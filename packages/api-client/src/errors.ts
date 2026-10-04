@@ -62,14 +62,21 @@ export interface ServerErrorEnvelope {
   [key: string]: unknown;
 }
 
-/** Extract `{code, message, retryable}` from the repo's error envelope shapes. */
+/**
+ * Extract `{code, message, retryable}` from the repo's error envelope shapes:
+ * `{detail: {error: {…}}}`, flat `{error: {…}}`, FastAPI `detail` strings and
+ * the bare `{detail: {code}}` variant (speech endpoints).
+ */
 export function parseErrorBody(payload: unknown): ServerErrorEnvelope {
   if (payload && typeof payload === "object") {
     const record = payload as Record<string, unknown>;
     const detail = record.detail;
     if (detail && typeof detail === "object") {
-      const nested = (detail as Record<string, unknown>).error;
+      const detailRecord = detail as Record<string, unknown>;
+      const nested = detailRecord.error;
       if (nested && typeof nested === "object") return nested as ServerErrorEnvelope;
+      // `HTTPException(detail={"code": …})` without the error wrapper.
+      if (typeof detailRecord.code === "string") return detailRecord as ServerErrorEnvelope;
     }
     if (record.error && typeof record.error === "object") {
       return record.error as ServerErrorEnvelope;

@@ -25,6 +25,7 @@ import type {
   QueryValue,
   RequestOptions,
   RequestResult,
+  ResponseBodyKind,
   ResponseLike,
   Transport,
 } from "./types.ts";
@@ -275,12 +276,18 @@ async function peekErrorEnvelope(response: ResponseLike) {
 
 async function parseBody<T>(
   response: ResponseLike,
-  kind: "json" | "text" | "none",
+  kind: ResponseBodyKind,
 ): Promise<T> {
   if (kind === "none" || response.status === 204 || response.status === 205) {
     return undefined as T;
   }
   if (kind === "text") return (await response.text()) as T;
+  if (kind === "bytes") {
+    if (!response.arrayBuffer) {
+      throw new Error('responseType "bytes" requires a fetch implementation with arrayBuffer()');
+    }
+    return (await response.arrayBuffer()) as T;
+  }
   return (await response.json()) as T;
 }
 

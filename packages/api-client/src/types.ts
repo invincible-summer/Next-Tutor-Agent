@@ -38,6 +38,8 @@ export interface ResponseLike {
   readonly body?: ReadableStreamLike | null;
   json(): Promise<unknown>;
   text(): Promise<string>;
+  /** Binary bodies (`responseType: "bytes"`); present on browser/undici/expo fetch. */
+  arrayBuffer?(): Promise<ArrayBuffer>;
   clone?(): ResponseLike;
 }
 
@@ -107,14 +109,17 @@ export interface RequestOptions {
    * code (e.g. `evaluation_pending`). Deadline caps total wait; the final 409
    * response is surfaced to the caller when it expires.
    */
-  waitForConflict?: { code: string; deadlineMs?: number } | undefined;
+  waitForConflict?: { code: string; deadlineMs?: number | undefined } | undefined;
   /** Per-attempt timeout (an abort wrapper is created when set). */
   timeoutMs?: number | undefined;
-  /** Body interpretation; `none` skips parsing (204-style endpoints). */
+  /**
+   * Body interpretation; `none` skips parsing (204-style endpoints), `bytes`
+   * resolves `arrayBuffer()` (audio/image/zip downloads).
+   */
   responseType?: ResponseBodyKind | undefined;
 }
 
-export type ResponseBodyKind = "json" | "text" | "none";
+export type ResponseBodyKind = "json" | "text" | "bytes" | "none";
 
 // --- transport ---------------------------------------------------------------
 

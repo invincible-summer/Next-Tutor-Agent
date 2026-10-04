@@ -10,6 +10,16 @@ import { createAuthClient, type AuthClient } from "./auth.ts";
 import { createChatClient, type ChatClient } from "./chat.ts";
 import { createWorkspaceClient, type WorkspaceClient } from "./workspace.ts";
 import { createIllustrationClient, type IllustrationClient } from "./illustration.ts";
+import { createGuestClient, type GuestClient } from "./guest.ts";
+import { createAssessmentClient, type AssessmentClient } from "./assessment.ts";
+import { createCapabilitiesClient, type CapabilitiesClient } from "./capabilities.ts";
+import { createClassroomClient, type ClassroomClient } from "./classroom.ts";
+import { createDiagramsClient, type DiagramsClient } from "./diagrams.ts";
+import { createKnowledgeClient, type KnowledgeClient } from "./knowledge.ts";
+import { createLearningClient, type LearningClient } from "./learning.ts";
+import { createLibraryClient, type LibraryClient } from "./library.ts";
+import { createNotesClient, type NotesClient } from "./notes.ts";
+import { createVoiceClient, type VoiceClient } from "./voice.ts";
 import {
   createToolIllustrationClient,
   type ToolIllustrationClient,
@@ -22,6 +32,16 @@ export interface ApiClient {
   readonly chat: ChatClient;
   readonly workspace: WorkspaceClient;
   readonly illustration: IllustrationClient;
+  readonly guest: GuestClient;
+  readonly assessment: AssessmentClient;
+  readonly capabilities: CapabilitiesClient;
+  readonly classroom: ClassroomClient;
+  readonly diagrams: DiagramsClient;
+  readonly knowledge: KnowledgeClient;
+  readonly learning: LearningClient;
+  readonly library: LibraryClient;
+  readonly notes: NotesClient;
+  readonly voice: VoiceClient;
   readonly tools: { illustration: ToolIllustrationClient };
 }
 
@@ -34,6 +54,16 @@ export function createApiClient(config: ApiClientConfig): ApiClient {
     chat: createChatClient(transport),
     workspace: createWorkspaceClient(transport),
     illustration: createIllustrationClient(transport),
+    guest: createGuestClient(transport),
+    assessment: createAssessmentClient(transport),
+    capabilities: createCapabilitiesClient(transport),
+    classroom: createClassroomClient(transport),
+    diagrams: createDiagramsClient(transport),
+    knowledge: createKnowledgeClient(transport),
+    learning: createLearningClient(transport),
+    library: createLibraryClient(transport),
+    notes: createNotesClient(transport),
+    voice: createVoiceClient(transport),
     tools: { illustration: createToolIllustrationClient(transport) },
   };
 }

@@ -2,6 +2,7 @@
 import type {
   FetchInitLike,
   FetchLike,
+  FormDataLike,
   HeadersLike,
   ResponseLike,
   StreamReaderLike,
@@ -81,6 +82,58 @@ export const encoder = new TextEncoder();
 
 export function bytes(text: string): Uint8Array {
   return encoder.encode(text);
+}
+
+/** Binary response fake: `arrayBuffer()` returns an independent copy. */
+export function binaryResponse(
+  status: number,
+  data: Uint8Array | string,
+  headers?: Record<string, string>,
+): ResponseLike {
+  const view = typeof data === "string" ? bytes(data) : data;
+  const build = (): ResponseLike => ({
+    ok: status >= 200 && status < 300,
+    status,
+    headers: new FakeHeaders(headers),
+    body: null,
+    json: () => Promise.reject(new Error("binary response has no json body")),
+    text: () => Promise.resolve(""),
+    arrayBuffer: async () => view.slice().buffer as ArrayBuffer,
+    clone: () => build(),
+  });
+  return build();
+}
+
+/** Plain text response fake (HTML frames, markdown bodies). */
+export function textResponse(
+  status: number,
+  body: string,
+  headers?: Record<string, string>,
+): ResponseLike {
+  const build = (): ResponseLike => ({
+    ok: status >= 200 && status < 300,
+    status,
+    headers: new FakeHeaders(headers),
+    body: null,
+    json: () => Promise.reject(new Error("text response has no json body")),
+    text: () => Promise.resolve(body),
+    clone: () => build(),
+  });
+  return build();
+}
+
+export interface RecordedFormEntry {
+  name: string;
+  value: unknown;
+  filename?: string | undefined;
+}
+
+/** FormData recorder: captures appends instead of serializing them. */
+export class RecordingForm implements FormDataLike {
+  readonly entries: RecordedFormEntry[] = [];
+  append(name: string, value: unknown, filename?: string): void {
+    this.entries.push({ name, value, filename });
+  }
 }
 
 /** Split a UTF-8 byte payload into chunks of the given sizes (rest = tail). */

@@ -8,7 +8,7 @@ import {
   UnauthorizedError,
   createTransport,
 } from "../src/index.ts";
-import { hangingFetch, jsonResponse, noSleep, scriptedFetch } from "./helpers.ts";
+import { binaryResponse, hangingFetch, jsonResponse, noSleep, scriptedFetch } from "./helpers.ts";
 
 const BASE = "https://api.example.test/api/v1";
 
@@ -209,5 +209,29 @@ test("query params are encoded and undefined values dropped", async () => {
   assert.equal(
     calls[0]!.url,
     `${BASE}/search?q=${encodeURIComponent("a b/c")}&page=2&flag=true`,
+  );
+});
+
+// --- bytes response kind ------------------------------------------------------
+
+test("bytes responseType resolves arrayBuffer body", async () => {
+  const { fetch } = scriptedFetch([binaryResponse(200, "RIFF-wav-bytes", { "content-type": "audio/wav" })]);
+  const transport = createTransport({ baseUrl: BASE, fetchImpl: fetch, sleepImpl: noSleep });
+  const result = await transport.request<ArrayBuffer>("/speech/synthesis", {
+    method: "POST",
+    json: { text: "hi" },
+    responseType: "bytes",
+  });
+  assert.ok(result.body instanceof ArrayBuffer);
+  assert.equal(Buffer.from(result.body).toString("utf8"), "RIFF-wav-bytes");
+  assert.equal(result.headers.get("content-type"), "audio/wav");
+});
+
+test("bytes responseType fails loudly when fetch lacks arrayBuffer", async () => {
+  const { fetch } = scriptedFetch([jsonResponse(200, { ok: true })]);
+  const transport = createTransport({ baseUrl: BASE, fetchImpl: fetch, sleepImpl: noSleep });
+  await assert.rejects(
+    transport.request("/clips/1/content", { responseType: "bytes" }),
+    (error: unknown) => error instanceof Error && error.message.includes("arrayBuffer"),
   );
 });
