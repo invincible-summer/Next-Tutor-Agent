@@ -23,3 +23,4 @@
 | [ADR-0009](./0009-root-monorepo-shared-packages.md) | 根 monorepo 共享包 | 根 pnpm workspace + 五个共享客户端包，契约生成单事实源 |
 | [ADR-0010](./0010-enterprise-persistence.md) | 企业持久化栈 | PostgreSQL/Object/Redis 企业模式，`DATABASE_URL` 门控，多 worker 放行（取代 ADR-0004 禁令） |
 | [ADR-0011](./0011-tenant-rotating-sessions.md) | 租户与轮换会话 | tenant/membership + RS256 短 access/轮换 refresh 会话族，复用即撤族 |
+| [ADR-0012](./0012-cloud-speech-server-mediated.md) | 云语音服务端中转 | 服务端 STT/合成 REST 端点，Azure 凭证只在服务器；`/voice/ws` 兼容保留，MeloTTS 定位 self-hosted/dev 可选 |

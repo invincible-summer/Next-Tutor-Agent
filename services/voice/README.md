@@ -1,6 +1,8 @@
-# services/voice — MeloTTS 本地 TTS sidecar
+# services/voice — MeloTTS 本地 TTS sidecar（self-hosted/本地开发可选）
 
 承载本地 CPU 中文 TTS 合成的独立 FastAPI 进程：把 torch/MeloTTS 依赖完全隔离在主后端之外，主服务经 localhost HTTP（`app/voice/tts/melotts.py`）调用。
+
+定位（ADR-0012）：**self-hosted/本地开发可选 sidecar**，不进入移动端依赖图、不作为企业生产默认（生产语音走服务端中转的 Azure Speech）。移动端文档不要求安装本组件；仅在企业产品确认完全不提供本地部署时另立 ADR 后再移除。
 
 域设计（协议、启动判定、并发与许可边界）见 [docs/architecture/voice.md](../../docs/architecture/voice.md)，本 README 只做导航。
 

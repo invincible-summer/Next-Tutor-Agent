@@ -31,6 +31,8 @@ from app.api.v1 import trash
 from app.api.v1 import notes
 from app.api.v1 import docs
 from app.api.v1 import voice
+from app.api.v1 import speech
+from app.api.v1 import capabilities
 from app.api.v1 import classroom
 from app.api.v1 import assistant
 
@@ -65,5 +67,7 @@ api_router.include_router(trash.router)
 api_router.include_router(notes.router)
 api_router.include_router(docs.router)
 api_router.include_router(voice.router)
+api_router.include_router(speech.router)
+api_router.include_router(capabilities.router)
 api_router.include_router(classroom.router)
 api_router.include_router(assistant.router)

@@ -852,6 +852,27 @@
       },
       "AuthResponse": {
         "properties": {
+          "access_token": {
+            "default": "",
+            "title": "Access Token",
+            "type": "string"
+          },
+          "expires_in": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expires In"
+          },
+          "refresh_token": {
+            "default": "",
+            "title": "Refresh Token",
+            "type": "string"
+          },
           "token": {
             "title": "Token",
             "type": "string"
@@ -892,6 +913,31 @@
           "source_ids"
         ],
         "title": "BackfillRequest",
+        "type": "object"
+      },
+      "Body_create_transcription_api_v1_speech_transcriptions_post": {
+        "properties": {
+          "duration_ms": {
+            "minimum": 1.0,
+            "title": "Duration Ms",
+            "type": "integer"
+          },
+          "file": {
+            "contentMediaType": "application/octet-stream",
+            "title": "File",
+            "type": "string"
+          },
+          "language": {
+            "default": "zh",
+            "title": "Language",
+            "type": "string"
+          }
+        },
+        "required": [
+          "file",
+          "duration_ms"
+        ],
+        "title": "Body_create_transcription_api_v1_speech_transcriptions_post",
         "type": "object"
       },
       "Body_notes_upload_api_v1_notes_upload_post": {
@@ -1335,6 +1381,25 @@
           "expected_state_revision"
         ],
         "title": "CancelJobRequest",
+        "type": "object"
+      },
+      "CapabilityEntry": {
+        "additionalProperties": false,
+        "properties": {
+          "available": {
+            "title": "Available",
+            "type": "boolean"
+          },
+          "reason": {
+            "default": "",
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "available"
+        ],
+        "title": "CapabilityEntry",
         "type": "object"
       },
       "CartesianPlot": {
@@ -5652,6 +5717,55 @@
         "title": "PreviewRequest",
         "type": "object"
       },
+      "ProductCapabilities": {
+        "additionalProperties": false,
+        "properties": {
+          "assistant": {
+            "$ref": "#/components/schemas/CapabilityEntry"
+          },
+          "chat": {
+            "$ref": "#/components/schemas/CapabilityEntry"
+          },
+          "classroom": {
+            "$ref": "#/components/schemas/CapabilityEntry"
+          },
+          "cloud_stt": {
+            "$ref": "#/components/schemas/CapabilityEntry"
+          },
+          "cloud_tts": {
+            "$ref": "#/components/schemas/CapabilityEntry"
+          },
+          "diagram.materials": {
+            "$ref": "#/components/schemas/CapabilityEntry"
+          },
+          "illustration.quiz": {
+            "$ref": "#/components/schemas/CapabilityEntry"
+          },
+          "illustration.scenario": {
+            "$ref": "#/components/schemas/CapabilityEntry"
+          },
+          "illustration.v3": {
+            "$ref": "#/components/schemas/CapabilityEntry"
+          },
+          "upload": {
+            "$ref": "#/components/schemas/CapabilityEntry"
+          }
+        },
+        "required": [
+          "chat",
+          "upload",
+          "classroom",
+          "cloud_stt",
+          "cloud_tts",
+          "assistant",
+          "illustration.quiz",
+          "illustration.scenario",
+          "illustration.v3",
+          "diagram.materials"
+        ],
+        "title": "ProductCapabilities",
+        "type": "object"
+      },
       "ProgressAction": {
         "enum": [
           "progress",
@@ -6109,6 +6223,21 @@
         "title": "QuizSubmitRequest",
         "type": "object"
       },
+      "RefreshRequest": {
+        "properties": {
+          "refresh_token": {
+            "maxLength": 256,
+            "minLength": 8,
+            "title": "Refresh Token",
+            "type": "string"
+          }
+        },
+        "required": [
+          "refresh_token"
+        ],
+        "title": "RefreshRequest",
+        "type": "object"
+      },
       "RefreshResearchOperation": {
         "additionalProperties": false,
         "properties": {
@@ -6124,6 +6253,29 @@
           }
         },
         "title": "RefreshResearchOperation",
+        "type": "object"
+      },
+      "RefreshResponse": {
+        "properties": {
+          "access_token": {
+            "title": "Access Token",
+            "type": "string"
+          },
+          "expires_in": {
+            "title": "Expires In",
+            "type": "integer"
+          },
+          "refresh_token": {
+            "title": "Refresh Token",
+            "type": "string"
+          }
+        },
+        "required": [
+          "access_token",
+          "refresh_token",
+          "expires_in"
+        ],
+        "title": "RefreshResponse",
         "type": "object"
       },
       "RefreshScope": {
@@ -7867,6 +8019,28 @@
         "title": "SpanText",
         "type": "object"
       },
+      "SpeechCapabilities": {
+        "additionalProperties": false,
+        "description": "能力只读投影：STT（服务端转写）+ synthesis（受控合成）。",
+        "properties": {
+          "stt": {
+            "additionalProperties": true,
+            "title": "Stt",
+            "type": "object"
+          },
+          "synthesis": {
+            "additionalProperties": true,
+            "title": "Synthesis",
+            "type": "object"
+          }
+        },
+        "required": [
+          "stt",
+          "synthesis"
+        ],
+        "title": "SpeechCapabilities",
+        "type": "object"
+      },
       "StartMode": {
         "enum": [
           "automatic",
@@ -8372,19 +8546,6 @@
           }
         },
         "title": "SvgParameterization",
-        "type": "object"
-      },
-      "SynthesisRequest": {
-        "additionalProperties": false,
-        "properties": {
-          "expected_scope_revision": {
-            "default": "",
-            "maxLength": 128,
-            "title": "Expected Scope Revision",
-            "type": "string"
-          }
-        },
-        "title": "SynthesisRequest",
         "type": "object"
       },
       "TableBlock": {
@@ -9093,6 +9254,36 @@
           "progress"
         ],
         "title": "ToolIllustrationJob",
+        "type": "object"
+      },
+      "TranscriptionResponse": {
+        "additionalProperties": false,
+        "description": "一次转写的公开结果；provider 只暴露类别名，不含凭证细节。",
+        "properties": {
+          "duration_ms": {
+            "title": "Duration Ms",
+            "type": "integer"
+          },
+          "language": {
+            "title": "Language",
+            "type": "string"
+          },
+          "provider_class": {
+            "title": "Provider Class",
+            "type": "string"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "text",
+          "language",
+          "duration_ms",
+          "provider_class"
+        ],
+        "title": "TranscriptionResponse",
         "type": "object"
       },
       "TransitionKind": {
@@ -9967,6 +10158,19 @@
         "title": "VoicePreviewRequest",
         "type": "object"
       },
+      "app__api__v1__learner_evaluation__SynthesisRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "expected_scope_revision": {
+            "default": "",
+            "maxLength": 128,
+            "title": "Expected Scope Revision",
+            "type": "string"
+          }
+        },
+        "title": "SynthesisRequest",
+        "type": "object"
+      },
       "app__api__v1__library__FolderCreate": {
         "properties": {
           "name": {
@@ -10073,6 +10277,59 @@
           "template_id"
         ],
         "title": "GenerateRequest",
+        "type": "object"
+      },
+      "app__api__v1__speech__SynthesisRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "allow_local_fallback": {
+            "default": true,
+            "title": "Allow Local Fallback",
+            "type": "boolean"
+          },
+          "language": {
+            "default": "zh",
+            "enum": [
+              "zh",
+              "en"
+            ],
+            "title": "Language",
+            "type": "string"
+          },
+          "policy": {
+            "default": "auto",
+            "enum": [
+              "auto",
+              "cloud",
+              "local"
+            ],
+            "title": "Policy",
+            "type": "string"
+          },
+          "speed": {
+            "default": 1.0,
+            "maximum": 2.0,
+            "minimum": 0.5,
+            "title": "Speed",
+            "type": "number"
+          },
+          "text": {
+            "maxLength": 2000,
+            "minLength": 1,
+            "title": "Text",
+            "type": "string"
+          },
+          "voice_id": {
+            "default": "",
+            "maxLength": 128,
+            "title": "Voice Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "text"
+        ],
+        "title": "SynthesisRequest",
         "type": "object"
       },
       "app__core__guest_learning__GenerateRequest": {
@@ -18153,7 +18410,7 @@
     },
     "/api/v1/auth/login": {
       "post": {
-        "description": "Authenticate and issue a JWT.",
+        "description": "Authenticate and issue a JWT (plus rotating session in enterprise).",
         "operationId": "login_api_v1_auth_login_post",
         "parameters": [
           {
@@ -18387,6 +18644,162 @@
         ]
       }
     },
+    "/api/v1/auth/principal": {
+      "get": {
+        "description": "Enterprise tenant context for the current request (debug/console).",
+        "operationId": "principal_api_v1_auth_principal_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-guest-token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Guest-Token"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Principal",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/v1/auth/refresh": {
+      "post": {
+        "description": "Rotate a refresh token; reuse of a rotated token revokes the family.",
+        "operationId": "refresh_api_v1_auth_refresh_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-guest-token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Guest-Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RefreshRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RefreshResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Refresh",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
     "/api/v1/auth/register": {
       "post": {
         "description": "Create a new user account. The user_id becomes the student namespace\nkey for all M2-M9 data.",
@@ -18458,6 +18871,175 @@
           }
         },
         "summary": "Register",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/v1/auth/sessions": {
+      "get": {
+        "description": "Active + recently revoked refresh sessions for the current user.",
+        "operationId": "list_sessions_api_v1_auth_sessions_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-guest-token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Guest-Token"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Sessions",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/v1/auth/sessions/{session_id}": {
+      "delete": {
+        "description": "Revoke one of the current user's session families (logout a device).",
+        "operationId": "revoke_session_api_v1_auth_sessions__session_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "session_id",
+            "required": true,
+            "schema": {
+              "title": "Session Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-guest-token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Guest-Token"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Revoke Session",
         "tags": [
           "auth"
         ]
@@ -18542,6 +19124,88 @@
         "summary": "Auth Status",
         "tags": [
           "auth"
+        ]
+      }
+    },
+    "/api/v1/capabilities": {
+      "get": {
+        "description": "聚合产品能力（只读、无状态：登录/游客均可读，判定与域内一致）。",
+        "operationId": "get_product_capabilities_api_v1_capabilities_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-guest-token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Guest-Token"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProductCapabilities"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Product Capabilities",
+        "tags": [
+          "capabilities"
         ]
       }
     },
@@ -24678,7 +25342,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/SynthesisRequest"
+                "$ref": "#/components/schemas/app__api__v1__learner_evaluation__SynthesisRequest"
               }
             }
           },
@@ -32241,6 +32905,276 @@
         "summary": "Sidebar Snapshot",
         "tags": [
           "sidebar"
+        ]
+      }
+    },
+    "/api/v1/speech/capabilities": {
+      "get": {
+        "description": "服务端转写与合成能力（零网络请求、零凭证回显）。",
+        "operationId": "get_speech_capabilities_api_v1_speech_capabilities_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-guest-token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Guest-Token"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SpeechCapabilities"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Speech Capabilities",
+        "tags": [
+          "speech"
+        ]
+      }
+    },
+    "/api/v1/speech/synthesis": {
+      "post": {
+        "description": "受控文本 → WAV 音频（音色仅限管理员批准集合）。",
+        "operationId": "synthesize_speech_api_v1_speech_synthesis_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-guest-token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Guest-Token"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/app__api__v1__speech__SynthesisRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              },
+              "audio/wav": {
+                "schema": {
+                  "format": "binary",
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Synthesized utterance audio"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Synthesize Speech",
+        "tags": [
+          "speech"
+        ]
+      }
+    },
+    "/api/v1/speech/transcriptions": {
+      "post": {
+        "description": "One-utterance audio → transcript（服务端校验后才调用 provider）。",
+        "operationId": "create_transcription_api_v1_speech_transcriptions_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-guest-token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Guest-Token"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_create_transcription_api_v1_speech_transcriptions_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TranscriptionResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Transcription",
+        "tags": [
+          "speech"
         ]
       }
     },
