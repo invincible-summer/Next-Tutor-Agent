@@ -47,6 +47,7 @@ python worker.py --queues documents       # 子集运行（队列独立扩容）
 
 - Task queue 划分（`app/workflows/runtime.py`）：`documents` / `classroom` / `evaluation` / `media` / `maintenance`。
 - 域事实源不变（job.json/journal 等仍由域代码原子写）；workflow id 由域 job id 稳定派生（`join_workflow_id`）。
+- 已迁移域的启动恢复移到 worker 启动时执行（API lifespan durable 分支不再驱动，避免双进程重复入队）；每条队列保持单 worker 实例消费（域调度器在 worker 进程内存中，与文件模式同一约束，见 ADR-0013「调度策略优先复用域调度器」）。
 - 各域迁移状态表见 [../adr/0013-durable-workflows.md](../adr/0013-durable-workflows.md)。
 - 本地 Temporal：`cd deploy/local && docker compose --profile temporal up -d`（端口 127.0.0.1:7233，库建在同一 compose 的 PostgreSQL 上）。
 

@@ -14,7 +14,7 @@ ADR-0004 以来，所有后台长任务（教材解析/OCR/图谱构建、课堂
 
 - **双模式门控**（与 ADR-0010/0012 的降级范式一致）：`TEMPORAL_ADDRESS` 未设 → 各域保持现有进程内执行，行为零变化（file/self-hosted 部署不需要 Temporal）；已设 → API lifespan 不再启动该域 in-process worker，job 由 `services/api/worker.py` 进程经 Temporal 执行。**同一域绝不允许双 worker 同时消费**——门控是进程级互斥的，不是叠加的。
 - **不拆业务代码**（wrap-as-activity）：现有域 runner（检查点、预算、emit、协作取消）整体作为一个 activity 执行；**域持久化仍是唯一事实源**（job.json / journal / build_job / immutable artifact），Temporal 只做 durable orchestration。域检查点仍是崩溃恢复粒度——Temporal 保证「activity 因机器崩溃后继续」，不接管业务状态。
-- **调度策略用调度 workflow 复刻**：classroom 的并发/owner 轮转、evaluation 的 claim/outbox、textbook 的 per-owner FIFO，分别落在调度器 workflow 中，选择逻辑复用现有域代码（作为 activity）。
+- **调度策略优先复用域调度器**：各域现有队列/选择/并发策略（textbook per-owner FIFO + 停滞看门狗、classroom 并发/轮转、evaluation claim/outbox）是经过测试的行为契约——迁移后它们随 activity 原样在 worker 进程内运行（进程角色标记 `app/workflows/config.is_worker_process` 使 activity 内的 enqueue/claim 走进程内路径、不递归派发 workflow），而不是在 workflow 里重写一份调度器。代价：每条队列保持单 worker 实例消费（与文件模式同一约束），按队列扩容而非按副本扩容；未来需要副本级扩容时再为对应域引入调度 workflow。
 - **五个 task queue**：`documents` / `classroom` / `evaluation` / `media` / `maintenance`，同一 worker 入口按 `--queues` 子集运行，可独立扩容。
 - **workflow id 与域 job id 稳定映射**：`classroom-job:{job_id}`、`quiz-illustration:{job_id}`、`scenario-illustration:{job_id}`、`textbook-queue:{owner}` 等；cancel/retry = 域 CAS 打标（事实源）+ workflow cancel / 同 id 新 run。id 只在 API/activity 侧铸造，workflow 代码保持确定性纪律（无直接 IO/时钟/随机）。
 - **配图双 workflow**：`QuizIllustrationWorkflow` 与 `ScenarioIllustrationWorkflow` 是两个独立业务 workflow（各自的审核输入与发布条件不共享），底层共享素材检索/V1V2V3 compose/sanitize/render/artifact activity（`app/illustration` 域代码）。
@@ -33,8 +33,8 @@ ADR-0004 以来，所有后台长任务（教材解析/OCR/图谱构建、课堂
 
 | 域 | 队列 | 状态 |
 |---|---|---|
-| 基建（config/runtime/worker.py/CI/依赖） | — | done（本 ADR 随附） |
-| textbook（解析/OCR/质量/图谱构建） | documents | pending |
+| 基建（config/runtime/worker.py/CI/依赖） | — | done |
+| textbook（构建 intent + 手动刷新；恢复移 worker 启动） | documents | done |
 | classroom（生成 job） | classroom | pending |
 | illustration（quiz + scenario） | media | pending |
 | learner evaluation（含每日关窗） | evaluation | pending |

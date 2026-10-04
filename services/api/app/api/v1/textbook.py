@@ -497,6 +497,26 @@ def _spawn_refresh(student_id: str, tb_id: str, mode: str,
                    *, ocr_parallel: bool = True) -> bool:
     if tb_store.refresh_task_running(student_id, tb_id):
         return False
+    # durable 模式（ADR-0013）：刷新编排移到 worker 进程（per-owner 刷新锁、
+    # 内部经域队列的构建与 RAG 收尾都在 activity 内原样执行）。
+    from app.workflows.config import is_worker_process, temporal_configured
+    if temporal_configured() and not is_worker_process():
+        async def _dispatch_refresh() -> None:
+            from app.workflows import textbook as wf_textbook
+            try:
+                await wf_textbook.start_refresh(wf_textbook.TextbookRefreshIntent(
+                    owner=student_id, tb_id=tb_id, mode=mode,
+                    ocr_parallel=ocr_parallel))
+            except Exception:
+                log.warning("temporal textbook refresh dispatch failed: %s",
+                            tb_id, exc_info=True)
+        try:
+            loop = asyncio.get_running_loop()
+            loop.create_task(_dispatch_refresh())
+            return True
+        except RuntimeError:
+            log.warning("textbook refresh spawn skipped (no running event loop): %s", tb_id)
+            return False
     try:
         loop = asyncio.get_running_loop()
         task = loop.create_task(_safe_refresh(
@@ -507,7 +527,6 @@ def _spawn_refresh(student_id: str, tb_id: str, mode: str,
         return True
     except RuntimeError:
         log.warning("textbook refresh spawn skipped (no running event loop): %s", tb_id)
-        return False
 
 
 async def _ingest_vectors(lib, student_id: str, file_ids: list[str]) -> None:

@@ -21,6 +21,22 @@ _NAMESPACE_ENV = "TEMPORAL_NAMESPACE"
 
 DEFAULT_NAMESPACE = "default"
 
+# Process role: the API process dispatches workflows; the worker process
+# (services/api/worker.py) executes them. Domain seams branch on this so an
+# activity running inside the worker keeps using the domain's own in-process
+# machinery (queues/locks) instead of dispatching another workflow.
+_worker_process = False
+
+
+def mark_worker_process() -> None:
+    """Flag the current process as the durable worker (worker.py boot)."""
+    global _worker_process
+    _worker_process = True
+
+
+def is_worker_process() -> bool:
+    return _worker_process
+
 
 def temporal_address() -> str | None:
     """The configured Temporal frontend ``host:port``, or None (file mode)."""

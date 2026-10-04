@@ -238,6 +238,11 @@ def enqueue_textbook_build(student_id: str, tb_id: str, **build_kwargs) \
 
     只在事件循环线程内调用（端点/启动 lifespan）。dict/deque 操作在单线程
     事件循环内原子，无需额外锁。
+
+    durable 模式（ADR-0013，TEMPORAL_ADDRESS 已设且本进程不是 worker）：
+    改为派发 ``textbook.build_intent`` workflow——activity 在 worker 进程内
+    走本函数的进程内队列路径，FIFO/并发/看门狗语义不变；返回的 Future 由
+    workflow 终态结算（上游等待方无感）。
     """
     try:
         loop = asyncio.get_running_loop()
@@ -247,8 +252,24 @@ def enqueue_textbook_build(student_id: str, tb_id: str, **build_kwargs) \
     # 上传、失败重试、管理员 rebuild 还是 full OCR，进程死掉后都知道用户
     # 最后一次要求做什么。
     _persist_build_intent(student_id, tb_id, build_kwargs)
+    from app.workflows.config import is_worker_process, temporal_configured
+    if temporal_configured() and not is_worker_process():
+        future: asyncio.Future[None] = loop.create_future()
+
+        async def _dispatch_durable() -> None:
+            from app.workflows import textbook as wf_textbook
+            try:
+                await wf_textbook.dispatch_build_intent(
+                    wf_textbook.TextbookBuildIntent(
+                        owner=student_id, tb_id=tb_id, kwargs=build_kwargs))
+            finally:
+                if not future.done():
+                    future.set_result(None)
+
+        loop.create_task(_dispatch_durable())
+        return future
     queue = _BUILD_QUEUES.setdefault(student_id, {"items": deque(), "worker": None})
-    future: asyncio.Future = loop.create_future()
+    future = loop.create_future()
     queue["items"].append({"textbook_id": tb_id, "kwargs": build_kwargs,
                            "future": future})
     worker = queue["worker"]

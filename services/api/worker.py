@@ -49,7 +49,29 @@ def build_lanes() -> dict[str, Lane]:
     ``--help`` and file-mode imports.
     """
     lanes: dict[str, Lane] = {}
+    from app.workflows.runtime import TASK_QUEUE_DOCUMENTS
+    from app.workflows.textbook import TEXTBOOK_ACTIVITIES, TEXTBOOK_WORKFLOWS
+    lanes[TASK_QUEUE_DOCUMENTS] = Lane(
+        workflows=TEXTBOOK_WORKFLOWS, activities=TEXTBOOK_ACTIVITIES,
+        notes="textbook build intents + manual refresh (ADR-0013 C1)")
     return lanes
+
+
+async def _bootstrap_documents_recovery() -> None:
+    """Worker 启动恢复（durable 模式下 API 不再执行，见 main.py 门控）。
+
+    与文件模式 API lifespan 同一步骤：重启对账 → OCR 续跑 → 中断构建
+    intent 重入队（worker 进程角色使 enqueue 走进程内域队列）。
+    """
+    from app.core.textbook import reconcile_stale_builds
+    from app.core.textbook_ocr import resume_pending_textbook_ocr
+    reconcile_stale_builds()
+    resume_pending_textbook_ocr()
+    from app.agents.knowledge.textbook_builder import (
+        resume_interrupted_textbook_builds)
+    resumed = await resume_interrupted_textbook_builds()
+    if resumed:
+        log.info("resumed %d interrupted textbook build(s)", resumed)
 
 
 def _parse_args(argv: Sequence[str]) -> argparse.Namespace:
@@ -65,9 +87,15 @@ def _parse_args(argv: Sequence[str]) -> argparse.Namespace:
 async def _serve(queues: Sequence[str]) -> int:
     from temporalio.worker import Worker
 
-    from app.workflows.runtime import get_client
+    from app.workflows.runtime import TASK_QUEUE_DOCUMENTS, get_client
 
     client = await get_client()
+    if TASK_QUEUE_DOCUMENTS in queues:
+        try:
+            await _bootstrap_documents_recovery()
+        except Exception:
+            log.exception("documents recovery failed; queued intents will "
+                          "be picked up on the next worker restart")
     lanes = build_lanes()
     workers: list[Worker] = []
     for queue in queues:
@@ -130,6 +158,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     if not queues:
         print("no task queues selected", file=sys.stderr)
         return 2
+    # 进程角色标记必须先于任何域 enqueue（activity 内复用进程内域队列）。
+    from app.workflows.config import mark_worker_process
+    mark_worker_process()
     try:
         return asyncio.run(_serve(queues))
     except KeyboardInterrupt:

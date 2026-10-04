@@ -38,12 +38,17 @@ async def _lifespan(app: FastAPI):
         cleanup_legacy_graph_archives()
 
     # 教材记录迁移 + 重启对账 + OCR 续跑 + 中断图谱构建重入队
-    # （P1-B 顺序）。
+    # （P1-B 顺序）。durable 模式（ADR-0013）下对账/续跑/重入队归 worker
+    # 进程（worker.py 启动时执行）；API 进程只做一次性 legacy 迁移，
+    # 绝不在两个进程重复驱动构建。
     async def _textbook_recovery() -> None:
-        from app.core.textbook import (migrate_legacy_single_to_groups,
-                                       reconcile_stale_builds)
-        from app.core.textbook_ocr import resume_pending_textbook_ocr
+        from app.core.textbook import migrate_legacy_single_to_groups
         migrate_legacy_single_to_groups()
+        from app.workflows.config import temporal_configured
+        if temporal_configured():
+            return
+        from app.core.textbook import reconcile_stale_builds
+        from app.core.textbook_ocr import resume_pending_textbook_ocr
         reconcile_stale_builds()
         resume_pending_textbook_ocr()
         from app.agents.knowledge.textbook_builder import (
