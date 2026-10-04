@@ -41,19 +41,12 @@ jobs:
   browser:
     name: Full browser regression
     runs-on: ubuntu-24.04
-    timeout-minutes: 35
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-project
-      - name: Production build
+      - name: Browser regressions (production build included)
         working-directory: apps/web
-        run: pnpm build
-      - name: Browser regressions
-        working-directory: apps/web
-        env:
-          E2E_PRODUCTION: "1"
-          E2E_FRESH: "1"
-          E2E_BACKEND_HOME: ${{ runner.temp }}/tutor-regression
         run: pnpm test:e2e
       - name: Browser diagnostics
         timeout-minutes: 3

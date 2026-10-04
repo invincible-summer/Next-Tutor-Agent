@@ -13,11 +13,22 @@
  *   crashed previous run or a parallel session never wedges the suite.
  */
 import { execFileSync } from "node:child_process";
+import { resolve } from "node:path";
 
-const CLI = "tests/e2e/support/ports-cli.mjs";
+// Playwright transpiles config dependencies to CommonJS, so keep import.meta
+// out of this shared module. Both runners execute from apps/web.
+const CLI = resolve("tests/e2e/support/ports-cli.mjs");
 
-export function pickPortSync(preferred, envName) {
-  if (envName && process.env[envName]) return Number(process.env[envName]);
+export function pickPortSync(preferred, envName, checkOverride = false) {
+  const override = envName && process.env[envName];
+  if (override) {
+    if (!/^\d+$/.test(override) || Number(override) < 1 || Number(override) > 65535) {
+      throw new Error(`${envName} must be a port from 1 to 65535`);
+    }
+    // Config reloads use the pinned (now listening) port; the runner checks
+    // availability once, before starting any build or service.
+    if (!checkOverride) return Number(override);
+  }
   const out = execFileSync(process.execPath, [CLI, String(preferred), envName || ""],
                            { encoding: "utf8", stdio: ["ignore", "pipe", "inherit"] });
   return Number(out.trim().split(/\s+/).pop());

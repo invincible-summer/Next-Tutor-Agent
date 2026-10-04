@@ -16,9 +16,8 @@ requirements, Chromium and classroom assets before running them:
 ```bash
 pnpm exec playwright install --with-deps chromium
 pnpm build:classroom
-NEXT_PUBLIC_BACKEND_URL=http://127.0.0.1:8124 pnpm build
-E2E_PRODUCTION=1 E2E_FRESH=1 pnpm test:e2e:ci  # critical journeys
-E2E_PRODUCTION=1 E2E_FRESH=1 pnpm test:e2e     # full regression
+pnpm test:e2e     # builds once, then runs the full isolated regression
+pnpm test:e2e tests/e2e/auth-isolation.spec.ts  # same runner, selected scope
 ```
 
 See [Testing and CI maintenance](../../docs/development/testing.md) for Python setup, test

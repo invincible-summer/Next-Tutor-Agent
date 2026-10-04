@@ -2,7 +2,7 @@ import { test, expect, request as pwRequest } from "@playwright/test";
 import { loginViaStorage, registerAndLogin } from "./support/helpers";
 
 test("全部素材可分页观看，筛选搜索与参数预览可用", async ({ page }) => {
-  test.setTimeout(300_000);
+  test.setTimeout(120_000);
   const api = await pwRequest.newContext();
   try {
     const user = await registerAndLogin(api);

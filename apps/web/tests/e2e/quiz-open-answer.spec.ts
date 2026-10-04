@@ -35,7 +35,7 @@ for (const mode of [
       await input.fill("请出两道 ZX-17 定理练习题考我");
       await input.press("Enter");
       const card = page.getByTestId("quiz-card").filter({ has: page.locator("textarea") }).first();
-      await expect(card).toBeVisible({ timeout: 90_000 });
+      await expect(card).toBeVisible({ timeout: 20_000 });
       const answer = "由定义出发说明条件。".repeat(30) + "最后一步：保留完整答案的末尾。";
       await expect(card.locator("textarea")).toBeEnabled();
       await card.locator("textarea").fill(answer);

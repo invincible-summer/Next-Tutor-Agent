@@ -205,7 +205,7 @@ test("刷新恢复到上次游标且不自动发声", async ({ page }) => {
   await page.getByRole("button", { name: "字幕", exact: true }).click();
   const caption = page.locator(
     "section[aria-label='字幕'] [aria-live='polite']");
-  await expect(caption).toContainText(SEGS[1].text, { timeout: 30_000 });
+  await expect(caption).toContainText(SEGS[1].text, { timeout: 15_000 });
   await page.waitForTimeout(1200);
   expect(hooks.audioRequests).toBe(0);
 
@@ -257,7 +257,7 @@ test("pagehide 立即 flush 进度", async ({ page }) => {
   await routeResume(page, hooks, { cursorSeg: 1 });
   await page.goto(`/workspaces/${WS}/classroom/${LESSON}/learn/${RUN}`);
   await page.click("button[aria-label='播放']");
-  await page.waitForTimeout(400);
+  await expect.poll(() => hooks.audioRequests).toBeGreaterThan(0);
 
   await page.evaluate(() =>
     window.dispatchEvent(new Event("pagehide")));

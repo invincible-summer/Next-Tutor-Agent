@@ -165,7 +165,7 @@ test("课件 iframe 沙箱隔离且伪造 postMessage 无效", async ({ page }) 
   await page.getByRole("button", { name: "字幕", exact: true }).click();
   await expect(page.locator(
     "section[aria-label='字幕'] [aria-live='polite']"))
-    .toContainText(SEGS[0].text, { timeout: 30_000 });
+    .toContainText(SEGS[0].text, { timeout: 15_000 });
 
   // sandbox 只有 allow-scripts；无 allow-same-origin；srcdoc 而非 src
   const sandbox = await page.locator("iframe[title='动量守恒']")
@@ -195,7 +195,7 @@ test("frame 与音频内容请求都经 Authorization 头鉴权", async ({ page 
   await page.getByRole("button", { name: "字幕", exact: true }).click();
   await expect(page.locator(
     "section[aria-label='字幕'] [aria-live='polite']"))
-    .toContainText(SEGS[0].text, { timeout: 30_000 });
+    .toContainText(SEGS[0].text, { timeout: 15_000 });
   await page.click("button[aria-label='播放']");
   await expect.poll(() => hooks.authHeaders.filter(
     (h) => h.audioContent !== undefined).length).toBeGreaterThan(0);
@@ -214,7 +214,7 @@ test("音频内容不可用时仍可翻页和阅读讲稿", async ({ page }) => 
   await page.getByRole("button", { name: "字幕", exact: true }).click();
   await expect(page.locator(
     "section[aria-label='字幕'] [aria-live='polite']"))
-    .toContainText(SEGS[0].text, { timeout: 30_000 });
+    .toContainText(SEGS[0].text, { timeout: 15_000 });
 
   // 音频内容 404：无声音但不崩溃；目录导航/讲稿仍可用
   await page.click("button[aria-label='播放']");

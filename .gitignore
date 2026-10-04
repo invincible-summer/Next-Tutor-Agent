@@ -11,6 +11,8 @@ dist/
 venv/
 node_modules/
 .next/
+.next-e2e/
+.e2e-lock/
 .pnpm-store/
 
 .env
@@ -57,6 +59,7 @@ docs/administrator.txt
 
 # Local planning documents stay out of version control.
 plan.md
+clean-plan.md
 docs/The_Website_deployment_plan.md
 
 # Common local research/download scratch directories.

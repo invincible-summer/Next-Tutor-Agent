@@ -224,7 +224,7 @@ async function openPlayer(page: Page): Promise<void> {
   await page.getByRole("button", { name: "字幕", exact: true }).click();
   await expect(page.locator(
     "section[aria-label='字幕'] [aria-live='polite']"))
-    .toContainText(SEGS[0].text, { timeout: 30_000 });
+    .toContainText(SEGS[0].text, { timeout: 15_000 });
 }
 
 test("检查点：提示→揭晓→提交一次受理，答案不提前泄漏", async ({ page }) => {
@@ -337,7 +337,7 @@ test("刷新恢复：已答检查点不重开为新题", async ({ page }) => {
   // 光标在第二段：字幕即第二段。讲完当前段才出现检查点。
   await expect(page.locator(
     "section[aria-label='字幕'] [aria-live='polite']"))
-    .toContainText(SEGS[1].text, { timeout: 30_000 });
+    .toContainText(SEGS[1].text, { timeout: 15_000 });
   await page.click("button[aria-label='播放']");
 
   // 面板处于已答形态（✓），不能再选选项、没有提交按钮

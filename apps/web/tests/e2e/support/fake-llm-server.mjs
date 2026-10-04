@@ -146,6 +146,9 @@ function toolCallDeltas(calls) {
 }
 
 const server = http.createServer((req, res) => {
+  if (req.method === "GET" && req.url === "/health") {
+    res.writeHead(200).end("ok"); return;
+  }
   if (req.method !== "POST" || !req.url.includes("/chat/completions")) {
     res.writeHead(404).end();
     return;

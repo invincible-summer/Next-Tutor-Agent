@@ -39,9 +39,14 @@ test.describe("assistant navigation receipts", () => {
 
   test("missing concept never receives a successful ack", async ({ page }) => {
     await page.goto("/memory");
+    await expect(page.getByText("还没有学习区", { exact: true })).toBeVisible();
+    await page.clock.install();
     await navigate(page, { kind: "learning_archive", workspace_id: "missing-workspace", concept_key: "missing-concept" });
     await expect(page).toHaveURL(/concept=missing-concept/);
-    await expect(page.locator(".assistant-action-card[data-state=failed]")).toHaveCount(1, { timeout: 20000 });
+    // Fire every 50ms readiness poll in the 12s guard, preserving its real
+    // failure/ack behavior without spending that time on an absent target.
+    await page.clock.runFor(13_000);
+    await expect(page.locator(".assistant-action-card[data-state=failed]")).toHaveCount(1, { timeout: 15000 });
     await expect(page.locator(".assistant-action-card[data-state=succeeded]")).toHaveCount(0);
   });
 
@@ -125,7 +130,7 @@ test.describe("assistant navigation receipts", () => {
       await page.route("**/library/files/nav_pdf/page/*", (route) => route.fulfill({ status: scenario === "forbidden" ? 403 : 404 }));
       await page.goto("/resources/files");
       await navigate(page, { kind: "file", file_id: file.id, page: scenario === "invalid" ? 0 : 999 });
-      await expect(page.locator(".assistant-action-card[data-state=failed]")).toHaveCount(1, { timeout: 20000 });
+      await expect(page.locator(".assistant-action-card[data-state=failed]")).toHaveCount(1, { timeout: 15000 });
       await expect(page.locator(".assistant-action-card[data-state=succeeded]")).toHaveCount(0);
     });
   }

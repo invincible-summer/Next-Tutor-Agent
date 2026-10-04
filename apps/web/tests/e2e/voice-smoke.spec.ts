@@ -39,34 +39,41 @@ test("voice ticket -> WS 协议闭环", async ({ page }) => {
       seen.push(kind);
       waiters.splice(0).forEach((w) => w());
     };
-    const timeout = new Promise((_, rej) =>
-      setTimeout(() => rej(new Error("ws timeout: " + seen.join(","))), 45_000));
-    await Promise.race([opened, timeout]);
-    ws.send(JSON.stringify({ type: "start" }));
-    // 浏览器 STT 不在 CI 里跑：直接注入最终识别文本（协议与生产一致）
-    await new Promise((r) => setTimeout(r, 300));
-    ws.send(JSON.stringify({ type: "utterance_end", text: "你好老师" }));
-    // 等回答通道事件（answer_delta 或 turn_end；TTS 失败是合法 text-only 降级）
-    await Promise.race([
+    let timer: ReturnType<typeof setTimeout>;
+    const timeout = new Promise<never>((_, reject) => {
+      timer = setTimeout(() => reject(new Error("ws timeout: " + seen.join(","))), 15_000);
+    });
+    const waitFor = (predicate: () => boolean) => Promise.race([
       new Promise<void>((resolve) => {
         const check = () => {
-          if (seen.some((k) => k === "turn_end" || k === "answer_delta"
-                        || k === "error")) resolve();
+          if (predicate()) resolve();
           else waiters.push(check);
         };
         check();
-      }),
-      timeout,
+      }), timeout,
     ]);
-    try { ws.close(); } catch { /* already closed */ }
+    try {
+      await Promise.race([opened, timeout]);
+      ws.send(JSON.stringify({ type: "start" }));
+      // Acknowledge the actual session binding, rather than guessing 300ms.
+      await waitFor(() => seen.includes("session_bound") || seen.includes("error"));
+      if (seen.includes("error")) throw new Error("voice session binding failed");
+      ws.send(JSON.stringify({ type: "utterance_end", text: "你好老师" }));
+      // Observe the complete turn; a first delta alone cannot prove completion.
+      await waitFor(() => seen.includes("turn_end") || seen.includes("error"));
+    } finally {
+      clearTimeout(timer!);
+      ws.close();
+    }
     return { seen };
   }, { backend: BACKEND, wsBase: BACKEND_WS, token: a.token });
 
   expect(events.error).toBeUndefined();
   const seen: string[] = events.seen ?? [];
   expect(seen).toContain("stt_start");
-  expect(seen.some((k) =>
-    k === "turn_end" || k === "answer_delta" || k === "tts_start")).toBeTruthy();
+  expect(seen).toContain("answer_delta");
+  expect(seen).toContain("turn_end");
+  expect(seen).not.toContain("error");
   await api.dispose();
 });
 

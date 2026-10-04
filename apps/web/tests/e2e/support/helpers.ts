@@ -1,15 +1,14 @@
 /** E2E helpers: API-level auth + fixture upload, UI login shortcut. */
-import { request, expect, type APIRequestContext, type Page } from "@playwright/test";
+import { randomUUID } from "node:crypto";
+import { expect, type APIRequestContext, type Page } from "@playwright/test";
 
 // 8123 是部署的生产服务；E2E 的隔离 backend 固定用 8124（与
 // playwright.config.ts 的 E2E_BACKEND_PORT 保持一致）。
-export const BACKEND = process.env.E2E_BACKEND_URL || `http://127.0.0.1:${process.env.E2E_BACKEND_PORT || 8124}`;
-export const BACKEND_WS = process.env.E2E_BACKEND_WS || BACKEND.replace(/^http/, "ws");
+export const BACKEND = `http://127.0.0.1:${process.env.E2E_BACKEND_PORT || 8124}`;
+export const BACKEND_WS = BACKEND.replace(/^http/, "ws");
 
-let seq = 0;
 export function unique(prefix: string): string {
-  seq += 1;
-  return `${prefix}_${Date.now()}_${seq}`;
+  return `${prefix}_${randomUUID()}`;
 }
 
 /** Register + login via the real backend; returns the bearer token. */
@@ -18,12 +17,14 @@ export async function registerAndLogin(
 ): Promise<{ token: string; userId: string; email: string }> {
   const mail = email ?? `${unique("e2e")}@example.com`;
   const reg = await api.post(`${BACKEND}/api/v1/auth/register`, {
+    timeout: 10_000,
     data: { email: mail, password: "e2e-pass-123", name: "E2E" },
   });
   if (reg.status() !== 200 && reg.status() !== 201) {
     throw new Error(`register failed: ${reg.status()} ${await reg.text()}`);
   }
   const login = await api.post(`${BACKEND}/api/v1/auth/login`, {
+    timeout: 10_000,
     data: { email: mail, password: "e2e-pass-123" },
   });
   expect(login.status()).toBe(200);
@@ -77,6 +78,7 @@ export async function uploadZx17Textbook(
   const fixture = await fs.readFile(
     path.join(process.cwd(), "tests/e2e/fixtures/synthetic-zx17-grounding.txt"));
   const res = await api.post(`${BACKEND}/api/v1/textbooks/upload`, {
+    timeout: 10_000,
     headers: { Authorization: `Bearer ${token}` },
     multipart: {
       files: {
@@ -100,26 +102,18 @@ export async function waitBm25Ready(
   api: APIRequestContext, token: string, textbookId: string,
   timeoutMs = 30_000,
 ): Promise<{ status: string; ragIndex: any }> {
-  const deadline = Date.now() + timeoutMs;
   let last: any = null;
-  while (Date.now() < deadline) {
+  await expect.poll(async () => {
     const res = await api.get(`${BACKEND}/api/v1/textbooks`, {
+      timeout: 5_000,
       headers: { Authorization: `Bearer ${token}` },
     });
-    if (res.status() === 200) {
-      const body = await res.json();
-      const items = body.textbooks ?? body.items ?? body ?? [];
-      const found = (Array.isArray(items) ? items : [])
-        .find((t: any) => t.id === textbookId);
-      if (found) {
-        last = found;
-        const rag = found.rag_index ?? {};
-        if (rag.status === "bm25_ready" || rag.bm25_ready || found.status === "ready") {
-          return { status: "ready", ragIndex: rag };
-        }
-      }
-    }
-    await new Promise((r) => setTimeout(r, 500));
-  }
-  return { status: "timeout", ragIndex: last?.rag_index ?? {} };
+    expect(res.status(), "textbook readiness API").toBe(200);
+    const body = await res.json();
+    const items = body.textbooks ?? body.items ?? body ?? [];
+    last = (Array.isArray(items) ? items : []).find((t: any) => t.id === textbookId);
+    const rag = last?.rag_index ?? {};
+    return rag.status === "bm25_ready" || rag.bm25_ready === true;
+  }, { timeout: timeoutMs, intervals: [100, 250, 500], message: "textbook BM25 index must be ready" }).toBe(true);
+  return { status: "ready", ragIndex: last.rag_index };
 }

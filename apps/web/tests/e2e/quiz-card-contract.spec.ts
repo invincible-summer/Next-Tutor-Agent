@@ -26,7 +26,7 @@ test("聊天出题可作答、刷新恢复并在习题中心加载", async ({ pa
   await input.press("Enter");
 
   const card = page.getByTestId("quiz-card").first();
-  await expect(card).toBeVisible({ timeout: 90_000 });
+  await expect(card).toBeVisible({ timeout: 20_000 });
   await expect(card).toContainText("ZX-17 定理");
   await expect(card).not.toContainText("旧题目仅供回看");
   const option = card.getByRole("button", { name: /314159/ });
@@ -43,12 +43,12 @@ test("聊天出题可作答、刷新恢复并在习题中心加载", async ({ pa
   await option.click();
   await card.getByRole("button", { name: /提交批改|Submit/ }).click();
   await expect(card.getByText(/回答正确|答对|正确/).first())
-    .toBeVisible({ timeout: 30_000 });
+    .toBeVisible({ timeout: 15_000 });
 
   await expect(page).toHaveURL(/\/chat\/[^/]+$/);
   await page.reload();
   const restored = page.getByTestId("quiz-card").first();
-  await expect(restored).toBeVisible({ timeout: 30_000 });
+  await expect(restored).toBeVisible({ timeout: 15_000 });
   await expect(restored.getByText(/回答正确|答对|正确/).first()).toBeVisible();
 
   const after = await api.get(`${BACKEND}/api/v1/quiz/recent`, {
@@ -60,7 +60,7 @@ test("聊天出题可作答、刷新恢复并在习题中心加载", async ({ pa
 
   await page.goto("/assessment");
   await expect(page.getByText("根据教材，ZX-17 定理的右端常数是多少？", { exact: true }).first())
-    .toBeVisible({ timeout: 30_000 });
+    .toBeVisible({ timeout: 15_000 });
   await expect(page.locator('input[type="number"]').first()).toHaveValue("1");
   await api.dispose();
 });

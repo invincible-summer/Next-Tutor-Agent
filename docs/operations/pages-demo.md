@@ -47,10 +47,10 @@ python3 scripts/repo/check_pages_artifact.py apps/web/public/demo
 cd apps/web
 pnpm check
 NEXT_PUBLIC_DEMO_MODE=1 NEXT_PUBLIC_BASE_PATH=/Next-Tutor-Agent pnpm build
-pnpm test:e2e:pages
+pnpm test:pages
 ```
 
-`pnpm test:e2e:pages` 仅启动 Python 静态文件服务器，检查所有已导出页面的直接访问，
+`pnpm test:pages` 仅启动 Python 静态文件服务器，检查所有已导出页面的直接访问，
 example 登录、只读操作、课件翻页和浅色/深色/窄桌面窗口。报告和截图在 `apps/web/test-results/`。
 静态预览可单独运行 `python3 scripts/demo/serve_pages_demo.py`，地址为
 `http://127.0.0.1:3040/Next-Tutor-Agent/`。

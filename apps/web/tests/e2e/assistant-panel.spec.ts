@@ -41,7 +41,7 @@ test.describe("assistant panel (A05-A14)", () => {
     await composer.press("Enter");
     // 快路 guide：markdown 正文出现（内容来自目录事实）。
     await expect(page.locator(".assistant-md").first())
-      .toBeVisible({ timeout: 30000 });
+      .toBeVisible({ timeout: 15000 });
   });
 
   test("navigate command auto-executes and acks (示例 A)", async ({ page }) => {
@@ -51,10 +51,10 @@ test.describe("assistant panel (A05-A14)", () => {
     await composer.fill("带我去记忆中心。");
     await composer.press("Enter");
     // 动作卡出现并自动执行 → 路由到 /memory；ack 后卡显示已完成。
-    await expect(page).toHaveURL(/\/memory/, { timeout: 30000 });
+    await expect(page).toHaveURL(/\/memory/, { timeout: 15000 });
     await expect(
       page.locator(".assistant-action-card[data-state='succeeded']").first(),
-    ).toBeVisible({ timeout: 20000 });
+    ).toBeVisible({ timeout: 15000 });
   });
 
   test("entity search yields clickable note deep link (P1-1/P1-2)", async ({ page, request }) => {
@@ -73,15 +73,15 @@ test.describe("assistant panel (A05-A14)", () => {
     // search 意图 → user_click 实体深链卡（不是笔记模块卡）。
     const card = page.locator(
       ".assistant-action-card[data-state='proposed']").first();
-    await expect(card).toBeVisible({ timeout: 30000 });
+    await expect(card).toBeVisible({ timeout: 15000 });
     await expect(card).toContainText("定积分与可积性");
     await card.getByRole("button", { name: /立即打开/ }).click();
     await expect(page).toHaveURL(
       new RegExp(`/notes/${encodeURIComponent(noteId)}`),
-      { timeout: 30000 });
+      { timeout: 15000 });
     await expect(
       page.locator(".assistant-action-card[data-state='succeeded']").first(),
-    ).toBeVisible({ timeout: 20000 });
+    ).toBeVisible({ timeout: 15000 });
     // 搜索来源（site_search locator）可点击深链回笔记列表/详情。
     const sources = page.locator(".assistant-sources");
     await expect(sources).toBeVisible({ timeout: 10000 });
@@ -98,7 +98,7 @@ test.describe("assistant panel (A05-A14)", () => {
     await composer.fill("最近一周我学得怎么样？");
     await composer.press("Enter");
     const card = page.locator("[data-testid='assistant-learning-report']");
-    await expect(card).toBeVisible({ timeout: 30000 });
+    await expect(card).toBeVisible({ timeout: 15000 });
     await expect(card.locator(".assistant-report-window")).toBeVisible();
     // 新账号无记录：诚实空态而不是伪数字。
     await expect(card.locator(".assistant-report-empty, .assistant-report-fact")
@@ -112,7 +112,7 @@ test.describe("assistant panel (A05-A14)", () => {
     await composer.fill("有没有AI教学评价？");
     await composer.press("Enter");
     const card = page.locator("[data-testid='assistant-teaching-report']");
-    await expect(card).toBeVisible({ timeout: 30000 });
+    await expect(card).toBeVisible({ timeout: 15000 });
     await expect(
       card.locator(".assistant-report-scope",
         { hasText: "与你的教学交互" })).toBeVisible();
@@ -125,7 +125,7 @@ test.describe("assistant panel (A05-A14)", () => {
     await composer.fill("你好");
     await composer.press("Enter");
     await page.locator(".assistant-md").first()
-      .waitFor({ timeout: 30000 });
+      .waitFor({ timeout: 15000 });
     // 打开历史并新建会话。
     const historyBtn = page.getByRole("button", { name: /历史|history/i });
     if (await historyBtn.count()) {
@@ -150,7 +150,7 @@ test.describe("assistant panel (A05-A14)", () => {
     // note.create 是 review_required：动作卡先给「查看变更」，不直接执行。
     const card = page.locator(
       ".assistant-action-card[data-state='proposed']").first();
-    await expect(card).toBeVisible({ timeout: 30000 });
+    await expect(card).toBeVisible({ timeout: 15000 });
     await expect(card).toContainText("创建笔记");
     await card.getByRole("button", { name: /查看变更/ }).click();
     // 预览卡：变更字段 + 影响说明 + 确认/取消。
@@ -161,7 +161,7 @@ test.describe("assistant panel (A05-A14)", () => {
     // approve（许可）→ execute（领域写）→ succeeded。
     await expect(
       page.locator(".assistant-action-card[data-state='succeeded']").first(),
-    ).toBeVisible({ timeout: 20000 });
+    ).toBeVisible({ timeout: 15000 });
   });
 
   test("domain write workspace.create auto-runs with real receipt (B05)", async ({ page, request }) => {
@@ -174,7 +174,7 @@ test.describe("assistant panel (A05-A14)", () => {
     // 直接执行 → 卡直达 succeeded；无「查看变更」前置门槛。
     const card = page.locator(
       ".assistant-action-card[data-state='succeeded']").first();
-    await expect(card).toBeVisible({ timeout: 30000 });
+    await expect(card).toBeVisible({ timeout: 15000 });
     await expect(card).toContainText("创建辅导区");
     // 真实业务回执：辅导区出现在本人列表（不是仅卡片文字）。
     const res = await request.get(`${BACKEND}/api/v1/workspaces`, {
@@ -188,7 +188,7 @@ test.describe("assistant panel (A05-A14)", () => {
     const card2 = page.locator(
       ".assistant-action-card[data-state='succeeded']").first();
     await card2.getByRole("button", { name: /^撤销/ }).click();
-    await expect(card2).toContainText("已撤销", { timeout: 20000 });
+    await expect(card2).toContainText("已撤销", { timeout: 15000 });
     const res2 = await request.get(`${BACKEND}/api/v1/workspaces`, {
       headers: { Authorization: `Bearer ${token}` },
     });

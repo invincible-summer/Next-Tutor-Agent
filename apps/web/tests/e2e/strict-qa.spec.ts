@@ -39,12 +39,12 @@ test("根据教材提问，回答引用教材事实", async ({ page }) => {
   // 驱动的合成文本；断言真实链路把教材证据送达了合成层与 UI）
   await expect(
     page.getByText("314159").first(),
-  ).toBeVisible({ timeout: 60_000 });
+  ).toBeVisible({ timeout: 20_000 });
 
   // 检索发生过：资料检索卡片（knowledge_search tool 卡片）出现
   const searchCard = page.getByText("资料检索", { exact: false }).or(
     page.getByText("知识检索", { exact: false }),
   ).first();
-  await expect(searchCard).toBeVisible({ timeout: 30_000 });
+  await expect(searchCard).toBeVisible({ timeout: 15_000 });
   await api.dispose();
 });

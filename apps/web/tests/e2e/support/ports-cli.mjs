@@ -14,11 +14,15 @@ function isFree(port) {
 }
 
 if (envName && process.env[envName]) {
-  console.log(Number(process.env[envName]));
+  const port = Number(process.env[envName]);
+  if (!await isFree(port)) {
+    console.error(`[e2e-ports] explicit ${envName}=${port} is occupied`);
+    process.exit(1);
+  }
+  console.log(port);
 } else {
   let chosen = 0;
-  for (let port = preferred; port < preferred + 50; port += 1) {
-    // eslint-disable-next-line no-await-in-loop -- sequential fallback is the point
+  for (let port = preferred; port < Math.min(preferred + 50, 65536); port += 1) {
     if (await isFree(port)) { chosen = port; break; }
   }
   if (!chosen) {

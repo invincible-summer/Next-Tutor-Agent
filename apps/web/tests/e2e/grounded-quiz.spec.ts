@@ -41,17 +41,17 @@ test("根据教材出题：quiz 卡带教材依据 badge 与来源引用", async
   // 出题卡出现（fake LLM 的 executor 工具循环触发 generate_quiz；
   // grounding provider 命中教材证据 -> grounded）
   const badge = page.getByTestId("quiz-source-badge").first();
-  await expect(badge).toBeVisible({ timeout: 90_000 });
+  await expect(badge).toBeVisible({ timeout: 20_000 });
 
   // 作答第一题（MC 选 A）并提交批改：题卡携带服务端 question_id
   // （executor 注册 TaskSnapshot 后写回），/quiz/record 受理并出判定。
   const firstOption = page.getByRole("button", { name: /314159/ }).first();
-  await expect(firstOption).toBeVisible({ timeout: 30_000 });
+  await expect(firstOption).toBeVisible({ timeout: 15_000 });
   await expect(firstOption).toBeEnabled({ timeout: 15_000 });
   await firstOption.click();
   await page.getByRole("button", { name: /提交批改|Submit/ }).first().click();
   await expect(page.getByText(/回答正确|答对|正确/).first())
-    .toBeVisible({ timeout: 30_000 });
+    .toBeVisible({ timeout: 15_000 });
 
   // 解析展开后依据可见（filename + excerpt）
   const explanationToggle = page.getByText("解析", { exact: false }).first();
@@ -76,7 +76,7 @@ test("strict 请求教材中没有的知识点：不出伪教材题", async ({ p
 
   // 回合结束的稳定信号：fake LLM 在 quiz 工具轮之后按“教材”意图合成回答。
   await expect(page.getByText(/314159|继续/).first())
-    .toBeVisible({ timeout: 90_000 });
+    .toBeVisible({ timeout: 20_000 });
 
   // strict 语义：检索未命中 + required -> 不生成伪教材题。
   // 页面不出现 quiz 卡，也不出现可选选项。

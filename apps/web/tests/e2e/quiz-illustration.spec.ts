@@ -3,9 +3,7 @@ import { test, expect, request as pwRequest } from "@playwright/test";
 import { loginViaStorage, registerAndLogin } from "./support/helpers";
 
 test("聊天明确要求带插图：题图在结构化题卡内并可放大", async ({ page }) => {
-  // Full chat -> quiz -> illustration pipeline; give it headroom under
-  // parallel worker load (healthy serial time is far below this budget).
-  test.setTimeout(240_000);
+  // The fake provider is local; a missing card must fail promptly.
   const api = await pwRequest.newContext();
   try {
     const learner = await registerAndLogin(api);
@@ -18,9 +16,9 @@ test("聊天明确要求带插图：题图在结构化题卡内并可放大", as
     await input.press("Enter");
 
     const card = page.getByTestId("quiz-card").first();
-    await expect(card).toBeVisible({ timeout: 180_000 });
+    await expect(card).toBeVisible({ timeout: 20_000 });
     const illustration = card.getByTestId("question-illustration").first();
-    await expect(illustration).toBeVisible({ timeout: 30_000 });
+    await expect(illustration).toBeVisible({ timeout: 15_000 });
     await expect(illustration.getByTestId("question-illustration-image")).toHaveJSProperty("naturalWidth", 640);
     const expand = illustration.getByTestId("question-illustration-expand");
     await expect(expand).toBeVisible();
@@ -46,7 +44,7 @@ test("聊天模糊表达考我一下：仍进入结构化题卡", async ({ page 
     await input.press("Enter");
 
     const card = page.getByTestId("quiz-card").first();
-    await expect(card).toBeVisible({ timeout: 180_000 });
+    await expect(card).toBeVisible({ timeout: 20_000 });
     await expect(card).toContainText("ZX-17 定理");
     await expect(card.getByRole("button", { name: /314159/ })).toBeEnabled();
   } finally {
@@ -62,7 +60,7 @@ test("测评配置：插图选项并入习题生成卡且按钮可切换", async
     await page.goto("/assessment");
 
     const options = page.getByTestId("assessment-illustration-options");
-    await expect(options).toBeVisible({ timeout: 30_000 });
+    await expect(options).toBeVisible({ timeout: 15_000 });
     await expect(page.getByTestId("assessment-illustration-options")).toHaveCount(1);
     const toggle = options.getByRole("button", { name: /已开启|已关闭|On|Off/ });
     await expect(toggle).toBeVisible();
@@ -131,8 +129,9 @@ test("测评必须配图：文字题先可答，随后同题出现已审核 SVG"
       });
     });
     await page.route("**/api/v1/assessment/start", async (route) => {
-      const request = route.request().postDataJSON() as { illustration_request?: string };
+      const request = route.request().postDataJSON() as { illustration_request?: string; illustration_mode?: string };
       expect(request.illustration_request).toBe("required");
+      expect(request.illustration_mode).toBe("v2");
       await route.fulfill({
         status: 200,
         contentType: "application/json",
@@ -155,13 +154,26 @@ test("测评必须配图：文字题先可答，随后同题出现已审核 SVG"
         }),
       });
     });
+    let releaseIllustration!: () => void;
+    const illustrationGate = new Promise<void>(resolve => { releaseIllustration = resolve; });
+    let startCalls = 0;
+    let pollCalls = 0;
     await page.route("**/api/v1/assessment/questions/q_text_first/illustration", async (route) => {
-      await new Promise((resolve) => setTimeout(resolve, 700));
+      startCalls++;
+      await route.fulfill({ status: 202, json: {
+        status: "queued", question_id: "q_text_first", question_revision: 1,
+        job_id: "illustration_text_first", progress: { stage: "preparation", percent: 0 },
+      } });
+    });
+    await page.route("**/api/v1/illustration-jobs/illustration_text_first", async (route) => {
+      pollCalls++;
+      await illustrationGate;
       await route.fulfill({
         status: 200,
         contentType: "application/json",
         body: JSON.stringify({
           status: "ready",
+          job_id: "illustration_text_first",
           question_id: "q_text_first",
           question_revision: 1,
           illustration: {
@@ -181,9 +193,10 @@ test("测评必须配图：文字题先可答，随后同题出现已审核 SVG"
 
     await page.goto("/assessment");
     const concept = page.getByRole("button", { name: "速度" });
-    await expect(concept).toBeVisible({ timeout: 30_000 });
+    await expect(concept).toBeVisible({ timeout: 15_000 });
     await concept.click();
     const options = page.getByTestId("assessment-illustration-options");
+    await options.getByRole("combobox").selectOption("v2");
     await options.locator('input[type="checkbox"]').check();
     await page.getByRole("button", { name: /开始测评|Start/ }).click();
 
@@ -195,10 +208,14 @@ test("测评必须配图：文字题先可答，随后同题出现已审核 SVG"
     await answer.fill("水平向右");
     await expect(page.getByRole("button", { name: /提交|Submit/ }).last()).toBeEnabled();
 
+    await expect(page.getByTestId("question-illustration")).toHaveCount(0);
+    releaseIllustration();
     const illustration = page.getByTestId("question-illustration");
     await expect(illustration).toBeVisible({ timeout: 10_000 });
     await expect(page.getByTestId("assessment-illustration-generating")).toHaveCount(0);
     await expect(answer).toHaveValue("水平向右");
+    expect(startCalls).toBe(1);
+    expect(pollCalls).toBeGreaterThan(0);
   } finally {
     await api.dispose();
   }

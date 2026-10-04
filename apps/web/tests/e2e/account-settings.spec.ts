@@ -227,6 +227,7 @@ for (const theme of ["light", "dark"]) {
     const grades = page.getByRole("group", { name: "默认学段", exact: true });
     await expect(grades.getByRole("button", { name: "本科", exact: true })).toHaveAttribute("aria-pressed", "true");
     const before = await dimensions();
+    await page.clock.install();
     await grades.getByRole("button", { name: "初中", exact: true }).click();
     await expect(page.getByRole("status")).toHaveText("已保存");
     expect(await dimensions()).toEqual(before);
@@ -266,7 +267,8 @@ for (const theme of ["light", "dark"]) {
     await expect(page.getByRole("tooltip", { name: "只显示课堂讲稿，不生成朗读音频。", exact: true })).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     await page.screenshot({ animations: "disabled", style: "nextjs-portal { display: none; }", path: `../../acceptance-reports/screenshots/settings-feedback-${theme}-1024.png` });
-    await expect(page.getByRole("status")).toHaveCount(0, { timeout: 5000 });
+    await page.clock.fastForward(3_000);
+    await expect(page.getByRole("status")).toHaveCount(0);
     expect(errors).toEqual([]);
   });
 }

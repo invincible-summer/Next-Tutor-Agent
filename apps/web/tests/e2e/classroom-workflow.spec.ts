@@ -8,7 +8,9 @@ const shotDir = "../../acceptance-reports/screenshots";
 test.use({ contextOptions: { reducedMotion: "reduce" } });
 // Render real courseware from synthetic data, so screenshots exercise the frame
 // sizing and theme instead of a simplified HTML stand-in.
-const frameHtml = execFileSync(process.env.E2E_PYTHON || "python3", ["-c", `
+let frameHtml = "";
+test.beforeAll(() => {
+  frameHtml = execFileSync(process.env.E2E_PYTHON || "python3", ["-c", `
 from tests.support.classroom_fixtures import make_revision, make_brief, make_slide, make_para_block, make_segment
 from app.classroom.render.compiler import compile_html
 from app.schemas import classroom as sc
@@ -25,7 +27,8 @@ html = compile_html(revision)
 for n in (1, 2):
     html = html.replace(f"blk_{n:024x}", f"blk-e2e-{n}1")
 print(html)
-`], { cwd: "../../services/api", encoding: "utf8", maxBuffer: 8 * 1024 * 1024 });
+`], { cwd: "../../services/api", encoding: "utf8", maxBuffer: 8 * 1024 * 1024, timeout: 10_000 });
+});
 
 async function setup(page: Page, dark = false) {
   await page.setViewportSize({ width: 1440, height: 900 });

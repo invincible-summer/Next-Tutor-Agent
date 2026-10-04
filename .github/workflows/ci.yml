@@ -57,19 +57,13 @@ jobs:
       - name: Typecheck, lint and unit tests
         working-directory: apps/web
         run: pnpm check
-      - name: Production build (e2e-stamped)
+      - name: Critical browser journeys (production build included)
         working-directory: apps/web
-        # build-front.mjs bakes BACKEND_URL (the /api rewrite) plus the client
-        # API base and stamps the inputs, so the e2e webServer reuses this
-        # build instead of rebuilding with different env.
-        run: node tests/e2e/support/build-front.mjs
-      - name: Critical browser journeys
-        working-directory: apps/web
-        env:
-          E2E_PRODUCTION: "1"
-          E2E_FRESH: "1"
-          E2E_BACKEND_HOME: ${{ runner.temp }}/tutor-e2e
-        run: pnpm test:e2e:ci
+        run: >-
+          pnpm test:e2e
+          tests/e2e/auth-isolation.spec.ts tests/e2e/textbook-bm25.spec.ts
+          tests/e2e/strict-qa.spec.ts tests/e2e/grounded-quiz.spec.ts
+          tests/e2e/notes.spec.ts tests/e2e/classroom-workflow.spec.ts
       - name: Browser diagnostics
         timeout-minutes: 3
         if: always()
