@@ -70,7 +70,7 @@ python3 scripts/acceptance/illustration/live.py --live-llm --variation 1 \
 
 历史 tag 不触发 CI（工作流只监听 PR 与 main push），旧布局的里程碑 tag 因此不会再触发流水线。
 
-backend 分片各限时 15 分钟（classroom 渲染片 20 分钟），frontend 连同冒烟最多 25 分钟。浏览器使用同一 runner，冒烟和全量各最多 10 分钟，生产编译最多 4 分钟，完整浏览器 job 连同安装最多 25 分钟。超时是故障信号，应查看具体步骤和 trace，不能靠无限延长上限解决。
+backend 分片各限时 20 分钟，frontend 连同冒烟最多 25 分钟。浏览器使用同一 runner，冒烟和全量各最多 10 分钟，生产编译最多 4 分钟，完整浏览器 job 连同安装最多 25 分钟。超时是故障信号，应查看具体步骤和 trace，不能靠无限延长上限解决。
 
 主分支保护使用 `CI result`，要求 PR，但不要求人工批准；管理员保留应急绕过能力。不要求每个 PR 都同步到 main 最新提交，不增加覆盖率百分比、操作系统矩阵或新的静态检查工具。
 

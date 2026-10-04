@@ -51,10 +51,6 @@ SHARDS: dict[str, tuple[str, list[str]]] = {
     "supervisor": ("python", ["agents/supervisor", "agents/site_assistant"]),
 }
 
-TIMEOUTS = {"classroom": 20, "diagrams": 15, "platform": 15,
-            "knowledge": 15, "assessment": 15, "supervisor": 15}
-
-
 def discover() -> dict[str, list[str]]:
     """Map every package dir containing tests to its module names."""
     packages: dict[str, list[str]] = {}
@@ -112,7 +108,6 @@ def main() -> int:
             "shard": shard,
             "setup": setup,
             "suites": " ".join(modules),
-            "timeout": TIMEOUTS[shard],
             "files": len(modules),
         })
 
@@ -121,7 +116,9 @@ def main() -> int:
             print(f"{entry['shard']:<12} {entry['setup']:<7} "
                   f"{entry['files']:>3} files  {entry['suites']}")
         return 0
-    print(json.dumps(matrix, ensure_ascii=False, separators=(",", ":")))
+    # Consumed as `matrix: ${{ fromJSON(...) }}` in ci.yml: an include-only
+    # matrix, one entry per shard.
+    print(json.dumps({"include": matrix}, ensure_ascii=False, separators=(",", ":")))
     return 0
 
 

@@ -64,14 +64,13 @@ jobs:
     name: Backend (${{ matrix.shard }})
     needs: [repo-hygiene, backend-shards]
     runs-on: ubuntu-24.04
-    timeout-minutes: ${{ matrix.timeout }}
+    timeout-minutes: 20
     strategy:
-      # Keep sibling shard results visible instead of cancelling them.
+      # Keep sibling shard results visible instead of cancelling them. The
+      # planner emits an include-only matrix: one entry (shard/setup/suites)
+      # per semantic test domain.
       fail-fast: false
-      matrix:
-        # Entries: shard name, setup flavor (full = +node/Chromium/classroom
-        # for the renderer domains), space-separated suites, timeout minutes.
-        matrix: ${{ fromJSON(needs.backend-shards.outputs.matrix) }}
+      matrix: ${{ fromJSON(needs.backend-shards.outputs.matrix) }}
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-project
