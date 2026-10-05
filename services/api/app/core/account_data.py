@@ -543,5 +543,6 @@ def _purge_account(user_id: str) -> dict[str, Any]:
     from app.identity import avatars
     avatars.purge(uid)
     id_store.delete_user(uid)
+    report["status"] = "purged"
     report["freed_bytes"] = _total_of(before)
     return report
