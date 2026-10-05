@@ -44,8 +44,7 @@ class UserModel(Base):
     # UserProfile serialized (name/grade/school/subjects/avatar/prefs).
     profile: Mapped[dict] = mapped_column(_json_variant(), default=dict)
     active_tenant_id: Mapped[str | None] = mapped_column(
-        String(64), ForeignKey("tenants.id", use_alter=True,
-                               name="fk_active_tenant"),
+        String(64), ForeignKey("tenants.id", name="fk_active_tenant"),
         nullable=True)
     # Soft delete marker for account purge windows; file mode deletes rows,
     # enterprise keeps tombstones for audit referential integrity.

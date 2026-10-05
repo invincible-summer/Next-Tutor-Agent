@@ -61,7 +61,7 @@ def upgrade() -> None:
     sa.Column('profile', sa.JSON().with_variant(postgresql.JSONB(), 'postgresql'), nullable=False),
     sa.Column('active_tenant_id', sa.String(length=64), nullable=True),
     sa.Column('deleted_at', sa.Float(), nullable=True),
-    sa.ForeignKeyConstraint(['active_tenant_id'], ['tenants.id'], name='fk_active_tenant', use_alter=True),
+    sa.ForeignKeyConstraint(['active_tenant_id'], ['tenants.id'], name='fk_active_tenant'),
     sa.PrimaryKeyConstraint('id', name=op.f('pk_users'))
     )
     with op.batch_alter_table('users', schema=None) as batch_op:

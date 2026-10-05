@@ -98,7 +98,7 @@ class RequirementsContractTest(unittest.TestCase):
         for expected in (
             "fastapi==0.140.0",
             "openai==2.48.0",
-            "pymupdf==1.28.0",
+            "pymupdf==1.28.2",
             "pillow==12.3.0",
             "pytesseract==0.3.13",
             "chromadb==1.5.9",

@@ -198,11 +198,26 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: temporal
+          POSTGRES_PASSWORD: temporal
+          POSTGRES_DB: temporal
+        options: >-
+          --health-cmd "pg_isready -U temporal -d temporal"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 12
       temporal:
         image: temporalio/auto-setup:1.25.2
         env:
-          DB: sqlite12
-          DYNAMIC_CONFIG_FILE_PATH: config/dynamicconfig/development-sqlite.yml
+          DB: postgres12
+          DB_PORT: 5432
+          POSTGRES_USER: temporal
+          POSTGRES_PWD: temporal
+          POSTGRES_SEEDS: postgres
+          DYNAMIC_CONFIG_FILE_PATH: config/dynamicconfig/development-sql.yaml
         ports:
           - 7233:7233
         options: >-
