@@ -14,6 +14,7 @@ process can always find / re-start the run that owns a job
 from __future__ import annotations
 
 import re
+import asyncio
 
 from app.workflows.config import temporal_address, temporal_namespace
 
@@ -71,7 +72,11 @@ def get_client():
     key = (address, temporal_namespace())
     cached = _client_cache.get(key)
     if cached is None:
-        cached = Client.connect(address, namespace=key[1])
+        # ``Client.connect`` is a coroutine.  Cache a task rather than the
+        # coroutine itself so concurrent callers and later workflow dispatches
+        # can await the same connection repeatedly.
+        cached = asyncio.create_task(
+            Client.connect(address, namespace=key[1]))
         _client_cache[key] = cached
     return cached
 

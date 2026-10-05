@@ -497,7 +497,7 @@ class MaintenanceScheduleIntegrationTest(StorageSandboxTestCase,
                 while asyncio.get_running_loop().time() < deadline:
                     async for row in client.list_workflows(
                             query="ExecutionStatus = 'Completed'"):
-                        if row.workflow_id.startswith(
+                        if row.id.startswith(
                                 "maintenance-tick-trash-"):
                             tick_done = True
                             break
