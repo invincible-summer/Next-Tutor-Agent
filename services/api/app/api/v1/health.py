@@ -57,12 +57,18 @@ def model_info():
     multimodal_model 恒等于 llm_model（字段保留以兼容前端）。
     """
     from app.voice.tts.service import cloud_available, local_tts_enabled
+    cloud_provider = settings.classroom_tts_cloud_provider
+    cloud_model = {
+        "azure": "Azure Speech",
+        "iflytek": "iFlytek Speech",
+        "deepgram": "Deepgram",
+    }.get(cloud_provider, cloud_provider)
     return {
         "llm_model": settings.llm_model,
         "multimodal_configured": bool(settings.llm_api_key),
         "multimodal_model": settings.llm_model,
         "voice_models": {
-            "cloud": {"model": settings.classroom_tts_cloud_provider,
+            "cloud": {"model": cloud_model,
                       "configured": cloud_available(),
                       "voices": [settings.classroom_tts_voice_zh, settings.classroom_tts_voice_en]},
             "local": {"model": "MeloTTS-Chinese", "enabled": local_tts_enabled(),
