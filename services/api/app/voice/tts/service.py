@@ -3,7 +3,7 @@
 职责：
 - 集中 provider 的配置、能力、健康与并发管理；旧电话 factory
   ``get_tts_provider()`` 无参接口委托到这里，行为不变（off/stub/melo），
-  新增 azure/auto（电话也可用云端语音，但不升级强开）。
+  新增 azure/iflytek/deepgram/auto（电话也可用云端语音，但不升级强开）。
 - 跨电话与课堂的共享并发保护：云端全局并发 = ``settings.
   classroom_tts_cloud_concurrency``（默认 2），Melo 全局并发 = 1。旧电话
   单连接 worker 只保证了单连接串行，不是跨用户保护；这里以 semaphore
@@ -102,7 +102,10 @@ def _phone_key() -> tuple:
     return (settings.voice_tts_provider, settings.voice_tts_base_url,
             settings.voice_tts_speed,
             bool(settings.azure_speech_key), settings.azure_speech_region,
-            settings.azure_speech_endpoint)
+            settings.azure_speech_endpoint, bool(settings.iflytek_app_id),
+            bool(settings.iflytek_api_key), bool(settings.iflytek_api_secret),
+            settings.iflytek_tts_endpoint, bool(settings.deepgram_api_key),
+            settings.deepgram_base_url, settings.deepgram_tts_model)
 
 
 def _azure_available() -> bool:
@@ -110,13 +113,36 @@ def _azure_available() -> bool:
     return bool(settings.azure_speech_key and settings.azure_speech_region)
 
 
+def _iflytek_available() -> bool:
+    from app.core.config import settings
+    return bool(settings.iflytek_app_id and settings.iflytek_api_key and settings.iflytek_api_secret)
+
+
+def _deepgram_available() -> bool:
+    from app.core.config import settings
+    return bool(settings.deepgram_api_key)
+
+
+def _configured_cloud_provider() -> str:
+    from app.core.config import settings
+    requested = (settings.classroom_tts_cloud_provider or "azure").strip().lower()
+    available = {"azure": _azure_available(), "iflytek": _iflytek_available(),
+                 "deepgram": _deepgram_available()}
+    return requested if available.get(requested, False) else ""
+
+
 def azure_available() -> bool:
     """云端语音是否已配置（key+region 齐备）。"""
     return _azure_available()
 
 
+def cloud_available() -> bool:
+    """当前课堂云 provider 是否已配置（Azure/讯飞/Deepgram）。"""
+    return bool(_configured_cloud_provider())
+
+
 def phone_provider() -> TTSProvider | None:
-    """旧电话 provider（off|stub|melo|azure|auto）；失败关闭不崩溃。"""
+    """电话 provider（off|stub|melo|azure|iflytek|deepgram|auto）。"""
     global _PHONE_INSTANCE, _PHONE_KEY
     from app.core.config import settings
     provider = (settings.voice_tts_provider or "off").strip().lower()
@@ -138,7 +164,23 @@ def phone_provider() -> TTSProvider | None:
             else:
                 from .azure import AzureTTS
                 client = _cloud_guard(AzureTTS())
+        elif provider == "iflytek":
+            if not (settings.iflytek_app_id and settings.iflytek_api_key and settings.iflytek_api_secret):
+                log.warning("VOICE_TTS_PROVIDER=iflytek 但未配置 IFLYTEK_*，语音 TTS 关闭")
+                client = None
+            else:
+                from ..iflytek import IflytekTTS
+                client = _cloud_guard(IflytekTTS())
+        elif provider == "deepgram":
+            if not settings.deepgram_api_key:
+                log.warning("VOICE_TTS_PROVIDER=deepgram 但未配置 DEEPGRAM_API_KEY，语音 TTS 关闭")
+                client = None
+            else:
+                from ..deepgram import DeepgramTTS
+                client = _cloud_guard(DeepgramTTS())
         elif provider == "auto":
+            # Keep the historical ``auto`` phone behavior: local MeloTTS is
+            # preferred and cloud providers require an explicit selection.
             from .melotts import MeloTTS
             client = _melo_guard(MeloTTS())
         else:
@@ -209,15 +251,16 @@ def resolve_classroom_tts(prefs: Any | None,
                  or settings.classroom_tts_policy).strip().lower()
     allow_fallback = bool(getattr(prefs, "allow_local_fallback", True))
     locale = _locale_for_language(language)
-    cloud_ok = _azure_available()
+    cloud_provider = _configured_cloud_provider()
+    cloud_ok = bool(cloud_provider)
     local_ok = local_tts_enabled()
 
     provider = ""
     if policy == "auto":
-        provider = "melo" if local_ok and locale == "zh-CN" else ("azure" if cloud_ok else "")
+        provider = "melo" if local_ok and locale == "zh-CN" else (cloud_provider if cloud_ok else "")
     elif policy == "cloud":
         if cloud_ok:
-            provider = "azure"
+            provider = cloud_provider
         elif allow_fallback and local_ok:
             provider = "melo"
     elif policy == "local":
@@ -226,6 +269,13 @@ def resolve_classroom_tts(prefs: Any | None,
     voice_id = ""
     if provider == "azure":
         voice_id = _select_azure_voice(prefs, locale)
+    elif provider == "iflytek":
+        voice_id = "xiaoyan" if locale == "zh-CN" else "x2_catherine"
+    elif provider == "deepgram":
+        if locale != "en-US":
+            provider = ""
+        else:
+            voice_id = "aura-2-thalia-en"
     elif provider == "melo":
         # MeloTTS-Chinese 单音色；英文课件本地回退不可用 → 文字模式
         if locale == "zh-CN":
@@ -312,7 +362,9 @@ async def refresh_voices(*, force: bool = False) -> list[dict[str, str]]:
 def voices_health() -> dict[str, str]:
     """cloud/local configured/ready/degraded 概览（§11.6，零合成零请求）。"""
     import time
-    cloud: dict[str, Any] = {"configured": _azure_available()}
+    cloud_provider = _configured_cloud_provider()
+    cloud: dict[str, Any] = {"configured": bool(cloud_provider),
+                             "provider": cloud_provider or "off"}
     if _VOICES_CACHE is not None and not _VOICES_CACHE[2]:
         cloud["state"] = "ready"
     elif _VOICES_CACHE is not None:
@@ -333,11 +385,20 @@ def voices_health() -> dict[str, str]:
 # ---------------------------------------------------------------------------
 
 async def cloud_synthesize(text: str, options: TTSOptions) -> TTSResult:
-    """云端合成（azure 首发）；并发由共享 cloud semaphore 限制。"""
-    if not _azure_available():
+    """云端合成（Azure/iFlytek/Deepgram）；共享 cloud semaphore。"""
+    provider = _configured_cloud_provider()
+    if not provider:
         raise TTSUnavailable("云端语音未配置")
-    from .azure import AzureTTS
-    return await _cloud_guard(AzureTTS()).synthesize(text, options=options)
+    if provider == "azure":
+        from .azure import AzureTTS
+        client = AzureTTS()
+    elif provider == "iflytek":
+        from ..iflytek import IflytekTTS
+        client = IflytekTTS()
+    else:
+        from ..deepgram import DeepgramTTS
+        client = DeepgramTTS()
+    return await _cloud_guard(client).synthesize(text, options=options)
 
 
 async def local_synthesize(text: str, options: TTSOptions) -> TTSResult:
@@ -394,17 +455,18 @@ def resolve_tts_profile(feature: str, prefs: Any | None,
         policy = "auto"
     allow_fallback = bool(getattr(prefs, "allow_local_fallback", True))
     locale = _locale_for_language(language)
-    cloud_ok = _azure_available()
+    cloud_provider = _configured_cloud_provider()
+    cloud_ok = bool(cloud_provider)
     local_ok = local_tts_enabled()
 
     provider = ""
     if policy == "silent":
         provider = ""
     elif policy == "auto":
-        provider = "melo" if local_ok and locale == "zh-CN" else ("azure" if cloud_ok else "")
+        provider = "melo" if local_ok and locale == "zh-CN" else (cloud_provider if cloud_ok else "")
     elif policy == "cloud":
         if cloud_ok:
-            provider = "azure"
+            provider = cloud_provider
         elif allow_fallback and local_ok:
             provider = "melo"
     elif policy == "local":
@@ -413,6 +475,13 @@ def resolve_tts_profile(feature: str, prefs: Any | None,
     voice_id = ""
     if provider == "azure":
         voice_id = _select_azure_voice(prefs, locale)
+    elif provider == "iflytek":
+        voice_id = "xiaoyan" if locale == "zh-CN" else "x2_catherine"
+    elif provider == "deepgram":
+        if locale != "en-US":
+            provider = ""
+        else:
+            voice_id = "aura-2-thalia-en"
     elif provider == "melo":
         if locale == "zh-CN":
             from .melotts import MeloTTS
@@ -430,9 +499,14 @@ def resolve_tts_profile(feature: str, prefs: Any | None,
 def tts_capabilities() -> dict[str, Any]:
     """能力只读投影（§24.3 capabilities；零合成零请求）。"""
     voices = approved_voices()
+    cloud_provider = _configured_cloud_provider()
+    cloud_voices = sorted(voices) if cloud_provider == "azure" else (
+        ["xiaoyan", "x2_catherine"] if cloud_provider == "iflytek" else
+        ["aura-2-thalia-en", "aura-2-asteria-en"] if cloud_provider == "deepgram" else [])
     return {
-        "cloud": {"configured": _azure_available(),
-                  "voices": sorted(voices)},
+        "cloud": {"configured": bool(cloud_provider),
+                  "provider": cloud_provider or "off",
+                  "voices": cloud_voices},
         "local": {"enabled": local_tts_enabled(),
                   "languages": ["zh-CN"] if local_tts_enabled() else []},
         "policies": ["auto", "cloud", "local", "silent"],

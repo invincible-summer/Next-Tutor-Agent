@@ -14,9 +14,9 @@ manager（§14.4），移动包/EAS env 不得携带任何 Speech secret。
 ## 决策
 
 1. **服务端 STT provider 抽象**：`app/voice/stt/{base,service,azure,stub}.py`
-   镜像 TTS 结构。`SPEECH_STT_PROVIDER = off | stub | azure | auto`；
-   `auto` 仅在 `AZURE_SPEECH_*` 齐备时解析为 azure，否则关闭——不伪可用。
-   Azure STT 与 TTS 共享同一份凭证与 cloud semaphore
+   镜像 TTS 结构。`SPEECH_STT_PROVIDER = off | stub | azure | iflytek |
+   deepgram | auto`；`auto` 按已配置凭证选择，否则关闭——不伪可用。
+   Azure、讯飞与 Deepgram STT 与 TTS 共享 cloud semaphore
    （`CLASSROOM_TTS_CLOUD_CONCURRENCY`）。
 2. **新 REST 端点（§14.2）**：
    - `GET /api/v1/speech/capabilities`：只读投影，零网络请求、零凭证回显；
@@ -47,6 +47,11 @@ manager（§14.4），移动包/EAS env 不得携带任何 Speech secret。
 - Azure 凭证只经服务器配置（`AZURE_SPEECH_KEY/REGION`，可选批准域
   endpoint）；401/403 归为配置错误不重试；429 遵守 Retry-After 单次重试；
   5xx/网络最多重试一次；`RecognitionStatus != Success` 或空文本绝不伪成功。
+- 讯飞使用 `IFLYTEK_APP_ID/API_KEY/API_SECRET` 生成官方 WebSocket
+  `host date request-line` HMAC-SHA256 鉴权 URL；Deepgram 使用
+  `DEEPGRAM_API_KEY` 的 `Token` 头访问 `/v1/listen` 与 `/v1/speak`。
+  两者均只允许固定官方域，密钥不进入移动端或能力响应。讯飞听写要求
+  PCM 16 kHz/16-bit/mono；无凭证或协议错误均 fail closed。
 - STT 错误码（`stt_unavailable/stt_config/stt_rate_limited/stt_transient`）
   继承 `VoiceProviderError` 家族语义，端点映射 415/400/429/503。
 - 转写音频仅在内存中过一道校验，不写运行数据根（无新每用户存储根，

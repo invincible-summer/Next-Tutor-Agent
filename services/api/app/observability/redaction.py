@@ -18,7 +18,8 @@ SECRET_KEYS = frozenset({
     "token", "access_token", "refresh_token", "id_token", "api_key",
     "authorization", "auth", "cookie", "set-cookie", "jwt",
     "llm_api_key", "tavily_api_key", "pexels_api_key", "pixabay_api_key",
-    "azure_speech_key", "session", "ticket", "private_pem", "secret_hash",
+    "azure_speech_key", "iflytek_api_key", "iflytek_api_secret",
+    "deepgram_api_key", "session", "ticket", "private_pem", "secret_hash",
 })
 
 # Keys whose values are CONTENT (prompts/messages/audio/notes): log only a

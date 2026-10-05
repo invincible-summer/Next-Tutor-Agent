@@ -260,7 +260,7 @@ def record_usage(owner_id: str, *, chars: int, provider: str) -> None:
     today = date.today().isoformat()
 
     def mutate(tts: dict) -> None:
-        if provider == "azure":
+        if provider in {"azure", "iflytek", "deepgram"}:
             by_day = tts.get("cloud_chars_by_day")
             by_day = by_day if isinstance(by_day, dict) else {}
             by_day[today] = int(by_day.get(today) or 0) + int(chars)
@@ -464,7 +464,7 @@ def effective_profile(
         profile: tts_service.ClassroomVoiceProfile
 ) -> tts_service.ClassroomVoiceProfile:
     """run 级回退锁（§11.5）：云失败一次后该 run 后续段全部本地。"""
-    if run.tts_local_locked and profile.provider == "azure":
+    if run.tts_local_locked and profile.provider in {"azure", "iflytek", "deepgram"}:
         from ..voice.tts.melotts import MeloTTS
         return tts_service.ClassroomVoiceProfile(
             policy=profile.policy, provider="melo",
@@ -524,7 +524,7 @@ class AudioEngine:
                                            run.lesson_id, item[3])]
         if missing:
             missing_chars = sum(len(item[2]) for item in missing)
-            if profile.provider == "azure":
+            if profile.provider in {"azure", "iflytek", "deepgram"}:
                 assert_cloud_char_budget(run.owner_id, missing_chars)
             # run 级预算（§15.4 TTS_CHARS_PER_RUN）：提交时预扣（缓存命中不扣）
             reloaded = store.load_run(run.owner_id, run.workspace_id,
@@ -605,7 +605,7 @@ class AudioEngine:
                                            run.lesson_id, item[2])]
         if missing:
             missing_chars = sum(len(item[1]) for item in missing)
-            if profile.provider == "azure":
+            if profile.provider in {"azure", "iflytek", "deepgram"}:
                 assert_cloud_char_budget(run.owner_id, missing_chars)
             reloaded = store.load_run(run.owner_id, run.workspace_id,
                                       run.lesson_id, run.run_id) or run
@@ -704,7 +704,7 @@ class AudioEngine:
             _touch_path(meta_path)
             meta = store.read_json(meta_path) or {}
             return self._preview_dict(clip_id, key, meta)
-        if profile.provider == "azure":
+        if profile.provider in {"azure", "iflytek", "deepgram"}:
             assert_cloud_char_budget(owner_id, len(text))
         try:
             result = await self._synthesize_preview(text, profile)
@@ -755,7 +755,7 @@ class AudioEngine:
 
     async def _synthesize_preview(self, text: str, profile: Any) -> Any:
         """无 run 上下文（试听）的云→本地回退；run 内回退见 _synthesize。"""
-        if profile.provider == "azure":
+        if profile.provider in {"azure", "iflytek", "deepgram"}:
             try:
                 return await tts_service.cloud_synthesize(text, TTSOptions(
                     voice_id=profile.voice_id, language=profile.language,
@@ -820,7 +820,7 @@ class AudioEngine:
         try:
             await self._synthesize_inner(item)
         except VoiceProviderError as exc:
-            if item.provider == "azure":
+            if item.provider in {"azure", "iflytek", "deepgram"}:
                 record_cloud_auth_result(
                     item.owner_id, failed=isinstance(exc, TTSConfigError))
             self._store_failed(item, str(exc))
@@ -829,7 +829,7 @@ class AudioEngine:
             self._store_failed(item, f"合成异常: {exc}")
 
     async def _synthesize_inner(self, item: _PendingClip) -> None:
-        if item.provider == "azure":
+        if item.provider in {"azure", "iflytek", "deepgram"}:
             try:
                 result = await tts_service.cloud_synthesize(
                     item.text, TTSOptions(voice_id=item.voice_id,

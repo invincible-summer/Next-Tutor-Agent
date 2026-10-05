@@ -22,10 +22,12 @@
 | `api/v1/capabilities.py` | `GET /api/v1/capabilities` 产品能力聚合（chat/upload/classroom/cloud_stt/cloud_tts/assistant/illustration.*/diagram.materials + 稳定 reason code）；判定复用各域函数，零复制 |
 | `voice/base.py` | TTS provider contract、`VoiceProviderError`、`TTSResult` |
 | `voice/stt/base.py` | STT provider contract：`STTProvider`/`STTResult`/`STTCapabilities` 与 STT 错误族（继承 `VoiceProviderError` 语义） |
-| `voice/stt/service.py` | 统一 STT service：provider 工厂（`SPEECH_STT_PROVIDER=off/stub/azure/auto`，auto 不伪可用）、与 TTS 共享云端并发闸、能力只读投影 |
+| `voice/stt/service.py` | 统一 STT service：provider 工厂（`SPEECH_STT_PROVIDER=off/stub/azure/iflytek/deepgram/auto`，auto 不伪可用）、与 TTS 共享云端并发闸、能力只读投影 |
 | `voice/stt/azure.py` | Azure Speech REST STT（批准域 endpoint、格式白名单、401/403 不重试、429 Retry-After 单次重试、`RecognitionStatus != Success` 绝不伪成功） |
+| `voice/iflytek.py` | 科大讯飞听写/在线合成 WebSocket：服务端 HMAC-SHA256 鉴权 URL、PCM16 16 kHz 音频、无密钥关闭；密钥只读服务器环境变量 |
+| `voice/deepgram.py` | Deepgram `/v1/listen` 与 `/v1/speak` REST：Token 鉴权、MIP opt-out、WAV/JSON 响应校验；复用现有 `httpx`，不新增 SDK |
 | `voice/stt/stub.py` | 确定性转写 stub（端到端联调/测试） |
-| `voice/tts/service.py` | 统一 TTS service：provider 工厂（off/stub/melo/azure/auto）、云/Melo 共享信号量、`resolve_classroom_tts` 与课堂/助手共用的通用档案解析、Azure voices 缓存与音色 allowlist |
+| `voice/tts/service.py` | 统一 TTS service：provider 工厂（off/stub/melo/azure/iflytek/deepgram/auto）、云/Melo 共享信号量、`resolve_classroom_tts` 与课堂/助手共用的通用档案解析、Azure voices 缓存与音色 allowlist |
 | `voice/tts/stub.py` / `melotts.py` / `azure.py` | 回归 stub / localhost HTTP 调 MeloTTS sidecar / Azure Speech REST（SSML、音色校验） |
 | `voice/sentences.py` | 流式子句切分 `take_speech_cuts`（数学/表格不可切区、弱标点与硬上限） |
 | `voice/speak_text.py` | Markdown/LaTeX 朗读清洗（`normalize_math_delimiters`、`_read_math` 分级口语化） |
@@ -70,6 +72,22 @@ C→S {"type":"end"}  S→C {"type":"bye"}
 - `POST /api/v1/speech/transcriptions`：multipart `file` + `duration_ms` + `language`；服务端依次校验 provider 可用（503 `stt_unavailable`）→ 格式白名单（415 `audio_format_rejected`）→ 时长声明（400 `audio_too_long`）→ 大小（400 `audio_too_large`）→ 空音频（400 `audio_empty`），通过后调用 provider；返回 `{text, language, duration_ms, provider_class}`；限流 20/min，要求认证。
 - `POST /api/v1/speech/synthesis`：受控 `text(≤2000)/language(zh|en)/voice_id/speed(0.5–2.0)/policy/allow_local_fallback`；音色仅来自管理员批准集合（复用 `resolve_tts_profile`，不复制判定）；返回 `audio/wav`（`X-Sample-Rate`/`X-Voice-Id`/`Cache-Control: no-store`）；限流 60/min，要求认证。
 - provider 错误映射：`stt_config`/`stt_transient`/`tts_*` → 503；`stt_rate_limited`/`tts_rate_limited` → 429。
+
+### 云供应商配置与协议边界
+
+供应商密钥只能配置在 API 服务环境，不会写入移动端 SecureStore、能力响应、日志或运行数据。默认行为保持关闭：
+
+| 变量 | 取值/作用 |
+|------|-----------|
+| `SPEECH_STT_PROVIDER` | `off`（默认）、`stub`、`azure`、`iflytek`、`deepgram`、`auto` |
+| `VOICE_TTS_PROVIDER` | `off`（默认）、`stub`、`melo`、`azure`、`iflytek`、`deepgram`、`auto`；电话 WS 使用此选择 |
+| `CLASSROOM_TTS_CLOUD_PROVIDER` | `azure`（默认）、`iflytek`、`deepgram`；移动端 `/speech/synthesis` 与课堂合成使用此选择 |
+| `IFLYTEK_APP_ID/API_KEY/API_SECRET` | 讯飞控制台凭证；可选 `IFLYTEK_STT_ENDPOINT`/`IFLYTEK_TTS_ENDPOINT`，仅允许 `*.xfyun.cn` 的 `wss`/`ws` |
+| `DEEPGRAM_API_KEY` | Deepgram API key；可选 `DEEPGRAM_BASE_URL`（仅 HTTPS `*.deepgram.com`）、`DEEPGRAM_STT_MODEL`、`DEEPGRAM_TTS_MODEL` |
+
+讯飞适配实现在线听写与在线合成文档规定的签名 URL（`host date request-line`、HMAC-SHA256），听写输入需 PCM 16 kHz/16-bit/mono；其他移动录音格式应选择 Deepgram 或在网关完成转码。Deepgram 使用官方 `/v1/listen` 预录音 REST 与 `/v1/speak` REST，输出 WAV 后再由服务端解码为 PCM16。协议核对来源：[讯飞听写 WebAPI](https://www.xfyun.cn/doc/asr/voicedictation/API.html)、[讯飞在线合成](https://static.xfyun.cn/doc/tts/online_tts/API.html)、[Deepgram STT](https://developers.deepgram.com/reference/speech-to-text/listen-pre-recorded)、[Deepgram TTS](https://developers.deepgram.com/reference/text-to-speech/speak-request)。
+
+供应商真实网络调用未在无凭证 CI 中执行；`tests/voice/test_voice_providers.py` 使用确定性 WebSocket/HTTP 假端点验证鉴权 URL、请求结构、响应解析、空结果与错误边界。
 
 ### 产品能力聚合（`api/v1/capabilities.py`）
 
@@ -129,7 +147,7 @@ C→S {"type":"end"}  S→C {"type":"bye"}
 
 ## Invariants / security boundaries（不变量与安全边界）
 
-- **输入路径分界**：`/voice/ws` 仍不接收输入 PCM——二进制上行一律 `binary_audio_unsupported`，Web 电话的识别只属浏览器（厂商平台/服务边界，不是本项目 MIT 发行物，不能承诺永久免费或无条件商用）；服务端 STT 只经 `/speech/transcriptions` 的受控 multipart（白名单格式/大小/时长 + 认证 + 限流 + 与 TTS 共享的云端并发闸），Azure 凭证只在服务器，移动包/EAS env 不得携带任何 Speech secret（ADR-0012）。
+- **输入路径分界**：`/voice/ws` 仍不接收输入 PCM——二进制上行一律 `binary_audio_unsupported`，Web 电话的识别只属浏览器（厂商平台/服务边界，不是本项目 MIT 发行物，不能承诺永久免费或无条件商用）；服务端 STT 只经 `/speech/transcriptions` 的受控 multipart（白名单格式/大小/时长 + 认证 + 限流 + 与 TTS 共享的云端并发闸），Azure/讯飞/Deepgram 凭证只在服务器，移动包/EAS env 不得携带任何 Speech secret（ADR-0012）。
 - 单连接单轮（`busy`）；每轮至多一个在途 sidecar 请求（单 worker + Melo 全局信号量 1）；`seq` 严格递增；帧级完整、`turn_end` 在最后一帧音频之后。
 - TTS fail-open：sidecar 失败保留文字回答并发 `tts_error`，绝不阻塞或丢失回答。
 - 内存边界：合成队列刻意无界但只存句子文本（受回答 max_tokens 封顶，量级几 KB），PCM 音频从不入队；每片 WAV 后处理经 `asyncio.to_thread` 移出事件循环，不阻塞其他用户的流。
@@ -141,10 +159,10 @@ C→S {"type":"end"}  S→C {"type":"bye"}
 
 | 变量 | 默认 | 说明 |
 |------|------|------|
-| `VOICE_TTS_PROVIDER` | `off` | 电话 TTS provider：`off/stub/melo/azure/auto`；`melo`/`auto` 触发启动脚本拉起 sidecar |
+| `VOICE_TTS_PROVIDER` | `off` | 电话 TTS provider：`off/stub/melo/azure/iflytek/deepgram/auto`；`melo`/`auto` 触发启动脚本拉起 sidecar |
 | `VOICE_TTS_BASE_URL` | `http://127.0.0.1:8130` | MeloTTS sidecar 地址（localhost；启动脚本端口回退 8130–8132 时自动指向选中端口） |
 | `VOICE_TTS_SPEED` | `0.9` | 实例默认语速（略慢于原速）；个人 `prefs.tts_speed` 0.5–1.5 覆盖，夹取区间 0.5–2.0 |
-| `SPEECH_STT_PROVIDER` | `off` | 服务端 STT（`/speech/transcriptions`）：`off/stub/azure/auto`；`auto` 仅在 `AZURE_SPEECH_*` 齐备时解析为 azure，否则关闭（不伪可用） |
+| `SPEECH_STT_PROVIDER` | `off` | 服务端 STT（`/speech/transcriptions`）：`off/stub/azure/iflytek/deepgram/auto`；`auto` 按 Azure → 讯飞 → Deepgram 的已配置凭证顺序选择，否则关闭 |
 | `AZURE_SPEECH_KEY`/`AZURE_SPEECH_REGION`/`AZURE_SPEECH_ENDPOINT` | — | 电话/课堂云端 TTS 与服务端 STT 共用（endpoint 仅限 `*.api.cognitiveservices.azure.com` 批准域） |
 | `CLASSROOM_TTS_CLOUD_CONCURRENCY` | `2` | 共享云端合成/转写并发（电话、课堂与服务端 STT 共用） |
 
@@ -159,7 +177,7 @@ Sidecar 启动判定（`scripts/dev/start.sh`，任一成立即启动）：`VOIC
 
 ## Tests / acceptance（测试索引）
 
-- `services/api/tests/voice/`（约 130 用例）：`test_sentence_splitting.py`（弱标点/硬上限/数学与表格不可切区/流式余量）、`test_speak_text.py`（朗读清洗与公式口语化）、`test_speakable_chunks.py`、`test_wav_helpers.py`（TTS WAV 解码、响度归一）、`test_websocket.py`（ticket 与鉴权、会话所有权、会话持久化与 TTS fail-open；使用 stub TTS + canned `run_turn`，所有走 turn 的测试必须 patch `get_llm`/`_build_tools`，覆盖 `status` 固定 `stt=browser`、无 PCM 的 `utterance_end.text` 全链路、`empty_transcript`、`binary_audio_unsupported`、`busy`、坏 ticket / header 直连 / 外来会话 / `end` 语义）、`test_tts_speed.py`（语速）、`test_stt_speech.py`（Azure STT 错误分类/批准域/解析不伪成功；service 解析 off/stub/azure/auto；speech 端点 multipart 校验与 stub 端到端；合成 WAV 与受控参数；能力聚合 reason code——platform 分片）。
+- `services/api/tests/voice/`（170 项）：`test_sentence_splitting.py`（弱标点/硬上限/数学与表格不可切区/流式余量）、`test_speak_text.py`（朗读清洗与公式口语化）、`test_speakable_chunks.py`、`test_wav_helpers.py`（TTS WAV 解码、响度归一）、`test_websocket.py`（ticket 与鉴权、会话所有权、会话持久化与 TTS fail-open；使用 stub TTS + canned `run_turn`，所有走 turn 的测试必须 patch `get_llm`/`_build_tools`，覆盖 `status` 固定 `stt=browser`、无 PCM 的 `utterance_end.text` 全链路、`empty_transcript`、`binary_audio_unsupported`、`busy`、坏 ticket / header 直连 / 外来会话 / `end` 语义）、`test_tts_speed.py`（语速）、`test_stt_speech.py`（Azure STT 错误分类/批准域/解析不伪成功；service 解析 off/stub/azure/auto；speech 端点 multipart 校验与 stub 端到端；合成 WAV 与受控参数；能力聚合 reason code——platform 分片）、`test_voice_providers.py`（讯飞 HMAC/WS 与 Deepgram REST 离线协议合同）。
 - `services/api/tests/test_voice_azure.py`：Azure provider 与统一 TTS service（音色 allowlist、共享并发、档案解析）回归。
 - 浏览器：`apps/web/tests/e2e/voice-smoke.spec.ts`（通话 UI、板书黑板与 drain 收尾冒烟）。
 

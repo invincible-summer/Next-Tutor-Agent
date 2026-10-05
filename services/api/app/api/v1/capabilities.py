@@ -87,7 +87,7 @@ def get_product_capabilities(
 
     student_id = user.id if user is not None else DEFAULT_STUDENT_ID
     stt_ok, stt_reason = stt_service.stt_status()
-    cloud_tts_ok = tts_service.azure_available()
+    cloud_tts_ok = tts_service.cloud_available()
     llm = _llm_capability()
     return ProductCapabilities(
         chat=llm,

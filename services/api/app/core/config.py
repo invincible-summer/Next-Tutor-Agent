@@ -276,9 +276,9 @@ class Settings:
     # Traces
     trace_dir: str = _resolve_trace_dir()
 
-    # Voice call: browser SpeechRecognition input + pluggable TTS output.
-    # STT is always performed in the browser; the backend receives final text.
-    # TTS: off | stub | melo (MeloTTS sidecar, see services/voice).
+    # Voice call: browser SpeechRecognition or server-mediated mobile STT,
+    # plus pluggable TTS output. Provider secrets remain server-side.
+    # TTS: off | stub | melo | azure | iflytek | deepgram | auto
     voice_tts_provider: str = os.getenv("VOICE_TTS_PROVIDER", "off").strip().lower()
     # MeloTTS sidecar base URL (localhost only; started by start.sh).
     voice_tts_base_url: str = os.getenv("VOICE_TTS_BASE_URL", "http://127.0.0.1:8130")
@@ -286,9 +286,25 @@ class Settings:
     # user.profile.prefs.tts_speed 覆盖（有效区间与 sidecar 一致 0.5–2.0）。
     voice_tts_speed: float = float(os.getenv("VOICE_TTS_SPEED", "0.9"))
     # 服务端 STT（移动端 /speech/transcriptions；ADR-0012）：off | stub |
-    # azure | auto。auto 仅在 AZURE_SPEECH_* 齐备时解析为 azure，否则关闭。
+    # azure | iflytek | deepgram | auto。auto 按已配置凭证选择，否则关闭。
     speech_stt_provider: str = os.getenv(
         "SPEECH_STT_PROVIDER", "off").strip().lower()
+    # iFlytek WebSocket credentials stay server-side.  Endpoints are optional
+    # only for tests; production adapters validate their approved xfyun.cn host.
+    iflytek_app_id: str = os.getenv("IFLYTEK_APP_ID", "").strip()
+    iflytek_api_key: str = os.getenv("IFLYTEK_API_KEY", "").strip()
+    iflytek_api_secret: str = os.getenv("IFLYTEK_API_SECRET", "").strip()
+    iflytek_stt_endpoint: str = os.getenv(
+        "IFLYTEK_STT_ENDPOINT", "wss://iat-api.xfyun.cn/v2/iat").strip()
+    iflytek_tts_endpoint: str = os.getenv(
+        "IFLYTEK_TTS_ENDPOINT", "wss://tts-api.xfyun.cn/v2/tts").strip()
+    # Deepgram's REST APIs use one server-side API key for both directions.
+    deepgram_api_key: str = os.getenv("DEEPGRAM_API_KEY", "").strip()
+    deepgram_base_url: str = os.getenv(
+        "DEEPGRAM_BASE_URL", "https://api.deepgram.com").strip().rstrip("/")
+    deepgram_stt_model: str = os.getenv("DEEPGRAM_STT_MODEL", "nova-3").strip()
+    deepgram_tts_model: str = os.getenv(
+        "DEEPGRAM_TTS_MODEL", "aura-2-thalia-en").strip()
 
     # Server
     api_host: str = os.getenv("API_HOST", "127.0.0.1")
@@ -325,7 +341,7 @@ class Settings:
         "CLASSROOM_IMAGE_PROVIDERS", "pexels,pixabay").strip().lower()
     pexels_api_key: str = os.getenv("PEXELS_API_KEY", "").strip()
     pixabay_api_key: str = os.getenv("PIXABAY_API_KEY", "").strip()
-    # 课堂语音策略：auto | cloud | local | silent；云端首发 azure
+    # 课堂语音策略：auto | cloud | local | silent；云端 provider 可选 Azure、讯飞、Deepgram
     classroom_tts_policy: str = _resolve_mode(
         "CLASSROOM_TTS_POLICY", {"auto", "cloud", "local", "silent"}, "auto")
     classroom_tts_cloud_provider: str = os.getenv(

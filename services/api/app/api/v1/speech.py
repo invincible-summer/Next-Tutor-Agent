@@ -1,7 +1,7 @@
 """Server-mediated speech API（ADR-0012）。
 
 移动端语音流（ADR-0012）：录音 → ``POST /speech/transcriptions``（服务端
-Azure STT，凭证只在服务器）→ transcript（发送前可取消/重录）→ 既有 chat stream → 按句 ``POST /speech/synthesis`` → expo-audio 播放。
+Azure、讯飞或 Deepgram STT，凭证只在服务器）→ transcript（发送前可取消/重录）→ 既有 chat stream → 按句 ``POST /speech/synthesis`` → expo-audio 播放。
 旧 ``/voice/ws``（浏览器 SpeechRecognition + WS 通话）保留不动，Web 端
 继续走原路径。
 
@@ -137,7 +137,7 @@ async def synthesize_speech(body: SynthesisRequest,
                          language=profile.language,
                          synthesis_speed=body.speed)
     try:
-        if profile.provider == "azure":
+        if profile.provider in {"azure", "iflytek", "deepgram"}:
             result = await cloud_synthesize(body.text, options)
         else:
             result = await local_synthesize(body.text, options)

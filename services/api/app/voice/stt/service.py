@@ -2,10 +2,11 @@
 
 职责：
 - 集中 provider 的配置解析与惰性单例：``SPEECH_STT_PROVIDER`` =
-  ``off | stub | azure | auto``。``auto`` 表示已配置 ``AZURE_SPEECH_*`` 就走
-  Azure，否则关闭——不伪可用；``stub`` 只用于无凭证联调与测试。
+  ``off | stub | azure | iflytek | deepgram | auto``。``auto`` 按已配置
+  Azure → 讯飞 → Deepgram 顺序选择，否则关闭——不伪可用；``stub`` 只用于
+  无凭证联调与测试。
 - 并发保护：云端转写与 TTS 共享同一把 cloud semaphore
-  （``CLASSROOM_TTS_CLOUD_CONCURRENCY``，同一份 Azure 资源凭证），STT
+  （``CLASSROOM_TTS_CLOUD_CONCURRENCY``，云供应商共享并发闸），STT
   不再单独开闸。
 - 能力只读投影 ``stt_capabilities``：不触发网络请求，端点据此做服务端
   上限校验（时长/大小/格式），而不是转发任意客户端声明。
@@ -26,6 +27,16 @@ def _azure_available() -> bool:
     return bool(settings.azure_speech_key and settings.azure_speech_region)
 
 
+def _iflytek_available() -> bool:
+    from app.core.config import settings
+    return bool(settings.iflytek_app_id and settings.iflytek_api_key and settings.iflytek_api_secret)
+
+
+def _deepgram_available() -> bool:
+    from app.core.config import settings
+    return bool(settings.deepgram_api_key)
+
+
 def azure_stt_available() -> bool:
     """云端转写是否已配置（key+region 齐备）。"""
     return _azure_available()
@@ -43,7 +54,10 @@ def _stt_key() -> tuple:
     from app.core.config import settings
     return (settings.speech_stt_provider,
             bool(settings.azure_speech_key), settings.azure_speech_region,
-            settings.azure_speech_endpoint)
+            settings.azure_speech_endpoint, bool(settings.iflytek_app_id),
+            bool(settings.iflytek_api_key), bool(settings.iflytek_api_secret),
+            settings.iflytek_stt_endpoint, bool(settings.deepgram_api_key),
+            settings.deepgram_base_url, settings.deepgram_stt_model)
 
 
 def stt_provider() -> STTProvider | None:
@@ -54,7 +68,9 @@ def stt_provider() -> STTProvider | None:
     if provider == "off":
         return None
     if provider == "auto":
-        provider = "azure" if _azure_available() else "off"
+        provider = ("azure" if _azure_available() else
+                    "iflytek" if _iflytek_available() else
+                    "deepgram" if _deepgram_available() else "off")
         if provider == "off":
             return None
     key = _stt_key()
@@ -72,6 +88,20 @@ def stt_provider() -> STTProvider | None:
             else:
                 from .azure import AzureSTT
                 client = AzureSTT()
+        elif provider == "iflytek":
+            if not _iflytek_available():
+                log.warning("SPEECH_STT_PROVIDER=iflytek 但未配置 IFLYTEK_*，服务端转写关闭")
+                client = None
+            else:
+                from ..iflytek import IflytekSTT
+                client = IflytekSTT()
+        elif provider == "deepgram":
+            if not _deepgram_available():
+                log.warning("SPEECH_STT_PROVIDER=deepgram 但未配置 DEEPGRAM_API_KEY，服务端转写关闭")
+                client = None
+            else:
+                from ..deepgram import DeepgramSTT
+                client = DeepgramSTT()
         else:
             log.warning("未知 SPEECH_STT_PROVIDER=%r，服务端转写关闭", provider)
             client = None
@@ -111,7 +141,7 @@ async def transcribe(audio: bytes, *, content_type: str = "",
     provider = stt_provider()
     if provider is None:
         raise STTUnavailable("服务端语音转写未启用")
-    if provider.name == "azure":
+    if provider.name in {"azure", "iflytek", "deepgram"}:
         sem = shared_semaphores()[0]
         async with sem:
             return await provider.transcribe(audio, content_type=content_type,
@@ -138,7 +168,7 @@ def stt_capabilities() -> dict[str, Any]:
 
 
 def provider_class() -> str:
-    """对外只暴露 provider 类别名（azure/stub/off），不暴露凭证细节。"""
+    """对外只暴露 provider 类别名，不暴露凭证细节。"""
     provider = stt_provider()
     return provider.name if provider is not None else "off"
 

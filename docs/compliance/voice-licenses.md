@@ -11,7 +11,7 @@
 |---|---|---|
 | 语音输入（STT） | 浏览器 `SpeechRecognition` 平台 API | 否（浏览器/厂商服务，条款随浏览器） |
 | 本地 TTS（电话/课堂回退） | `deploy/self-hosted/install_voice.sh` 部署时下载 | 否（gitignored 目录） |
-| 课堂云端 TTS（首发 Azure） | 管理员配置 `AZURE_SPEECH_KEY/REGION` | 否（在线服务，按用量计费） |
+| 课堂云端 TTS（Azure/讯飞/Deepgram） | 管理员配置各供应商 server-side key | 否（在线服务，按供应商条款与用量计费） |
 
 仓库不捆绑任何模型权重；部署或再分发后，相应开源义务随之生效。
 
@@ -52,6 +52,19 @@ sidecar venv 依赖（CPU torch 等）钉住在 `services/voice/requirements.txt
   本项目不硬编码价格，费用估算只在管理员提供单价时进行。
 - 允许音色仅限管理员配置并经官方 voices list 验证的
   `CLASSROOM_TTS_VOICE_ZH/EN`；voices list 只投影 ShortName/语言/展示名。
+
+## 3.1 可选云供应商（不随仓库分发）
+
+科大讯飞在线听写/合成与 Deepgram STT/TTS 均通过现有 `httpx`/`websockets`
+调用，不新增第三方 SDK、模型或许可证文件。部署者须自行开通服务并复核当期
+服务条款、隐私与数据驻留：
+
+- [讯飞开放平台服务协议](https://www.xfyun.cn/doc/policy/agreement.html)
+- [Deepgram Terms](https://deepgram.com/terms)
+- [Deepgram Privacy](https://deepgram.com/privacy)
+
+本项目只保存合成结果在既有调用方流程中，STT 上传音频在内存中处理后丢弃；
+真实供应商调用需要部署者凭证，离线测试不会访问这些服务。
 
 ## 4. 复核与发布检查表
 

@@ -1,8 +1,8 @@
 """STT provider factory（服务端转写，ADR-0012）。
 
-``SPEECH_STT_PROVIDER``: off (默认) | stub | azure | auto。云端转写走
-Azure Speech REST（与 TTS 共享 ``AZURE_SPEECH_*`` 凭证与 cloud
-semaphore）；``auto`` 在凭证齐备时等价 azure，否则关闭——不伪可用。
+``SPEECH_STT_PROVIDER``: off（默认）| stub | azure | iflytek | deepgram |
+auto。云端转写与 TTS 共享 cloud semaphore；``auto`` 按已配置凭证选择
+Azure、讯飞或 Deepgram，否则关闭——不伪可用。
 """
 from __future__ import annotations
 

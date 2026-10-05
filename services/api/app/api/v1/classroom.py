@@ -707,7 +707,7 @@ def _run_profile(run: sc.ClassroomRun) -> "tts_service.ClassroomVoiceProfile":
                                  profile.language)) or "zh",
             synthesis_speed=1.0,
             allow_local_fallback=profile.allow_local_fallback,
-            cloud_configured=tts_service.azure_available(),
+            cloud_configured=tts_service.cloud_available(),
             local_enabled=tts_service.local_tts_enabled())
     prefs = sc.VoicePreferences(
         policy=profile.policy, voice_id=profile.voice_id,

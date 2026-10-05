@@ -87,7 +87,7 @@ def _tts_voices(cloud_configured: bool, local_enabled: bool) -> list[sc.VoiceInf
 
 def _tts_capability() -> sc.TtsCapability:
     from ..voice.tts import service as tts_service
-    cloud_configured = tts_service.azure_available()
+    cloud_configured = tts_service.cloud_available()
     local_enabled = _local_tts_enabled()
     available = cloud_configured or local_enabled \
         or settings.classroom_tts_policy == "silent"

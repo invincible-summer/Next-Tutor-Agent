@@ -1,6 +1,6 @@
 """TTS provider factory（委托 voice/tts/service.py 统一调度，阶段 F）。
 
-``VOICE_TTS_PROVIDER``: off (默认) | stub | melo | azure | auto。``melo``
+``VOICE_TTS_PROVIDER``: off (默认) | stub | melo | azure | iflytek | deepgram | auto。``melo``
 走本地 sidecar（VOICE_TTS_BASE_URL）；sidecar 宕机表现为每次调用的
 TTSUnavailable，绝不拖垮应用。电话与课堂请求共享全局 semaphore
 （云 ``CLASSROOM_TTS_CLOUD_CONCURRENCY`` / Melo 1），由 service 层保证。
