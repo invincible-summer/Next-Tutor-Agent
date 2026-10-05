@@ -223,7 +223,8 @@ jobs:
           --health-cmd "timeout 2 bash -c '</dev/tcp/127.0.0.1/7233'"
           --health-interval 10s
           --health-timeout 5s
-          --health-retries 12
+          --health-start-period 30s
+          --health-retries 30
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-project
