@@ -219,12 +219,6 @@ jobs:
           POSTGRES_SEEDS: postgres
         ports:
           - 7233:7233
-        options: >-
-          --health-cmd "timeout 2 bash -c '</dev/tcp/127.0.0.1/7233'"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-start-period 30s
-          --health-retries 30
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-project
@@ -232,7 +226,7 @@ jobs:
         run: |
           python3 - <<'EOF'
           import socket, sys, time
-          for _ in range(60):
+          for _ in range(180):
               try:
                   socket.create_connection(("localhost", 7233), timeout=2).close()
                   sys.exit(0)
