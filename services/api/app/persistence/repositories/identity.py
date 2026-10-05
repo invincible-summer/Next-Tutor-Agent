@@ -124,11 +124,15 @@ class SqlAlchemyIdentityRepository:
 
     async def bump_token_version(self, user_id: str) -> bool:
         async with self._txn() as sess:
-            row = await sess.get(UserModel, user_id)
-            if row is None:
-                return False
-            row.token_version += 1
-        return True
+            # Keep the increment in the SQL statement.  Loading the row and
+            # incrementing the ORM attribute would let two API instances
+            # overwrite one another under PostgreSQL's default isolation.
+            result = await sess.execute(
+                update(UserModel)
+                .where(UserModel.id == user_id)
+                .values(token_version=UserModel.token_version + 1)
+            )
+        return bool(result.rowcount)
 
     async def list_accounts(self) -> list[AccountRecord]:
         async with self._sess() as sess:
