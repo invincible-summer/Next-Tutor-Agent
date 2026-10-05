@@ -1,0 +1,36 @@
+appId: com.nexttutor.agent
+name: Answer and end a synthetic text assessment
+tags: [smoke, assessment]
+---
+- runFlow: ../common/login.yaml
+- openLink: nexttutor:///learn/assessment
+- tapOn: "开始测评|Start assessment"
+- tapOn: "纯文字|Text"
+- tapOn: "开始|Begin"
+- extendedWaitUntil:
+    visible:
+      id: question-submit
+    timeout: 60000
+- runFlow:
+    when:
+      visible:
+        id: question-answer
+    commands:
+      - tapOn:
+          id: question-answer
+      - inputText: ${MAESTRO_MOBILE_E2E_ANSWER}
+      - hideKeyboard
+- runFlow:
+    when:
+      notVisible:
+        id: question-answer
+    commands:
+      - tapOn: "A:.*"
+- tapOn:
+    id: question-submit
+- extendedWaitUntil:
+    visible: "下一题 / 查看报告|Next question / Report"
+    timeout: 60000
+- tapOn: "结束本次测评|End assessment"
+- tapOn: "结束|End"
+- assertVisible: "新的练习|New practice"

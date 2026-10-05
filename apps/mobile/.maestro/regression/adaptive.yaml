@@ -1,0 +1,16 @@
+appId: com.nexttutor.agent
+name: Core pages survive rotation without losing their route
+tags: [regression, adaptive]
+---
+- runFlow: ../common/login.yaml
+- openLink: nexttutor:///library/knowledge
+- setOrientation: LANDSCAPE
+- assertVisible: "知识之间的连接|Connections in knowledge"
+- takeScreenshot: knowledge-landscape
+- setOrientation: PORTRAIT
+- assertVisible: "知识之间的连接|Connections in knowledge"
+- openLink: nexttutor:///learn/plan
+- setOrientation: LANDSCAPE
+- assertVisible: "计划与学习编排|Your learning plan"
+- takeScreenshot: plan-landscape
+- setOrientation: PORTRAIT

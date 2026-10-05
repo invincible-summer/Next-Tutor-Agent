@@ -624,20 +624,19 @@ def list_runs(owner_id: str, workspace_id: str,
 def allocate_revision(owner_id: str, workspace_id: str, lesson_id: str,
                       *, base_revision: int | None = None) -> int:
     """lesson 锁内分配单调 target_revision；失败留空号，永不复用。"""
+    target = 0
+
     def mutate(lesson: sc.Lesson) -> None:
+        nonlocal target
         if base_revision is not None and \
                 base_revision not in lesson.published_revisions:
             raise CasConflictError("base_revision 未发布")
         if len(lesson.published_revisions) >= sc.MAX_PUBLISHED_REVISIONS:
             raise ClassroomStorageError("已发布版本达到上限")
-
-    lesson = update_lesson(owner_id, workspace_id, lesson_id, mutate)
-    target = lesson.next_revision
-
-    def bump(lesson: sc.Lesson) -> None:
+        target = lesson.next_revision
         lesson.next_revision = target + 1
 
-    update_lesson(owner_id, workspace_id, lesson_id, bump)
+    update_lesson(owner_id, workspace_id, lesson_id, mutate)
     return target
 
 

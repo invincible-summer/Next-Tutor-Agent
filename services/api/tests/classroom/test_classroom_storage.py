@@ -6,8 +6,13 @@
 from __future__ import annotations
 
 import sys
+import os
+import subprocess
+import threading
 import unittest
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
+from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
@@ -206,6 +211,57 @@ class PublishTransactionTests(StorageSandboxTestCase):
         store.save_lesson(lesson)
         store.save_job(job)
         return lesson, job
+
+    def test_allocate_revision_read_and_increment_are_one_mutation(self):
+        lesson, _job = self._setup()
+        update = store.update_lesson
+        barrier = threading.Barrier(12)
+        local = threading.local()
+
+        def synchronized_update(*args, **kwargs):
+            result = update(*args, **kwargs)
+            if not getattr(local, "updated", False):
+                local.updated = True
+                barrier.wait(timeout=10)
+            return result
+
+        with patch.object(store, "update_lesson", side_effect=synchronized_update):
+            with ThreadPoolExecutor(max_workers=12) as pool:
+                revisions = list(pool.map(
+                    lambda _n: store.allocate_revision(OWNER, WS, lesson.lesson_id),
+                    range(12)))
+        self.assertEqual(sorted(revisions), list(range(1, 13)))
+        self.assertEqual(store.load_lesson(OWNER, WS, lesson.lesson_id).next_revision, 13)
+
+    def test_allocate_revision_unique_across_processes(self):
+        lesson, _job = self._setup()
+        script = '''
+import sys
+from pathlib import Path
+from app.core import paths
+paths.set_runtime_root(Path(sys.argv[1]))
+from app.classroom import storage
+for _ in range(12):
+    print(storage.allocate_revision(sys.argv[2], sys.argv[3], sys.argv[4]), flush=True)
+'''
+        env = {**os.environ, "NEXT_TUTOR_DATA_DIR": str(self.root)}
+        processes = [subprocess.Popen(
+            [sys.executable, "-c", script, str(self.root), OWNER, WS, lesson.lesson_id],
+            env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+            for _ in range(3)]
+        revisions = []
+        try:
+            for process in processes:
+                output, error = process.communicate(timeout=30)
+                self.assertEqual(process.returncode, 0, error)
+                revisions.extend(int(line) for line in output.splitlines())
+        finally:
+            for process in processes:
+                if process.poll() is None:
+                    process.kill()
+                process.communicate()
+        self.assertEqual(sorted(revisions), list(range(1, 37)))
+        self.assertEqual(store.load_lesson(OWNER, WS, lesson.lesson_id).next_revision, 37)
 
     def test_allocate_revision_burns_gap(self):
         lesson, _ = self._setup()

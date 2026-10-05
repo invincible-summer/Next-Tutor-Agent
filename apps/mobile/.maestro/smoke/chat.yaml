@@ -1,0 +1,19 @@
+appId: com.nexttutor.agent
+name: Synthetic text streaming and session restore
+tags: [smoke, chat]
+---
+- runFlow: ../common/login.yaml
+- openLink: nexttutor:///tutor?ws=${MAESTRO_MOBILE_E2E_WORKSPACE_ID}
+- tapOn: "向老师提问，或描述你想学的内容…|Ask the tutor anything…"
+- inputText: "Explain why adding two synthetic counters to three gives five."
+- tapOn: "发送|Send"
+- extendedWaitUntil:
+    visible: ${MAESTRO_MOBILE_E2E_CHAT_RESPONSE}
+    timeout: 60000
+- assertVisible: "Explain why adding two synthetic counters to three gives five."
+- stopApp
+- launchApp:
+    clearState: false
+- openLink: nexttutor:///tutor
+- tapOn: "会话列表|Sessions"
+- assertVisible: ${MAESTRO_MOBILE_E2E_CHAT_SESSION_TITLE}

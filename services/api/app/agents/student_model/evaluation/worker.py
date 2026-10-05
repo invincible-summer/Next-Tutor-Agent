@@ -18,7 +18,7 @@ import time
 from typing import Any, Callable
 
 from . import schema as S
-from .jobs import JobScheduler, job_deadline
+from .jobs import JobScheduler, _claimable, job_deadline
 
 log = logging.getLogger(__name__)
 
@@ -146,18 +146,13 @@ class EvaluationWorker:
         best: float | None = None
         for rt in state.jobs.values():
             job = rt.job
-            claimable = job.state in (S.JobState.QUEUED,)
-            if job.state == S.JobState.RETRY_WAIT:
-                claimable = not rt.retry_not_before or \
-                    rt.retry_not_before <= S.utc_now_iso()
-            if not claimable:
+            if not _claimable(rt, now):
                 continue
             ts = time.mktime(time.strptime(job.created_at,
                                            "%Y-%m-%dT%H:%M:%SZ")) \
                 if job.created_at else 0.0
             if best is None or ts < best:
                 best = ts
-        _ = now
         return best
 
     # -- dispatch -------------------------------------------------------
@@ -250,11 +245,13 @@ class EvaluationWorker:
         abstain（不能用输出长度推算认知负荷）。"""
         from .store import get_journal
         journal = get_journal(student_id)
-        state = journal.state()
+        state = journal.snapshot()
+        generation_at_claim = claimed.generation or state.generation
         job = claimed.job
         src = state.sources.get(job.source_id)
         if src is None:
             self._scheduler_ref().cancel(student_id, job.job_id,
+                                         lease_token=claimed.lease_token,
                                          reason="source_gone")
             return "cancelled"
         receipt = src.receipt
@@ -272,7 +269,7 @@ class EvaluationWorker:
             max_output_tokens=3000)
         if out.parsed is None:
             self._scheduler_ref().fail(
-                student_id, job.job_id,
+                student_id, job.job_id, lease_token=claimed.lease_token,
                 error_code=out.error_code or "llm_failed",
                 retryable=out.retryable_error,
                 transport_attempts=out.transport_attempts)
@@ -289,18 +286,24 @@ class EvaluationWorker:
             "limits": list(review.limits[:8]),
             "source_id": src.receipt.source_id,
         }]
-        journal.append([
-            S.OpJobInputPrepared(
-                job_id=job.job_id, input_hash="clt_" + job.job_id[4:],
-                prompt_binding="teaching_clt_review@1.0.0",
-                generation=state.generation),
-            S.OpResultCommitted(
-                job_id=job.job_id, source_id=src.receipt.source_id,
-                source_revision=src.receipt.source_revision,
-                scope_revision=src.receipt.scope_revision or "no_scope",
-                abstained=not bool(review.items),
-                outbox=review_outbox),
-        ], expected_generation=state.generation)
+        from .service import LearnerEvaluationService
+        service = LearnerEvaluationService(self._scheduler_ref())
+        with journal.transaction(expected_generation=generation_at_claim):
+            service.validate_lease(student_id, job.job_id, claimed.lease_token)
+            service.validate_source(student_id, receipt,
+                                    expected_scope_revision=job.scope_revision or None)
+            journal.append([
+                S.OpJobInputPrepared(
+                    job_id=job.job_id, input_hash="clt_" + job.job_id[4:],
+                    prompt_binding="teaching_clt_review@1.0.0",
+                    generation=generation_at_claim),
+                S.OpResultCommitted(
+                    job_id=job.job_id, source_id=receipt.source_id,
+                    source_revision=receipt.source_revision,
+                    scope_revision=receipt.scope_revision or "no_scope",
+                    abstained=not bool(review.items),
+                    outbox=review_outbox),
+            ], expected_generation=generation_at_claim)
         return "succeeded" if review.items else "abstained"
 
     def _advance_outbox(self, student_id: str) -> None:
@@ -318,7 +321,7 @@ class EvaluationWorker:
             from app.agents.learning_orchestration import (
                 get_orchestration_service)
             get_orchestration_service().consume_evaluation_outbox(student_id)
-        if "synthesis" in consumers:
+        with journal.transaction(expected_generation=state.generation) as state:
             dirty_ws: set[str] = set()
             for (eid, consumer), item in state.outbox_unacked.items():
                 if consumer != "synthesis":

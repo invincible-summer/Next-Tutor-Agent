@@ -240,6 +240,7 @@ export interface ClassroomClient {
   saveRunNote(workspaceId: string, lessonId: string, runId: string, request: SaveNoteRequest, idempotencyKey: string): Promise<SaveNoteResponse>;
   requestRunAudio(workspaceId: string, lessonId: string, runId: string, request: AudioRequest, idempotencyKey: string): Promise<AudioResponse>;
   requestQaAudio(workspaceId: string, lessonId: string, runId: string, request: QaAudioRequest, idempotencyKey: string): Promise<QaAudioResponse>;
+  ensureQaSession(workspaceId: string, lessonId: string, runId: string, idempotencyKey: string): Promise<{session_id: string}>;
   getClipStatus(workspaceId: string, lessonId: string, runId: string, clipId: string, signal?: AbortSignalLike | null): Promise<ClipStatus>;
   clipContent(workspaceId: string, lessonId: string, runId: string, clipId: string, signal?: AbortSignalLike | null): Promise<ArrayBuffer>;
 
@@ -291,6 +292,7 @@ export function createClassroomClient(transport: Transport): ClassroomClient {
   const request = <T>(path: string, init: RequestOptions) =>
     transport.request<T>(path, init).then((result) => result.body);
   return {
+    ensureQaSession: (workspaceId, lessonId, runId, idempotencyKey) => request<{session_id: string}>(`${runBase(workspaceId, lessonId, runId)}/qa-session`, { method: "POST", json: {}, idempotencyKey }),
     capabilities: (signal) => request<ClassroomCapabilities>("/classroom/capabilities", { signal }),
     templates: (lang, signal) =>
       request<ClassroomTemplates>("/classroom/templates", {

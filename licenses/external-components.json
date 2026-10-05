@@ -1,0 +1,336 @@
+[
+  {
+    "ecosystem": "upstream",
+    "evidence": "pinned-upstream-reference;not-installed",
+    "homepage": "https://raw.githubusercontent.com/myshell-ai/MeloTTS/209145371cff8fc3bd60d7be902ea69cbdb7965a/LICENSE",
+    "license_expression": "MIT",
+    "license_files": [
+      {
+        "bytes": 1053,
+        "origin": "https://raw.githubusercontent.com/myshell-ai/MeloTTS/209145371cff8fc3bd60d7be902ea69cbdb7965a/LICENSE",
+        "path": "licenses/texts/88a50e5a02bbc2a5c2f084dc19da751aa97b1690f5fda76cd8005c8634d1ca70.txt",
+        "sha256": "88a50e5a02bbc2a5c2f084dc19da751aa97b1690f5fda76cd8005c8634d1ca70"
+      }
+    ],
+    "name": "MeloTTS",
+    "purl": "pkg:generic/MeloTTS@209145371cff8fc3bd60d7be902ea69cbdb7965a",
+    "scopes": [
+      "deployment-optional:voice"
+    ],
+    "sources": [
+      "https://raw.githubusercontent.com/myshell-ai/MeloTTS/209145371cff8fc3bd60d7be902ea69cbdb7965a/LICENSE"
+    ],
+    "version": "209145371cff8fc3bd60d7be902ea69cbdb7965a"
+  },
+  {
+    "ecosystem": "upstream",
+    "evidence": "pinned-upstream-reference;not-installed",
+    "homepage": "https://huggingface.co/myshell-ai/MeloTTS-Chinese/resolve/af5d207a364ea4208c6f589c89f57f88414bdd16/README.md",
+    "license_expression": "MIT",
+    "license_files": [
+      {
+        "bytes": 4445,
+        "origin": "https://huggingface.co/myshell-ai/MeloTTS-Chinese/resolve/af5d207a364ea4208c6f589c89f57f88414bdd16/README.md",
+        "path": "licenses/texts/40b5b860bacbb3947cbef838719e660d2fe4961eba5b484290b4bedc0253e208.txt",
+        "sha256": "40b5b860bacbb3947cbef838719e660d2fe4961eba5b484290b4bedc0253e208"
+      }
+    ],
+    "name": "MeloTTS-Chinese",
+    "purl": "pkg:generic/MeloTTS-Chinese@af5d207a364ea4208c6f589c89f57f88414bdd16",
+    "scopes": [
+      "deployment-optional:voice-model"
+    ],
+    "sources": [
+      "https://huggingface.co/myshell-ai/MeloTTS-Chinese/resolve/af5d207a364ea4208c6f589c89f57f88414bdd16/README.md"
+    ],
+    "version": "af5d207a364ea4208c6f589c89f57f88414bdd16"
+  },
+  {
+    "ecosystem": "upstream",
+    "evidence": "pinned-upstream-reference;not-installed",
+    "homepage": "https://huggingface.co/google-bert/bert-base-multilingual-uncased/resolve/7cbf9a625e29989f6b9c6c2fa68234c304f7e38f/README.md",
+    "license_expression": "Apache-2.0",
+    "license_files": [
+      {
+        "bytes": 8930,
+        "origin": "https://huggingface.co/google-bert/bert-base-multilingual-uncased/resolve/7cbf9a625e29989f6b9c6c2fa68234c304f7e38f/README.md",
+        "path": "licenses/texts/d83fc68b59583ff10472ff7b9c3ed1c0c0f07ccd09aeb5a38b97af6c18c7b17f.txt",
+        "sha256": "d83fc68b59583ff10472ff7b9c3ed1c0c0f07ccd09aeb5a38b97af6c18c7b17f"
+      },
+      {
+        "bytes": 11358,
+        "origin": "existing:licenses/Apache-2.0.txt",
+        "path": "licenses/texts/cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30.txt",
+        "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+      }
+    ],
+    "name": "bert-base-multilingual-uncased",
+    "purl": "pkg:generic/bert-base-multilingual-uncased@7cbf9a625e29989f6b9c6c2fa68234c304f7e38f",
+    "scopes": [
+      "deployment-optional:voice-model"
+    ],
+    "sources": [
+      "https://huggingface.co/google-bert/bert-base-multilingual-uncased/resolve/7cbf9a625e29989f6b9c6c2fa68234c304f7e38f/README.md"
+    ],
+    "version": "7cbf9a625e29989f6b9c6c2fa68234c304f7e38f"
+  },
+  {
+    "ecosystem": "upstream",
+    "evidence": "pinned-upstream-reference;not-installed",
+    "homepage": "https://huggingface.co/google-bert/bert-base-uncased/resolve/86b5e0934494bd15c9632b12f734a8a67f723594/README.md",
+    "license_expression": "Apache-2.0",
+    "license_files": [
+      {
+        "bytes": 10517,
+        "origin": "https://huggingface.co/google-bert/bert-base-uncased/resolve/86b5e0934494bd15c9632b12f734a8a67f723594/README.md",
+        "path": "licenses/texts/9187b6018ea0010d884e78e098e328faa1b88b301570d0cce606bb35e4067e17.txt",
+        "sha256": "9187b6018ea0010d884e78e098e328faa1b88b301570d0cce606bb35e4067e17"
+      },
+      {
+        "bytes": 11358,
+        "origin": "existing:licenses/Apache-2.0.txt",
+        "path": "licenses/texts/cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30.txt",
+        "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+      }
+    ],
+    "name": "bert-base-uncased",
+    "purl": "pkg:generic/bert-base-uncased@86b5e0934494bd15c9632b12f734a8a67f723594",
+    "scopes": [
+      "deployment-optional:voice-model"
+    ],
+    "sources": [
+      "https://huggingface.co/google-bert/bert-base-uncased/resolve/86b5e0934494bd15c9632b12f734a8a67f723594/README.md"
+    ],
+    "version": "86b5e0934494bd15c9632b12f734a8a67f723594"
+  },
+  {
+    "ecosystem": "upstream",
+    "evidence": "pinned-upstream-reference;not-installed",
+    "homepage": "https://raw.githubusercontent.com/ArtifexSoftware/mupdf/1.28.2/COPYING",
+    "license_expression": "AGPL-3.0-or-later OR LicenseRef-Artifex-Commercial",
+    "license_files": [
+      {
+        "bytes": 34520,
+        "origin": "https://raw.githubusercontent.com/ArtifexSoftware/mupdf/1.28.2/COPYING",
+        "path": "licenses/texts/57c8ff33c9c0cfc3ef00e650a1cc910d7ee479a8bc509f6c9209a7c2a11399d6.txt",
+        "sha256": "57c8ff33c9c0cfc3ef00e650a1cc910d7ee479a8bc509f6c9209a7c2a11399d6"
+      }
+    ],
+    "name": "MuPDF",
+    "purl": "pkg:generic/MuPDF@1.28.2",
+    "scopes": [
+      "python-native:PyMuPDF"
+    ],
+    "sources": [
+      "https://raw.githubusercontent.com/ArtifexSoftware/mupdf/1.28.2/COPYING"
+    ],
+    "version": "1.28.2"
+  },
+  {
+    "ecosystem": "upstream",
+    "evidence": "pinned-upstream-reference;not-installed",
+    "homepage": "https://raw.githubusercontent.com/redis/redis/8.0.0/LICENSE.txt",
+    "license_expression": "LicenseRef-RSALv2 OR SSPL-1.0 OR AGPL-3.0-only",
+    "license_files": [
+      {
+        "bytes": 70227,
+        "origin": "https://raw.githubusercontent.com/redis/redis/8.0.0/LICENSE.txt",
+        "path": "licenses/texts/a797fcaa899397001f7fb0097583db96bcc74e9b0606c95435d8a293d84cdb76.txt",
+        "sha256": "a797fcaa899397001f7fb0097583db96bcc74e9b0606c95435d8a293d84cdb76"
+      }
+    ],
+    "name": "Redis",
+    "purl": "pkg:generic/Redis@8-image-tag",
+    "scopes": [
+      "deployment-reference:redis"
+    ],
+    "sources": [
+      "https://raw.githubusercontent.com/redis/redis/8.0.0/LICENSE.txt"
+    ],
+    "version": "8-image-tag"
+  },
+  {
+    "ecosystem": "upstream",
+    "evidence": "pinned-upstream-reference;not-installed",
+    "homepage": "https://raw.githubusercontent.com/minio/minio/RELEASE.2024-08-17T01-24-54Z/LICENSE",
+    "license_expression": "AGPL-3.0-only",
+    "license_files": [
+      {
+        "bytes": 34523,
+        "origin": "https://raw.githubusercontent.com/minio/minio/RELEASE.2024-08-17T01-24-54Z/LICENSE",
+        "path": "licenses/texts/0d96a4ff68ad6d4b6f1f30f713b18d5184912ba8dd389f86aa7710db079abcb0.txt",
+        "sha256": "0d96a4ff68ad6d4b6f1f30f713b18d5184912ba8dd389f86aa7710db079abcb0"
+      }
+    ],
+    "name": "MinIO",
+    "purl": "pkg:generic/MinIO@RELEASE.2024-08-17T01-24-54Z",
+    "scopes": [
+      "deployment-reference:minio"
+    ],
+    "sources": [
+      "https://raw.githubusercontent.com/minio/minio/RELEASE.2024-08-17T01-24-54Z/LICENSE"
+    ],
+    "version": "RELEASE.2024-08-17T01-24-54Z"
+  },
+  {
+    "ecosystem": "upstream",
+    "evidence": "pinned-upstream-reference;not-installed",
+    "homepage": "https://raw.githubusercontent.com/postgres/postgres/REL_18_0/COPYRIGHT",
+    "license_expression": "PostgreSQL",
+    "license_files": [
+      {
+        "bytes": 1198,
+        "origin": "https://raw.githubusercontent.com/postgres/postgres/REL_18_0/COPYRIGHT",
+        "path": "licenses/texts/5ed3ce5c9373dff7f98b1fae7a6c7ccd98df7d734d46d24c1bcebf1240be8307.txt",
+        "sha256": "5ed3ce5c9373dff7f98b1fae7a6c7ccd98df7d734d46d24c1bcebf1240be8307"
+      }
+    ],
+    "name": "PostgreSQL",
+    "purl": "pkg:generic/PostgreSQL@18-image-tag",
+    "scopes": [
+      "deployment-reference:postgres"
+    ],
+    "sources": [
+      "https://raw.githubusercontent.com/postgres/postgres/REL_18_0/COPYRIGHT"
+    ],
+    "version": "18-image-tag"
+  },
+  {
+    "ecosystem": "upstream",
+    "evidence": "pinned-upstream-reference;not-installed",
+    "homepage": "https://raw.githubusercontent.com/temporalio/temporal/v1.25.2/LICENSE",
+    "license_expression": "MIT",
+    "license_files": [
+      {
+        "bytes": 1152,
+        "origin": "https://raw.githubusercontent.com/temporalio/temporal/v1.25.2/LICENSE",
+        "path": "licenses/texts/e54f1257fb65239260831733ba0cafc4a702faa38636453fdd616ab1289eb419.txt",
+        "sha256": "e54f1257fb65239260831733ba0cafc4a702faa38636453fdd616ab1289eb419"
+      }
+    ],
+    "name": "Temporal-server",
+    "purl": "pkg:generic/Temporal-server@1.25.2",
+    "scopes": [
+      "deployment-reference:temporal"
+    ],
+    "sources": [
+      "https://raw.githubusercontent.com/temporalio/temporal/v1.25.2/LICENSE"
+    ],
+    "version": "1.25.2"
+  },
+  {
+    "ecosystem": "upstream",
+    "evidence": "pinned-upstream-reference;not-installed",
+    "homepage": "https://raw.githubusercontent.com/open-telemetry/opentelemetry-collector-contrib/v0.116.0/LICENSE",
+    "license_expression": "Apache-2.0",
+    "license_files": [
+      {
+        "bytes": 11357,
+        "origin": "https://raw.githubusercontent.com/open-telemetry/opentelemetry-collector-contrib/v0.116.0/LICENSE",
+        "path": "licenses/texts/c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4.txt",
+        "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4"
+      }
+    ],
+    "name": "OpenTelemetry-collector-contrib",
+    "purl": "pkg:generic/OpenTelemetry-collector-contrib@0.116.0",
+    "scopes": [
+      "deployment-reference:otel"
+    ],
+    "sources": [
+      "https://raw.githubusercontent.com/open-telemetry/opentelemetry-collector-contrib/v0.116.0/LICENSE"
+    ],
+    "version": "0.116.0"
+  },
+  {
+    "ecosystem": "upstream",
+    "evidence": "pinned-upstream-reference;not-installed",
+    "homepage": "https://raw.githubusercontent.com/pytorch/pytorch/v2.11.0/LICENSE",
+    "license_expression": "BSD-3-Clause; bundled licenses in original",
+    "license_files": [
+      {
+        "bytes": 3464,
+        "origin": "https://raw.githubusercontent.com/pytorch/pytorch/v2.11.0/LICENSE",
+        "path": "licenses/texts/bd018feef8825e88181c84eb7e3aa4eafb8f08a20d9fd6ef948569610c4a3e43.txt",
+        "sha256": "bd018feef8825e88181c84eb7e3aa4eafb8f08a20d9fd6ef948569610c4a3e43"
+      }
+    ],
+    "name": "PyTorch-CPU",
+    "purl": "pkg:generic/PyTorch-CPU@2.11.0+cpu",
+    "scopes": [
+      "deployment-optional:voice-native"
+    ],
+    "sources": [
+      "https://raw.githubusercontent.com/pytorch/pytorch/v2.11.0/LICENSE"
+    ],
+    "version": "2.11.0+cpu"
+  },
+  {
+    "ecosystem": "upstream",
+    "evidence": "pinned-upstream-reference;not-installed",
+    "homepage": "https://raw.githubusercontent.com/pytorch/audio/v2.11.0/LICENSE",
+    "license_expression": "BSD-2-Clause",
+    "license_files": [
+      {
+        "bytes": 1338,
+        "origin": "https://raw.githubusercontent.com/pytorch/audio/v2.11.0/LICENSE",
+        "path": "licenses/texts/93a58861a858cc108e6b6b833e08e76e8b2a66339e4a8007c8a5a8c1ff9c40d6.txt",
+        "sha256": "93a58861a858cc108e6b6b833e08e76e8b2a66339e4a8007c8a5a8c1ff9c40d6"
+      }
+    ],
+    "name": "torchaudio-CPU",
+    "purl": "pkg:generic/torchaudio-CPU@2.11.0+cpu",
+    "scopes": [
+      "deployment-optional:voice-native"
+    ],
+    "sources": [
+      "https://raw.githubusercontent.com/pytorch/audio/v2.11.0/LICENSE"
+    ],
+    "version": "2.11.0+cpu"
+  },
+  {
+    "ecosystem": "upstream",
+    "evidence": "pinned-upstream-reference;not-installed",
+    "homepage": "https://raw.githubusercontent.com/tesseract-ocr/tesseract/5.5.0/LICENSE",
+    "license_expression": "Apache-2.0",
+    "license_files": [
+      {
+        "bytes": 11358,
+        "origin": "https://raw.githubusercontent.com/tesseract-ocr/tesseract/5.5.0/LICENSE",
+        "path": "licenses/texts/cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30.txt",
+        "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+      }
+    ],
+    "name": "Tesseract",
+    "purl": "pkg:generic/Tesseract@deployment-selected",
+    "scopes": [
+      "deployment-reference:OCR-tool"
+    ],
+    "sources": [
+      "https://raw.githubusercontent.com/tesseract-ocr/tesseract/5.5.0/LICENSE"
+    ],
+    "version": "deployment-selected"
+  },
+  {
+    "ecosystem": "upstream",
+    "evidence": "pinned-upstream-reference;not-installed",
+    "homepage": "https://raw.githubusercontent.com/nginx/nginx/release-1.28.0/LICENSE",
+    "license_expression": "BSD-2-Clause",
+    "license_files": [
+      {
+        "bytes": 1319,
+        "origin": "https://raw.githubusercontent.com/nginx/nginx/release-1.28.0/LICENSE",
+        "path": "licenses/texts/77c01620abf36ed747b7eca4bd271e49023fe3a8e2b3525bcf4b09c8e3aa28e4.txt",
+        "sha256": "77c01620abf36ed747b7eca4bd271e49023fe3a8e2b3525bcf4b09c8e3aa28e4"
+      }
+    ],
+    "name": "nginx",
+    "purl": "pkg:generic/nginx@deployment-selected",
+    "scopes": [
+      "deployment-reference:web-proxy"
+    ],
+    "sources": [
+      "https://raw.githubusercontent.com/nginx/nginx/release-1.28.0/LICENSE"
+    ],
+    "version": "deployment-selected"
+  }
+]

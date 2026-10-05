@@ -1,0 +1,15 @@
+appId: com.nexttutor.agent
+name: Missing essential illustration blocks answering
+tags: [regression, assessment]
+---
+- runFlow: ../common/login.yaml
+- openLink: nexttutor:///learn/assessment
+- extendedWaitUntil:
+    visible:
+      id: question-submit
+    timeout: 30000
+- assertVisible: "题图是作答必需条件，准备好后即可作答。|The illustration is required before answering."
+- assertVisible:
+    id: question-submit
+    enabled: false
+- takeScreenshot: essential-question-blocked

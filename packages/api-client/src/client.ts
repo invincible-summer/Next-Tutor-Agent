@@ -20,6 +20,12 @@ import { createLearningClient, type LearningClient } from "./learning.ts";
 import { createLibraryClient, type LibraryClient } from "./library.ts";
 import { createNotesClient, type NotesClient } from "./notes.ts";
 import { createVoiceClient, type VoiceClient } from "./voice.ts";
+import { createProfileClient, type ProfileClient } from "./profile.ts";
+import { createUxClient, type UxClient } from "./ux.ts";
+import { createEvaluationClient, type EvaluationClient } from "./evaluation.ts";
+import { createMemoryClient, type MemoryClient } from "./memory.ts";
+import { createArchiveClient, type ArchiveClient } from "./archive.ts";
+import { createAssistantClient, type AssistantClient } from "./assistant.ts";
 import {
   createToolIllustrationClient,
   type ToolIllustrationClient,
@@ -42,6 +48,12 @@ export interface ApiClient {
   readonly library: LibraryClient;
   readonly notes: NotesClient;
   readonly voice: VoiceClient;
+  readonly profile: ProfileClient;
+  readonly ux: UxClient;
+  readonly evaluation: EvaluationClient;
+  readonly memory: MemoryClient;
+  readonly archive: ArchiveClient;
+  readonly assistant: AssistantClient;
   readonly tools: { illustration: ToolIllustrationClient };
 }
 
@@ -64,6 +76,12 @@ export function createApiClient(config: ApiClientConfig): ApiClient {
     library: createLibraryClient(transport),
     notes: createNotesClient(transport),
     voice: createVoiceClient(transport),
+    profile: createProfileClient(transport),
+    ux: createUxClient(transport),
+    evaluation: createEvaluationClient(transport),
+    memory: createMemoryClient(transport),
+    archive: createArchiveClient(transport),
+    assistant: createAssistantClient(transport),
     tools: { illustration: createToolIllustrationClient(transport) },
   };
 }

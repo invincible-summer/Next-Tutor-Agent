@@ -18,6 +18,7 @@ import asyncio
 import logging
 import signal
 import sys
+from contextlib import ExitStack
 from dataclasses import dataclass
 from typing import Any, Callable, Sequence
 
@@ -148,12 +149,13 @@ async def _bootstrap_media_recovery() -> None:
                     continue
                 job_id = path.stem
                 if kind == "jobs":
-                    if not await workflow_alive(quiz_workflow_id(owner, job_id)):
+                    if await workflow_alive(
+                            quiz_workflow_id(owner, job_id)) is False:
                         orchestrator._settle_interrupted(owner, job_id)
                         settled += 1
                     continue
-                if not await workflow_alive(
-                        scenario_workflow_id(owner, job_id)):
+                if await workflow_alive(
+                        scenario_workflow_id(owner, job_id)) is False:
                     try:
                         scenario._settle_interrupted(
                             owner, row["session_id"], job_id)
@@ -272,7 +274,18 @@ def main(argv: Sequence[str] | None = None) -> int:
     from app.workflows.config import mark_worker_process
     mark_worker_process()
     try:
-        return asyncio.run(_serve(queues))
+        from app.core.atomic import file_lock
+        from app.core.paths import runtime_paths
+        with ExitStack() as coordination:
+            for queue in sorted(set(queues)):
+                coordination.enter_context(file_lock(
+                    runtime_paths().root / "coordination" / ("queue-" + queue),
+                    blocking=False))
+            return asyncio.run(_serve(queues))
+    except BlockingIOError:
+        log.error("a selected task queue already has a worker on this data root; "
+                  "file-backed domain schedulers require one consumer per queue")
+        return 2
     except KeyboardInterrupt:
         return 0
 

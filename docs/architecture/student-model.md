@@ -53,7 +53,9 @@
 - schema 3 注册校验来源/合同属于同一管线、合同 hash 一致、公开题干/选项及视觉角色匹配，并核对合并审图使用的答案/解析/量规与最终冻结内容。V3 还校验实际成图内容哈希及 SVG 源码哈希；普通题卡注册时将私有合同重绑定到正式题目身份。必要读图任务缺图拒绝注册；新 V2/V3 须有 `machine/combined=passed`，历史 V2 兼容 `machine/visual/joint=passed`，已有 `combined` 时失败结果不能被历史字段覆盖。
 - 新题图先写入同一数据根下的不可变 artifact，再随 `question_registered` 原子绑定 journal；没有已注册本人题目的图件不能通过题目 API 发布。同题同 revision 的图文材料不能替换。CAT 后补图保存为独立冻结 artifact，保持原文字 `TaskSnapshot` 的题干、答案和量规不变。
 - index 与 `learner_views` 是可删除重建的投影（纯函数重放 journal，无需 LLM）；投影缓存不属持久承诺。
+- journal 状态读取与 append/rewrite 使用同一持久锁。进程内缓存在锁内核对文件的设备/inode、大小与纳秒修改/变更时间；其他 API/worker 进程追加、原子替换或尾部恢复后重新重放，seq/generation 与作业 lease 使用当前落盘事实。锁内仅做同步短操作，不跨 LLM 调用。
 - 账号删除/永久删除走 generation 重写（不追加墓碑行）。
+- 永久删除重写若没有保留事务，以一个校验完整的元数据 `consumer_ack` 保留新 generation（reserved event `__journal_generation__` / consumer `__journal__`）。该行不含来源、答案、判断或观察，投影不将其作为学习证据；进程重启后仍能拒绝旧 generation 的迟到结果。
 
 ## Main flows
 

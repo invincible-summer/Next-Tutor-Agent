@@ -1,0 +1,12 @@
+appId: com.nexttutor.agent
+name: Workspace selection and source binding
+tags: [smoke, workspace]
+---
+- runFlow: ../common/login.yaml
+- openLink: nexttutor:///library/workspaces
+- assertVisible: "学习工作区|Workspaces"
+- tapOn: ${MAESTRO_MOBILE_E2E_WORKSPACE_NAME}
+- assertVisible: "工作区设置|Workspace details"
+- tapOn: "在此工作区学习|Use this workspace"
+- openLink: nexttutor:///learn/courses?ws=${MAESTRO_MOBILE_E2E_WORKSPACE_ID}
+- assertVisible: ${MAESTRO_MOBILE_E2E_WORKSPACE_NAME}

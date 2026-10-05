@@ -1,0 +1,30 @@
+appId: com.nexttutor.agent
+name: Reuse or establish a synthetic student session
+---
+- launchApp:
+    clearState: false
+- runFlow:
+    when:
+      visible:
+        id: welcome-sign-in
+    commands:
+      - tapOn:
+          id: welcome-sign-in
+- runFlow:
+    when:
+      visible:
+        id: auth-email
+    commands:
+      - tapOn:
+          id: auth-email
+      - inputText: ${MAESTRO_MOBILE_E2E_EMAIL}
+      - tapOn:
+          id: auth-password
+      - inputText: ${MAESTRO_MOBILE_E2E_PASSWORD}
+      - hideKeyboard
+      - tapOn:
+          id: auth-submit
+- extendedWaitUntil:
+    visible:
+      id: assistant-edge-handle
+    timeout: 30000

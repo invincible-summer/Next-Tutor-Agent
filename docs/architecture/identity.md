@@ -78,7 +78,7 @@ M0 回答三个问题：用户是谁、数据属于谁、如何安全访问；�
 
 ## Main flows（关键流程）
 
-- **注册/登录**：注册两步（账号 → 学习信息）→ bcrypt（`AUTH_BCRYPT_ROUNDS`）落 `accounts.json` → 登录签发 JWT。限流双轨：按 IP 固定窗口 + 每账号失败 10 次/5 分钟；客户端 IP 只取 uvicorn 按可信代理解析后的 peer，应用层不解析 `X-Forwarded-For`。企业模式（`DATABASE_URL` 已配置）下注册/登录为双写影子：文件层先行（旧消费方事实源，保住既有语义），成功后同步写 PostgreSQL（users/credentials/personal tenant/membership）并签发轮换会话族；PG 写失败为 loud 错误（迁移 importer 可愈合）。profile 类字段窗口期仍单写文件层（ADR-0011 记录的偏差）。
+- **注册/登录**：注册两步（账号 → 学习信息）→ bcrypt（`AUTH_BCRYPT_ROUNDS`）落 `accounts.json` → 登录签发 JWT。限流双轨：按 IP 固定窗口 + 每账号失败 10 次/5 分钟；客户端 IP 只取 uvicorn 按可信代理解析后的 peer，应用层不解析 `X-Forwarded-For`。企业模式（`DATABASE_URL` 已配置）下注册/登录为双写影子：文件层先行（旧消费方事实源，保住既有语义），成功后同步写 PostgreSQL（users/credentials/personal tenant/membership）并签发轮换会话族；这些 PG 注册写入目前是独立事务，部分失败为 loud 错误，需迁移 importer 愈合，尚非跨表原子注册。profile 类字段窗口期仍单写文件层（ADR-0011 记录的偏差），企业身份读取按已校验的 user id 覆盖本人文件 profile，保证资料、偏好和私有头像更新在下一次请求仍可见；数据库独有账户才回落 PG profile。覆盖仅限 profile，认证角色、凭据和 token_version 仍取 PostgreSQL。全领域 cutover、组织租户业务隔离和多 API 实例验收尚未完成。
 - **refresh 轮换（企业模式）**：每次 `POST /auth/refresh` 用条件 UPDATE 抢占旧 token（`WHERE rotated_at IS NULL`，跨实例原子）；同一 token 并发呈现恰一胜一败，败方按盗窃处理——撤销整个会话族并写 `auth.refresh_reuse` 审计；胜方新发的 refresh 属被撤族，随后刷新得到 `session_revoked`。
 - **身份解析（每请求）**：`require_api_access` 总守卫 → 有效 JWT 解出账号（`user_id == student_id`，自动获得独立 `students/<id>.*` 命名空间）；无 JWT 时须游客策略开启且带有效 `X-Guest-Token`，解析为独立 `guest_<uuid>`；无效/过期 JWT 返回 401，禁止降级游客。WebSocket（语音）在 accept 前验证登录票据。
 - **管理员引导**：启动 lifespan 读 `ADMIN_EMAIL`/`ADMIN_PASSWORD`——不存在则创建；已存在则仅当密码通过该账号 bcrypt 校验才提升（防开放注册下抢注提权）。
@@ -133,6 +133,7 @@ M0 回答三个问题：用户是谁、数据属于谁、如何安全访问；�
 - `test_session_isolation.py`（会话归属隔离）
 - `test_admin_public.py`（`public` 命名空间管理员写边界）
 - `test_enterprise_auth.py`（企业模式注册/登录双写、token 双轨、refresh 轮换/复用撤族、会话列表与撤销、文件模式 409）
+- `test_shadow_profile.py`（影子迁移期文件 profile 读取、资料/偏好/头像跨请求持久可见、PG 认证事实不被文件副本覆盖）
 - `tests/persistence/*`（repository/模型/迁移/对象存储/缓存原语；`tests/persistence/integration.py` 为真 PostgreSQL/Redis 集成车道，CI `backend-enterprise` job 执行）
 
 ## Related ADRs

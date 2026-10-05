@@ -1,0 +1,12 @@
+appId: com.nexttutor.agent
+name: Read workspace-scoped evidence and explainable insight
+tags: [smoke, insights]
+---
+- runFlow: ../common/login.yaml
+- openLink: nexttutor:///me/insights?ws=${MAESTRO_MOBILE_E2E_WORKSPACE_ID}
+- assertVisible: "学习洞察|Learning insights"
+- assertVisible: "理解，从证据中浮现|Understanding, through evidence"
+- tapOn: "证据时间线|Evidence"
+- tapOn: ${MAESTRO_MOBILE_E2E_EVIDENCE_SUMMARY}
+- assertVisible: "这条学习证据|This learning evidence"
+- assertVisible: "请求重新评估|Request a review"

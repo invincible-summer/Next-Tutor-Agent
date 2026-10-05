@@ -73,7 +73,7 @@ SSE 为前端直连后端的流式通道（`POST /chat/stream`、`POST /quiz/gra
 
 ## State & storage（状态与存储布局，含 runtime data 路径）
 
-**全部账号/运行数据位于单一数据根 `NEXT_TUTOR_DATA_DIR` 之下**（默认 `.runtime/data`，`core/paths.py` 唯一所有权；ADR-0002），由 `bind_storage_path` 绑定；JSON 文件持久层遵守 single-worker 不变量（ADR-0004，文件模式范围内）。配置 `DATABASE_URL` 后身份/会话进入 PostgreSQL 企业模式（ADR-0010）。标注"非数据根"的两行例外是部署本地资源。
+**全部账号/运行数据位于单一数据根 `NEXT_TUTOR_DATA_DIR` 之下**（默认 `.runtime/data`，`core/paths.py` 唯一所有权；ADR-0002），由 `bind_storage_path` 绑定；JSON 写临界区由 `core.atomic.file_lock` 的线程可重入锁和 OS advisory lock 协调（同数据根、同 canonical key、共享文件系统必须支持锁）；业务缓存仍在进程内，因此 JSON 文件持久层遵守 single-worker 不变量（ADR-0004，文件模式范围内）。配置 `DATABASE_URL` 后身份/会话进入 PostgreSQL 企业模式（ADR-0010）。标注"非数据根"的两行例外是部署本地资源。
 
 | 路径（数据根相对） | 内容 | 隔离粒度 |
 |------|------|---------|
@@ -142,7 +142,7 @@ SSE 为前端直连后端的流式通道（`POST /chat/stream`、`POST /quiz/gra
 
 - 外部：LLM（必配，OpenAI 兼容）、Embedding/本地向量模型（可选）、多模态视觉 API（可选，回退 tesseract）、Chroma（可选向量轨；BM25 基线零依赖，ADR-0003）。
 - 被依赖：前端（唯一后端）；OpenAI 兼容门面供第三方平台挂载。
-- 进程形态：文件模式 FastAPI 单 worker（JSON 持久层前提，ADR-0004），后台任务由 API lifespan/`create_task` 持有；企业模式（`DATABASE_URL`）多 worker 放行（ADR-0010，`WEB_CONCURRENCY>1` 时文件模式启动 fail-fast）；`TEMPORAL_ADDRESS` 已设时后台任务所有权移交 durable worker 进程（ADR-0013，API lifespan 不再启动对应 in-process worker）——五个队列（documents/classroom/evaluation/media/maintenance）已全部迁移：维护定时（briefing/trash/draft）由 worker 启动幂等注册的 Temporal Schedule 驱动，账号删除走 `account.purge` workflow（状态表见 ADR-0013）；语音 sidecar 独立进程由 start.sh 托管；教材图谱构建在文件模式为进程内 asyncio 后台任务（启动 lifespan reaper 将残留 `building` 置 `graph_failed`），durable 模式由 workflow 持有。
+- 进程形态：文件模式 FastAPI 单 worker（JSON 持久层前提，ADR-0004），后台任务由 API lifespan/`create_task` 持有；配置 `DATABASE_URL` 后仍须单 API 实例、单 worker，`WEB_CONCURRENCY` 不等于 `1` 时启动 fail-fast（ADR-0014；身份数据库不是全业务 cutover）；`TEMPORAL_ADDRESS` 已设时后台任务所有权移交 durable worker 进程（ADR-0013，API lifespan 不再启动对应 in-process worker）——五个队列（documents/classroom/evaluation/media/maintenance）已全部迁移：维护定时（briefing/trash/draft）由 worker 启动幂等注册的 Temporal Schedule 驱动，账号删除走 `account.purge` workflow（状态表见 ADR-0013）；语音 sidecar 独立进程由 start.sh 托管；教材图谱构建在文件模式为进程内 asyncio 后台任务（启动 lifespan reaper 将残留 `building` 置 `graph_failed`），durable 模式由 workflow 持有。
 - 改 agent 管线代码后必须重启 uvicorn（无热重载假设）。
 
 ## Invariants / security boundaries（不变量与安全边界）
@@ -227,7 +227,7 @@ GitHub Pages 静态演示（`NEXT_PUBLIC_DEMO_MODE=1` 只读导出形态）见 [
 - ADR-0001 source-only 仓库（不携带教材/派生数据资产）
 - ADR-0002 运行数据统一 `NEXT_TUTOR_DATA_DIR`
 - ADR-0003 BM25 基线 + 向量可选
-- ADR-0004 JSON 持久层 single-worker 不变量（文件模式范围；多 worker 禁令被 ADR-0010 取代）
+- ADR-0004 JSON 持久层 single-worker 不变量；ADR-0014 规定业务文件事实源未完成 cutover 时，数据库接入也不能解除此限制
 - ADR-0005 Pages demo 仅 synthetic fixtures
 - [ADR-0010](../adr/0010-enterprise-persistence.md) 企业持久化栈（PostgreSQL/Object/Redis）
 - [ADR-0011](../adr/0011-tenant-rotating-sessions.md) 租户模型与轮换认证会话

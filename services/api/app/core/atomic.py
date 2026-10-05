@@ -1,38 +1,75 @@
-"""原子写 + 进程内文件锁（持久化加固）。
+"""Atomic writes and reentrant advisory coordination for file-backed domains.
 
-全库 JSON 持久化此前的两个弱点：
-  - `path.write_text(...)` 直接覆盖：崩溃/断电会留下半截 JSON，下次 load
-    只能按「损坏即空」降级，等于丢状态。
-  - load-modify-write 无并发保护：asyncio 线程池里两个并发请求可能交错
-    读-改-写互相覆盖，JSONL append 也可能交错出半行。
-
-这里提供两个最小原语（不引新依赖，uvicorn 单进程足够）：
-  - atomic_write_text: 同目录唯一命名 tmp 文件 + flush + os.fsync +
-    os.replace + fsync 目录。tmp 唯一命名保证即使两个调用方并发写同一
-    目标（上层锁缺失/失效时）也不会交叉写同一个 tmp 损坏内容。
-  - file_lock: 按路径字符串分键的 threading.RLock（RLock 允许同线程
-    重入，避免外层锁内调用内层加锁函数时自锁）。锁对象以弱引用登记：
-    没有等待者/持有者时条目自动回收，长寿命进程不再无界增长。
+Writes use a unique same-directory temporary file, fsync and atomic replace.
+Critical sections use a canonical-key thread mutex plus an OS file lock;
+only the outermost reentrant entry opens/locks a descriptor. Coordination
+files live under the runtime data root, contain no user data, and must not
+be removed while any process is running. Process-local caches still need
+explicit invalidation; this primitive is not a database migration.
 """
 from __future__ import annotations
 
 import os
+import hashlib
 import threading
 import uuid
 import weakref
 from contextlib import contextmanager
 from pathlib import Path
+
+from app.core.paths import bind_storage_path
 from typing import Iterator, Union
 
 PathLike = Union[str, Path]
 
-# WeakValueDictionary：file_lock 在临界区内始终持局部强引用，条目在
-# 最后一个使用者退出后自动消失。并发安全性：任意线程从 get 到 acquire
-# 之间都持着同一对象的强引用，字典条目不会在使用中途消失，也不会出现
-# 两个线程各拿一把"同路径不同对象"的锁。
-_locks: "weakref.WeakValueDictionary[str, threading.RLock]" = (
-    weakref.WeakValueDictionary())
+# Global opaque coordination metadata; no account data and no per-user root.
+# Never unlink a live lock inode: replacement would split the lock between writers.
+_LOCK_DIR = bind_storage_path(__name__, "_LOCK_DIR", "root", "coordination/locks")
+
+
+class _FileMutex:
+    def __init__(self) -> None:
+        self.thread_lock = threading.RLock()
+        self.depth = 0
+        self.fd: int | None = None
+
+
+_locks: weakref.WeakValueDictionary[str, _FileMutex] = weakref.WeakValueDictionary()
 _locks_guard = threading.Lock()
+
+
+def _lock_descriptor(fd: int, blocking: bool) -> None:
+    if os.name == "nt":
+        import msvcrt
+        os.lseek(fd, 0, os.SEEK_SET)
+        msvcrt.locking(fd, msvcrt.LK_LOCK if blocking else msvcrt.LK_NBLCK, 1)
+    else:
+        import fcntl
+        fcntl.flock(fd, fcntl.LOCK_EX | (0 if blocking else fcntl.LOCK_NB))
+
+
+def _unlock_descriptor(fd: int) -> None:
+    if os.name == "nt":
+        import msvcrt
+        os.lseek(fd, 0, os.SEEK_SET)
+        msvcrt.locking(fd, msvcrt.LK_UNLCK, 1)
+    else:
+        import fcntl
+        fcntl.flock(fd, fcntl.LOCK_UN)
+
+
+def _after_fork() -> None:
+    global _locks_guard
+    for inherited in list(_locks.values()):
+        if inherited.fd is not None:
+            os.close(inherited.fd)  # Close only; unlocking would release the parent's lock.
+            inherited.fd = None
+    _locks.clear()
+    _locks_guard = threading.Lock()
+
+
+if hasattr(os, "register_at_fork"):
+    os.register_at_fork(after_in_child=_after_fork)
 
 
 def _tmp_path(path: Path) -> Path:
@@ -77,16 +114,48 @@ def atomic_write_bytes(path: PathLike, data: bytes) -> None:
 
 
 @contextmanager
-def file_lock(key: PathLike) -> Iterator[None]:
-    """按路径字符串分键的进程内锁，保护 load-modify-write / append 临界区。"""
-    k = str(key)
+def file_lock(key: PathLike, *, blocking: bool = True) -> Iterator[None]:
+    """Serialize a critical section across threads/processes on one shared filesystem.
+
+    Nesting in one thread reuses the outer descriptor. OS locks are advisory:
+    all writers must use the same key, and their shared filesystem must support
+    locking. This primitive does not make process-local business caches shared.
+    """
+    k = os.path.normcase(str(Path(key).expanduser().resolve()))
     with _locks_guard:
         lock = _locks.get(k)
         if lock is None:
-            lock = threading.RLock()
+            lock = _FileMutex()
             _locks[k] = lock
-    with lock:
-        yield
+    acquired = lock.thread_lock.acquire(blocking=blocking)
+    if not acquired:
+        raise BlockingIOError("coordination lock already held")
+    try:
+        if lock.depth == 0:
+            _LOCK_DIR.mkdir(parents=True, exist_ok=True)
+            target = _LOCK_DIR / (hashlib.sha256(k.encode("utf-8")).hexdigest() + ".lock")
+            fd = os.open(target, os.O_RDWR | os.O_CREAT, 0o600)
+            try:
+                if os.name == "nt" and os.fstat(fd).st_size == 0:
+                    os.write(fd, b"0")
+                _lock_descriptor(fd, blocking)
+            except BaseException:
+                os.close(fd)
+                raise
+            lock.fd = fd
+        lock.depth += 1
+        try:
+            yield
+        finally:
+            lock.depth -= 1
+            if lock.depth == 0 and lock.fd is not None:
+                fd, lock.fd = lock.fd, None
+                try:
+                    _unlock_descriptor(fd)
+                finally:
+                    os.close(fd)
+    finally:
+        lock.thread_lock.release()
 
 
 def fsync_dir(path: PathLike) -> None:

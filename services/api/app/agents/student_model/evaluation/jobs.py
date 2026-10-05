@@ -45,6 +45,7 @@ class ClaimedJob:
     job: S.EvaluationJob
     lease_token: str
     lease_expires_at: str
+    generation: str = ""
 
 
 def job_deadline(job: S.EvaluationJob) -> datetime:
@@ -129,28 +130,29 @@ class JobScheduler:
     def claim_next(self, student_id: str, *, workspace_id: str = "",
                    lease_seconds: int | None = None) -> ClaimedJob | None:
         journal = get_journal(student_id)
-        state = journal.state()
-        now = _now()
-        candidates = [rt for rt in state.jobs.values()
-                      if _claimable(rt, now)
-                      and (not workspace_id
-                           or rt.job.workspace_id == workspace_id)]
-        if not candidates:
-            return None
-        candidates.sort(key=lambda rt: (rt.job.priority, rt.job.created_at,
-                                        rt.job.job_id))
-        return self._lease(student_id, candidates[0], now, lease_seconds)
+        with journal.transaction() as state:
+            now = _now()
+            candidates = [rt for rt in state.jobs.values()
+                          if _claimable(rt, now)
+                          and (not workspace_id
+                               or rt.job.workspace_id == workspace_id)]
+            if not candidates:
+                return None
+            candidates.sort(key=lambda rt: (rt.job.priority, rt.job.created_at,
+                                            rt.job.job_id))
+            return self._lease(student_id, candidates[0], now, lease_seconds)
 
     def claim_job(self, student_id: str, job_id: str, *,
                   lease_seconds: int | None = None) -> ClaimedJob | None:
         """按 ID 认领特定作业（R06：复核按本 job 绑定的 review 执行；
         inline 测试辅助也只认领指定类型的目标作业）。"""
         journal = get_journal(student_id)
-        state = journal.state()
-        rt = state.jobs.get(job_id)
-        if rt is None or not _claimable(rt, _now()):
-            return None
-        return self._lease(student_id, rt, _now(), lease_seconds)
+        with journal.transaction() as state:
+            rt = state.jobs.get(job_id)
+            now = _now()
+            if rt is None or not _claimable(rt, now):
+                return None
+            return self._lease(student_id, rt, now, lease_seconds)
 
     def _lease(self, student_id: str, rt, now: datetime,
                lease_seconds: int | None) -> ClaimedJob:
@@ -167,57 +169,71 @@ class JobScheduler:
         job.lease_expires_at = expires
         job.attempt_count += 1
         return ClaimedJob(job=job, lease_token=token,
-                          lease_expires_at=expires)
+                          lease_expires_at=expires,
+                          generation=journal.state().generation)
 
     # -- transitions ----------------------------------------------------
     def fail(self, student_id: str, job_id: str, *, error_code: str,
              retryable: bool, transport_attempts: int = 1,
-             retry_after_seconds: int = 30) -> S.JobState:
+             retry_after_seconds: int = 30,
+             lease_token: str | None = None) -> S.JobState:
         journal = get_journal(student_id)
-        rt = journal.state().jobs.get(job_id)
-        attempts = (rt.job.attempt_count if rt else 0) or 1
-        now = _now()
-        # R17：wall-clock 预算耗尽 → 即使仍可重试也落终态（UI 不再
-        # 长期 pending，重试不无限延长/反复计费）
-        deadline = _parse(rt.job.wall_deadline_at) if rt else None
-        if deadline is not None and now >= deadline:
-            retryable = False
-        journal.append([S.OpJobFailed(
-            job_id=job_id, error_code=error_code, retryable=retryable,
-            attempt_count=attempts, transport_attempts=transport_attempts,
-            retry_after_seconds=retry_after_seconds,
-            # R17：绝对重试时刻在本事务冻结（重启/重放不改）
-            retry_not_before=_iso(now + timedelta(
-                seconds=max(0, retry_after_seconds))))])
-        new_state = journal.state().jobs.get(job_id)
-        return new_state.job.state if new_state else S.JobState.FAILED
+        with journal.transaction() as state:
+            rt = state.jobs.get(job_id)
+            if rt is None:
+                return S.JobState.FAILED
+            # Executor failures must not overwrite a newer lease/terminal
+            # result. Tokenless callers retain the administrative API.
+            if lease_token is not None and not self.lease_valid(
+                    student_id, job_id, lease_token):
+                return rt.job.state
+            if rt.job.state in (S.JobState.SUCCEEDED, S.JobState.ABSTAINED,
+                                S.JobState.CANCELLED, S.JobState.FAILED):
+                return rt.job.state
+            attempts = rt.job.attempt_count or 1
+            now = _now()
+            # R17：wall-clock 预算耗尽 → 不无限延长/反复计费
+            deadline = _parse(rt.job.wall_deadline_at)
+            if deadline is not None and now >= deadline:
+                retryable = False
+            journal.append([S.OpJobFailed(
+                job_id=job_id, error_code=error_code, retryable=retryable,
+                attempt_count=attempts, transport_attempts=transport_attempts,
+                retry_after_seconds=retry_after_seconds,
+                retry_not_before=_iso(now + timedelta(
+                    seconds=max(0, retry_after_seconds))))])
+            return state.jobs[job_id].job.state
 
     def cancel(self, student_id: str, job_id: str, *,
-               reason: str = "") -> bool:
+               reason: str = "", lease_token: str | None = None) -> bool:
         journal = get_journal(student_id)
-        rt = journal.state().jobs.get(job_id)
-        if rt is None:
-            return False
-        if rt.job.state in (S.JobState.SUCCEEDED, S.JobState.ABSTAINED,
-                            S.JobState.CANCELLED):
-            return False
-        journal.append([S.OpJobCancelled(job_id=job_id, reason=reason)])
-        return True
+        with journal.transaction() as state:
+            rt = state.jobs.get(job_id)
+            if rt is None:
+                return False
+            if lease_token is not None and not self.lease_valid(
+                    student_id, job_id, lease_token):
+                return False
+            if rt.job.state in (S.JobState.SUCCEEDED, S.JobState.ABSTAINED,
+                                S.JobState.CANCELLED):
+                return False
+            journal.append([S.OpJobCancelled(job_id=job_id, reason=reason)])
+            return True
 
     def cancel_scope_jobs(self, student_id: str, workspace_id: str, *,
                           reason: str) -> list[str]:
         """删除工作区/取消选卷：取消该 scope 未完成作业（§5.3）。"""
         journal = get_journal(student_id)
-        cancelled: list[str] = []
-        for rt in list(journal.state().jobs.values()):
-            if rt.job.workspace_id != workspace_id:
-                continue
-            if rt.job.state in (S.JobState.SUCCEEDED, S.JobState.ABSTAINED,
-                                S.JobState.CANCELLED, S.JobState.FAILED):
-                continue
-            if self.cancel(student_id, rt.job.job_id, reason=reason):
-                cancelled.append(rt.job.job_id)
-        return cancelled
+        with journal.transaction() as state:
+            cancelled = [rt.job.job_id for rt in state.jobs.values()
+                         if rt.job.workspace_id == workspace_id
+                         and rt.job.state not in (
+                             S.JobState.SUCCEEDED, S.JobState.ABSTAINED,
+                             S.JobState.CANCELLED, S.JobState.FAILED)]
+            if cancelled:
+                journal.append([S.OpJobCancelled(job_id=jid, reason=reason)
+                                for jid in cancelled])
+            return cancelled
 
     def lease_valid(self, student_id: str, job_id: str,
                     lease_token: str) -> bool:

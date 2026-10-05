@@ -1,6 +1,7 @@
 # ADR-0010: 企业持久化栈（PostgreSQL / Object Storage / Redis）
 
 - 状态：accepted
+- 多 worker 放行条件被 [ADR-0014](./0014-single-instance-until-domain-cutover.md) 取代；其余决定保留。
 - 日期：2026-10
 - 取代：ADR-0004 的「多 worker 不受支持」结论（文件模式部分仍然有效，见下）
 

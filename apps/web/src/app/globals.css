@@ -246,6 +246,7 @@ input:focus, textarea:focus, select:focus {
 .panel-erase { animation: panel-erase 0.45s ease-in both; }
 
 @media (prefers-reduced-motion: reduce) {
+  .page-in, .skeleton { animation: none; }
   .hero-title-char, .hero-gradient-text { animation: none; }
   .marquee-track { animation: none; }
   .drift-a, .drift-b { animation: none; }

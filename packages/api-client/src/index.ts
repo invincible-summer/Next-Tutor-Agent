@@ -19,10 +19,13 @@ export type {
   AuthResponse,
   AuthStatusResponse,
   AuthUserLike,
+  AuthSession,
+  Principal,
+  RefreshResponse,
   LoginPayload,
   RegisterPayload,
 } from "./auth.ts";
-export type { ChatClient, ChatStreamRequest } from "./chat.ts";
+export type { ChatClient, ChatStreamRequest, ChatUploadOptions } from "./chat.ts";
 export type { CreateWorkspaceResponse, WorkspaceClient, WorkspacePatch } from "./workspace.ts";
 export type { GuestClient, GuestSession, GuestTextbookItem } from "./guest.ts";
 export type { IllustrationCallOptions, IllustrationClient, QuizIllustrationView } from "./illustration.ts";
@@ -113,6 +116,72 @@ export type {
   VaultSnapshot,
 } from "./notes.ts";
 export { VAULT_AGENT_KEY } from "./notes.ts";
+export type { ProfileClient, ProfilePatch, ProfilePrefs, ProfileResponse, UserProfile } from "./profile.ts";
+export type {
+  ModelInfo,
+  RecentQuizQuestion,
+  RecentQuizQuestionsResponse,
+  TeachingLogConcept,
+  TeachingLogEntry,
+  TeachingLogResponse,
+  UxActivity,
+  UxActivityDay,
+  UxClient,
+  UxGreeting,
+  UxGreetingOptions,
+  UxInteractionStyle,
+  UxMotivation,
+  UxProfileSummary,
+} from "./ux.ts";
+export type {
+  ConceptEvaluationView,
+  ContextBudgetReport,
+  EvalConceptRef,
+  EvalConceptsResponse,
+  EvalEvidenceDetail,
+  EvalGuidanceEntry,
+  EvalJobDetail,
+  EvalProposal,
+  EvalProposalStatus,
+  EvalReport,
+  EvalReviewPayload,
+  EvalScopeSynthesis,
+  EvaluationClient,
+  EvalWorkspacesResponse,
+  WorkspaceEvaluationListItem,
+  WorkspaceEvaluationSummary,
+} from "./evaluation.ts";
+export type {
+  MemoryClient,
+  MemoryEpisode,
+  MemoryEpisodesResponse,
+  MemoryProceduralResponse,
+  MemorySemanticResponse,
+  MemoryStatus,
+  ProceduralStrategy,
+  PromptMemoryProfile,
+  PromptMemorySession,
+  PromptMemorySessionStatus,
+  SemanticFact,
+} from "./memory.ts";
+export type {
+  ArchiveClient,
+  TrashEmptyResult,
+  TrashItem,
+  TrashListResponse,
+  TrashPolicy,
+  TrashPurgeResult,
+  TrashResourceType,
+  TrashRestoreResult,
+} from "./archive.ts";
+export type {
+  AssistantClient,
+  AssistantNotification,
+  AssistantPreferencesPayload,
+  AssistantSubscription,
+  SiteSearchItem,
+  SiteSearchResponse,
+} from "./assistant.ts";
 export type {
   SpeechCapabilities,
   SynthesisAudio,

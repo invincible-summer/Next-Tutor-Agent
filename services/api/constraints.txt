@@ -81,12 +81,12 @@ propcache==0.5.2
 protobuf==7.35.1
 pybase64==1.4.3
 pycparser==3.0
-pydantic==2.13.4
+pydantic==2.13.5
 pydantic-settings==2.14.2
-pydantic_core==2.46.4
+pydantic_core==2.46.5
 Pygments==2.20.0
-PyJWT==2.13.0
-pymupdf==1.28.0
+PyJWT==2.15.1
+pymupdf==1.28.2
 PyPika==0.51.1
 pyproject_hooks==1.2.0
 pytesseract==0.3.13

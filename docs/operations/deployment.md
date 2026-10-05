@@ -12,10 +12,10 @@
 
 - Python 3.11（`services/api/requirements.txt` + `services/api/constraints.txt`）；BM25 基础环境**不安装**可选向量/本地模型 requirements（见 [ADR-0003](../adr/0003-bm25-baseline.md)、[semantic-rag.md](./semantic-rag.md)）。
 - Node.js 22 + pnpm（版本由根 `package.json` 的 `packageManager` 固定；依赖从仓库根 `pnpm install --frozen-lockfile` 安装，唯一 lockfile 在根目录）。
-- 后端 worker 策略：JSON 文件持久层模式下固定**单 uvicorn worker**（`--workers 1`，[ADR-0004](../adr/0004-single-worker-persistence.md)）；配置 `DATABASE_URL`（企业持久化模式）后多 worker 放行，一致性由 PostgreSQL 与共享缓存层承担（[ADR-0010](../adr/0010-enterprise-persistence.md)）。
+- 后端 worker 策略：JSON 文件持久层模式下固定**单 uvicorn worker**（`--workers 1`，[ADR-0004](../adr/0004-single-worker-persistence.md)）；配置 `DATABASE_URL` 后身份/会话进入数据库，但学习领域仍以文件为事实源；仍须单 API 实例、单 worker（[ADR-0014](../adr/0014-single-instance-until-domain-cutover.md)）。
 - 课堂模式 renderer（可选能力）：需要 Node + Playwright Chromium，以服务账号运行、禁止 `--no-sandbox`；部署期在仓库根执行 `pnpm install --frozen-lockfile && pnpm --filter @next-tutor/web run build:classroom` 生成 `services/api/app/classroom/static/generated/`。缺失时课堂能力端点显式 `renderer_unavailable`，普通聊天不受影响。
 - 语音 sidecar（可选）：`deploy/self-hosted/install_voice.sh` 安装 MeloTTS 栈（独立 venv + CPU torch + 模型预热），模型缓存 gitignored，不入库（见 [../compliance/voice-licenses.md](../compliance/voice-licenses.md)）。
-- 企业持久化（可选形态）：配置 `DATABASE_URL`（PostgreSQL）+ 可选 `REDIS_URL` 后，身份/会话进入企业模式、多 worker 放行（[ADR-0010](../adr/0010-enterprise-persistence.md)）；本地基础设施 compose 在 `deploy/local/`，schema 迁移、存量数据迁移与变量清单见 [../development/enterprise-infra.md](../development/enterprise-infra.md)。
+- 企业持久化（可选形态）：配置 `DATABASE_URL`（PostgreSQL）+ 可选 `REDIS_URL` 后，身份/会话进入数据库，API 仍须单实例单 worker（[ADR-0014](../adr/0014-single-instance-until-domain-cutover.md)）；本地基础设施 compose 在 `deploy/local/`，schema 迁移、存量数据迁移与变量清单见 [../development/enterprise-infra.md](../development/enterprise-infra.md)。
 
 ## 运行数据
 

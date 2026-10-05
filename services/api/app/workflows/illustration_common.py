@@ -25,8 +25,9 @@ from dataclasses import dataclass
 from datetime import timedelta
 
 from temporalio import activity
-from temporalio.client import Client
+from temporalio.client import Client, WorkflowExecutionStatus
 from temporalio.common import RetryPolicy
+from temporalio.service import RPCError, RPCStatusCode
 
 from app.workflows.runtime import (
     TASK_QUEUE_MEDIA,
@@ -179,8 +180,12 @@ ILLUSTRATION_SCENARIO_ACTIVITIES = (
 # ---------------------------------------------------------------------------
 
 async def workflow_alive(workflow_id: str,
-                         client: Client | None = None) -> bool:
-    """workflow 是否仍在运行（describe 防御式读取；异常按不存活处理）。"""
+                         client: Client | None = None) -> bool | None:
+    """Return running / terminal-or-missing / temporarily unknown.
+
+    A failed describe is not evidence that the workflow disappeared. Only
+    a confirmed terminal state or NOT_FOUND permits interrupted settlement.
+    """
     try:
         connected = client or await get_client()
         description = await connected.get_workflow_handle(
@@ -189,10 +194,22 @@ async def workflow_alive(workflow_id: str,
         if status is None:
             status = getattr(
                 getattr(description, "raw_info", None), "status", None)
-        name = getattr(status, "name", "") or str(status)
-        return name == "RUNNING" or status == 1
-    except Exception:
-        return False
+        if status == WorkflowExecutionStatus.RUNNING:
+            return True
+        if status in set(WorkflowExecutionStatus) - {
+                WorkflowExecutionStatus.RUNNING}:
+            return False
+        return None
+    except RPCError as exc:
+        if exc.status == RPCStatusCode.NOT_FOUND:
+            return False
+        log.warning("Temporal describe unavailable; recovery deferred (%s)",
+                    exc.status.name)
+        return None
+    except Exception as exc:
+        log.warning("Temporal describe unavailable; recovery deferred (%s)",
+                    type(exc).__name__)
+        return None
 
 
 def cancel_owner_workflows(owner: str, *, quiz_ids=(), scenario_ids=()) -> None:

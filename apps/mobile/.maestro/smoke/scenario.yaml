@@ -1,0 +1,23 @@
+appId: com.nexttutor.agent
+name: Generate a V3 synthetic SVG with server-owned progress
+tags: [smoke, illustration]
+---
+- runFlow: ../common/login.yaml
+- openLink: nexttutor:///library/tools/illustration
+- assertVisible: "情景配图|Scenario illustration"
+- tapOn: "V3.*"
+- tapOn: "配图描述|Illustration description"
+- inputText: "Draw five synthetic counters, grouped as two and three."
+- hideKeyboard
+- tapOn:
+    id: illustration-send
+- extendedWaitUntil:
+    visible: "导出 SVG|Export SVG"
+    timeout: 120000
+- assertVisible: "以此版本继续修改|Continue from this version"
+- stopApp
+- launchApp:
+    clearState: false
+- openLink: nexttutor:///library/tools/illustration
+- tapOn: "会话|Sessions"
+- assertVisible: ${MAESTRO_MOBILE_E2E_SCENARIO_TITLE}

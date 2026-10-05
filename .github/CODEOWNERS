@@ -1,4 +1,4 @@
-# CODEOWNERS: review routing for long-lived boundaries (plan §21.2).
+# CODEOWNERS: review routing for long-lived boundaries.
 # Keep teams/roles as placeholders until org teams exist; default owner is
 # the repository maintainer.
 
@@ -28,3 +28,10 @@
 
 # Deployment templates
 /deploy/             @invincible-summer
+
+# Native platform and distribution notices
+/apps/mobile/        @invincible-summer
+/scripts/mobile/     @invincible-summer
+/scripts/compliance/ @invincible-summer
+/licenses/           @invincible-summer
+/THIRD-PARTY-NOTICES.md @invincible-summer

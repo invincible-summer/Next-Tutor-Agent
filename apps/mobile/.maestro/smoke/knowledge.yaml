@@ -1,0 +1,15 @@
+appId: com.nexttutor.agent
+name: Search a concept with an accessible list alternative
+tags: [smoke, knowledge]
+---
+- runFlow: ../common/login.yaml
+- openLink: nexttutor:///library/knowledge
+- assertVisible: "知识之间的连接|Connections in knowledge"
+- tapOn: "知识列表|Concept list"
+- tapOn: "搜索知识点|Search concepts"
+- inputText: ${MAESTRO_MOBILE_E2E_CONCEPT_NAME}
+- hideKeyboard
+- tapOn: ${MAESTRO_MOBILE_E2E_CONCEPT_NAME}
+- assertVisible: "请老师讲讲|Talk it through"
+- tapOn: "请老师讲讲|Talk it through"
+- assertVisible: "向老师提问，或描述你想学的内容…|Ask the tutor anything…"

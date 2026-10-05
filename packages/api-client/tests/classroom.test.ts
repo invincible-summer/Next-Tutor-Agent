@@ -25,6 +25,15 @@ function client(steps: Parameters<typeof scriptedFetch>[0]) {
 const WS = "ws_1";
 const LESSON = "les_000000000000000000000001";
 
+test("ensureQaSession uses the stable draft key to recover the same server chat", async () => {
+  const { api, calls } = client([jsonResponse(200, { session_id: "qa_1" })]);
+  assert.deepEqual(await api.classroom.ensureQaSession(WS, LESSON, "run_1", "draft-qa-01"), { session_id: "qa_1" });
+  assert.equal(calls[0]!.url, `${BASE}/workspaces/${WS}/classroom/lessons/${LESSON}/runs/run_1/qa-session`);
+  assert.equal(calls[0]!.init.method, "POST");
+  assert.equal(calls[0]!.init.headers?.["Idempotency-Key"], "draft-qa-01");
+  assert.deepEqual(JSON.parse(calls[0]!.init.body as string), {});
+});
+
 test("createLesson posts with the Idempotency-Key header and accepts 202", async () => {
   const { api, calls } = client([
     jsonResponse(202, { lesson_id: LESSON, job_id: "job_1", target_revision: 1, status_url: "/x", events_url: "/y" }),

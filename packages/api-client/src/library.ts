@@ -145,7 +145,7 @@ export interface TextbookClient {
   graphPolicy(textbookId: string, signal?: AbortSignalLike | null): Promise<{ textbook_id: string; scope?: string; graph_policy: TextbookGraphPolicy; volumes?: unknown[] }>;
   setGraphPolicy(textbookId: string, policy: TextbookGraphPolicy): Promise<{ status: string; textbook_id: string; graph_policy: TextbookGraphPolicy; mode?: string }>;
   /** POST /textbooks/upload — caller appends `files` parts; scalar fields injected here. */
-  upload(form: FormDataLike, fields?: TextbookUploadFields): Promise<{ results: TextbookUploadOutcome[] }>;
+  upload(form: FormDataLike, fields?: TextbookUploadFields, signal?: AbortSignalLike | null): Promise<{ results: TextbookUploadOutcome[] }>;
   /** GET /textbooks/{id}/download — original file bytes. */
   download(textbookId: string, signal?: AbortSignalLike | null): Promise<ArrayBuffer>;
   /** GET /textbooks/{group}/volumes/{file}/download — volume original bytes. */
@@ -159,7 +159,7 @@ export interface LibraryClient {
   /** 404 unless empty; workspace-owned folders are renamed via the workspace. */
   deleteFolder(folderId: string): Promise<{ status: string; folder_id: string; trash_item?: unknown }>;
   /** POST /library/upload?folder_id= — caller appends `files` parts. */
-  upload(form: FormDataLike, folderId?: string): Promise<{ results: LibraryUploadOutcome[] }>;
+  upload(form: FormDataLike, folderId?: string, signal?: AbortSignalLike | null): Promise<{ results: LibraryUploadOutcome[] }>;
   renameFile(fileId: string, filename: string): Promise<{ file: LibraryFile }>;
   moveFile(fileId: string, folderId?: string): Promise<{ status: string; file_id: string; folder_id: string }>;
   deleteFile(fileId: string): Promise<{ status: string; file_id: string; trash_item?: unknown }>;
@@ -191,12 +191,13 @@ export function createLibraryClient(transport: Transport): LibraryClient {
           { method: "DELETE" },
         )
         .then((result) => result.body),
-    upload: (form, folderId = "") =>
+    upload: (form, folderId = "", signal) =>
       transport
         .request<{ results: LibraryUploadOutcome[] }>("/library/upload", {
           method: "POST",
           body: form,
           query: { folder_id: folderId },
+          signal,
         })
         .then((result) => result.body),
     renameFile: (fileId, filename) =>
@@ -326,7 +327,7 @@ export function createLibraryClient(transport: Transport): LibraryClient {
             { method: "PUT", json: policy },
           )
           .then((result) => result.body),
-      upload: (form, fields = {}) => {
+      upload: (form, fields = {}, signal) => {
         const wire: Array<[string, string]> = [
           ["level", fields.level ?? "其他"],
           ["scope", fields.scope ?? "private"],
@@ -349,6 +350,7 @@ export function createLibraryClient(transport: Transport): LibraryClient {
           .request<{ results: TextbookUploadOutcome[] }>("/textbooks/upload", {
             method: "POST",
             body: form,
+            signal,
           })
           .then((result) => result.body);
       },

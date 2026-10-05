@@ -32,7 +32,14 @@ export interface AuthStatusResponse {
 export interface AuthResponse<TUser = AuthUserLike> {
   token: string;
   user: TUser;
+  access_token?: string;
+  refresh_token?: string;
+  expires_in?: number;
 }
+
+export interface RefreshResponse { access_token: string; refresh_token: string; expires_in: number }
+export interface Principal { user_id: string; tenant_id: string; membership_id: string; tenant_role: string; platform_role: string; auth_session_id: string }
+export interface AuthSession { id: string; created_at: string; expires_at: string; last_refreshed_at?: string | null; revoked_at?: string | null; revoked_reason?: string | null; client: Record<string, unknown> }
 
 export interface RegisterPayload {
   email: string;
@@ -55,6 +62,10 @@ export interface AuthClient {
   login<TUser = AuthUserLike>(payload: LoginPayload): Promise<AuthResponse<TUser>>;
   logout(): Promise<void>;
   me<TUser = AuthUserLike>(): Promise<{ user: TUser }>;
+  refresh(refreshToken: string): Promise<RefreshResponse>;
+  principal(): Promise<{ status: string; principal: Principal }>;
+  sessions(): Promise<{ status: string; sessions: AuthSession[] }>;
+  revokeSession(id: string): Promise<void>;
 }
 
 export function createAuthClient(transport: Transport): AuthClient {
@@ -80,5 +91,9 @@ export function createAuthClient(transport: Transport): AuthClient {
         .then(() => undefined),
     me: <TUser>() =>
       transport.request<{ user: TUser }>("/auth/me").then((result) => result.body),
+    refresh: (refreshToken) => transport.request<RefreshResponse>("/auth/refresh", { method: "POST", json: { refresh_token: refreshToken } }).then((result) => result.body),
+    principal: () => transport.request<{ status: string; principal: Principal }>("/auth/principal").then((result) => result.body),
+    sessions: () => transport.request<{ status: string; sessions: AuthSession[] }>("/auth/sessions").then((result) => result.body),
+    revokeSession: (id) => transport.request(`/auth/sessions/${encodeURIComponent(id)}`, { method: "DELETE", responseType: "none" }).then(() => undefined),
   };
 }

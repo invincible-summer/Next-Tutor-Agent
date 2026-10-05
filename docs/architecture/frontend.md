@@ -61,7 +61,7 @@
 
 ### 设计系统约定（团队强制）
 
-表单控件用 `ui/Input` 原语（`Input`/`Textarea`/`Field`/`FIELD_CLS`）；条目列表统一 `ui/Pager`（`paged()` 客户端切片，默认 5 条/页，页码可输入跳页）；浮层入场用 `motion-modal`/`motion-drawer`/`motion-pop` 类（reduced-motion 下停用）；长表单进 `Modal` 而非页内卡片。
+表单控件用 `ui/Input` 原语（`Input`/`Textarea`/`Field`/`FIELD_CLS`）；条目列表统一 `ui/Pager`（`paged()` 客户端切片，默认 5 条/页，页码可输入跳页）；浮层入场用 `motion-modal`/`motion-drawer`/`motion-pop` 类（reduced-motion 下停用，页面进入和骨架呼吸同样停用）；长表单进 `Modal` 而非页内卡片。
 
 ## State & storage（状态与存储布局，含 runtime data 路径）
 

@@ -1,0 +1,33 @@
+appId: com.nexttutor.agent
+name: Create edit save and reload an authored note
+tags: [smoke, notes]
+---
+- runFlow: ../common/login.yaml
+- openLink: nexttutor:///library/notes
+- tapOn: "新笔记|New note"
+- tapOn: "名称|Name"
+- inputText: ${MAESTRO_MOBILE_E2E_NOTE_TITLE}
+- hideKeyboard
+- tapOn: "保存|Save"
+- extendedWaitUntil:
+    visible:
+      id: note-content
+    timeout: 15000
+- tapOn:
+    id: note-content
+- inputText: "# Synthetic learning note\n\nTwo plus three equals five. Formula: $2+3=5$."
+- hideKeyboard
+- tapOn:
+    id: note-save
+- extendedWaitUntil:
+    visible: "已保存到服务端|Saved to your server"
+    timeout: 15000
+- stopApp
+- launchApp:
+    clearState: false
+- openLink: nexttutor:///library/notes
+- tapOn: "搜索笔记|Search notes"
+- inputText: ${MAESTRO_MOBILE_E2E_NOTE_TITLE}
+- hideKeyboard
+- tapOn: ${MAESTRO_MOBILE_E2E_NOTE_TITLE}
+- assertVisible: "(?s).*Two plus three equals five.*"

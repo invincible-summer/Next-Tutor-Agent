@@ -4,7 +4,7 @@
 
 ## 1. Repository map
 
-Textbook-driven AI teaching monorepo: `apps/web/` (Next.js), `services/api/` (FastAPI; routes `app/api/v1/`, agents `app/agents/`, shared infra `app/core/`, enterprise persistence `app/persistence/`, durable workflows `app/workflows/` + `worker.py`, observability `app/observability/`, tests `tests/`), `services/voice/` (optional MeloTTS sidecar), `fixtures/demo/` (the only demo content source — synthetic), `scripts/` (per-domain READMEs), `deploy/` (`local/` infra compose + `self-hosted/` templates).
+Textbook-driven AI teaching monorepo: `apps/web/` (Next.js), `apps/mobile/` (Expo Native), `packages/*` (shared client platform), `services/api/` (FastAPI; routes `app/api/v1/`, agents `app/agents/`, shared infra `app/core/`, enterprise persistence `app/persistence/`, durable workflows `app/workflows/` + `worker.py`, observability `app/observability/`, tests `tests/`), `services/voice/` (optional MeloTTS sidecar), `fixtures/demo/` (the only demo content source — synthetic), `scripts/` (per-domain READMEs), `deploy/` (`local/` infra compose + `self-hosted/` templates).
 
 All runtime state resolves through one data root (`NEXT_TUTOR_DATA_DIR`, `services/api/app/core/paths.py`). Never commit runtime data, uploads, conversations, traces, or `.env`; the repo ships no textbook or derived assets. Docs entry: [`docs/README.md`](docs/README.md).
 
@@ -15,6 +15,7 @@ For anything beyond mechanical edits, open the module README plus its canonical 
 | Area | Code | Doc |
 | :--- | :--- | :--- |
 | Frontend | `apps/web` | `frontend.md` |
+| Native mobile | `apps/mobile` | `mobile-app.md`; development/validation in `docs/development/mobile-dev.md` and `docs/validation/mobile-validation.md` |
 | Shared client packages | `packages/*` + `apps/web/src/platform` | `client-platform.md` |
 | Identity / accounts | `app/identity` | `identity.md` |
 | Enterprise persistence | `app/persistence` + `services/api/migrations` + `scripts/migrations` | `enterprise-infra.md`（`docs/development/`） |
@@ -48,12 +49,13 @@ Lasting decisions live in `docs/adr/` (immutable; supersede with a new ADR).
 - Public textbook data: fixed `public` namespace — all users read, only admins write.
 - Never log/commit secrets, passwords, raw chain-of-thought, or private user data.
 - Frontend: `apiFetch` for requests; shared `Pager` for lists; `ui/Input.tsx` primitives (`Input`/`Textarea`/`Field`/`FIELD_CLS`) for forms; `motion-modal`/`motion-drawer`/`motion-pop` for overlay entrances; long forms in `Modal`, not page cards.
+- Native mobile: use `packages/api-client` through the platform adapter; use native UI primitives and long-form `Sheet`; derive layout from current window size. Keep private queries/drafts in memory, refresh credentials in SecureStore, and speech provider keys on the server.
 - Production: `AUTH_MODE=1`, strong `AUTH_JWT_SECRET`, restricted `CORS_ORIGINS`, nginx SSE buffering off.
 - Content policy (`docs/compliance/content-policy.md`): fixtures are project-authored synthetic only — no textbook PDFs, parsed text, chunks, graphs, embeddings, or user data in the repo.
 
 ## 4. Test selection
 
-Focused first: `cd services/api && python -m tests tests.<owner>.test_<module>`; frontend `cd apps/web && pnpm check`. Full battery (backend full run, `pnpm check && pnpm build`, browser regression, `git diff --check`) when behavior/storage/APIs change. Disabled intelligence layers must degrade without breaking chat; visual work needs light/dark + narrow-screen checks.
+Focused first: `cd services/api && python -m tests tests.<owner>.test_<module>`; frontend `cd apps/web && pnpm check`. Full battery (backend full run, `pnpm check && pnpm build`, browser regression, `git diff --check`) when behavior/storage/APIs change. Mobile: `pnpm mobile:check`, focused Jest, Expo Doctor/SDK checks and Android/iOS export; device/Maestro/a11y evidence is a separate release gate. Disabled intelligence layers must degrade without breaking chat; visual work needs light/dark + narrow-screen checks.
 
 Tests never write production roots — everything resolves under the runtime data root. Inherit `tests/support/storage_sandbox.py::StorageSandboxTestCase` (or call `patch_all_storage_roots`) so all storage bindings, `prompt_memory`, `settings.trace_dir`/`chroma_dir`, and shared caches land in a `TemporaryDirectory`; no bare `tempfile.mkdtemp` without tearDown cleanup. New per-user storage root ⇒ bind via `core/paths.py::bind_storage_path` AND register in `core/orphan_cleanup.py` scan categories, in the same change. (Account deletion purges via `core/account_data.purge_account`; orphan leftovers are cleaned via `GET/POST /admin/orphan-data`.)
 
@@ -62,7 +64,7 @@ Tests never write production roots — everything resolves under the runtime dat
 - Change architecture/storage/APIs/pipelines ⇒ update the module's `docs/architecture/*.md` in the same change.
 - Module READMEs are navigation only — fix links when moving code, don't grow them.
 - Working plans (`plan*.md`) stay local; tracked files never reference plan sections.
-- CI gates: `scripts/repo/check_documentation.py` (links, READMEs, legacy refs, generated catalogs) and `scripts/repo/check_repository_hygiene.py` (copyright/runtime-data/history).
+- CI gates: `scripts/repo/check_documentation.py` (links, READMEs, legacy refs, generated catalogs), `scripts/compliance/generate_notices.py --check` (pinned source inventory/license/SBOM), and `scripts/repo/check_repository_hygiene.py` (copyright/runtime-data/history).
 
 ## 6. Commit / PR guidelines
 

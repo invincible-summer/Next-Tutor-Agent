@@ -1,0 +1,3612 @@
+{
+  "npm:@emnapi/core@1.10.0": {
+    "homepage": "https://github.com/toyobayashi/emnapi#readme",
+    "license_declared": "MIT",
+    "license_expression": "MIT",
+    "license_files": [
+      {
+        "bytes": 1076,
+        "origin": "https://registry.npmjs.org/@emnapi/core/-/core-1.10.0.tgz#package/LICENSE",
+        "path": "licenses/texts/2088f55c6731498410b20c95ebd345ed4a4a800bf74c0fba4d282fd2a021daaa.txt",
+        "sha256": "2088f55c6731498410b20c95ebd345ed4a4a800bf74c0fba4d282fd2a021daaa"
+      }
+    ],
+    "registry_source": "https://registry.npmjs.org/%40emnapi%2Fcore/1.10.0"
+  },
+  "npm:@emnapi/runtime@1.10.0": {
+    "homepage": "https://github.com/toyobayashi/emnapi#readme",
+    "license_declared": "MIT",
+    "license_expression": "MIT",
+    "license_files": [
+      {
+        "bytes": 1076,
+        "origin": "https://registry.npmjs.org/@emnapi/runtime/-/runtime-1.10.0.tgz#package/LICENSE",
+        "path": "licenses/texts/2088f55c6731498410b20c95ebd345ed4a4a800bf74c0fba4d282fd2a021daaa.txt",
+        "sha256": "2088f55c6731498410b20c95ebd345ed4a4a800bf74c0fba4d282fd2a021daaa"
+      }
+    ],
+    "registry_source": "https://registry.npmjs.org/%40emnapi%2Fruntime/1.10.0"
+  },
+  "npm:@emnapi/runtime@1.11.3": {
+    "homepage": "https://github.com/toyobayashi/emnapi#readme",
+    "license_declared": "MIT",
+    "license_expression": "MIT",
+    "license_files": [
+      {
+        "bytes": 1076,
+        "origin": "https://registry.npmjs.org/@emnapi/runtime/-/runtime-1.11.3.tgz#package/LICENSE",
+        "path": "licenses/texts/2088f55c6731498410b20c95ebd345ed4a4a800bf74c0fba4d282fd2a021daaa.txt",
+        "sha256": "2088f55c6731498410b20c95ebd345ed4a4a800bf74c0fba4d282fd2a021daaa"
+      }
+    ],
+    "registry_source": "https://registry.npmjs.org/%40emnapi%2Fruntime/1.11.3"
+  },
+  "npm:@emnapi/wasi-threads@1.2.1": {
+    "homepage": "https://github.com/toyobayashi/emnapi#readme",
+    "license_declared": "MIT",
+    "license_expression": "MIT",
+    "license_files": [
+      {
+        "bytes": 1076,
+        "origin": "https://registry.npmjs.org/@emnapi/wasi-threads/-/wasi-threads-1.2.1.tgz#package/LICENSE",
+        "path": "licenses/texts/2088f55c6731498410b20c95ebd345ed4a4a800bf74c0fba4d282fd2a021daaa.txt",
+        "sha256": "2088f55c6731498410b20c95ebd345ed4a4a800bf74c0fba4d282fd2a021daaa"
+      }
+    ],
+    "registry_source": "https://registry.npmjs.org/%40emnapi%2Fwasi-threads/1.2.1"
+  },
+  "npm:@humanfs/types@0.15.0": {
+    "homepage": "https://github.com/humanwhocodes/humanfs#readme",
+    "license_declared": "Apache-2.0",
+    "license_expression": "Apache-2.0",
+    "license_files": [],
+    "registry_source": "https://registry.npmjs.org/%40humanfs%2Ftypes/0.15.0"
+  },
+  "npm:@img/sharp-darwin-arm64@0.35.5": {
+    "homepage": "https://sharp.pixelplumbing.com",
+    "license_declared": "Apache-2.0",
+    "license_expression": "Apache-2.0",
+    "license_files": [
+      {
+        "bytes": 10273,
+        "origin": "https://registry.npmjs.org/@img/sharp-darwin-arm64/-/sharp-darwin-arm64-0.35.5.tgz#package/LICENSE",
+        "path": "licenses/texts/73ba74dfaa520b49a401b5d21459a8523a146f3b7518a833eea5efa85130bf68.txt",
+        "sha256": "73ba74dfaa520b49a401b5d21459a8523a146f3b7518a833eea5efa85130bf68"
+      }
+    ],
+    "registry_source": "https://registry.npmjs.org/%40img%2Fsharp-darwin-arm64/0.35.5"
+  },
+  "npm:@img/sharp-darwin-x64@0.35.5": {
+    "homepage": "https://sharp.pixelplumbing.com",
+    "license_declared": "Apache-2.0",
+    "license_expression": "Apache-2.0",
+    "license_files": [
+      {
+        "bytes": 10273,
+        "origin": "https://registry.npmjs.org/@img/sharp-darwin-x64/-/sharp-darwin-x64-0.35.5.tgz#package/LICENSE",
+        "path": "licenses/texts/73ba74dfaa520b49a401b5d21459a8523a146f3b7518a833eea5efa85130bf68.txt",
+        "sha256": "73ba74dfaa520b49a401b5d21459a8523a146f3b7518a833eea5efa85130bf68"
+      }
+    ],
+    "registry_source": "https://registry.npmjs.org/%40img%2Fsharp-darwin-x64/0.35.5"
+  },
+  "npm:@img/sharp-freebsd-wasm32@0.35.5": {
+    "homepage": "https://sharp.pixelplumbing.com",
+    "license_declared": "Apache-2.0",
+    "license_expression": "Apache-2.0",
+    "license_files": [
+      {
+        "bytes": 10273,
+        "origin": "https://registry.npmjs.org/@img/sharp-freebsd-wasm32/-/sharp-freebsd-wasm32-0.35.5.tgz#package/LICENSE",
+        "path": "licenses/texts/73ba74dfaa520b49a401b5d21459a8523a146f3b7518a833eea5efa85130bf68.txt",
+        "sha256": "73ba74dfaa520b49a401b5d21459a8523a146f3b7518a833eea5efa85130bf68"
+      }
+    ],
+    "registry_source": "https://registry.npmjs.org/%40img%2Fsharp-freebsd-wasm32/0.35.5"
+  },
+  "npm:@img/sharp-libvips-darwin-arm64@1.3.4": {
+    "homepage": "https://sharp.pixelplumbing.com",
+    "license_declared": "LGPL-3.0-or-later",
+    "license_expression": "LGPL-3.0-or-later",
+    "license_files": [],
+    "registry_source": "https://registry.npmjs.org/%40img%2Fsharp-libvips-darwin-arm64/1.3.4"
+  },
+  "npm:@img/sharp-libvips-darwin-x64@1.3.4": {
+    "homepage": "https://sharp.pixelplumbing.com",
+    "license_declared": "LGPL-3.0-or-later",
+    "license_expression": "LGPL-3.0-or-later",
+    "license_files": [],
+    "registry_source": "https://registry.npmjs.org/%40img%2Fsharp-libvips-darwin-x64/1.3.4"
+  },
+  "npm:@img/sharp-libvips-linux-arm64@1.3.4": {
+    "homepage": "https://sharp.pixelplumbing.com",
+    "license_declared": "LGPL-3.0-or-later",
+    "license_expression": "LGPL-3.0-or-later",
+    "license_files": [],
+    "registry_source": "https://registry.npmjs.org/%40img%2Fsharp-libvips-linux-arm64/1.3.4"
+  },
+  "npm:@img/sharp-libvips-linux-arm@1.3.4": {
+    "homepage": "https://sharp.pixelplumbing.com",
+    "license_declared": "LGPL-3.0-or-later",
+    "license_expression": "LGPL-3.0-or-later",
+    "license_files": [],
+    "registry_source": "https://registry.npmjs.org/%40img%2Fsharp-libvips-linux-arm/1.3.4"
+  },
+  "npm:@img/sharp-libvips-linux-ppc64@1.3.4": {
+    "homepage": "https://sharp.pixelplumbing.com",
+    "license_declared": "LGPL-3.0-or-later",
+    "license_expression": "LGPL-3.0-or-later",
+    "license_files": [],
+    "registry_source": "https://registry.npmjs.org/%40img%2Fsharp-libvips-linux-ppc64/1.3.4"
+  },
+  "npm:@img/sharp-libvips-linux-riscv64@1.3.4": {
+    "homepage": "https://sharp.pixelplumbing.com",
+    "license_declared": "LGPL-3.0-or-later",
+    "license_expression": "LGPL-3.0-or-later",
+    "license_files": [],
+    "registry_source": "https://registry.npmjs.org/%40img%2Fsharp-libvips-linux-riscv64/1.3.4"
+  },
+  "npm:@img/sharp-libvips-linux-s390x@1.3.4": {
+    "homepage": "https://sharp.pixelplumbing.com",
+    "license_declared": "LGPL-3.0-or-later",
+    "license_expression": "LGPL-3.0-or-later",
+    "license_files": [],
+    "registry_source": "https://registry.npmjs.org/%40img%2Fsharp-libvips-linux-s390x/1.3.4"
+  },
+  "npm:@img/sharp-libvips-linux-x64@1.3.4": {
+    "homepage": "https://sharp.pixelplumbing.com",
+    "license_declared": "LGPL-3.0-or-later",
+    "license_expression": "LGPL-3.0-or-later",
+    "license_files": [],
+    "registry_source": "https://registry.npmjs.org/%40img%2Fsharp-libvips-linux-x64/1.3.4"
+  },
+  "npm:@img/sharp-libvips-linuxmusl-arm64@1.3.4": {
+    "homepage": "https://sharp.pixelplumbing.com",
+    "license_declared": "LGPL-3.0-or-later",
+    "license_expression": "LGPL-3.0-or-later",
+    "license_files": [],
+    "registry_source": "https://registry.npmjs.org/%40img%2Fsharp-libvips-linuxmusl-arm64/1.3.4"
+  },
+  "npm:@img/sharp-libvips-linuxmusl-x64@1.3.4": {
+    "homepage": "https://sharp.pixelplumbing.com",
+    "license_declared": "LGPL-3.0-or-later",
+    "license_expression": "LGPL-3.0-or-later",
+    "license_files": [],
+    "registry_source": "https://registry.npmjs.org/%40img%2Fsharp-libvips-linuxmusl-x64/1.3.4"
+  },
+  "npm:@img/sharp-linux-arm64@0.35.5": {
+    "homepage": "https://sharp.pixelplumbing.com",
+    "license_declared": "Apache-2.0",
+    "license_expression": "Apache-2.0",
+    "license_files": [
+      {
+        "bytes": 10273,
+        "origin": "https://registry.npmjs.org/@img/sharp-linux-arm64/-/sharp-linux-arm64-0.35.5.tgz#package/LICENSE",
+        "path": "licenses/texts/73ba74dfaa520b49a401b5d21459a8523a146f3b7518a833eea5efa85130bf68.txt",
+        "sha256": "73ba74dfaa520b49a401b5d21459a8523a146f3b7518a833eea5efa85130bf68"
+      }
+    ],
+    "registry_source": "https://registry.npmjs.org/%40img%2Fsharp-linux-arm64/0.35.5"
+  },
+  "npm:@img/sharp-linux-arm@0.35.5": {
+    "homepage": "https://sharp.pixelplumbing.com",
+    "license_declared": "Apache-2.0",
+    "license_expression": "Apache-2.0",
+    "license_files": [
+      {
+        "bytes": 10273,
+        "origin": "https://registry.npmjs.org/@img/sharp-linux-arm/-/sharp-linux-arm-0.35.5.tgz#package/LICENSE",
+        "path": "licenses/texts/73ba74dfaa520b49a401b5d21459a8523a146f3b7518a833eea5efa85130bf68.txt",
+        "sha256": "73ba74dfaa520b49a401b5d21459a8523a146f3b7518a833eea5efa85130bf68"
+      }
+    ],
+    "registry_source": "https://registry.npmjs.org/%40img%2Fsharp-linux-arm/0.35.5"
+  },
+  "npm:@img/sharp-linux-ppc64@0.35.5": {
+    "homepage": "https://sharp.pixelplumbing.com",
+    "license_declared": "Apache-2.0",
+    "license_expression": "Apache-2.0",
+    "license_files": [
+      {
+        "bytes": 10273,
+        "origin": "https://registry.npmjs.org/@img/sharp-linux-ppc64/-/sharp-linux-ppc64-0.35.5.tgz#package/LICENSE",
+        "path": "licenses/texts/73ba74dfaa520b49a401b5d21459a8523a146f3b7518a833eea5efa85130bf68.txt",
+        "sha256": "73ba74dfaa520b49a401b5d21459a8523a146f3b7518a833eea5efa85130bf68"
+      }
+    ],
+    "registry_source": "https://registry.npmjs.org/%40img%2Fsharp-linux-ppc64/0.35.5"
+  },
+  "npm:@img/sharp-linux-riscv64@0.35.5": {
+    "homepage": "https://sharp.pixelplumbing.com",
+    "license_declared": "Apache-2.0",
+    "license_expression": "Apache-2.0",
+    "license_files": [
+      {
+        "bytes": 10273,
+        "origin": "https://registry.npmjs.org/@img/sharp-linux-riscv64/-/sharp-linux-riscv64-0.35.5.tgz#package/LICENSE",
+        "path": "licenses/texts/73ba74dfaa520b49a401b5d21459a8523a146f3b7518a833eea5efa85130bf68.txt",
+        "sha256": "73ba74dfaa520b49a401b5d21459a8523a146f3b7518a833eea5efa85130bf68"
+      }
+    ],
+    "registry_source": "https://registry.npmjs.org/%40img%2Fsharp-linux-riscv64/0.35.5"
+  },
+  "npm:@img/sharp-linux-s390x@0.35.5": {
+    "homepage": "https://sharp.pixelplumbing.com",
+    "license_declared": "Apache-2.0",
+    "license_expression": "Apache-2.0",
+    "license_files": [
+      {
+        "bytes": 10273,
+        "origin": "https://registry.npmjs.org/@img/sharp-linux-s390x/-/sharp-linux-s390x-0.35.5.tgz#package/LICENSE",
+        "path": "licenses/texts/73ba74dfaa520b49a401b5d21459a8523a146f3b7518a833eea5efa85130bf68.txt",
+        "sha256": "73ba74dfaa520b49a401b5d21459a8523a146f3b7518a833eea5efa85130bf68"
+      }
+    ],
+    "registry_source": "https://registry.npmjs.org/%40img%2Fsharp-linux-s390x/0.35.5"
+  },
+  "npm:@img/sharp-linuxmusl-arm64@0.35.5": {
+    "homepage": "https://sharp.pixelplumbing.com",
+    "license_declared": "Apache-2.0",
+    "license_expression": "Apache-2.0",
+    "license_files": [
+      {
+        "bytes": 10273,
+        "origin": "https://registry.npmjs.org/@img/sharp-linuxmusl-arm64/-/sharp-linuxmusl-arm64-0.35.5.tgz#package/LICENSE",
+        "path": "licenses/texts/73ba74dfaa520b49a401b5d21459a8523a146f3b7518a833eea5efa85130bf68.txt",
+        "sha256": "73ba74dfaa520b49a401b5d21459a8523a146f3b7518a833eea5efa85130bf68"
+      }
+    ],
+    "registry_source": "https://registry.npmjs.org/%40img%2Fsharp-linuxmusl-arm64/0.35.5"
+  },
+  "npm:@img/sharp-linuxmusl-x64@0.35.5": {
+    "homepage": "https://sharp.pixelplumbing.com",
+    "license_declared": "Apache-2.0",
+    "license_expression": "Apache-2.0",
+    "license_files": [
+      {
+        "bytes": 10273,
+        "origin": "https://registry.npmjs.org/@img/sharp-linuxmusl-x64/-/sharp-linuxmusl-x64-0.35.5.tgz#package/LICENSE",
+        "path": "licenses/texts/73ba74dfaa520b49a401b5d21459a8523a146f3b7518a833eea5efa85130bf68.txt",
+        "sha256": "73ba74dfaa520b49a401b5d21459a8523a146f3b7518a833eea5efa85130bf68"
+      }
+    ],
+    "registry_source": "https://registry.npmjs.org/%40img%2Fsharp-linuxmusl-x64/0.35.5"
+  },
+  "npm:@img/sharp-wasm32@0.35.5": {
+    "homepage": "https://sharp.pixelplumbing.com",
+    "license_declared": "Apache-2.0 AND LGPL-3.0-or-later AND MIT",
+    "license_expression": "Apache-2.0 AND LGPL-3.0-or-later AND MIT",
+    "license_files": [
+      {
+        "bytes": 10273,
+        "origin": "https://registry.npmjs.org/@img/sharp-wasm32/-/sharp-wasm32-0.35.5.tgz#package/LICENSE",
+        "path": "licenses/texts/73ba74dfaa520b49a401b5d21459a8523a146f3b7518a833eea5efa85130bf68.txt",
+        "sha256": "73ba74dfaa520b49a401b5d21459a8523a146f3b7518a833eea5efa85130bf68"
+      }
+    ],
+    "registry_source": "https://registry.npmjs.org/%40img%2Fsharp-wasm32/0.35.5"
+  },
+  "npm:@img/sharp-webcontainers-wasm32@0.35.5": {
+    "homepage": "https://sharp.pixelplumbing.com",
+    "license_declared": "Apache-2.0",
+    "license_expression": "Apache-2.0",
+    "license_files": [
+      {
+        "bytes": 10273,
+        "origin": "https://registry.npmjs.org/@img/sharp-webcontainers-wasm32/-/sharp-webcontainers-wasm32-0.35.5.tgz#package/LICENSE",
+        "path": "licenses/texts/73ba74dfaa520b49a401b5d21459a8523a146f3b7518a833eea5efa85130bf68.txt",
+        "sha256": "73ba74dfaa520b49a401b5d21459a8523a146f3b7518a833eea5efa85130bf68"
+      }
+    ],
+    "registry_source": "https://registry.npmjs.org/%40img%2Fsharp-webcontainers-wasm32/0.35.5"
+  },
+  "npm:@img/sharp-win32-arm64@0.35.5": {
+    "homepage": "https://sharp.pixelplumbing.com",
+    "license_declared": "Apache-2.0 AND LGPL-3.0-or-later",
+    "license_expression": "Apache-2.0 AND LGPL-3.0-or-later",
+    "license_files": [
+      {
+        "bytes": 10464,
+        "origin": "https://registry.npmjs.org/@img/sharp-win32-arm64/-/sharp-win32-arm64-0.35.5.tgz#package/LICENSE",
+        "path": "licenses/texts/dc1f5d2d43c5531dfe0acaf4e950ea5dbe3e61e1850cf0e983bda7efc10d6693.txt",
+        "sha256": "dc1f5d2d43c5531dfe0acaf4e950ea5dbe3e61e1850cf0e983bda7efc10d6693"
+      }
+    ],
+    "registry_source": "https://registry.npmjs.org/%40img%2Fsharp-win32-arm64/0.35.5"
+  },
+  "npm:@img/sharp-win32-ia32@0.35.5": {
+    "homepage": "https://sharp.pixelplumbing.com",
+    "license_declared": "Apache-2.0 AND LGPL-3.0-or-later",
+    "license_expression": "Apache-2.0 AND LGPL-3.0-or-later",
+    "license_files": [
+      {
+        "bytes": 10464,
+        "origin": "https://registry.npmjs.org/@img/sharp-win32-ia32/-/sharp-win32-ia32-0.35.5.tgz#package/LICENSE",
+        "path": "licenses/texts/dc1f5d2d43c5531dfe0acaf4e950ea5dbe3e61e1850cf0e983bda7efc10d6693.txt",
+        "sha256": "dc1f5d2d43c5531dfe0acaf4e950ea5dbe3e61e1850cf0e983bda7efc10d6693"
+      }
+    ],
+    "registry_source": "https://registry.npmjs.org/%40img%2Fsharp-win32-ia32/0.35.5"
+  },
+  "npm:@img/sharp-win32-x64@0.35.5": {
+    "homepage": "https://sharp.pixelplumbing.com",
+    "license_declared": "Apache-2.0 AND LGPL-3.0-or-later",
+    "license_expression": "Apache-2.0 AND LGPL-3.0-or-later",
+    "license_files": [
+      {
+        "bytes": 10464,
+        "origin": "https://registry.npmjs.org/@img/sharp-win32-x64/-/sharp-win32-x64-0.35.5.tgz#package/LICENSE",
+        "path": "licenses/texts/dc1f5d2d43c5531dfe0acaf4e950ea5dbe3e61e1850cf0e983bda7efc10d6693.txt",
+        "sha256": "dc1f5d2d43c5531dfe0acaf4e950ea5dbe3e61e1850cf0e983bda7efc10d6693"
+      }
+    ],
+    "registry_source": "https://registry.npmjs.org/%40img%2Fsharp-win32-x64/0.35.5"
+  },
+  "npm:@napi-rs/wasm-runtime@1.2.4": {
+    "homepage": "https://napi.rs/",
+    "license_declared": "MIT",
+    "license_expression": "MIT",
+    "license_files": [],
+    "registry_source": "https://registry.npmjs.org/%40napi-rs%2Fwasm-runtime/1.2.4"
+  },
+  "npm:@next/env@16.3.8": {
+    "homepage": "https://github.com/vercel/next.js#readme",
+    "license_declared": "MIT",
+    "license_expression": "MIT",
+    "license_files": [],
+    "registry_source": "https://registry.npmjs.org/%40next%2Fenv/16.3.8"
+  },
+  "npm:@next/eslint-plugin-next@16.3.8": {
+    "homepage": "https://github.com/vercel/next.js#readme",
+    "license_declared": "MIT",
+    "license_expression": "MIT",
+    "license_files": [],
+    "registry_source": "https://registry.npmjs.org/%40next%2Feslint-plugin-next/16.3.8"
+  },
+  "npm:@next/swc-darwin-arm64@16.3.8": {
+    "homepage": "https://github.com/vercel/next.js#readme",
+    "license_declared": "MIT",
+    "license_expression": "MIT",
+    "license_files": [],
+    "registry_source": "https://registry.npmjs.org/%40next%2Fswc-darwin-arm64/16.3.8"
+  },
+  "npm:@next/swc-darwin-x64@16.3.8": {
+    "homepage": "https://github.com/vercel/next.js#readme",
+    "license_declared": "MIT",
+    "license_expression": "MIT",
+    "license_files": [],
+    "registry_source": "https://registry.npmjs.org/%40next%2Fswc-darwin-x64/16.3.8"
+  },
+  "npm:@next/swc-linux-arm64-gnu@16.3.8": {
+    "homepage": "https://github.com/vercel/next.js#readme",
+    "license_declared": "MIT",
+    "license_expression": "MIT",
+    "license_files": [],
+    "registry_source": "https://registry.npmjs.org/%40next%2Fswc-linux-arm64-gnu/16.3.8"
+  },
+  "npm:@next/swc-linux-arm64-musl@16.3.8": {
+    "homepage": "https://github.com/vercel/next.js#readme",
+    "license_declared": "MIT",
+    "license_expression": "MIT",
+    "license_files": [],
+    "registry_source": "https://registry.npmjs.org/%40next%2Fswc-linux-arm64-musl/16.3.8"
+  },
+  "npm:@next/swc-linux-x64-gnu@16.3.8": {
+    "homepage": "https://github.com/vercel/next.js#readme",
+    "license_declared": "MIT",
+    "license_expression": "MIT",
+    "license_files": [],
+    "registry_source": "https://registry.npmjs.org/%40next%2Fswc-linux-x64-gnu/16.3.8"
+  },
+  "npm:@next/swc-linux-x64-musl@16.3.8": {
+    "homepage": "https://github.com/vercel/next.js#readme",
+    "license_declared": "MIT",
+    "license_expression": "MIT",
+    "license_files": [],
+    "registry_source": "https://registry.npmjs.org/%40next%2Fswc-linux-x64-musl/16.3.8"
+  },
+  "npm:@next/swc-win32-arm64-msvc@16.3.8": {
+    "homepage": "https://github.com/vercel/next.js#readme",
+    "license_declared": "MIT",
+    "license_expression": "MIT",
+    "license_files": [],
+    "registry_source": "https://registry.npmjs.org/%40next%2Fswc-win32-arm64-msvc/16.3.8"
+  },
+  "npm:@next/swc-win32-x64-msvc@16.3.8": {
+    "homepage": "https://github.com/vercel/next.js#readme",
+    "license_declared": "MIT",
+    "license_expression": "MIT",
+    "license_files": [],
+    "registry_source": "https://registry.npmjs.org/%40next%2Fswc-win32-x64-msvc/16.3.8"
+  },
+  "npm:@react-native/assets-registry@0.86.3": {
+    "homepage": "https://github.com/react/react-native/tree/HEAD/packages/assets#readme",
+    "license_declared": "MIT",
+    "license_expression": "MIT",
+    "license_files": [],
+    "registry_source": "https://registry.npmjs.org/%40react-native%2Fassets-registry/0.86.3"
+  },
+  "npm:@react-native/babel-plugin-codegen@0.86.3": {
+    "homepage": "https://github.com/react/react-native/tree/HEAD/packages/babel-plugin-codegen#readme",
+    "license_declared": "MIT",
+    "license_expression": "MIT",
+    "license_files": [],
+    "registry_source": "https://registry.npmjs.org/%40react-native%2Fbabel-plugin-codegen/0.86.3"
+  },
+  "npm:@react-native/babel-preset@0.86.3": {
+    "homepage": "https://github.com/react/react-native#readme",
+    "license_declared": "MIT",
+    "license_expression": "MIT",
+    "license_files": [],
+    "registry_source": "https://registry.npmjs.org/%40react-native%2Fbabel-preset/0.86.3"
+  },
+  "npm:@react-native/codegen@0.86.3": {
+    "homepage": "https://github.com/react/react-native/tree/HEAD/packages/react-native-codegen#readme",
+    "license_declared": "MIT",
+    "license_expression": "MIT",
+    "license_files": [],
+    "registry_source": "https://registry.npmjs.org/%40react-native%2Fcodegen/0.86.3"
+  },
+  "npm:@react-native/community-cli-plugin@0.86.3": {
+    "homepage": "https://github.com/react/react-native/tree/HEAD/packages/community-cli-plugin#readme",
+    "license_declared": "MIT",
+    "license_expression": "MIT",
+    "license_files": [],
+    "registry_source": "https://registry.npmjs.org/%40react-native%2Fcommunity-cli-plugin/0.86.3"
+  },
+  "npm:@react-native/debugger-shell@0.86.3": {
+    "homepage": "https://github.com/react/react-native/tree/HEAD/packages/debugger-shell#readme",
+    "license_declared": "MIT",
+    "license_expression": "MIT",
+    "license_files": [],
+    "registry_source": "https://registry.npmjs.org/%40react-native%2Fdebugger-shell/0.86.3"
+  },
+  "npm:@react-native/dev-middleware@0.86.3": {
+    "homepage": "https://github.com/react/react-native/tree/HEAD/packages/dev-middleware#readme",
+    "license_declared": "MIT",
+    "license_expression": "MIT",
+    "license_files": [],
+    "registry_source": "https://registry.npmjs.org/%40react-native%2Fdev-middleware/0.86.3"
+  },
+  "npm:@react-native/gradle-plugin@0.86.3": {
+    "homepage": "https://github.com/react/react-native/tree/HEAD/packages/gradle-plugin#readme",
+    "license_declared": "MIT",
+    "license_expression": "MIT",
+    "license_files": [],
+    "registry_source": "https://registry.npmjs.org/%40react-native%2Fgradle-plugin/0.86.3"
+  },
+  "npm:@react-native/jest-preset@0.86.3": {
+    "homepage": "https://github.com/react/react-native#readme",
+    "license_declared": "MIT",
+    "license_expression": "MIT",
+    "license_files": [],
+    "registry_source": "https://registry.npmjs.org/%40react-native%2Fjest-preset/0.86.3"
+  },
+  "npm:@react-native/js-polyfills@0.86.3": {
+    "homepage": "https://github.com/react/react-native/tree/HEAD/packages/polyfills#readme",
+    "license_declared": "MIT",
+    "license_expression": "MIT",
+    "license_files": [],
+    "registry_source": "https://registry.npmjs.org/%40react-native%2Fjs-polyfills/0.86.3"
+  },
+  "npm:@react-native/metro-babel-transformer@0.86.3": {
+    "homepage": "https://github.com/react/react-native#readme",
+    "license_declared": "MIT",
+    "license_expression": "MIT",
+    "license_files": [],
+    "registry_source": "https://registry.npmjs.org/%40react-native%2Fmetro-babel-transformer/0.86.3"
+  },
+  "npm:@react-native/metro-config@0.86.3": {
+    "homepage": "https://github.com/react/react-native/tree/HEAD/packages/metro-config#readme",
+    "license_declared": "MIT",
+    "license_expression": "MIT",
+    "license_files": [],
+    "registry_source": "https://registry.npmjs.org/%40react-native%2Fmetro-config/0.86.3"
+  },
+  "npm:@react-native/normalize-colors@0.86.3": {
+    "homepage": "https://github.com/react/react-native/tree/HEAD/packages/normalize-color#readme",
+    "license_declared": "MIT",
+    "license_expression": "MIT",
+    "license_files": [],
+    "registry_source": "https://registry.npmjs.org/%40react-native%2Fnormalize-colors/0.86.3"
+  },
+  "npm:@react-native/virtualized-lists@0.86.3": {
+    "homepage": "https://github.com/react/react-native/tree/HEAD/packages/virtualized-lists#readme",
+    "license_declared": "MIT",
+    "license_expression": "MIT",
+    "license_files": [],
+    "registry_source": "https://registry.npmjs.org/%40react-native%2Fvirtualized-lists/0.86.3"
+  },
+  "npm:@tailwindcss/oxide-android-arm64@4.3.3": {
+    "homepage": null,
+    "license_declared": "MIT",
+    "license_expression": "MIT",
+    "license_files": [
+      {
+        "bytes": 1071,
+        "origin": "https://registry.npmjs.org/@tailwindcss/oxide-android-arm64/-/oxide-android-arm64-4.3.3.tgz#package/LICENSE",
+        "path": "licenses/texts/60e0b68c0f35c078eef3a5d29419d0b03ff84ec1df9c3f9d6e39a519a5ae7985.txt",
+        "sha256": "60e0b68c0f35c078eef3a5d29419d0b03ff84ec1df9c3f9d6e39a519a5ae7985"
+      }
+    ],
+    "registry_source": "https://registry.npmjs.org/%40tailwindcss%2Foxide-android-arm64/4.3.3"
+  },
+  "npm:@tailwindcss/oxide-darwin-arm64@4.3.3": {
+    "homepage": null,
+    "license_declared": "MIT",
+    "license_expression": "MIT",
+    "license_files": [
+      {
+        "bytes": 1071,
+        "origin": "https://registry.npmjs.org/@tailwindcss/oxide-darwin-arm64/-/oxide-darwin-arm64-4.3.3.tgz#package/LICENSE",
+        "path": "licenses/texts/60e0b68c0f35c078eef3a5d29419d0b03ff84ec1df9c3f9d6e39a519a5ae7985.txt",
+        "sha256": "60e0b68c0f35c078eef3a5d29419d0b03ff84ec1df9c3f9d6e39a519a5ae7985"
+      }
+    ],
+    "registry_source": "https://registry.npmjs.org/%40tailwindcss%2Foxide-darwin-arm64/4.3.3"
+  },
+  "npm:@tailwindcss/oxide-darwin-x64@4.3.3": {
+    "homepage": null,
+    "license_declared": "MIT",
+    "license_expression": "MIT",
+    "license_files": [
+      {
+        "bytes": 1071,
+        "origin": "https://registry.npmjs.org/@tailwindcss/oxide-darwin-x64/-/oxide-darwin-x64-4.3.3.tgz#package/LICENSE",
+        "path": "licenses/texts/60e0b68c0f35c078eef3a5d29419d0b03ff84ec1df9c3f9d6e39a519a5ae7985.txt",
+        "sha256": "60e0b68c0f35c078eef3a5d29419d0b03ff84ec1df9c3f9d6e39a519a5ae7985"
+      }
+    ],
+    "registry_source": "https://registry.npmjs.org/%40tailwindcss%2Foxide-darwin-x64/4.3.3"
+  },
+  "npm:@tailwindcss/oxide-freebsd-x64@4.3.3": {
+    "homepage": null,
+    "license_declared": "MIT",
+    "license_expression": "MIT",
+    "license_files": [
+      {
+        "bytes": 1071,
+        "origin": "https://registry.npmjs.org/@tailwindcss/oxide-freebsd-x64/-/oxide-freebsd-x64-4.3.3.tgz#package/LICENSE",
+        "path": "licenses/texts/60e0b68c0f35c078eef3a5d29419d0b03ff84ec1df9c3f9d6e39a519a5ae7985.txt",
+        "sha256": "60e0b68c0f35c078eef3a5d29419d0b03ff84ec1df9c3f9d6e39a519a5ae7985"
+      }
+    ],
+    "registry_source": "https://registry.npmjs.org/%40tailwindcss%2Foxide-freebsd-x64/4.3.3"
+  },
+  "npm:@tailwindcss/oxide-linux-arm-gnueabihf@4.3.3": {
+    "homepage": null,
+    "license_declared": "MIT",
+    "license_expression": "MIT",
+    "license_files": [
+      {
+        "bytes": 1071,
+        "origin": "https://registry.npmjs.org/@tailwindcss/oxide-linux-arm-gnueabihf/-/oxide-linux-arm-gnueabihf-4.3.3.tgz#package/LICENSE",
+        "path": "licenses/texts/60e0b68c0f35c078eef3a5d29419d0b03ff84ec1df9c3f9d6e39a519a5ae7985.txt",
+        "sha256": "60e0b68c0f35c078eef3a5d29419d0b03ff84ec1df9c3f9d6e39a519a5ae7985"
+      }
+    ],
+    "registry_source": "https://registry.npmjs.org/%40tailwindcss%2Foxide-linux-arm-gnueabihf/4.3.3"
+  },
+  "npm:@tailwindcss/oxide-linux-arm64-gnu@4.3.3": {
+    "homepage": null,
+    "license_declared": "MIT",
+    "license_expression": "MIT",
+    "license_files": [
+      {
+        "bytes": 1071,
+        "origin": "https://registry.npmjs.org/@tailwindcss/oxide-linux-arm64-gnu/-/oxide-linux-arm64-gnu-4.3.3.tgz#package/LICENSE",
+        "path": "licenses/texts/60e0b68c0f35c078eef3a5d29419d0b03ff84ec1df9c3f9d6e39a519a5ae7985.txt",
+        "sha256": "60e0b68c0f35c078eef3a5d29419d0b03ff84ec1df9c3f9d6e39a519a5ae7985"
+      }
+    ],
+    "registry_source": "https://registry.npmjs.org/%40tailwindcss%2Foxide-linux-arm64-gnu/4.3.3"
+  },
+  "npm:@tailwindcss/oxide-linux-arm64-musl@4.3.3": {
+    "homepage": null,
+    "license_declared": "MIT",
+    "license_expression": "MIT",
+    "license_files": [
+      {
+        "bytes": 1071,
+        "origin": "https://registry.npmjs.org/@tailwindcss/oxide-linux-arm64-musl/-/oxide-linux-arm64-musl-4.3.3.tgz#package/LICENSE",
+        "path": "licenses/texts/60e0b68c0f35c078eef3a5d29419d0b03ff84ec1df9c3f9d6e39a519a5ae7985.txt",
+        "sha256": "60e0b68c0f35c078eef3a5d29419d0b03ff84ec1df9c3f9d6e39a519a5ae7985"
+      }
+    ],
+    "registry_source": "https://registry.npmjs.org/%40tailwindcss%2Foxide-linux-arm64-musl/4.3.3"
+  },
+  "npm:@tailwindcss/oxide-linux-x64-musl@4.3.3": {
+    "homepage": null,
+    "license_declared": "MIT",
+    "license_expression": "MIT",
+    "license_files": [
+      {
+        "bytes": 1071,
+        "origin": "https://registry.npmjs.org/@tailwindcss/oxide-linux-x64-musl/-/oxide-linux-x64-musl-4.3.3.tgz#package/LICENSE",
+        "path": "licenses/texts/60e0b68c0f35c078eef3a5d29419d0b03ff84ec1df9c3f9d6e39a519a5ae7985.txt",
+        "sha256": "60e0b68c0f35c078eef3a5d29419d0b03ff84ec1df9c3f9d6e39a519a5ae7985"
+      }
+    ],
+    "registry_source": "https://registry.npmjs.org/%40tailwindcss%2Foxide-linux-x64-musl/4.3.3"
+  },
+  "npm:@tailwindcss/oxide-wasm32-wasi@4.3.3": {
+    "homepage": null,
+    "license_declared": "MIT",
+    "license_expression": "MIT",
+    "license_files": [
+      {
+        "bytes": 1076,
+        "origin": "https://registry.npmjs.org/@tailwindcss/oxide-wasm32-wasi/-/oxide-wasm32-wasi-4.3.3.tgz#package/node_modules/@emnapi/core/LICENSE",
+        "path": "licenses/texts/2088f55c6731498410b20c95ebd345ed4a4a800bf74c0fba4d282fd2a021daaa.txt",
+        "sha256": "2088f55c6731498410b20c95ebd345ed4a4a800bf74c0fba4d282fd2a021daaa"
+      },
+      {
+        "bytes": 1076,
+        "origin": "https://registry.npmjs.org/@tailwindcss/oxide-wasm32-wasi/-/oxide-wasm32-wasi-4.3.3.tgz#package/node_modules/@emnapi/runtime/LICENSE",
+        "path": "licenses/texts/2088f55c6731498410b20c95ebd345ed4a4a800bf74c0fba4d282fd2a021daaa.txt",
+        "sha256": "2088f55c6731498410b20c95ebd345ed4a4a800bf74c0fba4d282fd2a021daaa"
+      },
+      {
+        "bytes": 1076,
+        "origin": "https://registry.npmjs.org/@tailwindcss/oxide-wasm32-wasi/-/oxide-wasm32-wasi-4.3.3.tgz#package/node_modules/@emnapi/wasi-threads/LICENSE",
+        "path": "licenses/texts/2088f55c6731498410b20c95ebd345ed4a4a800bf74c0fba4d282fd2a021daaa.txt",
+        "sha256": "2088f55c6731498410b20c95ebd345ed4a4a800bf74c0fba4d282fd2a021daaa"
+      },
+      {
+        "bytes": 655,
+        "origin": "https://registry.npmjs.org/@tailwindcss/oxide-wasm32-wasi/-/oxide-wasm32-wasi-4.3.3.tgz#package/node_modules/tslib/LICENSE.txt",
+        "path": "licenses/texts/210b19e543130388c68654b7497e967119ce17145f66ab7d85688fbd70f08751.txt",
+        "sha256": "210b19e543130388c68654b7497e967119ce17145f66ab7d85688fbd70f08751"
+      }
+    ],
+    "registry_source": "https://registry.npmjs.org/%40tailwindcss%2Foxide-wasm32-wasi/4.3.3"
+  },
+  "npm:@tailwindcss/oxide-win32-arm64-msvc@4.3.3": {
+    "homepage": null,
+    "license_declared": "MIT",
+    "license_expression": "MIT",
+    "license_files": [
+      {
+        "bytes": 1071,
+        "origin": "https://registry.npmjs.org/@tailwindcss/oxide-win32-arm64-msvc/-/oxide-win32-arm64-msvc-4.3.3.tgz#package/LICENSE",
+        "path": "licenses/texts/60e0b68c0f35c078eef3a5d29419d0b03ff84ec1df9c3f9d6e39a519a5ae7985.txt",
+        "sha256": "60e0b68c0f35c078eef3a5d29419d0b03ff84ec1df9c3f9d6e39a519a5ae7985"
+      }
+    ],
+    "registry_source": "https://registry.npmjs.org/%40tailwindcss%2Foxide-win32-arm64-msvc/4.3.3"
+  },
+  "npm:@tailwindcss/oxide-win32-x64-msvc@4.3.3": {
+    "homepage": null,
+    "license_declared": "MIT",
+    "license_expression": "MIT",
+    "license_files": [
+      {
+        "bytes": 1071,
+        "origin": "https://registry.npmjs.org/@tailwindcss/oxide-win32-x64-msvc/-/oxide-win32-x64-msvc-4.3.3.tgz#package/LICENSE",
+        "path": "licenses/texts/60e0b68c0f35c078eef3a5d29419d0b03ff84ec1df9c3f9d6e39a519a5ae7985.txt",
+        "sha256": "60e0b68c0f35c078eef3a5d29419d0b03ff84ec1df9c3f9d6e39a519a5ae7985"
+      }
+    ],
+    "registry_source": "https://registry.npmjs.org/%40tailwindcss%2Foxide-win32-x64-msvc/4.3.3"
+  },
+  "npm:@tybys/wasm-util@0.10.4": {
+    "homepage": "https://github.com/toyobayashi/wasm-util#readme",
+    "license_declared": "MIT",
+    "license_expression": "MIT",
+    "license_files": [
+      {
+        "bytes": 1076,
+        "origin": "https://registry.npmjs.org/@tybys/wasm-util/-/wasm-util-0.10.4.tgz#package/LICENSE",
+        "path": "licenses/texts/09e436100bf926e78df875ec80cf3d0c643dfec779b52cfe2aa96afa0de714cb.txt",
+        "sha256": "09e436100bf926e78df875ec80cf3d0c643dfec779b52cfe2aa96afa0de714cb"
+      }
+    ],
+    "registry_source": "https://registry.npmjs.org/%40tybys%2Fwasm-util/0.10.4"
+  },
+  "npm:@types/json5@0.0.29": {
+    "homepage": null,
+    "license_declared": "MIT",
+    "license_expression": "MIT",
+    "license_files": [],
+    "registry_source": "https://registry.npmjs.org/%40types%2Fjson5/0.0.29"
+  },
+  "npm:@unrs/resolver-binding-android-arm-eabi@1.12.2": {
+    "homepage": "https://github.com/unrs/unrs-resolver",
+    "license_declared": "MIT",
+    "license_expression": "MIT",
+    "license_files": [],
+    "registry_source": "https://registry.npmjs.org/%40unrs%2Fresolver-binding-android-arm-eabi/1.12.2"
+  },
+  "npm:@unrs/resolver-binding-android-arm64@1.12.2": {
+    "homepage": "https://github.com/unrs/unrs-resolver",
+    "license_declared": "MIT",
+    "license_expression": "MIT",
+    "license_files": [],
+    "registry_source": "https://registry.npmjs.org/%40unrs%2Fresolver-binding-android-arm64/1.12.2"
+  },
+  "npm:@unrs/resolver-binding-darwin-arm64@1.12.2": {
+    "homepage": "https://github.com/unrs/unrs-resolver",
+    "license_declared": "MIT",
+    "license_expression": "MIT",
+    "license_files": [],
+    "registry_source": "https://registry.npmjs.org/%40unrs%2Fresolver-binding-darwin-arm64/1.12.2"
+  },
+  "npm:@unrs/resolver-binding-darwin-x64@1.12.2": {
+    "homepage": "https://github.com/unrs/unrs-resolver",
+    "license_declared": "MIT",
+    "license_expression": "MIT",
+    "license_files": [],
+    "registry_source": "https://registry.npmjs.org/%40unrs%2Fresolver-binding-darwin-x64/1.12.2"
+  },
+  "npm:@unrs/resolver-binding-freebsd-x64@1.12.2": {
+    "homepage": "https://github.com/unrs/unrs-resolver",
+    "license_declared": "MIT",
+    "license_expression": "MIT",
+    "license_files": [],
+    "registry_source": "https://registry.npmjs.org/%40unrs%2Fresolver-binding-freebsd-x64/1.12.2"
+  },
+  "npm:@unrs/resolver-binding-linux-arm-gnueabihf@1.12.2": {
+    "homepage": "https://github.com/unrs/unrs-resolver",
+    "license_declared": "MIT",
+    "license_expression": "MIT",
+    "license_files": [],
+    "registry_source": "https://registry.npmjs.org/%40unrs%2Fresolver-binding-linux-arm-gnueabihf/1.12.2"
+  },
+  "npm:@unrs/resolver-binding-linux-arm-musleabihf@1.12.2": {
+    "homepage": "https://github.com/unrs/unrs-resolver",
+    "license_declared": "MIT",
+    "license_expression": "MIT",
+    "license_files": [],
+    "registry_source": "https://registry.npmjs.org/%40unrs%2Fresolver-binding-linux-arm-musleabihf/1.12.2"
+  },
+  "npm:@unrs/resolver-binding-linux-arm64-gnu@1.12.2": {
+    "homepage": "https://github.com/unrs/unrs-resolver",
+    "license_declared": "MIT",
+    "license_expression": "MIT",
+    "license_files": [],
+    "registry_source": "https://registry.npmjs.org/%40unrs%2Fresolver-binding-linux-arm64-gnu/1.12.2"
+  },
+  "npm:@unrs/resolver-binding-linux-arm64-musl@1.12.2": {
+    "homepage": "https://github.com/unrs/unrs-resolver",
+    "license_declared": "MIT",
+    "license_expression": "MIT",
+    "license_files": [],
+    "registry_source": "https://registry.npmjs.org/%40unrs%2Fresolver-binding-linux-arm64-musl/1.12.2"
+  },
+  "npm:@unrs/resolver-binding-linux-loong64-gnu@1.12.2": {
+    "homepage": "https://github.com/unrs/unrs-resolver",
+    "license_declared": "MIT",
+    "license_expression": "MIT",
+    "license_files": [],
+    "registry_source": "https://registry.npmjs.org/%40unrs%2Fresolver-binding-linux-loong64-gnu/1.12.2"
+  },
+  "npm:@unrs/resolver-binding-linux-loong64-musl@1.12.2": {
+    "homepage": "https://github.com/unrs/unrs-resolver",
+    "license_declared": "MIT",
+    "license_expression": "MIT",
+    "license_files": [],
+    "registry_source": "https://registry.npmjs.org/%40unrs%2Fresolver-binding-linux-loong64-musl/1.12.2"
+  },
+  "npm:@unrs/resolver-binding-linux-ppc64-gnu@1.12.2": {
+    "homepage": "https://github.com/unrs/unrs-resolver",
+    "license_declared": "MIT",
+    "license_expression": "MIT",
+    "license_files": [],
+    "registry_source": "https://registry.npmjs.org/%40unrs%2Fresolver-binding-linux-ppc64-gnu/1.12.2"
+  },
+  "npm:@unrs/resolver-binding-linux-riscv64-gnu@1.12.2": {
+    "homepage": "https://github.com/unrs/unrs-resolver",
+    "license_declared": "MIT",
+    "license_expression": "MIT",
+    "license_files": [],
+    "registry_source": "https://registry.npmjs.org/%40unrs%2Fresolver-binding-linux-riscv64-gnu/1.12.2"
+  },
+  "npm:@unrs/resolver-binding-linux-riscv64-musl@1.12.2": {
+    "homepage": "https://github.com/unrs/unrs-resolver",
+    "license_declared": "MIT",
+    "license_expression": "MIT",
+    "license_files": [],
+    "registry_source": "https://registry.npmjs.org/%40unrs%2Fresolver-binding-linux-riscv64-musl/1.12.2"
+  },
+  "npm:@unrs/resolver-binding-linux-s390x-gnu@1.12.2": {
+    "homepage": "https://github.com/unrs/unrs-resolver",
+    "license_declared": "MIT",
+    "license_expression": "MIT",
+    "license_files": [],
+    "registry_source": "https://registry.npmjs.org/%40unrs%2Fresolver-binding-linux-s390x-gnu/1.12.2"
+  },
+  "npm:@unrs/resolver-binding-linux-x64-gnu@1.12.2": {
+    "homepage": "https://github.com/unrs/unrs-resolver",
+    "license_declared": "MIT",
+    "license_expression": "MIT",
+    "license_files": [],
+    "registry_source": "https://registry.npmjs.org/%40unrs%2Fresolver-binding-linux-x64-gnu/1.12.2"
+  },
+  "npm:@unrs/resolver-binding-linux-x64-musl@1.12.2": {
+    "homepage": "https://github.com/unrs/unrs-resolver",
+    "license_declared": "MIT",
+    "license_expression": "MIT",
+    "license_files": [],
+    "registry_source": "https://registry.npmjs.org/%40unrs%2Fresolver-binding-linux-x64-musl/1.12.2"
+  },
+  "npm:@unrs/resolver-binding-openharmony-arm64@1.12.2": {
+    "homepage": "https://github.com/unrs/unrs-resolver",
+    "license_declared": "MIT",
+    "license_expression": "MIT",
+    "license_files": [],
+    "registry_source": "https://registry.npmjs.org/%40unrs%2Fresolver-binding-openharmony-arm64/1.12.2"
+  },
+  "npm:@unrs/resolver-binding-wasm32-wasi@1.12.2": {
+    "homepage": "https://github.com/unrs/unrs-resolver",
+    "license_declared": "MIT",
+    "license_expression": "MIT",
+    "license_files": [],
+    "registry_source": "https://registry.npmjs.org/%40unrs%2Fresolver-binding-wasm32-wasi/1.12.2"
+  },
+  "npm:@unrs/resolver-binding-win32-arm64-msvc@1.12.2": {
+    "homepage": "https://github.com/unrs/unrs-resolver",
+    "license_declared": "MIT",
+    "license_expression": "MIT",
+    "license_files": [],
+    "registry_source": "https://registry.npmjs.org/%40unrs%2Fresolver-binding-win32-arm64-msvc/1.12.2"
+  },
+  "npm:@unrs/resolver-binding-win32-ia32-msvc@1.12.2": {
+    "homepage": "https://github.com/unrs/unrs-resolver",
+    "license_declared": "MIT",
+    "license_expression": "MIT",
+    "license_files": [],
+    "registry_source": "https://registry.npmjs.org/%40unrs%2Fresolver-binding-win32-ia32-msvc/1.12.2"
+  },
+  "npm:@unrs/resolver-binding-win32-x64-msvc@1.12.2": {
+    "homepage": "https://github.com/unrs/unrs-resolver",
+    "license_declared": "MIT",
+    "license_expression": "MIT",
+    "license_files": [],
+    "registry_source": "https://registry.npmjs.org/%40unrs%2Fresolver-binding-win32-x64-msvc/1.12.2"
+  },
+  "npm:agent-base@6.0.2": {
+    "homepage": "https://github.com/TooTallNate/node-agent-base#readme",
+    "license_declared": "MIT",
+    "license_expression": "MIT",
+    "license_files": [],
+    "registry_source": "https://registry.npmjs.org/agent-base/6.0.2"
+  },
+  "npm:babel-plugin-react-compiler@1.0.0": {
+    "homepage": "https://github.com/facebook/react#readme",
+    "license_declared": "MIT",
+    "license_expression": "MIT",
+    "license_files": [],
+    "registry_source": "https://registry.npmjs.org/babel-plugin-react-compiler/1.0.0"
+  },
+  "npm:boolbase@1.0.0": {
+    "homepage": "https://github.com/fb55/boolbase",
+    "license_declared": "ISC",
+    "license_expression": "ISC",
+    "license_files": [],
+    "registry_source": "https://registry.npmjs.org/boolbase/1.0.0"
+  },
+  "npm:bplist-parser@0.3.1": {
+    "homepage": "https://github.com/nearinfinity/node-bplist-parser",
+    "license_declared": "MIT",
+    "license_expression": "MIT",
+    "license_files": [],
+    "registry_source": "https://registry.npmjs.org/bplist-parser/0.3.1"
+  },
+  "npm:bplist-parser@0.3.2": {
+    "homepage": "https://github.com/nearinfinity/node-bplist-parser",
+    "license_declared": "MIT",
+    "license_expression": "MIT",
+    "license_files": [],
+    "registry_source": "https://registry.npmjs.org/bplist-parser/0.3.2"
+  },
+  "npm:bser@2.1.1": {
+    "homepage": "https://facebook.github.io/watchman/docs/bser.html",
+    "license_declared": "Apache-2.0",
+    "license_expression": "Apache-2.0",
+    "license_files": [],
+    "registry_source": "https://registry.npmjs.org/bser/2.1.1"
+  },
+  "npm:client-only@0.0.1": {
+    "homepage": "https://reactjs.org/",
+    "license_declared": "MIT",
+    "license_expression": "MIT",
+    "license_files": [],
+    "registry_source": "https://registry.npmjs.org/client-only/0.0.1"
+  },
+  "npm:eslint-config-next@16.3.8": {
+    "homepage": "https://nextjs.org/docs/app/api-reference/config/eslint",
+    "license_declared": "MIT",
+    "license_expression": "MIT",
+    "license_files": [],
+    "registry_source": "https://registry.npmjs.org/eslint-config-next/16.3.8"
+  },
+  "npm:esrecurse@4.3.0": {
+    "homepage": "https://github.com/estools/esrecurse",
+    "license_declared": "BSD-2-Clause",
+    "license_expression": "BSD-2-Clause",
+    "license_files": [],
+    "registry_source": "https://registry.npmjs.org/esrecurse/4.3.0"
+  },
+  "npm:exit@0.1.2": {
+    "homepage": "https://github.com/cowboy/node-exit",
+    "license_declared": null,
+    "license_expression": null,
+    "license_files": [
+      {
+        "bytes": 1062,
+        "origin": "https://registry.npmjs.org/exit/-/exit-0.1.2.tgz#package/LICENSE-MIT",
+        "path": "licenses/texts/65bd93f75d6c0cdc1c9e1a39bd1814e2e34355c665e1564a1517f27c1523ab7e.txt",
+        "sha256": "65bd93f75d6c0cdc1c9e1a39bd1814e2e34355c665e1564a1517f27c1523ab7e"
+      }
+    ],
+    "registry_source": "https://registry.npmjs.org/exit/0.1.2"
+  },
+  "npm:fb-dotslash@0.5.8": {
+    "homepage": "https://dotslash-cli.com/",
+    "license_declared": "(MIT OR Apache-2.0)",
+    "license_expression": "(MIT OR Apache-2.0)",
+    "license_files": [],
+    "registry_source": "https://registry.npmjs.org/fb-dotslash/0.5.8"
+  },
+  "npm:fb-watchman@2.0.2": {
+    "homepage": "https://facebook.github.io/watchman/",
+    "license_declared": "Apache-2.0",
+    "license_expression": "Apache-2.0",
+    "license_files": [],
+    "registry_source": "https://registry.npmjs.org/fb-watchman/2.0.2"
+  },
+  "npm:fsevents@2.3.2": {
+    "homepage": "https://github.com/fsevents/fsevents",
+    "license_declared": "MIT",
+    "license_expression": "MIT",
+    "license_files": [
+      {
+        "bytes": 1133,
+        "origin": "https://registry.npmjs.org/fsevents/-/fsevents-2.3.2.tgz#package/LICENSE",
+        "path": "licenses/texts/2a8a5d6197bb97a018b8a190dd3ed853d750ca87c8e80c17aad41d6c6ff448e1.txt",
+        "sha256": "2a8a5d6197bb97a018b8a190dd3ed853d750ca87c8e80c17aad41d6c6ff448e1"
+      }
+    ],
+    "registry_source": "https://registry.npmjs.org/fsevents/2.3.2"
+  },
+  "npm:hermes-compiler@250829098.0.17": {
+    "homepage": "https://github.com/facebook/hermes#readme",
+    "license_declared": "MIT",
+    "license_expression": "MIT",
+    "license_files": [],
+    "registry_source": "https://registry.npmjs.org/hermes-compiler/250829098.0.17"
+  },
+  "npm:http-proxy-agent@5.0.0": {
+    "homepage": "https://github.com/TooTallNate/node-http-proxy-agent#readme",
+    "license_declared": "MIT",
+    "license_expression": "MIT",
+    "license_files": [],
+    "registry_source": "https://registry.npmjs.org/http-proxy-agent/5.0.0"
+  },
+  "npm:https-proxy-agent@5.0.1": {
+    "homepage": "https://github.com/TooTallNate/node-https-proxy-agent#readme",
+    "license_declared": "MIT",
+    "license_expression": "MIT",
+    "license_files": [],
+    "registry_source": "https://registry.npmjs.org/https-proxy-agent/5.0.1"
+  },
+  "npm:imurmurhash@0.1.4": {
+    "homepage": "https://github.com/jensyt/imurmurhash-js",
+    "license_declared": "MIT",
+    "license_expression": "MIT",
+    "license_files": [],
+    "registry_source": "https://registry.npmjs.org/imurmurhash/0.1.4"
+  },
+  "npm:jest-pnp-resolver@1.2.3": {
+    "homepage": "https://github.com/arcanis/jest-pnp-resolver",
+    "license_declared": "MIT",
+    "license_expression": "MIT",
+    "license_files": [],
+    "registry_source": "https://registry.npmjs.org/jest-pnp-resolver/1.2.3"
+  },
+  "npm:jimp-compact@0.16.1": {
+    "homepage": "https://github.com/nuxt-community/jimp-compact#readme",
+    "license_declared": "MIT",
+    "license_expression": "MIT",
+    "license_files": [],
+    "registry_source": "https://registry.npmjs.org/jimp-compact/0.16.1"
+  },
+  "npm:keyv@4.5.4": {
+    "homepage": "https://github.com/jaredwray/keyv",
+    "license_declared": "MIT",
+    "license_expression": "MIT",
+    "license_files": [],
+    "registry_source": "https://registry.npmjs.org/keyv/4.5.4"
+  },
+  "npm:language-subtag-registry@0.3.23": {
+    "homepage": "https://github.com/mattcg/language-subtag-registry",
+    "license_declared": "CC0-1.0",
+    "license_expression": "CC0-1.0",
+    "license_files": [],
+    "registry_source": "https://registry.npmjs.org/language-subtag-registry/0.3.23"
+  },
+  "npm:language-tags@1.0.9": {
+    "homepage": "https://github.com/mattcg/language-tags",
+    "license_declared": "MIT",
+    "license_expression": "MIT",
+    "license_files": [],
+    "registry_source": "https://registry.npmjs.org/language-tags/1.0.9"
+  },
+  "npm:lightningcss-android-arm64@1.32.0": {
+    "homepage": "https://github.com/parcel-bundler/lightningcss#readme",
+    "license_declared": "MPL-2.0",
+    "license_expression": "MPL-2.0",
+    "license_files": [
+      {
+        "bytes": 15648,
+        "origin": "https://registry.npmjs.org/lightningcss-android-arm64/-/lightningcss-android-arm64-1.32.0.tgz#package/LICENSE",
+        "path": "licenses/texts/5eba353fe5076ac3432177f8ab1cf75e3afcd0584251e37c3bfead5f447d040e.txt",
+        "sha256": "5eba353fe5076ac3432177f8ab1cf75e3afcd0584251e37c3bfead5f447d040e"
+      }
+    ],
+    "registry_source": "https://registry.npmjs.org/lightningcss-android-arm64/1.32.0"
+  },
+  "npm:lightningcss-darwin-arm64@1.32.0": {
+    "homepage": "https://github.com/parcel-bundler/lightningcss#readme",
+    "license_declared": "MPL-2.0",
+    "license_expression": "MPL-2.0",
+    "license_files": [
+      {
+        "bytes": 15648,
+        "origin": "https://registry.npmjs.org/lightningcss-darwin-arm64/-/lightningcss-darwin-arm64-1.32.0.tgz#package/LICENSE",
+        "path": "licenses/texts/5eba353fe5076ac3432177f8ab1cf75e3afcd0584251e37c3bfead5f447d040e.txt",
+        "sha256": "5eba353fe5076ac3432177f8ab1cf75e3afcd0584251e37c3bfead5f447d040e"
+      }
+    ],
+    "registry_source": "https://registry.npmjs.org/lightningcss-darwin-arm64/1.32.0"
+  },
+  "npm:lightningcss-darwin-x64@1.32.0": {
+    "homepage": "https://github.com/parcel-bundler/lightningcss#readme",
+    "license_declared": "MPL-2.0",
+    "license_expression": "MPL-2.0",
+    "license_files": [
+      {
+        "bytes": 15648,
+        "origin": "https://registry.npmjs.org/lightningcss-darwin-x64/-/lightningcss-darwin-x64-1.32.0.tgz#package/LICENSE",
+        "path": "licenses/texts/5eba353fe5076ac3432177f8ab1cf75e3afcd0584251e37c3bfead5f447d040e.txt",
+        "sha256": "5eba353fe5076ac3432177f8ab1cf75e3afcd0584251e37c3bfead5f447d040e"
+      }
+    ],
+    "registry_source": "https://registry.npmjs.org/lightningcss-darwin-x64/1.32.0"
+  },
+  "npm:lightningcss-freebsd-x64@1.32.0": {
+    "homepage": "https://github.com/parcel-bundler/lightningcss#readme",
+    "license_declared": "MPL-2.0",
+    "license_expression": "MPL-2.0",
+    "license_files": [
+      {
+        "bytes": 15648,
+        "origin": "https://registry.npmjs.org/lightningcss-freebsd-x64/-/lightningcss-freebsd-x64-1.32.0.tgz#package/LICENSE",
+        "path": "licenses/texts/5eba353fe5076ac3432177f8ab1cf75e3afcd0584251e37c3bfead5f447d040e.txt",
+        "sha256": "5eba353fe5076ac3432177f8ab1cf75e3afcd0584251e37c3bfead5f447d040e"
+      }
+    ],
+    "registry_source": "https://registry.npmjs.org/lightningcss-freebsd-x64/1.32.0"
+  },
+  "npm:lightningcss-linux-arm-gnueabihf@1.32.0": {
+    "homepage": "https://github.com/parcel-bundler/lightningcss#readme",
+    "license_declared": "MPL-2.0",
+    "license_expression": "MPL-2.0",
+    "license_files": [
+      {
+        "bytes": 15648,
+        "origin": "https://registry.npmjs.org/lightningcss-linux-arm-gnueabihf/-/lightningcss-linux-arm-gnueabihf-1.32.0.tgz#package/LICENSE",
+        "path": "licenses/texts/5eba353fe5076ac3432177f8ab1cf75e3afcd0584251e37c3bfead5f447d040e.txt",
+        "sha256": "5eba353fe5076ac3432177f8ab1cf75e3afcd0584251e37c3bfead5f447d040e"
+      }
+    ],
+    "registry_source": "https://registry.npmjs.org/lightningcss-linux-arm-gnueabihf/1.32.0"
+  },
+  "npm:lightningcss-linux-arm64-gnu@1.32.0": {
+    "homepage": "https://github.com/parcel-bundler/lightningcss#readme",
+    "license_declared": "MPL-2.0",
+    "license_expression": "MPL-2.0",
+    "license_files": [
+      {
+        "bytes": 15648,
+        "origin": "https://registry.npmjs.org/lightningcss-linux-arm64-gnu/-/lightningcss-linux-arm64-gnu-1.32.0.tgz#package/LICENSE",
+        "path": "licenses/texts/5eba353fe5076ac3432177f8ab1cf75e3afcd0584251e37c3bfead5f447d040e.txt",
+        "sha256": "5eba353fe5076ac3432177f8ab1cf75e3afcd0584251e37c3bfead5f447d040e"
+      }
+    ],
+    "registry_source": "https://registry.npmjs.org/lightningcss-linux-arm64-gnu/1.32.0"
+  },
+  "npm:lightningcss-linux-arm64-musl@1.32.0": {
+    "homepage": "https://github.com/parcel-bundler/lightningcss#readme",
+    "license_declared": "MPL-2.0",
+    "license_expression": "MPL-2.0",
+    "license_files": [
+      {
+        "bytes": 15648,
+        "origin": "https://registry.npmjs.org/lightningcss-linux-arm64-musl/-/lightningcss-linux-arm64-musl-1.32.0.tgz#package/LICENSE",
+        "path": "licenses/texts/5eba353fe5076ac3432177f8ab1cf75e3afcd0584251e37c3bfead5f447d040e.txt",
+        "sha256": "5eba353fe5076ac3432177f8ab1cf75e3afcd0584251e37c3bfead5f447d040e"
+      }
+    ],
+    "registry_source": "https://registry.npmjs.org/lightningcss-linux-arm64-musl/1.32.0"
+  },
+  "npm:lightningcss-linux-x64-musl@1.32.0": {
+    "homepage": "https://github.com/parcel-bundler/lightningcss#readme",
+    "license_declared": "MPL-2.0",
+    "license_expression": "MPL-2.0",
+    "license_files": [
+      {
+        "bytes": 15648,
+        "origin": "https://registry.npmjs.org/lightningcss-linux-x64-musl/-/lightningcss-linux-x64-musl-1.32.0.tgz#package/LICENSE",
+        "path": "licenses/texts/5eba353fe5076ac3432177f8ab1cf75e3afcd0584251e37c3bfead5f447d040e.txt",
+        "sha256": "5eba353fe5076ac3432177f8ab1cf75e3afcd0584251e37c3bfead5f447d040e"
+      }
+    ],
+    "registry_source": "https://registry.npmjs.org/lightningcss-linux-x64-musl/1.32.0"
+  },
+  "npm:lightningcss-win32-arm64-msvc@1.32.0": {
+    "homepage": "https://github.com/parcel-bundler/lightningcss#readme",
+    "license_declared": "MPL-2.0",
+    "license_expression": "MPL-2.0",
+    "license_files": [
+      {
+        "bytes": 15648,
+        "origin": "https://registry.npmjs.org/lightningcss-win32-arm64-msvc/-/lightningcss-win32-arm64-msvc-1.32.0.tgz#package/LICENSE",
+        "path": "licenses/texts/5eba353fe5076ac3432177f8ab1cf75e3afcd0584251e37c3bfead5f447d040e.txt",
+        "sha256": "5eba353fe5076ac3432177f8ab1cf75e3afcd0584251e37c3bfead5f447d040e"
+      }
+    ],
+    "registry_source": "https://registry.npmjs.org/lightningcss-win32-arm64-msvc/1.32.0"
+  },
+  "npm:lightningcss-win32-x64-msvc@1.32.0": {
+    "homepage": "https://github.com/parcel-bundler/lightningcss#readme",
+    "license_declared": "MPL-2.0",
+    "license_expression": "MPL-2.0",
+    "license_files": [
+      {
+        "bytes": 15648,
+        "origin": "https://registry.npmjs.org/lightningcss-win32-x64-msvc/-/lightningcss-win32-x64-msvc-1.32.0.tgz#package/LICENSE",
+        "path": "licenses/texts/5eba353fe5076ac3432177f8ab1cf75e3afcd0584251e37c3bfead5f447d040e.txt",
+        "sha256": "5eba353fe5076ac3432177f8ab1cf75e3afcd0584251e37c3bfead5f447d040e"
+      }
+    ],
+    "registry_source": "https://registry.npmjs.org/lightningcss-win32-x64-msvc/1.32.0"
+  },
+  "npm:metro-babel-transformer@0.84.5": {
+    "homepage": "https://github.com/react/metro#readme",
+    "license_declared": "MIT",
+    "license_expression": "MIT",
+    "license_files": [],
+    "registry_source": "https://registry.npmjs.org/metro-babel-transformer/0.84.5"
+  },
+  "npm:metro-babel-transformer@0.84.6": {
+    "homepage": "https://github.com/react/metro#readme",
+    "license_declared": "MIT",
+    "license_expression": "MIT",
+    "license_files": [],
+    "registry_source": "https://registry.npmjs.org/metro-babel-transformer/0.84.6"
+  },
+  "npm:metro-cache-key@0.84.5": {
+    "homepage": "https://github.com/react/metro#readme",
+    "license_declared": "MIT",
+    "license_expression": "MIT",
+    "license_files": [],
+    "registry_source": "https://registry.npmjs.org/metro-cache-key/0.84.5"
+  },
+  "npm:metro-cache-key@0.84.6": {
+    "homepage": "https://github.com/react/metro#readme",
+    "license_declared": "MIT",
+    "license_expression": "MIT",
+    "license_files": [],
+    "registry_source": "https://registry.npmjs.org/metro-cache-key/0.84.6"
+  },
+  "npm:metro-cache@0.84.5": {
+    "homepage": "https://github.com/react/metro#readme",
+    "license_declared": "MIT",
+    "license_expression": "MIT",
+    "license_files": [],
+    "registry_source": "https://registry.npmjs.org/metro-cache/0.84.5"
+  },
+  "npm:metro-cache@0.84.6": {
+    "homepage": "https://github.com/react/metro#readme",
+    "license_declared": "MIT",
+    "license_expression": "MIT",
+    "license_files": [],
+    "registry_source": "https://registry.npmjs.org/metro-cache/0.84.6"
+  },
+  "npm:metro-config@0.84.5": {
+    "homepage": "https://github.com/react/metro#readme",
+    "license_declared": "MIT",
+    "license_expression": "MIT",
+    "license_files": [],
+    "registry_source": "https://registry.npmjs.org/metro-config/0.84.5"
+  },
+  "npm:metro-config@0.84.6": {
+    "homepage": "https://github.com/react/metro#readme",
+    "license_declared": "MIT",
+    "license_expression": "MIT",
+    "license_files": [],
+    "registry_source": "https://registry.npmjs.org/metro-config/0.84.6"
+  },
+  "npm:metro-core@0.84.5": {
+    "homepage": "https://github.com/react/metro#readme",
+    "license_declared": "MIT",
+    "license_expression": "MIT",
+    "license_files": [],
+    "registry_source": "https://registry.npmjs.org/metro-core/0.84.5"
+  },
+  "npm:metro-core@0.84.6": {
+    "homepage": "https://github.com/react/metro#readme",
+    "license_declared": "MIT",
+    "license_expression": "MIT",
+    "license_files": [],
+    "registry_source": "https://registry.npmjs.org/metro-core/0.84.6"
+  },
+  "npm:metro-file-map@0.84.5": {
+    "homepage": "https://github.com/react/metro#readme",
+    "license_declared": "MIT",
+    "license_expression": "MIT",
+    "license_files": [],
+    "registry_source": "https://registry.npmjs.org/metro-file-map/0.84.5"
+  },
+  "npm:metro-file-map@0.84.6": {
+    "homepage": "https://github.com/react/metro#readme",
+    "license_declared": "MIT",
+    "license_expression": "MIT",
+    "license_files": [],
+    "registry_source": "https://registry.npmjs.org/metro-file-map/0.84.6"
+  },
+  "npm:metro-minify-terser@0.84.5": {
+    "homepage": "https://github.com/react/metro#readme",
+    "license_declared": "MIT",
+    "license_expression": "MIT",
+    "license_files": [],
+    "registry_source": "https://registry.npmjs.org/metro-minify-terser/0.84.5"
+  },
+  "npm:metro-minify-terser@0.84.6": {
+    "homepage": "https://github.com/react/metro#readme",
+    "license_declared": "MIT",
+    "license_expression": "MIT",
+    "license_files": [],
+    "registry_source": "https://registry.npmjs.org/metro-minify-terser/0.84.6"
+  },
+  "npm:metro-resolver@0.84.5": {
+    "homepage": "https://github.com/react/metro#readme",
+    "license_declared": "MIT",
+    "license_expression": "MIT",
+    "license_files": [],
+    "registry_source": "https://registry.npmjs.org/metro-resolver/0.84.5"
+  },
+  "npm:metro-resolver@0.84.6": {
+    "homepage": "https://github.com/react/metro#readme",
+    "license_declared": "MIT",
+    "license_expression": "MIT",
+    "license_files": [],
+    "registry_source": "https://registry.npmjs.org/metro-resolver/0.84.6"
+  },
+  "npm:metro-runtime@0.84.5": {
+    "homepage": "https://github.com/react/metro#readme",
+    "license_declared": "MIT",
+    "license_expression": "MIT",
+    "license_files": [],
+    "registry_source": "https://registry.npmjs.org/metro-runtime/0.84.5"
+  },
+  "npm:metro-runtime@0.84.6": {
+    "homepage": "https://github.com/react/metro#readme",
+    "license_declared": "MIT",
+    "license_expression": "MIT",
+    "license_files": [],
+    "registry_source": "https://registry.npmjs.org/metro-runtime/0.84.6"
+  },
+  "npm:metro-source-map@0.84.5": {
+    "homepage": "https://github.com/react/metro#readme",
+    "license_declared": "MIT",
+    "license_expression": "MIT",
+    "license_files": [],
+    "registry_source": "https://registry.npmjs.org/metro-source-map/0.84.5"
+  },
+  "npm:metro-source-map@0.84.6": {
+    "homepage": "https://github.com/react/metro#readme",
+    "license_declared": "MIT",
+    "license_expression": "MIT",
+    "license_files": [],
+    "registry_source": "https://registry.npmjs.org/metro-source-map/0.84.6"
+  },
+  "npm:metro-symbolicate@0.84.5": {
+    "homepage": "https://github.com/react/metro#readme",
+    "license_declared": "MIT",
+    "license_expression": "MIT",
+    "license_files": [],
+    "registry_source": "https://registry.npmjs.org/metro-symbolicate/0.84.5"
+  },
+  "npm:metro-symbolicate@0.84.6": {
+    "homepage": "https://github.com/react/metro#readme",
+    "license_declared": "MIT",
+    "license_expression": "MIT",
+    "license_files": [],
+    "registry_source": "https://registry.npmjs.org/metro-symbolicate/0.84.6"
+  },
+  "npm:metro-transform-plugins@0.84.5": {
+    "homepage": "https://github.com/react/metro#readme",
+    "license_declared": "MIT",
+    "license_expression": "MIT",
+    "license_files": [],
+    "registry_source": "https://registry.npmjs.org/metro-transform-plugins/0.84.5"
+  },
+  "npm:metro-transform-plugins@0.84.6": {
+    "homepage": "https://github.com/react/metro#readme",
+    "license_declared": "MIT",
+    "license_expression": "MIT",
+    "license_files": [],
+    "registry_source": "https://registry.npmjs.org/metro-transform-plugins/0.84.6"
+  },
+  "npm:metro-transform-worker@0.84.5": {
+    "homepage": "https://github.com/react/metro#readme",
+    "license_declared": "MIT",
+    "license_expression": "MIT",
+    "license_files": [],
+    "registry_source": "https://registry.npmjs.org/metro-transform-worker/0.84.5"
+  },
+  "npm:metro-transform-worker@0.84.6": {
+    "homepage": "https://github.com/react/metro#readme",
+    "license_declared": "MIT",
+    "license_expression": "MIT",
+    "license_files": [],
+    "registry_source": "https://registry.npmjs.org/metro-transform-worker/0.84.6"
+  },
+  "npm:metro@0.84.5": {
+    "homepage": "https://github.com/react/metro#readme",
+    "license_declared": "MIT",
+    "license_expression": "MIT",
+    "license_files": [],
+    "registry_source": "https://registry.npmjs.org/metro/0.84.5"
+  },
+  "npm:metro@0.84.6": {
+    "homepage": "https://github.com/react/metro#readme",
+    "license_declared": "MIT",
+    "license_expression": "MIT",
+    "license_files": [],
+    "registry_source": "https://registry.npmjs.org/metro/0.84.6"
+  },
+  "npm:natural-compare@1.4.0": {
+    "homepage": "https://github.com/litejs/natural-compare-lite#readme",
+    "license_declared": "MIT",
+    "license_expression": "MIT",
+    "license_files": [],
+    "registry_source": "https://registry.npmjs.org/natural-compare/1.4.0"
+  },
+  "npm:ob1@0.84.5": {
+    "homepage": "https://github.com/react/metro#readme",
+    "license_declared": "MIT",
+    "license_expression": "MIT",
+    "license_files": [],
+    "registry_source": "https://registry.npmjs.org/ob1/0.84.5"
+  },
+  "npm:ob1@0.84.6": {
+    "homepage": "https://github.com/react/metro#readme",
+    "license_declared": "MIT",
+    "license_expression": "MIT",
+    "license_files": [],
+    "registry_source": "https://registry.npmjs.org/ob1/0.84.6"
+  },
+  "npm:react-devtools-core@6.1.5": {
+    "homepage": "https://github.com/facebook/react#readme",
+    "license_declared": "MIT",
+    "license_expression": "MIT",
+    "license_files": [],
+    "registry_source": "https://registry.npmjs.org/react-devtools-core/6.1.5"
+  },
+  "npm:react-remove-scroll-bar@2.3.8": {
+    "homepage": "https://github.com/theKashey/react-remove-scroll-bar#readme",
+    "license_declared": "MIT",
+    "license_expression": "MIT",
+    "license_files": [],
+    "registry_source": "https://registry.npmjs.org/react-remove-scroll-bar/2.3.8"
+  },
+  "npm:rehype-katex@7.0.1": {
+    "homepage": "https://github.com/remarkjs/remark-math/tree/main#readme",
+    "license_declared": "MIT",
+    "license_expression": "MIT",
+    "license_files": [],
+    "registry_source": "https://registry.npmjs.org/rehype-katex/7.0.1"
+  },
+  "npm:remark-math@6.0.0": {
+    "homepage": "https://github.com/remarkjs/remark-math/tree/main#readme",
+    "license_declared": "MIT",
+    "license_expression": "MIT",
+    "license_files": [],
+    "registry_source": "https://registry.npmjs.org/remark-math/6.0.0"
+  },
+  "npm:saxes@6.0.0": {
+    "homepage": "https://github.com/lddubeau/saxes#readme",
+    "license_declared": "ISC",
+    "license_expression": "ISC",
+    "license_files": [],
+    "registry_source": "https://registry.npmjs.org/saxes/6.0.0"
+  },
+  "npm:server-only@0.0.1": {
+    "homepage": "https://reactjs.org/",
+    "license_declared": "MIT",
+    "license_expression": "MIT",
+    "license_files": [],
+    "registry_source": "https://registry.npmjs.org/server-only/0.0.1"
+  },
+  "npm:stable-hash@0.0.5": {
+    "homepage": "https://github.com/shuding/stable-hash#readme",
+    "license_declared": "MIT",
+    "license_expression": "MIT",
+    "license_files": [],
+    "registry_source": "https://registry.npmjs.org/stable-hash/0.0.5"
+  },
+  "npm:standard-navigation@0.0.5": {
+    "homepage": "https://github.com/react-navigation/standard-navigation#readme",
+    "license_declared": "MIT",
+    "license_expression": "MIT",
+    "license_files": [],
+    "registry_source": "https://registry.npmjs.org/standard-navigation/0.0.5"
+  },
+  "npm:standard-navigation@0.0.8": {
+    "homepage": "https://github.com/react-navigation/standard-navigation#readme",
+    "license_declared": "MIT",
+    "license_expression": "MIT",
+    "license_files": [],
+    "registry_source": "https://registry.npmjs.org/standard-navigation/0.0.8"
+  },
+  "npm:stream-buffers@2.2.0": {
+    "homepage": "https://github.com/samcday/node-stream-buffer#readme",
+    "license_declared": "Unlicense",
+    "license_expression": "Unlicense",
+    "license_files": [],
+    "registry_source": "https://registry.npmjs.org/stream-buffers/2.2.0"
+  },
+  "npm:structured-headers@0.4.1": {
+    "homepage": "https://github.com/evert/structured-header#readme",
+    "license_declared": "MIT",
+    "license_expression": "MIT",
+    "license_files": [],
+    "registry_source": "https://registry.npmjs.org/structured-headers/0.4.1"
+  },
+  "npm:test-renderer@1.2.0": {
+    "homepage": "https://github.com/mdjastrzebski/test-renderer",
+    "license_declared": "MIT",
+    "license_expression": "MIT",
+    "license_files": [],
+    "registry_source": "https://registry.npmjs.org/test-renderer/1.2.0"
+  },
+  "npm:unrs-resolver@1.12.2": {
+    "homepage": "https://github.com/unrs/unrs-resolver",
+    "license_declared": "MIT",
+    "license_expression": "MIT",
+    "license_files": [],
+    "registry_source": "https://registry.npmjs.org/unrs-resolver/1.12.2"
+  },
+  "pypi:attrs@25.4.0": {
+    "homepage": null,
+    "license_declared": null,
+    "license_expression": "MIT",
+    "license_files": [
+      {
+        "bytes": 1109,
+        "origin": "https://files.pythonhosted.org/packages/3a/2a/7cc015f5b9f5db42b7d48157e23356022889fc354a2813c15934b7cb5c0e/attrs-25.4.0-py3-none-any.whl#attrs-25.4.0.dist-info/licenses/LICENSE",
+        "path": "licenses/texts/882115c95dfc2af1eeb6714f8ec6d5cbcabf667caff8729f42420da63f714e9f.txt",
+        "sha256": "882115c95dfc2af1eeb6714f8ec6d5cbcabf667caff8729f42420da63f714e9f"
+      }
+    ],
+    "registry_source": "https://pypi.org/pypi/attrs/25.4.0/json"
+  },
+  "pypi:attrs@26.1.0": {
+    "homepage": null,
+    "license_declared": null,
+    "license_expression": "MIT",
+    "license_files": [
+      {
+        "bytes": 1109,
+        "origin": "https://files.pythonhosted.org/packages/64/b4/17d4b0b2a2dc85a6df63d1157e028ed19f90d4cd97c36717afef2bc2f395/attrs-26.1.0-py3-none-any.whl#attrs-26.1.0.dist-info/licenses/LICENSE",
+        "path": "licenses/texts/882115c95dfc2af1eeb6714f8ec6d5cbcabf667caff8729f42420da63f714e9f.txt",
+        "sha256": "882115c95dfc2af1eeb6714f8ec6d5cbcabf667caff8729f42420da63f714e9f"
+      }
+    ],
+    "registry_source": "https://pypi.org/pypi/attrs/26.1.0/json"
+  },
+  "pypi:bcrypt@5.0.0": {
+    "homepage": null,
+    "license_declared": "Apache-2.0",
+    "license_expression": "Apache-2.0",
+    "license_files": [
+      {
+        "bytes": 10850,
+        "origin": "https://files.pythonhosted.org/packages/d4/36/3329e2518d70ad8e2e5817d5a4cac6bba05a47767ec416c7d020a965f408/bcrypt-5.0.0.tar.gz#bcrypt-5.0.0/LICENSE",
+        "path": "licenses/texts/8173d5c29b4f956d532781d2b86e4e30f83e6b7878dce18c919451d6ba707c90.txt",
+        "sha256": "8173d5c29b4f956d532781d2b86e4e30f83e6b7878dce18c919451d6ba707c90"
+      }
+    ],
+    "registry_source": "https://pypi.org/pypi/bcrypt/5.0.0/json"
+  },
+  "pypi:build@1.5.0": {
+    "homepage": null,
+    "license_declared": null,
+    "license_expression": "MIT",
+    "license_files": [
+      {
+        "bytes": 1113,
+        "origin": "https://files.pythonhosted.org/packages/0d/fe/6bea5c9162869c5beba5d9c8abbed835ec85bf1ec1fba05a3822325c45f3/build-1.5.0-py3-none-any.whl#build-1.5.0.dist-info/licenses/LICENSE",
+        "path": "licenses/texts/aaf9a29ca5907971ccf07de025375db34539a8d5eeebce20b46099805722106f.txt",
+        "sha256": "aaf9a29ca5907971ccf07de025375db34539a8d5eeebce20b46099805722106f"
+      }
+    ],
+    "registry_source": "https://pypi.org/pypi/build/1.5.0/json"
+  },
+  "pypi:certifi@2026.1.4": {
+    "homepage": "https://github.com/certifi/python-certifi",
+    "license_declared": "MPL-2.0",
+    "license_expression": "MPL-2.0",
+    "license_files": [
+      {
+        "bytes": 989,
+        "origin": "https://files.pythonhosted.org/packages/e6/ad/3cc14f097111b4de0040c83a525973216457bbeeb63739ef1ed275c1c021/certifi-2026.1.4-py3-none-any.whl#certifi-2026.1.4.dist-info/licenses/LICENSE",
+        "path": "licenses/texts/e93716da6b9c0d5a4a1df60fe695b370f0695603d21f6f83f053e42cfc10caf7.txt",
+        "sha256": "e93716da6b9c0d5a4a1df60fe695b370f0695603d21f6f83f053e42cfc10caf7"
+      }
+    ],
+    "registry_source": "https://pypi.org/pypi/certifi/2026.1.4/json"
+  },
+  "pypi:certifi@2026.7.22": {
+    "homepage": "https://github.com/certifi/python-certifi",
+    "license_declared": "MPL-2.0",
+    "license_expression": "MPL-2.0",
+    "license_files": [
+      {
+        "bytes": 989,
+        "origin": "https://files.pythonhosted.org/packages/0b/a7/71ac2cff56fec219ed242bb11b8efb69fcc4bec75db06fb7bfe35de520e6/certifi-2026.7.22-py3-none-any.whl#certifi-2026.7.22.dist-info/licenses/LICENSE",
+        "path": "licenses/texts/e93716da6b9c0d5a4a1df60fe695b370f0695603d21f6f83f053e42cfc10caf7.txt",
+        "sha256": "e93716da6b9c0d5a4a1df60fe695b370f0695603d21f6f83f053e42cfc10caf7"
+      }
+    ],
+    "registry_source": "https://pypi.org/pypi/certifi/2026.7.22/json"
+  },
+  "pypi:chardet@5.2.0": {
+    "homepage": "https://github.com/chardet/chardet",
+    "license_declared": "LGPL",
+    "license_expression": "LGPL",
+    "license_files": [
+      {
+        "bytes": 26530,
+        "origin": "https://files.pythonhosted.org/packages/38/6f/f5fbc992a329ee4e0f288c1fe0e2ad9485ed064cac731ed2fe47dcc38cbf/chardet-5.2.0-py3-none-any.whl#chardet-5.2.0.dist-info/LICENSE",
+        "path": "licenses/texts/dc626520dcd53a22f727af3ee42c770e56c97a64fe3adb063799d8ab032fe551.txt",
+        "sha256": "dc626520dcd53a22f727af3ee42c770e56c97a64fe3adb063799d8ab032fe551"
+      }
+    ],
+    "registry_source": "https://pypi.org/pypi/chardet/5.2.0/json"
+  },
+  "pypi:charset-normalizer@3.4.9": {
+    "homepage": null,
+    "license_declared": "MIT",
+    "license_expression": "MIT",
+    "license_files": [
+      {
+        "bytes": 1071,
+        "origin": "https://files.pythonhosted.org/packages/98/2b/f97f1c193fb855c345d678f5077d6926034db0722df74c8f057020e05a25/charset_normalizer-3.4.9-py3-none-any.whl#charset_normalizer-3.4.9.dist-info/licenses/LICENSE",
+        "path": "licenses/texts/6d0d41bfe170ac6c7dc248c9a63e254d0fb45a60d50a8257d0af92c6e249b887.txt",
+        "sha256": "6d0d41bfe170ac6c7dc248c9a63e254d0fb45a60d50a8257d0af92c6e249b887"
+      }
+    ],
+    "registry_source": "https://pypi.org/pypi/charset-normalizer/3.4.9/json"
+  },
+  "pypi:click@8.1.8": {
+    "homepage": null,
+    "license_declared": null,
+    "license_expression": null,
+    "license_files": [
+      {
+        "bytes": 1475,
+        "origin": "https://files.pythonhosted.org/packages/7e/d4/7ebdbd03970677812aac39c869717059dbb71a4cfc033ca6e5221787892c/click-8.1.8-py3-none-any.whl#click-8.1.8.dist-info/LICENSE.txt",
+        "path": "licenses/texts/9a8ad106a394e853bfe21f42f4e72d592819a22805d991b5f3275029292b658d.txt",
+        "sha256": "9a8ad106a394e853bfe21f42f4e72d592819a22805d991b5f3275029292b658d"
+      }
+    ],
+    "registry_source": "https://pypi.org/pypi/click/8.1.8/json"
+  },
+  "pypi:click@8.4.2": {
+    "homepage": null,
+    "license_declared": null,
+    "license_expression": "BSD-3-Clause",
+    "license_files": [
+      {
+        "bytes": 1475,
+        "origin": "https://files.pythonhosted.org/packages/fb/e2/79c688af8b210d232694e31e59da9f6ec747bae31c3f5946e4e9b98860d5/click-8.4.2-py3-none-any.whl#click-8.4.2.dist-info/licenses/LICENSE.txt",
+        "path": "licenses/texts/9a8ad106a394e853bfe21f42f4e72d592819a22805d991b5f3275029292b658d.txt",
+        "sha256": "9a8ad106a394e853bfe21f42f4e72d592819a22805d991b5f3275029292b658d"
+      }
+    ],
+    "registry_source": "https://pypi.org/pypi/click/8.4.2/json"
+  },
+  "pypi:cn2an@0.5.24": {
+    "homepage": "https://github.com/Ailln/cn2an",
+    "license_declared": "MIT License",
+    "license_expression": "MIT License",
+    "license_files": [
+      {
+        "bytes": 1062,
+        "origin": "https://files.pythonhosted.org/packages/8c/e6/f3436a83c6dddc306ee8d6cf7dc1b90a5a3496ae66d9392100c0c5c3f578/cn2an-0.5.24-py3-none-any.whl#cn2an-0.5.24.dist-info/LICENSE",
+        "path": "licenses/texts/b18d8d4ad8bc57e00ae80d08d9da80a32176f031062f87c739ea7557c1b5d759.txt",
+        "sha256": "b18d8d4ad8bc57e00ae80d08d9da80a32176f031062f87c739ea7557c1b5d759"
+      }
+    ],
+    "registry_source": "https://pypi.org/pypi/cn2an/0.5.24/json"
+  },
+  "pypi:cryptography@50.0.2": {
+    "homepage": null,
+    "license_declared": null,
+    "license_expression": "Apache-2.0 OR BSD-3-Clause",
+    "license_files": [
+      {
+        "bytes": 197,
+        "origin": "https://files.pythonhosted.org/packages/9d/af/182eb91b0df3fe75c4d9f26fe70684569566745f6ba7e5c9c73a862c5252/cryptography-50.0.2.tar.gz#cryptography-50.0.2/LICENSE",
+        "path": "licenses/texts/3e0c7c091a948b82533ba98fd7cbb40432d6f1a9acbf85f5922d2f99a93ae6bb.txt",
+        "sha256": "3e0c7c091a948b82533ba98fd7cbb40432d6f1a9acbf85f5922d2f99a93ae6bb"
+      },
+      {
+        "bytes": 11360,
+        "origin": "https://files.pythonhosted.org/packages/9d/af/182eb91b0df3fe75c4d9f26fe70684569566745f6ba7e5c9c73a862c5252/cryptography-50.0.2.tar.gz#cryptography-50.0.2/LICENSE.APACHE",
+        "path": "licenses/texts/aac73b3148f6d1d7111dbca32099f68d26c644c6813ae1e4f05f6579aa2663fe.txt",
+        "sha256": "aac73b3148f6d1d7111dbca32099f68d26c644c6813ae1e4f05f6579aa2663fe"
+      },
+      {
+        "bytes": 1532,
+        "origin": "https://files.pythonhosted.org/packages/9d/af/182eb91b0df3fe75c4d9f26fe70684569566745f6ba7e5c9c73a862c5252/cryptography-50.0.2.tar.gz#cryptography-50.0.2/LICENSE.BSD",
+        "path": "licenses/texts/602c4c7482de6479dd2e9793cda275e5e63d773dacd1eca689232ab7008fb4fb.txt",
+        "sha256": "602c4c7482de6479dd2e9793cda275e5e63d773dacd1eca689232ab7008fb4fb"
+      }
+    ],
+    "registry_source": "https://pypi.org/pypi/cryptography/50.0.2/json"
+  },
+  "pypi:distro@1.9.0": {
+    "homepage": "https://github.com/python-distro/distro",
+    "license_declared": "Apache License, Version 2.0",
+    "license_expression": "Apache License, Version 2.0",
+    "license_files": [
+      {
+        "bytes": 11325,
+        "origin": "https://files.pythonhosted.org/packages/12/b3/231ffd4ab1fc9d679809f356cebee130ac7daa00d6d6f3206dd4fd137e9e/distro-1.9.0-py3-none-any.whl#distro-1.9.0.dist-info/LICENSE",
+        "path": "licenses/texts/cb5e8e7e5f4a3988e1063c142c60dc2df75605f4c46515e776e3aca6df976e14.txt",
+        "sha256": "cb5e8e7e5f4a3988e1063c142c60dc2df75605f4c46515e776e3aca6df976e14"
+      }
+    ],
+    "registry_source": "https://pypi.org/pypi/distro/1.9.0/json"
+  },
+  "pypi:durationpy@0.10": {
+    "homepage": "https://github.com/icholy/durationpy",
+    "license_declared": "MIT",
+    "license_expression": "MIT",
+    "license_files": [
+      {
+        "bytes": 1050,
+        "origin": "https://files.pythonhosted.org/packages/b0/0d/9feae160378a3553fa9a339b0e9c1a048e147a4127210e286ef18b730f03/durationpy-0.10-py3-none-any.whl#durationpy-0.10.dist-info/LICENSE",
+        "path": "licenses/texts/b6c5adfeed4ba4385ea6ab33c4e9b730fd22937350b2e17f862ae169f8d90dc9.txt",
+        "sha256": "b6c5adfeed4ba4385ea6ab33c4e9b730fd22937350b2e17f862ae169f8d90dc9"
+      }
+    ],
+    "registry_source": "https://pypi.org/pypi/durationpy/0.10/json"
+  },
+  "pypi:fastapi@0.141.1": {
+    "homepage": "https://github.com/fastapi/fastapi",
+    "license_declared": null,
+    "license_expression": "MIT",
+    "license_files": [
+      {
+        "bytes": 1086,
+        "origin": "https://files.pythonhosted.org/packages/cb/03/10388a42375ee7e4ac9b94eb2c5c569c8b5795e377e701c9ac3ad63de890/fastapi-0.141.1-py3-none-any.whl#fastapi-0.141.1.dist-info/licenses/LICENSE",
+        "path": "licenses/texts/4ec89ffc81485b97fec584b2d4a961032eeffe834453894fd9c1274906cc744e.txt",
+        "sha256": "4ec89ffc81485b97fec584b2d4a961032eeffe834453894fd9c1274906cc744e"
+      }
+    ],
+    "registry_source": "https://pypi.org/pypi/fastapi/0.141.1/json"
+  },
+  "pypi:filelock@3.32.0": {
+    "homepage": "https://github.com/tox-dev/py-filelock",
+    "license_declared": null,
+    "license_expression": "MIT",
+    "license_files": [
+      {
+        "bytes": 1088,
+        "origin": "https://files.pythonhosted.org/packages/06/79/b4c714bef36bc4ec2beeae1e0c124f0223888cd8c6feb1cdc56038116920/filelock-3.32.0-py3-none-any.whl#filelock-3.32.0.dist-info/licenses/LICENSE",
+        "path": "licenses/texts/608c89d5060ae9921adccf3236695bc654a9946e12323ef6c021dfa04e294d48.txt",
+        "sha256": "608c89d5060ae9921adccf3236695bc654a9946e12323ef6c021dfa04e294d48"
+      }
+    ],
+    "registry_source": "https://pypi.org/pypi/filelock/3.32.0/json"
+  },
+  "pypi:flatbuffers@25.12.19": {
+    "homepage": "https://google.github.io/flatbuffers/",
+    "license_declared": "Apache 2.0",
+    "license_expression": "Apache 2.0",
+    "license_files": [],
+    "registry_source": "https://pypi.org/pypi/flatbuffers/25.12.19/json"
+  },
+  "pypi:fsspec@2026.6.0": {
+    "homepage": "https://github.com/fsspec/filesystem_spec",
+    "license_declared": null,
+    "license_expression": "BSD-3-Clause",
+    "license_files": [
+      {
+        "bytes": 1513,
+        "origin": "https://files.pythonhosted.org/packages/e5/22/4222d7ddf3da30f363edaa98e329c2bce6c65497c9cb2810931c8b2c0fbc/fsspec-2026.6.0-py3-none-any.whl#fsspec-2026.6.0.dist-info/licenses/LICENSE",
+        "path": "licenses/texts/2dc35496ce53a7307915c008a844aad53e772b49b34cdd00445067691407ec94.txt",
+        "sha256": "2dc35496ce53a7307915c008a844aad53e772b49b34cdd00445067691407ec94"
+      }
+    ],
+    "registry_source": "https://pypi.org/pypi/fsspec/2026.6.0/json"
+  },
+  "pypi:g2p-en@2.1.0": {
+    "homepage": "https://github.com/Kyubyong/g2p",
+    "license_declared": "Apache Software License",
+    "license_expression": "Apache Software License",
+    "license_files": [
+      {
+        "bytes": 11357,
+        "origin": "https://files.pythonhosted.org/packages/d7/d9/b77dc634a7a0c0c97716ba97dd0a28cbfa6267c96f359c4f27ed71cbd284/g2p_en-2.1.0-py3-none-any.whl#g2p_en-2.1.0.dist-info/LICENSE.txt",
+        "path": "licenses/texts/b40930bbcf80744c86c46a12bc9da056641d722716c378f5659b9e555ef833e1.txt",
+        "sha256": "b40930bbcf80744c86c46a12bc9da056641d722716c378f5659b9e555ef833e1"
+      }
+    ],
+    "registry_source": "https://pypi.org/pypi/g2p-en/2.1.0/json"
+  },
+  "pypi:hf-xet@1.5.2": {
+    "homepage": "https://github.com/huggingface/xet-core",
+    "license_declared": null,
+    "license_expression": "Apache-2.0",
+    "license_files": [
+      {
+        "bytes": 11357,
+        "origin": "https://files.pythonhosted.org/packages/63/39/67be8d71f900d9a55761b6022821d6679fb56c64f1b6063d5af2c2606727/hf_xet-1.5.2.tar.gz#hf_xet-1.5.2/LICENSE",
+        "path": "licenses/texts/c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4.txt",
+        "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4"
+      },
+      {
+        "bytes": 11357,
+        "origin": "https://files.pythonhosted.org/packages/63/39/67be8d71f900d9a55761b6022821d6679fb56c64f1b6063d5af2c2606727/hf_xet-1.5.2.tar.gz#hf_xet-1.5.2/hf_xet/LICENSE",
+        "path": "licenses/texts/c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4.txt",
+        "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4"
+      }
+    ],
+    "registry_source": "https://pypi.org/pypi/hf-xet/1.5.2/json"
+  },
+  "pypi:httpcore2@2.13.0": {
+    "homepage": "https://github.com/pydantic/httpx2",
+    "license_declared": null,
+    "license_expression": "BSD-3-Clause",
+    "license_files": [
+      {
+        "bytes": 1599,
+        "origin": "https://files.pythonhosted.org/packages/7e/0d/117a771a2bb91df334b66bf4da14cd02f21aefbcfe53180f336ce55e8f90/httpcore2-2.13.0-py3-none-any.whl#httpcore2-2.13.0.dist-info/licenses/LICENSE.md",
+        "path": "licenses/texts/c4df125c807b0613501e943a5c92496dd11d2c16604ce396097a8dde396304d9.txt",
+        "sha256": "c4df125c807b0613501e943a5c92496dd11d2c16604ce396097a8dde396304d9"
+      }
+    ],
+    "registry_source": "https://pypi.org/pypi/httpcore2/2.13.0/json"
+  },
+  "pypi:httpx2@2.13.0": {
+    "homepage": "https://github.com/pydantic/httpx2",
+    "license_declared": null,
+    "license_expression": "BSD-3-Clause",
+    "license_files": [
+      {
+        "bytes": 1589,
+        "origin": "https://files.pythonhosted.org/packages/fe/d1/a0c72b0e006df654709fbc366cc5bcb53e5aee13e1e3395152c6dd293376/httpx2-2.13.0-py3-none-any.whl#httpx2-2.13.0.dist-info/licenses/LICENSE.md",
+        "path": "licenses/texts/7e7d6dbaf7fe160d39fd6e84fd02c33cab96bcbea34d36998d545bceb4a19c30.txt",
+        "sha256": "7e7d6dbaf7fe160d39fd6e84fd02c33cab96bcbea34d36998d545bceb4a19c30"
+      }
+    ],
+    "registry_source": "https://pypi.org/pypi/httpx2/2.13.0/json"
+  },
+  "pypi:huggingface-hub@0.36.2": {
+    "homepage": "https://github.com/huggingface/huggingface_hub",
+    "license_declared": "Apache",
+    "license_expression": "Apache",
+    "license_files": [
+      {
+        "bytes": 11357,
+        "origin": "https://files.pythonhosted.org/packages/a8/af/48ac8483240de756d2438c380746e7130d1c6f75802ef22f3c6d49982787/huggingface_hub-0.36.2-py3-none-any.whl#huggingface_hub-0.36.2.dist-info/licenses/LICENSE",
+        "path": "licenses/texts/c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4.txt",
+        "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4"
+      }
+    ],
+    "registry_source": "https://pypi.org/pypi/huggingface-hub/0.36.2/json"
+  },
+  "pypi:huggingface-hub@1.25.1": {
+    "homepage": "https://github.com/huggingface/huggingface_hub",
+    "license_declared": "Apache-2.0",
+    "license_expression": "Apache-2.0",
+    "license_files": [
+      {
+        "bytes": 11357,
+        "origin": "https://files.pythonhosted.org/packages/f7/3f/21e816831c6d16f88a6c784974413fa0421ce8a5d04380c2666ed5b503e5/huggingface_hub-1.25.1-py3-none-any.whl#huggingface_hub-1.25.1.dist-info/licenses/LICENSE",
+        "path": "licenses/texts/c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4.txt",
+        "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4"
+      }
+    ],
+    "registry_source": "https://pypi.org/pypi/huggingface-hub/1.25.1/json"
+  },
+  "pypi:idna@3.11": {
+    "homepage": null,
+    "license_declared": null,
+    "license_expression": "BSD-3-Clause",
+    "license_files": [
+      {
+        "bytes": 1541,
+        "origin": "https://files.pythonhosted.org/packages/0e/61/66938bbb5fc52dbdf84594873d5b51fb1f7c7794e9c0f5bd885f30bc507b/idna-3.11-py3-none-any.whl#idna-3.11.dist-info/licenses/LICENSE.md",
+        "path": "licenses/texts/b7a336abf3b04e180ec065cdd16e705d079e1cc7a14f910aa6e9187f36b9cd87.txt",
+        "sha256": "b7a336abf3b04e180ec065cdd16e705d079e1cc7a14f910aa6e9187f36b9cd87"
+      }
+    ],
+    "registry_source": "https://pypi.org/pypi/idna/3.11/json"
+  },
+  "pypi:idna@3.18": {
+    "homepage": null,
+    "license_declared": null,
+    "license_expression": "BSD-3-Clause",
+    "license_files": [
+      {
+        "bytes": 1541,
+        "origin": "https://files.pythonhosted.org/packages/1e/5e/d4e9f1a599fb8e573b7b87160658329fbf28d19eac2718f51fc3def3aa5a/idna-3.18-py3-none-any.whl#idna-3.18.dist-info/licenses/LICENSE.md",
+        "path": "licenses/texts/1a9a4f0e3d479a27240ddd59a9137a66ab4a0f9dfdc8ca6188cc0bfd85187f04.txt",
+        "sha256": "1a9a4f0e3d479a27240ddd59a9137a66ab4a0f9dfdc8ca6188cc0bfd85187f04"
+      }
+    ],
+    "registry_source": "https://pypi.org/pypi/idna/3.18/json"
+  },
+  "pypi:jieba@0.42.1": {
+    "homepage": "https://github.com/fxsjy/jieba",
+    "license_declared": "MIT",
+    "license_expression": "MIT",
+    "license_files": [],
+    "registry_source": "https://pypi.org/pypi/jieba/0.42.1/json"
+  },
+  "pypi:jsonschema-specifications@2023.12.1": {
+    "homepage": "https://github.com/python-jsonschema/jsonschema-specifications",
+    "license_declared": "MIT",
+    "license_expression": "MIT",
+    "license_files": [
+      {
+        "bytes": 1057,
+        "origin": "https://files.pythonhosted.org/packages/ee/07/44bd408781594c4d0a027666ef27fab1e441b109dc3b76b4f836f8fd04fe/jsonschema_specifications-2023.12.1-py3-none-any.whl#jsonschema_specifications-2023.12.1.dist-info/licenses/COPYING",
+        "path": "licenses/texts/42dcd63495f87b4eb7c7757afa379bb55a53f94afd7a5f657d9adf57236e515c.txt",
+        "sha256": "42dcd63495f87b4eb7c7757afa379bb55a53f94afd7a5f657d9adf57236e515c"
+      }
+    ],
+    "registry_source": "https://pypi.org/pypi/jsonschema-specifications/2023.12.1/json"
+  },
+  "pypi:jsonschema-specifications@2025.9.1": {
+    "homepage": "https://github.com/python-jsonschema/jsonschema-specifications",
+    "license_declared": null,
+    "license_expression": "MIT",
+    "license_files": [
+      {
+        "bytes": 1057,
+        "origin": "https://files.pythonhosted.org/packages/41/45/1a4ed80516f02155c51f51e8cedb3c1902296743db0bbc66608a0db2814f/jsonschema_specifications-2025.9.1-py3-none-any.whl#jsonschema_specifications-2025.9.1.dist-info/licenses/COPYING",
+        "path": "licenses/texts/42dcd63495f87b4eb7c7757afa379bb55a53f94afd7a5f657d9adf57236e515c.txt",
+        "sha256": "42dcd63495f87b4eb7c7757afa379bb55a53f94afd7a5f657d9adf57236e515c"
+      }
+    ],
+    "registry_source": "https://pypi.org/pypi/jsonschema-specifications/2025.9.1/json"
+  },
+  "pypi:jsonschema@4.19.2": {
+    "homepage": "https://github.com/python-jsonschema/jsonschema",
+    "license_declared": "MIT",
+    "license_expression": "MIT",
+    "license_files": [
+      {
+        "bytes": 1057,
+        "origin": "https://files.pythonhosted.org/packages/ce/aa/d1bd0b5ec568a903cc3ebcb6b096ab65c1d971c8a01ca3bf3cf788c3c646/jsonschema-4.19.2-py3-none-any.whl#jsonschema-4.19.2.dist-info/licenses/COPYING",
+        "path": "licenses/texts/4f92a015a13c4d1a040bef018aa13430b4f1bc73b41b16bb846c346766de7439.txt",
+        "sha256": "4f92a015a13c4d1a040bef018aa13430b4f1bc73b41b16bb846c346766de7439"
+      }
+    ],
+    "registry_source": "https://pypi.org/pypi/jsonschema/4.19.2/json"
+  },
+  "pypi:jsonschema@4.26.0": {
+    "homepage": "https://github.com/python-jsonschema/jsonschema",
+    "license_declared": null,
+    "license_expression": "MIT",
+    "license_files": [
+      {
+        "bytes": 1057,
+        "origin": "https://files.pythonhosted.org/packages/69/90/f63fb5873511e014207a475e2bb4e8b2e570d655b00ac19a9a0ca0a385ee/jsonschema-4.26.0-py3-none-any.whl#jsonschema-4.26.0.dist-info/licenses/COPYING",
+        "path": "licenses/texts/4f92a015a13c4d1a040bef018aa13430b4f1bc73b41b16bb846c346766de7439.txt",
+        "sha256": "4f92a015a13c4d1a040bef018aa13430b4f1bc73b41b16bb846c346766de7439"
+      }
+    ],
+    "registry_source": "https://pypi.org/pypi/jsonschema/4.26.0/json"
+  },
+  "pypi:librosa@0.11.0": {
+    "homepage": "https://librosa.org",
+    "license_declared": "ISC",
+    "license_expression": "ISC",
+    "license_files": [
+      {
+        "bytes": 766,
+        "origin": "https://files.pythonhosted.org/packages/b5/ba/c63c5786dfee4c3417094c4b00966e61e4a63efecee22cb7b4c0387dda83/librosa-0.11.0-py3-none-any.whl#librosa-0.11.0.dist-info/LICENSE.md",
+        "path": "licenses/texts/1746ca32b53fa31941c38b63a986e4126ab998e81a2f73a566000847a588e2a3.txt",
+        "sha256": "1746ca32b53fa31941c38b63a986e4126ab998e81a2f73a566000847a588e2a3"
+      }
+    ],
+    "registry_source": "https://pypi.org/pypi/librosa/0.11.0/json"
+  },
+  "pypi:markdown-it-py@3.0.0": {
+    "homepage": "https://github.com/executablebooks/markdown-it-py",
+    "license_declared": null,
+    "license_expression": "MIT",
+    "license_files": [
+      {
+        "bytes": 1078,
+        "origin": "https://files.pythonhosted.org/packages/42/d7/1ec15b46af6af88f19b8e5ffea08fa375d433c998b8a7639e76935c14f1f/markdown_it_py-3.0.0-py3-none-any.whl#markdown_it_py-3.0.0.dist-info/LICENSE",
+        "path": "licenses/texts/4a2260d6e2cd0f5a151a1e86dbfe7d3ed552b1e2beabf9941c1ba5c49cbce484.txt",
+        "sha256": "4a2260d6e2cd0f5a151a1e86dbfe7d3ed552b1e2beabf9941c1ba5c49cbce484"
+      },
+      {
+        "bytes": 1073,
+        "origin": "https://files.pythonhosted.org/packages/42/d7/1ec15b46af6af88f19b8e5ffea08fa375d433c998b8a7639e76935c14f1f/markdown_it_py-3.0.0-py3-none-any.whl#markdown_it_py-3.0.0.dist-info/LICENSE.markdown-it",
+        "path": "licenses/texts/792c48c5a849a15fdf9e37e8bcf9e6d1dd13b32b46c642a748a0a46a9919d473.txt",
+        "sha256": "792c48c5a849a15fdf9e37e8bcf9e6d1dd13b32b46c642a748a0a46a9919d473"
+      }
+    ],
+    "registry_source": "https://pypi.org/pypi/markdown-it-py/3.0.0/json"
+  },
+  "pypi:markdown-it-py@4.2.0": {
+    "homepage": "https://github.com/executablebooks/markdown-it-py",
+    "license_declared": null,
+    "license_expression": "MIT",
+    "license_files": [
+      {
+        "bytes": 1078,
+        "origin": "https://files.pythonhosted.org/packages/b3/81/4da04ced5a082363ecfa159c010d200ecbd959ae410c10c0264a38cac0f5/markdown_it_py-4.2.0-py3-none-any.whl#markdown_it_py-4.2.0.dist-info/licenses/LICENSE",
+        "path": "licenses/texts/4a2260d6e2cd0f5a151a1e86dbfe7d3ed552b1e2beabf9941c1ba5c49cbce484.txt",
+        "sha256": "4a2260d6e2cd0f5a151a1e86dbfe7d3ed552b1e2beabf9941c1ba5c49cbce484"
+      },
+      {
+        "bytes": 1073,
+        "origin": "https://files.pythonhosted.org/packages/b3/81/4da04ced5a082363ecfa159c010d200ecbd959ae410c10c0264a38cac0f5/markdown_it_py-4.2.0-py3-none-any.whl#markdown_it_py-4.2.0.dist-info/licenses/LICENSE.markdown-it",
+        "path": "licenses/texts/792c48c5a849a15fdf9e37e8bcf9e6d1dd13b32b46c642a748a0a46a9919d473.txt",
+        "sha256": "792c48c5a849a15fdf9e37e8bcf9e6d1dd13b32b46c642a748a0a46a9919d473"
+      }
+    ],
+    "registry_source": "https://pypi.org/pypi/markdown-it-py/4.2.0/json"
+  },
+  "pypi:markupsafe@3.0.3": {
+    "homepage": null,
+    "license_declared": null,
+    "license_expression": "BSD-3-Clause",
+    "license_files": [
+      {
+        "bytes": 1475,
+        "origin": "https://files.pythonhosted.org/packages/7e/99/7690b6d4034fffd95959cbe0c02de8deb3098cc577c67bb6a24fe5d7caa7/markupsafe-3.0.3.tar.gz#markupsafe-3.0.3/LICENSE.txt",
+        "path": "licenses/texts/489a8e1108509ed98a37bb983e11e0f7e1d31f0bd8f99a79c8448e7ff37d07ea.txt",
+        "sha256": "489a8e1108509ed98a37bb983e11e0f7e1d31f0bd8f99a79c8448e7ff37d07ea"
+      },
+      {
+        "bytes": 100,
+        "origin": "https://files.pythonhosted.org/packages/7e/99/7690b6d4034fffd95959cbe0c02de8deb3098cc577c67bb6a24fe5d7caa7/markupsafe-3.0.3.tar.gz#markupsafe-3.0.3/docs/license.rst",
+        "path": "licenses/texts/6fc7e80b75b5999783a328d90976a2585e0956c4a348c3c888453938ceca742d.txt",
+        "sha256": "6fc7e80b75b5999783a328d90976a2585e0956c4a348c3c888453938ceca742d"
+      }
+    ],
+    "registry_source": "https://pypi.org/pypi/markupsafe/3.0.3/json"
+  },
+  "pypi:markupsafe@3.0.4": {
+    "homepage": null,
+    "license_declared": null,
+    "license_expression": "BSD-3-Clause",
+    "license_files": [
+      {
+        "bytes": 1475,
+        "origin": "https://files.pythonhosted.org/packages/38/9b/e422a865e1d5d57d0e509b4e0bf1c1a70a7f6382c29a5aa428df994c8bc8/markupsafe-3.0.4.tar.gz#markupsafe-3.0.4/LICENSE.txt",
+        "path": "licenses/texts/489a8e1108509ed98a37bb983e11e0f7e1d31f0bd8f99a79c8448e7ff37d07ea.txt",
+        "sha256": "489a8e1108509ed98a37bb983e11e0f7e1d31f0bd8f99a79c8448e7ff37d07ea"
+      },
+      {
+        "bytes": 100,
+        "origin": "https://files.pythonhosted.org/packages/38/9b/e422a865e1d5d57d0e509b4e0bf1c1a70a7f6382c29a5aa428df994c8bc8/markupsafe-3.0.4.tar.gz#markupsafe-3.0.4/docs/license.rst",
+        "path": "licenses/texts/6fc7e80b75b5999783a328d90976a2585e0956c4a348c3c888453938ceca742d.txt",
+        "sha256": "6fc7e80b75b5999783a328d90976a2585e0956c4a348c3c888453938ceca742d"
+      }
+    ],
+    "registry_source": "https://pypi.org/pypi/markupsafe/3.0.4/json"
+  },
+  "pypi:mdurl@0.1.2": {
+    "homepage": "https://github.com/executablebooks/mdurl",
+    "license_declared": null,
+    "license_expression": "MIT",
+    "license_files": [
+      {
+        "bytes": 2338,
+        "origin": "https://files.pythonhosted.org/packages/b3/38/89ba8ad64ae25be8de66a6d463314cf1eb366222074cfda9ee839c56a4b4/mdurl-0.1.2-py3-none-any.whl#mdurl-0.1.2.dist-info/LICENSE",
+        "path": "licenses/texts/7c605df6e28667a9603118e98274f64a49ce3eed0d26fccce9534a345e0ef955.txt",
+        "sha256": "7c605df6e28667a9603118e98274f64a49ce3eed0d26fccce9534a345e0ef955"
+      }
+    ],
+    "registry_source": "https://pypi.org/pypi/mdurl/0.1.2/json"
+  },
+  "pypi:mmh3@5.2.1": {
+    "homepage": "https://pypi.org/project/mmh3/",
+    "license_declared": null,
+    "license_expression": "MIT",
+    "license_files": [
+      {
+        "bytes": 1074,
+        "origin": "https://files.pythonhosted.org/packages/91/1a/edb23803a168f070ded7a3014c6d706f63b90c84ccc024f89d794a3b7a6d/mmh3-5.2.1.tar.gz#mmh3-5.2.1/LICENSE",
+        "path": "licenses/texts/bf3469397307c3081d44d89c1dd72191348d93837ec6f6bd354d6d4ecdcae8e4.txt",
+        "sha256": "bf3469397307c3081d44d89c1dd72191348d93837ec6f6bd354d6d4ecdcae8e4"
+      }
+    ],
+    "registry_source": "https://pypi.org/pypi/mmh3/5.2.1/json"
+  },
+  "pypi:nltk@3.10.3": {
+    "homepage": "https://www.nltk.org/",
+    "license_declared": "Apache License, Version 2.0",
+    "license_expression": "Apache License, Version 2.0",
+    "license_files": [
+      {
+        "bytes": 8312,
+        "origin": "https://files.pythonhosted.org/packages/b6/6d/ebd2af4640b12168fdf0cb74b6118df2f32a2f62ec7e0c06fbfd80706639/nltk-3.10.3-py3-none-any.whl#nltk-3.10.3.dist-info/licenses/AUTHORS.md",
+        "path": "licenses/texts/273b74d5bd1029eba591acc85ef4e366ea96ac410a3e33a229a4de869642f3a2.txt",
+        "sha256": "273b74d5bd1029eba591acc85ef4e366ea96ac410a3e33a229a4de869642f3a2"
+      },
+      {
+        "bytes": 11358,
+        "origin": "https://files.pythonhosted.org/packages/b6/6d/ebd2af4640b12168fdf0cb74b6118df2f32a2f62ec7e0c06fbfd80706639/nltk-3.10.3-py3-none-any.whl#nltk-3.10.3.dist-info/licenses/LICENSE.txt",
+        "path": "licenses/texts/cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30.txt",
+        "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+      },
+      {
+        "bytes": 1742,
+        "origin": "https://files.pythonhosted.org/packages/b6/6d/ebd2af4640b12168fdf0cb74b6118df2f32a2f62ec7e0c06fbfd80706639/nltk-3.10.3-py3-none-any.whl#nltk-3.10.3.dist-info/licenses/README.md",
+        "path": "licenses/texts/c19f3d858f587a750af4e50f1a683d0a8df20be1eae0b80b941158e9889642ff.txt",
+        "sha256": "c19f3d858f587a750af4e50f1a683d0a8df20be1eae0b80b941158e9889642ff"
+      }
+    ],
+    "registry_source": "https://pypi.org/pypi/nltk/3.10.3/json"
+  },
+  "pypi:numpy@1.26.4": {
+    "homepage": "https://numpy.org",
+    "license_declared": null,
+    "license_expression": null,
+    "license_files": [
+      {
+        "bytes": 1539,
+        "origin": "https://files.pythonhosted.org/packages/65/6e/09db70a523a96d25e115e71cc56a6f9031e7b8cd166c1ac8438307c14058/numpy-1.26.4.tar.gz#numpy-1.26.4/.spin/LICENSE",
+        "path": "licenses/texts/990e6a6dbaee82e655163c3d2a51d1002471e5c0964da4881bc193eaa6a8ee3b.txt",
+        "sha256": "990e6a6dbaee82e655163c3d2a51d1002471e5c0964da4881bc193eaa6a8ee3b"
+      },
+      {
+        "bytes": 1543,
+        "origin": "https://files.pythonhosted.org/packages/65/6e/09db70a523a96d25e115e71cc56a6f9031e7b8cd166c1ac8438307c14058/numpy-1.26.4.tar.gz#numpy-1.26.4/LICENSE.txt",
+        "path": "licenses/texts/263223390c43a9d4a0841e0209265fd927a198f8e89c8eee809b7437d7e5e8c2.txt",
+        "sha256": "263223390c43a9d4a0841e0209265fd927a198f8e89c8eee809b7437d7e5e8c2"
+      },
+      {
+        "bytes": 11358,
+        "origin": "https://files.pythonhosted.org/packages/65/6e/09db70a523a96d25e115e71cc56a6f9031e7b8cd166c1ac8438307c14058/numpy-1.26.4.tar.gz#numpy-1.26.4/doc/source/_static/scipy-mathjax/LICENSE",
+        "path": "licenses/texts/cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30.txt",
+        "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+      },
+      {
+        "bytes": 87,
+        "origin": "https://files.pythonhosted.org/packages/65/6e/09db70a523a96d25e115e71cc56a6f9031e7b8cd166c1ac8438307c14058/numpy-1.26.4.tar.gz#numpy-1.26.4/doc/source/license.rst",
+        "path": "licenses/texts/563953e4bf6aba42f430420da7494dce2747f60d56e82ca165e24dfaf766d256.txt",
+        "sha256": "563953e4bf6aba42f430420da7494dce2747f60d56e82ca165e24dfaf766d256"
+      },
+      {
+        "bytes": 1018,
+        "origin": "https://files.pythonhosted.org/packages/65/6e/09db70a523a96d25e115e71cc56a6f9031e7b8cd166c1ac8438307c14058/numpy-1.26.4.tar.gz#numpy-1.26.4/numpy/core/include/numpy/libdivide/LICENSE.txt",
+        "path": "licenses/texts/fbc539f47d0cf83bc61378080fb873d5c14630126cacbfe754035c3926daa5ec.txt",
+        "sha256": "fbc539f47d0cf83bc61378080fb873d5c14630126cacbfe754035c3926daa5ec"
+      },
+      {
+        "bytes": 1514,
+        "origin": "https://files.pythonhosted.org/packages/65/6e/09db70a523a96d25e115e71cc56a6f9031e7b8cd166c1ac8438307c14058/numpy-1.26.4.tar.gz#numpy-1.26.4/numpy/core/src/npysort/x86-simd-sort/LICENSE.md",
+        "path": "licenses/texts/211e7d737d6179a08f791ebb0a99897ce7cd2457410c542876d125576edfe910.txt",
+        "sha256": "211e7d737d6179a08f791ebb0a99897ce7cd2457410c542876d125576edfe910"
+      },
+      {
+        "bytes": 1543,
+        "origin": "https://files.pythonhosted.org/packages/65/6e/09db70a523a96d25e115e71cc56a6f9031e7b8cd166c1ac8438307c14058/numpy-1.26.4.tar.gz#numpy-1.26.4/numpy/core/src/umath/svml/LICENSE",
+        "path": "licenses/texts/c17011467b4fe6e20fbfbeda4df09e58c2bca5480a063e55735a4000a379aad9.txt",
+        "sha256": "c17011467b4fe6e20fbfbeda4df09e58c2bca5480a063e55735a4000a379aad9"
+      },
+      {
+        "bytes": 2266,
+        "origin": "https://files.pythonhosted.org/packages/65/6e/09db70a523a96d25e115e71cc56a6f9031e7b8cd166c1ac8438307c14058/numpy-1.26.4.tar.gz#numpy-1.26.4/numpy/linalg/lapack_lite/LICENSE.txt",
+        "path": "licenses/texts/a14cc25e10d40a3aa705b7de2fb764a6535d8ee9b2db4e1724900585457dfd55.txt",
+        "sha256": "a14cc25e10d40a3aa705b7de2fb764a6535d8ee9b2db4e1724900585457dfd55"
+      },
+      {
+        "bytes": 1593,
+        "origin": "https://files.pythonhosted.org/packages/65/6e/09db70a523a96d25e115e71cc56a6f9031e7b8cd166c1ac8438307c14058/numpy-1.26.4.tar.gz#numpy-1.26.4/numpy/ma/LICENSE",
+        "path": "licenses/texts/05f3b88351988ecfad10abe92c0c50e5875c6452d5009a0084cc291551ffcca6.txt",
+        "sha256": "05f3b88351988ecfad10abe92c0c50e5875c6452d5009a0084cc291551ffcca6"
+      },
+      {
+        "bytes": 3511,
+        "origin": "https://files.pythonhosted.org/packages/65/6e/09db70a523a96d25e115e71cc56a6f9031e7b8cd166c1ac8438307c14058/numpy-1.26.4.tar.gz#numpy-1.26.4/numpy/random/LICENSE.md",
+        "path": "licenses/texts/103166b62b80443afb9eb3488e052ea06be0cff566b908f199e561fde49af19f.txt",
+        "sha256": "103166b62b80443afb9eb3488e052ea06be0cff566b908f199e561fde49af19f"
+      },
+      {
+        "bytes": 2745,
+        "origin": "https://files.pythonhosted.org/packages/65/6e/09db70a523a96d25e115e71cc56a6f9031e7b8cd166c1ac8438307c14058/numpy-1.26.4.tar.gz#numpy-1.26.4/numpy/random/src/distributions/LICENSE.md",
+        "path": "licenses/texts/469778be8f33d54e1bcaab28c281cc472916d2d273f835e55bc487d30503face.txt",
+        "sha256": "469778be8f33d54e1bcaab28c281cc472916d2d273f835e55bc487d30503face"
+      },
+      {
+        "bytes": 2926,
+        "origin": "https://files.pythonhosted.org/packages/65/6e/09db70a523a96d25e115e71cc56a6f9031e7b8cd166c1ac8438307c14058/numpy-1.26.4.tar.gz#numpy-1.26.4/numpy/random/src/mt19937/LICENSE.md",
+        "path": "licenses/texts/0e111337b25494a773106695f0e799f642b8567aaacca4f116a74a8177179156.txt",
+        "sha256": "0e111337b25494a773106695f0e799f642b8567aaacca4f116a74a8177179156"
+      },
+      {
+        "bytes": 1154,
+        "origin": "https://files.pythonhosted.org/packages/65/6e/09db70a523a96d25e115e71cc56a6f9031e7b8cd166c1ac8438307c14058/numpy-1.26.4.tar.gz#numpy-1.26.4/numpy/random/src/pcg64/LICENSE.md",
+        "path": "licenses/texts/e7d4f4fb20358f314210a892ae17351e04993813646f697ec387385ca2a36918.txt",
+        "sha256": "e7d4f4fb20358f314210a892ae17351e04993813646f697ec387385ca2a36918"
+      },
+      {
+        "bytes": 1509,
+        "origin": "https://files.pythonhosted.org/packages/65/6e/09db70a523a96d25e115e71cc56a6f9031e7b8cd166c1ac8438307c14058/numpy-1.26.4.tar.gz#numpy-1.26.4/numpy/random/src/philox/LICENSE.md",
+        "path": "licenses/texts/6f5828a57223d4cc7f8ea505a2623e7b978b242752c1515e355f46ba2cec1800.txt",
+        "sha256": "6f5828a57223d4cc7f8ea505a2623e7b978b242752c1515e355f46ba2cec1800"
+      },
+      {
+        "bytes": 1226,
+        "origin": "https://files.pythonhosted.org/packages/65/6e/09db70a523a96d25e115e71cc56a6f9031e7b8cd166c1ac8438307c14058/numpy-1.26.4.tar.gz#numpy-1.26.4/numpy/random/src/sfc64/LICENSE.md",
+        "path": "licenses/texts/9d4098846018319cd68e228ee6220361787f73bccbf00237a85e4fc9621b998f.txt",
+        "sha256": "9d4098846018319cd68e228ee6220361787f73bccbf00237a85e4fc9621b998f"
+      },
+      {
+        "bytes": 332,
+        "origin": "https://files.pythonhosted.org/packages/65/6e/09db70a523a96d25e115e71cc56a6f9031e7b8cd166c1ac8438307c14058/numpy-1.26.4.tar.gz#numpy-1.26.4/numpy/random/src/splitmix64/LICENSE.md",
+        "path": "licenses/texts/268b0ca06759d31ea3ca68dd35f20e877916e927b1c2a835e4592a3c4354b1f9.txt",
+        "sha256": "268b0ca06759d31ea3ca68dd35f20e877916e927b1c2a835e4592a3c4354b1f9"
+      },
+      {
+        "bytes": 1089,
+        "origin": "https://files.pythonhosted.org/packages/65/6e/09db70a523a96d25e115e71cc56a6f9031e7b8cd166c1ac8438307c14058/numpy-1.26.4.tar.gz#numpy-1.26.4/tools/npy_tempita/license.txt",
+        "path": "licenses/texts/badf51c7e3e7de9c7630bd069780f5c197b846ef7660b342a1e58d5553592d8e.txt",
+        "sha256": "badf51c7e3e7de9c7630bd069780f5c197b846ef7660b342a1e58d5553592d8e"
+      },
+      {
+        "bytes": 45219,
+        "origin": "https://files.pythonhosted.org/packages/65/6e/09db70a523a96d25e115e71cc56a6f9031e7b8cd166c1ac8438307c14058/numpy-1.26.4.tar.gz#numpy-1.26.4/tools/wheels/LICENSE_linux.txt",
+        "path": "licenses/texts/f0a98203aa483d434498e652d81cb64712cbb64ab1f24b74c010f37b94aed8da.txt",
+        "sha256": "f0a98203aa483d434498e652d81cb64712cbb64ab1f24b74c010f37b94aed8da"
+      },
+      {
+        "bytes": 45250,
+        "origin": "https://files.pythonhosted.org/packages/65/6e/09db70a523a96d25e115e71cc56a6f9031e7b8cd166c1ac8438307c14058/numpy-1.26.4.tar.gz#numpy-1.26.4/tools/wheels/LICENSE_osx.txt",
+        "path": "licenses/texts/e1dc734dabbc8ca2ae737e26e1b0a224b9243ac31ad99ecd6999ffc9c56d5870.txt",
+        "sha256": "e1dc734dabbc8ca2ae737e26e1b0a224b9243ac31ad99ecd6999ffc9c56d5870"
+      },
+      {
+        "bytes": 45218,
+        "origin": "https://files.pythonhosted.org/packages/65/6e/09db70a523a96d25e115e71cc56a6f9031e7b8cd166c1ac8438307c14058/numpy-1.26.4.tar.gz#numpy-1.26.4/tools/wheels/LICENSE_win32.txt",
+        "path": "licenses/texts/30af7a5f94b48791d6c7e7b3adc7a23c7744dc6c43cdd49f5bf7c8eea30fa120.txt",
+        "sha256": "30af7a5f94b48791d6c7e7b3adc7a23c7744dc6c43cdd49f5bf7c8eea30fa120"
+      },
+      {
+        "bytes": 11358,
+        "origin": "https://files.pythonhosted.org/packages/65/6e/09db70a523a96d25e115e71cc56a6f9031e7b8cd166c1ac8438307c14058/numpy-1.26.4.tar.gz#numpy-1.26.4/vendored-meson/meson/COPYING",
+        "path": "licenses/texts/cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30.txt",
+        "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+      },
+      {
+        "bytes": 168,
+        "origin": "https://files.pythonhosted.org/packages/65/6e/09db70a523a96d25e115e71cc56a6f9031e7b8cd166c1ac8438307c14058/numpy-1.26.4.tar.gz#numpy-1.26.4/vendored-meson/meson/docs/theme/extra/templates/license.html",
+        "path": "licenses/texts/15fcbcade0003df4b37350f12bea7dfeb25d4d2ac9e99d12d893773c4d5359fd.txt",
+        "sha256": "15fcbcade0003df4b37350f12bea7dfeb25d4d2ac9e99d12d893773c4d5359fd"
+      },
+      {
+        "bytes": 10921,
+        "origin": "https://files.pythonhosted.org/packages/65/6e/09db70a523a96d25e115e71cc56a6f9031e7b8cd166c1ac8438307c14058/numpy-1.26.4.tar.gz#numpy-1.26.4/vendored-meson/meson/packaging/macpages/English.lproj/license.html",
+        "path": "licenses/texts/bca11d525505d21cdfb021e634b0f1d48ece827f9bedcf8cd41356c48a09be24.txt",
+        "sha256": "bca11d525505d21cdfb021e634b0f1d48ece827f9bedcf8cd41356c48a09be24"
+      }
+    ],
+    "registry_source": "https://pypi.org/pypi/numpy/1.26.4/json"
+  },
+  "pypi:numpy@2.4.6": {
+    "homepage": null,
+    "license_declared": null,
+    "license_expression": "BSD-3-Clause AND 0BSD AND MIT AND Zlib AND CC0-1.0",
+    "license_files": [
+      {
+        "bytes": 1539,
+        "origin": "https://files.pythonhosted.org/packages/d0/ad/fed0499ce6a338d2a03ebae59cd15093910c8875328855781952abf6c2fe/numpy-2.4.6.tar.gz#numpy-2.4.6/.spin/LICENSE",
+        "path": "licenses/texts/990e6a6dbaee82e655163c3d2a51d1002471e5c0964da4881bc193eaa6a8ee3b.txt",
+        "sha256": "990e6a6dbaee82e655163c3d2a51d1002471e5c0964da4881bc193eaa6a8ee3b"
+      },
+      {
+        "bytes": 1543,
+        "origin": "https://files.pythonhosted.org/packages/d0/ad/fed0499ce6a338d2a03ebae59cd15093910c8875328855781952abf6c2fe/numpy-2.4.6.tar.gz#numpy-2.4.6/LICENSE.txt",
+        "path": "licenses/texts/1be1df33863f97a7bc1c4d67980bd6c69c9a6fef0a5ee76e6ad6cb91e56e8491.txt",
+        "sha256": "1be1df33863f97a7bc1c4d67980bd6c69c9a6fef0a5ee76e6ad6cb91e56e8491"
+      },
+      {
+        "bytes": 11358,
+        "origin": "https://files.pythonhosted.org/packages/d0/ad/fed0499ce6a338d2a03ebae59cd15093910c8875328855781952abf6c2fe/numpy-2.4.6.tar.gz#numpy-2.4.6/doc/source/_static/scipy-mathjax/LICENSE",
+        "path": "licenses/texts/cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30.txt",
+        "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+      },
+      {
+        "bytes": 87,
+        "origin": "https://files.pythonhosted.org/packages/d0/ad/fed0499ce6a338d2a03ebae59cd15093910c8875328855781952abf6c2fe/numpy-2.4.6.tar.gz#numpy-2.4.6/doc/source/license.rst",
+        "path": "licenses/texts/563953e4bf6aba42f430420da7494dce2747f60d56e82ca165e24dfaf766d256.txt",
+        "sha256": "563953e4bf6aba42f430420da7494dce2747f60d56e82ca165e24dfaf766d256"
+      },
+      {
+        "bytes": 1072,
+        "origin": "https://files.pythonhosted.org/packages/d0/ad/fed0499ce6a338d2a03ebae59cd15093910c8875328855781952abf6c2fe/numpy-2.4.6.tar.gz#numpy-2.4.6/numpy/_build_utils/tempita/LICENSE.txt",
+        "path": "licenses/texts/743b0f4a0087fe3607167113fffab6f2ca069c8da321763697ab5d0d8411634a.txt",
+        "sha256": "743b0f4a0087fe3607167113fffab6f2ca069c8da321763697ab5d0d8411634a"
+      },
+      {
+        "bytes": 1018,
+        "origin": "https://files.pythonhosted.org/packages/d0/ad/fed0499ce6a338d2a03ebae59cd15093910c8875328855781952abf6c2fe/numpy-2.4.6.tar.gz#numpy-2.4.6/numpy/_core/include/numpy/libdivide/LICENSE.txt",
+        "path": "licenses/texts/fbc539f47d0cf83bc61378080fb873d5c14630126cacbfe754035c3926daa5ec.txt",
+        "sha256": "fbc539f47d0cf83bc61378080fb873d5c14630126cacbfe754035c3926daa5ec"
+      },
+      {
+        "bytes": 690,
+        "origin": "https://files.pythonhosted.org/packages/d0/ad/fed0499ce6a338d2a03ebae59cd15093910c8875328855781952abf6c2fe/numpy-2.4.6.tar.gz#numpy-2.4.6/numpy/_core/src/common/pythoncapi-compat/COPYING",
+        "path": "licenses/texts/3f2c1ffa76383a55ae0aac01c9737cd70050dff63e1f026694fbe9d662573c98.txt",
+        "sha256": "3f2c1ffa76383a55ae0aac01c9737cd70050dff63e1f026694fbe9d662573c98"
+      },
+      {
+        "bytes": 20785,
+        "origin": "https://files.pythonhosted.org/packages/d0/ad/fed0499ce6a338d2a03ebae59cd15093910c8875328855781952abf6c2fe/numpy-2.4.6.tar.gz#numpy-2.4.6/numpy/_core/src/highway/LICENSE",
+        "path": "licenses/texts/e340270d4f64384569a91d546acb5b094d69ce47f0c015db77abb74dc6f815af.txt",
+        "sha256": "e340270d4f64384569a91d546acb5b094d69ce47f0c015db77abb74dc6f815af"
+      },
+      {
+        "bytes": 825,
+        "origin": "https://files.pythonhosted.org/packages/d0/ad/fed0499ce6a338d2a03ebae59cd15093910c8875328855781952abf6c2fe/numpy-2.4.6.tar.gz#numpy-2.4.6/numpy/_core/src/highway/debian/copyright",
+        "path": "licenses/texts/6e4ecf1cae052b678ea3178dd4b3652d581ee66a82d58db8800dd7d80dd6de76.txt",
+        "sha256": "6e4ecf1cae052b678ea3178dd4b3652d581ee66a82d58db8800dd7d80dd6de76"
+      },
+      {
+        "bytes": 1514,
+        "origin": "https://files.pythonhosted.org/packages/d0/ad/fed0499ce6a338d2a03ebae59cd15093910c8875328855781952abf6c2fe/numpy-2.4.6.tar.gz#numpy-2.4.6/numpy/_core/src/npysort/x86-simd-sort/LICENSE.md",
+        "path": "licenses/texts/211e7d737d6179a08f791ebb0a99897ce7cd2457410c542876d125576edfe910.txt",
+        "sha256": "211e7d737d6179a08f791ebb0a99897ce7cd2457410c542876d125576edfe910"
+      },
+      {
+        "bytes": 1543,
+        "origin": "https://files.pythonhosted.org/packages/d0/ad/fed0499ce6a338d2a03ebae59cd15093910c8875328855781952abf6c2fe/numpy-2.4.6.tar.gz#numpy-2.4.6/numpy/_core/src/umath/svml/LICENSE",
+        "path": "licenses/texts/c17011467b4fe6e20fbfbeda4df09e58c2bca5480a063e55735a4000a379aad9.txt",
+        "sha256": "c17011467b4fe6e20fbfbeda4df09e58c2bca5480a063e55735a4000a379aad9"
+      },
+      {
+        "bytes": 1498,
+        "origin": "https://files.pythonhosted.org/packages/d0/ad/fed0499ce6a338d2a03ebae59cd15093910c8875328855781952abf6c2fe/numpy-2.4.6.tar.gz#numpy-2.4.6/numpy/fft/pocketfft/LICENSE.md",
+        "path": "licenses/texts/a85ca13fdf90160b64a0698215868c13b74d835ad0a4e2ba44713b8c5058a056.txt",
+        "sha256": "a85ca13fdf90160b64a0698215868c13b74d835ad0a4e2ba44713b8c5058a056"
+      },
+      {
+        "bytes": 2266,
+        "origin": "https://files.pythonhosted.org/packages/d0/ad/fed0499ce6a338d2a03ebae59cd15093910c8875328855781952abf6c2fe/numpy-2.4.6.tar.gz#numpy-2.4.6/numpy/linalg/lapack_lite/LICENSE.txt",
+        "path": "licenses/texts/a14cc25e10d40a3aa705b7de2fb764a6535d8ee9b2db4e1724900585457dfd55.txt",
+        "sha256": "a14cc25e10d40a3aa705b7de2fb764a6535d8ee9b2db4e1724900585457dfd55"
+      },
+      {
+        "bytes": 1593,
+        "origin": "https://files.pythonhosted.org/packages/d0/ad/fed0499ce6a338d2a03ebae59cd15093910c8875328855781952abf6c2fe/numpy-2.4.6.tar.gz#numpy-2.4.6/numpy/ma/LICENSE",
+        "path": "licenses/texts/05f3b88351988ecfad10abe92c0c50e5875c6452d5009a0084cc291551ffcca6.txt",
+        "sha256": "05f3b88351988ecfad10abe92c0c50e5875c6452d5009a0084cc291551ffcca6"
+      },
+      {
+        "bytes": 3511,
+        "origin": "https://files.pythonhosted.org/packages/d0/ad/fed0499ce6a338d2a03ebae59cd15093910c8875328855781952abf6c2fe/numpy-2.4.6.tar.gz#numpy-2.4.6/numpy/random/LICENSE.md",
+        "path": "licenses/texts/103166b62b80443afb9eb3488e052ea06be0cff566b908f199e561fde49af19f.txt",
+        "sha256": "103166b62b80443afb9eb3488e052ea06be0cff566b908f199e561fde49af19f"
+      },
+      {
+        "bytes": 2745,
+        "origin": "https://files.pythonhosted.org/packages/d0/ad/fed0499ce6a338d2a03ebae59cd15093910c8875328855781952abf6c2fe/numpy-2.4.6.tar.gz#numpy-2.4.6/numpy/random/src/distributions/LICENSE.md",
+        "path": "licenses/texts/469778be8f33d54e1bcaab28c281cc472916d2d273f835e55bc487d30503face.txt",
+        "sha256": "469778be8f33d54e1bcaab28c281cc472916d2d273f835e55bc487d30503face"
+      },
+      {
+        "bytes": 2926,
+        "origin": "https://files.pythonhosted.org/packages/d0/ad/fed0499ce6a338d2a03ebae59cd15093910c8875328855781952abf6c2fe/numpy-2.4.6.tar.gz#numpy-2.4.6/numpy/random/src/mt19937/LICENSE.md",
+        "path": "licenses/texts/0e111337b25494a773106695f0e799f642b8567aaacca4f116a74a8177179156.txt",
+        "sha256": "0e111337b25494a773106695f0e799f642b8567aaacca4f116a74a8177179156"
+      },
+      {
+        "bytes": 1154,
+        "origin": "https://files.pythonhosted.org/packages/d0/ad/fed0499ce6a338d2a03ebae59cd15093910c8875328855781952abf6c2fe/numpy-2.4.6.tar.gz#numpy-2.4.6/numpy/random/src/pcg64/LICENSE.md",
+        "path": "licenses/texts/e7d4f4fb20358f314210a892ae17351e04993813646f697ec387385ca2a36918.txt",
+        "sha256": "e7d4f4fb20358f314210a892ae17351e04993813646f697ec387385ca2a36918"
+      },
+      {
+        "bytes": 1509,
+        "origin": "https://files.pythonhosted.org/packages/d0/ad/fed0499ce6a338d2a03ebae59cd15093910c8875328855781952abf6c2fe/numpy-2.4.6.tar.gz#numpy-2.4.6/numpy/random/src/philox/LICENSE.md",
+        "path": "licenses/texts/6f5828a57223d4cc7f8ea505a2623e7b978b242752c1515e355f46ba2cec1800.txt",
+        "sha256": "6f5828a57223d4cc7f8ea505a2623e7b978b242752c1515e355f46ba2cec1800"
+      },
+      {
+        "bytes": 1226,
+        "origin": "https://files.pythonhosted.org/packages/d0/ad/fed0499ce6a338d2a03ebae59cd15093910c8875328855781952abf6c2fe/numpy-2.4.6.tar.gz#numpy-2.4.6/numpy/random/src/sfc64/LICENSE.md",
+        "path": "licenses/texts/9d4098846018319cd68e228ee6220361787f73bccbf00237a85e4fc9621b998f.txt",
+        "sha256": "9d4098846018319cd68e228ee6220361787f73bccbf00237a85e4fc9621b998f"
+      },
+      {
+        "bytes": 332,
+        "origin": "https://files.pythonhosted.org/packages/d0/ad/fed0499ce6a338d2a03ebae59cd15093910c8875328855781952abf6c2fe/numpy-2.4.6.tar.gz#numpy-2.4.6/numpy/random/src/splitmix64/LICENSE.md",
+        "path": "licenses/texts/268b0ca06759d31ea3ca68dd35f20e877916e927b1c2a835e4592a3c4354b1f9.txt",
+        "sha256": "268b0ca06759d31ea3ca68dd35f20e877916e927b1c2a835e4592a3c4354b1f9"
+      },
+      {
+        "bytes": 11358,
+        "origin": "https://files.pythonhosted.org/packages/d0/ad/fed0499ce6a338d2a03ebae59cd15093910c8875328855781952abf6c2fe/numpy-2.4.6.tar.gz#numpy-2.4.6/vendored-meson/meson/COPYING",
+        "path": "licenses/texts/cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30.txt",
+        "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+      },
+      {
+        "bytes": 168,
+        "origin": "https://files.pythonhosted.org/packages/d0/ad/fed0499ce6a338d2a03ebae59cd15093910c8875328855781952abf6c2fe/numpy-2.4.6.tar.gz#numpy-2.4.6/vendored-meson/meson/docs/theme/extra/templates/license.html",
+        "path": "licenses/texts/15fcbcade0003df4b37350f12bea7dfeb25d4d2ac9e99d12d893773c4d5359fd.txt",
+        "sha256": "15fcbcade0003df4b37350f12bea7dfeb25d4d2ac9e99d12d893773c4d5359fd"
+      },
+      {
+        "bytes": 10921,
+        "origin": "https://files.pythonhosted.org/packages/d0/ad/fed0499ce6a338d2a03ebae59cd15093910c8875328855781952abf6c2fe/numpy-2.4.6.tar.gz#numpy-2.4.6/vendored-meson/meson/packaging/macpages/English.lproj/license.html",
+        "path": "licenses/texts/bca11d525505d21cdfb021e634b0f1d48ece827f9bedcf8cd41356c48a09be24.txt",
+        "sha256": "bca11d525505d21cdfb021e634b0f1d48ece827f9bedcf8cd41356c48a09be24"
+      }
+    ],
+    "registry_source": "https://pypi.org/pypi/numpy/2.4.6/json"
+  },
+  "pypi:oauthlib@3.3.1": {
+    "homepage": "https://github.com/oauthlib/oauthlib",
+    "license_declared": "BSD-3-Clause",
+    "license_expression": "BSD-3-Clause",
+    "license_files": [
+      {
+        "bytes": 1534,
+        "origin": "https://files.pythonhosted.org/packages/be/9c/92789c596b8df838baa98fa71844d84283302f7604ed565dafe5a6b5041a/oauthlib-3.3.1-py3-none-any.whl#oauthlib-3.3.1.dist-info/licenses/LICENSE",
+        "path": "licenses/texts/0028aa4763a8a0b09ca4c68d585263474cf9aaa6ec69ffbef3a31a9eccdd3b91.txt",
+        "sha256": "0028aa4763a8a0b09ca4c68d585263474cf9aaa6ec69ffbef3a31a9eccdd3b91"
+      }
+    ],
+    "registry_source": "https://pypi.org/pypi/oauthlib/3.3.1/json"
+  },
+  "pypi:onnxruntime@1.28.0": {
+    "homepage": "https://onnxruntime.ai",
+    "license_declared": "MIT License",
+    "license_expression": "MIT License",
+    "license_files": [
+      {
+        "bytes": 1094,
+        "origin": "https://files.pythonhosted.org/packages/8f/74/1c440be7af1e026280b139caa1be5d11bd4dc368011ddbe8f5362b58e12f/onnxruntime-1.28.0-cp311-cp311-win_arm64.whl#onnxruntime/LICENSE",
+        "path": "licenses/texts/c250d6278f0b47a6439fb7592b08b58a55eb9f535aa49a1db63211c3f982b674.txt",
+        "sha256": "c250d6278f0b47a6439fb7592b08b58a55eb9f535aa49a1db63211c3f982b674"
+      }
+    ],
+    "registry_source": "https://pypi.org/pypi/onnxruntime/1.28.0/json"
+  },
+  "pypi:opentelemetry-util-http@0.65b0": {
+    "homepage": "https://github.com/open-telemetry/opentelemetry-python-contrib/tree/main/util/opentelemetry-util-http",
+    "license_declared": null,
+    "license_expression": "Apache-2.0",
+    "license_files": [],
+    "registry_source": "https://pypi.org/pypi/opentelemetry-util-http/0.65b0/json"
+  },
+  "pypi:orjson@3.11.9": {
+    "homepage": null,
+    "license_declared": null,
+    "license_expression": "MPL-2.0 AND (Apache-2.0 OR MIT)",
+    "license_files": [
+      {
+        "bytes": 10847,
+        "origin": "https://files.pythonhosted.org/packages/7e/0c/964746fcafbd16f8ff53219ad9f6b412b34f345c75f384ad434ceaadb538/orjson-3.11.9.tar.gz#orjson-3.11.9/LICENSE-APACHE",
+        "path": "licenses/texts/a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2.txt",
+        "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2"
+      },
+      {
+        "bytes": 1023,
+        "origin": "https://files.pythonhosted.org/packages/7e/0c/964746fcafbd16f8ff53219ad9f6b412b34f345c75f384ad434ceaadb538/orjson-3.11.9.tar.gz#orjson-3.11.9/LICENSE-MIT",
+        "path": "licenses/texts/23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3.txt",
+        "sha256": "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3"
+      },
+      {
+        "bytes": 16727,
+        "origin": "https://files.pythonhosted.org/packages/7e/0c/964746fcafbd16f8ff53219ad9f6b412b34f345c75f384ad434ceaadb538/orjson-3.11.9.tar.gz#orjson-3.11.9/LICENSE-MPL-2.0",
+        "path": "licenses/texts/66a3107d5ad6a058aab753eaac2047ccb2ed0e39465dd0fe5844da3e300d5172.txt",
+        "sha256": "66a3107d5ad6a058aab753eaac2047ccb2ed0e39465dd0fe5844da3e300d5172"
+      },
+      {
+        "bytes": 10847,
+        "origin": "https://files.pythonhosted.org/packages/7e/0c/964746fcafbd16f8ff53219ad9f6b412b34f345c75f384ad434ceaadb538/orjson-3.11.9.tar.gz#orjson-3.11.9/include/cargo/associative-cache-3.0.1/LICENSE-APACHE",
+        "path": "licenses/texts/a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2.txt",
+        "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2"
+      },
+      {
+        "bytes": 1059,
+        "origin": "https://files.pythonhosted.org/packages/7e/0c/964746fcafbd16f8ff53219ad9f6b412b34f345c75f384ad434ceaadb538/orjson-3.11.9.tar.gz#orjson-3.11.9/include/cargo/associative-cache-3.0.1/LICENSE-MIT",
+        "path": "licenses/texts/65f94e99ddaf4f5d1782a6dae23f35d4293a9a01444a13135a6887017d353cee.txt",
+        "sha256": "65f94e99ddaf4f5d1782a6dae23f35d4293a9a01444a13135a6887017d353cee"
+      },
+      {
+        "bytes": 11357,
+        "origin": "https://files.pythonhosted.org/packages/7e/0c/964746fcafbd16f8ff53219ad9f6b412b34f345c75f384ad434ceaadb538/orjson-3.11.9.tar.gz#orjson-3.11.9/include/cargo/bytecount-0.6.9/LICENSE.Apache2",
+        "path": "licenses/texts/b40930bbcf80744c86c46a12bc9da056641d722716c378f5659b9e555ef833e1.txt",
+        "sha256": "b40930bbcf80744c86c46a12bc9da056641d722716c378f5659b9e555ef833e1"
+      },
+      {
+        "bytes": 1068,
+        "origin": "https://files.pythonhosted.org/packages/7e/0c/964746fcafbd16f8ff53219ad9f6b412b34f345c75f384ad434ceaadb538/orjson-3.11.9.tar.gz#orjson-3.11.9/include/cargo/bytecount-0.6.9/LICENSE.MIT",
+        "path": "licenses/texts/a5dea80c1f383cb5f80a6bb0da5e55a2beb9f24adb123ce6300af2cbaaa3bf65.txt",
+        "sha256": "a5dea80c1f383cb5f80a6bb0da5e55a2beb9f24adb123ce6300af2cbaaa3bf65"
+      },
+      {
+        "bytes": 1055,
+        "origin": "https://files.pythonhosted.org/packages/7e/0c/964746fcafbd16f8ff53219ad9f6b412b34f345c75f384ad434ceaadb538/orjson-3.11.9.tar.gz#orjson-3.11.9/include/cargo/bytes-1.11.1/LICENSE",
+        "path": "licenses/texts/45f522cacecb1023856e46df79ca625dfc550c94910078bd8aec6e02880b3d42.txt",
+        "sha256": "45f522cacecb1023856e46df79ca625dfc550c94910078bd8aec6e02880b3d42"
+      },
+      {
+        "bytes": 10847,
+        "origin": "https://files.pythonhosted.org/packages/7e/0c/964746fcafbd16f8ff53219ad9f6b412b34f345c75f384ad434ceaadb538/orjson-3.11.9.tar.gz#orjson-3.11.9/include/cargo/cc-1.2.61/LICENSE-APACHE",
+        "path": "licenses/texts/a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2.txt",
+        "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2"
+      },
+      {
+        "bytes": 1057,
+        "origin": "https://files.pythonhosted.org/packages/7e/0c/964746fcafbd16f8ff53219ad9f6b412b34f345c75f384ad434ceaadb538/orjson-3.11.9.tar.gz#orjson-3.11.9/include/cargo/cc-1.2.61/LICENSE-MIT",
+        "path": "licenses/texts/378f5840b258e2779c39418f3f2d7b2ba96f1c7917dd6be0713f88305dbda397.txt",
+        "sha256": "378f5840b258e2779c39418f3f2d7b2ba96f1c7917dd6be0713f88305dbda397"
+      },
+      {
+        "bytes": 10847,
+        "origin": "https://files.pythonhosted.org/packages/7e/0c/964746fcafbd16f8ff53219ad9f6b412b34f345c75f384ad434ceaadb538/orjson-3.11.9.tar.gz#orjson-3.11.9/include/cargo/cfg-if-1.0.4/LICENSE-APACHE",
+        "path": "licenses/texts/a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2.txt",
+        "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2"
+      },
+      {
+        "bytes": 1057,
+        "origin": "https://files.pythonhosted.org/packages/7e/0c/964746fcafbd16f8ff53219ad9f6b412b34f345c75f384ad434ceaadb538/orjson-3.11.9.tar.gz#orjson-3.11.9/include/cargo/cfg-if-1.0.4/LICENSE-MIT",
+        "path": "licenses/texts/378f5840b258e2779c39418f3f2d7b2ba96f1c7917dd6be0713f88305dbda397.txt",
+        "sha256": "378f5840b258e2779c39418f3f2d7b2ba96f1c7917dd6be0713f88305dbda397"
+      },
+      {
+        "bytes": 713,
+        "origin": "https://files.pythonhosted.org/packages/7e/0c/964746fcafbd16f8ff53219ad9f6b412b34f345c75f384ad434ceaadb538/orjson-3.11.9.tar.gz#orjson-3.11.9/include/cargo/encoding_rs-0.8.35/COPYRIGHT",
+        "path": "licenses/texts/11789f45bb180841cd362a5eee6789c68ddb573a11105e30768c308a6add0190.txt",
+        "sha256": "11789f45bb180841cd362a5eee6789c68ddb573a11105e30768c308a6add0190"
+      },
+      {
+        "bytes": 11358,
+        "origin": "https://files.pythonhosted.org/packages/7e/0c/964746fcafbd16f8ff53219ad9f6b412b34f345c75f384ad434ceaadb538/orjson-3.11.9.tar.gz#orjson-3.11.9/include/cargo/encoding_rs-0.8.35/LICENSE-APACHE",
+        "path": "licenses/texts/cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30.txt",
+        "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+      },
+      {
+        "bytes": 1053,
+        "origin": "https://files.pythonhosted.org/packages/7e/0c/964746fcafbd16f8ff53219ad9f6b412b34f345c75f384ad434ceaadb538/orjson-3.11.9.tar.gz#orjson-3.11.9/include/cargo/encoding_rs-0.8.35/LICENSE-MIT",
+        "path": "licenses/texts/3fa4ca83dcc9237839b1bdeb2e6d16bdfb5ec0c5ce42b24694d8bbf0dcbef72c.txt",
+        "sha256": "3fa4ca83dcc9237839b1bdeb2e6d16bdfb5ec0c5ce42b24694d8bbf0dcbef72c"
+      },
+      {
+        "bytes": 1501,
+        "origin": "https://files.pythonhosted.org/packages/7e/0c/964746fcafbd16f8ff53219ad9f6b412b34f345c75f384ad434ceaadb538/orjson-3.11.9.tar.gz#orjson-3.11.9/include/cargo/encoding_rs-0.8.35/LICENSE-WHATWG",
+        "path": "licenses/texts/838118388fe5c2e7f1dbbaeed13e1c7f3ebf88be91319c7c1d77c18e987d1a50.txt",
+        "sha256": "838118388fe5c2e7f1dbbaeed13e1c7f3ebf88be91319c7c1d77c18e987d1a50"
+      },
+      {
+        "bytes": 10847,
+        "origin": "https://files.pythonhosted.org/packages/7e/0c/964746fcafbd16f8ff53219ad9f6b412b34f345c75f384ad434ceaadb538/orjson-3.11.9.tar.gz#orjson-3.11.9/include/cargo/find-msvc-tools-0.1.9/LICENSE-APACHE",
+        "path": "licenses/texts/a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2.txt",
+        "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2"
+      },
+      {
+        "bytes": 1057,
+        "origin": "https://files.pythonhosted.org/packages/7e/0c/964746fcafbd16f8ff53219ad9f6b412b34f345c75f384ad434ceaadb538/orjson-3.11.9.tar.gz#orjson-3.11.9/include/cargo/find-msvc-tools-0.1.9/LICENSE-MIT",
+        "path": "licenses/texts/378f5840b258e2779c39418f3f2d7b2ba96f1c7917dd6be0713f88305dbda397.txt",
+        "sha256": "378f5840b258e2779c39418f3f2d7b2ba96f1c7917dd6be0713f88305dbda397"
+      },
+      {
+        "bytes": 10847,
+        "origin": "https://files.pythonhosted.org/packages/7e/0c/964746fcafbd16f8ff53219ad9f6b412b34f345c75f384ad434ceaadb538/orjson-3.11.9.tar.gz#orjson-3.11.9/include/cargo/gimli-0.32.3/LICENSE-APACHE",
+        "path": "licenses/texts/a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2.txt",
+        "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2"
+      },
+      {
+        "bytes": 1071,
+        "origin": "https://files.pythonhosted.org/packages/7e/0c/964746fcafbd16f8ff53219ad9f6b412b34f345c75f384ad434ceaadb538/orjson-3.11.9.tar.gz#orjson-3.11.9/include/cargo/gimli-0.32.3/LICENSE-MIT",
+        "path": "licenses/texts/7b63ecd5f1902af1b63729947373683c32745c16a10e8e6292e2e2dcd7e90ae0.txt",
+        "sha256": "7b63ecd5f1902af1b63729947373683c32745c16a10e8e6292e2e2dcd7e90ae0"
+      },
+      {
+        "bytes": 9723,
+        "origin": "https://files.pythonhosted.org/packages/7e/0c/964746fcafbd16f8ff53219ad9f6b412b34f345c75f384ad434ceaadb538/orjson-3.11.9.tar.gz#orjson-3.11.9/include/cargo/itoa-1.0.18/LICENSE-APACHE",
+        "path": "licenses/texts/62c7a1e35f56406896d7aa7ca52d0cc0d272ac022b5d2796e7d6905db8a3636a.txt",
+        "sha256": "62c7a1e35f56406896d7aa7ca52d0cc0d272ac022b5d2796e7d6905db8a3636a"
+      },
+      {
+        "bytes": 1023,
+        "origin": "https://files.pythonhosted.org/packages/7e/0c/964746fcafbd16f8ff53219ad9f6b412b34f345c75f384ad434ceaadb538/orjson-3.11.9.tar.gz#orjson-3.11.9/include/cargo/itoa-1.0.18/LICENSE-MIT",
+        "path": "licenses/texts/23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3.txt",
+        "sha256": "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3"
+      },
+      {
+        "bytes": 1122,
+        "origin": "https://files.pythonhosted.org/packages/7e/0c/964746fcafbd16f8ff53219ad9f6b412b34f345c75f384ad434ceaadb538/orjson-3.11.9.tar.gz#orjson-3.11.9/include/cargo/itoap-1.0.1/LICENSE",
+        "path": "licenses/texts/5891374673c9ae0ff2a4d400dab3eb836483205897d265b6ff97fe46c75d8610.txt",
+        "sha256": "5891374673c9ae0ff2a4d400dab3eb836483205897d265b6ff97fe46c75d8610"
+      },
+      {
+        "bytes": 126,
+        "origin": "https://files.pythonhosted.org/packages/7e/0c/964746fcafbd16f8ff53219ad9f6b412b34f345c75f384ad434ceaadb538/orjson-3.11.9.tar.gz#orjson-3.11.9/include/cargo/jiff-0.2.24/COPYING",
+        "path": "licenses/texts/01c266bced4a434da0051174d6bee16a4c82cf634e2679b6155d40d75012390f.txt",
+        "sha256": "01c266bced4a434da0051174d6bee16a4c82cf634e2679b6155d40d75012390f"
+      },
+      {
+        "bytes": 1081,
+        "origin": "https://files.pythonhosted.org/packages/7e/0c/964746fcafbd16f8ff53219ad9f6b412b34f345c75f384ad434ceaadb538/orjson-3.11.9.tar.gz#orjson-3.11.9/include/cargo/jiff-0.2.24/LICENSE-MIT",
+        "path": "licenses/texts/0f96a83840e146e43c0ec96a22ec1f392e0680e6c1226e6f3ba87e0740af850f.txt",
+        "sha256": "0f96a83840e146e43c0ec96a22ec1f392e0680e6c1226e6f3ba87e0740af850f"
+      },
+      {
+        "bytes": 126,
+        "origin": "https://files.pythonhosted.org/packages/7e/0c/964746fcafbd16f8ff53219ad9f6b412b34f345c75f384ad434ceaadb538/orjson-3.11.9.tar.gz#orjson-3.11.9/include/cargo/jiff-static-0.2.24/COPYING",
+        "path": "licenses/texts/01c266bced4a434da0051174d6bee16a4c82cf634e2679b6155d40d75012390f.txt",
+        "sha256": "01c266bced4a434da0051174d6bee16a4c82cf634e2679b6155d40d75012390f"
+      },
+      {
+        "bytes": 1081,
+        "origin": "https://files.pythonhosted.org/packages/7e/0c/964746fcafbd16f8ff53219ad9f6b412b34f345c75f384ad434ceaadb538/orjson-3.11.9.tar.gz#orjson-3.11.9/include/cargo/jiff-static-0.2.24/LICENSE-MIT",
+        "path": "licenses/texts/0f96a83840e146e43c0ec96a22ec1f392e0680e6c1226e6f3ba87e0740af850f.txt",
+        "sha256": "0f96a83840e146e43c0ec96a22ec1f392e0680e6c1226e6f3ba87e0740af850f"
+      },
+      {
+        "bytes": 9723,
+        "origin": "https://files.pythonhosted.org/packages/7e/0c/964746fcafbd16f8ff53219ad9f6b412b34f345c75f384ad434ceaadb538/orjson-3.11.9.tar.gz#orjson-3.11.9/include/cargo/libc-0.2.186/LICENSE-APACHE",
+        "path": "licenses/texts/62c7a1e35f56406896d7aa7ca52d0cc0d272ac022b5d2796e7d6905db8a3636a.txt",
+        "sha256": "62c7a1e35f56406896d7aa7ca52d0cc0d272ac022b5d2796e7d6905db8a3636a"
+      },
+      {
+        "bytes": 1066,
+        "origin": "https://files.pythonhosted.org/packages/7e/0c/964746fcafbd16f8ff53219ad9f6b412b34f345c75f384ad434ceaadb538/orjson-3.11.9.tar.gz#orjson-3.11.9/include/cargo/libc-0.2.186/LICENSE-MIT",
+        "path": "licenses/texts/123a331b5dbf04c30097fa43b8f858bc85df671fe776de498d01f3d6b7c1f69e.txt",
+        "sha256": "123a331b5dbf04c30097fa43b8f858bc85df671fe776de498d01f3d6b7c1f69e"
+      },
+      {
+        "bytes": 126,
+        "origin": "https://files.pythonhosted.org/packages/7e/0c/964746fcafbd16f8ff53219ad9f6b412b34f345c75f384ad434ceaadb538/orjson-3.11.9.tar.gz#orjson-3.11.9/include/cargo/memchr-2.8.0/COPYING",
+        "path": "licenses/texts/01c266bced4a434da0051174d6bee16a4c82cf634e2679b6155d40d75012390f.txt",
+        "sha256": "01c266bced4a434da0051174d6bee16a4c82cf634e2679b6155d40d75012390f"
+      },
+      {
+        "bytes": 1081,
+        "origin": "https://files.pythonhosted.org/packages/7e/0c/964746fcafbd16f8ff53219ad9f6b412b34f345c75f384ad434ceaadb538/orjson-3.11.9.tar.gz#orjson-3.11.9/include/cargo/memchr-2.8.0/LICENSE-MIT",
+        "path": "licenses/texts/0f96a83840e146e43c0ec96a22ec1f392e0680e6c1226e6f3ba87e0740af850f.txt",
+        "sha256": "0f96a83840e146e43c0ec96a22ec1f392e0680e6c1226e6f3ba87e0740af850f"
+      },
+      {
+        "bytes": 9723,
+        "origin": "https://files.pythonhosted.org/packages/7e/0c/964746fcafbd16f8ff53219ad9f6b412b34f345c75f384ad434ceaadb538/orjson-3.11.9.tar.gz#orjson-3.11.9/include/cargo/no-panic-0.1.36/LICENSE-APACHE",
+        "path": "licenses/texts/62c7a1e35f56406896d7aa7ca52d0cc0d272ac022b5d2796e7d6905db8a3636a.txt",
+        "sha256": "62c7a1e35f56406896d7aa7ca52d0cc0d272ac022b5d2796e7d6905db8a3636a"
+      },
+      {
+        "bytes": 1023,
+        "origin": "https://files.pythonhosted.org/packages/7e/0c/964746fcafbd16f8ff53219ad9f6b412b34f345c75f384ad434ceaadb538/orjson-3.11.9.tar.gz#orjson-3.11.9/include/cargo/no-panic-0.1.36/LICENSE-MIT",
+        "path": "licenses/texts/23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3.txt",
+        "sha256": "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3"
+      },
+      {
+        "bytes": 10847,
+        "origin": "https://files.pythonhosted.org/packages/7e/0c/964746fcafbd16f8ff53219ad9f6b412b34f345c75f384ad434ceaadb538/orjson-3.11.9.tar.gz#orjson-3.11.9/include/cargo/once_cell-1.21.4/LICENSE-APACHE",
+        "path": "licenses/texts/a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2.txt",
+        "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2"
+      },
+      {
+        "bytes": 1023,
+        "origin": "https://files.pythonhosted.org/packages/7e/0c/964746fcafbd16f8ff53219ad9f6b412b34f345c75f384ad434ceaadb538/orjson-3.11.9.tar.gz#orjson-3.11.9/include/cargo/once_cell-1.21.4/LICENSE-MIT",
+        "path": "licenses/texts/23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3.txt",
+        "sha256": "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3"
+      },
+      {
+        "bytes": 10174,
+        "origin": "https://files.pythonhosted.org/packages/7e/0c/964746fcafbd16f8ff53219ad9f6b412b34f345c75f384ad434ceaadb538/orjson-3.11.9.tar.gz#orjson-3.11.9/include/cargo/portable-atomic-1.13.1/LICENSE-APACHE",
+        "path": "licenses/texts/0d542e0c8804e39aa7f37eb00da5a762149dc682d7829451287e11b938e94594.txt",
+        "sha256": "0d542e0c8804e39aa7f37eb00da5a762149dc682d7829451287e11b938e94594"
+      },
+      {
+        "bytes": 1023,
+        "origin": "https://files.pythonhosted.org/packages/7e/0c/964746fcafbd16f8ff53219ad9f6b412b34f345c75f384ad434ceaadb538/orjson-3.11.9.tar.gz#orjson-3.11.9/include/cargo/portable-atomic-1.13.1/LICENSE-MIT",
+        "path": "licenses/texts/23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3.txt",
+        "sha256": "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3"
+      },
+      {
+        "bytes": 10174,
+        "origin": "https://files.pythonhosted.org/packages/7e/0c/964746fcafbd16f8ff53219ad9f6b412b34f345c75f384ad434ceaadb538/orjson-3.11.9.tar.gz#orjson-3.11.9/include/cargo/portable-atomic-util-0.2.7/LICENSE-APACHE",
+        "path": "licenses/texts/0d542e0c8804e39aa7f37eb00da5a762149dc682d7829451287e11b938e94594.txt",
+        "sha256": "0d542e0c8804e39aa7f37eb00da5a762149dc682d7829451287e11b938e94594"
+      },
+      {
+        "bytes": 1023,
+        "origin": "https://files.pythonhosted.org/packages/7e/0c/964746fcafbd16f8ff53219ad9f6b412b34f345c75f384ad434ceaadb538/orjson-3.11.9.tar.gz#orjson-3.11.9/include/cargo/portable-atomic-util-0.2.7/LICENSE-MIT",
+        "path": "licenses/texts/23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3.txt",
+        "sha256": "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3"
+      },
+      {
+        "bytes": 9723,
+        "origin": "https://files.pythonhosted.org/packages/7e/0c/964746fcafbd16f8ff53219ad9f6b412b34f345c75f384ad434ceaadb538/orjson-3.11.9.tar.gz#orjson-3.11.9/include/cargo/proc-macro2-1.0.106/LICENSE-APACHE",
+        "path": "licenses/texts/62c7a1e35f56406896d7aa7ca52d0cc0d272ac022b5d2796e7d6905db8a3636a.txt",
+        "sha256": "62c7a1e35f56406896d7aa7ca52d0cc0d272ac022b5d2796e7d6905db8a3636a"
+      },
+      {
+        "bytes": 1023,
+        "origin": "https://files.pythonhosted.org/packages/7e/0c/964746fcafbd16f8ff53219ad9f6b412b34f345c75f384ad434ceaadb538/orjson-3.11.9.tar.gz#orjson-3.11.9/include/cargo/proc-macro2-1.0.106/LICENSE-MIT",
+        "path": "licenses/texts/23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3.txt",
+        "sha256": "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3"
+      },
+      {
+        "bytes": 9807,
+        "origin": "https://files.pythonhosted.org/packages/7e/0c/964746fcafbd16f8ff53219ad9f6b412b34f345c75f384ad434ceaadb538/orjson-3.11.9.tar.gz#orjson-3.11.9/include/cargo/pyo3-build-config-0.28.3/LICENSE-APACHE",
+        "path": "licenses/texts/32c76dbe0e73d79100d5ece77c158399f2e2541bc5c78548a4ba45c1cb53c5c9.txt",
+        "sha256": "32c76dbe0e73d79100d5ece77c158399f2e2541bc5c78548a4ba45c1cb53c5c9"
+      },
+      {
+        "bytes": 1107,
+        "origin": "https://files.pythonhosted.org/packages/7e/0c/964746fcafbd16f8ff53219ad9f6b412b34f345c75f384ad434ceaadb538/orjson-3.11.9.tar.gz#orjson-3.11.9/include/cargo/pyo3-build-config-0.28.3/LICENSE-MIT",
+        "path": "licenses/texts/afcbe3b2e6b37172b5a9ca869ee4c0b8cdc09316e5d4384864154482c33e5af6.txt",
+        "sha256": "afcbe3b2e6b37172b5a9ca869ee4c0b8cdc09316e5d4384864154482c33e5af6"
+      },
+      {
+        "bytes": 9807,
+        "origin": "https://files.pythonhosted.org/packages/7e/0c/964746fcafbd16f8ff53219ad9f6b412b34f345c75f384ad434ceaadb538/orjson-3.11.9.tar.gz#orjson-3.11.9/include/cargo/pyo3-ffi-0.28.3/LICENSE-APACHE",
+        "path": "licenses/texts/32c76dbe0e73d79100d5ece77c158399f2e2541bc5c78548a4ba45c1cb53c5c9.txt",
+        "sha256": "32c76dbe0e73d79100d5ece77c158399f2e2541bc5c78548a4ba45c1cb53c5c9"
+      },
+      {
+        "bytes": 1107,
+        "origin": "https://files.pythonhosted.org/packages/7e/0c/964746fcafbd16f8ff53219ad9f6b412b34f345c75f384ad434ceaadb538/orjson-3.11.9.tar.gz#orjson-3.11.9/include/cargo/pyo3-ffi-0.28.3/LICENSE-MIT",
+        "path": "licenses/texts/afcbe3b2e6b37172b5a9ca869ee4c0b8cdc09316e5d4384864154482c33e5af6.txt",
+        "sha256": "afcbe3b2e6b37172b5a9ca869ee4c0b8cdc09316e5d4384864154482c33e5af6"
+      },
+      {
+        "bytes": 9723,
+        "origin": "https://files.pythonhosted.org/packages/7e/0c/964746fcafbd16f8ff53219ad9f6b412b34f345c75f384ad434ceaadb538/orjson-3.11.9.tar.gz#orjson-3.11.9/include/cargo/quote-1.0.45/LICENSE-APACHE",
+        "path": "licenses/texts/62c7a1e35f56406896d7aa7ca52d0cc0d272ac022b5d2796e7d6905db8a3636a.txt",
+        "sha256": "62c7a1e35f56406896d7aa7ca52d0cc0d272ac022b5d2796e7d6905db8a3636a"
+      },
+      {
+        "bytes": 1023,
+        "origin": "https://files.pythonhosted.org/packages/7e/0c/964746fcafbd16f8ff53219ad9f6b412b34f345c75f384ad434ceaadb538/orjson-3.11.9.tar.gz#orjson-3.11.9/include/cargo/quote-1.0.45/LICENSE-MIT",
+        "path": "licenses/texts/23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3.txt",
+        "sha256": "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3"
+      },
+      {
+        "bytes": 9723,
+        "origin": "https://files.pythonhosted.org/packages/7e/0c/964746fcafbd16f8ff53219ad9f6b412b34f345c75f384ad434ceaadb538/orjson-3.11.9.tar.gz#orjson-3.11.9/include/cargo/serde-1.0.228/LICENSE-APACHE",
+        "path": "licenses/texts/62c7a1e35f56406896d7aa7ca52d0cc0d272ac022b5d2796e7d6905db8a3636a.txt",
+        "sha256": "62c7a1e35f56406896d7aa7ca52d0cc0d272ac022b5d2796e7d6905db8a3636a"
+      },
+      {
+        "bytes": 1023,
+        "origin": "https://files.pythonhosted.org/packages/7e/0c/964746fcafbd16f8ff53219ad9f6b412b34f345c75f384ad434ceaadb538/orjson-3.11.9.tar.gz#orjson-3.11.9/include/cargo/serde-1.0.228/LICENSE-MIT",
+        "path": "licenses/texts/23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3.txt",
+        "sha256": "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3"
+      },
+      {
+        "bytes": 9723,
+        "origin": "https://files.pythonhosted.org/packages/7e/0c/964746fcafbd16f8ff53219ad9f6b412b34f345c75f384ad434ceaadb538/orjson-3.11.9.tar.gz#orjson-3.11.9/include/cargo/serde_core-1.0.228/LICENSE-APACHE",
+        "path": "licenses/texts/62c7a1e35f56406896d7aa7ca52d0cc0d272ac022b5d2796e7d6905db8a3636a.txt",
+        "sha256": "62c7a1e35f56406896d7aa7ca52d0cc0d272ac022b5d2796e7d6905db8a3636a"
+      },
+      {
+        "bytes": 1023,
+        "origin": "https://files.pythonhosted.org/packages/7e/0c/964746fcafbd16f8ff53219ad9f6b412b34f345c75f384ad434ceaadb538/orjson-3.11.9.tar.gz#orjson-3.11.9/include/cargo/serde_core-1.0.228/LICENSE-MIT",
+        "path": "licenses/texts/23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3.txt",
+        "sha256": "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3"
+      },
+      {
+        "bytes": 9723,
+        "origin": "https://files.pythonhosted.org/packages/7e/0c/964746fcafbd16f8ff53219ad9f6b412b34f345c75f384ad434ceaadb538/orjson-3.11.9.tar.gz#orjson-3.11.9/include/cargo/serde_derive-1.0.228/LICENSE-APACHE",
+        "path": "licenses/texts/62c7a1e35f56406896d7aa7ca52d0cc0d272ac022b5d2796e7d6905db8a3636a.txt",
+        "sha256": "62c7a1e35f56406896d7aa7ca52d0cc0d272ac022b5d2796e7d6905db8a3636a"
+      },
+      {
+        "bytes": 1023,
+        "origin": "https://files.pythonhosted.org/packages/7e/0c/964746fcafbd16f8ff53219ad9f6b412b34f345c75f384ad434ceaadb538/orjson-3.11.9.tar.gz#orjson-3.11.9/include/cargo/serde_derive-1.0.228/LICENSE-MIT",
+        "path": "licenses/texts/23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3.txt",
+        "sha256": "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3"
+      },
+      {
+        "bytes": 9723,
+        "origin": "https://files.pythonhosted.org/packages/7e/0c/964746fcafbd16f8ff53219ad9f6b412b34f345c75f384ad434ceaadb538/orjson-3.11.9.tar.gz#orjson-3.11.9/include/cargo/serde_json-1.0.149/LICENSE-APACHE",
+        "path": "licenses/texts/62c7a1e35f56406896d7aa7ca52d0cc0d272ac022b5d2796e7d6905db8a3636a.txt",
+        "sha256": "62c7a1e35f56406896d7aa7ca52d0cc0d272ac022b5d2796e7d6905db8a3636a"
+      },
+      {
+        "bytes": 1023,
+        "origin": "https://files.pythonhosted.org/packages/7e/0c/964746fcafbd16f8ff53219ad9f6b412b34f345c75f384ad434ceaadb538/orjson-3.11.9.tar.gz#orjson-3.11.9/include/cargo/serde_json-1.0.149/LICENSE-MIT",
+        "path": "licenses/texts/23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3.txt",
+        "sha256": "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3"
+      },
+      {
+        "bytes": 566,
+        "origin": "https://files.pythonhosted.org/packages/7e/0c/964746fcafbd16f8ff53219ad9f6b412b34f345c75f384ad434ceaadb538/orjson-3.11.9.tar.gz#orjson-3.11.9/include/cargo/shlex-1.3.0/LICENSE-APACHE",
+        "path": "licenses/texts/553fffcd9b1cb158bc3e9edc35da85ca5c3b3d7d2e61c883ebcfa8a65814b583.txt",
+        "sha256": "553fffcd9b1cb158bc3e9edc35da85ca5c3b3d7d2e61c883ebcfa8a65814b583"
+      },
+      {
+        "bytes": 1092,
+        "origin": "https://files.pythonhosted.org/packages/7e/0c/964746fcafbd16f8ff53219ad9f6b412b34f345c75f384ad434ceaadb538/orjson-3.11.9.tar.gz#orjson-3.11.9/include/cargo/shlex-1.3.0/LICENSE-MIT",
+        "path": "licenses/texts/4455bf75a91154108304cb283e0fea9948c14f13e20d60887cf2552449dea3b1.txt",
+        "sha256": "4455bf75a91154108304cb283e0fea9948c14f13e20d60887cf2552449dea3b1"
+      },
+      {
+        "bytes": 10173,
+        "origin": "https://files.pythonhosted.org/packages/7e/0c/964746fcafbd16f8ff53219ad9f6b412b34f345c75f384ad434ceaadb538/orjson-3.11.9.tar.gz#orjson-3.11.9/include/cargo/simdutf8-0.1.5/LICENSE-Apache",
+        "path": "licenses/texts/0cec06e0e55fbc3dc5cee4fca9b607f66cb8f4e4dbcf3b3c013594dd156732e9.txt",
+        "sha256": "0cec06e0e55fbc3dc5cee4fca9b607f66cb8f4e4dbcf3b3c013594dd156732e9"
+      },
+      {
+        "bytes": 1035,
+        "origin": "https://files.pythonhosted.org/packages/7e/0c/964746fcafbd16f8ff53219ad9f6b412b34f345c75f384ad434ceaadb538/orjson-3.11.9.tar.gz#orjson-3.11.9/include/cargo/simdutf8-0.1.5/LICENSE-MIT",
+        "path": "licenses/texts/1847e0e0698142ed4347c1441a9fa81c8fbddd44b1d8bbcd5e3647f991759d7f.txt",
+        "sha256": "1847e0e0698142ed4347c1441a9fa81c8fbddd44b1d8bbcd5e3647f991759d7f"
+      },
+      {
+        "bytes": 9723,
+        "origin": "https://files.pythonhosted.org/packages/7e/0c/964746fcafbd16f8ff53219ad9f6b412b34f345c75f384ad434ceaadb538/orjson-3.11.9.tar.gz#orjson-3.11.9/include/cargo/syn-2.0.117/LICENSE-APACHE",
+        "path": "licenses/texts/62c7a1e35f56406896d7aa7ca52d0cc0d272ac022b5d2796e7d6905db8a3636a.txt",
+        "sha256": "62c7a1e35f56406896d7aa7ca52d0cc0d272ac022b5d2796e7d6905db8a3636a"
+      },
+      {
+        "bytes": 1023,
+        "origin": "https://files.pythonhosted.org/packages/7e/0c/964746fcafbd16f8ff53219ad9f6b412b34f345c75f384ad434ceaadb538/orjson-3.11.9.tar.gz#orjson-3.11.9/include/cargo/syn-2.0.117/LICENSE-MIT",
+        "path": "licenses/texts/23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3.txt",
+        "sha256": "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3"
+      },
+      {
+        "bytes": 12243,
+        "origin": "https://files.pythonhosted.org/packages/7e/0c/964746fcafbd16f8ff53219ad9f6b412b34f345c75f384ad434ceaadb538/orjson-3.11.9.tar.gz#orjson-3.11.9/include/cargo/target-lexicon-0.13.5/LICENSE",
+        "path": "licenses/texts/268872b9816f90fd8e85db5a28d33f8150ebb8dd016653fb39ef1f94f2686bc5.txt",
+        "sha256": "268872b9816f90fd8e85db5a28d33f8150ebb8dd016653fb39ef1f94f2686bc5"
+      },
+      {
+        "bytes": 9723,
+        "origin": "https://files.pythonhosted.org/packages/7e/0c/964746fcafbd16f8ff53219ad9f6b412b34f345c75f384ad434ceaadb538/orjson-3.11.9.tar.gz#orjson-3.11.9/include/cargo/unicode-ident-1.0.24/LICENSE-APACHE",
+        "path": "licenses/texts/62c7a1e35f56406896d7aa7ca52d0cc0d272ac022b5d2796e7d6905db8a3636a.txt",
+        "sha256": "62c7a1e35f56406896d7aa7ca52d0cc0d272ac022b5d2796e7d6905db8a3636a"
+      },
+      {
+        "bytes": 1023,
+        "origin": "https://files.pythonhosted.org/packages/7e/0c/964746fcafbd16f8ff53219ad9f6b412b34f345c75f384ad434ceaadb538/orjson-3.11.9.tar.gz#orjson-3.11.9/include/cargo/unicode-ident-1.0.24/LICENSE-MIT",
+        "path": "licenses/texts/23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3.txt",
+        "sha256": "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3"
+      },
+      {
+        "bytes": 1995,
+        "origin": "https://files.pythonhosted.org/packages/7e/0c/964746fcafbd16f8ff53219ad9f6b412b34f345c75f384ad434ceaadb538/orjson-3.11.9.tar.gz#orjson-3.11.9/include/cargo/unicode-ident-1.0.24/LICENSE-UNICODE",
+        "path": "licenses/texts/f7db81051789b729fea528a63ec4c938fdcb93d9d61d97dc8cc2e9df6d47f2a1.txt",
+        "sha256": "f7db81051789b729fea528a63ec4c938fdcb93d9d61d97dc8cc2e9df6d47f2a1"
+      },
+      {
+        "bytes": 9723,
+        "origin": "https://files.pythonhosted.org/packages/7e/0c/964746fcafbd16f8ff53219ad9f6b412b34f345c75f384ad434ceaadb538/orjson-3.11.9.tar.gz#orjson-3.11.9/include/cargo/unwinding-0.2.8/LICENSE-APACHE",
+        "path": "licenses/texts/62c7a1e35f56406896d7aa7ca52d0cc0d272ac022b5d2796e7d6905db8a3636a.txt",
+        "sha256": "62c7a1e35f56406896d7aa7ca52d0cc0d272ac022b5d2796e7d6905db8a3636a"
+      },
+      {
+        "bytes": 1023,
+        "origin": "https://files.pythonhosted.org/packages/7e/0c/964746fcafbd16f8ff53219ad9f6b412b34f345c75f384ad434ceaadb538/orjson-3.11.9.tar.gz#orjson-3.11.9/include/cargo/unwinding-0.2.8/LICENSE-MIT",
+        "path": "licenses/texts/23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3.txt",
+        "sha256": "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3"
+      },
+      {
+        "bytes": 1338,
+        "origin": "https://files.pythonhosted.org/packages/7e/0c/964746fcafbd16f8ff53219ad9f6b412b34f345c75f384ad434ceaadb538/orjson-3.11.9.tar.gz#orjson-3.11.9/include/cargo/xxhash-rust-0.8.15/LICENSE",
+        "path": "licenses/texts/c9bff75738922193e67fa726fa225535870d2aa1059f91452c411736284ad566.txt",
+        "sha256": "c9bff75738922193e67fa726fa225535870d2aa1059f91452c411736284ad566"
+      },
+      {
+        "bytes": 1023,
+        "origin": "https://files.pythonhosted.org/packages/7e/0c/964746fcafbd16f8ff53219ad9f6b412b34f345c75f384ad434ceaadb538/orjson-3.11.9.tar.gz#orjson-3.11.9/include/cargo/zmij-1.0.21/LICENSE-MIT",
+        "path": "licenses/texts/23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3.txt",
+        "sha256": "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3"
+      }
+    ],
+    "registry_source": "https://pypi.org/pypi/orjson/3.11.9/json"
+  },
+  "pypi:packaging@26.0": {
+    "homepage": null,
+    "license_declared": null,
+    "license_expression": "Apache-2.0 OR BSD-2-Clause",
+    "license_files": [
+      {
+        "bytes": 197,
+        "origin": "https://files.pythonhosted.org/packages/b7/b9/c538f279a4e237a006a2c98387d081e9eb060d203d8ed34467cc0f0b9b53/packaging-26.0-py3-none-any.whl#packaging-26.0.dist-info/licenses/LICENSE",
+        "path": "licenses/texts/cad1ef5bd340d73e074ba614d26f7deaca5c7940c3d8c34852e65c4909686c48.txt",
+        "sha256": "cad1ef5bd340d73e074ba614d26f7deaca5c7940c3d8c34852e65c4909686c48"
+      },
+      {
+        "bytes": 10174,
+        "origin": "https://files.pythonhosted.org/packages/b7/b9/c538f279a4e237a006a2c98387d081e9eb060d203d8ed34467cc0f0b9b53/packaging-26.0-py3-none-any.whl#packaging-26.0.dist-info/licenses/LICENSE.APACHE",
+        "path": "licenses/texts/0d542e0c8804e39aa7f37eb00da5a762149dc682d7829451287e11b938e94594.txt",
+        "sha256": "0d542e0c8804e39aa7f37eb00da5a762149dc682d7829451287e11b938e94594"
+      },
+      {
+        "bytes": 1344,
+        "origin": "https://files.pythonhosted.org/packages/b7/b9/c538f279a4e237a006a2c98387d081e9eb060d203d8ed34467cc0f0b9b53/packaging-26.0-py3-none-any.whl#packaging-26.0.dist-info/licenses/LICENSE.BSD",
+        "path": "licenses/texts/b70e7e9b742f1cc6f948b34c16aa39ffece94196364bc88ff0d2180f0028fac5.txt",
+        "sha256": "b70e7e9b742f1cc6f948b34c16aa39ffece94196364bc88ff0d2180f0028fac5"
+      },
+      {
+        "bytes": 5819,
+        "origin": "https://files.pythonhosted.org/packages/b7/b9/c538f279a4e237a006a2c98387d081e9eb060d203d8ed34467cc0f0b9b53/packaging-26.0-py3-none-any.whl#packaging/licenses/__init__.py",
+        "path": "licenses/texts/4f05cb1d9097c1281d17044b3f15bad364fa99289eba74851cce9fa7ca605bbf.txt",
+        "sha256": "4f05cb1d9097c1281d17044b3f15bad364fa99289eba74851cce9fa7ca605bbf"
+      },
+      {
+        "bytes": 51122,
+        "origin": "https://files.pythonhosted.org/packages/b7/b9/c538f279a4e237a006a2c98387d081e9eb060d203d8ed34467cc0f0b9b53/packaging-26.0-py3-none-any.whl#packaging/licenses/_spdx.py",
+        "path": "licenses/texts/596ec35e2ca0ebcba9fd8343ff0a51625af548786257815f24b41f7e08613314.txt",
+        "sha256": "596ec35e2ca0ebcba9fd8343ff0a51625af548786257815f24b41f7e08613314"
+      }
+    ],
+    "registry_source": "https://pypi.org/pypi/packaging/26.0/json"
+  },
+  "pypi:packaging@26.2": {
+    "homepage": null,
+    "license_declared": null,
+    "license_expression": "Apache-2.0 OR BSD-2-Clause",
+    "license_files": [
+      {
+        "bytes": 197,
+        "origin": "https://files.pythonhosted.org/packages/df/b2/87e62e8c3e2f4b32e5fe99e0b86d576da1312593b39f47d8ceef365e95ed/packaging-26.2-py3-none-any.whl#packaging-26.2.dist-info/licenses/LICENSE",
+        "path": "licenses/texts/cad1ef5bd340d73e074ba614d26f7deaca5c7940c3d8c34852e65c4909686c48.txt",
+        "sha256": "cad1ef5bd340d73e074ba614d26f7deaca5c7940c3d8c34852e65c4909686c48"
+      },
+      {
+        "bytes": 10174,
+        "origin": "https://files.pythonhosted.org/packages/df/b2/87e62e8c3e2f4b32e5fe99e0b86d576da1312593b39f47d8ceef365e95ed/packaging-26.2-py3-none-any.whl#packaging-26.2.dist-info/licenses/LICENSE.APACHE",
+        "path": "licenses/texts/0d542e0c8804e39aa7f37eb00da5a762149dc682d7829451287e11b938e94594.txt",
+        "sha256": "0d542e0c8804e39aa7f37eb00da5a762149dc682d7829451287e11b938e94594"
+      },
+      {
+        "bytes": 1344,
+        "origin": "https://files.pythonhosted.org/packages/df/b2/87e62e8c3e2f4b32e5fe99e0b86d576da1312593b39f47d8ceef365e95ed/packaging-26.2-py3-none-any.whl#packaging-26.2.dist-info/licenses/LICENSE.BSD",
+        "path": "licenses/texts/b70e7e9b742f1cc6f948b34c16aa39ffece94196364bc88ff0d2180f0028fac5.txt",
+        "sha256": "b70e7e9b742f1cc6f948b34c16aa39ffece94196364bc88ff0d2180f0028fac5"
+      },
+      {
+        "bytes": 7293,
+        "origin": "https://files.pythonhosted.org/packages/df/b2/87e62e8c3e2f4b32e5fe99e0b86d576da1312593b39f47d8ceef365e95ed/packaging-26.2-py3-none-any.whl#packaging/licenses/__init__.py",
+        "path": "licenses/texts/fc9c745d1883ff9f296a5b169f22eb2ee879f59a4608f20f5cb29d668f4e26f4.txt",
+        "sha256": "fc9c745d1883ff9f296a5b169f22eb2ee879f59a4608f20f5cb29d668f4e26f4"
+      },
+      {
+        "bytes": 51122,
+        "origin": "https://files.pythonhosted.org/packages/df/b2/87e62e8c3e2f4b32e5fe99e0b86d576da1312593b39f47d8ceef365e95ed/packaging-26.2-py3-none-any.whl#packaging/licenses/_spdx.py",
+        "path": "licenses/texts/596ec35e2ca0ebcba9fd8343ff0a51625af548786257815f24b41f7e08613314.txt",
+        "sha256": "596ec35e2ca0ebcba9fd8343ff0a51625af548786257815f24b41f7e08613314"
+      }
+    ],
+    "registry_source": "https://pypi.org/pypi/packaging/26.2/json"
+  },
+  "pypi:pybase64@1.4.3": {
+    "homepage": "https://github.com/mayeut/pybase64",
+    "license_declared": "BSD-2-Clause",
+    "license_expression": "BSD-2-Clause",
+    "license_files": [
+      {
+        "bytes": 1326,
+        "origin": "https://files.pythonhosted.org/packages/aa/b8/4ed5c7ad5ec15b08d35cc79ace6145d5c1ae426e46435f4987379439dfea/pybase64-1.4.3.tar.gz#pybase64-1.4.3/LICENSE",
+        "path": "licenses/texts/5e523b54c1581d44f458bfdd2cd3944d622bb1a32aa41f0773ee4da390fb45b4.txt",
+        "sha256": "5e523b54c1581d44f458bfdd2cd3944d622bb1a32aa41f0773ee4da390fb45b4"
+      },
+      {
+        "bytes": 1422,
+        "origin": "https://files.pythonhosted.org/packages/aa/b8/4ed5c7ad5ec15b08d35cc79ace6145d5c1ae426e46435f4987379439dfea/pybase64-1.4.3.tar.gz#pybase64-1.4.3/base64/LICENSE",
+        "path": "licenses/texts/42871ad9f4e5e9255a4ec80b6c5ec9989bab6964693cf5fee6bb33f3afe39220.txt",
+        "sha256": "42871ad9f4e5e9255a4ec80b6c5ec9989bab6964693cf5fee6bb33f3afe39220"
+      }
+    ],
+    "registry_source": "https://pypi.org/pypi/pybase64/1.4.3/json"
+  },
+  "pypi:pydantic-core@2.46.5": {
+    "homepage": "https://github.com/pydantic",
+    "license_declared": null,
+    "license_expression": "MIT",
+    "license_files": [
+      {
+        "bytes": 1080,
+        "origin": "https://files.pythonhosted.org/packages/af/f9/8a06bea35ef8daf588f707784c973a7046e0034c8d8cfb08828eeffb8b75/pydantic_core-2.46.5.tar.gz#pydantic_core-2.46.5/LICENSE",
+        "path": "licenses/texts/2afdd30d54b4d62b6f488a6bcc1546e84ec5061f13f4209c03d012348783795a.txt",
+        "sha256": "2afdd30d54b4d62b6f488a6bcc1546e84ec5061f13f4209c03d012348783795a"
+      }
+    ],
+    "registry_source": "https://pypi.org/pypi/pydantic-core/2.46.5/json"
+  },
+  "pypi:pydantic-settings@2.14.2": {
+    "homepage": "https://github.com/pydantic/pydantic-settings",
+    "license_declared": null,
+    "license_expression": "MIT",
+    "license_files": [
+      {
+        "bytes": 1103,
+        "origin": "https://files.pythonhosted.org/packages/77/c1/6e422f34e569cf8e18df68d1939c81c099d2b61e4f7d9621c8a77560799c/pydantic_settings-2.14.2-py3-none-any.whl#pydantic_settings-2.14.2.dist-info/licenses/LICENSE",
+        "path": "licenses/texts/eb355a753e020346d33d83bf9769135b89fc610568ac531a01c295bcee7fd998.txt",
+        "sha256": "eb355a753e020346d33d83bf9769135b89fc610568ac531a01c295bcee7fd998"
+      }
+    ],
+    "registry_source": "https://pypi.org/pypi/pydantic-settings/2.14.2/json"
+  },
+  "pypi:pydantic@2.13.5": {
+    "homepage": "https://github.com/pydantic/pydantic",
+    "license_declared": null,
+    "license_expression": "MIT",
+    "license_files": [
+      {
+        "bytes": 1129,
+        "origin": "https://files.pythonhosted.org/packages/eb/47/c95ffc2009878c7aac0c5e08528022dcb885933252a88b5f170058014464/pydantic-2.13.5-py3-none-any.whl#pydantic-2.13.5.dist-info/licenses/LICENSE",
+        "path": "licenses/texts/a9e186f3ca16b5eef84318e7a701721351a00cb7b8ae3a4394b67b49e3529ef3.txt",
+        "sha256": "a9e186f3ca16b5eef84318e7a701721351a00cb7b8ae3a4394b67b49e3529ef3"
+      }
+    ],
+    "registry_source": "https://pypi.org/pypi/pydantic/2.13.5/json"
+  },
+  "pypi:pygments@2.19.2": {
+    "homepage": "https://pygments.org",
+    "license_declared": "BSD-2-Clause",
+    "license_expression": "BSD-2-Clause",
+    "license_files": [
+      {
+        "bytes": 10824,
+        "origin": "https://files.pythonhosted.org/packages/c7/21/705964c7812476f378728bdf590ca4b771ec72385c533964653c68e86bdc/pygments-2.19.2-py3-none-any.whl#pygments-2.19.2.dist-info/licenses/AUTHORS",
+        "path": "licenses/texts/0660e318a6f215802adc8731ab85d0c65ff27cfcca3f5d28597f306476195bd9.txt",
+        "sha256": "0660e318a6f215802adc8731ab85d0c65ff27cfcca3f5d28597f306476195bd9"
+      },
+      {
+        "bytes": 1331,
+        "origin": "https://files.pythonhosted.org/packages/c7/21/705964c7812476f378728bdf590ca4b771ec72385c533964653c68e86bdc/pygments-2.19.2-py3-none-any.whl#pygments-2.19.2.dist-info/licenses/LICENSE",
+        "path": "licenses/texts/a9d66f1d526df02e29dce73436d34e56e8632f46c275bbdffc70569e882f9f17.txt",
+        "sha256": "a9d66f1d526df02e29dce73436d34e56e8632f46c275bbdffc70569e882f9f17"
+      }
+    ],
+    "registry_source": "https://pypi.org/pypi/pygments/2.19.2/json"
+  },
+  "pypi:pygments@2.20.0": {
+    "homepage": "https://pygments.org",
+    "license_declared": null,
+    "license_expression": "BSD-2-Clause",
+    "license_files": [
+      {
+        "bytes": 10873,
+        "origin": "https://files.pythonhosted.org/packages/f4/7e/a72dd26f3b0f4f2bf1dd8923c85f7ceb43172af56d63c7383eb62b332364/pygments-2.20.0-py3-none-any.whl#pygments-2.20.0.dist-info/licenses/AUTHORS",
+        "path": "licenses/texts/0db603a5f4499f690c4425477ff664c166da325d3acc3b5a8d4de3db072443d0.txt",
+        "sha256": "0db603a5f4499f690c4425477ff664c166da325d3acc3b5a8d4de3db072443d0"
+      },
+      {
+        "bytes": 1331,
+        "origin": "https://files.pythonhosted.org/packages/f4/7e/a72dd26f3b0f4f2bf1dd8923c85f7ceb43172af56d63c7383eb62b332364/pygments-2.20.0-py3-none-any.whl#pygments-2.20.0.dist-info/licenses/LICENSE",
+        "path": "licenses/texts/a9d66f1d526df02e29dce73436d34e56e8632f46c275bbdffc70569e882f9f17.txt",
+        "sha256": "a9d66f1d526df02e29dce73436d34e56e8632f46c275bbdffc70569e882f9f17"
+      }
+    ],
+    "registry_source": "https://pypi.org/pypi/pygments/2.20.0/json"
+  },
+  "pypi:pyjwt@2.13.0": {
+    "homepage": "https://github.com/jpadilla/pyjwt",
+    "license_declared": null,
+    "license_expression": "MIT",
+    "license_files": [
+      {
+        "bytes": 322,
+        "origin": "https://files.pythonhosted.org/packages/a3/5e/ecf12fdb62546d64385c158514e9b2b671f7832108ef2ecd2020ce0af2d1/pyjwt-2.13.0-py3-none-any.whl#pyjwt-2.13.0.dist-info/licenses/AUTHORS.rst",
+        "path": "licenses/texts/925ce43461029eedbf558ec0b7cf7fc4b045def5120ebb97937c70814071cf07.txt",
+        "sha256": "925ce43461029eedbf558ec0b7cf7fc4b045def5120ebb97937c70814071cf07"
+      },
+      {
+        "bytes": 1085,
+        "origin": "https://files.pythonhosted.org/packages/a3/5e/ecf12fdb62546d64385c158514e9b2b671f7832108ef2ecd2020ce0af2d1/pyjwt-2.13.0-py3-none-any.whl#pyjwt-2.13.0.dist-info/licenses/LICENSE",
+        "path": "licenses/texts/797a7a20231d4c433e9f1911db1731d06b5828b98f499819a034f7c0f56f5ce5.txt",
+        "sha256": "797a7a20231d4c433e9f1911db1731d06b5828b98f499819a034f7c0f56f5ce5"
+      }
+    ],
+    "registry_source": "https://pypi.org/pypi/pyjwt/2.13.0/json"
+  },
+  "pypi:pyjwt@2.15.1": {
+    "homepage": "https://github.com/jpadilla/pyjwt",
+    "license_declared": null,
+    "license_expression": "MIT",
+    "license_files": [
+      {
+        "bytes": 322,
+        "origin": "https://files.pythonhosted.org/packages/50/ca/44de4e75f8aadc457f0634be3b542815078ded46dca30efb960edeecad6e/pyjwt-2.15.1-py3-none-any.whl#pyjwt-2.15.1.dist-info/licenses/AUTHORS.rst",
+        "path": "licenses/texts/925ce43461029eedbf558ec0b7cf7fc4b045def5120ebb97937c70814071cf07.txt",
+        "sha256": "925ce43461029eedbf558ec0b7cf7fc4b045def5120ebb97937c70814071cf07"
+      },
+      {
+        "bytes": 1085,
+        "origin": "https://files.pythonhosted.org/packages/50/ca/44de4e75f8aadc457f0634be3b542815078ded46dca30efb960edeecad6e/pyjwt-2.15.1-py3-none-any.whl#pyjwt-2.15.1.dist-info/licenses/LICENSE",
+        "path": "licenses/texts/797a7a20231d4c433e9f1911db1731d06b5828b98f499819a034f7c0f56f5ce5.txt",
+        "sha256": "797a7a20231d4c433e9f1911db1731d06b5828b98f499819a034f7c0f56f5ce5"
+      }
+    ],
+    "registry_source": "https://pypi.org/pypi/pyjwt/2.15.1/json"
+  },
+  "pypi:pymupdf@1.28.2": {
+    "homepage": null,
+    "license_declared": "Dual Licensed - GNU AFFERO GPL 3.0 or Artifex Commercial License",
+    "license_expression": "Dual Licensed - GNU AFFERO GPL 3.0 or Artifex Commercial License",
+    "license_files": [
+      {
+        "bytes": 64,
+        "origin": "https://files.pythonhosted.org/packages/58/8c/d897dcd32a25b58186c968b15ce4324ca029e9d96460de12325314e390be/pymupdf-1.28.2-cp313-abi3-pyemscripten_2025_0_wasm32.whl#pymupdf-1.28.2.dist-info/COPYING",
+        "path": "licenses/texts/40e60697600535eabfb5ae05f72829d88cfe8d02dd4792f5a754f6f51dabe55b.txt",
+        "sha256": "40e60697600535eabfb5ae05f72829d88cfe8d02dd4792f5a754f6f51dabe55b"
+      }
+    ],
+    "registry_source": "https://pypi.org/pypi/pymupdf/1.28.2/json"
+  },
+  "pypi:pypinyin@0.55.0": {
+    "homepage": "https://github.com/mozillazg/python-pinyin",
+    "license_declared": "MIT",
+    "license_expression": "MIT",
+    "license_files": [
+      {
+        "bytes": 1105,
+        "origin": "https://files.pythonhosted.org/packages/b4/a4/784cf98c09e0dc22776b0d7d8a4a5b761218bcae4608c2416ce1e167c8af/pypinyin-0.55.0.tar.gz#pypinyin-0.55.0/LICENSE.txt",
+        "path": "licenses/texts/1e6c90014b4912815c296ee64bb6f6280af47e6d4c5d80e86232dfc5defe764c.txt",
+        "sha256": "1e6c90014b4912815c296ee64bb6f6280af47e6d4c5d80e86232dfc5defe764c"
+      }
+    ],
+    "registry_source": "https://pypi.org/pypi/pypinyin/0.55.0/json"
+  },
+  "pypi:pyyaml@6.0.3": {
+    "homepage": "https://pyyaml.org/",
+    "license_declared": "MIT",
+    "license_expression": "MIT",
+    "license_files": [
+      {
+        "bytes": 1101,
+        "origin": "https://files.pythonhosted.org/packages/05/8e/961c0007c59b8dd7729d542c61a4d537767a59645b82a0b521206e1e25c2/pyyaml-6.0.3.tar.gz#pyyaml-6.0.3/LICENSE",
+        "path": "licenses/texts/8d3928f9dc4490fd635707cb88eb26bd764102a7282954307d3e5167a577e8a4.txt",
+        "sha256": "8d3928f9dc4490fd635707cb88eb26bd764102a7282954307d3e5167a577e8a4"
+      }
+    ],
+    "registry_source": "https://pypi.org/pypi/pyyaml/6.0.3/json"
+  },
+  "pypi:referencing@0.36.2": {
+    "homepage": "https://github.com/python-jsonschema/referencing",
+    "license_declared": null,
+    "license_expression": "MIT",
+    "license_files": [
+      {
+        "bytes": 1057,
+        "origin": "https://files.pythonhosted.org/packages/c1/b1/3baf80dc6d2b7bc27a95a67752d0208e410351e3feb4eb78de5f77454d8d/referencing-0.36.2-py3-none-any.whl#referencing-0.36.2.dist-info/licenses/COPYING",
+        "path": "licenses/texts/42dcd63495f87b4eb7c7757afa379bb55a53f94afd7a5f657d9adf57236e515c.txt",
+        "sha256": "42dcd63495f87b4eb7c7757afa379bb55a53f94afd7a5f657d9adf57236e515c"
+      }
+    ],
+    "registry_source": "https://pypi.org/pypi/referencing/0.36.2/json"
+  },
+  "pypi:referencing@0.37.0": {
+    "homepage": "https://github.com/python-jsonschema/referencing",
+    "license_declared": null,
+    "license_expression": "MIT",
+    "license_files": [
+      {
+        "bytes": 1057,
+        "origin": "https://files.pythonhosted.org/packages/2c/58/ca301544e1fa93ed4f80d724bf5b194f6e4b945841c5bfd555878eea9fcb/referencing-0.37.0-py3-none-any.whl#referencing-0.37.0.dist-info/licenses/COPYING",
+        "path": "licenses/texts/42dcd63495f87b4eb7c7757afa379bb55a53f94afd7a5f657d9adf57236e515c.txt",
+        "sha256": "42dcd63495f87b4eb7c7757afa379bb55a53f94afd7a5f657d9adf57236e515c"
+      }
+    ],
+    "registry_source": "https://pypi.org/pypi/referencing/0.37.0/json"
+  },
+  "pypi:requests@2.32.5": {
+    "homepage": "https://requests.readthedocs.io",
+    "license_declared": "Apache-2.0",
+    "license_expression": "Apache-2.0",
+    "license_files": [
+      {
+        "bytes": 10142,
+        "origin": "https://files.pythonhosted.org/packages/1e/db/4254e3eabe8020b458f1a747140d32277ec7a271daf1d235b70dc0b4e6e3/requests-2.32.5-py3-none-any.whl#requests-2.32.5.dist-info/licenses/LICENSE",
+        "path": "licenses/texts/09e8a9bcec8067104652c168685ab0931e7868f9c8284b66f5ae6edae5f1130b.txt",
+        "sha256": "09e8a9bcec8067104652c168685ab0931e7868f9c8284b66f5ae6edae5f1130b"
+      }
+    ],
+    "registry_source": "https://pypi.org/pypi/requests/2.32.5/json"
+  },
+  "pypi:requests@2.34.2": {
+    "homepage": null,
+    "license_declared": "Apache-2.0",
+    "license_expression": "Apache-2.0",
+    "license_files": [
+      {
+        "bytes": 10142,
+        "origin": "https://files.pythonhosted.org/packages/a0/f4/c67b0b3f1b9245e8d266f0f112c500d50e5b4e83cb6f3b71b6528104182a/requests-2.34.2-py3-none-any.whl#requests-2.34.2.dist-info/licenses/LICENSE",
+        "path": "licenses/texts/09e8a9bcec8067104652c168685ab0931e7868f9c8284b66f5ae6edae5f1130b.txt",
+        "sha256": "09e8a9bcec8067104652c168685ab0931e7868f9c8284b66f5ae6edae5f1130b"
+      },
+      {
+        "bytes": 38,
+        "origin": "https://files.pythonhosted.org/packages/a0/f4/c67b0b3f1b9245e8d266f0f112c500d50e5b4e83cb6f3b71b6528104182a/requests-2.34.2-py3-none-any.whl#requests-2.34.2.dist-info/licenses/NOTICE",
+        "path": "licenses/texts/f5110972dedad2b4e9d314518daf3b7d72d6e02e499acd802181de6f74571dcc.txt",
+        "sha256": "f5110972dedad2b4e9d314518daf3b7d72d6e02e499acd802181de6f74571dcc"
+      }
+    ],
+    "registry_source": "https://pypi.org/pypi/requests/2.34.2/json"
+  },
+  "pypi:rich@13.9.4": {
+    "homepage": "https://github.com/Textualize/rich",
+    "license_declared": "MIT",
+    "license_expression": "MIT",
+    "license_files": [
+      {
+        "bytes": 1056,
+        "origin": "https://files.pythonhosted.org/packages/19/71/39c7c0d87f8d4e6c020a393182060eaefeeae6c01dab6a84ec346f2567df/rich-13.9.4-py3-none-any.whl#rich-13.9.4.dist-info/LICENSE",
+        "path": "licenses/texts/deed7c17a4318158190a3ea239cc879a5a50271cebb98ae7025f48fbe58dca15.txt",
+        "sha256": "deed7c17a4318158190a3ea239cc879a5a50271cebb98ae7025f48fbe58dca15"
+      }
+    ],
+    "registry_source": "https://pypi.org/pypi/rich/13.9.4/json"
+  },
+  "pypi:rich@15.0.0": {
+    "homepage": "https://github.com/Textualize/rich",
+    "license_declared": "MIT",
+    "license_expression": "MIT",
+    "license_files": [
+      {
+        "bytes": 1056,
+        "origin": "https://files.pythonhosted.org/packages/82/3b/64d4899d73f91ba49a8c18a8ff3f0ea8f1c1d75481760df8c68ef5235bf5/rich-15.0.0-py3-none-any.whl#rich-15.0.0.dist-info/licenses/LICENSE",
+        "path": "licenses/texts/deed7c17a4318158190a3ea239cc879a5a50271cebb98ae7025f48fbe58dca15.txt",
+        "sha256": "deed7c17a4318158190a3ea239cc879a5a50271cebb98ae7025f48fbe58dca15"
+      }
+    ],
+    "registry_source": "https://pypi.org/pypi/rich/15.0.0/json"
+  },
+  "pypi:rpds-py@0.27.1": {
+    "homepage": "https://github.com/crate-py/rpds",
+    "license_declared": null,
+    "license_expression": "MIT",
+    "license_files": [
+      {
+        "bytes": 1057,
+        "origin": "https://files.pythonhosted.org/packages/e9/dd/2c0cbe774744272b0ae725f44032c77bdcab6e8bcf544bffa3b6e70c8dba/rpds_py-0.27.1.tar.gz#rpds_py-0.27.1/LICENSE",
+        "path": "licenses/texts/314e4e91be3baa93c0fb4bccc9e4e97cd643eb839b065af921782c2175fe9909.txt",
+        "sha256": "314e4e91be3baa93c0fb4bccc9e4e97cd643eb839b065af921782c2175fe9909"
+      }
+    ],
+    "registry_source": "https://pypi.org/pypi/rpds-py/0.27.1/json"
+  },
+  "pypi:rpds-py@2026.6.3": {
+    "homepage": "https://github.com/crate-py/rpds",
+    "license_declared": null,
+    "license_expression": "MIT",
+    "license_files": [
+      {
+        "bytes": 1057,
+        "origin": "https://files.pythonhosted.org/packages/aa/2a/9618a122aeb2a169a28b03889a2995fe297588964333d4a7d67bdf46e147/rpds_py-2026.6.3.tar.gz#rpds_py-2026.6.3/LICENSE",
+        "path": "licenses/texts/314e4e91be3baa93c0fb4bccc9e4e97cd643eb839b065af921782c2175fe9909.txt",
+        "sha256": "314e4e91be3baa93c0fb4bccc9e4e97cd643eb839b065af921782c2175fe9909"
+      }
+    ],
+    "registry_source": "https://pypi.org/pypi/rpds-py/2026.6.3/json"
+  },
+  "pypi:scipy@1.17.1": {
+    "homepage": null,
+    "license_declared": null,
+    "license_expression": null,
+    "license_files": [
+      {
+        "bytes": 1531,
+        "origin": "https://files.pythonhosted.org/packages/7a/97/5a3609c4f8d58b039179648e62dd220f89864f56f7357f5d4f45c29eb2cc/scipy-1.17.1.tar.gz#scipy-1.17.1/LICENSE.txt",
+        "path": "licenses/texts/221e59f5e910fd7f94e44f0dac77436a11338c285c6346232e4a850a50da0e94.txt",
+        "sha256": "221e59f5e910fd7f94e44f0dac77436a11338c285c6346232e4a850a50da0e94"
+      },
+      {
+        "bytes": 11358,
+        "origin": "https://files.pythonhosted.org/packages/7a/97/5a3609c4f8d58b039179648e62dd220f89864f56f7357f5d4f45c29eb2cc/scipy-1.17.1.tar.gz#scipy-1.17.1/doc/source/_static/scipy-mathjax/LICENSE",
+        "path": "licenses/texts/cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30.txt",
+        "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+      },
+      {
+        "bytes": 1072,
+        "origin": "https://files.pythonhosted.org/packages/7a/97/5a3609c4f8d58b039179648e62dd220f89864f56f7357f5d4f45c29eb2cc/scipy-1.17.1.tar.gz#scipy-1.17.1/scipy/_build_utils/tempita/LICENSE.txt",
+        "path": "licenses/texts/743b0f4a0087fe3607167113fffab6f2ca069c8da321763697ab5d0d8411634a.txt",
+        "sha256": "743b0f4a0087fe3607167113fffab6f2ca069c8da321763697ab5d0d8411634a"
+      },
+      {
+        "bytes": 1514,
+        "origin": "https://files.pythonhosted.org/packages/7a/97/5a3609c4f8d58b039179648e62dd220f89864f56f7357f5d4f45c29eb2cc/scipy-1.17.1.tar.gz#scipy-1.17.1/scipy/_lib/_uarray/LICENSE",
+        "path": "licenses/texts/c80c39b5fce06ba4897e14e0b0a88b54458334d951eb1361402ffad2cfb863b4.txt",
+        "sha256": "c80c39b5fce06ba4897e14e0b0a88b54458334d951eb1361402ffad2cfb863b4"
+      },
+      {
+        "bytes": 1097,
+        "origin": "https://files.pythonhosted.org/packages/7a/97/5a3609c4f8d58b039179648e62dd220f89864f56f7357f5d4f45c29eb2cc/scipy-1.17.1.tar.gz#scipy-1.17.1/scipy/_lib/array_api_compat/LICENSE",
+        "path": "licenses/texts/4ffd978e3fa18d058d98c66771cfea7ed634aaf7023cf9612b8b55eee9a8f0fe.txt",
+        "sha256": "4ffd978e3fa18d058d98c66771cfea7ed634aaf7023cf9612b8b55eee9a8f0fe"
+      },
+      {
+        "bytes": 1097,
+        "origin": "https://files.pythonhosted.org/packages/7a/97/5a3609c4f8d58b039179648e62dd220f89864f56f7357f5d4f45c29eb2cc/scipy-1.17.1.tar.gz#scipy-1.17.1/scipy/_lib/array_api_extra/LICENSE",
+        "path": "licenses/texts/58494398fe147fdce76a68b2decd4c08ce3a1ea237b6d6785001c15f822c6ed6.txt",
+        "sha256": "58494398fe147fdce76a68b2decd4c08ce3a1ea237b6d6785001c15f822c6ed6"
+      },
+      {
+        "bytes": 473,
+        "origin": "https://files.pythonhosted.org/packages/7a/97/5a3609c4f8d58b039179648e62dd220f89864f56f7357f5d4f45c29eb2cc/scipy-1.17.1.tar.gz#scipy-1.17.1/scipy/_lib/cobyqa/.github/workflows/license.yml",
+        "path": "licenses/texts/1b870ee1f746ed291f4d8bfec52efe89b05cc46cd2b6209643f53a7028528120.txt",
+        "sha256": "1b870ee1f746ed291f4d8bfec52efe89b05cc46cd2b6209643f53a7028528120"
+      },
+      {
+        "bytes": 1525,
+        "origin": "https://files.pythonhosted.org/packages/7a/97/5a3609c4f8d58b039179648e62dd220f89864f56f7357f5d4f45c29eb2cc/scipy-1.17.1.tar.gz#scipy-1.17.1/scipy/_lib/cobyqa/LICENSE",
+        "path": "licenses/texts/d7e29c31c4d834b015e35dd114531ab1a423d24f3a22a47a437c559d7be5c299.txt",
+        "sha256": "d7e29c31c4d834b015e35dd114531ab1a423d24f3a22a47a437c559d7be5c299"
+      },
+      {
+        "bytes": 72,
+        "origin": "https://files.pythonhosted.org/packages/7a/97/5a3609c4f8d58b039179648e62dd220f89864f56f7357f5d4f45c29eb2cc/scipy-1.17.1.tar.gz#scipy-1.17.1/scipy/_lib/cobyqa/doc/source/license.rst",
+        "path": "licenses/texts/51360f9096b34021dee78d8a34869f3c8d740fda65ea2a9eeda6d477cc8cc61d.txt",
+        "sha256": "51360f9096b34021dee78d8a34869f3c8d740fda65ea2a9eeda6d477cc8cc61d"
+      },
+      {
+        "bytes": 1498,
+        "origin": "https://files.pythonhosted.org/packages/7a/97/5a3609c4f8d58b039179648e62dd220f89864f56f7357f5d4f45c29eb2cc/scipy-1.17.1.tar.gz#scipy-1.17.1/scipy/_lib/pocketfft/LICENSE.md",
+        "path": "licenses/texts/a85ca13fdf90160b64a0698215868c13b74d835ad0a4e2ba44713b8c5058a056.txt",
+        "sha256": "a85ca13fdf90160b64a0698215868c13b74d835ad0a4e2ba44713b8c5058a056"
+      },
+      {
+        "bytes": 1533,
+        "origin": "https://files.pythonhosted.org/packages/7a/97/5a3609c4f8d58b039179648e62dd220f89864f56f7357f5d4f45c29eb2cc/scipy-1.17.1.tar.gz#scipy-1.17.1/scipy/_lib/pyprima/LICENCE.txt",
+        "path": "licenses/texts/997379b2c1bf53a391d2fd3295dce75bf3c94ed28d64882ede30d1b518cb0dd6.txt",
+        "sha256": "997379b2c1bf53a391d2fd3295dce75bf3c94ed28d64882ede30d1b518cb0dd6"
+      },
+      {
+        "bytes": 14404,
+        "origin": "https://files.pythonhosted.org/packages/7a/97/5a3609c4f8d58b039179648e62dd220f89864f56f7357f5d4f45c29eb2cc/scipy-1.17.1.tar.gz#scipy-1.17.1/scipy/_lib/unuran/license.txt",
+        "path": "licenses/texts/8d62d5c8e1752ee5c3d3a0f8fd0dd0b45865c243fa282cf5e63f00288a01c5ee.txt",
+        "sha256": "8d62d5c8e1752ee5c3d3a0f8fd0dd0b45865c243fa282cf5e63f00288a01c5ee"
+      },
+      {
+        "bytes": 1498,
+        "origin": "https://files.pythonhosted.org/packages/7a/97/5a3609c4f8d58b039179648e62dd220f89864f56f7357f5d4f45c29eb2cc/scipy-1.17.1.tar.gz#scipy-1.17.1/scipy/fft/_pocketfft/LICENSE.md",
+        "path": "licenses/texts/c254b2b5fd30ae3c89d36ba061730563b9760fca04f1b746a1b2c3157da2c789.txt",
+        "sha256": "c254b2b5fd30ae3c89d36ba061730563b9760fca04f1b746a1b2c3157da2c789"
+      },
+      {
+        "bytes": 3572,
+        "origin": "https://files.pythonhosted.org/packages/7a/97/5a3609c4f8d58b039179648e62dd220f89864f56f7357f5d4f45c29eb2cc/scipy-1.17.1.tar.gz#scipy-1.17.1/scipy/integrate/src/LICENSE_DOP",
+        "path": "licenses/texts/ed9bf58c6d74d3fad9d92d1d67d9bff8141d8ab60de784516b0711364fd43357.txt",
+        "sha256": "ed9bf58c6d74d3fad9d92d1d67d9bff8141d8ab60de784516b0711364fd43357"
+      },
+      {
+        "bytes": 1275,
+        "origin": "https://files.pythonhosted.org/packages/7a/97/5a3609c4f8d58b039179648e62dd220f89864f56f7357f5d4f45c29eb2cc/scipy-1.17.1.tar.gz#scipy-1.17.1/scipy/io/_fast_matrix_market/LICENSE.txt",
+        "path": "licenses/texts/4421977664ada9a02087ab1b031b50335f02b500e2cb58a1757074f31b4a89f5.txt",
+        "sha256": "4421977664ada9a02087ab1b031b50335f02b500e2cb58a1757074f31b4a89f5"
+      },
+      {
+        "bytes": 1079,
+        "origin": "https://files.pythonhosted.org/packages/7a/97/5a3609c4f8d58b039179648e62dd220f89864f56f7357f5d4f45c29eb2cc/scipy-1.17.1.tar.gz#scipy-1.17.1/scipy/io/_fast_matrix_market/fast_matrix_market/dependencies/fast_float/LICENSE-MIT",
+        "path": "licenses/texts/e562f3f974ced7e69dd1db77b820b36bcf8f30377f1aa105723fba449c53c4e6.txt",
+        "sha256": "e562f3f974ced7e69dd1db77b820b36bcf8f30377f1aa105723fba449c53c4e6"
+      },
+      {
+        "bytes": 1338,
+        "origin": "https://files.pythonhosted.org/packages/7a/97/5a3609c4f8d58b039179648e62dd220f89864f56f7357f5d4f45c29eb2cc/scipy-1.17.1.tar.gz#scipy-1.17.1/scipy/io/_fast_matrix_market/fast_matrix_market/dependencies/ryu/LICENSE-Boost",
+        "path": "licenses/texts/c9bff75738922193e67fa726fa225535870d2aa1059f91452c411736284ad566.txt",
+        "sha256": "c9bff75738922193e67fa726fa225535870d2aa1059f91452c411736284ad566"
+      },
+      {
+        "bytes": 1389,
+        "origin": "https://files.pythonhosted.org/packages/7a/97/5a3609c4f8d58b039179648e62dd220f89864f56f7357f5d4f45c29eb2cc/scipy-1.17.1.tar.gz#scipy-1.17.1/scipy/ndimage/LICENSE.txt",
+        "path": "licenses/texts/606209a000716c5f66e33e180ce08434b96ed17db4975ab9723c6b5fbcc89609.txt",
+        "sha256": "606209a000716c5f66e33e180ce08434b96ed17db4975ab9723c6b5fbcc89609"
+      },
+      {
+        "bytes": 123,
+        "origin": "https://files.pythonhosted.org/packages/7a/97/5a3609c4f8d58b039179648e62dd220f89864f56f7357f5d4f45c29eb2cc/scipy-1.17.1.tar.gz#scipy-1.17.1/scipy/optimize/_direct/AUTHORS",
+        "path": "licenses/texts/b5829d45e21b4934fc0e2da7071298b6047d734470ebcc6d965bf50f0653c899.txt",
+        "sha256": "b5829d45e21b4934fc0e2da7071298b6047d734470ebcc6d965bf50f0653c899"
+      },
+      {
+        "bytes": 1543,
+        "origin": "https://files.pythonhosted.org/packages/7a/97/5a3609c4f8d58b039179648e62dd220f89864f56f7357f5d4f45c29eb2cc/scipy-1.17.1.tar.gz#scipy-1.17.1/scipy/optimize/_direct/COPYING",
+        "path": "licenses/texts/a7669da81aac1b0539f161cf93d6a94956d24ff476537e0b0579925997eec3f0.txt",
+        "sha256": "a7669da81aac1b0539f161cf93d6a94956d24ff476537e0b0579925997eec3f0"
+      },
+      {
+        "bytes": 1085,
+        "origin": "https://files.pythonhosted.org/packages/7a/97/5a3609c4f8d58b039179648e62dd220f89864f56f7357f5d4f45c29eb2cc/scipy-1.17.1.tar.gz#scipy-1.17.1/scipy/optimize/tnc/LICENSE",
+        "path": "licenses/texts/3df9207af2fdb861af0ae3b22026f163b9bcfab4e525dc4943afe2ffa3f77624.txt",
+        "sha256": "3df9207af2fdb861af0ae3b22026f163b9bcfab4e525dc4943afe2ffa3f77624"
+      },
+      {
+        "bytes": 1681,
+        "origin": "https://files.pythonhosted.org/packages/7a/97/5a3609c4f8d58b039179648e62dd220f89864f56f7357f5d4f45c29eb2cc/scipy-1.17.1.tar.gz#scipy-1.17.1/scipy/sparse/linalg/_dsolve/SuperLU/License.txt",
+        "path": "licenses/texts/f0cedf52503b2d42b83411a0a16e6fefac346dfad8fddc66f50050150123470c.txt",
+        "sha256": "f0cedf52503b2d42b83411a0a16e6fefac346dfad8fddc66f50050150123470c"
+      },
+      {
+        "bytes": 1466,
+        "origin": "https://files.pythonhosted.org/packages/7a/97/5a3609c4f8d58b039179648e62dd220f89864f56f7357f5d4f45c29eb2cc/scipy-1.17.1.tar.gz#scipy-1.17.1/scipy/sparse/linalg/_eigen/arpack/arnaud/LICENSE",
+        "path": "licenses/texts/f49da99252dee2c12dbd5c71762b0724063f4531de193fbcece550ad9a3b6354.txt",
+        "sha256": "f49da99252dee2c12dbd5c71762b0724063f4531de193fbcece550ad9a3b6354"
+      },
+      {
+        "bytes": 1466,
+        "origin": "https://files.pythonhosted.org/packages/7a/97/5a3609c4f8d58b039179648e62dd220f89864f56f7357f5d4f45c29eb2cc/scipy-1.17.1.tar.gz#scipy-1.17.1/scipy/sparse/linalg/_propack/PROPACK/LICENSE",
+        "path": "licenses/texts/f49da99252dee2c12dbd5c71762b0724063f4531de193fbcece550ad9a3b6354.txt",
+        "sha256": "f49da99252dee2c12dbd5c71762b0724063f4531de193fbcece550ad9a3b6354"
+      },
+      {
+        "bytes": 1720,
+        "origin": "https://files.pythonhosted.org/packages/7a/97/5a3609c4f8d58b039179648e62dd220f89864f56f7357f5d4f45c29eb2cc/scipy-1.17.1.tar.gz#scipy-1.17.1/scipy/spatial/COPYING_QHULL.txt",
+        "path": "licenses/texts/106d55c931fd6a84822e5345d900273d059f1c27310d02567ccb313c5d18c55d.txt",
+        "sha256": "106d55c931fd6a84822e5345d900273d059f1c27310d02567ccb313c5d18c55d"
+      },
+      {
+        "bytes": 1217,
+        "origin": "https://files.pythonhosted.org/packages/7a/97/5a3609c4f8d58b039179648e62dd220f89864f56f7357f5d4f45c29eb2cc/scipy-1.17.1.tar.gz#scipy-1.17.1/scipy/stats/biasedurn/license.txt",
+        "path": "licenses/texts/c2bf3b1e5a5cde539b9f8e38b5c870f49db0b5f01c7f9cdd1d1291bafc81d22f.txt",
+        "sha256": "c2bf3b1e5a5cde539b9f8e38b5c870f49db0b5f01c7f9cdd1d1291bafc81d22f"
+      },
+      {
+        "bytes": 1338,
+        "origin": "https://files.pythonhosted.org/packages/7a/97/5a3609c4f8d58b039179648e62dd220f89864f56f7357f5d4f45c29eb2cc/scipy-1.17.1.tar.gz#scipy-1.17.1/subprojects/boost_math/math/LICENSE",
+        "path": "licenses/texts/c9bff75738922193e67fa726fa225535870d2aa1059f91452c411736284ad566.txt",
+        "sha256": "c9bff75738922193e67fa726fa225535870d2aa1059f91452c411736284ad566"
+      },
+      {
+        "bytes": 85,
+        "origin": "https://files.pythonhosted.org/packages/7a/97/5a3609c4f8d58b039179648e62dd220f89864f56f7357f5d4f45c29eb2cc/scipy-1.17.1.tar.gz#scipy-1.17.1/subprojects/highs/AUTHORS",
+        "path": "licenses/texts/16c676ba3d06c94e99186cee4552cd337238495a6c7bd6a2bacb61a67b94b648.txt",
+        "sha256": "16c676ba3d06c94e99186cee4552cd337238495a6c7bd6a2bacb61a67b94b648"
+      },
+      {
+        "bytes": 1062,
+        "origin": "https://files.pythonhosted.org/packages/7a/97/5a3609c4f8d58b039179648e62dd220f89864f56f7357f5d4f45c29eb2cc/scipy-1.17.1.tar.gz#scipy-1.17.1/subprojects/highs/LICENSE.txt",
+        "path": "licenses/texts/10b39dba7b7731175f0705398b6db4320b64add1bd2ed9f9ec5b512a9ef1bd95.txt",
+        "sha256": "10b39dba7b7731175f0705398b6db4320b64add1bd2ed9f9ec5b512a9ef1bd95"
+      },
+      {
+        "bytes": 1337,
+        "origin": "https://files.pythonhosted.org/packages/7a/97/5a3609c4f8d58b039179648e62dd220f89864f56f7357f5d4f45c29eb2cc/scipy-1.17.1.tar.gz#scipy-1.17.1/subprojects/highs/extern/LICENCE_1_0.txt",
+        "path": "licenses/texts/8d8291caf1cee26d23acf3eb67c9f9a2d58f1c681b16a4fbe8cbfb9e3c0b5a9b.txt",
+        "sha256": "8d8291caf1cee26d23acf3eb67c9f9a2d58f1c681b16a4fbe8cbfb9e3c0b5a9b"
+      },
+      {
+        "bytes": 1061,
+        "origin": "https://files.pythonhosted.org/packages/7a/97/5a3609c4f8d58b039179648e62dd220f89864f56f7357f5d4f45c29eb2cc/scipy-1.17.1.tar.gz#scipy-1.17.1/subprojects/highs/extern/filereaderlp/LICENSE",
+        "path": "licenses/texts/4374bb8064e5302f5ac6b82fd3e153a36670f04d0a6ee1bc55b3dc3faee923cc.txt",
+        "sha256": "4374bb8064e5302f5ac6b82fd3e153a36670f04d0a6ee1bc55b3dc3faee923cc"
+      },
+      {
+        "bytes": 874,
+        "origin": "https://files.pythonhosted.org/packages/7a/97/5a3609c4f8d58b039179648e62dd220f89864f56f7357f5d4f45c29eb2cc/scipy-1.17.1.tar.gz#scipy-1.17.1/subprojects/highs/extern/pdqsort/license.txt",
+        "path": "licenses/texts/323fc18e35fcf058d69d684022ef844f206cb8fefb2bac1298fa1767e0b9ae38.txt",
+        "sha256": "323fc18e35fcf058d69d684022ef844f206cb8fefb2bac1298fa1767e0b9ae38"
+      },
+      {
+        "bytes": 1720,
+        "origin": "https://files.pythonhosted.org/packages/7a/97/5a3609c4f8d58b039179648e62dd220f89864f56f7357f5d4f45c29eb2cc/scipy-1.17.1.tar.gz#scipy-1.17.1/subprojects/qhull_r/libqhull_r/COPYING.txt",
+        "path": "licenses/texts/106d55c931fd6a84822e5345d900273d059f1c27310d02567ccb313c5d18c55d.txt",
+        "sha256": "106d55c931fd6a84822e5345d900273d059f1c27310d02567ccb313c5d18c55d"
+      },
+      {
+        "bytes": 1492,
+        "origin": "https://files.pythonhosted.org/packages/7a/97/5a3609c4f8d58b039179648e62dd220f89864f56f7357f5d4f45c29eb2cc/scipy-1.17.1.tar.gz#scipy-1.17.1/subprojects/xsf/LICENSE",
+        "path": "licenses/texts/632f86f8bd24a264ac49c002f39866f407a38e8cbd8a6568df7596cc7fbe0048.txt",
+        "sha256": "632f86f8bd24a264ac49c002f39866f407a38e8cbd8a6568df7596cc7fbe0048"
+      },
+      {
+        "bytes": 7381,
+        "origin": "https://files.pythonhosted.org/packages/7a/97/5a3609c4f8d58b039179648e62dd220f89864f56f7357f5d4f45c29eb2cc/scipy-1.17.1.tar.gz#scipy-1.17.1/tools/authors.py",
+        "path": "licenses/texts/4db7803e3c24b12213295430a5017e4842ec265804c0f37ca5f4729c9ee76f46.txt",
+        "sha256": "4db7803e3c24b12213295430a5017e4842ec265804c0f37ca5f4729c9ee76f46"
+      },
+      {
+        "bytes": 45307,
+        "origin": "https://files.pythonhosted.org/packages/7a/97/5a3609c4f8d58b039179648e62dd220f89864f56f7357f5d4f45c29eb2cc/scipy-1.17.1.tar.gz#scipy-1.17.1/tools/wheels/LICENSE_linux.txt",
+        "path": "licenses/texts/135b7566c658fe132e7420da53fdab371832e59141cac8d4d46f003f893c79db.txt",
+        "sha256": "135b7566c658fe132e7420da53fdab371832e59141cac8d4d46f003f893c79db"
+      },
+      {
+        "bytes": 45310,
+        "origin": "https://files.pythonhosted.org/packages/7a/97/5a3609c4f8d58b039179648e62dd220f89864f56f7357f5d4f45c29eb2cc/scipy-1.17.1.tar.gz#scipy-1.17.1/tools/wheels/LICENSE_osx.txt",
+        "path": "licenses/texts/2db415b2b99947431123d34d9acc333d348ae7efbc638fe9e995d4c18b336342.txt",
+        "sha256": "2db415b2b99947431123d34d9acc333d348ae7efbc638fe9e995d4c18b336342"
+      },
+      {
+        "bytes": 44313,
+        "origin": "https://files.pythonhosted.org/packages/7a/97/5a3609c4f8d58b039179648e62dd220f89864f56f7357f5d4f45c29eb2cc/scipy-1.17.1.tar.gz#scipy-1.17.1/tools/wheels/LICENSE_win32.txt",
+        "path": "licenses/texts/32c5843894ae53c0968c412aeadde812fbc5fe106749462b49ec183bf246c159.txt",
+        "sha256": "32c5843894ae53c0968c412aeadde812fbc5fe106749462b49ec183bf246c159"
+      }
+    ],
+    "registry_source": "https://pypi.org/pypi/scipy/1.17.1/json"
+  },
+  "pypi:soundfile@0.14.0": {
+    "homepage": "https://github.com/bastibe/python-soundfile",
+    "license_declared": "BSD 3-Clause License",
+    "license_expression": "BSD 3-Clause License",
+    "license_files": [
+      {
+        "bytes": 1512,
+        "origin": "https://files.pythonhosted.org/packages/d2/db/949331952a6fb1c5b12e9de80fd08747966c2039d1a61db4764fbd3981c2/soundfile-0.14.0.tar.gz#soundfile-0.14.0/LICENSE",
+        "path": "licenses/texts/0dd2e411fed553ba891845077e5a32c5b726d1bbc46ff31a2118ae1ccf816752.txt",
+        "sha256": "0dd2e411fed553ba891845077e5a32c5b726d1bbc46ff31a2118ae1ccf816752"
+      }
+    ],
+    "registry_source": "https://pypi.org/pypi/soundfile/0.14.0/json"
+  },
+  "pypi:tokenizers@0.23.1": {
+    "homepage": "https://github.com/huggingface/tokenizers",
+    "license_declared": null,
+    "license_expression": "Apache-2.0",
+    "license_files": [
+      {
+        "bytes": 11357,
+        "origin": "https://files.pythonhosted.org/packages/c1/60/21f715d9faba5f5407ff759472ade058ec4a507ad62bcea47cb847239a73/tokenizers-0.23.1.tar.gz#tokenizers-0.23.1/tokenizers/LICENSE",
+        "path": "licenses/texts/c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4.txt",
+        "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4"
+      }
+    ],
+    "registry_source": "https://pypi.org/pypi/tokenizers/0.23.1/json"
+  },
+  "pypi:tqdm@4.70.0": {
+    "homepage": null,
+    "license_declared": "MPL-2.0 AND MIT",
+    "license_expression": "MPL-2.0 AND MIT",
+    "license_files": [
+      {
+        "bytes": 1985,
+        "origin": "https://files.pythonhosted.org/packages/f9/1c/01bfd571a64e7f270e6bab5e33777debe0edc56759233ce84f27dec92d14/tqdm-4.70.0-py3-none-any.whl#tqdm-4.70.0.dist-info/licenses/LICENCE",
+        "path": "licenses/texts/fcff87c3a47ce8028a8512aa182d4fcf0ad1c90544ee75cf9b343684cac194de.txt",
+        "sha256": "fcff87c3a47ce8028a8512aa182d4fcf0ad1c90544ee75cf9b343684cac194de"
+      }
+    ],
+    "registry_source": "https://pypi.org/pypi/tqdm/4.70.0/json"
+  },
+  "pypi:transformers@4.27.4": {
+    "homepage": "https://github.com/huggingface/transformers",
+    "license_declared": "Apache 2.0 License",
+    "license_expression": "Apache 2.0 License",
+    "license_files": [
+      {
+        "bytes": 11418,
+        "origin": "https://files.pythonhosted.org/packages/87/f0/2a152ed10ab8601431e87a606d397f7473c5fa4f8162f4ec5bda6ddb2df4/transformers-4.27.4-py3-none-any.whl#transformers-4.27.4.dist-info/LICENSE",
+        "path": "licenses/texts/77fd4710def9ec3c0f6225800e0235f15a425abd4a8b03559127fcd782612049.txt",
+        "sha256": "77fd4710def9ec3c0f6225800e0235f15a425abd4a8b03559127fcd782612049"
+      }
+    ],
+    "registry_source": "https://pypi.org/pypi/transformers/4.27.4/json"
+  },
+  "pypi:truststore@0.10.4": {
+    "homepage": null,
+    "license_declared": null,
+    "license_expression": "MIT",
+    "license_files": [
+      {
+        "bytes": 1086,
+        "origin": "https://files.pythonhosted.org/packages/19/97/56608b2249fe206a67cd573bc93cd9896e1efb9e98bce9c163bcdc704b88/truststore-0.10.4-py3-none-any.whl#truststore-0.10.4.dist-info/licenses/LICENSE",
+        "path": "licenses/texts/33be7b7e8fa4fd19b1760e1a8ed8a668bdab852c91b692dd41424bcb725a9fca.txt",
+        "sha256": "33be7b7e8fa4fd19b1760e1a8ed8a668bdab852c91b692dd41424bcb725a9fca"
+      }
+    ],
+    "registry_source": "https://pypi.org/pypi/truststore/0.10.4/json"
+  },
+  "pypi:typer@0.27.0": {
+    "homepage": "https://github.com/fastapi/typer",
+    "license_declared": null,
+    "license_expression": "MIT",
+    "license_files": [
+      {
+        "bytes": 1086,
+        "origin": "https://files.pythonhosted.org/packages/40/03/26a383c9e58c213199d1aad1c3d353cfc22d4444ec6d2c0bf8ad02523843/typer-0.27.0-py3-none-any.whl#typer-0.27.0.dist-info/licenses/LICENSE",
+        "path": "licenses/texts/58992cebcf8dfb6e40c4e2112ed12126c243666dca3912a3d78b7ecac4859d49.txt",
+        "sha256": "58992cebcf8dfb6e40c4e2112ed12126c243666dca3912a3d78b7ecac4859d49"
+      },
+      {
+        "bytes": 1475,
+        "origin": "https://files.pythonhosted.org/packages/40/03/26a383c9e58c213199d1aad1c3d353cfc22d4444ec6d2c0bf8ad02523843/typer-0.27.0-py3-none-any.whl#typer/_click/LICENSE.txt",
+        "path": "licenses/texts/9a8ad106a394e853bfe21f42f4e72d592819a22805d991b5f3275029292b658d.txt",
+        "sha256": "9a8ad106a394e853bfe21f42f4e72d592819a22805d991b5f3275029292b658d"
+      }
+    ],
+    "registry_source": "https://pypi.org/pypi/typer/0.27.0/json"
+  },
+  "pypi:typing-extensions@4.15.0": {
+    "homepage": null,
+    "license_declared": null,
+    "license_expression": "PSF-2.0",
+    "license_files": [
+      {
+        "bytes": 13936,
+        "origin": "https://files.pythonhosted.org/packages/18/67/36e9267722cc04a6b9f15c7f3441c2363321a3ea07da7ae0c0707beb2a9c/typing_extensions-4.15.0-py3-none-any.whl#typing_extensions-4.15.0.dist-info/licenses/LICENSE",
+        "path": "licenses/texts/3b2f81fe21d181c499c59a256c8e1968455d6689d269aa85373bfb6af41da3bf.txt",
+        "sha256": "3b2f81fe21d181c499c59a256c8e1968455d6689d269aa85373bfb6af41da3bf"
+      }
+    ],
+    "registry_source": "https://pypi.org/pypi/typing-extensions/4.15.0/json"
+  },
+  "pypi:typing-extensions@4.16.0": {
+    "homepage": null,
+    "license_declared": null,
+    "license_expression": "PSF-2.0",
+    "license_files": [
+      {
+        "bytes": 13936,
+        "origin": "https://files.pythonhosted.org/packages/49/d3/b8441a820a491ddfc024b0b0cf0393375b75ea13866d9c66727e54c2fc80/typing_extensions-4.16.0-py3-none-any.whl#typing_extensions-4.16.0.dist-info/licenses/LICENSE",
+        "path": "licenses/texts/3b2f81fe21d181c499c59a256c8e1968455d6689d269aa85373bfb6af41da3bf.txt",
+        "sha256": "3b2f81fe21d181c499c59a256c8e1968455d6689d269aa85373bfb6af41da3bf"
+      }
+    ],
+    "registry_source": "https://pypi.org/pypi/typing-extensions/4.16.0/json"
+  },
+  "pypi:urllib3@2.6.3": {
+    "homepage": null,
+    "license_declared": null,
+    "license_expression": "MIT",
+    "license_files": [
+      {
+        "bytes": 1093,
+        "origin": "https://files.pythonhosted.org/packages/39/08/aaaad47bc4e9dc8c725e68f9d04865dbcb2052843ff09c97b08904852d84/urllib3-2.6.3-py3-none-any.whl#urllib3-2.6.3.dist-info/licenses/LICENSE.txt",
+        "path": "licenses/texts/130e3a64d5fdd5d096a752694634a7d9df284469de86e5732100268041e3d686.txt",
+        "sha256": "130e3a64d5fdd5d096a752694634a7d9df284469de86e5732100268041e3d686"
+      }
+    ],
+    "registry_source": "https://pypi.org/pypi/urllib3/2.6.3/json"
+  },
+  "pypi:urllib3@2.7.0": {
+    "homepage": null,
+    "license_declared": null,
+    "license_expression": "MIT",
+    "license_files": [
+      {
+        "bytes": 1093,
+        "origin": "https://files.pythonhosted.org/packages/7f/3e/5db95bcf282c52709639744ca2a8b149baccf648e39c8cc87553df9eae0c/urllib3-2.7.0-py3-none-any.whl#urllib3-2.7.0.dist-info/licenses/LICENSE.txt",
+        "path": "licenses/texts/130e3a64d5fdd5d096a752694634a7d9df284469de86e5732100268041e3d686.txt",
+        "sha256": "130e3a64d5fdd5d096a752694634a7d9df284469de86e5732100268041e3d686"
+      }
+    ],
+    "registry_source": "https://pypi.org/pypi/urllib3/2.7.0/json"
+  },
+  "pypi:uvicorn@0.52.4": {
+    "homepage": "https://uvicorn.dev/",
+    "license_declared": null,
+    "license_expression": "BSD-3-Clause",
+    "license_files": [
+      {
+        "bytes": 1526,
+        "origin": "https://files.pythonhosted.org/packages/f1/79/4a20b54ab0491485ccd8c077db2d39187c7f12b3e15485d38a7be37c81b4/uvicorn-0.52.4-py3-none-any.whl#uvicorn-0.52.4.dist-info/licenses/LICENSE.md",
+        "path": "licenses/texts/efe1acf3e62fb99c288b0ec73e5a773b7268ef4320fe757ea994214e4b63c371.txt",
+        "sha256": "efe1acf3e62fb99c288b0ec73e5a773b7268ef4320fe757ea994214e4b63c371"
+      }
+    ],
+    "registry_source": "https://pypi.org/pypi/uvicorn/0.52.4/json"
+  },
+  "pypi:websocket-client@1.9.0": {
+    "homepage": "https://github.com/websocket-client/websocket-client.git",
+    "license_declared": "Apache-2.0",
+    "license_expression": "Apache-2.0",
+    "license_files": [
+      {
+        "bytes": 11339,
+        "origin": "https://files.pythonhosted.org/packages/34/db/b10e48aa8fff7407e67470363eac595018441cf32d5e1001567a7aeba5d2/websocket_client-1.9.0-py3-none-any.whl#websocket_client-1.9.0.dist-info/licenses/LICENSE",
+        "path": "licenses/texts/d7ad8d0966aa363d45c7b16b0838cadcd51676acdf215ad967307d581b47872c.txt",
+        "sha256": "d7ad8d0966aa363d45c7b16b0838cadcd51676acdf215ad967307d581b47872c"
+      }
+    ],
+    "registry_source": "https://pypi.org/pypi/websocket-client/1.9.0/json"
+  }
+}

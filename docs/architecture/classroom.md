@@ -74,6 +74,7 @@
 
 - 权限与健壮性：目录 0700 / 文件 0600；读路径不 mkdir；symlink 逃逸拒绝；损坏 JSON → `LessonDamagedError`（标记 damaged 隔离，不返回空课冒充正常）；任何写路径 OSError → `ClassroomStorageError`（全局 handler 返回 `storage_unavailable` envelope）。
 - 发布事务：staging → 逐文件 hash 校验 → manifest 最后写 → 同文件系统 rename → 课程锁内指针提交（commit intent 带 expected epoch）；崩溃后 `recover_pending_publish` 校验 manifest hash 再补指针。失败 revision 留空号永不复用；上限 20 版（`CLASSROOM_MAX_REVISIONS`）。
+- revision 分配在同一次 lesson 锁内 mutation 中检查 base revision/版本上限、读取 next_revision 并递增；API 与 durable worker 共享文件锁时也不会分配重复版本。生成失败留下的空号保持不复用。这个局部并发约束不代表全部业务存储已完成数据库多实例切换。
 - owner 级 tombstone（`.tombstones/`）在 purge 后拦截一切晚到写入。
 - 缓存治理：音频 owner 500MB / 7 天 LRU；导出 24h TTL。
 

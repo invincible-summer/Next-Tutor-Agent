@@ -35,7 +35,7 @@ Next Tutor Agent 把教材、讲解、练习与复习放进同一个学习空间
 | **学习编排** | 将长期目标细化为周计划和今日任务，把学习与复习放进日常节奏。 |
 | **站内学习助手** | 启用后，可询问功能入口、查看学习近况，并在确认后导航或继续课程。 |
 
-界面支持中英文与浅色 / 深色主题，目前以桌面浏览器使用为主。课堂、语音、助手等能力取决于实例配置，页面会提示可用状态。
+界面支持中英文与浅色 / 深色主题。3.0.0 新增独立的 Expo 原生移动客户端，一套代码适配手机和平板；开发与安装见 [移动端开发](docs/development/mobile-dev.md)，当前设备验收范围见 [移动端验证](docs/validation/mobile-validation.md)。课堂、语音、助手等能力取决于实例配置，页面会提示可用状态。
 
 游客访问默认关闭，管理员可在「账号与数据」中开启。开启后，未登录用户仅可文字聊天、临时出题与本题批改，并可选公共教材；上传、历史记录、完整学习模块和导航助手须登录。游客内容只放在内存，刷新、关闭页面或登录后清空，不进入学习评价闭环。管理台「数据清理」提供游客专用清理入口，可结束临时体验并清除旧版游客残留，保留注册账号与公共教材。
 
@@ -63,6 +63,7 @@ Next Tutor Agent 把教材、讲解、练习与复习放进同一个学习空间
 | 层次 | 技术 |
 | :--- | :--- |
 | 前端 | Next.js 16 · React 19 · TypeScript · Tailwind CSS 4 · Zustand |
+| 移动端 | Expo SDK 57 · React Native 0.86 · Expo Router · 原生 SVG · 服务端语音 |
 | 内容呈现 | Markdown · KaTeX · SVG 题图 · HTML 课件 |
 | 后端 | Python 3.11 · FastAPI · Pydantic · OpenAI 兼容模型接口 |
 | 教材与检索 | PyMuPDF · OCR · 结构化切片 · BM25 · 可选 Chroma 向量检索 |
@@ -83,7 +84,7 @@ python3.11 -m venv .venv
 source .venv/bin/activate
 pip install -r services/api/requirements.txt
 
-# 根目录是唯一的 pnpm workspace：安装会同时链接 apps/web 与 packages/* 共享包
+# 根目录是唯一的 pnpm workspace：安装会同时链接 apps/web、apps/mobile 与 packages/* 共享包
 pnpm install
 ```
 

@@ -794,17 +794,17 @@ async def run_assessment_job(student_id: str, claimed: ClaimedJob, *,
     scheduler = scheduler or learner_runtime.get_scheduler()
     service = LearnerEvaluationService(scheduler)
     journal = get_journal(student_id)
-    state = journal.state()
+    state = journal.snapshot()
     # R05：generation 在认领后立即冻结——提交时 CAS 用快照值，防止"回包时
     # 重新读取当前 generation"使并发防护失效。
-    generation_at_claim = state.generation
+    generation_at_claim = claimed.generation or state.generation
     job = claimed.job
     src = state.sources.get(job.source_id)
     if src is None or src.receipt.source_revision != job.source_revision:
-        scheduler.cancel(student_id, job.job_id, reason="source_gone")
+        scheduler.cancel(student_id, job.job_id, lease_token=claimed.lease_token, reason="source_gone")
         return "cancelled"
     if src.availability != "available":
-        scheduler.cancel(student_id, job.job_id, reason="source_unavailable")
+        scheduler.cancel(student_id, job.job_id, lease_token=claimed.lease_token, reason="source_unavailable")
         return "cancelled"
     receipt = src.receipt
     task: S.TaskSnapshot | None = None
@@ -835,7 +835,7 @@ async def run_assessment_job(student_id: str, claimed: ClaimedJob, *,
             if task else [])
         pack.job_id = job.job_id
         service.record_job_input(
-            student_id, job.job_id, input_hash=pack.manifest.input_hash,
+            student_id, job.job_id, lease_token=claimed.lease_token, input_hash=pack.manifest.input_hash,
             prompt_binding=binding, generation=state.generation,
             included_refs=list(pack.manifest.included_refs),
             truncations=list(pack.manifest.truncations))
@@ -851,6 +851,7 @@ async def run_assessment_job(student_id: str, claimed: ClaimedJob, *,
                 max_output_tokens=4000)
             if out.parsed is None:
                 scheduler.fail(student_id, job.job_id,
+                           lease_token=claimed.lease_token,
                                error_code=out.error_code or "llm_failed",
                                retryable=out.retryable_error,
                                transport_attempts=out.transport_attempts)
@@ -982,6 +983,7 @@ async def run_assessment_job(student_id: str, claimed: ClaimedJob, *,
             logging.getLogger(__name__).exception(
                 "assessment job %s runner crashed", job.job_id)
             scheduler.fail(student_id, job.job_id,
+                           lease_token=claimed.lease_token,
                            error_code="runner_crashed:" + type(exc).__name__,
                            retryable=True)
             return "failed"
@@ -1002,6 +1004,7 @@ async def run_assessment_job(student_id: str, claimed: ClaimedJob, *,
             logging.getLogger(__name__).warning(
                 "assessment job %s commit rejected: %s", job.job_id, exc)
             scheduler.fail(student_id, job.job_id,
+                           lease_token=claimed.lease_token,
                            error_code="validation_rejected",
                            retryable=False,
                            transport_attempts=out.transport_attempts)
@@ -1014,6 +1017,7 @@ async def run_assessment_job(student_id: str, claimed: ClaimedJob, *,
             logging.getLogger(__name__).exception(
                 "assessment job %s commit crashed", job.job_id)
             scheduler.fail(student_id, job.job_id,
+                           lease_token=claimed.lease_token,
                            error_code="commit_crashed:" + type(exc).__name__,
                            retryable=True)
             return "failed"

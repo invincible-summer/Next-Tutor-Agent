@@ -9,9 +9,9 @@ purge…) keep working unchanged during the migration window. Per-domain
 owners migrate their reads in later stages; the runtime importer
 (scripts/migrations/runtime_to_enterprise) converges pre-existing accounts.
 
-Known window caveat, by design: profile-field updates still write the file
-store only. Authentication fields (role/token_version/credentials) go
-through this facade and stay dual-consistent.
+During the shadow window profile-field updates still write the file store,
+so reads overlay that authoritative file profile when it exists. Database
+identity/role/token_version/credentials remain the authentication facts.
 """
 from __future__ import annotations
 
@@ -66,7 +66,7 @@ class EnterpriseIdentityBackend(FileIdentityBackend):
 
     Registration order: file store first (existing semantics and 409
     behavior), then repository (account + personal tenant + owner
-    membership + password credential, atomically). A repository failure
+    membership + password credential, in separate transactions). A repository failure
     after a successful file write surfaces as an error — the account stays
     usable in file mode and the importer heals the database later.
     """
@@ -135,13 +135,26 @@ class EnterpriseIdentityBackend(FileIdentityBackend):
         record = await self._repo.get_account_by_email(email)
         if record is None:
             return None
-        return _record_to_user(await self._with_password_hash(record))
+        return await self._user_with_file_profile(record)
 
     async def get_by_id(self, user_id: str) -> User | None:
         record = await self._repo.get_account_by_id(user_id)
         if record is None:
             return None
-        return _record_to_user(await self._with_password_hash(record))
+        return await self._user_with_file_profile(record)
+
+    async def _user_with_file_profile(self, record) -> User:
+        """Keep profile reads on their write store until profile cutover.
+
+        Overlay only the profile: a stale shadow role, password or revoked
+        token version must never replace PostgreSQL authentication facts.
+        Imported database-only accounts fall back to their stored profile.
+        """
+        user = _record_to_user(await self._with_password_hash(record))
+        shadow = _file_get_by_id(user.id)
+        if shadow is not None:
+            user.profile = shadow.profile
+        return user
 
     async def touch_login(self, user_id: str) -> None:
         record = await self._repo.get_account_by_id(user_id)

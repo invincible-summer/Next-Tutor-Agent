@@ -19,6 +19,7 @@ Next Tutor Agent 是面向小学/初中/高中/本科学生的**长期陪伴式�
 | Deployable | 路径 | 说明 |
 | --- | --- | --- |
 | FastAPI 后端 | `services/api/`（`app/main.py`） | 全部 REST/SSE/WebSocket API、智能层 M0+M1–M10 与领域模块；`/api/v1` 前缀 |
+| 移动客户端 | `apps/mobile/` | Expo / React Native 手机和平板自适应学习界面；共享同一 `/api/v1` |
 | Next.js 前端 | `apps/web/` | 学生学习空间 UI（App Router）；API 地址由 `NEXT_PUBLIC_BACKEND_URL` 单一决定 |
 | MeloTTS 语音 sidecar | `services/voice/` | 可选；本地语音合成，后端经 HTTP 调用（详见 [voice.md](./voice.md)） |
 | GitHub Pages 演示站 | `fixtures/demo/` → 导出流程 | 只读静态演示，仅由 synthetic fixtures 构建（ADR-0005）；见 [../operations/pages-demo.md](../operations/pages-demo.md) |
@@ -67,6 +68,7 @@ SSE 为前端直连后端的流式通道（`POST /chat/stream` 等），生产�
 | 图库与配图引擎 | 教学 SVG 素材库、共享 V1–V3 绘图与测评适配 | `app/diagrams/` + `app/illustration/` | [diagrams-illustration.md](./diagrams-illustration.md) |
 | 语音 | 电话式语音对话（WS）+ TTS | `app/voice/` + `services/voice/` | [voice.md](./voice.md) |
 | 前端 | 学生学习空间 UI | `apps/web/` | [frontend.md](./frontend.md) |
+| 移动端 | Native UI、窗口适配、受控课堂画布、账号与临时文件生命周期 | `apps/mobile/` | [mobile-app.md](./mobile-app.md) |
 | 客户端平台 | 根 workspace 与共享客户端包 | `packages/*` | [client-platform.md](./client-platform.md) |
 | 后端运行时 | 组装、配置、存储布局、API 面、开关体系 | `app/main.py` + `app/core/`（primitive） | [backend-runtime.md](./backend-runtime.md) |
 | 教学法依据 | ECDL/CLT/RBT 在系统中的落点 | 分布于 M3/M4/出题链路 | [pedagogy.md](./pedagogy.md) |
@@ -93,6 +95,8 @@ SSE 为前端直连后端的流式通道（`POST /chat/stream` 等），生产�
 
 ## 运维与验收入口
 
+- 移动开发：[../development/mobile-dev.md](../development/mobile-dev.md)
+- 移动验收：[../validation/mobile-validation.md](../validation/mobile-validation.md)
 - 测试与 CI 分层：[../development/testing.md](../development/testing.md)
 - 生产部署：[../operations/deployment.md](../operations/deployment.md)
 - Pages 演示：[../operations/pages-demo.md](../operations/pages-demo.md)

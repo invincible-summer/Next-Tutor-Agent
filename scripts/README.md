@@ -9,6 +9,7 @@
 | 目录 | 职责 |
 |------|------|
 | `acceptance/` | 真实模型验收（产生真实 LLM 费用，输出必须写仓库外目录）：`classroom/live.py`、`illustration/live.py`、`illustration/materials.py` |
+| `compliance/` | 第三方许可证原文归档、版本清单、CycloneDX source SBOM 与离线哈希/生成物检查：`generate_notices.py` |
 | `demo/` | GitHub Pages 静态演示：`export_pages_demo.py`（synthetic fixtures 只读导出）、`serve_pages_demo.py`（本地伺服预览）及导出器自测 |
 | `dev/` | 本地开发辅助：`start.sh`（完整运行时一键启动、端口回退、sidecar 拉起）、契约类型生成已上移 `scripts/contracts/generate_types.py`（共享包 packages/contracts）、`create_speech.js`、`migrate_learning_evidence.py` |
 | `diagrams/` | 图库生成物重建（离线、确定性，输出必须入库）：`build_catalog.py`（catalog + 参考清单）、`build_packages.py`（素材包），`--check` 进 CI |

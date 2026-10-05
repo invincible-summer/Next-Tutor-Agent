@@ -4,10 +4,18 @@ This project uses the following third-party software:
 
 The original text of the complete license is kept in the [`licenses/`](licenses/) directory, only for filing, and no original text has been changed.
 
-This is a consolidated reorganization of the project's third-party license and
-copyright declarations; the authoritative audit procedure, pinned sources,
-revision history and release checklist remain in
-[`docs/compliance/voice-licenses.md`](docs/compliance/voice-licenses.md).
+The complete versioned package index is
+[`licenses/PACKAGE-NOTICES.md`](licenses/PACKAGE-NOTICES.md), including root,
+Web, Mobile and shared workspace direct/transitive npm packages, Python runtime,
+vector, test, observability and optional voice declarations. Each package links
+to preserved original license/notice bytes and names its evidence boundary.
+Machine evidence: [`inventory.json`](licenses/inventory.json) and
+[CycloneDX source SBOM](licenses/sbom.cdx.json). Rebuild/check instructions:
+[dependency-and-sbom.md](docs/compliance/dependency-and-sbom.md).
+
+No project-wide license is granted by this notice. The repository currently has
+no project LICENSE; dependency permissions apply to their respective components,
+not automatically to the application's original code.
 
 ## Distribution boundary
 
@@ -16,15 +24,21 @@ revision history and release checklist remain in
   `services/api/app/core/embedding.py`), and the voice models below are downloaded
   at deployment time into gitignored directories. Redistribution obligations
   for those models still apply once you deploy or re-distribute them.
-- Speech input uses the browser `SpeechRecognition` / `webkitSpeechRecognition`
-  platform API — not software distributed by this repository. Browser/vendor
-  recognition services carry their own availability, privacy, regional,
-  pricing, and commercial terms.
+- Web speech input may use browser `SpeechRecognition` /
+  `webkitSpeechRecognition`. Mobile speech uses server-mediated cloud providers.
+  Online recognition/synthesis services, system fonts and platform frameworks
+  are not software redistributed by this source repository; their service,
+  privacy, availability and commercial terms remain separate.
+- Development and platform-optional packages are included in the source
+  inventory. A registry license inspection does not assert that an optional
+  package is installed, bundled, or admitted on a device. The source SBOM is not
+  an attestation of any final native binary, wheel environment, or container.
 
 ## MeloTTS
 
-Purpose: local Chinese TTS inference source (vendored at
-`services/voice/vendor/MeloTTS`, mounted by the voice sidecar).
+Purpose: optional local Chinese TTS inference source, downloaded during deployment
+to gitignored `services/voice/vendor/MeloTTS` and mounted by the voice sidecar;
+it is not vendored into the source release.
 
 Pinned revision: `209145371cff8fc3bd60d7be902ea69cbdb7965a`
 
@@ -100,16 +114,70 @@ CMUdict entry states research and commercial use is unrestricted and requests
 acknowledgement of Carnegie Mellon University; preserve the accompanying data
 README/attribution when redistributing it.
 
-## Core backend runtime dependencies
+## Web, Mobile and shared JavaScript packages
 
-The BM25/API production runtime (`services/api/requirements.txt`, versions
-constrained by `services/api/constraints.txt`) and the optional vector lane
-(`services/api/requirements-vector.txt`) install standard PyPI packages whose
-license and copyright notices are carried by the packages themselves
-(`*.dist-info` / `LICENSE` / `NOTICE`). Before shipping a venv, container, or
-offline bundle, preserve those files for the actually installed versions and
-produce a versioned SBOM. No local embedding model or model runtime is
-installed by any requirements file in this repository.
+The [complete package index](licenses/PACKAGE-NOTICES.md) covers the root
+`pnpm-lock.yaml` graph, including build/test tooling and optional platform
+packages. Original package LICENSE/COPYING/NOTICE and attribution files are
+retained byte-for-byte under [`licenses/texts/`](licenses/texts/), deduplicated
+by SHA-256. The inventory records the source within each package or official
+registry artifact. Preserve the relevant texts alongside redistributed bundles.
+
+Particular asset and native boundaries:
+
+| Component | Terms and retained attribution | Use |
+|---|---|---|
+| KaTeX | MIT, upstream authors identified in the preserved package LICENSE | Web math, generated offline classroom JS/CSS/fonts, mobile offline math fallback. The generated assets derive from the same pinned npm package. |
+| `@fontsource/playfair-display` | OFL-1.1; Playfair Display Project Authors and Reserved Font Name retained in original LICENSE | Web display font files |
+| `lucide-react`, `lucide-react-native` | ISC plus MIT for Feather-derived icons, both notices retained | Web and mobile icon sets |
+| React / React Native / Expo / Hermes | Package originals and native bundled notices; preserve final CocoaPods/Gradle/Hermes artifact notices | JS source dependency inventory does not replace a native binary inventory |
+| sharp / libvips | Apache-2.0 at sharp's top level plus LGPL/native bundled component notices shipped with platform libvips packages | Image generation/build tool and Next.js image pipeline; preserve actual binary notices and applicable source/relinking materials |
+
+System fallback font names such as Noto/Source Han are not vendored font files.
+No Material Symbols asset or import is present in the current source tree; no
+license grant is inferred for an absent asset. Native Apple/Android fonts and
+system APIs stay subject to platform terms.
+
+## Python runtime, optional lanes and native wheels
+
+The package index includes `services/api/requirements*.txt`, their exact
+`constraints.txt` versions and actual installed transitive metadata, plus
+`services/voice/requirements.txt` declarations. Constraint-only or uninstalled
+optional records are labeled explicitly. No local embedding model is installed
+by these requirements. An optional vector backend library is not a bundled
+embedding model.
+
+**PyMuPDF/MuPDF is dual licensed under GNU AGPL v3 or Artifex commercial terms.**
+It is used directly by the backend PDF pipeline. The project has not selected or
+purchased a commercial grant through this notice. Review and satisfy the selected
+license before redistributing combined application binaries or deploying a
+covered service; merely adding this notice does not satisfy all AGPL conditions.
+Authoritative terms: [PyMuPDF licensing](https://pymupdf.io/licensing), original
+package and MuPDF COPYING entries in the package index.
+
+Preserve actual wheel/native notices for Pillow, numpy/scipy (including BLAS,
+LAPACK and compiler runtimes where bundled), cryptography/OpenSSL, ONNX Runtime,
+lxml/libxml2/libxslt, PyMuPDF/MuPDF, soundfile/libsndfile, torch/torchaudio and
+other native packages. Top-level package labels do not replace bundled licenses.
+The source archive preserves inspectable installed/artifact notice files; a
+final deployment's OS libraries and different platform wheels require a separate
+artifact inventory. Optional voice inference/weights are not asserted installed.
+
+## Deployment software references
+
+Deployment templates reference external images/tools; the source release does
+not redistribute those images. Original upstream reference terms are archived
+in [external-components.json](licenses/external-components.json) and the package
+index. The final image layers, OS libraries, executable versions and source
+obligations must be recorded when distributing a deployment artifact.
+
+| Reference | License boundary |
+|---|---|
+| PostgreSQL 18 | PostgreSQL License |
+| Redis 8 server | Choice of RSALv2, SSPLv1 or AGPLv3; not the old BSD-only server terms. `redis` Python client remains separately licensed MIT. [Redis official licenses](https://redis.io/legal/licenses/) |
+| MinIO `RELEASE.2024-08-17T01-24-54Z` | AGPL-3.0; exact upstream LICENSE preserved. Optional infrastructure reference, not application source relicensing. |
+| Temporal server `1.25.2`, OpenTelemetry Collector Contrib `0.116.0` | MIT / Apache-2.0 at the referenced upstream level, plus final image contents |
+| Tesseract, nginx, Node.js, Python, Docker/container tooling | Independently installed/deployment-selected tools and runtimes; preserve actual distribution terms. Tesseract Apache-2.0 and nginx BSD reference texts are archived; no installed tool version is asserted. |
 
 ## Browser service notice
 
@@ -125,7 +193,10 @@ commercial use of a browser vendor's recognition service.
 
 ---
 
-Audit date: 2026-08-30. Resolved transitive packages and native libraries vary
-by target platform; this file is not a substitute for the notices/SBOM of a
-shipped image. For the repository/model audit procedure and complete release
-checklist, see [`docs/compliance/voice-licenses.md`](docs/compliance/voice-licenses.md).
+Source inventory audit: 2026-10-05. Resolved package versions and evidence hashes
+are in the machine inventory. Missing declarations/originals remain explicit
+`gaps`; no placeholder is treated as a verified license. Optional voice wheels,
+platform binaries and image layers may have additional notices, so this file is
+not a substitute for a shipped artifact's SBOM. This is not a vulnerability audit
+pass or native/store release acceptance. Voice/model audit procedure:
+[voice-licenses.md](docs/compliance/voice-licenses.md).

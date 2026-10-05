@@ -1,0 +1,21 @@
+appId: com.nexttutor.agent
+name: Open play pause and restore a compiled lesson
+tags: [smoke, classroom]
+---
+- runFlow: ../common/login.yaml
+- openLink: nexttutor:///learn/courses/${MAESTRO_MOBILE_E2E_LESSON_ID}?ws=${MAESTRO_MOBILE_E2E_WORKSPACE_ID}
+- extendedWaitUntil:
+    visible: "播放讲稿|Play narration"
+    timeout: 30000
+- tapOn: "播放讲稿|Play narration"
+- extendedWaitUntil:
+    visible: "暂停|Pause"
+    timeout: 15000
+- tapOn: "暂停|Pause"
+- assertVisible: "播放讲稿|Play narration"
+- tapOn: "下一页|Next"
+- stopApp
+- launchApp:
+    clearState: false
+- openLink: nexttutor:///learn/courses/${MAESTRO_MOBILE_E2E_LESSON_ID}?ws=${MAESTRO_MOBILE_E2E_WORKSPACE_ID}
+- assertVisible: ${MAESTRO_MOBILE_E2E_SECOND_SLIDE_TITLE}

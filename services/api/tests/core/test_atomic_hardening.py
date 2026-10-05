@@ -67,7 +67,7 @@ class TestAtomicWriteConcurrency(unittest.TestCase):
             self.assertEqual(list(target.parent.glob("*.tmp*")), [])
 
 
-class TestFileLockLifecycle(unittest.TestCase):
+class TestFileLockLifecycle(StorageSandboxTestCase):
     def test_lock_table_does_not_leak(self):
         import gc
         import tempfile
@@ -109,6 +109,56 @@ class TestFileLockLifecycle(unittest.TestCase):
             with file_lock(key):
                 with file_lock(key):  # RLock：同线程重入不死锁
                     pass
+
+
+class TestCrossProcessFileLock(StorageSandboxTestCase):
+    def test_subprocess_read_modify_write_and_nested_aliases(self):
+        import subprocess
+        target = self.root / "counter.json"
+        atomic_write_text(target, '{"n":0}')
+        code = """import json, sys, time
+from pathlib import Path
+from app.core.paths import set_runtime_root
+from app.core.atomic import file_lock, atomic_write_text
+set_runtime_root(Path(sys.argv[1]))
+p = Path(sys.argv[2])
+for _ in range(30):
+    with file_lock(p):
+        with file_lock(p.parent / '.' / p.name):
+            value = json.loads(p.read_text())
+            time.sleep(0.001)
+            value['n'] += 1
+            atomic_write_text(p, json.dumps(value))
+"""
+        jobs = [subprocess.Popen([sys.executable, "-c", code, str(self.root), str(target)])
+                for _ in range(3)]
+        try:
+            for job in jobs:
+                self.assertEqual(job.wait(timeout=15), 0)
+            self.assertEqual(json.loads(target.read_text())["n"], 90)
+        finally:
+            for job in jobs:
+                if job.poll() is None:
+                    job.kill()
+                job.wait()
+
+    def test_nonblocking_process_lock_refuses_second_consumer(self):
+        import subprocess
+        key = self.root / "queue-test"
+        code = """import sys
+from pathlib import Path
+from app.core.paths import set_runtime_root
+from app.core.atomic import file_lock
+set_runtime_root(Path(sys.argv[1]))
+try:
+    with file_lock(Path(sys.argv[2]), blocking=False):
+        raise SystemExit(3)
+except BlockingIOError:
+    raise SystemExit(0)
+"""
+        with file_lock(key):
+            result = subprocess.run([sys.executable, "-c", code, str(self.root), str(key)], timeout=15)
+        self.assertEqual(result.returncode, 0)
 
 
 class TestNotesConcurrentWrite(StorageSandboxTestCase):

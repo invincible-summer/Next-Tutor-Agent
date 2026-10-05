@@ -1,17 +1,16 @@
 # Client Platform（共享客户端包）
 
-> 状态：Stage A 已落地（根 workspace、contracts、api-client、design-tokens、i18n 骨架、Web 渐进迁移）；
-> api-client 领域模块已按 §5.2 目标树补齐（0.3.0，Stage E 前提）。
 > 决策记录：[ADR-0009](../adr/0009-root-monorepo-shared-packages.md)、
 > [ADR-0008](../adr/0008-expo-react-native-mobile.md)。
 
-Web 与未来的 Expo/React Native 移动端不复制 API 代码：传输、契约、设计令牌与
+Web 与 Expo/React Native 移动端不复制 API 代码：传输、契约、设计令牌与
 跨端纯逻辑全部收敛到根 pnpm workspace 的 `packages/*`，平台只剩 adapter。
 
 ## 仓库结构
 
 ```text
 .
+├── apps/mobile/               # Expo Native（@next-tutor/mobile）
 ├── apps/web/                  # Next.js（@next-tutor/web）
 ├── packages/
 │   ├── contracts/             # 服务端 Pydantic → TS 契约（生成物 + 协议类型）
@@ -92,9 +91,10 @@ multipart 约定：平台负责构造 FormData 实例并 append 文件部件（�
 level/scope/volume_overrides 等标量字段；纯 `files` 上传（workspace/
 library/notes/classroom asset）由调用方整表传入。带 `Idempotency-Key` 的
 classroom 写操作收显式 key 参数（只带头、不自动重试）；checkpoint submit 的
-幂等键在 body。admin、`/voice/ws`（浏览器 WS 通话）、评价洞察
-（`/evaluation`、`/learner-evaluation`、`/student`、`/memory`、`/ux`、
-`/user`）不在共享包内——admin 是 Web-only，其余按域渐进迁移。
+幂等键在 body。共享层还提供 `assistant`（typed action、handoff、workflow、通知与偏好）、
+`evaluation`、`memory`、`profile`、`ux` 和 `archive`。`auth` 包含 access/refresh
+轮换、principal、session 列表与撤销；`classroom.ensureQaSession` 为课堂插问提供
+稳定的会话创建入口。admin 和浏览器 `/voice/ws` 保持 Web-only。
 
 ### 情景配图 observer 语义（tools/illustration）
 
@@ -114,7 +114,7 @@ classroom 写操作收显式 key 参数（只带头、不自动重试）；check
 `data/tokens.json` 是唯一事实源（light/dark 色板、阴影、字体、4pt 间距、
 radius、motion 时长、窗口断点类）；`scripts/dev/generate_design_tokens.mjs`
 生成 `apps/web/src/styles/tokens.generated.css`（`--check` 防漂移）。移动端
-未来直接 import TS 令牌，不生成 CSS。
+直接 import TS 令牌，不生成 CSS。
 
 ## packages/domain 与 packages/i18n
 
@@ -131,4 +131,4 @@ illustration/tool-assistant 域迁移到 `@next-tutor/api-client`，其余域
 （admin/trash/quiz/UX 等）保留 Web 本地实现并按域渐进迁移；
 `apps/web/src/platform/` 持有浏览器 adapter（token 存取、demo 模式、
 arbitrary-URL fetch 的凭据守卫）。移动端 adapter（`expo/fetch`、SecureStore）
-在 apps/mobile 建立时接入，共享客户端零改动。
+已接入 `apps/mobile`，详见 [mobile-app.md](./mobile-app.md)。

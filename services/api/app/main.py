@@ -385,20 +385,19 @@ def create_app() -> FastAPI:
     # P2-C：file-backed 业务状态 + 进程内锁只支持单 worker。
     # WEB_CONCURRENCY>1（uvicorn/gunicorn 常用扩展变量）会在多进程下产生
     # 并发写同一 JSON 的竞态——显式 fail-fast，而不是默默数据损坏。
-    # 企业模式（DATABASE_URL）例外：持久化/锁/会话真相在 PostgreSQL 与
-    # Redis，多实例/多 worker 是该模式的运行形态。
+    # PostgreSQL currently owns identity/session primitives; learning domains
+    # still use files and process-local locks. DATABASE_URL cannot lift this gate.
     import os as _os
     try:
         _wc = int(_os.getenv("WEB_CONCURRENCY", "1") or "1")
-    except ValueError:
-        _wc = 1
-    from app.persistence import db as _persistence_db
-    if _wc > 1 and not _persistence_db.enterprise_mode():
+    except ValueError as error:
+        raise RuntimeError("WEB_CONCURRENCY must be the integer 1") from error
+    if _wc != 1:
         raise RuntimeError(
-            "WEB_CONCURRENCY>1 is unsupported: file-backed persistence uses "
-            "process-local locks — run exactly one uvicorn worker "
-            "(deploy/self-hosted/edu-backend.service pins --workers 1), or configure "
-            "DATABASE_URL for enterprise multi-instance persistence.")
+            "WEB_CONCURRENCY must be 1: learning-domain persistence still uses "
+            "files and process-local locks, including when DATABASE_URL is set. "
+            "Run exactly one API instance with one uvicorn worker until all "
+            "domain repositories and guest coordination have completed cutover.")
     # Fail fast on the insecure default JWT secret when login is enforced.
     from app.identity.config import ensure_secret_safety
     ensure_secret_safety()

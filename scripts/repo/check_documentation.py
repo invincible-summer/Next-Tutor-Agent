@@ -237,6 +237,11 @@ def check_legacy_paths(files: list[str]) -> list[str]:
     problems = []
     consumed: set[tuple[str, str]] = set()
     for rel in files:
+        # Upstream license bytes may mention their own repository layout.
+        # Keep those originals untouched; the compliance generator checks
+        # their hashes separately. Project documentation stays in scope.
+        if Path(rel).parent.as_posix() == "licenses/texts" and Path(rel).suffix == ".txt":
+            continue
         if rel in LEGACY_PATH_EXEMPT_FILES:
             continue
         if any(rel.startswith(d + "/") for d in LEGACY_PATH_EXEMPT_DIRS):

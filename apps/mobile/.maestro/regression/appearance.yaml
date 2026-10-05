@@ -1,0 +1,19 @@
+appId: com.nexttutor.agent
+name: Theme language and larger type persist
+tags: [regression, appearance]
+---
+- runFlow: ../common/login.yaml
+- openLink: nexttutor:///me/settings
+- tapOn: "深色|Dark"
+- tapOn: "English"
+- tapOn: "175%"
+- takeScreenshot: settings-dark-large-en
+- stopApp
+- launchApp:
+    clearState: false
+- openLink: nexttutor:///me/settings
+- assertVisible: "Appearance"
+- takeScreenshot: settings-restored
+- tapOn: "System"
+- tapOn: "中文"
+- tapOn: "100%"
