@@ -22,7 +22,7 @@ import {
   type AssistantWorkflowView,
   type WorkflowPlanPreview,
 } from "@/lib/assistant/api";
-import type { NavigationTarget } from "@/lib/assistant/types.generated";
+import type { NavigationTarget } from "@next-tutor/contracts/assistant";
 import { stringsFor } from "./strings";
 
 const RUNNING_STATES = new Set(["queued", "running", "waiting_domain_job"]);

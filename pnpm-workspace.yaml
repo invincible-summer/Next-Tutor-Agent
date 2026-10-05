@@ -1,0 +1,19 @@
+packages:
+  - apps/*
+  - packages/*
+
+# Isolated installs by default: undeclared dependencies must fail at the
+# workspace boundary instead of being masked by hoisting. pnpm 11's
+# allowBuilds map makes every dependency build script an explicit decision
+# (strict-dep-builds is the v11 default): sharp ships prebuilt binaries we
+# want; unrs-resolver needs no build step for this workload.
+allowBuilds:
+  '@parcel/watcher': true
+  sharp: true
+  unrs-resolver: false
+
+# Security fixes for transitive CLI/URL utilities; native SDK versions remain pinned.
+overrides:
+  "uuid@<11.1.1": "11.1.1"
+  "decode-uri-component@<0.5.0": "0.5.0"
+  "@types/react-dom@>=19.3.0 <20": "19.2.7"

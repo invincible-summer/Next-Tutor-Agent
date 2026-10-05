@@ -1,0 +1,16 @@
+appId: com.nexttutor.agent
+name: Create a synthetic learning goal
+tags: [smoke, plan]
+---
+- runFlow: ../common/login.yaml
+- openLink: nexttutor:///learn/plan
+- assertVisible: "计划与学习编排|Your learning plan"
+- tapOn: "设定目标|Set a goal"
+- tapOn: "标题|Title"
+- inputText: ${MAESTRO_MOBILE_E2E_GOAL_TITLE}
+- tapOn: "目标说明|Description"
+- inputText: "Practise addition using project-authored synthetic counters."
+- hideKeyboard
+- tapOn: "保存|Save"
+- tapOn: "目标|Goals"
+- assertVisible: ${MAESTRO_MOBILE_E2E_GOAL_TITLE}

@@ -22,6 +22,7 @@ from app.core.quiz_illustration_policy import (
     resolve_illustration_policy,
 )
 from app.identity.deps import resolve_student_id
+from app.schemas.illustration import QuizIllustrationJob, QuizIllustrationStatus
 
 router = APIRouter(prefix="/assessment", tags=["assessment"])
 
@@ -92,7 +93,7 @@ def _public_result(question_id: str, question_revision: int,
     }
 
 
-@router.post("/questions/{question_id}/illustration")
+@router.post("/questions/{question_id}/illustration", response_model=QuizIllustrationJob | QuizIllustrationStatus)
 async def enrich_question_illustration(
     question_id: str,
     req: IllustrationRequest,

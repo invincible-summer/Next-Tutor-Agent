@@ -58,25 +58,31 @@ python3 scripts/acceptance/illustration/live.py --live-llm --variation 1 \
 
 普通提交只运行一套必需检查，耗时较大的可选能力放在独立回归中。两套工作流都不使用真实模型凭证，也不向生产存储写入数据。
 
-| 工作流 / 检查 | 触发条件 | 内容 | 是否阻止合并 |
-| --- | --- | --- | --- |
-| `CI` / `Repository hygiene` | PR → main、main push、手动 | 仓库卫生 guard：tracked 文件与全历史禁教材/派生数据/运行根、大文件门禁、fixtures synthetic 契约；文档 guard（链接/布局/生成目录一致）。`--check-generated` 会经 `build_catalog.py` 导入后端代码，因此该 job 先安装 `requirements.txt` | 是（首个 job，失败阻断后续） |
-| `CI` / `Plan backend shards` | 同上 | 运行 `scripts/repo/plan_backend_shards.py` 枚举 `services/api/tests` 并生成分片矩阵；新增测试域未登记时响亮失败 | 是 |
-| `CI` / `Backend (<shard>)` | 同上 | BM25 环境的全部后端 unittest，按域拆成并行分片（矩阵）。渲染依赖域（classroom、diagrams+illustration、api/core/identity/notes/voice 平台片、supervisor+site_assistant——课程动作复用真实课堂管线）安装完整前端工具链与 Chromium，knowledge 与 assessment 两片仅装 Python 依赖 | 是 |
-| `CI` / `Frontend and smoke` | 同上 | TypeScript、ESLint、Node 单元测试脚本、生产构建、关键浏览器旅程 | 是 |
-| `CI` / `CI result` | 上述 job 全部完成后 | 仅当全部 job（含每个 backend 分片）都成功才成功；失败、取消、跳过均不能冒充通过 | **main 唯一 required check** |
-| `Extended regression` / `Optional vector backend` | 每周一 02:17（UTC+8）、手动 | 安装 Chroma 向量依赖，运行 local RAG / hybrid RAG 回归 | 否，发布更新前检查 |
-| `Extended regression` / `Full browser regression` | 同上 | 生产构建上的完整浏览器套件，包含编辑、恢复、冲突、语音、助手等路径 | 否，发布更新前检查 |
+| 工作流 / 检查                                                                       | 触发条件                    | 内容                                                                                                                                                                                                                                                                                                                                                                                                              | 是否阻止合并                 |
+| ----------------------------------------------------------------------------------- | --------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------- |
+| `CI` / `Repository hygiene`                                                         | PR → main、main push、手动  | 仓库卫生 guard：tracked 文件与全历史禁教材/派生数据/运行根、大文件门禁、fixtures synthetic 契约；文档 guard（链接/布局/生成目录一致）和离线许可证/source SBOM guard。`--check-generated` 会经 `build_catalog.py` 导入后端代码，因此该 job 先安装 `requirements.txt`                                                                                                                                                                             | 是（首个 job，失败阻断后续） |
+| `CI` / `Plan backend shards`                                                        | 同上                        | 运行 `scripts/repo/plan_backend_shards.py` 枚举 `services/api/tests` 并生成分片矩阵；新增测试域未登记时响亮失败                                                                                                                                                                                                                                                                                                   | 是                           |
+| `CI` / `Backend (<shard>)`                                                          | 同上                        | BM25 环境的全部后端 unittest，按域拆成并行分片（矩阵）。渲染依赖域（classroom、diagrams+illustration、api/core/identity/notes/voice 平台片、supervisor+site_assistant——课程动作复用真实课堂管线）安装完整前端工具链与 Chromium，knowledge、assessment、persistence、observability、workflows 五片仅装 Python 依赖（workflows 片的确定性 workflow 测试用 temporalio 内置 time-skipping test server，无需外部服务） | 是                           |
+| `CI` / `Detect enterprise path changes` + `Backend enterprise (PostgreSQL + Redis)` | 同上                        | 路径门控（`services/api/app/persistence/`、`migrations/`、`tests/persistence/`、依赖清单或 CI 配置变更；main push 也按提交 diff 判断）→ 起 postgres:18 + redis:8 service containers 跑 `tests/persistence/integration.py`（双实例并发验收、跨实例缓存/lease、Alembic on PostgreSQL）；门控未命中时显式校验其 skipped                                                                                                          | 是                           |
+| `CI` / `Detect temporal path changes` + `Backend temporal (Temporal server)`        | 同上                        | workflow/worker/tests、local deploy、依赖或 CI 配置变更时起真实 Temporal service，执行 `tests/workflows/integration.py`；路径门未命中时 aggregate 要求其 skipped                                                                                                                                                                                                                                                  | 是                           |
+| `CI` / `Shared packages and contracts`                                              | 同上                        | `packages/*` 的 tsc typecheck 与 `node --test`；设计令牌生成 `--check`；契约生成 `--check`（TS 类型 + OpenAPI 快照）与 response schema 缺口棘轮                                                                                                                                                                                                                                                                   | 是                           |
+| `CI` / `Frontend and smoke`                                                         | 同上                        | TypeScript、ESLint、Node 单元测试脚本、生产构建、关键浏览器旅程                                                                                                                                                                                                                                                                                                                                                   | 是                           |
+| `CI` / `Mobile`                                                                     | 同上                        | Expo SDK 依赖兼容、本地锁定 expo-doctor 1.20.4、移动 TypeScript/Jest、Android/iOS Hermes JS/assets export、两平台 CNG no-install 配置生成与清单漂移检查                                                                                                                                                                                                                                                           | 是                           |
+| `CI` / `CI result`                                                                  | 上述 job 全部完成后         | 必须通过 hygiene、全部 backend 分片、shared packages、Web 和 Mobile；enterprise/Temporal 根据路径门分别要求成功或 skipped，失败/取消不可计为成功                                                                                                                                                                                                                                                                  | **main 唯一 required check** |
+| `Extended regression` / `Optional vector backend`                                   | 每周一 02:17（UTC+8）、手动 | 安装 Chroma 向量依赖，运行 local RAG / hybrid RAG 回归                                                                                                                                                                                                                                                                                                                                                            | 否，发布更新前检查           |
+| `Extended regression` / `Full browser regression`                                   | 同上                        | 生产构建上的完整浏览器套件，包含编辑、恢复、冲突、语音、助手等路径                                                                                                                                                                                                                                                                                                                                                | 否，发布更新前检查           |
 
 历史 tag 不触发 CI（工作流只监听 PR 与 main push），旧布局的里程碑 tag 因此不会再触发流水线。
 
-backend 分片各限时 20 分钟，frontend 连同冒烟最多 25 分钟。浏览器使用同一 runner，冒烟和全量各最多 10 分钟，生产编译最多 4 分钟，完整浏览器 job 连同安装最多 25 分钟。超时是故障信号，应查看具体步骤和 trace，不能靠无限延长上限解决。
+backend 分片各限时 20 分钟，frontend 连同冒烟最多 25 分钟，Mobile 配置/JS lane 最多 25 分钟。浏览器使用同一 runner，冒烟和全量各最多 10 分钟，生产编译最多 4 分钟，完整浏览器 job 连同安装最多 25 分钟。超时是故障信号，应查看具体步骤和 trace，不能靠无限延长上限解决。
 
-主分支保护使用 `CI result`，要求 PR，但不要求人工批准；管理员保留应急绕过能力。不要求每个 PR 都同步到 main 最新提交，不增加覆盖率百分比、操作系统矩阵或新的静态检查工具。
+主分支保护使用 `CI result`（strict，分支需包含最新 main），不要求人工批准（单人仓库，required review 会死锁）；管理员保留应急绕过能力；禁 force push 与删除、要求 conversation resolution。CODEOWNERS 基线已覆盖 `.github/`、`deploy/`、identity、persistence/migrations、`packages/*` 与 Web 核心传输。`v*` tag 使用 active ruleset，创建/更新/删除受限，仅仓库管理员有明确 bypass；发布应从通过 CI 的 main commit 创建新 tag，禁止移动已发布版本。团队化后再开启 required review。不要求每个 PR 都同步到 main 最新提交，不增加覆盖率百分比、操作系统矩阵或新的静态检查工具。
 
 ## 环境与准备
 
-CI 使用 Ubuntu 24.04、Python 3.11、Node.js 22，pnpm 版本由 `apps/web/package.json` 的 `packageManager` 固定。Python 约束在 `services/api/constraints.txt`，前端依赖按 `pnpm-lock.yaml` 安装。共享准备步骤在 `.github/actions/setup-project/action.yml`，以布尔 inputs（`python`/`node`/`playwright`/`classroom`）声明各 job 实际需要的环境，避免后端纯 Python 分片安装前端工具链；Playwright Chromium 按 pnpm-lock 哈希缓存。浏览器证据统一经 `.github/actions/upload-browser-report` 上传。
+CI 使用 Ubuntu 24.04、Python 3.11、Node.js 22，pnpm 版本由根 `package.json` 的 `packageManager` 固定（根 pnpm workspace，唯一 lockfile 在根）。Python 约束在 `services/api/constraints.txt`，前端依赖按 `pnpm-lock.yaml` 安装。共享准备步骤在 `.github/actions/setup-project/action.yml`，以布尔 inputs（`python`/`node`/`playwright`/`classroom`）声明各 job 实际需要的环境，避免后端纯 Python 分片安装前端工具链；Playwright Chromium 按 pnpm-lock 哈希缓存。浏览器证据统一经 `.github/actions/upload-browser-report` 上传。
+
+Mobile 使用同一 setup-project 的 `node=true`、`python=false`；不安装 Chromium 或后端 Python 依赖。Doctor 从移动 devDependency 解析，遵守根 lockfile，不通过 npx 临时获取最新版。CNG 在一次性 runner 中运行 `--clean --no-install --platform all`；生成的 android/ios 工程被忽略，最后要求 package.json 与 lockfile 无漂移。
 
 从仓库根目录准备一个独立 Python 环境（以下以 Linux 为例）：
 
@@ -121,6 +127,17 @@ pnpm test:e2e tests/e2e/auth-isolation.spec.ts tests/e2e/textbook-bm25.spec.ts \
 
 `pnpm check` 包含类型检查、lint，以及播放器、i18n、助手导航、Pages 只读请求适配、题图恢复，以及 E2E 缓存/端口契约的轻量单元测试。`pnpm build` 统一使用 webpack 生产构建。生产模式的后端地址必须在**构建时**设置，不能仅在 `next start` 时改变。
 
+移动端 scoped 命令从仓库根执行：
+
+```bash
+pnpm --filter @next-tutor/mobile exec expo install --check
+pnpm --filter @next-tutor/mobile exec expo-doctor
+pnpm mobile:check
+pnpm mobile:test --runInBand
+```
+
+Jest 必须正常退出，组件测试清理 QueryClient、timer 与 listeners；`--forceExit` 不能替代清理。Android/iOS export 和 CNG 的本地命令见 [mobile-dev](mobile-dev.md)。Mobile CI 检查不编译设备 binary、不执行 Maestro，也不建立真机视觉/a11y/performance 结论；设备矩阵、500 条消息、原生 SVG 库与租约/音频等门由 [mobile-validation](../validation/mobile-validation.md) 记录。
+
 `GitHub Pages demo` 工作流单独验证静态演示：从 `fixtures/demo/`
 合成数据导出只读快照（临时沙箱，不读任何真实运行数据），
 校验产物契约，构建完整静态前端（`next build` 内置完整 TypeScript 检查），并通过 `pnpm test:pages`
@@ -146,21 +163,21 @@ python -m tests tests.agents.knowledge.test_local_rag tests.agents.knowledge.tes
 - 按行为领域组织文件。同一领域的小文件合并，但保留不同边界条件；同样的 fixture、调用、断言才视为重复用例。
 - 日常浏览器冒烟只包含 `auth-isolation`、`textbook-bm25`、`strict-qa`、`grounded-quiz`、`notes`、`classroom-workflow` 六个文件。新增 spec 默认进入完整回归；只有关键用户旅程才加入冒烟白名单。
 - 删除只检验过时迁移完成状态、私人且未提交的运维文档、手写假界面样式或旧调试截图的测试。仓库安全检查继续保护运行数据边界（任何教材/派生数据不得入库）和单 worker 部署约束。
-- 暂不维护手机端适配矩阵。真实课堂 HTML 的浅色/深色与桌面窄窗口检查继续保留。
+- 移动端窗口/设备矩阵维护在 mobile-validation；普通 CI 运行其配置/JS lane，原生 binary、Maestro 和真机验收单独执行。真实课堂 HTML 的浅色/深色与桌面窄窗口检查继续保留。
 - 浏览器模拟接口须遵循当前路由和数据状态；API 错误必须使测试失败，不能吞错或只检查 body 可见。等待可见状态/响应，避免立即读取异步数组或动画中间值。真实身份测试使用真实 JWT；模拟身份只能用于明确模拟了接口的用例。
 
 本次整理合并了 12 个后端文件：prompt memory 生命周期相关的 3 个文件、workspace memory boundary、model info、navigation file preview、round count、session material cleanup、material retrieval、quiz strict relevance，以及教材 OCR/quality API。删除一个重复的无目标计划用例、两项依赖未提交运维文档的断言、重复的本人教材浏览用例、旧课堂假 HTML 视觉套件和 7 个硬编码调试脚本。对应的领域行为断言迁入现有领域文件；可选向量回归不再重复整套鉴权/部署检查。
 
-| 保留的后端文件 | 合并进入的旧文件（均在 `services/api/tests/`） |
-| --- | --- |
+| 保留的后端文件                    | 合并进入的旧文件（均在 `services/api/tests/`）                                         |
+| --------------------------------- | -------------------------------------------------------------------------------------- |
 | `test_prompt_memory_lifecycle.py` | `test_memory_safety.py`、`test_legacy_prompt_memory.py`、`test_lifecycle_contracts.py` |
-| `test_workspace_isolation.py` | `test_workspace_memory_boundary.py` |
-| `test_bootstrap_readiness.py` | `test_model_info.py` |
-| `test_library.py` | `test_navigation_file_preview.py` |
-| `test_session_isolation.py` | `test_round_count.py`、`test_session_material_cleanup.py` |
-| `test_rag_v2.py` | `test_material_retrieval.py` |
-| `test_quiz_grounding.py` | `test_quiz_grounding_strict_relevance.py` |
-| `test_textbook_api.py` | `test_textbook_ocr_api.py`、`test_textbook_quality_api.py` |
+| `test_workspace_isolation.py`     | `test_workspace_memory_boundary.py`                                                    |
+| `test_bootstrap_readiness.py`     | `test_model_info.py`                                                                   |
+| `test_library.py`                 | `test_navigation_file_preview.py`                                                      |
+| `test_session_isolation.py`       | `test_round_count.py`、`test_session_material_cleanup.py`                              |
+| `test_rag_v2.py`                  | `test_material_retrieval.py`                                                           |
+| `test_quiz_grounding.py`          | `test_quiz_grounding_strict_relevance.py`                                              |
+| `test_textbook_api.py`            | `test_textbook_ocr_api.py`、`test_textbook_quality_api.py`                             |
 
 完整回归还修复了生产模式下 PDF 预览关闭/翻页时查询状态不同步、导出错误提示遮挡重试菜单两处界面问题。预览页码使用与 `useSearchParams` 同步的原生 history 更新（[Next.js 官方说明](https://nextjs.org/docs/app/getting-started/linking-and-navigating#native-history-api)）；真实交互回归继续检查关闭、重新导航和浏览器历史。
 

@@ -12,7 +12,7 @@
 
 ## Owned code（拥有的代码路径）
 
-`apps/web/`（pnpm workspace，包名 `frontend`）：
+`apps/web/`（根 pnpm workspace 成员，包名 `@next-tutor/web`，经 `transpilePackages` 直接编译 `packages/*` 共享包）：
 
 | 路径 | 职责 |
 |------|------|
@@ -27,9 +27,10 @@
 | `src/components/pages/` | 各模块页组装（admin/assessment/dashboard/insights/knowledge/memory/notes/orchestration/plan/profile/resources/settings 子目录） |
 | `src/components/assistant/`、`workspace/`、`auth/`、`charts/`、`landing/`、`guest/`、`learning-evaluation/`、`diagrams/`、`quiz/`、`shared/` | 站内助手面板（见 [site-assistant.md](./site-assistant.md)）、工作区设置弹窗、认证外壳与头像、SVG 图表（`Bars`/`Donut`/`Sparkline`）、落地页组件、访客学习、统一评价面板、图示素材库、题目插图、共用概念选择器 |
 | `src/components/UIProvider.tsx`、`DemoReadOnlyDialog.tsx` | 全局 provider（Toast/主题/语言跨标签页同步）与演示只读拦截弹窗 |
-| `src/lib/api-fetch.ts`、`api.ts` | `apiFetch` 统一请求层；`API_BASE` 单一事实源 + REST 客户端 + `streamChat` SSE AsyncGenerator |
+| `src/platform/` | 浏览器 adapter：`token.ts`（localStorage 存取）与 `api-client.ts`（把 browser fetch/demoFetch/token/401 事件注入 `@next-tutor/api-client` 共享客户端，见 [client-platform.md](./client-platform.md)） |
+| `src/lib/api-fetch.ts`、`api.ts` | `apiFetch` 遗留请求层（未迁移域 + 任意 URL 下载，`trustedRequestUrl` 凭据守卫）；`API_BASE` 单一事实源；workspace/会话/chatStream 已迁移到共享客户端（本文件保留 Web 错误语义壳） |
 | `src/lib/api-modules.ts`、`api-classroom.ts`、`api-notes.ts`、`api-diagrams.ts`、`api-diagram-materials.ts`、`api-illustrations.ts` | M2–M7 投影、M4 CAT、课堂（含 SSE 进度流解析）、笔记、图示库、插图 API 客户端 |
-| `src/lib/types*.ts` | 前端类型契约：`types.ts`、`types-modules.ts`、`types-notes.ts`、`types-classroom.generated.ts` |
+| `src/lib/types*.ts` | 前端类型契约：`types.ts`、`types-modules.ts`、`types-notes.ts`；classroom/assistant/illustration 生成契约在 `@next-tutor/contracts`（生成链见 [client-platform.md](./client-platform.md)） |
 | `src/lib/store.ts`、`auth-store.ts`、`ws-settings.ts`、`store-notes.ts`、`assistant/store.ts` | zustand 状态（见 State & storage） |
 | `src/lib/i18n.ts`、`i18n-page.ts`、`labels.ts`、`evaluation-labels.ts`、`format.ts` | 双层 i18n（全局词典 + `makePageT` 页面级词条）、标签与格式化 |
 | `src/lib/nav.ts`、`cn.ts`、`markdown-toc.ts`、`use-unsaved-changes.ts`、`chat-drafts.ts`、`quiz-drafts.ts`、`guest-session.ts` | 导航配置（`NAV` 分组/模块徽章/adminOnly/classroomOnly）、类名合并、文档目录、未保存保护、草稿与访客会话 |
@@ -50,15 +51,17 @@
 
 ### API 消费面
 
-- 一切请求经 `apiFetch`（仓库规则）：JWT `Authorization` 注入、同飞行中请求去重、幂等 GET 30s 超时护栏、评价写 409 语义等待重试、`trustedRequestUrl` 目标校验。
+- 已迁移域（auth/chat 流与会话/workspace/题图/情景配图/图示素材）经 `@next-tutor/api-client` 共享客户端（`src/platform/api-client.ts` 注入浏览器 adapter）：统一 `X-Client-*`/`X-Request-ID` 元数据、GET/HEAD 有界重试、401 单飞事件、SSE 共享解码。
+- 其余域继续经 `apiFetch`（仓库规则不变）：JWT 注入、assessment start/next 同飞去重、读 30s 超时、409 evaluation_pending 语义等待、`trustedRequestUrl` 目标校验（响应体给出的绝对 URL 绝不携带凭据）。
+- 课堂域暂留 `apiFetch`：其 DEMO_MODE 路由与 409/blob/文本响应形态与共享管线耦合最深，按域渐进迁移（SSE 帧解析已用共享 decoder）。
 - `API_BASE` 三形态单一事实源：`NEXT_PUBLIC_BACKEND_URL` 直连 / 同源相对 `/api/v1`（nginx 反代）/ demo basePath。
 - 未设 `NEXT_PUBLIC_BACKEND_URL` 且请求经过 Next.js 时，`/api/*` 回退 rewrite 使用 `experimental.proxyTimeout=240_000`，覆盖普通出题最多 90 秒文字阶段、独立 120 秒配图阶段及传输余量；`next dev` 与 `next start` 均适用。CAT 补图使用异步任务，客户端任务观察时限独立为 150 秒。
-- 流式：`api.ts::streamChat`（fetch reader 解析 SSE，原生 EventSource 不能带 Authorization）；课堂进度复用同一 SSE 帧解析器；语音通话为 WebSocket JSON 控制帧 + 二进制音频帧（协议见 [voice.md](./voice.md)、[conversation.md](./conversation.md)）。
-- 后端契约文档：REST/SSE/WS 端点由各后端模块文档拥有（[backend-runtime.md](./backend-runtime.md) 及各域文档）；前端 `types*.ts` 与后端 schema 保持同步（assistant/classroom 为生成文件）。
+- 流式：`api.ts::chatStream` 与课堂进度均走共享 SSE decoder（跨 chunk/UTF-8/多行 data；原生 EventSource 不能带 Authorization）；语音通话为 WebSocket JSON 控制帧 + 二进制音频帧（协议见 [voice.md](./voice.md)、[conversation.md](./conversation.md)）。
+- 后端契约文档：REST/SSE/WS 端点由各后端模块文档拥有（[backend-runtime.md](./backend-runtime.md) 及各域文档）；前端 `types*.ts` 与后端 schema 保持同步（assistant/classroom/illustration 生成契约统一在 `@next-tutor/contracts`，`scripts/contracts/ --check` 进 CI 防漂移）。
 
 ### 设计系统约定（团队强制）
 
-表单控件用 `ui/Input` 原语（`Input`/`Textarea`/`Field`/`FIELD_CLS`）；条目列表统一 `ui/Pager`（`paged()` 客户端切片，默认 5 条/页，页码可输入跳页）；浮层入场用 `motion-modal`/`motion-drawer`/`motion-pop` 类（reduced-motion 下停用）；长表单进 `Modal` 而非页内卡片。
+表单控件用 `ui/Input` 原语（`Input`/`Textarea`/`Field`/`FIELD_CLS`）；条目列表统一 `ui/Pager`（`paged()` 客户端切片，默认 5 条/页，页码可输入跳页）；浮层入场用 `motion-modal`/`motion-drawer`/`motion-pop` 类（reduced-motion 下停用，页面进入和骨架呼吸同样停用）；长表单进 `Modal` 而非页内卡片。
 
 ## State & storage（状态与存储布局，含 runtime data 路径）
 

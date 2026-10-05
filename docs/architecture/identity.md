@@ -14,10 +14,14 @@ M0 回答三个问题：用户是谁、数据属于谁、如何安全访问；�
 
 | 路径（`services/api/app/` 下） | 职责 |
 |------|------|
-| `identity/deps.py` | `resolve_student_id` / `require_user` / `optional_user` / `require_admin` 依赖 |
+| `identity/deps.py` | `resolve_student_id` / `require_user` / `optional_user` / `require_admin` / `resolve_principal` 依赖（RS256 会话 token 优先，legacy HS256 回落） |
 | `identity/access.py` | 总路由守卫 `require_api_access`（挂在整个 `/api/v1` 路由上）与鉴权错误封装 |
 | `identity/models.py` | `User` 模型与 `to_public_dict`（绝不返回 `password_hash`） |
-| `identity/security.py` | JWT 签发/解析、bcrypt 哈希 |
+| `identity/security.py` | JWT 签发/解析、bcrypt 哈希（legacy HS256 轨） |
+| `identity/backend.py` | 身份后端抽象：`FileIdentityBackend`（默认）与 `EnterpriseIdentityBackend`（注册/登录双写 PostgreSQL，ADR-0011 影子模式） |
+| `identity/keys.py` | RS256 签名 keyring（`SigningKeyring` Protocol；本地 RSA 实现，KMS/Key Vault 接口位） |
+| `identity/sessions.py` | 轮换认证会话（access/refresh 签发校验、refresh 轮换与复用撤族、审计事件） |
+| `identity/principal.py` | `RequestPrincipal`（tenant-aware 身份视图，企业模式） |
 | `identity/config.py` | `AUTH_MODE` / `AUTH_JWT_SECRET` / `AUTH_BCRYPT_ROUNDS`、默认密钥拒启守卫、本机开发密钥生成 |
 | `identity/store.py` | `users/accounts.json` 账户存储（原子写） |
 | `identity/avatars.py` | 私有头像（256×256 PNG，无公开静态 URL） |
@@ -40,6 +44,8 @@ M0 回答三个问题：用户是谁、数据属于谁、如何安全访问；�
 前缀 `/api/v1`，除 `/guest/*` 外全部经 `require_api_access` 默认拒绝、白名单放行游客。
 
 - 认证：`GET /auth/status`（含 `guest_allowed`、`using_default_secret` 仅管理员可见）、`POST /auth/register`、`POST /auth/login`、`POST /auth/logout`、`GET /auth/me`。
+- 轮换会话（企业模式；文件模式显式 409 `enterprise_auth_required`）：`POST /auth/refresh`（`{refresh_token}` → 新 access+refresh；复用旧 refresh 返回 401/400 envelope 并撤销整个会话族）、`GET /auth/sessions`（本人设备列表，粗粒度 client 提示不含 UA 原文）、`DELETE /auth/sessions/{id}`（撤销指定设备，仅本人）、`GET /auth/principal`（tenant-aware 身份视图）。
+- 登录/注册响应双轨 token：`token`（legacy HS256 30d，Web 兼容窗口）+ `access_token`（RS256 kid，15 分钟）/`refresh_token`（opaque `rt_*`，仅此一次可见）/`expires_in`。
 - 账户：`GET/PUT /user/profile`、`GET/PUT/DELETE /user/avatar`（仅认证本人）、`DELETE /user/account`（自助注销，需密码 + 输入「注销」二次确认）。
 - 游客：`POST/DELETE /guest/session`（不透明令牌）、`GET /guest/textbooks`、`POST /guest/quiz/generate`（限流 20/min；仅服务器确认的公共教材 id）。
 - 管理员（`require_admin`，401/403）：`GET /admin/users`、`POST /admin/users/{id}/clear-chat`、`DELETE /admin/users/{id}`（不可删 admin 含自己）、`GET/PUT /admin/guest-policy`、`GET /admin/guest-data` + `POST /admin/guest-data/purge`、`GET /admin/orphan-data` + `POST /admin/orphan-data/purge`；同文件还承载 `/admin/data-retention`、`/admin/public-trash*`、`/admin/classroom-health*`、`/admin/ocr-policy`、`/admin/textbook-pipeline`、`/admin/llm-policy`、`/admin/learner-evaluation-policy`、`/admin/prompt-memory-policy` 等策略面（语义属各领域模块）。
@@ -64,13 +70,16 @@ M0 回答三个问题：用户是谁、数据属于谁、如何安全访问；�
 | `users/avatars/<sid>/avatar.png` | 256×256 私有头像；注销清除与 orphan 扫描均覆盖 |
 | `chat_history/settings/guest_policy.json` | 游客策略（管理员可写）；缺失或损坏时拒绝游客 |
 | `.runtime/auth_jwt_secret`（数据根旁） | 未显式配置 `AUTH_JWT_SECRET` 时生成的本机开发密钥（0600） |
+| `.runtime/auth_keys/`（数据根旁） | RS256 keyring（`active.json` + `keys/<kid>.json`，0600；`kid` 可轮换，非每用户扫描根，不入 orphan categories） |
+| PostgreSQL 八表（企业模式） | users/credentials/tenants/memberships/auth_sessions/refresh_tokens（仅存 sha256 hash）/identity_providers/audit_events——schema 见 `app/persistence/models/identity.py`，权威描述在 [enterprise-infra.md](../development/enterprise-infra.md) |
 | `guest_<uuid>` 命名空间 | 游客数据落在各业务根（会话/转写/trace/上传等），无独立磁盘根 |
 
 `students/<user_id>.*` 学习数据命名空间由 identity 的 id 语义派生，但文件本身归各智能层所有。
 
 ## Main flows（关键流程）
 
-- **注册/登录**：注册两步（账号 → 学习信息）→ bcrypt（`AUTH_BCRYPT_ROUNDS`）落 `accounts.json` → 登录签发 JWT。限流双轨：按 IP 固定窗口 + 每账号失败 10 次/5 分钟；客户端 IP 只取 uvicorn 按可信代理解析后的 peer，应用层不解析 `X-Forwarded-For`。
+- **注册/登录**：注册两步（账号 → 学习信息）→ bcrypt（`AUTH_BCRYPT_ROUNDS`）落 `accounts.json` → 登录签发 JWT。限流双轨：按 IP 固定窗口 + 每账号失败 10 次/5 分钟；客户端 IP 只取 uvicorn 按可信代理解析后的 peer，应用层不解析 `X-Forwarded-For`。企业模式（`DATABASE_URL` 已配置）下注册/登录为双写影子：文件层先行（旧消费方事实源，保住既有语义），成功后同步写 PostgreSQL（users/credentials/personal tenant/membership）并签发轮换会话族；这些 PG 注册写入目前是独立事务，部分失败为 loud 错误，需迁移 importer 愈合，尚非跨表原子注册。profile 类字段窗口期仍单写文件层（ADR-0011 记录的偏差），企业身份读取按已校验的 user id 覆盖本人文件 profile，保证资料、偏好和私有头像更新在下一次请求仍可见；数据库独有账户才回落 PG profile。覆盖仅限 profile，认证角色、凭据和 token_version 仍取 PostgreSQL。全领域 cutover、组织租户业务隔离和多 API 实例验收尚未完成。
+- **refresh 轮换（企业模式）**：每次 `POST /auth/refresh` 用条件 UPDATE 抢占旧 token（`WHERE rotated_at IS NULL`，跨实例原子）；同一 token 并发呈现恰一胜一败，败方按盗窃处理——撤销整个会话族并写 `auth.refresh_reuse` 审计；胜方新发的 refresh 属被撤族，随后刷新得到 `session_revoked`。
 - **身份解析（每请求）**：`require_api_access` 总守卫 → 有效 JWT 解出账号（`user_id == student_id`，自动获得独立 `students/<id>.*` 命名空间）；无 JWT 时须游客策略开启且带有效 `X-Guest-Token`，解析为独立 `guest_<uuid>`；无效/过期 JWT 返回 401，禁止降级游客。WebSocket（语音）在 accept 前验证登录票据。
 - **管理员引导**：启动 lifespan 读 `ADMIN_EMAIL`/`ADMIN_PASSWORD`——不存在则创建；已存在则仅当密码通过该账号 bcrypt 校验才提升（防开放注册下抢注提权）。
 - **游客临时学习**：前端仅放行 `/chat`、`/assessment` 独立游客页；令牌/聊天/题卡只存浏览器文档内存（不写 localStorage/URL）。后端 `guest_runtime` 单 worker 内存保持最多 512 位游客、每人 100 题、闲置 30 分钟回收；选择题确定性判分，不写证据账本/画像/图谱/记忆/计划。
@@ -84,7 +93,8 @@ M0 回答三个问题：用户是谁、数据属于谁、如何安全访问；�
 
 ## Invariants / security boundaries（不变量与安全边界）
 
-- **JWT 唯一事实源（铁律）**：任何端点的 student_id 只来自 `resolve_student_id()`；请求体/query 里的 `student_id` 字段仅为旧客户端兼容保留、一律忽略。
+- **JWT 唯一事实源（铁律）**：任何端点的 student_id 只来自 `resolve_student_id()`；请求体/query 里的 `student_id` 字段仅为旧客户端兼容保留、一律忽略。同理，route 永不信任请求体中的 owner/tenant 字段——归属只来自 token 与 `resolve_principal()`。
+- refresh token 只存 SHA-256 hash，raw 值仅签发时返回一次；声称 `typ=access` 的 HS256 token 一律拒绝（防 legacy secret 伪造新轨声明）。
 - 数据隔离：会话列表只返回本人；游客返回空列表，不能读取未盖身份戳的遗留会话；按 id 资源端点对外人 404（不泄露存在性）；工作区/资料库/题图产物均按 owner 物理分文件。
 - 游客能力白名单：仅文字聊天、临时出题及本题批改；导航助手（含原公共 guide）、语音、上传、私有材料与完整学习模块均须登录。
 - `to_public_dict` 绝不返回 `password_hash`；JWT secret 仅在 `identity/config.py` / `security.py` 使用。
@@ -99,6 +109,9 @@ M0 回答三个问题：用户是谁、数据属于谁、如何安全访问；�
 | `AUTH_JWT_SECRET` | — | 未配置时测试/keyless 环境用固定默认值，本地部署生成 `.runtime/auth_jwt_secret` |
 | `AUTH_BCRYPT_ROUNDS` | `12` | 密码哈希轮数 |
 | `ADMIN_EMAIL` / `ADMIN_PASSWORD` | — | 启动引导管理员账号 |
+| `DATABASE_URL` | — | 配置即企业模式：身份双写 + 轮换会话端点可用（ADR-0010/0011；运维见 [enterprise-infra.md](../development/enterprise-infra.md)） |
+| `AUTH_ACCESS_TOKEN_SECONDS` | `900` | RS256 access token 寿命（10–15 分钟档） |
+| `AUTH_REFRESH_SESSION_DAYS` | `30` | refresh 会话族寿命；每次刷新轮换 token |
 
 ## Observability（trace/日志/指标）
 
@@ -119,8 +132,13 @@ M0 回答三个问题：用户是谁、数据属于谁、如何安全访问；�
 - `test_assessment_identity.py`、`test_submission_identity.py`（伪造他人/游客 student_id 无效的回归）
 - `test_session_isolation.py`（会话归属隔离）
 - `test_admin_public.py`（`public` 命名空间管理员写边界）
+- `test_enterprise_auth.py`（企业模式注册/登录双写、token 双轨、refresh 轮换/复用撤族、会话列表与撤销、文件模式 409）
+- `test_shadow_profile.py`（影子迁移期文件 profile 读取、资料/偏好/头像跨请求持久可见、PG 认证事实不被文件副本覆盖）
+- `tests/persistence/*`（repository/模型/迁移/对象存储/缓存原语；`tests/persistence/integration.py` 为真 PostgreSQL/Redis 集成车道，CI `backend-enterprise` job 执行）
 
 ## Related ADRs
 
 - ADR-0001 source-only 仓库（账户/运行数据不入库）
 - ADR-0002 运行数据统一 `NEXT_TUTOR_DATA_DIR`
+- [ADR-0010](../adr/0010-enterprise-persistence.md) 企业持久化栈（PostgreSQL/Object/Redis）
+- [ADR-0011](../adr/0011-tenant-rotating-sessions.md) 租户模型与轮换认证会话（含双写影子过渡偏差）

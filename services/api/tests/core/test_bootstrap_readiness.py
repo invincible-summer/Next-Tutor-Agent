@@ -176,6 +176,13 @@ class TestReadyEndpointContract(StorageSandboxTestCase):
         with patch.dict(os.environ, {"WEB_CONCURRENCY": "3"}):
             with self.assertRaises(RuntimeError):
                 create_app()
+        with patch.dict(os.environ, {"WEB_CONCURRENCY": "3", "DATABASE_URL": "postgresql://test.invalid/test"}):
+            with self.assertRaises(RuntimeError):
+                create_app()
+        for invalid in ("0", "-1", "not-a-number"):
+            with patch.dict(os.environ, {"WEB_CONCURRENCY": invalid}):
+                with self.assertRaises(RuntimeError):
+                    create_app()
         # 默认/1 正常创建
         with patch.dict(os.environ, {"WEB_CONCURRENCY": "1"}):
             create_app()

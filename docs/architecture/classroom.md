@@ -18,7 +18,7 @@
 | 路径 | 职责 |
 |------|------|
 | `classroom/service.py` | 领域服务入口（课程/版本/run 编排） |
-| `classroom/pipeline.py` + `worker.py` | 九阶段生成管线与进程内 job worker（检查点恢复、cancel/epoch、调度并发） |
+| `classroom/pipeline.py` + `worker.py` | 九阶段生成管线与 job worker（检查点恢复、cancel/epoch、调度并发）；文件模式由 API lifespan 持有，durable 模式（ADR-0013）随监督 workflow 移到 worker 进程 |
 | `classroom/llm_budget.py` / `llm_io.py` | 每课调用/token/deadline 预算账本与 LLM I/O（预留-结算、失败也记账） |
 | `classroom/sources.py` | 来源冻结（教材卷/章/页码 + source hash）、严格教材模式、会话附件勾选 |
 | `classroom/research/`（`tavily.py`） | 联网检索/提取唯一适配器（Tavily），`as_of` 时效元数据 |
@@ -74,6 +74,7 @@
 
 - 权限与健壮性：目录 0700 / 文件 0600；读路径不 mkdir；symlink 逃逸拒绝；损坏 JSON → `LessonDamagedError`（标记 damaged 隔离，不返回空课冒充正常）；任何写路径 OSError → `ClassroomStorageError`（全局 handler 返回 `storage_unavailable` envelope）。
 - 发布事务：staging → 逐文件 hash 校验 → manifest 最后写 → 同文件系统 rename → 课程锁内指针提交（commit intent 带 expected epoch）；崩溃后 `recover_pending_publish` 校验 manifest hash 再补指针。失败 revision 留空号永不复用；上限 20 版（`CLASSROOM_MAX_REVISIONS`）。
+- revision 分配在同一次 lesson 锁内 mutation 中检查 base revision/版本上限、读取 next_revision 并递增；API 与 durable worker 共享文件锁时也不会分配重复版本。生成失败留下的空号保持不复用。这个局部并发约束不代表全部业务存储已完成数据库多实例切换。
 - owner 级 tombstone（`.tombstones/`）在 purge 后拦截一切晚到写入。
 - 缓存治理：音频 owner 500MB / 7 天 LRU；导出 24h TTL。
 
@@ -87,6 +88,7 @@
 4. 容错与缓存：已生成页写 `author_slides_partial`（带输入/产物 hash），随堂题独立缓存，中断后复用匹配结果；写作 JSON 结构错误最多一次修复；单页 JSON 未闭合时用 `classroom_json_continue` 在原始证据上下文后续写缺失尾部（每页最多一次），拼接结果仍过 schema 与来源校验，失败不发布半页；模型暂时不可用时在既有阶段产物基础上有界自动续跑三轮，配置错误直接失败；`finish_reason=length` 空正文明确报输出耗尽，不自动重发。
 5. 内容复核（`LessonBrief.content_review_enabled`，默认 false）：开启时单次调用 reviewer，JSON 不额外修复，失败或预算不足记提示后继续发布；模型自报 blocker 只作为 major 建议，风格/时长不阻断生成。结构校验、来源授权、HTML escaping/CSP 与正式题答案私有存储始终保留。
 6. 手动重试（`POST …/jobs/{id}/retry`）：保留已校验阶段产物与目标 revision，`attempts` 加一，当前 `JobBudget` 合入 `prior_attempts_budget` 后账本置零开新窗口；自动恢复与 `continue` 不重置额度。重试可行性按持久化账本与未完成页数判断，额度不足不再入队空转；修订任务只重写一页时按一页估算。
+7. 执行位置（ADR-0013 双模式）：文件模式下 `ClassroomWorker` 由 API lifespan 启动，`service.enqueue_job` 钩子直连 `worker.enqueue`；配置 `TEMPORAL_ADDRESS` 后 API 只确保 `classroom.supervisor` 监督 workflow 存在（`app/workflows/classroom.py`，classroom 队列），worker 进程内的时间片 activity 启动同一 `ClassroomWorker` 并启用 adopt 模式——调度循环每 2s 扫描磁盘 queued job 补登记（事实源是 job.json），API 的 enqueue 钩子保持 None，lesson 创建/retry/continue 的 CAS 落盘后 ≤2s 被收养。检查点/预算/epoch/publish validation、`job_events` SSE 与 job 轮询 DTO 在两种模式下完全一致（ADR-0013 §13.4：Temporal 只保证「worker 进程在，调度就在」，不接管业务状态）。
 
 ### 来源、检索与图片
 
@@ -185,3 +187,4 @@
 - ADR-0002 运行数据统一 `NEXT_TUTOR_DATA_DIR`（`chat_history/classroom/` 单一根）
 - ADR-0003 BM25 基线 + 向量可选（来源证据 chunk 冻结走 BM25）
 - ADR-0004 single-worker（生成 job 为进程内 asyncio 任务，靠检查点与 reaper 恢复）
+- [ADR-0013](../adr/0013-durable-workflows.md) durable workflows（TEMPORAL_ADDRESS 配置后生成 worker 移交 worker 进程，检查点/预算/epoch 不变）

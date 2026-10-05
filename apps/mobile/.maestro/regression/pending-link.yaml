@@ -1,0 +1,26 @@
+appId: com.nexttutor.agent
+name: A protected deep link resumes after authentication
+tags: [regression, auth]
+---
+- runFlow: ../common/login.yaml
+- openLink: nexttutor:///me/account
+- tapOn: "退出登录|Sign out"
+- openLink: nexttutor:///learn/courses/${MAESTRO_MOBILE_E2E_LESSON_ID}?ws=${MAESTRO_MOBILE_E2E_WORKSPACE_ID}
+- extendedWaitUntil:
+    visible:
+      id: welcome-sign-in
+    timeout: 15000
+- tapOn:
+    id: welcome-sign-in
+- tapOn:
+    id: auth-email
+- inputText: ${MAESTRO_MOBILE_E2E_EMAIL}
+- tapOn:
+    id: auth-password
+- inputText: ${MAESTRO_MOBILE_E2E_PASSWORD}
+- hideKeyboard
+- tapOn:
+    id: auth-submit
+- extendedWaitUntil:
+    visible: ${MAESTRO_MOBILE_E2E_LESSON_TITLE}
+    timeout: 30000

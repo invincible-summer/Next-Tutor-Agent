@@ -53,6 +53,17 @@ SHARDS: dict[str, tuple[str, list[str]]] = {
     # The site assistant's lesson actions (generate/retry/export) run the
     # real classroom pipeline, so this shard needs the renderer toolchain.
     "supervisor": ("full", ["agents/supervisor", "agents/site_assistant"]),
+    # Enterprise persistence unit lane (sandboxed sqlite). The ephemeral
+    # PostgreSQL/Redis integration module skips itself unless the
+    # enterprise CI job provides TEST_DATABASE_URL/TEST_REDIS_URL.
+    "persistence": ("python", ["persistence"]),
+    # Observability hooks (request-id middleware, redaction, lazy tracing).
+    "observability": ("python", ["observability"]),
+    # Durable workflow lane (ADR-0013): config gate + worker entrypoint +
+    # deterministic workflow tests (temporalio bundles its test server).
+    # Real-server coverage in integration.py runs only in the Temporal CI
+    # job (TEST_TEMPORAL_ADDRESS).
+    "workflows": ("python", ["workflows"]),
 }
 
 def discover() -> dict[str, list[str]]:

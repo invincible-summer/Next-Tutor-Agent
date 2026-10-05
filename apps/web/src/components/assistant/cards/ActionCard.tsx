@@ -11,7 +11,7 @@ import { cn } from "@/lib/cn";
 import { useAssistantStore } from "@/lib/assistant/store";
 import { stringsFor } from "../strings";
 import { ActionPreviewCard } from "./ActionPreviewCard";
-import type { AssistantAction } from "@/lib/assistant/types.generated";
+import type { AssistantAction } from "@next-tutor/contracts/assistant";
 
 const STATE_LABEL_ZH: Record<string, string> = {
   proposed: "待执行", executing: "正在执行", awaiting_ack: "正在打开",

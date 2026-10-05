@@ -5,7 +5,7 @@
 // 最多 3 项有记录的现象；样本 <5 只列现象不排名；提案状态如实展示，
 // approved ≠ 已生效；impact_turns 只表示经过的教学轮次。
 import { useAssistantStore } from "@/lib/assistant/store";
-import type { TeachingReport } from "@/lib/assistant/types.generated";
+import type { TeachingReport } from "@next-tutor/contracts/assistant";
 
 const PROPOSAL_LABEL_ZH: Record<string, string> = {
   proposed: "待审批", approved: "已批准", applied: "已应用", rejected: "已拒绝",

@@ -40,8 +40,8 @@
 - 会话、任务和成功版本位于统一运行根 `illustrations/<owner>/{sessions,scenario_jobs,scenario_revisions,previews}`，使用文件锁与 `core/atomic.py`；与既有题图的 `jobs/runs/artifacts` 分开，不在浏览器持久化服务端成果，不进入版本库。
 - 只有成功生成才增加图片版本。每个成果冻结模式、需求和素材版本来源，历史成果不被重试覆盖；失败和进行中轮次保留既有图片。
 - 多轮输入结合基础版本所属的历史需求及其已有图稿，并保留当前轮要求；用户修改事实或对象会形成新合同及版本。
-- 进程重启后的无存活任务在读取时标记 `run_interrupted`，用户可显式重试；不静默重放模型调用。
-- 复用已登记的 illustrations 账户数据类别。账户删除提高 owner epoch 并取消场景和题图任务，迟到结果无法重建账户数据；单会话删除同样阻止迟到写入。
+- 进程重启后的无存活任务标记 `run_interrupted`，用户可显式重试；不静默重放模型调用。文件模式由读路径内联标记；durable 模式（`TEMPORAL_ADDRESS`，media 队列）由 job workflow 的 settle activity 兜底结算 + worker 启动对账（ADR-0013），轮询合同不变。
+- 复用已登记的 illustrations 账户数据类别。账户删除提高 owner epoch（磁盘化 tombstone，跨进程生效）并取消场景和题图任务（durable 模式 best-effort cancel 该 owner 在途 workflow），迟到结果无法重建账户数据；单会话删除同样先取消在途任务再落墓碑阻止迟到写入。
 
 ## Main flows
 

@@ -1,0 +1,16 @@
+appId: com.nexttutor.agent
+name: Find a synthetic source and use it in chat
+tags: [smoke, resources]
+---
+- runFlow: ../common/login.yaml
+- openLink: nexttutor:///library/resources
+- assertVisible: "教材与文件|Materials"
+- tapOn: "文件|Files"
+- tapOn: "搜索资料|Search materials"
+- inputText: ${MAESTRO_MOBILE_E2E_FILE_NAME}
+- hideKeyboard
+- tapOn: ${MAESTRO_MOBILE_E2E_FILE_NAME}
+- assertVisible: "资料详情|Material details"
+- tapOn: "设为学习来源|Use as a learning source"
+- tapOn: "带着资料提问|Ask about this"
+- assertVisible: "向老师提问，或描述你想学的内容…|Ask the tutor anything…"

@@ -1,62 +1,59 @@
-import { API_BASE } from "./api";
-import { apiFetch } from "./api-fetch";
-import type { IllustrationMode } from "./api-illustrations";
-import type { QuestionIllustrationData } from "./types";
+// 情景配图（工具助手）客户端：会话/轮次/任务方法与丢包恢复语义
+// （request_id 恢复、服务端终态为事实）在共享包 @next-tutor/api-client；
+// 本文件保留 Web 类型别名并把 typed 错误适配为 Web 既有错误类型。
+import type {
+  DeletedSessionAck,
+  IllustrationSessionList,
+  ScenarioTurn,
+  SelectedMaterialRef,
+  ToolIllustrationJob,
+} from "@next-tutor/contracts";
+import { IllustrationApiError } from "@next-tutor/api-client";
+import { apiClient } from "@/platform/api-client";
 
-export interface SelectedMaterialRef { asset_id: string; version: number }
-export type ToolIllustrationStatus = "queued" | "running" | "ready" | "failed";
-export interface IllustrationTurn {
-  turn_id: string; message: string; mode: IllustrationMode;
-  selected_materials: SelectedMaterialRef[]; job_id: string;
-  status: ToolIllustrationStatus; revision: number | null; created_at: number | string;
-  request_id?: string; source_revision?: number;
-}
-export interface IllustrationRevision {
-  revision: number; artifact_id: string; mode: IllustrationMode;
-  illustration: QuestionIllustrationData; created_at: number | string;
-}
-export interface IllustrationSessionSummary {
-  session_id: string; title: string; revision: number;
-  active_job_id: string | null; created_at: number | string; updated_at: number | string;
-}
-export interface IllustrationSession extends IllustrationSessionSummary {
-  turns: IllustrationTurn[]; revisions: IllustrationRevision[];
-}
-export interface ToolIllustrationJob {
-  job_id: string; session_id: string; turn_id: string; mode: IllustrationMode;
-  status: ToolIllustrationStatus; stage: string; progress: number; base_revision: number;
-  revision: number | null; artifact_id: string | null; illustration: QuestionIllustrationData | null;
-  selected_materials: SelectedMaterialRef[];
-  failure: { code: string; retryable: boolean } | null;
-  source_revision?: number;
-}
+export type {
+  DeletedSessionAck,
+  IllustrationSession,
+  IllustrationSessionList,
+  IllustrationSessionSummary,
+  ScenarioRevision as IllustrationRevision,
+  ScenarioTurn,
+  SelectedMaterialRef,
+  ToolIllustrationJob,
+} from "@next-tutor/contracts";
+
+export type IllustrationMode = ToolIllustrationJob["mode"];
+export type ToolIllustrationStatus = ToolIllustrationJob["status"];
+export type IllustrationTurn = ScenarioTurn;
+
 export class IllustrationToolError extends Error {
   constructor(readonly code: string, readonly status = 0) { super(code); this.name = "IllustrationToolError"; }
 }
-async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const response = await apiFetch(`${API_BASE}/tools/illustration${path}`, init);
-  const body = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    const detail = body.detail;
-    throw new IllustrationToolError(typeof detail === "string" ? detail : detail?.error?.code ?? detail?.code ?? `status_${response.status}`, response.status);
+
+function adapt(error: unknown): never {
+  if (error instanceof IllustrationApiError) {
+    throw new IllustrationToolError(error.code, error.status);
   }
-  return body as T;
+  throw error;
 }
-function json(body: unknown): RequestInit {
-  return { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) };
+
+function tools() {
+  return apiClient().tools.illustration;
 }
+
 export const listIllustrationSessions = (signal?: AbortSignal) =>
-  request<{ items: IllustrationSessionSummary[]; total: number }>("/sessions", { signal });
+  tools().listSessions(signal).catch(adapt) as Promise<IllustrationSessionList>;
 export const createIllustrationSession = (title = "", signal?: AbortSignal) =>
-  request<IllustrationSession>("/sessions", { ...json({ title }), signal });
+  tools().createSession(title, signal).catch(adapt);
 export const getIllustrationSession = (id: string, signal?: AbortSignal) =>
-  request<IllustrationSession>(`/sessions/${encodeURIComponent(id)}`, { signal });
+  tools().getSession(id, signal).catch(adapt);
 export const deleteIllustrationSession = (id: string, signal?: AbortSignal) =>
-  request<{ deleted: boolean }>(`/sessions/${encodeURIComponent(id)}`, { method: "DELETE", signal });
+  tools().deleteSession(id, signal).catch(adapt) as Promise<DeletedSessionAck>;
 export const startIllustrationTurn = (id: string, body: {
   message: string; mode: IllustrationMode; selected_materials: SelectedMaterialRef[]; base_revision: number; source_revision?: number; request_id: string;
-}, signal?: AbortSignal) => request<ToolIllustrationJob>(`/sessions/${encodeURIComponent(id)}/turns`, { ...json(body), signal });
+}, signal?: AbortSignal) =>
+  tools().submitTurn(id, body, signal).catch(adapt);
 export const getToolIllustrationJob = (id: string, signal?: AbortSignal) =>
-  request<ToolIllustrationJob>(`/jobs/${encodeURIComponent(id)}`, { signal });
+  tools().getJob(id, signal).catch(adapt);
 export const retryToolIllustrationJob = (id: string, signal?: AbortSignal) =>
-  request<ToolIllustrationJob>(`/jobs/${encodeURIComponent(id)}/retry`, { method: "POST", signal });
+  tools().retryJob(id, signal).catch(adapt);

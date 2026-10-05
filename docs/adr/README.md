@@ -19,3 +19,10 @@
 | [ADR-0005](./0005-synthetic-pages-demo.md) | Synthetic Pages demo | GitHub Pages 演示仅使用项目自制的 synthetic fixtures |
 | [ADR-0006](./0006-material-assisted-svg-authoring.md) | 素材参考 SVG 创作 | V3 允许加工、组合及自绘，实际 PNG 合并审核后兼容冻结发布 |
 | [ADR-0007](./0007-shared-illustration-tools.md) | 独立配图工具 | 配图引擎供测评与工具助手复用，情景配图支持选材与多轮版本 |
+| [ADR-0008](./0008-expo-react-native-mobile.md) | Expo/RN 单移动代码库 | 移动端唯一代码库走 Expo SDK 57 / RN 0.86，共享包起步，禁止复制 API |
+| [ADR-0009](./0009-root-monorepo-shared-packages.md) | 根 monorepo 共享包 | 根 pnpm workspace + 五个共享客户端包，契约生成单事实源 |
+| [ADR-0010](./0010-enterprise-persistence.md) | 企业持久化栈 | PostgreSQL/Object/Redis 企业模式，`DATABASE_URL` 门控，原多 worker 门控由 ADR-0014 收紧 |
+| [ADR-0011](./0011-tenant-rotating-sessions.md) | 租户与轮换会话 | tenant/membership + RS256 短 access/轮换 refresh 会话族，复用即撤族 |
+| [ADR-0012](./0012-cloud-speech-server-mediated.md) | 云语音服务端中转 | 服务端 STT/合成 REST 端点，Azure 凭证只在服务器；`/voice/ws` 兼容保留，MeloTTS 定位 self-hosted/dev 可选 |
+| [ADR-0013](./0013-durable-workflows.md) | Durable workflows | Temporal 承担后台长任务执行所有权，`TEMPORAL_ADDRESS` 门控双模式，域持久化仍是唯一事实源（取代 ADR-0004 的进程内任务持有部分） |
+| [ADR-0014](./0014-single-instance-until-domain-cutover.md) | 完整领域迁移前单实例 | DATABASE_URL 只接入身份基础设施，业务文件事实源仍须单 API 实例/worker |

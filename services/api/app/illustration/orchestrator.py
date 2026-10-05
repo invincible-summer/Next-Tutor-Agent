@@ -33,6 +33,57 @@ def stop_owner(owner: str):
                 pass
 
 
+def _dispatching() -> bool:
+    from app.workflows.illustration_common import dispatching
+    return dispatching()
+
+
+def _mark_interrupted(owner: str, current: dict, *, epoch_now: int) -> None:
+    current.update(status="failed", stage="failed",
+                   failure={"code": "run_interrupted", "retryable": True})
+    persistence.write(owner, "jobs", current["job_id"], current,
+                      expected_epoch=epoch_now)
+
+
+def _settle_interrupted(owner: str, job_id: str) -> str:
+    """把遗留 queued/running 记录结算为 run_interrupted（幂等，epoch 闸内）。
+
+    durable 模式下由 workflow 的 settle activity（worker 崩溃兜底）与
+    worker 启动对账调用；文件模式下 recover_job 内联同一逻辑。返回
+    ``settled|already-settled|fenced|gone``。
+    """
+    from app.core.atomic import file_lock
+    with file_lock(persistence.owner_dir(owner)):
+        current = persistence.read(owner, "jobs", job_id)
+        if current is None:
+            return "gone"
+        epoch_now = persistence.epoch(owner)
+        if current.get("owner_epoch", 0) != epoch_now:
+            return "fenced"
+        if current["status"] not in {"queued", "running"}:
+            return "already-settled"
+        _mark_interrupted(owner, current, epoch_now=epoch_now)
+        return "settled"
+
+
+def _dispatch_quiz_job(owner: str, job: dict) -> None:
+    """temporal 模式：把 job 交给 durable workflow（fire-and-forget）。"""
+    from app.workflows.illustration_quiz import start_quiz_job
+    from app.workflows.illustration_common import QuizIllustrationIntent
+
+    intent = QuizIllustrationIntent(owner=owner, job_id=job["job_id"])
+
+    async def _go() -> None:
+        try:
+            await start_quiz_job(intent)
+        except Exception:
+            # Temporal 不可达：直接结算中断（retryable），与文件模式
+            # 「任务消失 → 读路径标中断」保持同一用户可见语义。
+            _settle_interrupted(owner, job["job_id"])
+
+    asyncio.create_task(_go())
+
+
 def _implementation_versions(pipeline_mode):
     if pipeline_mode == "v3":
         from .v3 import PROMPT_VERSIONS as versions, V3_RENDERER_VERSION
@@ -299,15 +350,22 @@ def start_job(owner: str, contract, policy: str, *, llm=None, shadow=False, retr
                 existing.get("catalog_version") != catalog_version())
             if existing["status"] in {"ready", "not_required", "queued", "running"} or not (retry or stale_failure):
                 if existing["status"] in {"queued", "running"} and (str(root), existing["job_id"]) not in _running:
-                    existing.update(status="failed", stage="failed", failure={"code": "run_interrupted", "retryable": True})
-                    persistence.write(owner, "jobs", existing["job_id"], existing)
+                    if not _dispatching():
+                        existing.update(status="failed", stage="failed",
+                                        failure={"code": "run_interrupted", "retryable": True})
+                        persistence.write(owner, "jobs", existing["job_id"], existing)
+                    # durable 模式：无本地任务不是中断证据，结算责任在
+                    # workflow（settle activity / worker 启动对账）。
                 return existing
         if policy == "off":
             raise IllustrationError("policy_disabled")
         job = _new_job(contract, policy, shadow=shadow, pipeline_mode=pipeline_mode)
         job["owner_epoch"] = persistence.epoch(owner)
         persistence.stage(owner, job, "created")
-        _running[(str(root), job["job_id"])] = asyncio.create_task(_run(owner, job, llm))
+        if _dispatching():
+            _dispatch_quiz_job(owner, job)
+        else:
+            _running[(str(root), job["job_id"])] = asyncio.create_task(_run(owner, job, llm))
         return job
 
 
@@ -320,9 +378,11 @@ def recover_job(owner, job):
             raise IllustrationError("policy_disabled")
         key = (str(root), current["job_id"])
         if current["status"] in {"queued", "running"} and key not in _running:
-            current.update(status="failed", stage="failed", failure={"code": "run_interrupted", "retryable": True})
-            persistence.write(owner, "jobs", current["job_id"], current,
-                expected_epoch=persistence.epoch(owner))
+            if _dispatching():
+                # durable 模式：job 由 worker 进程执行，「不在本进程 _running」
+                # 不是中断证据——结算由 workflow 兜底，读路径只返回现状。
+                return current
+            _mark_interrupted(owner, current, epoch_now=persistence.epoch(owner))
         return current
 
 

@@ -15,7 +15,7 @@ import { TeachingReportCard } from "./cards/TeachingReportCard";
 import { ChoiceCard } from "./cards/ChoiceCard";
 import { MetricsCard } from "./cards/MetricsCard";
 import { NoticeCard } from "./cards/NoticeCard";
-import type { AssistantMessage, AssistantBlock } from "@/lib/assistant/types.generated";
+import type { AssistantMessage, AssistantBlock } from "@next-tutor/contracts/assistant";
 
 function BlockView({ block }: { block: AssistantBlock }) {
   switch (block.type) {

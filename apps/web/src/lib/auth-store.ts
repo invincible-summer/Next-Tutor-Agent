@@ -1,12 +1,12 @@
 "use client";
 import { create } from "zustand";
-import { API_BASE } from "./api";
 import { clearAllDrafts } from "./chat-drafts";
 import { useChatStore, useEvaluationCacheStore } from "./store";
 import { endGuestSession } from "./guest-session";
 import { clearQuizAnswerDrafts } from "./quiz-drafts";
-import { apiFetch } from "./api-fetch";
-import { DEMO_MODE, DEMO_TOKEN_KEY } from "./demo";
+import { createBrowserClient } from "@/platform/api-client";
+import { clearToken, getToken, setToken } from "@/platform/token";
+import { UnauthorizedError } from "@next-tutor/api-client";
 
 // --- types ------------------------------------------------------------------
 
@@ -46,39 +46,9 @@ interface AuthState {
   fetchMe: () => Promise<void>;
 }
 
-const TOKEN_KEY = DEMO_MODE ? DEMO_TOKEN_KEY : "edu-agent-token";
-
-// --- helpers ----------------------------------------------------------------
-
-function getToken(): string | null {
-  if (typeof window === "undefined") return null;
-  return localStorage.getItem(TOKEN_KEY);
-}
-
-function setToken(token: string) {
-  if (typeof window !== "undefined") localStorage.setItem(TOKEN_KEY, token);
-}
-
-function clearToken() {
-  if (typeof window !== "undefined") localStorage.removeItem(TOKEN_KEY);
-}
-
-/** Build the Authorization header object from the stored token. */
-export function authHeaders(): Record<string, string> {
-  const token = getToken();
-  return token ? { Authorization: `Bearer ${token}` } : {};
-}
-
-/** fetch wrapper that injects the Authorization header. */
-export async function authFetch(input: string, init?: RequestInit): Promise<Response> {
-  if (DEMO_MODE) return apiFetch(input, init);
-  const headers: Record<string, string> = {
-    ...(init?.headers as Record<string, string>),
-  };
-  const token = getToken();
-  if (token) headers["Authorization"] = `Bearer ${token}`;
-  return fetch(input, { ...init, headers });
-}
+// hydrate 路径自带清理联动，使用无 401 事件钩子的客户端实例，避免与
+// clearAuth 重复处理。
+const authClient = createBrowserClient({ withUnauthorizedHook: false });
 
 // --- store ------------------------------------------------------------------
 
@@ -113,14 +83,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
   logout: () => {
     // Best-effort server logout (stateless JWT -- mainly client-side discard).
-    authFetch(`${API_BASE}/auth/logout`, { method: "POST" }).catch(() => {});
+    authClient.auth.logout().catch(() => {});
     get().clearAuth();
   },
   fetchStatus: async () => {
     try {
-      const res = await apiFetch(`${API_BASE}/auth/status`, { cache: "no-store" });
-      if (!res.ok) throw new Error("status_unavailable");
-      const data = await res.json();
+      const data = await authClient.auth.status();
       const allowed = data.guest_allowed === true;
       set({ authRequired: !allowed, guestAllowed: allowed, statusLoaded: true });
       if (!allowed) endGuestSession();
@@ -136,19 +104,14 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       return;
     }
     try {
-      const res = await authFetch(`${API_BASE}/auth/me`);
-      if (res.ok) {
-        const data = await res.json();
-        if (getToken() !== token) return;
-        if (get().user && get().user?.id !== data.user.id) get().setAuth(token, data.user);
-        set({ token, user: data.user, loaded: true });
-      } else {
-        if (getToken() !== token) return;
-        // token expired or invalid
-        get().clearAuth();
-        set({ loaded: true });
-      }
-    } catch {
+      const data = await authClient.auth.me<AuthUser>();
+      if (getToken() !== token) return;
+      if (get().user && get().user?.id !== data.user.id) get().setAuth(token, data.user);
+      set({ token, user: data.user, loaded: true });
+    } catch (error) {
+      if (getToken() !== token) return;
+      // 仅明确的 401 清会话；网络失败保持现状（与旧契约一致）。
+      if (error instanceof UnauthorizedError) get().clearAuth();
       set({ loaded: true });
     }
   },

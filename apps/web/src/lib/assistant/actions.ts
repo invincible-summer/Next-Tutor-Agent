@@ -19,7 +19,7 @@ import type {
   ClassroomQuestionCommand,
   PageCommand,
   PageCommandResult,
-} from "./types.generated";
+} from "@next-tutor/contracts/assistant";
 
 /** 每标签页一个稳定 client_instance_id（§9.6，sessionStorage）。 */
 export function clientInstanceId(): string {

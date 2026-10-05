@@ -131,16 +131,21 @@ class LearnerEvaluationService:
                          input_hash: str, prompt_binding: str,
                          generation: str,
                          included_refs: list[str] | None = None,
-                         truncations: list[str] | None = None) -> None:
+                         truncations: list[str] | None = None,
+                         lease_token: str | None = None) -> None:
         """R16：随输入指纹保存最小可复现清单（引用 ID 与裁剪说明，
         不含正文副本）。"""
-        get_journal(student_id).append(
-            [S.OpJobInputPrepared(job_id=job_id, input_hash=input_hash,
-                                  prompt_binding=prompt_binding,
-                                  generation=generation,
-                                  included_refs=included_refs or [],
-                                  truncations=truncations or [])],
-            expected_generation=generation)
+        journal = get_journal(student_id)
+        with journal.transaction(expected_generation=generation):
+            if lease_token is not None:
+                self.validate_lease(student_id, job_id, lease_token)
+            journal.append(
+                [S.OpJobInputPrepared(job_id=job_id, input_hash=input_hash,
+                                      prompt_binding=prompt_binding,
+                                      generation=generation,
+                                      included_refs=included_refs or [],
+                                      truncations=truncations or [])],
+                expected_generation=generation)
 
     # ------------------------------------------------------------------
     def commit_result(
@@ -157,43 +162,33 @@ class LearnerEvaluationService:
             outbox: list[dict[str, Any]] | None = None,
     ) -> CommitOutcome:
         """提交语义结果（§6.4：校验 + 单事务落盘）。"""
-        ops, outcome = self.build_commit_operations(
-            student_id, job_id=job_id, lease_token=lease_token,
-            expected_generation=expected_generation, source=source,
-            pack=pack, task=task, interpretation=interpretation,
-            task_result=task_result, continuation=continuation,
-            expected_scope_revision=expected_scope_revision,
-            expected_base_judgments=expected_base_judgments,
-            expected_base_judgment_ids=expected_base_judgment_ids,
-            outbox=outbox)
-        get_journal(student_id).append(ops,
-                                       expected_generation=expected_generation)
-        return outcome
-
-    def build_commit_operations(
-            self, student_id: str, *,
-            job_id: str, lease_token: str, expected_generation: str,
-            source: S.SourceReceipt, pack: S.EvaluationContextPack,
-            task: S.TaskSnapshot | None,
-            interpretation: S.LearnerInterpretation | None,
-            task_result: S.TaskResult | None = None,
-            continuation: S.ContinuationAction | None = None,
-            expected_scope_revision: str | None = None,
-            expected_base_judgments: dict[str, list[S.ClaimView]] | None = None,
-            expected_base_judgment_ids: dict[str, str] | None = None,
-            outbox: list[dict[str, Any]] | None = None,
-    ) -> tuple[list[Any], CommitOutcome]:
-        """构造 result_committed 操作（含全部 R05 CAS 校验）但不落盘。
-
-        R06：复核 revise 需要把替代解释、TaskResult、判断、复核决定与
-        job 终态放进**同一个事务**，由调用方组合后一次 append。硬校验
-        失败抛 CommitRejected，不产生新能力结论。"""
         journal = get_journal(student_id)
-        # lease：旧 worker/超时回包不能提交（§6.5）
+        with journal.transaction():
+            ops, outcome = self.build_commit_operations(
+                student_id, job_id=job_id, lease_token=lease_token,
+                expected_generation=expected_generation, source=source,
+                pack=pack, task=task, interpretation=interpretation,
+                task_result=task_result, continuation=continuation,
+                expected_scope_revision=expected_scope_revision,
+                expected_base_judgments=expected_base_judgments,
+                expected_base_judgment_ids=expected_base_judgment_ids,
+                outbox=outbox)
+            # Recheck clock-based expiry immediately before the durable append.
+            self.validate_lease(student_id, job_id, lease_token)
+            journal.append(ops, expected_generation=expected_generation)
+            return outcome
+
+    def validate_lease(self, student_id: str, job_id: str,
+                       lease_token: str) -> None:
+        """提交事务内检查当前租约；返回后必须仍持 journal 锁。"""
         if not self.scheduler.lease_valid(student_id, job_id, lease_token):
             raise CommitRejected([V.ValidationIssue(
                 "stale_lease", "lease 无效或已过期，结果不予提交", V.HARD)])
-        state = journal.state()
+
+    def validate_source(self, student_id: str, source: S.SourceReceipt, *,
+                        expected_scope_revision: str | None = None) -> str:
+        """同步提交校验；调用方须持 journal.transaction 到 append 完成。"""
+        state = get_journal(student_id).state()
         # source 可用性与当前版本（R05：以 journal 当前事实为准，不信任
         # 调用方内存中的 receipt 副本）
         src_state = state.sources.get(source.source_id)
@@ -220,7 +215,9 @@ class LearnerEvaluationService:
                     "workspace_gone", "工作区已删除/失效，结果不予提交",
                     V.HARD)])
             frozen_scope = expected_scope_revision or source.scope_revision
-            if frozen_scope and current_scope_revision != frozen_scope:
+            journal_scope = state.workspace_scopes.get(workspace_id, "")
+            if frozen_scope and (current_scope_revision != frozen_scope
+                                 or (journal_scope and journal_scope != frozen_scope)):
                 raise CommitRejected([V.ValidationIssue(
                     "scope_changed",
                     f"scope revision 已变化（{frozen_scope} → "
@@ -229,6 +226,33 @@ class LearnerEvaluationService:
             raise CommitRejected([V.ValidationIssue(
                 "workspace_gone", "来源已无工作区绑定，结果不予提交",
                 V.HARD)])
+        return workspace_id
+
+    def build_commit_operations(
+            self, student_id: str, *,
+            job_id: str, lease_token: str, expected_generation: str,
+            source: S.SourceReceipt, pack: S.EvaluationContextPack,
+            task: S.TaskSnapshot | None,
+            interpretation: S.LearnerInterpretation | None,
+            task_result: S.TaskResult | None = None,
+            continuation: S.ContinuationAction | None = None,
+            expected_scope_revision: str | None = None,
+            expected_base_judgments: dict[str, list[S.ClaimView]] | None = None,
+            expected_base_judgment_ids: dict[str, str] | None = None,
+            outbox: list[dict[str, Any]] | None = None,
+    ) -> tuple[list[Any], CommitOutcome]:
+        """构造 result_committed 操作（含全部 R05 CAS 校验）但不落盘。
+
+        R06：复核 revise 需要把替代解释、TaskResult、判断、复核决定与
+        job 终态放进**同一个事务**。组合提交的调用方必须在同一个
+        journal.transaction 内调用本方法并 append（单独构造不是持久
+        CAS）；不跨 await。硬校验失败抛 CommitRejected。"""
+        journal = get_journal(student_id)
+        # lease：旧 worker/超时回包不能提交（§6.5）
+        self.validate_lease(student_id, job_id, lease_token)
+        state = journal.state()
+        workspace_id = self.validate_source(
+            student_id, source, expected_scope_revision=expected_scope_revision)
         # 基线判断 CAS（R05）：pack 构建时冻结的 judgment_id 必须仍是当前值
         if expected_base_judgment_ids:
             for key, expected_jid in expected_base_judgment_ids.items():

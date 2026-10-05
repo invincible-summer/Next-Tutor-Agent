@@ -11,6 +11,7 @@ from .deps import _try_user_from_header
 _PUBLIC = {
     ("GET", "/health"), ("GET", "/ready"), ("GET", "/model-info"),
     ("GET", "/auth/status"), ("POST", "/auth/login"), ("POST", "/auth/register"),
+    ("POST", "/auth/refresh"),
     ("GET", "/docs/content"), ("GET", "/docs/show"),
 }
 _GUEST = {
@@ -28,9 +29,9 @@ def authentication_error(code: str = "authentication_required") -> HTTPException
                          headers={"WWW-Authenticate": "Bearer", "Cache-Control": "no-store"})
 
 
-def require_api_access(request: HTTPConnection, response: Response,
-                       authorization: str | None = Header(default=None),
-                       x_guest_token: str | None = Header(default=None)) -> None:
+async def require_api_access(request: HTTPConnection, response: Response,
+                             authorization: str | None = Header(default=None),
+                             x_guest_token: str | None = Header(default=None)) -> None:
     path = request.url.path.removeprefix("/api/v1").rstrip("/") or "/"
     # Voice sockets validate their one-time login ticket before accepting.
     if request.scope["type"] == "websocket":
@@ -41,7 +42,7 @@ def require_api_access(request: HTTPConnection, response: Response,
         return
     if (method, path) in _PUBLIC or (method == "GET" and path.startswith("/docs/show/pages/")):
         return
-    user = _try_user_from_header(authorization)
+    user = await _try_user_from_header(authorization)
     request.state.identity_user = user
     if user is not None:
         return

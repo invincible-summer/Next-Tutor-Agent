@@ -1,0 +1,23 @@
+# Local trace sink: receive OTLP (grpc 4317 / http 4318), print to stdout.
+# Enough to exercise the backend's lazy OTel wiring end-to-end locally; real
+# deployments point OTEL_EXPORTER_OTLP_ENDPOINT at their own collector.
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+
+processors:
+  batch: {}
+
+exporters:
+  debug: {}
+
+service:
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [debug]

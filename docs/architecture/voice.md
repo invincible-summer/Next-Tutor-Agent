@@ -1,14 +1,15 @@
-# voice — 电话式语音对话（浏览器 Speech Recognition + MeloTTS）
+# voice — 语音对话与服务端语音（浏览器识别 + MeloTTS + 服务端 STT/TTS）
 
-以「电话通话」形态在聊天页提供语音对话：push-to-talk 输入由浏览器原生 `SpeechRecognition` 识别，后端只接收最终文本并复用普通聊天轮；回答经子句切分与 TTS 流水线以 PCM16 顺序下发，同时驱动板书黑板。本模块同时拥有跨模块共享的统一 TTS service（课堂/站内助手复用）与 MeloTTS sidecar。
+以「电话通话」形态在聊天页提供语音对话：push-to-talk 输入由浏览器原生 `SpeechRecognition` 识别，后端只接收最终文本并复用普通聊天轮；回答经子句切分与 TTS 流水线以 PCM16 顺序下发，同时驱动板书黑板。本模块同时拥有跨模块共享的统一 TTS service（课堂/站内助手复用）、MeloTTS sidecar，以及服务端中转的云语音（STT 转写 + 受控合成，ADR-0012）。
 
 ## Purpose / Scope（职责与边界）
 
-- 输入：浏览器 STT 是唯一输入路径；后端不接收电话输入 PCM，不安装、不加载、不启动任何 STT 引擎；WebSocket 只接收 `utterance_end.text`，语音文本进入既有 `run_turn`，与普通聊天共用会话、记忆、RAG、工具和持久化。
+- Web 电话输入：浏览器 STT 是 Web 语音通话的唯一输入路径；`/voice/ws` 不接收输入 PCM，不安装、不加载、不启动任何本地 STT 引擎；WebSocket 只接收 `utterance_end.text`，语音文本进入既有 `run_turn`，与普通聊天共用会话、记忆、RAG、工具和持久化。
+- 服务端语音（移动端，ADR-0012）：`/api/v1/speech/*` 提供云端 STT（Azure REST，凭证只在服务器）与受控合成；转写音频只在内存过一道校验，不落存储、不回传原始音频；移动端语音流为「录音 → /speech/transcriptions → 既有 chat stream → 按句 /speech/synthesis」。
 - 输出：回答按子句级切片，MeloTTS sidecar 逐片合成 WAV、后端转 PCM16 下发；前端按采样率 FIFO 顺序播放并可随时停止播报；表格不逐格朗读，改为口播引导语 + 整块 markdown 上黑板（`board_table`）。
-- 统一 TTS service：`voice/tts/service.py` 集中 provider 配置、能力、健康与跨电话/课堂的共享并发保护；课堂与站内助手的语音都经它解析音色与 provider（见 [classroom.md](./classroom.md)、[site-assistant.md](./site-assistant.md)）。
-- MeloTTS sidecar：`services/voice/` 独立 FastAPI 进程承载本地 CPU 合成。
-- 不负责：聊天轮语义（见 [conversation.md](./conversation.md)）；课堂段级音频缓存策略（属课堂模块）；浏览器 STT 本身的可用性（厂商平台/服务边界）。
+- 统一 TTS service：`voice/tts/service.py` 集中 provider 配置、能力、健康与跨电话/课堂的共享并发保护；课堂与站内助手的语音都经它解析音色与 provider（见 [classroom.md](./classroom.md)、[site-assistant.md](./site-assistant.md)）；统一 STT service（`voice/stt/service.py`）与 TTS 共享 Azure 凭证与云端并发闸。
+- MeloTTS sidecar：`services/voice/` 独立 FastAPI 进程承载本地 CPU 合成，定位为 self-hosted/本地开发可选组件（ADR-0012）。
+- 不负责：聊天轮语义（见 [conversation.md](./conversation.md)）；课堂段级音频缓存策略（属课堂模块）；浏览器 STT 本身的可用性（厂商平台/服务边界）；产品能力聚合的域内判定（各域自持，聚合端点只做归一化）。
 
 ## Owned code（拥有的代码路径）
 
@@ -17,7 +18,13 @@
 | 路径 | 职责 |
 |------|------|
 | `api/v1/voice.py` | `GET /voice/status`、`POST /voice/ticket`（限流 30）、`/voice/ws` WebSocket 会话（一次凭证建连、`_run_turn` 合成流水线、`_resolve_tts_speed`） |
+| `api/v1/speech.py` | 服务端语音 REST（ADR-0012）：`GET /speech/capabilities`、`POST /speech/transcriptions`（multipart 服务端校验 + provider 调用，限流 20/min）、`POST /speech/synthesis`（受控参数合成 WAV，限流 60/min）；三端点均要求认证用户 |
+| `api/v1/capabilities.py` | `GET /api/v1/capabilities` 产品能力聚合（chat/upload/classroom/cloud_stt/cloud_tts/assistant/illustration.*/diagram.materials + 稳定 reason code）；判定复用各域函数，零复制 |
 | `voice/base.py` | TTS provider contract、`VoiceProviderError`、`TTSResult` |
+| `voice/stt/base.py` | STT provider contract：`STTProvider`/`STTResult`/`STTCapabilities` 与 STT 错误族（继承 `VoiceProviderError` 语义） |
+| `voice/stt/service.py` | 统一 STT service：provider 工厂（`SPEECH_STT_PROVIDER=off/stub/azure/auto`，auto 不伪可用）、与 TTS 共享云端并发闸、能力只读投影 |
+| `voice/stt/azure.py` | Azure Speech REST STT（批准域 endpoint、格式白名单、401/403 不重试、429 Retry-After 单次重试、`RecognitionStatus != Success` 绝不伪成功） |
+| `voice/stt/stub.py` | 确定性转写 stub（端到端联调/测试） |
 | `voice/tts/service.py` | 统一 TTS service：provider 工厂（off/stub/melo/azure/auto）、云/Melo 共享信号量、`resolve_classroom_tts` 与课堂/助手共用的通用档案解析、Azure voices 缓存与音色 allowlist |
 | `voice/tts/stub.py` / `melotts.py` / `azure.py` | 回归 stub / localhost HTTP 调 MeloTTS sidecar / Azure Speech REST（SSML、音色校验） |
 | `voice/sentences.py` | 流式子句切分 `take_speech_cuts`（数学/表格不可切区、弱标点与硬上限） |
@@ -26,7 +33,7 @@
 
 Sidecar `services/voice/`：`app.py`（`GET /health`、`POST /tts`，请求 `{"text","speed"}` 返回 44.1 kHz WAV）、`melo_bootstrap.py`（固定 revision MeloTTS 引导：非中文 cleaner/BERT backend 用 fail-loud stubs，定向屏蔽固定依赖栈的两条 FutureWarning）、`requirements.txt`；`vendor/`、`models/`、`.venv/` 均为部署期产物、gitignored（ADR-0001）。
 
-部署：`deploy/install_voice.sh`（CPU-only PyTorch、中文 MeloTTS 直接运行依赖、固定 revision 源码、模型缓存与一次中文 warmup）、`deploy/edu-voice-sidecar.service`、`scripts/dev/start.sh::start_voice_sidecar`（启动判定、端口回退 8130–8132、PID 与 90s 健康检查）。
+部署：`deploy/self-hosted/install_voice.sh`（CPU-only PyTorch、中文 MeloTTS 直接运行依赖、固定 revision 源码、模型缓存与一次中文 warmup）、`deploy/self-hosted/edu-voice-sidecar.service`、`scripts/dev/start.sh::start_voice_sidecar`（启动判定、端口回退 8130–8132、PID 与 90s 健康检查）。
 
 前端 `apps/web/src/`：`lib/voice/useVoiceCall.ts`（通话状态机与 WS 客户端）、`lib/voice/browser-recognition.ts`（浏览器识别封装）、`components/chat/VoiceCallLayer.tsx`（通话 UI、板书黑板与播放 FIFO）。许可声明见 `docs/VOICE_LICENSES.md` 与 `THIRD-PARTY-NOTICES.md`。
 
@@ -57,9 +64,20 @@ C→S {"type":"end"}  S→C {"type":"bye"}
 - 呈现等价：通话中的消息流与文字轮一样渲染题目卡与知识检索命中来源卡（工具载荷完整透传）；LLM 通道瞬时故障经 `retry` 事件告知前端，与文字聊天的重试语义一致。
 - 个人语速：`profile.prefs.tts_speed`（设置页 `/settings?section=voice` 滑杆 0.5–1.5，经 `PUT /user/profile` 浅合并落盘）；WS 建连时按身份解析并夹取到 sidecar 合法区间 0.5–2.0（非法值/游客回落实例默认 `VOICE_TTS_SPEED`），逐片 `synthesize(chunk, speed=…)` 覆盖，修改后下次拨号生效（每连接解析一次）。
 
+### 服务端语音 REST（ADR-0012，`api/v1/speech.py`）
+
+- `GET /api/v1/speech/capabilities`：STT（available/reason/provider 类别名/languages/formats/limits）与 synthesis（复用统一 TTS service 投影）两块；零网络请求、零凭证回显；契约进 OpenAPI 快照（`packages/contracts`）。
+- `POST /api/v1/speech/transcriptions`：multipart `file` + `duration_ms` + `language`；服务端依次校验 provider 可用（503 `stt_unavailable`）→ 格式白名单（415 `audio_format_rejected`）→ 时长声明（400 `audio_too_long`）→ 大小（400 `audio_too_large`）→ 空音频（400 `audio_empty`），通过后调用 provider；返回 `{text, language, duration_ms, provider_class}`；限流 20/min，要求认证。
+- `POST /api/v1/speech/synthesis`：受控 `text(≤2000)/language(zh|en)/voice_id/speed(0.5–2.0)/policy/allow_local_fallback`；音色仅来自管理员批准集合（复用 `resolve_tts_profile`，不复制判定）；返回 `audio/wav`（`X-Sample-Rate`/`X-Voice-Id`/`Cache-Control: no-store`）；限流 60/min，要求认证。
+- provider 错误映射：`stt_config`/`stt_transient`/`tts_*` → 503；`stt_rate_limited`/`tts_rate_limited` → 429。
+
+### 产品能力聚合（`api/v1/capabilities.py`）
+
+- `GET /api/v1/capabilities`：每项 `{available, reason}`（稳定 code，如 `model_not_configured`/`classroom_disabled`/`classroom_guest_denied`/`stt_disabled`/`stt_not_configured`/`cloud_tts_not_configured`/`assistant_disabled`）；判定来源：LLM 配置、`classroom.capabilities.user_allowed`、`site_assistant.capabilities`、tts/stt service——聚合层零复制；只读无状态（登录或游客 token 可读，匿名裸请求按 api 访问边界 401）。
+
 ## State & storage（状态与存储布局，含 runtime data 路径）
 
-- 服务端无录音、无输入 PCM 缓冲、无 STT 状态；旧语音识别包与繁简转换数据已移除。ticket 为一次性内存凭证。
+- 服务端无录音、无输入 PCM 缓冲、无 STT 状态；旧语音识别包与繁简转换数据已移除。ticket 为一次性内存凭证。`/speech/transcriptions` 的音频只在内存中过校验与 provider 调用，不落运行数据根（无新每用户存储根）。
 - 语音轮与普通聊天共用会话持久化（转写与回答写入现有 chat store，见 [conversation.md](./conversation.md)）。
 - 个人设置 `prefs.tts_speed` 落在账号 profile；板书/通话 UI 状态只在浏览器内存。
 - Sidecar 模型与源码缓存（`services/voice/vendor|models|.venv`）是部署产物，不属于用户运行数据，全部 gitignored。
@@ -111,7 +129,7 @@ C→S {"type":"end"}  S→C {"type":"bye"}
 
 ## Invariants / security boundaries（不变量与安全边界）
 
-- **无服务器 STT 铁律**：后端不接收输入 PCM、不装任何识别引擎；二进制上行一律 `binary_audio_unsupported`。浏览器 STT 是厂商平台/服务边界，不是本项目 MIT 发行物——不能承诺永久免费或无条件商用。
+- **输入路径分界**：`/voice/ws` 仍不接收输入 PCM——二进制上行一律 `binary_audio_unsupported`，Web 电话的识别只属浏览器（厂商平台/服务边界，不是本项目 MIT 发行物，不能承诺永久免费或无条件商用）；服务端 STT 只经 `/speech/transcriptions` 的受控 multipart（白名单格式/大小/时长 + 认证 + 限流 + 与 TTS 共享的云端并发闸），Azure 凭证只在服务器，移动包/EAS env 不得携带任何 Speech secret（ADR-0012）。
 - 单连接单轮（`busy`）；每轮至多一个在途 sidecar 请求（单 worker + Melo 全局信号量 1）；`seq` 严格递增；帧级完整、`turn_end` 在最后一帧音频之后。
 - TTS fail-open：sidecar 失败保留文字回答并发 `tts_error`，绝不阻塞或丢失回答。
 - 内存边界：合成队列刻意无界但只存句子文本（受回答 max_tokens 封顶，量级几 KB），PCM 音频从不入队；每片 WAV 后处理经 `asyncio.to_thread` 移出事件循环，不阻塞其他用户的流。
@@ -126,10 +144,11 @@ C→S {"type":"end"}  S→C {"type":"bye"}
 | `VOICE_TTS_PROVIDER` | `off` | 电话 TTS provider：`off/stub/melo/azure/auto`；`melo`/`auto` 触发启动脚本拉起 sidecar |
 | `VOICE_TTS_BASE_URL` | `http://127.0.0.1:8130` | MeloTTS sidecar 地址（localhost；启动脚本端口回退 8130–8132 时自动指向选中端口） |
 | `VOICE_TTS_SPEED` | `0.9` | 实例默认语速（略慢于原速）；个人 `prefs.tts_speed` 0.5–1.5 覆盖，夹取区间 0.5–2.0 |
-| `AZURE_SPEECH_KEY`/`AZURE_SPEECH_REGION`/`AZURE_SPEECH_ENDPOINT` | — | 电话/课堂云端 TTS（`azure`/`auto`） |
-| `CLASSROOM_TTS_CLOUD_CONCURRENCY` | `2` | 共享云端合成并发（电话与课堂共用） |
+| `SPEECH_STT_PROVIDER` | `off` | 服务端 STT（`/speech/transcriptions`）：`off/stub/azure/auto`；`auto` 仅在 `AZURE_SPEECH_*` 齐备时解析为 azure，否则关闭（不伪可用） |
+| `AZURE_SPEECH_KEY`/`AZURE_SPEECH_REGION`/`AZURE_SPEECH_ENDPOINT` | — | 电话/课堂云端 TTS 与服务端 STT 共用（endpoint 仅限 `*.api.cognitiveservices.azure.com` 批准域） |
+| `CLASSROOM_TTS_CLOUD_CONCURRENCY` | `2` | 共享云端合成/转写并发（电话、课堂与服务端 STT 共用） |
 
-Sidecar 启动判定（`scripts/dev/start.sh`，任一成立即启动）：`VOICE_TTS_PROVIDER=melo|auto`；或 `CLASSROOM_ENABLED=1` 且 `CLASSROOM_LOCAL_TTS_ENABLED=1` 且课堂策略为 local/auto（cloud 时须 `CLASSROOM_TTS_LOCAL_FALLBACK=1`）。venv 缺失时 fail-open：只提示 `bash deploy/install_voice.sh`，语音降级为文字路径，绝不临时安装大型模型。
+Sidecar 启动判定（`scripts/dev/start.sh`，任一成立即启动）：`VOICE_TTS_PROVIDER=melo|auto`；或 `CLASSROOM_ENABLED=1` 且 `CLASSROOM_LOCAL_TTS_ENABLED=1` 且课堂策略为 local/auto（cloud 时须 `CLASSROOM_TTS_LOCAL_FALLBACK=1`）。venv 缺失时 fail-open：只提示 `bash deploy/self-hosted/install_voice.sh`，语音降级为文字路径，绝不临时安装大型模型。
 
 ## Observability（trace/日志/指标）
 
@@ -140,7 +159,7 @@ Sidecar 启动判定（`scripts/dev/start.sh`，任一成立即启动）：`VOIC
 
 ## Tests / acceptance（测试索引）
 
-- `services/api/tests/voice/`（约 90 用例）：`test_sentence_splitting.py`（弱标点/硬上限/数学与表格不可切区/流式余量）、`test_speak_text.py`（朗读清洗与公式口语化）、`test_speakable_chunks.py`、`test_wav_helpers.py`（TTS WAV 解码、响度归一）、`test_websocket.py`（ticket 与鉴权、会话所有权、会话持久化与 TTS fail-open；使用 stub TTS + canned `run_turn`，所有走 turn 的测试必须 patch `get_llm`/`_build_tools`，覆盖 `status` 固定 `stt=browser`、无 PCM 的 `utterance_end.text` 全链路、`empty_transcript`、`binary_audio_unsupported`、`busy`、坏 ticket / header 直连 / 外来会话 / `end` 语义）、`test_tts_speed.py`（语速）。
+- `services/api/tests/voice/`（约 130 用例）：`test_sentence_splitting.py`（弱标点/硬上限/数学与表格不可切区/流式余量）、`test_speak_text.py`（朗读清洗与公式口语化）、`test_speakable_chunks.py`、`test_wav_helpers.py`（TTS WAV 解码、响度归一）、`test_websocket.py`（ticket 与鉴权、会话所有权、会话持久化与 TTS fail-open；使用 stub TTS + canned `run_turn`，所有走 turn 的测试必须 patch `get_llm`/`_build_tools`，覆盖 `status` 固定 `stt=browser`、无 PCM 的 `utterance_end.text` 全链路、`empty_transcript`、`binary_audio_unsupported`、`busy`、坏 ticket / header 直连 / 外来会话 / `end` 语义）、`test_tts_speed.py`（语速）、`test_stt_speech.py`（Azure STT 错误分类/批准域/解析不伪成功；service 解析 off/stub/azure/auto；speech 端点 multipart 校验与 stub 端到端；合成 WAV 与受控参数；能力聚合 reason code——platform 分片）。
 - `services/api/tests/test_voice_azure.py`：Azure provider 与统一 TTS service（音色 allowlist、共享并发、档案解析）回归。
 - 浏览器：`apps/web/tests/e2e/voice-smoke.spec.ts`（通话 UI、板书黑板与 drain 收尾冒烟）。
 
@@ -148,3 +167,4 @@ Sidecar 启动判定（`scripts/dev/start.sh`，任一成立即启动）：`VOIC
 
 - ADR-0001 source-only 仓库（vendor/模型缓存/venv 不入库，许可证与 SBOM 边界）
 - ADR-0004 single-worker（合成流水线为单事件循环 asyncio 任务；共享并发原语按事件循环缓存）
+- ADR-0012 云语音服务端中转（server-mediated speech：`/speech/*` 端点、凭证只在服务器、`/voice/ws` 兼容保留、MeloTTS sidecar 定位 self-hosted/dev optional）

@@ -19,7 +19,7 @@ import {
 } from "@/lib/api-classroom";
 import type {
   ClassroomCapabilities, LessonLanguage, VoicePolicy,
-} from "@/lib/types-classroom.generated";
+} from "@next-tutor/contracts/classroom";
 import { useVoicePreview } from "@/lib/classroom/useVoicePreview";
 import { FIELD_CLS } from "@/components/ui/Input";
 import { STRINGS } from "../strings";

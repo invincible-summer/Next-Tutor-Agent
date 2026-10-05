@@ -8,7 +8,7 @@ import { AlertCircle, Check, ShieldCheck, Undo2 } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { useAssistantStore } from "@/lib/assistant/store";
 import { stringsFor } from "../strings";
-import type { ActionPreview, AssistantAction } from "@/lib/assistant/types.generated";
+import type { ActionPreview, AssistantAction } from "@next-tutor/contracts/assistant";
 
 function PreviewChanges({ preview }: { preview: ActionPreview }) {
   const lang = useAssistantStore((s) => s.lang);

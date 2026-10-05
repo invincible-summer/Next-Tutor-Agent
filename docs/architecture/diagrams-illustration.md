@@ -44,7 +44,7 @@
 
 - 共享目录：`GET /diagram-assets?q=&subject=&family=&education_level=&asset_kind=&page=0&per=12`（分页从 0，单页 ≤48）、`GET /diagram-assets/taxonomy`、`GET /diagram-assets/{asset_id}`（已登记组件附带 v2 元数据）、`POST /diagram-assets/{asset_id}/preview`（`params` + `profile=textbook|monochrome`；未知 404、非法参数 422）。目录仅列审核 `passed` 素材；预览不调模型、不写库。
 - 素材创作：`GET /diagram-materials?scope=private|public`（分页/搜索）、`GET /diagram-materials/templates`、`POST /diagram-materials/preview`（安全规范化 + 真实渲染）、`POST /diagram-materials/generate`（LLM 可编辑草稿，不自动发布）、`POST /diagram-materials`、`GET /diagram-materials/{asset_id}`（含 revisions 历史）、`PUT /diagram-materials/{asset_id}`（需最新 `base_revision`，冲突 409）、`DELETE /diagram-materials/{asset_id}`、`GET /diagram-materials/{asset_id}/preview.png`。scope=public 写操作仅管理员；私有素材他人不可见。
-- 题图任务：`POST /quiz/illustration-jobs`（只接受已有题目 ID/revision）、`GET /illustration-jobs/{job_id}`（本人非 shadow 任务）、`POST /illustration-jobs/{job_id}/retry`、`GET /questions/{question_id}/illustration?question_revision=`（只读冻结题图，不启动模型）、`POST /assessment/questions/{question_id}/illustration`（按当前实例的 V1/V2/V3 模式读历史或启动 CAT 补图）。V2/V3 任务合同和 V1 组件需求上下文都携带本次 `generation_hint`；状态机 `queued → running → ready|not_required|failed`；进度只投影准备/检索/构图/审核阶段与百分比；`required` 与开关冲突 409 `illustration_disabled`；他人/已删除 404；ready 重试 409 `illustration_frozen`。
+- 题图任务：`POST /quiz/illustration-jobs`（只接受已有题目 ID/revision）、`GET /illustration-jobs/{job_id}`（本人非 shadow 任务）、`POST /illustration-jobs/{job_id}/retry`、`GET /questions/{question_id}/illustration?question_revision=`（只读冻结题图，不启动模型）、`POST /assessment/questions/{question_id}/illustration`（按当前实例的 V1/V2/V3 模式读历史或启动 CAT 补图）。V2/V3 任务合同和 V1 组件需求上下文都携带本次 `generation_hint`；状态机 `queued → running → ready|not_required|failed`（执行位置双模式：默认进程内后台任务，`TEMPORAL_ADDRESS` 设置后由 media 队列 durable workflow 在 worker 进程执行，job DTO/轮询不变，ADR-0013）；进度只投影准备/检索/构图/审核阶段与百分比；`required` 与开关冲突 409 `illustration_disabled`；他人/已删除 404；ready 重试 409 `illustration_frozen`。
 
 **SVG 规范（`QuestionIllustration`）**
 
@@ -114,10 +114,10 @@ V3 不使用 V2 的实体映射、能力/视角硬过滤、端口、参数绑定
 - 内置素材（随仓库发布）：`services/api/assets/diagram_library/catalog.json` + `materials/<asset_id>/{asset.svg, material.json, usage_guide.json}`（1,130 个包 = 1,119 素材 + 10 配方 + 1 创作基底）；旧图版本不匹配则明确拒绝，目录与渲染器一同发布。
 - 运行新增素材：数据根 `diagram_assets/<public|owner>/materials/<id>/versions/<revision>/`（同一版本目录内独立保存 `asset.svg`、`material.json`、`usage_guide.json` 和 `preview.png`；每次保存形成不可变版本，索引在完整版本写入后原子发布）。
 - 素材子提示词与 SVG 按素材隔离存储。`usage_guide.json` 按出题、需求、构图、审图四阶段保存简短说明并独立版本化；主提示词只维护通用合同规则。出题/需求阶段仅提供当前语境相关的至多 12 项素材说明，构图阶段仅提供本轮候选的对应阶段说明，审图阶段仅提供实际选中素材的说明；不会将全库子提示词传给模型。私有素材读取指定不可变版本的说明，冻结题图保存素材版本、指南版本与最终图件内容哈希。
-- V2/V3 运行状态：数据根 `illustrations/<owner>/{jobs,runs,artifacts,previews}`——jobs 快照、runs 追加阶段事件、artifacts 不可变冻结、PNG 预览；JSON 走文件锁与 `core/atomic.py` 原子写。
+- V2/V3 运行状态：数据根 `illustrations/<owner>/{jobs,runs,artifacts,previews}`——jobs 快照、runs 追加阶段事件、artifacts 不可变冻结、PNG 预览；JSON 走文件锁与 `core/atomic.py` 原子写。`illustrations/.epochs/<owner>.json` 是跨进程 owner epoch tombstone（durable 模式 API 与 worker 共读；purge 只增不清，标记损坏 fail-closed，写落盘后复验并补偿删除——见 ADR-0013）。
 - 工具助手的情景会话、轮次和成功版本复用 `illustrations/<owner>/` 根，独立于题目任务身份。多轮生成只新增成果版本，历史图不覆盖；账户删除同时取消两类任务并失效 owner epoch。详细合同见 [tool-assistant.md](./tool-assistant.md)。
 - 兼容 v1 缓存：`students/<owner>.question_illustrations.json`。
-- 两个运行根均由 `core/paths.py` 绑定并登记测试沙箱、账户删除（owner epoch 失效 + 后台任务取消）与孤儿清理（`core/orphan_cleanup.py` 类别 `illustrations`/`diagram_assets`）；重启后无存活任务的遗留 `queued/running` 记录标 `failed/run_interrupted`，显式重试开启新运行。
+- 两个运行根均由 `core/paths.py` 绑定并登记测试沙箱、账户删除（owner epoch 失效 + 后台任务取消）与孤儿清理（`core/orphan_cleanup.py` 类别 `illustrations`/`diagram_assets`；`.epochs` 标记目录被扫描跳过）。遗留 `queued/running` 记录标 `failed/run_interrupted`、显式重试开启新运行——文件模式由读路径内联标记；durable 模式（media 队列）由各 job workflow 的 settle activity 兜底 + worker 启动对账结算，读路径不再依赖本进程任务表（ADR-0013）。
 
 ## Main flows
 

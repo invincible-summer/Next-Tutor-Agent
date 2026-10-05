@@ -1,6 +1,6 @@
 # backend-runtime — 后端运行时与系统全景
 
-FastAPI 单进程后端的宿主形态：模块地图、物理拓扑、智能层开关、统一存储布局、API 面概览与部署/运维边界。各领域的内部设计见 [identity.md](./identity.md)（M0）、[conversation.md](./conversation.md)（M1 对话内核）。
+FastAPI 后端的宿主形态：模块地图、物理拓扑、智能层开关、统一存储布局、API 面概览与部署/运维边界；企业模式下另有一个 durable workflow worker 进程（ADR-0013）。各领域的内部设计见 [identity.md](./identity.md)（M0）、[conversation.md](./conversation.md)（M1 对话内核）。
 
 ## Purpose / Scope（职责与边界）
 
@@ -15,7 +15,11 @@ FastAPI 单进程后端的宿主形态：模块地图、物理拓扑、智能层
 
 | 路径 | 职责 |
 |------|------|
-| `services/api/app/main.py` | 应用工厂、lifespan（管理员引导、图谱 reaper、定时清理）、CORS、`X-Process-Time` 中间件、总路由挂载 |
+| `services/api/app/main.py` | 应用工厂、lifespan（管理员引导、持久化/可观测性装配、图谱 reaper、定时清理）、CORS、`X-Process-Time` 与 RequestId 中间件、总路由挂载 |
+| `services/api/app/persistence/` | 企业持久化 lane：async engine/session、SQLAlchemy models（schema 单事实源）、repository、object store、Redis/内存缓存原语、健康探测（`DATABASE_URL` 未设=完全惰性，见 [enterprise-infra.md](../development/enterprise-infra.md)） |
+| `services/api/app/observability/` | `X-Request-ID` 进出贯通、脱敏工具（默认禁 prompt/正文/JWT/refresh/audio/provider key）、OTel lazy 装配（`OTEL_TRACES_ENABLED` 门控） |
+| `services/api/app/workflows/` + `services/api/worker.py` | Temporal durable workflow lane（ADR-0013）：门控/queue 常量/Client 工厂与各域 workflow+activity；`worker.py` 是独立 worker 进程入口（`TEMPORAL_ADDRESS` 未设整层惰性，file 模式零行为变化） |
+| `services/api/migrations/` | Alembic 迁移（models 单事实源；显式 `alembic upgrade`，启动不做 DDL） |
 | `services/api/app/core/config.py` | 全量环境变量/开关集中读取（`settings`） |
 | `services/api/app/core/paths.py` | `RuntimePaths` 单一存储根所有权：`NEXT_TUTOR_DATA_DIR` 解析、`bind_storage_path` 绑定与批量重定向（测试沙箱/demo 导出器复用） |
 | `services/api/app/core/atomic.py` | JSON 原子写 + 文件锁（所有 JSON 持久化必经） |
@@ -26,8 +30,8 @@ FastAPI 单进程后端的宿主形态：模块地图、物理拓扑、智能层
 | `services/api/app/core/ocr.py`、`pdf_ocr.py`、`ocr_policy.py`、`textbook_ocr.py` | 视觉模型 OCR（主通道未配置回退本地 tesseract）与逐页择优 |
 | `services/api/app/api/v1/router.py` | `/api/v1` 总路由（挂 `require_api_access`）与各域子路由注册 |
 | `services/api/app/api/v1/health.py`、`compat.py` | `GET /health`、`GET /model-info`；OpenAI 兼容门面 |
-| `start.sh` + `deploy/` | 本地一键启动（端口探测/回退、进程清理、`.env` 覆盖）；nginx/systemd 模板与 voice 安装脚本 |
-| `services/voice/` | MeloTTS 语音 sidecar（独立 venv，`deploy/edu-voice-sidecar.service`） |
+| `start.sh` + `deploy/` | 本地一键启动（端口探测/回退、进程清理、`.env` 覆盖）；`deploy/local/`（基础设施 compose）与 `deploy/self-hosted/`（nginx/systemd 模板、voice 安装脚本） |
+| `services/voice/` | MeloTTS 语音 sidecar（独立 venv，`deploy/self-hosted/edu-voice-sidecar.service`） |
 
 ## Public contracts（对外契约：API 端点/SSE/WS/数据结构）
 
@@ -41,6 +45,7 @@ FastAPI 单进程后端的宿主形态：模块地图、物理拓扑、智能层
                                                                 ├──> 本地自备向量模型 / Embedding API（可选，RAG 向量轨）
                                                                 └──> 多模态视觉 API（可选，拍照识题/OCR；缺省回退本地 tesseract）
 语音：浏览器 ──WS──> FastAPI /voice/ws ──> MeloTTS sidecar (:8130)
+durable lane（可选，ADR-0013）：worker.py 进程 ──gRPC──> Temporal (:7233)；API 进程只在 TEMPORAL_ADDRESS 已设时经 Client 提交/取消 workflow，不执行它们
 ```
 
 SSE 为前端直连后端的流式通道（`POST /chat/stream`、`POST /quiz/grade`）；同源生产经 nginx 反代（需 `proxy_buffering off`）。每个响应带 `X-Process-Time` 头（>1s 终端告警）。
@@ -68,7 +73,7 @@ SSE 为前端直连后端的流式通道（`POST /chat/stream`、`POST /quiz/gra
 
 ## State & storage（状态与存储布局，含 runtime data 路径）
 
-**全部账号/运行数据位于单一数据根 `NEXT_TUTOR_DATA_DIR` 之下**（默认 `.runtime/data`，`core/paths.py` 唯一所有权；ADR-0002），由 `bind_storage_path` 绑定、JSON 持久层遵守 single-worker 不变量（ADR-0004）。标注"非数据根"的两行例外是部署本地资源。
+**全部账号/运行数据位于单一数据根 `NEXT_TUTOR_DATA_DIR` 之下**（默认 `.runtime/data`，`core/paths.py` 唯一所有权；ADR-0002），由 `bind_storage_path` 绑定；JSON 写临界区由 `core.atomic.file_lock` 的线程可重入锁和 OS advisory lock 协调（同数据根、同 canonical key、共享文件系统必须支持锁）；业务缓存仍在进程内，因此 JSON 文件持久层遵守 single-worker 不变量（ADR-0004，文件模式范围内）。配置 `DATABASE_URL` 后身份/会话进入 PostgreSQL 企业模式（ADR-0010）。标注"非数据根"的两行例外是部署本地资源。
 
 | 路径（数据根相对） | 内容 | 隔离粒度 |
 |------|------|---------|
@@ -92,6 +97,10 @@ SSE 为前端直连后端的流式通道（`POST /chat/stream`、`POST /quiz/gra
 | `artifacts/`（含 `public_vectors/`） | 公共向量 artifact 等 | 全局 |
 | `traces/` | 每轮 trace（JSONL） | 全局 |
 | `.runtime/auth_jwt_secret`（数据根旁） | 本机生成的 JWT 开发密钥（0600） | 实例 |
+| `.runtime/auth_keys/`（数据根旁） | RS256 keyring（0600，`kid` 可轮换；非每用户扫描根） | 实例 |
+| `object_store/` | 对象存储本地实现默认根（namespace + opaque key，企业模式可用远程适配位） | 账号 / 公用 |
+| `migrations/runtime_to_enterprise/state.json` | runtime→企业库迁移状态（source hash/阶段标记；工具见 [enterprise-infra.md](../development/enterprise-infra.md)） | 全局 |
+| PostgreSQL 八表（企业模式，非文件根） | 身份/租户/会话/审计权威（见 [identity.md](./identity.md)） | 租户 / 账号 |
 | `services/voice/models/`、`services/voice/vendor/`、`services/voice/.venv/` | MeloTTS 模型缓存与 sidecar venv（**非数据根**，gitignored 本地资源，不入 orphan 扫描） | 全局（本地） |
 
 以上全部被 `.gitignore` 覆盖；仓库不携带任何教材/派生数据资产（ADR-0001），公共教材库（`public` 命名空间）是部署本地运行时数据，默认为空。
@@ -100,7 +109,7 @@ SSE 为前端直连后端的流式通道（`POST /chat/stream`、`POST /quiz/gra
 
 - **请求生命周期**：浏览器 → Next.js（`apiFetch`）→ nginx（同源）→ FastAPI：`require_api_access` 鉴权 → 域路由 → `resolve_student_id()` 命名空间 → 业务存储（原子写）→ 响应（`X-Process-Time`）。
 - **一轮对话**（M1 主流程见 [conversation.md](./conversation.md)）：Supervisor 八步管线逐事件 SSE，trace 同轮落 `traces/`。
-- **启动（`./start.sh`）**：探测后端/前端实际端口并同步 `NEXT_PUBLIC_BACKEND_URL` 与本地 `CORS_ORIGINS`；默认完整运行时（Supervisor v2、Skill gated、Tool Message native、前端 prod 模式）；Edu 端口 8123/3001 + pnpm；清除代理环境变量；非交互自动进入后台会话；stop/退出经 `deploy/process_cleanup.py` 按 PID+启动时间校验清理。
+- **启动（`./start.sh`）**：探测后端/前端实际端口并同步 `NEXT_PUBLIC_BACKEND_URL` 与本地 `CORS_ORIGINS`；默认完整运行时（Supervisor v2、Skill gated、Tool Message native、前端 prod 模式）；Edu 端口 8123/3001 + pnpm；清除代理环境变量；非交互自动进入后台会话；stop/退出经 `deploy/self-hosted/process_cleanup.py` 按 PID+启动时间校验清理。
 - **智能层降级**：任一层开关关闭 → 上层自动降级、下层行为不受影响；每层读写钩子 try/except 包裹，失败只记 trace。
 
 ### 模块地图（M0 + M1-M10 + 领域模块）
@@ -133,7 +142,7 @@ SSE 为前端直连后端的流式通道（`POST /chat/stream`、`POST /quiz/gra
 
 - 外部：LLM（必配，OpenAI 兼容）、Embedding/本地向量模型（可选）、多模态视觉 API（可选，回退 tesseract）、Chroma（可选向量轨；BM25 基线零依赖，ADR-0003）。
 - 被依赖：前端（唯一后端）；OpenAI 兼容门面供第三方平台挂载。
-- 进程形态：FastAPI 单 worker（JSON 持久层前提，ADR-0004）；语音 sidecar 独立进程由 start.sh 托管；教材图谱构建为进程内 asyncio 后台任务，启动 lifespan reaper 将残留 `building` 置 `graph_failed`。
+- 进程形态：文件模式 FastAPI 单 worker（JSON 持久层前提，ADR-0004），后台任务由 API lifespan/`create_task` 持有；配置 `DATABASE_URL` 后仍须单 API 实例、单 worker，`WEB_CONCURRENCY` 不等于 `1` 时启动 fail-fast（ADR-0014；身份数据库不是全业务 cutover）；`TEMPORAL_ADDRESS` 已设时后台任务所有权移交 durable worker 进程（ADR-0013，API lifespan 不再启动对应 in-process worker）——五个队列（documents/classroom/evaluation/media/maintenance）已全部迁移：维护定时（briefing/trash/draft）由 worker 启动幂等注册的 Temporal Schedule 驱动，账号删除走 `account.purge` workflow（状态表见 ADR-0013）；语音 sidecar 独立进程由 start.sh 托管；教材图谱构建在文件模式为进程内 asyncio 后台任务（启动 lifespan reaper 将残留 `building` 置 `graph_failed`），durable 模式由 workflow 持有。
 - 改 agent 管线代码后必须重启 uvicorn（无热重载假设）。
 
 ## Invariants / security boundaries（不变量与安全边界）
@@ -177,13 +186,15 @@ SSE 为前端直连后端的流式通道（`POST /chat/stream`、`POST /quiz/gra
 - OCR：`PDF_OCR_MODE`（auto/on/off，逐页稀疏判定）、`PDF_OCR_MAX_PAGES=1024`、`PDF_OCR_SYNC_MAX_PAGES=20`、`PDF_OCR_DPI=200`、`PDF_OCR_CONCURRENCY=20`。
 - 教材管线：`TEXTBOOK_GRAPH_ENABLED`（默认 1）、`TEXTBOOK_GRAPH_MAX_CHAPTERS=30`、`TEXTBOOK_GRAPH_MAX_CONCEPTS=400`、`TEXTBOOK_PARSE_MODE`/`TEXTBOOK_BUILD_CONCURRENCY` 等。
 - 门面与语音：`COMPAT_API_KEY`（未配置=门面 503 关闭）、`COMPAT_GRADE`；`VOICE_TTS_PROVIDER`（默认 off）、`VOICE_TTS_BASE_URL`（127.0.0.1:8130）。
+- 企业持久化与可观测性：`DATABASE_URL`/`REDIS_URL`/`OBJECT_STORE_*`/`OTEL_*` —— 变量清单、迁移与运维手册见 [enterprise-infra.md](../development/enterprise-infra.md)。
+- Durable workflow：`TEMPORAL_ADDRESS`/`TEMPORAL_NAMESPACE`（未设=各域进程内执行零变化；队列/worker 运行见 [ADR-0013](../adr/0013-durable-workflows.md) 与 [enterprise-infra.md](../development/enterprise-infra.md)）。
 - 鉴权/管理员：见 [identity.md](./identity.md)。
 - 生产清单：`AUTH_MODE=1` + 强 `AUTH_JWT_SECRET` + `CORS_ORIGINS` 白名单 + `chmod 600 .env`；Python 依赖用 `services/api/requirements.txt` + `constraints.txt` 约束。
 
 ### 部署三形态（`NEXT_PUBLIC_BACKEND_URL` 单一真相源）
 
 1. 开发/跨域生产：显式设置完整后端 URL → 客户端直连（CORS 放行）。
-2. 同源生产：不设 → 相对路径 `/api/v1`，nginx 反代（SSE `proxy_buffering off`）；模板在 `deploy/`，systemd 专用用户 `edu-agent`（`NoNewPrivileges`/`ProtectSystem=strict` 等，`ReadWritePaths` 只放行存储根）。
+2. 同源生产：不设 → 相对路径 `/api/v1`，nginx 反代（SSE `proxy_buffering off`）；模板在 `deploy/self-hosted/`，systemd 专用用户 `edu-agent`（`NoNewPrivileges`/`ProtectSystem=strict` 等，`ReadWritePaths` 只放行存储根）。
 3. 本地一键：`./start.sh` 自动探测端口并同步变量。
 
 直接启动 `next dev` 或 `next start`、未设 `NEXT_PUBLIC_BACKEND_URL` 时，Next.js 将 `/api/*` 回退转发到 `BACKEND_URL`（默认 `http://127.0.0.1:8000`）。该转发的超时为 150 秒，覆盖 V1 配图的 90 秒服务端预算及客户端 120 秒 POST 等待；nginx 模板的 API 转发超时为 600 秒。
@@ -193,7 +204,8 @@ GitHub Pages 静态演示（`NEXT_PUBLIC_DEMO_MODE=1` 只读导出形态）见 [
 ## Observability（trace/日志/指标）
 
 - 每轮 trace 落数据根 `traces/`：决策链（understanding/TaskFrame/Skill 候选与拒绝/plan/tool 调用/后置条件）+ prompt/skill 版本 + token 用量；`GET /trace/{run_id}`（JSON）与 `GET /trace/{run_id}/html`（可折叠视图）。
-- `X-Process-Time` 全响应头 + >1s 终端告警。
+- `X-Process-Time` 全响应头 + >1s 终端告警；`X-Request-ID` 进出贯通（客户端可带 `req_` 前缀 ID，响应原样回显，否则生成）。
+- 脱敏基线（`app/observability/redaction.py`）：结构化日志默认禁 prompt/正文/JWT/refresh token/audio/provider key；OTel 走可选 lane（`requirements-observability.txt` + `OTEL_TRACES_ENABLED=1`），未装/未开时 domain span 为 no-op 降级。
 - 上下文/用量遥测：`GET /evaluation/context-budget`（统计聚合，无 Prompt/正文/隐藏 reasoning）。
 - 结构化小调用与护栏事件（`provider_capability_fallback`、`incomplete_answer_recovery` 等）均记 trace。
 
@@ -207,6 +219,7 @@ GitHub Pages 静态演示（`NEXT_PUBLIC_DEMO_MODE=1` 只读导出形态）见 [
 - `test_bootstrap_readiness.py`（启动引导）
 - `test_compat_api.py`（OpenAI 兼容门面）
 - `test_docs.py`（使用文档）、`test_allowlist_sanitize.py`
+- `tests/persistence/*`（engine/models/repository/object store/cache 原语 + Alembic 契约 + `integration.py` 真 PostgreSQL/Redis 集成车道）、`tests/observability/test_observability.py`（request-id/脱敏/OTel 降级）、`tests/workflows/*`（Temporal lane 门控/worker 入口 + 各域 workflow 确定性测试，temporalio 内置 test server；真服务器集成车道由 `TEST_TEMPORAL_ADDRESS` 门控）——CI 分片见 [../development/testing.md](../development/testing.md)
 - 其余各域测试索引见 [identity.md](./identity.md)、[conversation.md](./conversation.md) 及 [../development/testing.md](../development/testing.md)（环境搭建、浏览器 smoke/full 回归与 CI 所有权）。
 
 ## Related ADRs
@@ -214,5 +227,8 @@ GitHub Pages 静态演示（`NEXT_PUBLIC_DEMO_MODE=1` 只读导出形态）见 [
 - ADR-0001 source-only 仓库（不携带教材/派生数据资产）
 - ADR-0002 运行数据统一 `NEXT_TUTOR_DATA_DIR`
 - ADR-0003 BM25 基线 + 向量可选
-- ADR-0004 JSON 持久层 single-worker 不变量
+- ADR-0004 JSON 持久层 single-worker 不变量；ADR-0014 规定业务文件事实源未完成 cutover 时，数据库接入也不能解除此限制
 - ADR-0005 Pages demo 仅 synthetic fixtures
+- [ADR-0010](../adr/0010-enterprise-persistence.md) 企业持久化栈（PostgreSQL/Object/Redis）
+- [ADR-0011](../adr/0011-tenant-rotating-sessions.md) 租户模型与轮换认证会话
+- [ADR-0013](../adr/0013-durable-workflows.md) Durable workflows（Temporal 任务所有权分离）

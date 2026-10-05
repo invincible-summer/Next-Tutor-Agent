@@ -1,0 +1,12 @@
+appId: com.nexttutor.agent
+name: Edge handle opens global navigation assistant
+tags: [smoke, assistant]
+---
+- runFlow: ../common/login.yaml
+- openLink: nexttutor:///library/notes
+- tapOn:
+    id: assistant-edge-handle
+- assertVisible: "学习助手|Learning assistant"
+- assertNotVisible:
+    id: assistant-edge-handle
+- takeScreenshot: assistant-open

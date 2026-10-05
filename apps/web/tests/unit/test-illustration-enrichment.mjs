@@ -22,9 +22,65 @@ const fakeAbort = { timeout: (milliseconds) => {
   return new AbortController().signal;
 } };
 let fetchResponse;
+// Stub of the shared api-client pieces api-illustrations.ts now imports.
+// The error semantics mirror @next-tutor/api-client's errors layer so the
+// assertions below keep testing the real mapping contract.
+class StubIllustrationApiError extends Error {
+  constructor(code, message, status, retryable) {
+    super(message || code);
+    this.code = code;
+    this.status = status;
+    this.retryable = retryable;
+  }
+}
+async function stubErrorFromResponse(response) {
+  let payload = null;
+  try { payload = await response.json(); } catch { /* non-JSON body */ }
+  const envelope = payload?.detail?.error ?? payload?.error ?? {};
+  const code = typeof envelope.code === "string" && envelope.code ? envelope.code : `status_${response.status}`;
+  const retryable = typeof envelope.retryable === "boolean"
+    ? envelope.retryable
+    : response.status === 408 || response.status === 429 || response.status >= 500;
+  throw new StubIllustrationApiError(code, code, response.status, retryable);
+}
+async function stubObservation(run) {
+  try {
+    return await run();
+  } catch (error) {
+    if (error instanceof Error && (error.name === "TimeoutError" || error.name === "AbortError")) {
+      throw new StubIllustrationApiError("run_interrupted", "run_interrupted", 0, true);
+    }
+    throw error;
+  }
+}
+const illustrationDomain = {
+  start: async (questionId, revision) => stubObservation(async () => {
+    timeouts.push(120_000); // POST 观察 120s 预算
+    const response = await fetchResponse();
+    if (!response.ok) await stubErrorFromResponse(response);
+    return response.json();
+  }),
+  getJob: async () => stubObservation(async () => {
+    const response = await fetchResponse();
+    if (!response.ok) await stubErrorFromResponse(response);
+    return response.json();
+  }),
+  retry: async () => stubObservation(async () => {
+    timeouts.push(120_000);
+    const response = await fetchResponse();
+    if (!response.ok) await stubErrorFromResponse(response);
+    return response.json();
+  }),
+  frozen: async () => stubObservation(async () => {
+    const response = await fetchResponse();
+    if (!response.ok) await stubErrorFromResponse(response);
+    return response.json();
+  }),
+};
 const api = load("src/lib/api-illustrations.ts", {
-  "./api": { API_BASE: "http://illustration.test/api/v1" },
-  "./api-fetch": { apiFetch: (...args) => fetchResponse(...args) },
+  "./types": {},
+  "@next-tutor/api-client": { IllustrationApiError: StubIllustrationApiError },
+  "@/platform/api-client": { apiClient: () => ({ illustration: illustrationDomain }) },
 }, { AbortSignal: fakeAbort });
 
 for (const [status, payload, code, retryable] of [

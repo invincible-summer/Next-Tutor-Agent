@@ -9,7 +9,7 @@ import type {
   NavigationTarget,
   PageCommand,
   PageCommandResult,
-} from "./types.generated";
+} from "@next-tutor/contracts/assistant";
 
 export interface PageContextEntityRef {
   kind: "chat" | "lesson" | "run" | "note" | "concept" | "task";

@@ -74,44 +74,44 @@ def close_due_day_windows(*, now: datetime | None = None) -> int:
 def _close_windows_for(sid: str, tz_name: str, today_local: str) -> bool:
     """关闭单个学生所有到期窗口；有在途候选时返回 False（下轮重试）。"""
     journal = get_journal(sid)
-    state = journal.state()
-    if not state.jobs:
-        return True
-    # 日窗口按 job.local_activity_date 归属（受理时冻结）
-    by_date: dict[str, list[Any]] = {}
-    source_dates: dict[str, str] = {}
-    for rt in state.jobs.values():
-        job = rt.job
-        if job.local_activity_date and job.schedule_mode == \
-                S_DAILY:
-            by_date.setdefault(job.local_activity_date, []).append(rt)
-            source_dates.setdefault(job.source_id, job.local_activity_date)
-    if not by_date:
-        return True
-    changed = False
-    for local_date, rts in sorted(by_date.items()):
-        if local_date >= today_local:
-            continue          # 窗口未关闭（今天还没过完）
-        if local_date in state.daily_batches:
-            continue          # 幂等：已对账
-        terminal = (S.JobState.SUCCEEDED, S.JobState.ABSTAINED,
-                    S.JobState.FAILED, S.JobState.CANCELLED)
-        if any(rt.job.state not in terminal for rt in rts):
-            return False      # 在途：下一轮再关
-        start_utc, end_utc = _window(local_date, tz_name)
-        evaluated = sum(1 for rt in rts
-                        if rt.job.state in (S.JobState.SUCCEEDED,))
-        failed = sum(1 for rt in rts
-                     if rt.job.state == S.JobState.FAILED)
-        journal.append([S.OpDailyBatchClosed(
-            local_date=local_date, timezone=tz_name,
-            window_start_utc=start_utc, window_end_utc=end_utc,
-            candidate_source_ids=sorted(set(
-                rt.job.source_id for rt in rts if rt.job.source_id)),
-            evaluated_count=evaluated, failed_count=failed,
-            no_observation=(evaluated == 0 and failed == 0))])
-        changed = True
-    return changed
+    with journal.transaction() as state:
+        if not state.jobs:
+            return True
+        # 日窗口按 job.local_activity_date 归属（受理时冻结）
+        by_date: dict[str, list[Any]] = {}
+        source_dates: dict[str, str] = {}
+        for rt in state.jobs.values():
+            job = rt.job
+            if job.local_activity_date and job.schedule_mode == \
+                    S_DAILY:
+                by_date.setdefault(job.local_activity_date, []).append(rt)
+                source_dates.setdefault(job.source_id, job.local_activity_date)
+        if not by_date:
+            return True
+        changed = False
+        for local_date, rts in sorted(by_date.items()):
+            if local_date >= today_local:
+                continue          # 窗口未关闭（今天还没过完）
+            if local_date in state.daily_batches:
+                continue          # 幂等：已对账
+            terminal = (S.JobState.SUCCEEDED, S.JobState.ABSTAINED,
+                        S.JobState.FAILED, S.JobState.CANCELLED)
+            if any(rt.job.state not in terminal for rt in rts):
+                return False      # 在途：下一轮再关
+            start_utc, end_utc = _window(local_date, tz_name)
+            evaluated = sum(1 for rt in rts
+                            if rt.job.state in (S.JobState.SUCCEEDED,))
+            failed = sum(1 for rt in rts
+                         if rt.job.state == S.JobState.FAILED)
+            journal.append([S.OpDailyBatchClosed(
+                local_date=local_date, timezone=tz_name,
+                window_start_utc=start_utc, window_end_utc=end_utc,
+                candidate_source_ids=sorted(set(
+                    rt.job.source_id for rt in rts if rt.job.source_id)),
+                evaluated_count=evaluated, failed_count=failed,
+                no_observation=(evaluated == 0 and failed == 0))])
+            changed = True
+        return changed
 
 
 def _window(local_date: str, tz_name: str) -> tuple[str, str]:
@@ -139,16 +139,16 @@ def release_backlog() -> int:
             continue
         try:
             journal = get_journal(sid)
-            state = journal.state()
-            ops = []
-            for rt in state.jobs.values():
-                if rt.job.state == S.JobState.QUEUED and \
-                        rt.job.eligible_after_utc:
-                    ops.append(S.OpJobRescheduled(
-                        job_id=rt.job.job_id, reason="policy_immediate"))
-                    released += 1
-            if ops:
-                journal.append(ops)
+            with journal.transaction() as state:
+                ops = []
+                for rt in state.jobs.values():
+                    if rt.job.state == S.JobState.QUEUED and \
+                            rt.job.eligible_after_utc:
+                        ops.append(S.OpJobRescheduled(
+                            job_id=rt.job.job_id, reason="policy_immediate"))
+                if ops:
+                    journal.append(ops)
+                    released += len(ops)
         except Exception:
             log.exception("release backlog failed for %s", sid)
     return released

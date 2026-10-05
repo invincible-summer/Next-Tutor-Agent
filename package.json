@@ -1,0 +1,26 @@
+{
+  "name": "next-tutor-agent",
+  "version": "3.0.0",
+  "private": true,
+  "description": "Textbook-driven AI teaching monorepo: FastAPI backend, Next.js web client and shared cross-client TypeScript platform packages.",
+  "packageManager": "pnpm@11.25.0+sha512.5cde925b4f075f725eb71fbae18a42ffe784524789f19b61c731cb8721ec28aaee160e01a8d5af4fedb2a42cdbf300efe23db356b0d4a17b4d63e11f8ab7c956",
+  "engines": {
+    "node": ">=22.13 <23"
+  },
+  "scripts": {
+    "check": "pnpm packages:check && pnpm web:check",
+    "packages:check": "pnpm --filter \"./packages/*\" run check",
+    "packages:test": "pnpm --filter \"./packages/*\" run test",
+    "web:check": "pnpm --filter @next-tutor/web run check",
+    "web:build": "pnpm --filter @next-tutor/web run build",
+    "web:e2e": "pnpm --filter @next-tutor/web run test:e2e",
+    "mobile:start": "pnpm --filter @next-tutor/mobile run start",
+    "mobile:check": "pnpm --filter @next-tutor/mobile run check",
+    "mobile:test": "pnpm --filter @next-tutor/mobile run test",
+    "mobile:export": "pnpm --filter @next-tutor/mobile run export",
+    "mobile:icons": "node scripts/mobile/generate_brand_assets.mjs",
+    "contracts:generate": "python3 scripts/contracts/generate_types.py",
+    "contracts:check": "python3 scripts/contracts/generate_types.py --check",
+    "tokens:generate": "node scripts/dev/generate_design_tokens.mjs"
+  }
+}

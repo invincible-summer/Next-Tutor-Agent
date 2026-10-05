@@ -75,18 +75,29 @@ REQUIRED_READMES = [
     "services/api/app/identity/README.md",
     "services/api/app/illustration/README.md",
     "services/api/app/notes/README.md",
+    "services/api/app/persistence/README.md",
     "services/api/app/prompts/README.md",
     "services/api/app/schemas/README.md",
     "services/api/app/tools/README.md",
     "services/api/app/voice/README.md",
+    "services/api/app/workflows/README.md",
     "services/api/tests/README.md",
     "services/voice/README.md",
     "scripts/README.md",
     "scripts/acceptance/README.md",
+    "scripts/contracts/README.md",
     "scripts/diagrams/README.md",
     "scripts/evaluation/README.md",
+    "scripts/migrations/README.md",
     "scripts/retrieval/README.md",
+    "packages/contracts/README.md",
+    "packages/api-client/README.md",
+    "packages/domain/README.md",
+    "packages/design-tokens/README.md",
+    "packages/i18n/README.md",
     "deploy/README.md",
+    "deploy/local/README.md",
+    "deploy/self-hosted/README.md",
 ]
 
 # ---------------------------------------------------------------------------
@@ -226,6 +237,11 @@ def check_legacy_paths(files: list[str]) -> list[str]:
     problems = []
     consumed: set[tuple[str, str]] = set()
     for rel in files:
+        # Upstream license bytes may mention their own repository layout.
+        # Keep those originals untouched; the compliance generator checks
+        # their hashes separately. Project documentation stays in scope.
+        if Path(rel).parent.as_posix() == "licenses/texts" and Path(rel).suffix == ".txt":
+            continue
         if rel in LEGACY_PATH_EXEMPT_FILES:
             continue
         if any(rel.startswith(d + "/") for d in LEGACY_PATH_EXEMPT_DIRS):

@@ -34,7 +34,7 @@ Beyond answering questions, it considers **what supports the answer, what your w
 | **Learning orchestration** | Break long-term goals into weekly plans and daily tasks, with study and review in one routine. |
 | **Site assistant** | When enabled, discover features, check recent learning activity, and confirm actions to navigate or resume lessons. |
 
-The interface supports Chinese and English, with light and dark themes. It currently targets desktop browsers. Classroom, voice, and assistant availability depends on the instance configuration.
+The interface supports Chinese and English, with light and dark themes. Version 3.0.0 adds an Expo native mobile client with one source tree for phones and tablets. See [mobile development](../development/mobile-dev.md) and the [current device validation scope](../validation/mobile-validation.md). Classroom, voice, and assistant availability depends on the instance configuration.
 
 ## A typical learning session
 
@@ -60,6 +60,7 @@ BM25 retrieval works without an embedding model; vector retrieval is optional. A
 | Layer | Stack |
 | :--- | :--- |
 | Frontend | Next.js 16 · React 19 · TypeScript · Tailwind CSS 4 · Zustand |
+| Mobile | Expo SDK 57 · React Native 0.86 · Expo Router · Native SVG · Server speech |
 | Content | Markdown · KaTeX · SVG question diagrams · HTML lessons |
 | Backend | Python 3.11 · FastAPI · Pydantic · OpenAI-compatible model API |
 | Textbooks & retrieval | PyMuPDF · OCR · Structured chunking · BM25 · Optional Chroma vector retrieval |

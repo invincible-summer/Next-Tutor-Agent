@@ -7,7 +7,7 @@ import { Check } from "lucide-react";
 import { useUIStore } from "@/lib/store";
 import { makePageT } from "@/lib/i18n-page";
 import { cn } from "@/lib/cn";
-import type { ThemeTemplateInfo } from "@/lib/types-classroom.generated";
+import type { ThemeTemplateInfo } from "@next-tutor/contracts/classroom";
 import { STRINGS } from "./strings";
 
 interface ThumbnailSpec {

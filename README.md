@@ -35,7 +35,7 @@ Next Tutor Agent 把教材、讲解、练习与复习放进同一个学习空间
 | **学习编排** | 将长期目标细化为周计划和今日任务，把学习与复习放进日常节奏。 |
 | **站内学习助手** | 启用后，可询问功能入口、查看学习近况，并在确认后导航或继续课程。 |
 
-界面支持中英文与浅色 / 深色主题，目前以桌面浏览器使用为主。课堂、语音、助手等能力取决于实例配置，页面会提示可用状态。
+界面支持中英文与浅色 / 深色主题。3.0.0 新增独立的 Expo 原生移动客户端，一套代码适配手机和平板；开发与安装见 [移动端开发](docs/development/mobile-dev.md)，当前设备验收范围见 [移动端验证](docs/validation/mobile-validation.md)。课堂、语音、助手等能力取决于实例配置，页面会提示可用状态。
 
 游客访问默认关闭，管理员可在「账号与数据」中开启。开启后，未登录用户仅可文字聊天、临时出题与本题批改，并可选公共教材；上传、历史记录、完整学习模块和导航助手须登录。游客内容只放在内存，刷新、关闭页面或登录后清空，不进入学习评价闭环。管理台「数据清理」提供游客专用清理入口，可结束临时体验并清除旧版游客残留，保留注册账号与公共教材。
 
@@ -63,6 +63,7 @@ Next Tutor Agent 把教材、讲解、练习与复习放进同一个学习空间
 | 层次 | 技术 |
 | :--- | :--- |
 | 前端 | Next.js 16 · React 19 · TypeScript · Tailwind CSS 4 · Zustand |
+| 移动端 | Expo SDK 57 · React Native 0.86 · Expo Router · 原生 SVG · 服务端语音 |
 | 内容呈现 | Markdown · KaTeX · SVG 题图 · HTML 课件 |
 | 后端 | Python 3.11 · FastAPI · Pydantic · OpenAI 兼容模型接口 |
 | 教材与检索 | PyMuPDF · OCR · 结构化切片 · BM25 · 可选 Chroma 向量检索 |
@@ -83,9 +84,8 @@ python3.11 -m venv .venv
 source .venv/bin/activate
 pip install -r services/api/requirements.txt
 
-cd apps/web
+# 根目录是唯一的 pnpm workspace：安装会同时链接 apps/web、apps/mobile 与 packages/* 共享包
 pnpm install
-cd ..
 ```
 
 如果已使用 Conda，可建立名为 `edu_agent` 的 Python 3.11 环境代替 `.venv`；启动脚本会优先尝试激活该环境。
@@ -122,6 +122,9 @@ cd ..
 ./start.sh
 ```
 
+> pnpm 命令也可以在仓库根用 `pnpm --filter @next-tutor/web run <script>` 执行；
+> Node 版本与 pnpm 版本由根 `package.json` 的 `engines`/`packageManager` 固定。
+
 前端优先使用 http://localhost:3001，后端优先使用 `8123` 端口；端口占用时自动尝试其他端口，请以终端输出为准。首次启动会构建前端，后续可复用构建。使用热更新开发模式：
 
 ```bash
@@ -154,14 +157,18 @@ cd ..
 ## 项目结构
 
 ```text
-apps/web/           Next.js 前端（页面、学习交互与共享组件）
+apps/web/           Next.js 前端（页面、学习交互与共享组件；@next-tutor/web）
+packages/           跨端共享包（contracts 契约 / api-client 传输 / domain 纯逻辑 /
+                    design-tokens 设计令牌 / i18n 文案协议，见 docs/architecture/client-platform.md）
 services/api/       FastAPI 后端（API、教学智能体、教材处理与学习数据，tests/ 为后端测试）
 services/voice/     本地 MeloTTS 语音 sidecar（可选）
 fixtures/demo/      GitHub Pages 演示的合成数据源（synthetic-only）
-scripts/            按域组织的仓库脚本（repo 卫生 guard / demo 导出 / 开发与验收工具）
-deploy/             systemd、nginx 等部署模板
+scripts/            按域组织的仓库脚本（repo 卫生 guard / contracts 生成链 / demo 导出 / 开发与验收工具）
+deploy/             部署模板（local/ 开发基础设施 compose；self-hosted/ 单机 systemd+nginx）
 docs/               架构文档、ADR、开发/运维/合规/验证手册（入口 docs/README.md）
 ```
+
+根目录是唯一的 pnpm workspace（Node >=22.13、pnpm 11，唯一 lockfile 在根）。
 
 仓库只包含源码、测试、部署模板与合成演示数据：教材原件、解析文本、切片、
 知识图谱与用户运行数据均为部署本地状态（`.runtime/data`，见

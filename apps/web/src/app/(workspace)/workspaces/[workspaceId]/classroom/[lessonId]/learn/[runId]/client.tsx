@@ -11,7 +11,7 @@ import {
 } from "lucide-react";
 import { getLesson, getRevisionFrame, getRun,
   type RunPublicExtra } from "@/lib/api-classroom";
-import type { LessonDetailPublic } from "@/lib/types-classroom.generated";
+import type { LessonDetailPublic } from "@next-tutor/contracts/classroom";
 import { useUIStore } from "@/lib/store";
 import { makePageT } from "@/lib/i18n-page";
 import { Button } from "@/components/ui/Button";

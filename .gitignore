@@ -105,8 +105,20 @@ backend/models/
 .DS_Store
 *.swp
 .zcode/
+.zcodeignore
 
 # Playwright E2E artifacts
 test-results/
 playwright-report/
 apps/web/.playwright/
+
+# Mobile build artifacts (Expo CNG: native projects are generated, not tracked).
+apps/mobile/.expo/
+apps/mobile/android/
+apps/mobile/ios/
+apps/mobile/dist/
+apps/mobile/.maestro/**/artifacts/
+*.apk
+*.aab
+*.ipa
+*.keystore

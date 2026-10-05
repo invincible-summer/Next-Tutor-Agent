@@ -7,9 +7,13 @@ import { test } from "node:test";
 import { buildFingerprint, buildFront } from "../e2e/support/build-front.mjs";
 import { pickPortSync } from "../e2e/support/ports.mjs";
 
-function sandbox(t) {
-  const root = mkdtempSync(resolve(tmpdir(), "e2e-cache-test-"));
-  t.after(() => rmSync(root, { recursive: true, force: true }));
+function sandbox(t, { monorepo = false } = {}) {
+  const home = mkdtempSync(resolve(tmpdir(), "e2e-cache-test-"));
+  t.after(() => rmSync(home, { recursive: true, force: true }));
+  // Monorepo sandboxes mimic the repo layout so `../../packages` and the
+  // root `pnpm-lock.yaml` fingerprint inputs resolve inside the sandbox.
+  const root = monorepo ? resolve(home, "apps/web") : home;
+  mkdirSync(root, { recursive: true });
   const put = (path, contents) => {
     mkdirSync(resolve(root, path, ".."), { recursive: true });
     writeFileSync(resolve(root, path), contents);
@@ -18,16 +22,18 @@ function sandbox(t) {
 }
 
 test("build cache invalidates changed source/assets/config/dependencies/environment, even at the same URL", t => {
-  const { root, put } = sandbox(t);
+  const { root, put } = sandbox(t, { monorepo: true });
   const env = { BACKEND_URL: "http://127.0.0.1:8124", NEXT_PUBLIC_DEMO_MODE: "0" };
-  for (const path of ["src/app.ts", "public/icon.svg", "next.config.ts", "tsconfig.json",
-    "scripts/build.mjs", "package.json", "pnpm-lock.yaml", ".env.local"]) put(path, "original");
+  const localInputs = ["src/app.ts", "public/icon.svg", "next.config.ts", "tsconfig.json",
+    "scripts/build.mjs", "package.json", ".env.local"];
+  const workspaceInputs = ["../../pnpm-lock.yaml", "../../tsconfig.base.json",
+    "../../packages/shared/src/index.ts"];
+  for (const path of [...localInputs, ...workspaceInputs]) put(path, "original");
   const initial = buildFingerprint(root, env);
   assert.equal(buildFingerprint(root, { ...env, E2E_RUN_ROOT: "/tmp/a-new-run" }), initial);
   put("tests/e2e/example.spec.ts", "changed test scope");
   assert.equal(buildFingerprint(root, env), initial);
-  for (const path of ["src/app.ts", "public/icon.svg", "next.config.ts", "tsconfig.json",
-    "scripts/build.mjs", "package.json", "pnpm-lock.yaml", ".env.local"]) {
+  for (const path of [...localInputs, ...workspaceInputs]) {
     put(path, "changed"); assert.notEqual(buildFingerprint(root, env), initial, path);
     put(path, "original");
   }

@@ -1,4 +1,9 @@
-export type Lang = "zh" | "en";
+// 语言类型协议来自共享包 @next-tutor/i18n（type-only，VM 单测运行时可擦除）；
+// localeFor 在 Web 侧本地实现（与共享包同形），页面级字典仍留 Web，
+// 跨端 key 进入移动端时再迁入共享包。
+import type { Lang } from "@next-tutor/i18n";
+
+export type { Lang };
 
 export function localeFor(lang: Lang): "zh-CN" | "en-US" {
   return lang === "en" ? "en-US" : "zh-CN";
@@ -102,7 +107,7 @@ const ZH: Dict = {
   "chat.voice.call.retry": "网络波动，正在重试…",
   "chat.voice.call.tts_err": "语音合成暂不可用，回答以文字显示",
   "chat.voice.call.err.network": "连接中断，请重新发起通话",
-  "chat.voice.call.err.voice_disabled": "语音回答未启用（服务器需运行 deploy/install_voice.sh 并配置 VOICE_TTS_PROVIDER=melo）",
+  "chat.voice.call.err.voice_disabled": "语音回答未启用（服务器需运行 deploy/self-hosted/install_voice.sh 并配置 VOICE_TTS_PROVIDER=melo）",
   "chat.voice.call.err.tts_unavailable": "语音合成不可用",
   "chat.voice.call.err.busy": "上一轮还没结束，请稍候",
   "chat.voice.call.err.empty_transcript": "没有识别到有效语音，请再试一次",
@@ -478,7 +483,7 @@ const EN: Dict = {
   "chat.voice.call.retry": "Network hiccup, retrying…",
   "chat.voice.call.tts_err": "Speech synthesis unavailable, answer shown as text",
   "chat.voice.call.err.network": "Connection lost, please call again",
-  "chat.voice.call.err.voice_disabled": "Spoken replies are not enabled (run deploy/install_voice.sh and set VOICE_TTS_PROVIDER=melo on the server)",
+  "chat.voice.call.err.voice_disabled": "Spoken replies are not enabled (run deploy/self-hosted/install_voice.sh and set VOICE_TTS_PROVIDER=melo on the server)",
   "chat.voice.call.err.tts_unavailable": "Speech synthesis unavailable",
   "chat.voice.call.err.busy": "Previous turn still running, wait a moment",
   "chat.voice.call.err.empty_transcript": "No valid speech was recognized, please try again",

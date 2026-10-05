@@ -1,0 +1,26 @@
+appId: com.nexttutor.agent
+name: Fake cloud STT preserves text and allows native TTS playback
+tags: [smoke, voice]
+---
+- runFlow: ../common/login.yaml
+- setPermissions:
+    permissions:
+      microphone: allow
+- openLink: nexttutor:///tutor?ws=${MAESTRO_MOBILE_E2E_WORKSPACE_ID}
+- tapOn: "语音输入|Voice input"
+- assertVisible: "停止录音并转写|Stop recording and transcribe"
+- tapOn: "停止录音并转写|Stop recording and transcribe"
+- extendedWaitUntil:
+    visible: ${MAESTRO_MOBILE_E2E_STT_TEXT}
+    timeout: 30000
+- tapOn: "发送|Send"
+- extendedWaitUntil:
+    visible: "朗读消息|Read message aloud"
+    timeout: 60000
+- tapOn:
+    text: "朗读消息|Read message aloud"
+    index: 0
+- extendedWaitUntil:
+    visible: "停止朗读|Stop reading"
+    timeout: 15000
+- tapOn: "停止朗读|Stop reading"

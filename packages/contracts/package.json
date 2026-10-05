@@ -1,0 +1,31 @@
+{
+  "name": "@next-tutor/contracts",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    },
+    "./classroom": {
+      "types": "./src/generated/classroom.ts",
+      "default": "./src/generated/classroom.ts"
+    },
+    "./assistant": {
+      "types": "./src/generated/assistant.ts",
+      "default": "./src/generated/assistant.ts"
+    },
+    "./illustration": {
+      "types": "./src/generated/illustration.ts",
+      "default": "./src/generated/illustration.ts"
+    }
+  },
+  "scripts": {
+    "check": "tsc --noEmit",
+    "test": "node --experimental-strip-types --test tests/*.test.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^20"
+  }
+}

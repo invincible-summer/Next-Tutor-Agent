@@ -285,6 +285,10 @@ class Settings:
     # 0.9：默认略慢于原速（2026-08-31 用户反馈），个人可在设置页
     # user.profile.prefs.tts_speed 覆盖（有效区间与 sidecar 一致 0.5–2.0）。
     voice_tts_speed: float = float(os.getenv("VOICE_TTS_SPEED", "0.9"))
+    # 服务端 STT（移动端 /speech/transcriptions；ADR-0012）：off | stub |
+    # azure | auto。auto 仅在 AZURE_SPEECH_* 齐备时解析为 azure，否则关闭。
+    speech_stt_provider: str = os.getenv(
+        "SPEECH_STT_PROVIDER", "off").strip().lower()
 
     # Server
     api_host: str = os.getenv("API_HOST", "127.0.0.1")

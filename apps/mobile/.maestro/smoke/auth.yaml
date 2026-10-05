@@ -1,0 +1,24 @@
+appId: com.nexttutor.agent
+name: Login restore and logout
+tags: [smoke, auth]
+---
+- launchApp:
+    clearState: true
+- runFlow: ../common/login.yaml
+- stopApp
+- launchApp:
+    clearState: false
+- extendedWaitUntil:
+    visible:
+      id: assistant-edge-handle
+    timeout: 30000
+- openLink: nexttutor:///me/account
+- assertVisible: "账户与设备|Account and devices"
+- tapOn: "退出登录|Sign out"
+- extendedWaitUntil:
+    visible:
+      id: welcome-sign-in
+    timeout: 15000
+- assertNotVisible:
+    id: assistant-edge-handle
+- runFlow: ../common/login.yaml

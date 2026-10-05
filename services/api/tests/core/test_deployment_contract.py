@@ -10,10 +10,10 @@ ROOT = Path(__file__).resolve().parents[4]
 
 class DeploymentContractTests(unittest.TestCase):
     def test_units_follow_paper_agent_system_account_model(self) -> None:
-        backend = (ROOT / "deploy" / "edu-backend.service").read_text(
+        backend = (ROOT / "deploy" / "self-hosted" / "edu-backend.service").read_text(
             encoding="utf-8"
         )
-        frontend = (ROOT / "deploy" / "edu-frontend.service").read_text(
+        frontend = (ROOT / "deploy" / "self-hosted" / "edu-frontend.service").read_text(
             encoding="utf-8"
         )
         for unit in (backend, frontend):
@@ -29,7 +29,7 @@ class DeploymentContractTests(unittest.TestCase):
             self.assertNotIn("/home/eduagent", unit)
 
     def test_backend_unit_whitelists_all_runtime_storage_roots(self) -> None:
-        unit = (ROOT / "deploy" / "edu-backend.service").read_text(
+        unit = (ROOT / "deploy" / "self-hosted" / "edu-backend.service").read_text(
             encoding="utf-8"
         )
         # 单一运行数据根：全部存储目录由 NEXT_TUTOR_DATA_DIR 派生。
@@ -37,7 +37,7 @@ class DeploymentContractTests(unittest.TestCase):
         self.assertIn("ReadWritePaths=/var/lib/edu-agent", unit)
 
     def test_frontend_unit_passes_next_arguments_without_separator(self) -> None:
-        unit = (ROOT / "deploy" / "edu-frontend.service").read_text(encoding="utf-8")
+        unit = (ROOT / "deploy" / "self-hosted" / "edu-frontend.service").read_text(encoding="utf-8")
         self.assertIn(
             "ExecStart=/usr/bin/env pnpm exec next start "
             "-H 127.0.0.1 -p 3030",
@@ -57,7 +57,7 @@ class DeploymentContractTests(unittest.TestCase):
         self.assertEqual([], offenders)
 
     def test_renewal_hook_is_scoped_to_edu_certificate(self) -> None:
-        hook = (ROOT / "deploy" / "edu-agent-nginx-reload").read_text(
+        hook = (ROOT / "deploy" / "self-hosted" / "edu-agent-nginx-reload").read_text(
             encoding="utf-8"
         )
         self.assertIn(

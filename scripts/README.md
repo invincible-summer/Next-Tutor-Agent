@@ -9,10 +9,12 @@
 | 目录 | 职责 |
 |------|------|
 | `acceptance/` | 真实模型验收（产生真实 LLM 费用，输出必须写仓库外目录）：`classroom/live.py`、`illustration/live.py`、`illustration/materials.py` |
+| `compliance/` | 第三方许可证原文归档、版本清单、CycloneDX source SBOM 与离线哈希/生成物检查：`generate_notices.py` |
 | `demo/` | GitHub Pages 静态演示：`export_pages_demo.py`（synthetic fixtures 只读导出）、`serve_pages_demo.py`（本地伺服预览）及导出器自测 |
-| `dev/` | 本地开发辅助：`start.sh`（完整运行时一键启动、端口回退、sidecar 拉起）、`generate_assistant_types.py` / `generate_classroom_types.py`（契约类型生成）、`create_speech.js`、`migrate_learning_evidence.py` |
+| `dev/` | 本地开发辅助：`start.sh`（完整运行时一键启动、端口回退、sidecar 拉起）、契约类型生成已上移 `scripts/contracts/generate_types.py`（共享包 packages/contracts）、`create_speech.js`、`migrate_learning_evidence.py` |
 | `diagrams/` | 图库生成物重建（离线、确定性，输出必须入库）：`build_catalog.py`（catalog + 参考清单）、`build_packages.py`（素材包），`--check` 进 CI |
 | `evaluation/` | prompt 回归评测：`run_prompt_eval.py`（`--mock` 零成本进 unittest，`--llm` 真实费用仅人工） |
+| `migrations/` | 运行数据迁移（部署期，文件运行时 → 企业 PostgreSQL）：`runtime_to_enterprise/{scan,import,verify,cutover,report}.py`（identity 首个 importer；幂等 + source hash；cutover 显式确认且不删旧数据） |
 | `repo/` | 仓库卫生守卫：`check_repository_hygiene.py`（CI 首个 blocking job，检查 tracked 文件与全量历史）、`check_documentation.py`（文档链接/布局/生成物一致）、`check_pages_artifact.py`、`plan_backend_shards.py`（枚举后端测试树生成 CI 分片矩阵，新测试域未登记时失败）、`repo-policy.toml`（大文件例外政策） |
 | `retrieval/` | 公用教材向量包构建/导入（部署期，输出为运行数据根状态，不入库）：`build_public_vector_pack.py`、`import_public_vector_pack.py` |
 

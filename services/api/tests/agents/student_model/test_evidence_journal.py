@@ -7,6 +7,9 @@
 from __future__ import annotations
 
 import json
+import os
+import subprocess
+import sys
 
 from tests.support.storage_sandbox import StorageSandboxTestCase
 
@@ -71,6 +74,99 @@ class TestEvidenceJournal(StorageSandboxTestCase):
         self.assertEqual(after.watermark, watermark)
         self.assertEqual(sorted(after.sources), sorted(before.sources))
         self.assertEqual(after.generation, before.generation)
+
+    def test_independent_facades_refresh_appends_and_job_claims(self):
+        self.journal.register_source(_receipt(), job=_job())
+        self.assertEqual(self.journal.state().jobs["job_1"].job.state,
+                         S.JobState.QUEUED)
+        worker = st.EvidenceJournal(SID)
+        claimed = worker.append([S.OpJobLeased(
+            job_id="job_1", lease_token="lease_other_process",
+            lease_expires_at="2099-01-01T00:00:00Z", worker="durable")])
+        state = self.journal.state()
+        self.assertEqual(state.last_seq, claimed.seq)
+        self.assertEqual(state.jobs["job_1"].job.state, S.JobState.RUNNING)
+        self.assertEqual(state.jobs["job_1"].job.lease_token,
+                         "lease_other_process")
+        tx = self.journal.append([S.OpConsumerAck(event_id="e", consumer="c")])
+        self.assertEqual(tx.seq, claimed.seq + 1)
+        self.assertEqual(worker.state().last_seq, tx.seq)
+
+    def test_cached_reader_recovers_external_torn_tail_under_lock(self):
+        self.journal.register_source(_receipt())
+        self.journal.state()
+        with self.journal.path.open("ab") as file:
+            file.write(b'{"incomplete":')
+        self.assertEqual(self.journal.state().last_seq, 1)
+        self.assertTrue(self.journal.path.read_bytes().endswith(b"\n"))
+
+    def test_cached_writer_does_not_hide_external_middle_corruption(self):
+        for number in range(3):
+            self.journal.register_source(_receipt(f"src_{number}"))
+        self.journal.state()
+        lines = self._lines()
+        lines[1] = '{"synthetic_corruption":true}'
+        raw = "\n".join(lines) + "\n"
+        self.journal.path.write_text(raw, encoding="utf-8")
+        with self.assertRaises(st.JournalCorruptError):
+            self.journal.append([S.OpConsumerAck(event_id="e", consumer="c")])
+        self.assertEqual(self.journal.path.read_text(encoding="utf-8"), raw)
+
+    def test_empty_rewrite_retains_durable_generation_without_learning_content(self):
+        self.journal.register_source(_receipt(text="synthetic secret to remove"))
+        other = st.EvidenceJournal(SID)
+        old_generation = other.state().generation
+        generation = self.journal.rewrite(lambda _tx: False, reason="purge_sources")
+        self.assertNotEqual(generation, old_generation)
+        self.assertEqual(other.state().generation, generation)
+        self.assertEqual(st.EvidenceJournal(SID).state().generation, generation)
+        self.assertEqual(other.state().sources, {})
+        self.assertEqual(other.state().judgments, {})
+        self.assertEqual(other.state().outbox_unacked, {})
+        self.assertNotIn("synthetic secret to remove", self.journal.path.read_text())
+        marker = S.JournalTransaction.from_persisted_json(self._lines()[0])
+        self.assertEqual(marker.operations[0].op, "consumer_ack")
+        with self.assertRaises(st.GenerationConflictError):
+            other.append([S.OpConsumerAck(event_id="e", consumer="c")],
+                         expected_generation=old_generation)
+        tx = other.append([S.OpConsumerAck(event_id="e", consumer="c")],
+                          expected_generation=generation)
+        self.assertEqual(tx.seq, marker.seq + 1)
+        from app.agents.student_model.evaluation import projections
+        self.assertEqual(projections.rebuild_index(SID)["sources"], {})
+
+    def test_concurrent_processes_append_unique_sequences(self):
+        self.journal.register_source(_receipt())
+        script = '''
+import sys
+from pathlib import Path
+from app.core import paths
+paths.set_runtime_root(Path(sys.argv[1]))
+from app.agents.student_model.evaluation import store, schema
+journal = store.EvidenceJournal(sys.argv[2])
+journal.state()
+for i in range(12):
+    journal.append([schema.OpConsumerAck(event_id=sys.argv[3]+str(i), consumer="test")])
+'''
+        env = {**os.environ, "NEXT_TUTOR_DATA_DIR": str(self.root)}
+        processes = [subprocess.Popen(
+            [sys.executable, "-c", script, str(self.root), SID, f"process-{i}-"],
+            env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+            for i in range(3)]
+        try:
+            for process in processes:
+                _output, error = process.communicate(timeout=30)
+                self.assertEqual(process.returncode, 0, error)
+        finally:
+            for process in processes:
+                if process.poll() is None:
+                    process.kill()
+                process.communicate()
+        transactions = [S.JournalTransaction.from_persisted_json(line)
+                        for line in self._lines()]
+        self.assertEqual([tx.seq for tx in transactions], list(range(1, 38)))
+        self.assertEqual(len({tx.generation for tx in transactions}), 1)
+        self.assertEqual(self.journal.state().last_seq, 37)
 
     def test_duplicate_result_commit_replaces_current_interpretation(self):
         """同一来源版本重复投递只有一次效果（§6.5）。"""

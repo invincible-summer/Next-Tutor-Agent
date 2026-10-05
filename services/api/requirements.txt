@@ -20,3 +20,15 @@ python-pptx>=0.6
 python-multipart>=0.0.9
 email-validator>=2.0
 defusedxml>=0.7.1
+# Enterprise persistence lane (file mode still works without DATABASE_URL;
+# postgres/redis/object-store code paths degrade to in-process implementations).
+SQLAlchemy>=2.0.54
+asyncpg>=0.31
+greenlet>=3.0
+alembic>=1.20
+redis>=8.1
+cryptography>=43
+# Durable workflow lane (ADR-0013): TEMPORAL_ADDRESS unset keeps every
+# domain on its in-process job execution; set → jobs move to the worker
+# process (services/api/worker.py) over the task queues in app/workflows.
+temporalio>=1.33

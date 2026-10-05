@@ -26,6 +26,7 @@ class RuntimePaths:
         "workspaces", "classroom", "assistant", "trash", "policies",
         "knowledge", "knowledge_custom", "vector_db", "notes", "students",
         "traces", "uploads", "artifacts", "public_vectors", "auth_secret", "illustrations", "diagram_assets",
+        "object_store", "auth_keys",
     )
 
     def __init__(self, root: Path) -> None:
@@ -57,6 +58,13 @@ class RuntimePaths:
         # Instance-level generated JWT secret sits beside the data root (the
         # default layout keeps it at <repo>/.runtime/auth_jwt_secret).
         self.auth_secret = root.parent / "auth_jwt_secret"
+        # Enterprise object-store local backend root: flat opaque keys, with
+        # ownership/retention metadata in PostgreSQL — not a per-user scan
+        # root, so it stays out of orphan-cleanup categories.
+        self.object_store = root / "object_store"
+        # Rotating asymmetric JWT signing keys (kid-keyed) sit beside the data
+        # root like auth_secret; KMS-backed deployments never write here.
+        self.auth_keys = root.parent / "auth_keys"
 
     def resolve_path(self, kind: str, extra: str | None = None) -> Path:
         base = getattr(self, kind)

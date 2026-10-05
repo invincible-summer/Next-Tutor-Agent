@@ -1,0 +1,22 @@
+{
+  "name": "@next-tutor/api-client",
+  "version": "0.3.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    }
+  },
+  "scripts": {
+    "check": "tsc --noEmit",
+    "test": "node --experimental-strip-types --test tests/*.test.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^20"
+  },
+  "dependencies": {
+    "@next-tutor/contracts": "workspace:*"
+  }
+}

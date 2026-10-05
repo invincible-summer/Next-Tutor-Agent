@@ -22,7 +22,7 @@ import {
 } from "@/lib/api-classroom";
 import type {
   LessonDetailPublic, VoicePolicy,
-} from "@/lib/types-classroom.generated";
+} from "@next-tutor/contracts/classroom";
 import {
   acquireAudioFocus, releaseAudioFocus,
 } from "@/lib/classroom/audio-focus";

@@ -133,16 +133,16 @@ def invalidate_interpretation(
     """撤销一条解释并级联失效其判断（§12.4）。返回受影响概念映射。
     同 source 的解释版本替换不删除原始表现（A16/§12.4）。"""
     journal = get_journal(student_id)
-    state = journal.state()
-    ops, affected = build_invalidation_ops(
-        student_id, state, interpretation_id, reason=reason)
-    if not ops:
-        return affected
-    journal.append(ops)
-    ws = workspace_id or next(
-        (src.receipt.workspace_id_at_observation
-         for src in state.sources.values()
-         if interpretation_id in src.interpretations), "")
+    with journal.transaction() as state:
+        ops, affected = build_invalidation_ops(
+            student_id, state, interpretation_id, reason=reason)
+        if not ops:
+            return affected
+        journal.append(ops)
+        ws = workspace_id or next(
+            (src.receipt.workspace_id_at_observation
+             for src in state.sources.values()
+             if interpretation_id in src.interpretations), "")
     if affected and ws:
         request_resynthesis(student_id, ws, reason="invalidate")
     return affected
@@ -154,18 +154,19 @@ def request_resynthesis(student_id: str, workspace_id: str, *,
     同区已排队的 dirty job 复用）。返回 job_id。"""
     from app.core import learner_runtime
     scheduler = learner_runtime.get_scheduler()
-    state = get_journal(student_id).state()
-    for jid, rt in state.jobs.items():
-        if rt.job.kind == S.JobKind.SYNTHESIS_WORKSPACE \
-                and rt.job.workspace_id == workspace_id \
-                and rt.job.state in (S.JobState.QUEUED,
-                                     S.JobState.RETRY_WAIT):
-            return jid
-    job = scheduler.enqueue(
-        student_id, kind=S.JobKind.SYNTHESIS_WORKSPACE,
-        workspace_id=workspace_id, scope_revision="",
-        priority=S.JobPriority.SYNTHESIS_CONCEPT.value)
-    return job.job_id
+    journal = get_journal(student_id)
+    with journal.transaction() as state:
+        for jid, rt in state.jobs.items():
+            if rt.job.kind == S.JobKind.SYNTHESIS_WORKSPACE \
+                    and rt.job.workspace_id == workspace_id \
+                    and rt.job.state in (S.JobState.QUEUED,
+                                         S.JobState.RETRY_WAIT):
+                return jid
+        job = scheduler.enqueue(
+            student_id, kind=S.JobKind.SYNTHESIS_WORKSPACE,
+            workspace_id=workspace_id, scope_revision="",
+            priority=S.JobPriority.SYNTHESIS_CONCEPT.value)
+        return job.job_id
 
 
 # ---------------------------------------------------------------------------
@@ -175,27 +176,27 @@ def request_resynthesis(student_id: str, workspace_id: str, *,
 def archive_session_sources(student_id: str, session_ref: str) -> list[str]:
     """对话进回收站：暂停该对话来源（§5.3——当前评价排除归档 dialogue）。"""
     journal = get_journal(student_id)
-    state = journal.state()
-    archived: list[str] = []
-    for sid, src in state.sources.items():
-        if src.receipt.source_session_ref == session_ref and \
-                src.availability == "available":
-            journal.append([S.OpSourceArchived(source_id=sid,
-                                               reason="session_trashed")])
-            archived.append(sid)
-    return archived
+    with journal.transaction() as state:
+        archived: list[str] = []
+        for sid, src in state.sources.items():
+            if src.receipt.source_session_ref == session_ref and \
+                    src.availability == "available":
+                journal.append([S.OpSourceArchived(source_id=sid,
+                                                   reason="session_trashed")])
+                archived.append(sid)
+        return archived
 
 
 def restore_session_sources(student_id: str, session_ref: str) -> list[str]:
     journal = get_journal(student_id)
-    state = journal.state()
-    restored: list[str] = []
-    for sid, src in state.sources.items():
-        if src.receipt.source_session_ref == session_ref and \
-                src.availability == "archived":
-            journal.append([S.OpSourceRestored(source_id=sid)])
-            restored.append(sid)
-    return restored
+    with journal.transaction() as state:
+        restored: list[str] = []
+        for sid, src in state.sources.items():
+            if src.receipt.source_session_ref == session_ref and \
+                    src.availability == "archived":
+                journal.append([S.OpSourceRestored(source_id=sid)])
+                restored.append(sid)
+        return restored
 
 
 # ---------------------------------------------------------------------------
@@ -206,29 +207,30 @@ def _cancel_source_jobs(student_id: str, source_id: str) -> list[str]:
     """取消该来源全部在途 job（评价/复核），防止回包复活（§5.3）。"""
     from app.core import learner_runtime
     scheduler = learner_runtime.get_scheduler()
-    state = get_journal(student_id).state()
-    cancelled: list[str] = []
-    for jid, rt in list(state.jobs.items()):
-        if rt.job.source_id != source_id:
-            continue
-        if scheduler.cancel(student_id, jid, reason="source_deleted"):
-            cancelled.append(jid)
-    return cancelled
+    journal = get_journal(student_id)
+    with journal.transaction() as state:
+        cancelled: list[str] = []
+        for jid, rt in list(state.jobs.items()):
+            if rt.job.source_id != source_id:
+                continue
+            if scheduler.cancel(student_id, jid, reason="source_deleted"):
+                cancelled.append(jid)
+        return cancelled
 
 
 def _dismiss_source_reviews(student_id: str, source_id: str) -> None:
     """该来源的 active 复核全部 dismiss——允许删除后新证据的新异议。"""
     journal = get_journal(student_id)
-    state = journal.state()
-    ops = []
-    for rid, review in state.reviews.items():
-        if review.source_id == source_id and review.status == "active":
-            job_id = next((jid for jid, r in state.review_by_job.items()
-                           if r == rid), "")
-            ops.append(S.OpReviewDismissed(
-                review_id=rid, reason="source_deleted", job_id=job_id))
-    if ops:
-        journal.append(ops)
+    with journal.transaction() as state:
+        ops = []
+        for rid, review in state.reviews.items():
+            if review.source_id == source_id and review.status == "active":
+                job_id = next((jid for jid, r in state.review_by_job.items()
+                               if r == rid), "")
+                ops.append(S.OpReviewDismissed(
+                    review_id=rid, reason="source_deleted", job_id=job_id))
+        if ops:
+            journal.append(ops)
 
 
 def delete_evidence_source(student_id: str, source_id: str) -> dict[str, Any]:
@@ -238,37 +240,37 @@ def delete_evidence_source(student_id: str, source_id: str) -> dict[str, Any]:
     物理清除该来源的原文/引文/判分/解释副本（其余来源与无关事务不动）。
     """
     journal = get_journal(student_id)
-    state = journal.state()
-    src = state.sources.get(source_id)
-    if src is None:
-        return {"deleted": False}
-    affected_all: dict[str, str] = {}
-    workspaces: set[str] = set()
-    _cancel_source_jobs(student_id, source_id)
-    _dismiss_source_reviews(student_id, source_id)
-    state = journal.state()
-    for interp_id in [src.current_interpretation_id] + [
-            iid for iid, meta in src.interpretations.items()
-            if iid and not meta.get("revoked")]:
-        if interp_id:
-            ops, affected = build_invalidation_ops(
-                student_id, journal.state(), interp_id,
-                reason="source_deleted:" + source_id)
-            journal.append(ops)
-            affected_all.update(affected)
-    workspaces.add(src.receipt.workspace_id_at_observation)
+    with journal.transaction() as state:
+        src = state.sources.get(source_id)
+        if src is None:
+            return {"deleted": False}
+        affected_all: dict[str, str] = {}
+        workspaces: set[str] = set()
+        _cancel_source_jobs(student_id, source_id)
+        _dismiss_source_reviews(student_id, source_id)
+        state = journal.state()
+        for interp_id in [src.current_interpretation_id] + [
+                iid for iid, meta in src.interpretations.items()
+                if iid and not meta.get("revoked")]:
+            if interp_id:
+                ops, affected = build_invalidation_ops(
+                    student_id, journal.state(), interp_id,
+                    reason="source_deleted:" + source_id)
+                journal.append(ops)
+                affected_all.update(affected)
+        workspaces.add(src.receipt.workspace_id_at_observation)
 
-    def _keep(tx: S.JournalTransaction) -> bool:
-        for op in tx.operations:
-            if isinstance(op, S.OpSourceRegistered) and \
-                    op.source.source_id == source_id:
-                return False
-            if isinstance(op, (S.OpSourceRevised, S.OpResultCommitted)) and \
-                    op.source_id == source_id:
-                return False
-        return True
+        def _keep(tx: S.JournalTransaction) -> bool:
+            for op in tx.operations:
+                if isinstance(op, S.OpSourceRegistered) and \
+                        op.source.source_id == source_id:
+                    return False
+                if isinstance(op, (S.OpSourceRevised, S.OpResultCommitted)) and \
+                        op.source_id == source_id:
+                    return False
+            return True
 
-    journal.rewrite(_keep, reason=f"delete_evidence:{source_id}")
+        journal.rewrite(_keep, reason=f"delete_evidence:{source_id}")
     for ws in workspaces:
         if ws:
             request_resynthesis(student_id, ws, reason="source_deleted")
@@ -283,56 +285,56 @@ def delete_session_sources(student_id: str, session_ref: str, *,
     结论；独立 assessment 档案按"学习档案独立保留"语义保存并 detach 会话
     定位，除非显式选择一并删除（R07）。"""
     journal = get_journal(student_id)
-    state = journal.state()
-    target_ids = [
-        src.receipt.source_id for src in state.sources.values()
-        if src.receipt.source_session_ref == session_ref]
-    dialogue_ids = [src.receipt.source_id for src in state.sources.values()
-                    if src.receipt.source_session_ref == session_ref
-                    and src.receipt.kind == S.SourceKind.DIALOGUE]
-    remove_ids = set(target_ids if include_assessments else dialogue_ids)
-    detach_ids = set(target_ids) - remove_ids
-    affected_all: dict[str, str] = {}
-    workspaces: set[str] = set()
-    for source_id in sorted(remove_ids):
-        src = journal.state().sources.get(source_id)
-        if src is None:
-            continue
-        result = delete_evidence_source(student_id, source_id)
-        affected_all.update({k: "" for k in
-                             result.get("affected_concepts", [])})
-        workspaces.add(src.receipt.workspace_id_at_observation)
+    with journal.transaction() as state:
+        target_ids = [
+            src.receipt.source_id for src in state.sources.values()
+            if src.receipt.source_session_ref == session_ref]
+        dialogue_ids = [src.receipt.source_id for src in state.sources.values()
+                        if src.receipt.source_session_ref == session_ref
+                        and src.receipt.kind == S.SourceKind.DIALOGUE]
+        remove_ids = set(target_ids if include_assessments else dialogue_ids)
+        detach_ids = set(target_ids) - remove_ids
+        affected_all: dict[str, str] = {}
+        workspaces: set[str] = set()
+        for source_id in sorted(remove_ids):
+            src = journal.state().sources.get(source_id)
+            if src is None:
+                continue
+            result = delete_evidence_source(student_id, source_id)
+            affected_all.update({k: "" for k in
+                                 result.get("affected_concepts", [])})
+            workspaces.add(src.receipt.workspace_id_at_observation)
 
-    def _transform(tx: S.JournalTransaction) -> S.JournalTransaction:
-        """独立保留的 assessment：去掉会话定位（detach），原文保留。"""
-        if not detach_ids:
-            return tx
-        ops = []
-        changed = False
-        for op in tx.operations:
-            if isinstance(op, S.OpSourceRegistered) and \
-                    op.source.source_id in detach_ids and \
-                    op.source.source_session_ref:
-                receipt = op.source.model_copy(update={
-                    "source_session_ref": ""})
-                op = op.model_copy(update={"source": receipt})
-                changed = True
-            ops.append(op)
-        return tx.model_copy(update={"operations": ops}) if changed else tx
+        def _transform(tx: S.JournalTransaction) -> S.JournalTransaction:
+            """独立保留的 assessment：去掉会话定位（detach），原文保留。"""
+            if not detach_ids:
+                return tx
+            ops = []
+            changed = False
+            for op in tx.operations:
+                if isinstance(op, S.OpSourceRegistered) and \
+                        op.source.source_id in detach_ids and \
+                        op.source.source_session_ref:
+                    receipt = op.source.model_copy(update={
+                        "source_session_ref": ""})
+                    op = op.model_copy(update={"source": receipt})
+                    changed = True
+                ops.append(op)
+            return tx.model_copy(update={"operations": ops}) if changed else tx
 
-    def _keep(tx: S.JournalTransaction) -> bool:
-        for op in tx.operations:
-            if isinstance(op, S.OpSourceRegistered) and \
-                    op.source.source_id in remove_ids:
-                return False
-            if isinstance(op, (S.OpSourceRevised, S.OpResultCommitted)) and \
-                    getattr(op, "source_id", "") in remove_ids:
-                return False
-        return True
+        def _keep(tx: S.JournalTransaction) -> bool:
+            for op in tx.operations:
+                if isinstance(op, S.OpSourceRegistered) and \
+                        op.source.source_id in remove_ids:
+                    return False
+                if isinstance(op, (S.OpSourceRevised, S.OpResultCommitted)) and \
+                        getattr(op, "source_id", "") in remove_ids:
+                    return False
+            return True
 
-    if remove_ids or detach_ids:
-        journal.rewrite(_keep, reason=f"delete_session:{session_ref}",
-                        transform=_transform)
+        if remove_ids or detach_ids:
+            journal.rewrite(_keep, reason=f"delete_session:{session_ref}",
+                            transform=_transform)
     for ws in workspaces:
         if ws:
             request_resynthesis(student_id, ws, reason="source_deleted")
@@ -348,7 +350,6 @@ def on_scope_change(student_id: str, workspace_id: str, *,
     判断）+ 取消该 scope 未开始任务 + 排队重综合。"""
     journal = get_journal(student_id)
     scheduler = _scheduler()
-    state = journal.state()
     try:
         from .scope import get_scope_resolver
         scope = get_scope_resolver().resolve(student_id, workspace_id)
@@ -356,17 +357,18 @@ def on_scope_change(student_id: str, workspace_id: str, *,
         allowed = {c.key for c in scope.allowed_concepts}
     except Exception:
         new_revision, allowed = "", set()
-    dropped = [key for (ws, key) in state.concept_current
-               if ws == workspace_id and key not in allowed]
-    journal.append([S.OpScopeChanged(
-        workspace_id=workspace_id,
-        scope_revision=new_revision or "unknown",
-        change=change[:600], affected_concept_keys=dropped)])
-    cancelled = scheduler.cancel_scope_jobs(
-        student_id, workspace_id, reason="scope_changed")
-    if dropped:
-        request_resynthesis(student_id, workspace_id, reason="scope_changed")
-    return dropped, cancelled
+    with journal.transaction() as state:
+        dropped = [key for (ws, key) in state.concept_current
+                   if ws == workspace_id and key not in allowed]
+        journal.append([S.OpScopeChanged(
+            workspace_id=workspace_id,
+            scope_revision=new_revision or "unknown",
+            change=change[:600], affected_concept_keys=dropped)])
+        cancelled = scheduler.cancel_scope_jobs(
+            student_id, workspace_id, reason="scope_changed")
+        if dropped:
+            request_resynthesis(student_id, workspace_id, reason="scope_changed")
+        return dropped, cancelled
 
 
 def _scheduler():

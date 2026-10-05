@@ -17,9 +17,11 @@ from __future__ import annotations
 import hashlib
 import threading
 import uuid
+from copy import deepcopy
+from contextlib import contextmanager
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any, Callable, Iterator
 
 from app.core.atomic import (append_line_sync, atomic_write_text,
                              fsync_dir, file_lock)
@@ -433,7 +435,7 @@ def _retry_not_before(seconds: int) -> str:
 # ---------------------------------------------------------------------------
 
 class EvidenceJournal:
-    """每学生 journal 的进程内门面（单 worker，§6.5）。
+    """每学生 journal 门面；进程内重放缓存受持久文件锁与签名约束。
 
     所有方法同步短临界区；调用方在 async 上下文中须经 `asyncio.to_thread`
     或在非锁窗口调用——锁内禁止 await 由类型与用法约定保证。
@@ -442,6 +444,7 @@ class EvidenceJournal:
     def __init__(self, student_id: str) -> None:
         self.student_id = student_id
         self._state: JournalState | None = None
+        self._file_signature: tuple[int, int, int, int, int] | None = None
         self._load_lock = threading.RLock()
 
     # -- paths ---------------------------------------------------------
@@ -458,16 +461,35 @@ class EvidenceJournal:
 
     # -- state ---------------------------------------------------------
     def state(self) -> JournalState:
-        if self._state is None:
+        # Readers and writers use the same durable lock: recovery may truncate
+        # a torn tail, and cached state must observe other API/worker processes.
+        # Keep this lock order consistent with append/rewrite.
+        with file_lock(self.path):
             with self._load_lock:
-                if self._state is None:
+                signature = self._signature()
+                if self._state is None or signature != self._file_signature:
                     self._state = self._load()
-        return self._state
+                    self._file_signature = self._signature()
+                return self._state
+
+    def _signature(self) -> tuple[int, int, int, int, int] | None:
+        try:
+            stat = self.path.stat()
+        except FileNotFoundError:
+            return None
+        return (stat.st_dev, stat.st_ino, stat.st_size,
+                stat.st_mtime_ns, stat.st_ctime_ns)
+
+    def snapshot(self) -> JournalState:
+        """锁内冻结读侧输入，防止 await 期间投影就地重放改写旧基线。"""
+        with self.transaction() as state:
+            return deepcopy(state)
 
     def invalidate_cache(self) -> None:
         """外部重写 journal 文件后强制重载（迁移/测试）。"""
         with self._load_lock:
             self._state = None
+            self._file_signature = None
 
     def _load(self) -> JournalState:
         state = JournalState(student_id=self.student_id)
@@ -540,6 +562,39 @@ class EvidenceJournal:
             fsync_dir(self.path.parent)
 
     # -- write ---------------------------------------------------------
+    @contextmanager
+    def transaction(self, *, expected_generation: str | None = None
+                    ) -> Iterator[JournalState]:
+        """锁内刷新、校验与提交的短同步边界；禁止 await/LLM 调用。
+
+        同一 journal 的嵌套 state/append/mutate 复用可重入持久锁，始终按
+        file_lock → _load_lock 排序。回调只能通过操作追加事实，不能直接
+        修改返回的投影状态。
+        """
+        with file_lock(self.path):
+            with self._load_lock:
+                state = self.state()
+                if state.corrupt:
+                    raise JournalCorruptError(
+                        f"journal corrupt for {self.student_id}: "
+                        f"{state.corrupt_detail}")
+                if expected_generation is not None \
+                        and expected_generation != state.generation:
+                    raise GenerationConflictError(
+                        f"generation conflict: expected {expected_generation}, "
+                        f"journal at {state.generation}")
+                yield state
+
+    def mutate(self, build_operations: Callable[[JournalState], list[Any] | None],
+               *, expected_generation: str | None = None
+               ) -> S.JournalTransaction | None:
+        """同一锁内据当前事实构造并追加操作；None/[] 表示无需写入。"""
+        with self.transaction(expected_generation=expected_generation) as state:
+            operations = build_operations(state)
+            if not operations:
+                return None
+            return self.append(operations, expected_generation=state.generation)
+
     def append(self, operations: list[Any], *,
                expected_generation: str | None = None) -> S.JournalTransaction:
         """原子追加一个完整事务（锁内：检查恢复/分配 seq/写完整行/fsync）。
@@ -549,17 +604,7 @@ class EvidenceJournal:
         """
         if not operations:
             raise JournalError("empty transaction")
-        with file_lock(self.path):
-            state = self.state()
-            if state.corrupt:
-                raise JournalCorruptError(
-                    f"journal corrupt for {self.student_id}: "
-                    f"{state.corrupt_detail}")
-            if expected_generation is not None \
-                    and expected_generation != state.generation:
-                raise GenerationConflictError(
-                    f"generation conflict: expected {expected_generation}, "
-                    f"journal at {state.generation}")
+        with self.transaction(expected_generation=expected_generation) as state:
             tx = S.JournalTransaction(
                 generation=state.generation,
                 seq=state.last_seq + 1,
@@ -571,6 +616,7 @@ class EvidenceJournal:
             append_line_sync(self.path, line)
             state.last_seq = tx.seq
             _apply_tx(state, tx)
+            self._file_signature = self._signature()
             return tx
 
     # -- rewrite (permanent deletion) ----------------------------------
@@ -582,8 +628,7 @@ class EvidenceJournal:
         """带 generation 的永久删除重写（§5.3：物理去除敏感内容与引用副本，
         不是只追加 tombstone）。返回新 generation。调用方负责范围/权限判断。
         R07：transform 允许保留行脱敏（如独立 assessment detach 会话定位）。"""
-        with file_lock(self.path):
-            state = self.state()
+        with self.transaction():
             kept: list[S.JournalTransaction] = []
             for tx in self._iter_raw_transactions():
                 if not keep(tx):
@@ -602,6 +647,19 @@ class EvidenceJournal:
                     "created_at": S.utc_now_iso()})
                 tx.checksum = tx.resolved_checksum()
                 lines.append(tx.model_dump_json())
+            if not lines:
+                # An empty rewrite must retain its generation fence across
+                # processes/restarts. This reserved acknowledgement contains
+                # no source, answer, judgment, or learning observation.
+                seq = 1
+                marker = S.JournalTransaction(
+                    generation=new_gen, seq=seq,
+                    transaction_id=new_transaction_id(),
+                    created_at=S.utc_now_iso(),
+                    operations=[S.OpConsumerAck(
+                        event_id="__journal_generation__", consumer="__journal__")])
+                marker.checksum = marker.resolved_checksum()
+                lines.append(marker.model_dump_json())
             self.path.parent.mkdir(parents=True, exist_ok=True)
             atomic_write_text(self.path, "".join(l + "\n" for l in lines))
             fsync_dir(self.path.parent)
@@ -610,6 +668,7 @@ class EvidenceJournal:
             self._state.last_seq = seq
             for tx in self._iter_raw_transactions():
                 _apply_tx(self._state, tx)
+            self._file_signature = self._signature()
             return new_gen
 
     def _iter_raw_transactions(self) -> list[S.JournalTransaction]:

@@ -111,7 +111,7 @@ test("配图提交响应丢失：读取会话恢复同一轮，V2自动检索和
       const rev = ++session.revision;
       session.turns.push({ turn_id: `turn_${rev}`, job_id: `job_${rev}`, message: body.message, mode: body.mode, selected_materials: [], status: "ready", revision: rev, created_at: 1, request_id: body.request_id });
       session.revisions.push({ revision: rev, artifact_id: `artifact_${rev}`, mode: body.mode, illustration: image, created_at: 1 });
-      job = { job_id: `job_${rev}`, session_id: session.session_id, turn_id: `turn_${rev}`, mode: body.mode, status: "ready", stage: "ready", progress: 100, base_revision: rev - 1, revision: rev, artifact_id: `artifact_${rev}`, illustration: image, selected_materials: [], failure: null };
+      job = { job_id: `job_${rev}`, session_id: session.session_id, turn_id: `turn_${rev}`, mode: body.mode, status: "ready", stage: "ready", progress: 100, base_revision: rev - 1, revision: rev, artifact_id: `artifact_${rev}`, illustration: image, selected_materials: [], failure: null, created_at: 1, updated_at: 1 };
       if (submits === 1) return route.abort("connectionreset");
       return route.fulfill({ json: job });
     }

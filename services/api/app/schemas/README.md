@@ -5,7 +5,7 @@
 ## Owns
 
 - `chat.py` — 对话 API 请求/响应模型（`ChatRequest`、`ClassroomRef` 课堂插问引用、`RenameRequest`、`SessionItem` 等）
-- `assistant.py` — 站内助手契约唯一源（`extra="forbid"`；`scripts/dev/generate_assistant_types.py` 据此生成前端 `types.generated.ts`，`--check` 进回归强制同步）
+- `assistant.py` — 站内助手契约唯一源（`extra="forbid"`；`scripts/contracts/generate_types.py` 据此生成 `packages/contracts/src/generated/assistant.ts`，`--check` 进回归强制同步）
 - `classroom.py` — 课堂三层契约：内容契约（Brief/Spec，`extra="forbid"`、枚举闭合、长度上限在 schema 层强制）、服务端实体（只由 store/worker 写）、Public DTO 白名单投影；ID 规则 `les_/job_/run_` 等 + 24 位十六进制
 
 ## Does not own

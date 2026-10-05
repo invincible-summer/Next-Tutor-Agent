@@ -12,7 +12,7 @@ import {
 import { useUIStore } from "@/lib/store";
 import { makePageT } from "@/lib/i18n-page";
 import { archiveLesson, ClassroomApiError, getJobPreview, getLesson, getRevisionFrame } from "@/lib/api-classroom";
-import type { JobPreviewResponse, LessonDetailPublic } from "@/lib/types-classroom.generated";
+import type { JobPreviewResponse, LessonDetailPublic } from "@next-tutor/contracts/classroom";
 import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Modal } from "@/components/ui/Modal";

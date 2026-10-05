@@ -45,6 +45,8 @@ jobs:
         run: python scripts/repo/check_repository_hygiene.py
       - name: Documentation links and layout
         run: python scripts/repo/check_documentation.py --check-generated
+      - name: Pinned dependency notices and source SBOM
+        run: python scripts/compliance/generate_notices.py --check
 
   backend-shards:
     # Enumerates services/api/tests into the shard matrix below. Fails loudly
@@ -84,9 +86,163 @@ jobs:
           SUITES: ${{ matrix.suites }}
         run: python -m tests $SUITES
 
+  enterprise-paths:
+    # Gate for the enterprise integration job: it only needs to run when the
+    # persistence schema, its dependencies or its tests change. Both PR and
+    # main push events use their actual changed-path diff.
+    name: Detect enterprise path changes
+    runs-on: ubuntu-24.04
+    timeout-minutes: 3
+    outputs:
+      changed: ${{ steps.filter.outputs.changed }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Check changed paths
+        id: filter
+        run: |
+          set -eu
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            RANGE="origin/${{ github.base_ref }}...HEAD"
+          else
+            RANGE="HEAD~1..HEAD"
+          fi
+          PATTERN='^(services/api/(app/persistence|migrations|tests/persistence)/|services/api/(requirements[^/]*\.txt|constraints\.txt)|\.github/workflows/ci\.yml)'
+          if git diff --name-only "$RANGE" | grep -Eq "$PATTERN"; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  temporal-paths:
+    # Gate for the durable-workflow integration job (ADR-0013): runs when the
+    # workflow lane, worker entrypoint, its tests, the local compose Temporal
+    # service or the dependency manifests change.
+    name: Detect temporal path changes
+    runs-on: ubuntu-24.04
+    timeout-minutes: 3
+    outputs:
+      changed: ${{ steps.filter.outputs.changed }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Check changed paths
+        id: filter
+        run: |
+          set -eu
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            RANGE="origin/${{ github.base_ref }}...HEAD"
+          else
+            RANGE="HEAD~1..HEAD"
+          fi
+          PATTERN='^(services/api/(app/workflows/|worker\.py|tests/workflows/)|deploy/local/|services/api/(requirements[^/]*\.txt|constraints\.txt)|\.github/workflows/ci\.yml)'
+          if git diff --name-only "$RANGE" | grep -Eq "$PATTERN"; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  backend-enterprise:
+    # Real PostgreSQL + Redis integration lane (tests/persistence/integration.py):
+    # two engines concurrently sharing one tenant (Stage B acceptance), atomic
+    # refresh rotation, cross-instance cache/lease primitives. Skipped unless
+    # the enterprise paths above changed.
+    name: Backend enterprise (PostgreSQL + Redis)
+    needs: [repo-hygiene, enterprise-paths]
+    if: needs.enterprise-paths.outputs.changed == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: tutor
+          POSTGRES_PASSWORD: tutor
+          POSTGRES_DB: tutor_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U tutor -d tutor_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:8
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup-project
+      - name: Enterprise integration tests
+        working-directory: services/api
+        env:
+          TEST_DATABASE_URL: postgresql://tutor:tutor@localhost:5432/tutor_test
+          TEST_REDIS_URL: redis://localhost:6379/0
+        run: python -m tests tests.persistence.integration
+
+  backend-temporal:
+    # Real Temporal server integration lane (tests/workflows/integration.py,
+    # ADR-0013): durable dispatch reaches the worker lane and rides the domain
+    # per-owner queue to a terminal book status. Skipped unless the temporal
+    # paths above changed.
+    name: Backend temporal (Temporal server)
+    needs: [repo-hygiene, temporal-paths]
+    if: needs.temporal-paths.outputs.changed == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: temporal
+          POSTGRES_PASSWORD: temporal
+          POSTGRES_DB: temporal
+        options: >-
+          --health-cmd "pg_isready -U temporal -d temporal"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 12
+      temporal:
+        image: temporalio/auto-setup:1.25.2
+        env:
+          DB: postgres12
+          DB_PORT: 5432
+          POSTGRES_USER: temporal
+          POSTGRES_PWD: temporal
+          POSTGRES_SEEDS: postgres
+        ports:
+          - 7233:7233
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup-project
+      - name: Wait for Temporal frontend
+        run: |
+          python3 - <<'EOF'
+          import socket, sys, time
+          for _ in range(180):
+              try:
+                  socket.create_connection(("localhost", 7233), timeout=2).close()
+                  sys.exit(0)
+              except OSError:
+                  time.sleep(2)
+          sys.exit("temporal frontend never became reachable")
+          EOF
+      - name: Temporal integration tests
+        working-directory: services/api
+        env:
+          TEST_TEMPORAL_ADDRESS: 127.0.0.1:7233
+        run: python -m tests tests.workflows.integration
+
   frontend:
     name: Frontend and smoke
-    needs: repo-hygiene
+    needs: [repo-hygiene, shared-packages]
     runs-on: ubuntu-24.04
     timeout-minutes: 25
     steps:
@@ -115,12 +271,82 @@ jobs:
         with:
           report-name: smoke-report
 
+  mobile:
+    # Required JS/configuration lane. Device binaries, Maestro and real-device
+    # accessibility/performance remain separate release gates.
+    name: Mobile
+    needs: [repo-hygiene, shared-packages]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      CI: "1"
+      EXPO_NO_TELEMETRY: "1"
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup-project
+        with:
+          node: "true"
+          python: "false"
+      - name: Expo SDK dependency compatibility
+        run: pnpm --filter @next-tutor/mobile exec expo install --check
+      - name: Expo Doctor (locked local 1.20.4)
+        run: pnpm --filter @next-tutor/mobile exec expo-doctor
+      - name: Mobile TypeScript
+        run: pnpm mobile:check
+      - name: Mobile unit and component tests
+        # Tests must close their own timers/query clients; no --forceExit.
+        run: pnpm mobile:test --runInBand
+      - name: Android Hermes export
+        run: pnpm --filter @next-tutor/mobile exec expo export --platform android --output-dir "${{ runner.temp }}/mobile-export-android"
+      - name: iOS Hermes export
+        run: pnpm --filter @next-tutor/mobile exec expo export --platform ios --output-dir "${{ runner.temp }}/mobile-export-ios"
+      - name: CNG configuration (both platforms, no install)
+        run: pnpm --filter @next-tutor/mobile exec expo prebuild --clean --no-install --platform all
+      - name: CNG preserves locked manifests
+        run: git diff --exit-code -- apps/mobile/package.json pnpm-lock.yaml
+
+  shared-packages:
+    # Shared client packages (contracts / api-client / domain / design-tokens /
+    # i18n): typecheck + node:test at the root, plus the contract drift guard
+    # (generated types and the OpenAPI snapshot must match the server schemas).
+    name: Shared packages and contracts
+    needs: repo-hygiene
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup-project
+        with:
+          node: "true"
+      - name: Typecheck shared packages
+        run: pnpm run packages:check
+      - name: Shared package tests (node:test)
+        run: pnpm run packages:test
+      - name: Design tokens generation drift
+        run: node scripts/dev/generate_design_tokens.mjs --check
+      - name: Contract generation drift (types + OpenAPI snapshot)
+        run: python3 scripts/contracts/generate_types.py --check && python3 scripts/contracts/export_openapi.py --check
+      - name: Contract lint (response schema gaps ratchet)
+        run: python3 scripts/contracts/check_contracts.py
+
   result:
     # The single required check in main's branch protection. The backend
-    # matrix expands automatically: every shard leg must succeed.
+    # matrix expands automatically: every shard leg must succeed, and the
+    # enterprise/temporal lanes must pass whenever their path gates matched.
     name: CI result
     if: always()
-    needs: [repo-hygiene, backend, frontend]
+    needs:
+      [
+        repo-hygiene,
+        backend,
+        shared-packages,
+        frontend,
+        mobile,
+        enterprise-paths,
+        backend-enterprise,
+        temporal-paths,
+        backend-temporal,
+      ]
     runs-on: ubuntu-24.04
     timeout-minutes: 2
     steps:
@@ -128,8 +354,30 @@ jobs:
         env:
           HYGIENE_RESULT: ${{ needs.repo-hygiene.result }}
           BACKEND_RESULT: ${{ needs.backend.result }}
+          PACKAGES_RESULT: ${{ needs.shared-packages.result }}
           FRONTEND_RESULT: ${{ needs.frontend.result }}
+          MOBILE_RESULT: ${{ needs.mobile.result }}
+          PATHS_RESULT: ${{ needs.enterprise-paths.result }}
+          ENTERPRISE_PATHS: ${{ needs.enterprise-paths.outputs.changed }}
+          ENTERPRISE_RESULT: ${{ needs.backend-enterprise.result }}
+          TEMPORAL_PATHS: ${{ needs.temporal-paths.outputs.changed }}
+          TEMPORAL_PATHS_RESULT: ${{ needs.temporal-paths.result }}
+          TEMPORAL_RESULT: ${{ needs.backend-temporal.result }}
         run: |
           test "$HYGIENE_RESULT" = success
           test "$BACKEND_RESULT" = success
+          test "$PACKAGES_RESULT" = success
           test "$FRONTEND_RESULT" = success
+          test "$MOBILE_RESULT" = success
+          test "$PATHS_RESULT" = success
+          test "$TEMPORAL_PATHS_RESULT" = success
+          if [ "$ENTERPRISE_PATHS" = "true" ]; then
+            test "$ENTERPRISE_RESULT" = success
+          else
+            test "$ENTERPRISE_RESULT" = skipped
+          fi
+          if [ "$TEMPORAL_PATHS" = "true" ]; then
+            test "$TEMPORAL_RESULT" = success
+          else
+            test "$TEMPORAL_RESULT" = skipped
+          fi

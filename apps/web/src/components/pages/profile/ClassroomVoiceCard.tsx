@@ -25,7 +25,7 @@ import { makePageT } from "@/lib/i18n-page";
 import { STRINGS } from "@/app/(workspace)/settings/strings";
 import type {
   ClassroomCapabilities, VoicePolicy,
-} from "@/lib/types-classroom.generated";
+} from "@next-tutor/contracts/classroom";
 import type { ClassroomPrefs } from "@/lib/types-modules";
 
 type Tr = (key: string, fallback?: string) => string;

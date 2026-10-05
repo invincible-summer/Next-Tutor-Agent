@@ -1,0 +1,35 @@
+[Unit]
+Description=Next-Tutor-Agent durable workflow worker (Temporal)
+Wants=network-online.target
+After=network-online.target edu-backend.service
+
+# Temporal durable lane（ADR-0013）：需要 TEMPORAL_ADDRESS（未配置的
+# file/self-hosted 部署不需要本单元——任务在 API 进程内执行）。队列子集
+# 运行见 `--queues`；五个队列全部由本单元服务时，横向扩容仍受
+# 「每队列单 worker 实例」约束（域队列/调度器在进程内存中）。
+# 部署形态、运维清单见 docs/development/enterprise-infra.md 与
+# docs/operations/deployment.md。
+[Service]
+Type=simple
+User=edu-agent
+Group=edu-agent
+UMask=0077
+WorkingDirectory=/opt/edu-agent
+EnvironmentFile=/opt/edu-agent/.env
+Environment=HOME=/var/lib/edu-agent
+Environment=XDG_CACHE_HOME=/var/lib/edu-agent/cache
+Environment=PYTHONPATH=/opt/edu-agent/services/api
+Environment=NEXT_TUTOR_DATA_DIR=/var/lib/edu-agent/data
+ExecStart=/opt/edu-agent/.venv/bin/python /opt/edu-agent/services/api/worker.py
+Restart=always
+RestartSec=3
+# 优雅停机：活动取消 + 在途租约/检查点宽限（worker 内部 30s）。
+TimeoutStopSec=45
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/edu-agent
+
+[Install]
+WantedBy=multi-user.target

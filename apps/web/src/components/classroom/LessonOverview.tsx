@@ -1,6 +1,6 @@
 "use client";
 import { BookOpen, Check, Clock3, Layers3, Pencil, Play, Loader2 } from "lucide-react";
-import type { LessonDetailPublic } from "@/lib/types-classroom.generated";
+import type { LessonDetailPublic } from "@next-tutor/contracts/classroom";
 import { useUIStore } from "@/lib/store";
 import { Button } from "@/components/ui/Button";
 
