@@ -82,6 +82,11 @@ class SqlAlchemyIdentityRepository:
         try:
             async with self._txn() as sess:
                 sess.add(row)
+                # Keep the parent insert explicit.  PostgreSQL enforces the
+                # credential FK immediately, while SQLite's default test
+                # configuration does not; relying on unit-of-work ordering
+                # made registration fail only in the enterprise lane.
+                await sess.flush()
                 if credential is not None:
                     sess.add(CredentialModel(
                         id=credential.id, user_id=record.user_id,
