@@ -108,6 +108,8 @@ python3 scripts/migrations/runtime_to_enterprise/import_documents.py --domain ch
 python3 scripts/migrations/runtime_to_enterprise/import_documents.py --domain chat --verify # 双侧 count + payload 摘要比对，漂移 exit 1
 ```
 
+已支持域：`chat`（会话/转写/trace 引用）、`notes`（仓库索引/正文/修订/智能体状态）、`evidence`（学习证据 journal + 学生档案）、`orchestration`（编排工作集 + 事件日志）。
+
 导入不覆盖既有 SQL 行（cutover 后 SQL 侧写入优先）；状态记入同一 `state.json`。
 
 ## 本地基础设施

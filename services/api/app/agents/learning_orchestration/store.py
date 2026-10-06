@@ -26,6 +26,7 @@ from .schema import (OrchestrationEvent, OrchestrationState,
 from ...core.atomic import atomic_write_text, file_lock
 
 from app.core import paths
+from . import sql_store as _sql
 
 _STUDENTS_DIR = paths.bind_storage_path(__name__, "_STUDENTS_DIR", "students")
 
@@ -51,6 +52,15 @@ def _ensure_dir() -> None:
 def load_state(student_id: str) -> OrchestrationState:
     """Load the orchestration state for a student. Returns a fresh default
     when the file is missing or corrupt (never raises into a turn)."""
+    if _sql.use_sql():
+        owner = _sql.owner_key(student_id)
+        try:
+            payload = _sql.load_state_payload(owner)
+            if payload is not None:
+                return OrchestrationState.from_dict(payload)
+        except Exception:
+            pass
+        return OrchestrationState(student_id=Path(student_id).name)
     path = _resolve(student_id, ext=".orchestration.json")
     try:
         if path.exists():
@@ -64,6 +74,11 @@ def load_state(student_id: str) -> OrchestrationState:
 def save_state(student_id: str, state: OrchestrationState) -> bool:
     """Persist the orchestration state (full rewrite). Best-effort."""
     try:
+        if _sql.use_sql():
+            state.updated_at = time.time()
+            _sql.save_state_payload(_sql.owner_key(student_id),
+                                    state.to_dict())
+            return True
         _ensure_dir()
         path = _resolve(student_id, ext=".orchestration.json")
         state.updated_at = time.time()
@@ -80,6 +95,14 @@ def append_event(student_id: str, event: OrchestrationEvent) -> bool:
     """Append one OrchestrationEvent to the student's orchestration_events.jsonl.
     Never raises. Returns True on success."""
     try:
+        if _sql.use_sql():
+            payload = event.to_dict()
+
+            def build(lines: list[Any] | None) -> list[Any]:
+                return [*(lines or []), payload]
+
+            _sql.mutate_event_lines(_sql.owner_key(student_id), build)
+            return True
         _ensure_dir()
         path = _resolve(student_id, ext=".orchestration_events.jsonl")
         # 锁防 asyncio 线程池并发 append 交错出半行
@@ -90,11 +113,36 @@ def append_event(student_id: str, event: OrchestrationEvent) -> bool:
         return False
 
 
+def _parse_event_lines(lines: list[Any],
+                       coverage: dict | None = None
+                       ) -> list[OrchestrationEvent]:
+    out: list[OrchestrationEvent] = []
+    for item in lines:
+        try:
+            if isinstance(item, str):
+                item = json.loads(item)
+            out.append(OrchestrationEvent.from_dict(item))
+        except Exception:
+            if coverage is not None:
+                coverage["invalid_count"] += 1
+            continue
+    return out
+
+
 def read_events(student_id: str, limit: int = _MAX_EVENTS_REPLAY) -> list[OrchestrationEvent]:
     """Read up to `limit` most-recent orchestration events. Skips bad lines.
 
     Returns events oldest-first (chronological order for analysis).
     """
+    if _sql.use_sql():
+        try:
+            lines = _sql.read_event_lines(_sql.owner_key(student_id))
+        except Exception:
+            return []
+        out = _parse_event_lines(lines)
+        if len(out) > limit:
+            out = out[-limit:]
+        return out
     path = _resolve(student_id, ext=".orchestration_events.jsonl")
     if not path.exists():
         return []
@@ -126,6 +174,21 @@ def read_events_with_coverage(student_id: str) -> tuple[list[OrchestrationEvent]
     """
     from .schema import _MAX_EVENTS_STRICT_BUDGET
 
+    coverage = {"exists": False, "readable": True,
+                "invalid_count": 0, "total_lines": 0, "truncated": False}
+    if _sql.use_sql():
+        try:
+            lines = _sql.read_event_lines(_sql.owner_key(student_id))
+        except Exception:
+            coverage["readable"] = False
+            return [], coverage
+        coverage["exists"] = bool(lines)
+        coverage["total_lines"] = len(lines)
+        out = _parse_event_lines(lines, coverage)
+        if len(out) > _MAX_EVENTS_STRICT_BUDGET:
+            out = out[-_MAX_EVENTS_STRICT_BUDGET:]
+            coverage["truncated"] = True
+        return out, coverage
     path = _resolve(student_id, ext=".orchestration_events.jsonl")
     coverage = {"exists": path.exists(), "readable": True,
                 "invalid_count": 0, "total_lines": 0, "truncated": False}

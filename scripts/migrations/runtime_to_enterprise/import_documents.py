@@ -186,6 +186,49 @@ def _iter_evidence_documents() -> list[tuple[str, str, str, dict[str, Any]]]:
 WALKERS["evidence"] = _iter_evidence_documents
 
 
+def _iter_orchestration_documents() -> list[tuple[str, str, str, dict[str, Any]]]:
+    """(owner, kind, doc_id, payload) for orchestration state + event logs.
+
+    State imports verbatim; event JSONL imports as the whole line list
+    (parsed to dicts, order preserved oldest-first like the file; a line
+    that fails to parse stays a raw string so invalid-count semantics
+    survive the cutover).
+    """
+    from app.core import paths
+
+    students = paths.runtime_paths().students
+    out: list[tuple[str, str, str, dict[str, Any]]] = []
+    if not students.is_dir():
+        return out
+    for p in sorted(students.iterdir()):
+        if not p.is_file():
+            continue
+        if p.name.endswith(".orchestration.json"):
+            try:
+                payload = json.loads(p.read_text(encoding="utf-8"))
+            except Exception:
+                continue
+            if isinstance(payload, dict):
+                out.append((p.name[: -len(".orchestration.json")],
+                            "state", "state", payload))
+        elif p.name.endswith(".orchestration_events.jsonl"):
+            lines: list[Any] = []
+            for line in p.read_text(encoding="utf-8").splitlines():
+                if not line.strip():
+                    continue
+                try:
+                    lines.append(json.loads(line))
+                except ValueError:
+                    lines.append(line)
+            if lines:
+                out.append((p.name[: -len(".orchestration_events.jsonl")],
+                            "events", "events", {"lines": lines}))
+    return out
+
+
+WALKERS["orchestration"] = _iter_orchestration_documents
+
+
 async def _import_domain(domain: str, dry_run: bool) -> dict[str, Any]:
     from app.persistence.documents import DocumentRecord
     from app.persistence.documents.repository import SqlDocumentRepository

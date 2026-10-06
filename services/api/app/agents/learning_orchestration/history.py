@@ -12,7 +12,6 @@
 """
 from __future__ import annotations
 
-import json
 import time
 import uuid
 from datetime import datetime, timezone as dt_timezone
@@ -84,32 +83,16 @@ def note_status_change(state, task: DailyTask, from_status: DailyTaskStatus,
     })
 
 
-def _events_path(student_id: str):
-    from . import store
-    return store._resolve(student_id, ext=".orchestration_events.jsonl")
-
-
 def _append_event_once(student_id: str, item: dict[str, Any]) -> bool:
-    """追加一条 outbox 事件到 JSONL；event_id 已存在（尾部扫描）则跳过。"""
+    """追加一条 outbox 事件到事件日志；event_id 已存在（尾部 512 条扫描）则跳过。"""
     from . import store
     event_id = str((item.get("payload") or {}).get("event_id") or "")
     if not event_id:
         return False
-    path = _events_path(student_id)
-    if path.exists():
-        try:
-            with path.open("r", encoding="utf-8") as fh:
-                lines = fh.readlines()[-512:]
-            for line in lines:
-                try:
-                    prior = json.loads(line)
-                except ValueError:
-                    continue
-                if str((prior.get("payload") or {}).get("event_id")) \
-                        == event_id:
-                    return True  # 已投递：视为成功（幂等确认）
-        except OSError:
-            pass
+    for prior_event in store.read_events(student_id, limit=512):
+        prior = dict(getattr(prior_event, "payload", None) or {})
+        if str(prior.get("event_id")) == event_id:
+            return True  # 已投递：视为成功（幂等确认）
     return store.append_event(
         student_id,
         OrchestrationEvent(type=str(item.get("type") or "task_status_changed"),

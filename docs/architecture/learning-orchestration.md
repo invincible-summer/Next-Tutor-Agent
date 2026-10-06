@@ -66,6 +66,7 @@ M9 回答「未来几周到几个月怎么持续成长」：纵向编排层，�
 - `students/<id>.learning_episodes.json` — launch 绑定投影（可重建）。
 - 以上均在 `students/` 前缀下，账户删除（`core/account_data.purge_account`）与孤儿扫描按前缀通用覆盖；`chat_history/settings/learner_evaluation_policy.json` 为共享的评价调度策略（见下）。
 - 持久化 fail-open：文件损坏/缺失视为空状态，绝不阻断对话或判分调用。
+- **双模存储（ADR-0017）**：`orchestration=sql`（`DOMAIN_DOCUMENT_BACKENDS`，需 `DATABASE_URL`）时，工作集与事件日志写入 `orchestration_documents` 表（kind `state`/`events`；事件整条 JSONL 为一个文档，追加在单次行锁 mutate 内完成，等价文件态 `file_lock` 的跨进程原子性；坏行以 invalid_count 保持语义）；文件实现保留可回退。`learning_episodes.json` 投影与派生索引留文件态。历史数据用 `scripts/migrations/runtime_to_enterprise/import_documents.py --domain orchestration` 迁移并 `--verify` 摘要比对；SQL 态账户清除由 9 域 `purge_owner` 循环覆盖。
 
 ## Main flows
 
