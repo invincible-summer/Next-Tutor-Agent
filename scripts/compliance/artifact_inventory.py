@@ -119,7 +119,7 @@ def main() -> int:
     shipped = len(artifacts)
     deps = len(source_sbom.get("components", []))
     print(f"artifact inventory: {shipped} artifacts, {deps} dependencies, "
-          f"label {args.label!r} -> {sums_path.relative_to(ROOT)}")
+          f"label {args.label!r} -> {sums_path}")
     return 0
 
 

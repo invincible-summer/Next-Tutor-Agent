@@ -1,0 +1,412 @@
+name: Release
+
+# Full acceptance battery for a tagged release. Unlike ci.yml there are no
+# changed-path gates: every lane runs on every invocation. Triggers:
+#   - push of a v* tag (the release gate before `gh release create`)
+#   - manual workflow_dispatch (pre-tag dress rehearsal)
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  # Never cancel an in-flight release validation.
+  cancel-in-progress: false
+
+env:
+  EDU_TEST_KEYLESS: "1"
+  NEXT_TELEMETRY_DISABLED: "1"
+  NEXT_PUBLIC_BACKEND_URL: http://127.0.0.1:8124
+
+jobs:
+  repo-hygiene:
+    # Copyright/distribution guard: full-history hygiene, documentation,
+    # pinned notices/SBOM and the closed-source license policy gate.
+    name: Repository hygiene
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: |
+            services/api/requirements*.txt
+            services/api/constraints.txt
+      - name: Install backend runtime dependencies
+        run: python -m pip install -r services/api/requirements.txt
+      - name: Scan tracked files and full history
+        run: python scripts/repo/check_repository_hygiene.py
+      - name: Documentation links and layout
+        run: python scripts/repo/check_documentation.py --check-generated
+      - name: Pinned dependency notices and source SBOM
+        run: python scripts/compliance/generate_notices.py --check
+      - name: Closed-source license policy gate
+        run: python scripts/compliance/check_license_policy.py
+
+  backend-shards:
+    name: Plan backend shards
+    runs-on: ubuntu-24.04
+    timeout-minutes: 3
+    outputs:
+      matrix: ${{ steps.plan.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v7
+      - name: Plan shards
+        id: plan
+        run: echo "matrix=$(python3 scripts/repo/plan_backend_shards.py)" >> "$GITHUB_OUTPUT"
+
+  backend:
+    name: Backend (${{ matrix.shard }})
+    needs: [repo-hygiene, backend-shards]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.backend-shards.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup-project
+        with:
+          node: ${{ matrix.setup == 'full' }}
+          playwright: ${{ matrix.setup == 'full' }}
+          classroom: ${{ matrix.setup == 'full' }}
+      - name: Backend tests (isolated, BM25)
+        working-directory: services/api
+        env:
+          SUITES: ${{ matrix.suites }}
+        run: python -m tests $SUITES
+
+  backend-enterprise:
+    # Always runs (no path gate): real PostgreSQL + Valkey integration, the
+    # moto-backed S3 ObjectStore suite, and the full disaster-recovery drill
+    # (seed -> cache FLUSHALL -> pg_dump -> DROP DATABASE -> pg_restore ->
+    # byte-identical verify). See docs/validation/disaster-recovery.md.
+    name: Backend enterprise (PostgreSQL + Valkey + DR drill)
+    needs: repo-hygiene
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: tutor
+          POSTGRES_PASSWORD: tutor
+          POSTGRES_DB: tutor_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U tutor -d tutor_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      valkey:
+        image: valkey/valkey:9.1.2
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "valkey-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup-project
+      - name: Enterprise integration tests
+        working-directory: services/api
+        env:
+          TEST_DATABASE_URL: postgresql://tutor:tutor@localhost:5432/tutor_test
+          TEST_CACHE_URL: redis://localhost:6379/0
+        run: python -m tests tests.persistence.integration
+      - name: ObjectStore integration (moto S3)
+        working-directory: services/api
+        run: python -m tests tests.persistence.test_object_store_s3
+      - name: Disaster-recovery drill (dump -> drop -> restore -> verify)
+        working-directory: services/api
+        env:
+          TEST_DATABASE_URL: postgresql://tutor:tutor@localhost:5432/tutor_test
+          TEST_CACHE_URL: redis://localhost:6379/0
+          PGPASSWORD: tutor
+        run: |
+          set -eu
+          DR="$RUNNER_TEMP/dr-drill"
+          python ../../scripts/ops/dr_drill.py seed --out "$DR"
+          python ../../scripts/ops/dr_drill.py flush-cache --snapshot "$DR/snapshot.json"
+          python ../../scripts/ops/dr_drill.py verify --snapshot "$DR/snapshot.json"
+          docker run --rm --network host -e PGPASSWORD postgres:18 \
+            pg_dump -h 127.0.0.1 -p 5432 -U tutor -d tutor_test --format=custom \
+            > "$DR/tutor_test.pgdump"
+          docker run --rm --network host -e PGPASSWORD postgres:18 \
+            psql -h 127.0.0.1 -p 5432 -U tutor -d postgres -v ON_ERROR_STOP=1 \
+            -c "DROP DATABASE tutor_test WITH (FORCE)" \
+            -c "CREATE DATABASE tutor_test OWNER tutor"
+          docker run --rm --network host -i -e PGPASSWORD postgres:18 \
+            pg_restore -h 127.0.0.1 -p 5432 -U tutor -d tutor_test --no-owner \
+            < "$DR/tutor_test.pgdump"
+          python ../../scripts/ops/dr_drill.py verify --snapshot "$DR/snapshot.json"
+
+  backend-temporal:
+    # Always runs (no path gate): durable dispatch against a real Temporal
+    # server (ADR-0013). Worker kill+resume remains a production drill in the
+    # runbook; these tests are the CI-side durable-execution evidence.
+    name: Backend temporal (Temporal server)
+    needs: repo-hygiene
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: temporal
+          POSTGRES_PASSWORD: temporal
+          POSTGRES_DB: temporal
+        options: >-
+          --health-cmd "pg_isready -U temporal -d temporal"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 12
+      temporal:
+        image: temporalio/auto-setup:1.25.2
+        env:
+          DB: postgres12
+          DB_PORT: 5432
+          POSTGRES_USER: temporal
+          POSTGRES_PWD: temporal
+          POSTGRES_SEEDS: postgres
+        ports:
+          - 7233:7233
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup-project
+      - name: Wait for Temporal frontend
+        run: |
+          python3 - <<'EOF'
+          import socket, sys, time
+          for _ in range(180):
+              try:
+                  socket.create_connection(("localhost", 7233), timeout=2).close()
+                  sys.exit(0)
+              except OSError:
+                  time.sleep(2)
+          sys.exit("temporal frontend never became reachable")
+          EOF
+      - name: Temporal integration tests
+        working-directory: services/api
+        env:
+          TEST_TEMPORAL_ADDRESS: 127.0.0.1:7233
+        run: python -m tests tests.workflows.integration
+
+  shared-packages:
+    name: Shared packages and contracts
+    needs: repo-hygiene
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup-project
+        with:
+          node: "true"
+      - name: Typecheck shared packages
+        run: pnpm run packages:check
+      - name: Shared package tests (node:test)
+        run: pnpm run packages:test
+      - name: Design tokens generation drift
+        run: node scripts/dev/generate_design_tokens.mjs --check
+      - name: Contract generation drift (types + OpenAPI snapshot)
+        run: python3 scripts/contracts/generate_types.py --check && python3 scripts/contracts/export_openapi.py --check
+      - name: Contract lint (response schema gaps ratchet)
+        run: python3 scripts/contracts/check_contracts.py
+
+  frontend:
+    # Full browser battery (every e2e spec, production build included).
+    name: Frontend full regression
+    needs: [repo-hygiene, shared-packages]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup-project
+        with:
+          node: "true"
+          playwright: "true"
+          classroom: "true"
+      - name: Typecheck, lint and unit tests
+        working-directory: apps/web
+        run: pnpm check
+      - name: Full browser regression (production build included)
+        working-directory: apps/web
+        run: pnpm test:e2e
+      - name: Browser diagnostics
+        timeout-minutes: 3
+        if: always()
+        continue-on-error: true
+        uses: ./.github/actions/upload-browser-report
+        with:
+          report-name: release-report
+
+  mobile:
+    # Full required JS/configuration lane. Device binaries, Maestro and
+    # real-device accessibility/performance remain separate release gates
+    # (docs/validation/mobile-validation.md).
+    name: Mobile
+    needs: [repo-hygiene, shared-packages]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      CI: "1"
+      EXPO_NO_TELEMETRY: "1"
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup-project
+        with:
+          node: "true"
+          python: "false"
+      - name: Expo SDK dependency compatibility
+        run: pnpm --filter @next-tutor/mobile exec expo install --check
+      - name: Expo Doctor (locked local 1.20.4)
+        run: pnpm --filter @next-tutor/mobile exec expo-doctor
+      - name: Mobile TypeScript
+        run: pnpm mobile:check
+      - name: Mobile unit and component tests
+        run: pnpm mobile:test --runInBand
+      - name: Android Hermes export
+        run: pnpm --filter @next-tutor/mobile exec expo export --platform android --output-dir "${{ runner.temp }}/mobile-export-android"
+      - name: iOS Hermes export
+        run: pnpm --filter @next-tutor/mobile exec expo export --platform ios --output-dir "${{ runner.temp }}/mobile-export-ios"
+      - name: CNG configuration (both platforms, no install)
+        run: pnpm --filter @next-tutor/mobile exec expo prebuild --clean --no-install --platform all
+      - name: CNG preserves locked manifests
+        run: git diff --exit-code -- apps/mobile/package.json pnpm-lock.yaml
+
+  security:
+    # Release-only lanes: full-history secret scan, dependency SCA for both
+    # ecosystems, and the container-scan disposition record.
+    name: Security scan (secrets, SCA)
+    needs: repo-hygiene
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Gitleaks (pinned binary, full history)
+        run: |
+          set -eu
+          curl -fsSL -o /tmp/gitleaks.tar.gz \
+            https://github.com/gitleaks/gitleaks/releases/download/v8.25.1/gitleaks_8.25.1_linux_x64.tar.gz
+          echo "3000d057342489827ee127310771873000b658f2987be7bbd21968ab7443913a  /tmp/gitleaks.tar.gz" \
+            | sha256sum -c -
+          tar -xzf /tmp/gitleaks.tar.gz -C /tmp gitleaks
+          /tmp/gitleaks git --redact --config .gitleaks.toml --exit-code 1
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+      - name: pip-audit (production requirements under constraints)
+        run: |
+          set -eu
+          python -m pip install --quiet pip-audit==2.10.1
+          python -m pip install --quiet --target /tmp/prod-libs \
+            -r services/api/requirements.txt -c services/api/constraints.txt
+          pip-audit --progress-spinner off --path /tmp/prod-libs
+      - uses: ./.github/actions/setup-project
+        with:
+          node: "true"
+      - name: pnpm audit (production dependencies)
+        # Accepted, explicitly enumerated, no-fix-available advisories — all
+        # in expo CLI / auto-installed jest peers, none shipped in bundles:
+        #   GHSA-86w9-cpqp-85rv  node-forge  @expo/cli tooling (cert handling)
+        #   GHSA-vfj7-8cjw-p6xm  braces     @expo/metro-file-map globbing
+        #   GHSA-hp3w-g68c-fv3c  sprintf-js jest (peer of test library)
+        # Rationale lives in docs/validation/platform-release.md; new
+        # advisories still fail this gate.
+        run: >-
+          pnpm audit --prod
+          --ignore GHSA-86w9-cpqp-85rv
+          --ignore GHSA-vfj7-8cjw-p6xm
+          --ignore GHSA-hp3w-g68c-fv3c
+      - name: Container image scan — N/A for this distribution
+        run: |
+          echo "Container scan: not applicable — this project publishes"
+          echo "source releases (SBOM + third-party notices + SHA256SUMS);"
+          echo "no container images are release artifacts. Self-hosters build"
+          echo "from deploy/ templates; scanning that image is documented in"
+          echo "docs/validation/disaster-recovery.md as an operator step."
+
+  release-artifacts:
+    # Fingerprints the files shipped with the GitHub release: SHA256SUMS plus
+    # an artifact-level CycloneDX document over the committed source SBOM.
+    name: Release artifacts (SBOM, SHA256SUMS)
+    needs: repo-hygiene
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+      - name: Fingerprint release artifacts
+        env:
+          RELEASE_LABEL: ${{ github.ref_name }}
+        run: |
+          set -eu
+          out="$RUNNER_TEMP/release-artifacts"
+          python scripts/compliance/artifact_inventory.py \
+            --artifact licenses/sbom.cdx.json \
+            --artifact licenses/PACKAGE-NOTICES.md \
+            --label "${RELEASE_LABEL:-manual-$GITHUB_SHA}" \
+            --out "$out"
+          cat "$out/sha256sums.txt"
+      - uses: actions/upload-artifact@v5
+        with:
+          name: release-artifacts
+          path: ${{ runner.temp }}/release-artifacts/
+          retention-days: 30
+
+  result:
+    # Release gate: every lane above is unconditional, so every one of them
+    # must be a plain success (no skipped-lane logic here, unlike ci.yml).
+    name: Release result
+    if: always()
+    needs:
+      [
+        repo-hygiene,
+        backend,
+        shared-packages,
+        frontend,
+        mobile,
+        backend-enterprise,
+        backend-temporal,
+        security,
+        release-artifacts,
+      ]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 2
+    steps:
+      - name: Require every lane to pass
+        env:
+          HYGIENE_RESULT: ${{ needs.repo-hygiene.result }}
+          BACKEND_RESULT: ${{ needs.backend.result }}
+          PACKAGES_RESULT: ${{ needs.shared-packages.result }}
+          FRONTEND_RESULT: ${{ needs.frontend.result }}
+          MOBILE_RESULT: ${{ needs.mobile.result }}
+          ENTERPRISE_RESULT: ${{ needs.backend-enterprise.result }}
+          TEMPORAL_RESULT: ${{ needs.backend-temporal.result }}
+          SECURITY_RESULT: ${{ needs.security.result }}
+          ARTIFACTS_RESULT: ${{ needs.release-artifacts.result }}
+        run: |
+          test "$HYGIENE_RESULT" = success
+          test "$BACKEND_RESULT" = success
+          test "$PACKAGES_RESULT" = success
+          test "$FRONTEND_RESULT" = success
+          test "$MOBILE_RESULT" = success
+          test "$ENTERPRISE_RESULT" = success
+          test "$TEMPORAL_RESULT" = success
+          test "$SECURITY_RESULT" = success
+          test "$ARTIFACTS_RESULT" = success

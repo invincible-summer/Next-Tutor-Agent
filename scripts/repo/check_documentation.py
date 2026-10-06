@@ -132,6 +132,7 @@ LEGACY_PATTERNS = {
 # rules, historical ADR context). Never edited by the ratchet below.
 LEGACY_PATH_EXEMPT_FILES = {
     ".gitignore",
+    ".gitleaks.toml",  # secret-scan allowlist names pre-monorepo test paths
     "scripts/repo/check_repository_hygiene.py",
     "scripts/repo/check_documentation.py",
 }

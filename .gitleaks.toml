@@ -1,0 +1,30 @@
+# Secret-scan policy for the release workflow (gitleaks git --exit-code 1).
+# Extends the full default rule set; the allowlist below names the exact test
+# files whose fixtures deliberately contain secret-shaped dummy values.
+#
+# - test_observability.py asserts the log redaction engine removes
+#   password / api-key / JWT-shaped strings; those constants ARE the test.
+# - test_compat_api.py / test_admin_public.py / voice-prefs tests use
+#   shared module constants like "test-compat-key-0123456789" as bearer
+#   tokens for the API-under-test.
+#
+# History entries: the backend/tests/* paths predate the monorepo move; the
+# same fixtures live on under services/api/tests/*. A real-looking secret
+# committed anywhere else — including other test files — still fails the scan.
+
+title = "Next Tutor Agent secret-scan policy"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Test fixtures that intentionally carry dummy secret-shaped constants."
+paths = [
+  '''services/api/tests/observability/test_observability\.py''',
+  '''services/api/tests/api/test_compat_api\.py''',
+  '''services/api/tests/api/test_admin_public\.py''',
+  '''services/api/tests/classroom/test_classroom_run_user_voice_prefs\.py''',
+  '''backend/tests/test_compat_api\.py''',
+  '''backend/tests/test_admin_public\.py''',
+  '''backend/tests/test_classroom_run_user_voice_prefs\.py''',
+]
