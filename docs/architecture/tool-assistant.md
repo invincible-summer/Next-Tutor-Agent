@@ -4,7 +4,7 @@
 
 ## Purpose / Scope
 
-- `/tools` 是工具目录，`/tools/illustration?session=<id>` 是独立配图工作台。
+- `/tools` 是工具目录，`/tools/illustration?session=<id>` 是独立配图工作台。工作台不渲染二级页头：顶栏按 `lib/nav.ts` 的 `NAV_SUBTITLES` 显示复合标题「工具助手 · 情景配图」，返回入口放在会话侧栏顶部；窄屏（<1024px）三栏退化为单列（对话 → 成果 → 会话）。
 - 每轮描述情景或修改要求，选择绘图模式，并可选此前成功图片作为修改基础。会话、轮次和成功版本由后端保存，刷新可恢复。
 - V1 使用已有模型绘图能力；V2 按素材参数和关系装配；V3 以完整 SVG 素材为参考，允许改造、组合和补画。
 - V2/V3 提供素材弹窗，涵盖内置、公有创作和个人创作素材，支持搜索、学科过滤，内置素材还支持素材族过滤。未选素材时自动声明需求并检索。
@@ -12,7 +12,7 @@
 
 ## Owned code
 
-- 前端路由归 `apps/web/src/app/(workspace)/tools/`，工作台和素材弹窗为 `components/pages/tools/IllustrationWorkspace.tsx`、`MaterialPicker.tsx`，客户端为 `lib/api-illustration-tools.ts`。
+- 前端路由归 `apps/web/src/app/(workspace)/tools/`，工作台和素材弹窗为 `components/pages/tools/IllustrationWorkspace.tsx`、`MaterialPicker.tsx`（空态标记为原创几何 SVG `IdeaDiagramMark.tsx`），客户端为 `lib/api-illustration-tools.ts`。
 - 后端 `app/illustration/scenario_contracts.py` 拥有输入合同，`scenario.py` 拥有会话及版本 service，`scenario_engine.py::generate_scene` 为无题目身份的生成入口，`references.py` 校验选定素材；路由为 `app/api/v1/tool_illustration.py`。
 - 全站入口由 `lib/nav.ts` / `lib/i18n.ts` 提供；站内学习助手通过目录中的 `tools` 与 `tools_illustration` 导航目标打开。
 - `app/diagrams/` 拥有素材目录、参数和公私素材读取；测评拥有出题策略与业务发布规则。

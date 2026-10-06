@@ -74,6 +74,19 @@ Recent questions and the error notebook help you review and retry. Enable illust
 
 An assessment summary describes performance on that session’s tasks. Answers completed after hints or revealed solutions should be interpreted with their assistance conditions.
 
+## Tool assistants and the teaching atlas: picture the abstract
+
+Open Tool assistants to create teaching diagrams with scene illustration:
+
+1. Start an illustration session and describe the scene — subjects, relationships, labels, and text.
+2. Choose a mode: draw freely from your description, assemble materials using their parameters and relationships, or use asset-assisted creation to adapt and combine selected references and draw missing elements. You can also pick reference materials manually; without a selection, the model searches for suitable materials automatically.
+3. Refine the result through conversation. Each round is saved as a new version, and any earlier version can become the base for further refinement.
+4. Download the version you like as an SVG for handouts, slides, or notes.
+
+The Teaching atlas collects the project’s original teaching SVGs. Browse by subject and asset type, or search by name and alias. Open an asset to zoom in, adjust parameters and colors, and reuse it as an illustration reference or question artwork.
+
+Illustration availability depends on the instance configuration; when the page says it is not enabled, the atlas remains available for browsing.
+
 ## Notes: keep your own understanding
 
 Create a note to record concepts, solution steps, and questions. You can also generate notes from conversations, textbooks, or mistakes, then review and revise them in your own words.

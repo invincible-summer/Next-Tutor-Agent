@@ -22,8 +22,6 @@ export interface NavItem {
   href: string;
   i18nKey: string;
   icon: LucideIcon;
-  /** 篆刻式模块徽章（M1–M8 / RAG），为空则不显示 */
-  module?: string;
   /** 仅 role=admin 显示（P6-B4 管理端入口） */
   adminOnly?: boolean;
   /** 依赖课堂特性开关（CLASSROOM_ENABLED），关闭时隐藏 */
@@ -40,20 +38,20 @@ export const NAV: NavGroup[] = [
   {
     i18nKey: "nav.group.learn",
     items: [
-      { href: "/chat", i18nKey: "nav.chat", icon: MessageSquareText, module: "M1" },
+      { href: "/chat", i18nKey: "nav.chat", icon: MessageSquareText },
       { href: "/course", i18nKey: "nav.course", icon: Presentation, classroomOnly: true },
-      { href: "/notes", i18nKey: "nav.notes", icon: NotebookPen, module: "MN" },
-      { href: "/dashboard", i18nKey: "nav.dashboard", icon: LayoutDashboard, module: "M2" },
-      { href: "/knowledge", i18nKey: "nav.knowledge", icon: Network, module: "M5" },
-      { href: "/orchestration", i18nKey: "nav.orchestration", icon: Target, module: "M9" },
-      { href: "/assessment", i18nKey: "nav.assessment", icon: ClipboardCheck, module: "M4" },
+      { href: "/notes", i18nKey: "nav.notes", icon: NotebookPen },
+      { href: "/dashboard", i18nKey: "nav.dashboard", icon: LayoutDashboard },
+      { href: "/knowledge", i18nKey: "nav.knowledge", icon: Network },
+      { href: "/orchestration", i18nKey: "nav.orchestration", icon: Target },
+      { href: "/assessment", i18nKey: "nav.assessment", icon: ClipboardCheck },
     ],
   },
   {
     i18nKey: "nav.group.archive",
     items: [
-      { href: "/memory", i18nKey: "nav.memory", icon: Brain, module: "M6" },
-      { href: "/resources", i18nKey: "nav.resources", icon: FolderOpen, module: "RAG" },
+      { href: "/memory", i18nKey: "nav.memory", icon: Brain },
+      { href: "/resources", i18nKey: "nav.resources", icon: FolderOpen },
       { href: "/tools", i18nKey: "nav.tools", icon: Wrench },
       { href: "/diagram-library", i18nKey: "nav.diagramLibrary", icon: Shapes },
       { href: "/archive", i18nKey: "nav.archive", icon: Archive },
@@ -62,7 +60,7 @@ export const NAV: NavGroup[] = [
   {
     i18nKey: "nav.group.system",
     items: [
-      { href: "/admin", i18nKey: "nav.admin", icon: ShieldCheck, module: "M0", adminOnly: true },
+      { href: "/admin", i18nKey: "nav.admin", icon: ShieldCheck, adminOnly: true },
     ],
   },
 ];
@@ -73,6 +71,11 @@ export const ACCOUNT_NAV: NavItem[] = [
   { href: "/insights", i18nKey: "nav.insights", icon: Activity },
   { href: "/settings", i18nKey: "settings.title", icon: Settings },
 ];
+
+/** 二级页面标题：TopBar 以「一级 · 二级」复合标题显示（键为路由前缀，值为 i18n key）。 */
+export const NAV_SUBTITLES: Record<string, string> = {
+  "/tools/illustration": "nav.toolsIllustration",
+};
 
 /** 由路径反查当前导航项（TopBar 标题用）。 */
 export function navItemByPath(pathname: string): NavItem | null {

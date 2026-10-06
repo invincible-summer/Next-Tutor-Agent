@@ -3,15 +3,14 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Flame, BookOpen, Settings } from "lucide-react";
 import { useEffect, useState } from "react";
-import { navItemByPath } from "@/lib/nav";
+import { navItemByPath, NAV_SUBTITLES } from "@/lib/nav";
 import { useUIStore } from "@/lib/store";
 import { useAuthStore } from "@/lib/auth-store";
 import { t, GRADE_LABELS } from "@/lib/i18n";
 import { getUxMotivation } from "@/lib/api";
-import { ModuleBadge } from "@/components/ui/Badge";
 import { AccountMenu } from "./AccountMenu";
 
-/** 顶栏：当前模块标题 + M 徽章 + 学段 + 连续学习火焰 + 账户菜单。 */
+/** 顶栏：当前模块标题 + 学段 + 连续学习火焰 + 账户菜单。 */
 export function TopBar() {
   const pathname = usePathname();
   const { lang, grade, mounted } = useUIStore();
@@ -20,6 +19,9 @@ export function TopBar() {
   const streak = streakData.owner === user?.id ? streakData.days : 0;
   const tr = (k: string, fb?: string) => t(lang, k, fb);
   const item = navItemByPath(pathname);
+  const subtitleKey = Object.entries(NAV_SUBTITLES).find(
+    ([prefix]) => pathname === prefix || pathname.startsWith(prefix + "/"),
+  )?.[1];
 
   useEffect(() => {
     if (!mounted || !user) return;
@@ -33,9 +35,9 @@ export function TopBar() {
 
   return (
     <header className="flex h-14 shrink-0 items-center gap-3 border-b border-border-light bg-surface px-4">
-      {item && item.module && <ModuleBadge id={item.module} />}
       <h1 className="font-serif text-[15px] font-semibold tracking-tight text-fg">
         {item ? tr(item.i18nKey) : tr("app.name")}
+        {subtitleKey && <span className="font-normal text-muted"> · {tr(subtitleKey)}</span>}
       </h1>
       <span className="rounded-full bg-surface-sunken px-2 py-0.5 text-xs text-muted">
         {GRADE_LABELS[lang].find((g) => g.token === grade)?.label ?? grade}

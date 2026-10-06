@@ -3,8 +3,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ArrowLeft, Download, ImagePlus, LoaderCircle, Plus, Send, Sparkles, Trash2, X } from "lucide-react";
+import { ArrowLeft, Download, ImagePlus, LoaderCircle, Plus, Send, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/Button";
+import { EmptyState } from "@/components/ui/EmptyState";
 import { Field, FIELD_CLS, Textarea } from "@/components/ui/Input";
 import { ConfirmModal } from "@/components/ui/Modal";
 import { Pager, paged, pageCount } from "@/components/ui/Pager";
@@ -22,6 +23,7 @@ import {
 import { useAssistantPage } from "@/lib/assistant/useAssistantPage";
 import { currentRouteEpoch } from "@/lib/assistant/page-context";
 import { MaterialPicker, type SelectedMaterial } from "./MaterialPicker";
+import { IdeaDiagramMark } from "./IdeaDiagramMark";
 import { STRINGS } from "@/app/(workspace)/tools/strings";
 
 export function IllustrationWorkspace() {
@@ -260,14 +262,15 @@ function OwnedIllustrationWorkspace() {
     anchor.click(); setTimeout(() => URL.revokeObjectURL(url), 0);
   }
 
-  return <div className="flex h-full min-w-0 flex-col" data-testid="illustration-workspace">
-    <header className="flex shrink-0 items-center justify-between gap-4 border-b border-border-light bg-surface px-6 py-4">
-      <div><Link href="/tools" className="mb-1 inline-flex items-center gap-1 text-xs text-muted hover:text-accent"><ArrowLeft size={12} aria-hidden="true" />{tr("back")}</Link><h1 className="font-serif text-xl font-semibold text-fg">{tr("illustration")}</h1></div>
-      <span className="text-xs text-muted">V1 · V2 · V3</span>
-    </header>
-    <div className="grid min-h-0 min-w-0 flex-1 grid-cols-[190px_minmax(0,1fr)_minmax(220px,29%)]">
-      <aside className="flex min-h-0 flex-col border-r border-border-light bg-surface px-3 py-4" aria-label={tr("sessions")}>
-        <Button icon={<Plus size={14} aria-hidden="true" />} disabled={submitting} onClick={() => { router.replace("/tools/illustration"); if (!sessionId) { setDraft(""); setMaterials([]); } }} data-testid="new-illustration-session">{tr("newSession")}</Button>
+  // 一级顶栏（TopBar）已显示「工具助手 · 情景配图」，页面不再渲染二级标题；
+  // 返回入口放进会话侧栏，窄屏时三栏退化为单列：对话 → 成果 → 会话。
+  return <div className="flex h-full min-w-0 flex-col overflow-y-auto lg:overflow-hidden" data-testid="illustration-workspace">
+    <div className="grid min-h-0 min-w-0 flex-1 grid-cols-1 lg:grid-cols-[212px_minmax(0,1fr)_minmax(240px,30%)]">
+      <aside className="order-3 flex min-h-0 flex-col border-t border-border-light bg-surface px-3 py-4 lg:order-1 lg:border-t-0 lg:border-r" aria-label={tr("sessions")}>
+        <Link href="/tools" data-testid="back-to-tools" className="flex items-center gap-1.5 rounded-[8px] px-2 py-1.5 text-xs text-muted transition-colors hover:bg-surface-hover hover:text-fg">
+          <ArrowLeft size={13} aria-hidden="true" />{tr("backToTools")}
+        </Link>
+        <Button className="mt-3" icon={<Plus size={14} aria-hidden="true" />} disabled={submitting} onClick={() => { router.replace("/tools/illustration"); if (!sessionId) { setDraft(""); setMaterials([]); } }} data-testid="new-illustration-session">{tr("newSession")}</Button>
         <h2 className="mb-3 mt-6 text-[11px] font-medium tracking-wide text-muted">{tr("sessions")}</h2>
         <div className="min-h-0 flex-1 overflow-y-auto">
           {historyError ? <div role="alert" className="text-xs leading-5 text-muted"><p>{tr("loadFailed")}</p><Button className="mt-2" size="sm" variant="outline" onClick={() => setRefresh(v => v + 1)}>{tr("retry")}</Button></div>
@@ -280,18 +283,21 @@ function OwnedIllustrationWorkspace() {
         </div>
         <Pager page={visibleHistoryPage} total={history.length} onPage={setHistoryPage} />
       </aside>
-      <section className="flex min-h-0 min-w-0 flex-col" aria-label={tr("workspace")}>
-        <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5" data-testid="illustration-messages" aria-live="polite">
+      <section className="order-1 flex min-h-[72vh] min-w-0 flex-col lg:order-2 lg:min-h-0" aria-label={tr("workspace")}>
+        <div className="min-h-0 flex-1 overflow-y-auto px-5 py-6 sm:px-6" data-testid="illustration-messages" aria-live="polite">
           {loading ? <p role="status" className="py-12 text-center text-sm text-muted">{tr("loading")}</p>
-            : !session?.turns.length ? <div className="mx-auto max-w-lg py-10"><Sparkles size={28} className="mb-4 text-accent" aria-hidden="true" /><h2 className="text-xl font-medium text-fg">{tr("startTitle")}</h2><p className="mt-3 text-sm leading-7 text-muted">{DEMO_MODE ? tr("demo") : tr("startDesc")}</p>
-              <Button variant="outline" size="sm" className="mt-5" disabled={DEMO_MODE} onClick={() => setDraft(tr("example"))}>{tr("useExample")}</Button></div>
+            : !session?.turns.length ? <div className="mx-auto flex max-w-lg flex-col items-center py-12 text-center">
+              <IdeaDiagramMark className="mb-5 h-10 w-10 text-accent" />
+              <h2 className="font-serif text-xl font-medium text-fg">{tr("startTitle")}</h2>
+              <p className="mt-3 text-sm leading-7 text-muted">{DEMO_MODE ? tr("demo") : tr("startDesc")}</p>
+              <Button variant="outline" size="sm" className="mt-6" disabled={DEMO_MODE} onClick={() => setDraft(tr("example"))}>{tr("useExample")}</Button></div>
             : session.turns.map(turn => {
               const result = session.revisions.find(row => row.revision === turn.revision);
               const observed = job?.job_id === turn.job_id ? job : null;
               const pending = observed ? observed.status === "queued" || observed.status === "running" : turn.status === "queued" || turn.status === "running";
               return <div key={turn.turn_id} className="mb-6 space-y-3" data-testid="illustration-turn">
-                <div className="ml-5 rounded-xl border border-border-light bg-surface px-4 py-3"><p className="mb-2 text-[10px] text-muted">{tr("user")} · {turn.mode.toUpperCase()} · {turn.mode !== "v1" && (turn.selected_materials.length ? tr("manual") : tr("automatic"))}</p><p className="whitespace-pre-wrap break-words text-sm leading-6 text-fg">{turn.message}</p></div>
-                <div className="mr-3 rounded-xl border border-border-light bg-surface px-4 py-3"><p className="mb-2 text-[10px] font-medium text-accent-strong">{tr("assistant")}</p>
+                <div className="ml-auto max-w-[88%] rounded-[12px] bg-accent-soft/60 px-4 py-3"><p className="mb-2 text-[10px] text-accent-strong">{tr("user")} · {turn.mode.toUpperCase()} · {turn.mode !== "v1" && (turn.selected_materials.length ? tr("manual") : tr("automatic"))}</p><p className="whitespace-pre-wrap break-words text-sm leading-6 text-fg">{turn.message}</p></div>
+                <div className="mr-auto max-w-[88%] rounded-[12px] border border-border-light bg-surface px-4 py-3"><p className="mb-2 text-[10px] font-medium text-accent-strong">{tr("assistant")}</p>
                   {pending ? <div role="status" className="flex items-center gap-2 text-xs text-muted" data-testid="tool-illustration-generating"><LoaderCircle size={14} className="animate-spin" aria-hidden="true" /><span>{stageText(observed?.stage ?? "preparing")} · {observed?.progress ?? 0}%</span></div>
                     : result ? <><p className="text-xs leading-5 text-fg-secondary">{tr("finished").replace("%n", String(result.revision))}</p><Button className="mt-2" variant="outline" size="sm" onClick={() => setViewRevision(result.revision)}>{tr("viewRevision")} {result.revision}</Button></>
                     : <div role="status" data-testid="tool-illustration-failed"><p className="text-xs leading-6 text-muted">{observed?.failure ? illustrationFailure(observed.failure.code, lang === "en") : tr("failed")}</p>{observed?.failure?.retryable && <Button className="mt-2" demoWrite size="sm" variant="outline" disabled={busy} onClick={() => void retry(turn.job_id)}>{tr("retry")}</Button>}</div>}
@@ -316,13 +322,13 @@ function OwnedIllustrationWorkspace() {
             <Button type="submit" demoWrite disabled={!draft.trim() || busy || loading} icon={busy ? <LoaderCircle size={14} className="animate-spin" aria-hidden="true" /> : <Send size={14} aria-hidden="true" />} data-testid="send-illustration-request">{submitting ? tr("sending") : activeJobId ? tr("working") : session?.revision ? tr("improve") : tr("send")}</Button></div>
         </form>
       </section>
-      <aside className="min-h-0 min-w-0 overflow-y-auto border-l border-border-light bg-surface px-4 py-5" aria-label={tr("preview")} data-testid="illustration-result">
+      <aside className="order-2 min-h-0 min-w-0 overflow-y-auto border-t border-border-light bg-surface px-4 py-5 lg:order-3 lg:border-t-0 lg:border-l" aria-label={tr("preview")} data-testid="illustration-result">
         <h2 className="mb-4 text-sm font-medium text-fg">{tr("preview")}</h2>
         {revision ? <><div className="mb-2 flex items-center justify-between gap-2"><span className="text-xs text-muted">{tr("revision").replace("%n", String(revision.revision))} · {revision.mode.toUpperCase()}</span>{revision.revision === session?.revision && <span className="text-[10px] text-accent-strong">{tr("latest")}</span>}</div>{revision.illustration ? <QuestionIllustration illustration={revision.illustration as import("@/lib/types").QuestionIllustrationData} /> : null}
           <Button variant="outline" size="sm" icon={<Download size={13} aria-hidden="true" />} onClick={download}>{tr("download")}</Button>
           <Button variant="outline" size="sm" className="mt-2" disabled={busy} onClick={() => setSourceRevision(revision.revision)} data-testid="use-illustration-revision">{revision.revision === (sourceRevision ?? session?.revision) ? tr("usingAsBase") : tr("useAsBase")}</Button>
           <div className="mt-6 border-t border-border-light pt-4"><h3 className="mb-2 text-xs font-medium text-fg">{tr("revisions")}</h3><p className="mb-3 text-[10px] leading-5 text-muted">{tr("chooseBase")}</p><div className="space-y-1">{paged(revisions, visibleRevisionPage).map(row => <button key={row.revision} type="button" className={`flex w-full cursor-pointer items-center justify-between gap-2 rounded-lg px-3 py-2 text-xs ${row.revision === revision.revision ? "bg-accent-soft text-accent-strong" : "text-muted hover:bg-surface-hover"}`} onClick={() => setViewRevision(row.revision)} data-testid="illustration-revision" data-revision={row.revision} aria-pressed={row.revision === revision.revision}><span>{tr("revision").replace("%n", String(row.revision))}</span><span>{row.mode.toUpperCase()}</span></button>)}</div><Pager page={visibleRevisionPage} total={revisions.length} onPage={setRevisionPage} /></div></>
-          : <div className="rounded-xl border border-dashed border-border px-4 py-14 text-center"><ImagePlus size={28} className="mx-auto mb-3 text-muted/60" aria-hidden="true" /><p className="text-xs leading-6 text-muted">{tr("noPreview")}</p></div>}
+          : <EmptyState icon={<ImagePlus size={18} aria-hidden="true" />} title={tr("noPreview")} />}
       </aside>
     </div>
     {pickerOpen && <MaterialPicker selected={materials} onClose={() => setPickerOpen(false)} onApply={items => { setMaterials(items); setPickerOpen(false); }} />}
