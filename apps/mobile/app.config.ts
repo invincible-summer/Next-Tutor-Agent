@@ -20,7 +20,7 @@ const config: ExpoConfig = {
   name: "Next Tutor",
   slug: "next-tutor-agent",
   scheme: "nexttutor",
-  version: "3.0.0",
+  version: "3.1.0",
   orientation: "default",
   userInterfaceStyle: "automatic",
   icon: "./assets/brand/icon.png",
@@ -32,7 +32,7 @@ const config: ExpoConfig = {
   },
   android: {
     package: "com.nexttutor.agent",
-    versionCode: 1,
+    versionCode: 2,
     predictiveBackGestureEnabled: false,
     adaptiveIcon: {
       foregroundImage: "./assets/brand/adaptive-icon.png",

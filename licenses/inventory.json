@@ -43203,12 +43203,12 @@
     }
   ],
   "inputs": {
-    "apps/mobile/package.json": "52f47001337e5f2c2e1076b276ead714533f2624d864011cd512a8c4171ca1ac",
-    "apps/web/package.json": "8635330876e621ee9dee2f192574517a12ff72353668aca804df9494215d9d99",
+    "apps/mobile/package.json": "92864edd12e086d467916e84acc29924369271951847625fef3fb688823c7b4d",
+    "apps/web/package.json": "e13ab379a7ad39d05808a6a2c1ab48eaa5c773d3d95b0c499817cdb1caea5f83",
     "deploy/local/docker-compose.yml": "5fce70d80e194f468eb32aa980cda1522bd634158a80c539f6937c04209166e4",
     "deploy/self-hosted/install_voice.sh": "1cff453657b3d6e6880910f00419be775b541bddbd01f90ad070a7bc0ab58cef",
     "licenses/external-components.json": "95664170776f494f0bdabe75e8a965cc3b515530126022ca2e31b7e10d3f0f26",
-    "package.json": "717260f6d1e1a97ec5688fb68b25dc7a868709b98379c5ba4bc244f7b9387841",
+    "package.json": "169e86f59f6094b38ee91480c628057b39f3375f741691ea2d2cae9dbc51d998",
     "packages/api-client/package.json": "bd9d6f439f3a10a6f341f7c8793eaf289c739268fd31541306ab1abb8eb9665f",
     "packages/contracts/package.json": "1c6c7a2f3b0754a7f9231b420b276f21f93fba60a27c6198b553c1e73ceeb0a2",
     "packages/design-tokens/package.json": "45734e5465376ce355def1e7c02e4e82c28d5d91ee6dd9bafd64caa40561fba7",
