@@ -47,6 +47,7 @@
 
 - 资料库：`chat_history/library/<student_id>.json`（元数据 + RAG 索引状态）+ `chat_history/library/data/<student_id>/<file_id>.txt`（解析文本；PDF/.txt 是事实源）+ `<file_id>.orig<ext>`（原件）。
 - 教材注册记录：`chat_history/library/<student_id>.textbooks.json`（原子写 + 文件锁；状态机、进度、章节/概念数、warnings、`ocr_state`、`graph_policy`）。
+- 双模式存储（ADR-0017）：`DOMAIN_DOCUMENT_BACKENDS` 含 `library=sql,textbooks=sql` 时，资料库索引文档（kind `index`）与教材注册文档（kind `registry`）分别路由至 `library_documents` / `textbooks_documents` 表（`core/library_sql.py`，每 owner 一文档、整档读改写语义与文件模式一致）；解析文本 `.txt`、原件、BM25/KG/向量等派生索引仍留文件/ObjectStore 侧（chunk 缓存锚定 .txt mtime）。重启对账（`reconcile_stale_builds` / OCR 续跑 / single→group 迁移）经 `registry_owners()` 双模式枚举 owner；账号用量统计在 SQL 模式按 payload 序列化大小估算 + 文件侧数据目录实大小。
 - `ocr_state` 是 OCR 重启恢复事实源：状态版本、force-full 模式、物理/目标/成功/待处理/暂停/空白页、逐页 attempts、next retry、错误码摘要、策略 generation、配置阻塞与 API/本地成功计数；不保存图片、密钥或模型原始响应。
 - 图谱：`knowledge/custom/<owner>/<topic_key>.json`（唯一 active 图谱，原子替换 + version 递增）+ `<topic_key>.chunks.json`（概念 → chunk_ids 预索引）+ `<topic>.volume_specs/<file>.json`（完整规范化抽取缓存，限制变化只快速重合并）。`knowledge/graph.json` 仅承载 Dependency Reasoner 的学习边。
 - RAG 索引随 library 文件元数据持久化：`bm25_revision`（`RAG_INDEX_VERSION:content_hash`）、`vector_revision`、`status ∈ bm25_ready|ready`（向量构建在单槽后台队列中完成后升级为 ready，失败维持 BM25 可用）、`content_sha256`、`staging_quality`（含 `failed_garble` / `excluded_by_garble` 计数）。

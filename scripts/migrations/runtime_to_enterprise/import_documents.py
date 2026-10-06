@@ -306,6 +306,51 @@ WALKERS["illustration"] = _iter_illustration_documents
 _TABLE_DOMAIN = {"illustration": "assistant"}
 
 
+def _iter_library_documents() -> list[tuple[str, str, str, dict[str, Any]]]:
+    """(owner, kind, doc_id, payload) for every per-student library index.
+    Extracted texts and original binaries stay on the file/object-store
+    layer (ADR-0017)."""
+    from app.core.library import _LIBRARY_DIR
+
+    out: list[tuple[str, str, str, dict[str, Any]]] = []
+    if not _LIBRARY_DIR.is_dir():
+        return out
+    for p in sorted(_LIBRARY_DIR.glob("*.json")):
+        if p.name.endswith(".textbooks.json"):
+            continue
+        try:
+            payload = json.loads(p.read_text(encoding="utf-8"))
+        except Exception:
+            continue
+        if isinstance(payload, dict):
+            out.append((p.stem, "index", "index", payload))
+    return out
+
+
+WALKERS["library"] = _iter_library_documents
+
+
+def _iter_textbooks_documents() -> list[tuple[str, str, str, dict[str, Any]]]:
+    """(owner, kind, doc_id, payload) for every textbook registry file."""
+    from app.core.library import _LIBRARY_DIR
+
+    out: list[tuple[str, str, str, dict[str, Any]]] = []
+    if not _LIBRARY_DIR.is_dir():
+        return out
+    for p in sorted(_LIBRARY_DIR.glob("*.textbooks.json")):
+        try:
+            payload = json.loads(p.read_text(encoding="utf-8"))
+        except Exception:
+            continue
+        if isinstance(payload, dict):
+            out.append((p.name[: -len(".textbooks.json")], "registry",
+                        "registry", payload))
+    return out
+
+
+WALKERS["textbooks"] = _iter_textbooks_documents
+
+
 def _iter_classroom_documents() -> list[tuple[str, str, str, dict[str, Any]]]:
     """(owner, kind, doc_id, payload) for classroom facts: owner records,
     lesson/job/run JSON. The workspace index is a rebuildable projection

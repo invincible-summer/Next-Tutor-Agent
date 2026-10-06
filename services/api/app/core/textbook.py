@@ -185,16 +185,33 @@ def _sanitize_record(raw: dict[str, Any]) -> dict[str, Any] | None:
 
 # --- read ---
 
+def registry_owners() -> list[str]:
+    """所有已持久化注册记录的 owner key（双模式：SQL 行 / 索引文件名）。"""
+    from . import library_sql
+    if library_sql.textbooks_use_sql():
+        return library_sql.registry_owners()
+    if not _LIBRARY_DIR.is_dir():
+        return []
+    return [p.name[: -len(".textbooks.json")]
+            for p in _LIBRARY_DIR.glob("*.textbooks.json")]
+
+
 def load_textbooks(student_id: str) -> list[dict[str, Any]]:
     """All textbook records for a student ([] when nothing persisted yet)."""
-    path = _index_path(student_id)
-    if not path.exists():
-        return []
-    try:
-        data = json.loads(path.read_text(encoding="utf-8"))
-    except Exception:
-        return []  # corrupt: degrade to empty, never raise
-    recs = data.get("textbooks", []) if isinstance(data, dict) else []
+    key = _key(student_id)
+    from . import library_sql
+    if library_sql.textbooks_use_sql():
+        payload = library_sql.load_registry(key)
+        recs = payload.get("textbooks", []) if isinstance(payload, dict) else []
+    else:
+        path = _index_path(student_id)
+        if not path.exists():
+            return []
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+        except Exception:
+            return []  # corrupt: degrade to empty, never raise
+        recs = data.get("textbooks", []) if isinstance(data, dict) else []
     out = [_sanitize_record(r) for r in recs if isinstance(r, dict)]
     return [r for r in out if r is not None]
 
@@ -238,12 +255,16 @@ def textbook_for_file(student_id: str, file_id: str) -> dict[str, Any] | None:
 # --- write ---
 
 def _save(student_id: str, records: list[dict[str, Any]]) -> None:
+    key = _key(student_id)
+    payload = {"student_id": key, "textbooks": records}
+    from . import library_sql
+    if library_sql.textbooks_use_sql():
+        library_sql.save_registry(key, payload)
+        return
     _LIBRARY_DIR.mkdir(parents=True, exist_ok=True)
     path = _index_path(student_id)
     with file_lock(path):
-        atomic_write_text(path, json.dumps(
-            {"student_id": _key(student_id), "textbooks": records},
-            ensure_ascii=False, indent=2))
+        atomic_write_text(path, json.dumps(payload, ensure_ascii=False, indent=2))
 
 
 def create_textbook(student_id: str, *, file_id: str, title: str,
@@ -603,13 +624,8 @@ def reconcile_stale_builds() -> TextbookRecoveryReport:
     """
     report = TextbookRecoveryReport()
     from .guest_runtime import is_legacy_guest_owner
-    try:
-        files = list(_LIBRARY_DIR.glob("*.textbooks.json"))
-    except Exception:
-        return report
-    for fp in files:
+    for key in registry_owners():
         try:
-            key = fp.name[: -len(".textbooks.json")]
             if is_legacy_guest_owner(key):
                 continue
             records = load_textbooks(key)
@@ -714,13 +730,8 @@ def interrupted_build_jobs() -> list[tuple[str, str, dict[str, Any]]]:
     待重入队的恢复项）。"""
     out: list[tuple[str, str, dict[str, Any]]] = []
     from .guest_runtime import is_legacy_guest_owner
-    try:
-        files = list(_LIBRARY_DIR.glob("*.textbooks.json"))
-    except Exception:
-        return out
-    for fp in files:
+    for key in registry_owners():
         try:
-            key = fp.name[: -len(".textbooks.json")]
             if is_legacy_guest_owner(key):
                 continue
             for r in load_textbooks(key):
@@ -753,16 +764,11 @@ def migrate_legacy_single_to_groups() -> int:
     """
     migrated = 0
     from .guest_runtime import is_legacy_guest_owner
-    try:
-        files = list(_LIBRARY_DIR.glob("*.textbooks.json"))
-    except Exception:
-        return 0
-    for path in files:
+    for key in registry_owners():
         try:
-            if is_legacy_guest_owner(path.name[:-len(".textbooks.json")]):
+            if is_legacy_guest_owner(key):
                 continue
-            raw = json.loads(path.read_text(encoding="utf-8"))
-            records = raw.get("textbooks", []) if isinstance(raw, dict) else []
+            records = load_textbooks(key)
             changed = False
             for record in records:
                 if not isinstance(record, dict):
@@ -790,7 +796,6 @@ def migrate_legacy_single_to_groups() -> int:
                         record["volumes"] = []
                         changed = True
             if changed:
-                key = path.name[: -len(".textbooks.json")]
                 _save(key, records)
         except Exception:
             continue

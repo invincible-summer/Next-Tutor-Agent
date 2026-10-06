@@ -78,8 +78,8 @@ SSE 为前端直连后端的流式通道（`POST /chat/stream`、`POST /quiz/gra
 | 路径（数据根相对） | 内容 | 隔离粒度 |
 |------|------|---------|
 | `chat_history/<id>.session.json` / `.transcript.jsonl` | 会话工作集 / 全量黑匣 | 会话（student_id 戳） |
-| `chat_history/library/<sid>.json` + `library/data/<sid>/` | 资料库元数据 + 解析文本 + `.orig` 原件 | 账号 |
-| `chat_history/library/<sid>.textbooks.json` | 教材注册记录（状态机/进度/warnings） | 账号 |
+| `chat_history/library/<sid>.json` + `library/data/<sid>/` | 资料库元数据 + 解析文本 + `.orig` 原件（SQL 模式下元数据走 `library_documents`，字节留文件侧） | 账号 |
+| `chat_history/library/<sid>.textbooks.json` | 教材注册记录（状态机/进度/warnings；SQL 模式走 `textbooks_documents`） | 账号 |
 | `chat_history/workspaces/`（`ws_*.json` + `uploads/`） | 工作区（public_memory/selected_*） | 账号 |
 | `chat_history/trash/items/<owner>/<trash_id>/` | 统一回收站归档包（manifest + payload） | 账号 / 公用 |
 | `chat_history/classroom/<owner>/...` | 课堂私有运行数据（revisions/jobs/assets/runs/audio/exports） | 账号 |

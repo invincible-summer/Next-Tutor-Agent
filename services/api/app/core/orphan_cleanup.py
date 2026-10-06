@@ -190,7 +190,16 @@ def _collect_orphans(protected_ids) -> dict[str, list[Path]]:
                 if d.is_dir() and d.name not in protected:
                     out["library"].append(d)
             # public 只有管理员写入，不存在学生上传的并发竞态，可安全比对索引。
-            pub_idx = _read_json(lib_dir / "public.json")
+            # SQL 模式下索引事实在 library_documents 里（public 是普通 owner 行）。
+            pub_idx = None
+            try:
+                from . import library_sql
+                if library_sql.library_use_sql():
+                    pub_idx = library_sql.load_index("public")
+            except Exception:
+                pub_idx = None
+            if pub_idx is None:
+                pub_idx = _read_json(lib_dir / "public.json")
             if pub_idx is not None:
                 known = {_safe(str((f or {}).get("id", "")))
                          for f in pub_idx.get("files") or []}

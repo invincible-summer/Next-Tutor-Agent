@@ -515,12 +515,7 @@ def resume_pending_textbook_ocr() -> int:
     from .guest_runtime import is_legacy_guest_owner
     from app.agents.knowledge.textbook_builder import enqueue_textbook_build
     count = 0
-    try:
-        paths = list(tb_store._LIBRARY_DIR.glob("*.textbooks.json"))
-    except Exception:
-        return 0
-    for path in paths:
-        owner = path.name[:-len(".textbooks.json")]
+    for owner in tb_store.registry_owners():
         if is_legacy_guest_owner(owner):
             continue
         for rec in tb_store.load_textbooks(owner):

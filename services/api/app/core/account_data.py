@@ -160,6 +160,9 @@ def scan_storage(user_ids: list[str]) -> dict[str, dict[str, Any]]:
                 ws_mod._WORKSPACES_DIR / "uploads" / _safe(str(d.get("workspace_id") or p.stem)))
 
     # --- 资料库：索引文件 + 数据目录 ---
+    from . import library_sql
+    _lib_sql = library_sql.library_use_sql()
+    _tb_sql = library_sql.textbooks_use_sql()
     for uid, buckets in out.items():
         key = lib_mod._key(uid)
         idx = lib_mod._LIBRARY_DIR / f"{key}.json"
@@ -168,6 +171,26 @@ def scan_storage(user_ids: list[str]) -> dict[str, dict[str, Any]]:
         for p in lib_mod._LIBRARY_DIR.glob(f"{key}.bak*"):
             buckets["chat_bytes"] += _file_size(p)
         buckets["chat_bytes"] += _dir_size(lib_mod._LIBRARY_DIR / "data" / key)
+        if _lib_sql:
+            # SQL 模式：索引事实在库里，字节数按 payload 序列化大小估算，
+            # 数据目录（解析文本/原件）仍在文件侧按实际大小统计。
+            try:
+                payload = library_sql.load_index(key)
+                if payload is not None:
+                    buckets["chat_bytes"] += len(json.dumps(
+                        payload, ensure_ascii=False, default=str))
+                    if isinstance(payload.get("files"), list):
+                        buckets["file_count"] += len(payload["files"])
+            except Exception:
+                pass
+        if _tb_sql:
+            try:
+                registry = library_sql.load_registry(key)
+                if registry is not None:
+                    buckets["chat_bytes"] += len(json.dumps(
+                        registry, ensure_ascii=False, default=str))
+            except Exception:
+                pass
         index = _read_json(idx)
         if index is not None and isinstance(index.get("files"), list):
             buckets["file_count"] += len(index["files"])
@@ -385,6 +408,16 @@ def _clear_library(uid: str, remove_folders: bool) -> int:
                 p.unlink(missing_ok=True)
             except OSError:
                 pass
+        # SQL 模式同步删行：save_library 上面已写过空索引，这里把索引/注册
+        # 记录文档一并清掉（账号删除流程的 9 域 purge_owner 兜底重复删除）。
+        try:
+            from . import library_sql
+            if library_sql.library_use_sql():
+                library_sql.delete_index(key)
+            if library_sql.textbooks_use_sql():
+                library_sql.delete_registry(key)
+        except Exception:
+            pass
         shutil.rmtree(lib_mod._LIBRARY_DIR / "data" / key, ignore_errors=True)
     return len(removed_ids)
 

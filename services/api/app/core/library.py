@@ -351,6 +351,16 @@ class Library:
 def load_library(student_id: str) -> Library:
     """Load the student's library; an empty one when nothing is persisted yet."""
     sid = student_id or _default_student_id()
+    key = _key(sid)
+    from . import library_sql
+    if library_sql.library_use_sql():
+        payload = library_sql.load_index(key)
+        if payload is None:
+            return Library(student_id=sid)
+        try:
+            return Library.from_dict(payload)
+        except Exception:
+            return Library(student_id=sid)  # corrupt payload: degrade, never raise
     path = _index_path(sid)
     if not path.exists():
         return Library(student_id=sid)
@@ -361,8 +371,13 @@ def load_library(student_id: str) -> Library:
 
 
 def save_library(lib: Library) -> None:
-    _LIBRARY_DIR.mkdir(parents=True, exist_ok=True)
     lib.student_id = lib.student_id or _default_student_id()
+    key = _key(lib.student_id)
+    from . import library_sql
+    if library_sql.library_use_sql():
+        library_sql.save_index(key, lib.to_dict())
+        return
+    _LIBRARY_DIR.mkdir(parents=True, exist_ok=True)
     path = _index_path(lib.student_id)
     with file_lock(path):
         atomic_write_text(path, json.dumps(lib.to_dict(), ensure_ascii=False, indent=2))
