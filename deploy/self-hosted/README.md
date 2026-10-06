@@ -28,4 +28,4 @@ systemd units、nginx 同源反代示例、MeloTTS sidecar 安装脚本与进程
 
 模板与实际部署分离：本目录文件是可复制的起点（复制到 `/etc/systemd/system/`、`/etc/nginx/` 后按机器调整）；服务器专属细节（域名、证书、备份策略、私有运维手册）由部署方自行维护，不入库。固定约定：专用账号 `edu-agent`（home `/var/lib/edu-agent`，源码 `/opt/edu-agent`），运行数据在 `NEXT_TUTOR_DATA_DIR` 单根（systemd 形态 `/var/lib/edu-agent/data`），`ReadWritePaths` 只放行数据根、前端 `.next` 与 `/var/lib/edu-agent`。
 
- Worker 策略：文件持久层模式下必须单 worker（ADR-0004）；配置 `DATABASE_URL`（企业持久化模式）后多 worker 放行，一致性由 PostgreSQL 与共享缓存层承担（ADR-0010；缓存服务端为 Valkey，ADR-0016）。持久化迁移完成后，self-host 也可选择接入 [../local/](../local/README.md) 同款 PostgreSQL/Valkey 形态。
+ Worker 策略：文件持久层模式下必须单 worker（ADR-0004）；配置 `DATABASE_URL`（企业持久化模式）后多 worker 放行——九域事实源已全部落 PostgreSQL（ADR-0017 cutover 完成），完整多实例前提矩阵（Valkey `CACHE_URL`、Temporal `TEMPORAL_ADDRESS`、ObjectStore/共享卷、派生索引共享卷、游客策略）见 [../../docs/development/enterprise-infra.md](../../docs/development/enterprise-infra.md)「多实例部署」。self-host 也可选择接入 [../local/](../local/README.md) 同款 PostgreSQL/Valkey 形态。

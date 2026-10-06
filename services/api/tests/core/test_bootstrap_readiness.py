@@ -167,18 +167,21 @@ class TestReadyEndpointContract(StorageSandboxTestCase):
         self.assertTrue(report.ready, "非关键失败仍算 ready（200 degraded）")
         self.assertTrue(report.degraded)
 
-    def test_web_concurrency_over_one_fails_fast(self):
-        """P2-C：WEB_CONCURRENCY>1 与 file-backed 锁不兼容，
-        create_app 必须 fail-fast。"""
+    def test_web_concurrency_gate(self):
+        """ADR-0017 收口后：文件模式 WEB_CONCURRENCY>1 仍 fail-fast；
+        企业模式（DATABASE_URL）放行多 worker。非法值一律拒绝。"""
         import os
         from unittest.mock import patch
         from app.main import create_app
         with patch.dict(os.environ, {"WEB_CONCURRENCY": "3"}):
             with self.assertRaises(RuntimeError):
                 create_app()
-        with patch.dict(os.environ, {"WEB_CONCURRENCY": "3", "DATABASE_URL": "postgresql://test.invalid/test"}):
-            with self.assertRaises(RuntimeError):
-                create_app()
+        # 企业模式：九域事实已在 PostgreSQL，多 worker 合法（缺
+        # CACHE_URL/TEMPORAL_ADDRESS 只告警，不阻断）。
+        with patch.dict(os.environ, {
+                "WEB_CONCURRENCY": "3",
+                "DATABASE_URL": "postgresql://test.invalid/test"}):
+            create_app()
         for invalid in ("0", "-1", "not-a-number"):
             with patch.dict(os.environ, {"WEB_CONCURRENCY": invalid}):
                 with self.assertRaises(RuntimeError):

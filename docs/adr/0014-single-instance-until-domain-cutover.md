@@ -1,6 +1,6 @@
 # ADR-0014: 完整领域 cutover 前保持单 API 实例
 
-- 状态：accepted
+- 状态：superseded by [ADR-0017](./0017-domain-document-repositories.md)（九域 cutover 完成后，企业模式的多 worker/多实例禁令解除：`create_app` 对 `WEB_CONCURRENCY>1` 在 `DATABASE_URL` 已配置时放行并对缺项前提告警；多实例完整矩阵见 docs/development/enterprise-infra.md「多实例部署」）；文件模式（无 `DATABASE_URL`）内本 ADR 结论继续有效
 - 日期：2026-10-05
 - 取代：ADR-0010 仅凭 DATABASE_URL 放行多 worker 的条件；不更改其数据库、对象存储和缓存的所有权设计。
 

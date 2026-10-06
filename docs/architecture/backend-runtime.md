@@ -142,7 +142,7 @@ SSE 为前端直连后端的流式通道（`POST /chat/stream`、`POST /quiz/gra
 
 - 外部：LLM（必配，OpenAI 兼容）、Embedding/本地向量模型（可选）、多模态视觉 API（可选，回退 tesseract）、Chroma（可选向量轨；BM25 基线零依赖，ADR-0003）。
 - 被依赖：前端（唯一后端）；OpenAI 兼容门面供第三方平台挂载。
-- 进程形态：文件模式 FastAPI 单 worker（JSON 持久层前提，ADR-0004），后台任务由 API lifespan/`create_task` 持有；配置 `DATABASE_URL` 后仍须单 API 实例、单 worker，`WEB_CONCURRENCY` 不等于 `1` 时启动 fail-fast（ADR-0014；身份数据库不是全业务 cutover）；`TEMPORAL_ADDRESS` 已设时后台任务所有权移交 durable worker 进程（ADR-0013，API lifespan 不再启动对应 in-process worker）——五个队列（documents/classroom/evaluation/media/maintenance）已全部迁移：维护定时（briefing/trash/draft）由 worker 启动幂等注册的 Temporal Schedule 驱动，账号删除走 `account.purge` workflow（状态表见 ADR-0013）；语音 sidecar 独立进程由 start.sh 托管；教材图谱构建在文件模式为进程内 asyncio 后台任务（启动 lifespan reaper 将残留 `building` 置 `graph_failed`），durable 模式由 workflow 持有。
+- 进程形态：文件模式 FastAPI 单 worker（JSON 持久层前提，ADR-0004），后台任务由 API lifespan/`create_task` 持有，`WEB_CONCURRENCY>1` 启动 fail-fast；企业模式（`DATABASE_URL`）九域事实源已全部落 PostgreSQL（ADR-0017），`WEB_CONCURRENCY>1` 放行——缺 `CACHE_URL`/`TEMPORAL_ADDRESS` 只告警，多 worker/多实例完整前提矩阵（Valkey、Temporal worker、ObjectStore/共享卷、派生索引共享卷、游客策略）见 [../development/enterprise-infra.md](../development/enterprise-infra.md)「多实例部署」（ADR-0014 由 ADR-0017 取代其企业模式禁令）；`TEMPORAL_ADDRESS` 已设时后台任务所有权移交 durable worker 进程（ADR-0013，API lifespan 不再启动对应 in-process worker）——五个队列（documents/classroom/evaluation/media/maintenance）已全部迁移：维护定时（briefing/trash/draft）由 worker 启动幂等注册的 Temporal Schedule 驱动，账号删除走 `account.purge` workflow（状态表见 ADR-0013）；语音 sidecar 独立进程由 start.sh 托管；教材图谱构建在文件模式为进程内 asyncio 后台任务（启动 lifespan reaper 将残留 `building` 置 `graph_failed`），durable 模式由 workflow 持有。
 - 改 agent 管线代码后必须重启 uvicorn（无热重载假设）。
 
 ## Invariants / security boundaries（不变量与安全边界）

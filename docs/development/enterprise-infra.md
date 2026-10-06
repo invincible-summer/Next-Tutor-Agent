@@ -3,17 +3,14 @@
 企业持久化 lane（ADR-0010）与 durable workflow lane（ADR-0013）的操作面：环境变量、schema 迁移、文件层→PostgreSQL 数据迁移、Temporal worker 运行、本地基础设施、CI 集成车道。架构与数据模型见 [../architecture/backend-runtime.md](../architecture/backend-runtime.md) 与 [../architecture/identity.md](../architecture/identity.md)。
 
 
-**API 部署约束：当前必须单 API 实例、单 uvicorn worker，`WEB_CONCURRENCY=1`。**
-配置 `DATABASE_URL` 只启用已落地的身份/会话和持久化基础设施；聊天、课堂、笔记、
-学习证据等领域仍使用文件事实源和进程内锁，不能因此横向扩容。文件业务全部 cutover、
-游客协调跨进程和并发恢复验收完成前，数据库双实例测试不代表全产品多实例安全。
+**API 部署约束（ADR-0014 → ADR-0017 收口后）**：文件模式（未配置 `DATABASE_URL`）必须单 API 实例、单 uvicorn worker（`WEB_CONCURRENCY>1` 启动 fail-fast）。企业模式（`DATABASE_URL` 已配置）九域事实源已全部落 PostgreSQL，`WEB_CONCURRENCY>1` 放行——但**多实例/多 worker 的完整前提**见下文「多实例部署」矩阵：缺 `CACHE_URL`/`TEMPORAL_ADDRESS` 时启动仅告警不阻断，跨实例行为按矩阵为准。
 
 ## 模式开关：`DATABASE_URL`
 
 一切以 `DATABASE_URL` 是否配置为准（`app/persistence/db.py::enterprise_mode()`）：
 
 - **未配置（默认，文件模式）**：行为与历史完全一致；persistence lane 惰性（构造 engine 即 RuntimeError）；`WEB_CONCURRENCY>1` 启动 fail-fast（ADR-0004）；会话端点 409 `enterprise_auth_required`。
-- **已配置（企业模式）**：身份注册/登录双写 PostgreSQL（ADR-0011 影子模式）、轮换会话可用、仍须单 API 实例和单 worker、启动时探测 DB 连通性（critical 失败拒启）。
+- **已配置（企业模式）**：九域事实默认路由 PostgreSQL（ADR-0017 cutover 完成）、身份注册单事务落库 + 文件影子（尽力）、轮换会话可用、`WEB_CONCURRENCY>1` 放行（缺项前提告警）、启动时探测 DB 连通性（critical 失败拒启）。
 
 ```bash
 DATABASE_URL=postgresql://user:pass@host:5432/tutor   # 应用读取；postgresql:// 自动升 asyncpg
@@ -118,6 +115,22 @@ python3 scripts/migrations/runtime_to_enterprise/import_documents.py --domain ch
 ```
 
 已支持域：`chat`（会话/转写/trace 引用）、`notes`（仓库索引/正文/修订/智能体状态）、`evidence`（学习证据 journal + 学生档案）、`orchestration`（编排工作集 + 事件日志）、`assistant`（学习助手会话 + 交接草稿）、`classroom`（owner 记录/课程/生成任务/播放 run）、`illustration`（题图与情景会话六类文档，行落 `assistant_documents` 表——预览 PNG 留文件/ObjectStore 侧）、`library`（资料库索引文档）、`textbooks`（教材注册文档）。九域 cutover 全部落地。
+
+## 多实例部署（ADR-0017 收口）
+
+九域事实源 cutover 完成后，企业模式（`DATABASE_URL` 已配置）解除 `WEB_CONCURRENCY=1` 强制。多 worker / 多实例的完整前提矩阵：
+
+| 前提 | 作用 | 缺失后果 |
+|------|------|----------|
+| `DATABASE_URL`（企业模式） | 九域事实源 + 身份/会话/审计 | 文件模式：`WEB_CONCURRENCY>1` 启动 fail-fast（不变） |
+| `CACHE_URL`（Valkey，ADR-0016） | 跨实例限流/lease/single-flight/短缓存 | 回退进程内实现：限流按进程各自计数、跨实例 lease 失效；启动告警不阻断 |
+| `TEMPORAL_ADDRESS` + 独立 worker（ADR-0013） | 后台任务所有权单点化 | API 进程各自运行 in-process 队列：多实例下同一队列多消费者竞态；启动告警不阻断 |
+| ObjectStore 共享（`OBJECT_STORE_BACKEND=s3`，ADR-0018；或 local 根在实例间共享卷） | 字节层（上传原件/渲染产物/音频缓存） | 实例各持私有字节：上传/产物互相不可见 |
+| 派生索引共享卷（BM25/KG/embedding 目录，ADR-0003） | 可重建索引的一致视图 | 各实例索引漂移（同 owner 重建互相覆盖） |
+| 游客策略关闭或代理层 sticky 会话 | 游客运行态在单进程内存（512 游客/进程） | 游客 token 在另一实例无效（401） |
+| 身份文件影子（数据根内 `users/accounts.json`） | legacy 消费方 | 多进程写靠同一共享文件系统的 OS advisory lock 串行（跨主机需共享卷）；DB 是认证事实源 |
+
+同机多 worker：数据根天然共享，文件锁/影子成立，`CACHE_URL`+`TEMPORAL_ADDRESS` 之外零增量。跨主机多实例：上表全部前提必须真实成立（共享卷或 S3 + Valkey + Temporal + 游客策略）。环境变量无法检测手动启动的第二实例，运维负责遵守矩阵；`create_app` 仅对缺 `CACHE_URL`/`TEMPORAL_ADDRESS` 的多 worker 配置打 warning。
 
 导入不覆盖既有 SQL 行（cutover 后 SQL 侧写入优先）；状态记入同一 `state.json`。
 

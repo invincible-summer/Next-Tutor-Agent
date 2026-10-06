@@ -416,22 +416,38 @@ class _TenantContextMiddleware:
 
 
 def create_app() -> FastAPI:
-    # P2-C：file-backed 业务状态 + 进程内锁只支持单 worker。
-    # WEB_CONCURRENCY>1（uvicorn/gunicorn 常用扩展变量）会在多进程下产生
-    # 并发写同一 JSON 的竞态——显式 fail-fast，而不是默默数据损坏。
-    # PostgreSQL currently owns identity/session primitives; learning domains
-    # still use files and process-local locks. DATABASE_URL cannot lift this gate.
+    # 进程数门禁（ADR-0004/0014 → ADR-0017 收口）：
+    # - 文件模式（未配置 DATABASE_URL）：业务状态是本机 JSON + 进程内锁，
+    #   WEB_CONCURRENCY>1（uvicorn/gunicorn 常用扩展变量）会在多进程下产生
+    #   并发写同一 JSON 的竞态——显式 fail-fast，而不是默默数据损坏。
+    # - 企业模式：九域事实已全部落 PostgreSQL（ADR-0017 cutover 完成，
+    #   默认路由 sql），多 worker/多实例放行；跨实例前提（Valkey、Temporal、
+    #   ObjectStore/共享卷、游客会话策略）缺项只告警不阻断——完整矩阵见
+    #   docs/development/enterprise-infra.md「多实例部署」。
     import os as _os
+    from app.persistence import db as _persistence_db
     try:
         _wc = int(_os.getenv("WEB_CONCURRENCY", "1") or "1")
     except ValueError as error:
-        raise RuntimeError("WEB_CONCURRENCY must be the integer 1") from error
-    if _wc != 1:
+        raise RuntimeError("WEB_CONCURRENCY must be a positive integer") from error
+    if _wc < 1:
+        raise RuntimeError("WEB_CONCURRENCY must be a positive integer")
+    if _wc != 1 and not _persistence_db.enterprise_mode():
         raise RuntimeError(
-            "WEB_CONCURRENCY must be 1: learning-domain persistence still uses "
-            "files and process-local locks, including when DATABASE_URL is set. "
-            "Run exactly one API instance with one uvicorn worker until all "
-            "domain repositories and guest coordination have completed cutover.")
+            "WEB_CONCURRENCY must be 1 in file mode: learning-domain "
+            "persistence uses files and process-local locks. Configure "
+            "DATABASE_URL (enterprise mode, ADR-0017) to lift this gate.")
+    if _wc != 1:
+        import logging as _logging
+
+        _missing = [name for name in ("CACHE_URL", "TEMPORAL_ADDRESS")
+                    if not (_os.getenv(name) or "").strip()]
+        if _missing:
+            _logging.getLogger(__name__).warning(
+                "WEB_CONCURRENCY=%d without %s: multi-instance prerequisites "
+                "unmet (per-process rate limits / in-process job queues). "
+                "See docs/development/enterprise-infra.md", _wc,
+                ", ".join(_missing))
     # Fail fast on the insecure default JWT secret when login is enforced.
     from app.identity.config import ensure_secret_safety
     ensure_secret_safety()
