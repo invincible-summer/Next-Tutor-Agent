@@ -24,6 +24,7 @@ from ..schemas import classroom as sc
 from ..core.atomic import atomic_write_bytes, atomic_write_text, file_lock, fsync_dir
 
 from app.core import paths
+from . import sql_store as _sql
 
 _CLASSROOM_DIR = paths.bind_storage_path(__name__, "_CLASSROOM_DIR", "classroom")
 
@@ -441,16 +442,29 @@ def _validate_seg(value: str) -> str:
 
 
 def owner_record(owner_id: str) -> dict:
-    return read_json(owner_meta_path(owner_id)) or {
+    if _sql.use_sql():
+        record = _sql.get_owner_record(owner_id)
+        if record is not None:
+            return record
+    else:
+        existing = read_json(owner_meta_path(owner_id))
+        if existing:
+            return existing
+    return {
         "lifecycle": "active", "created_at": utcnow().isoformat(),
         "idempotency": {}, "quota": {},
     }
 
 
 def owner_lifecycle(owner_id: str) -> str:
-    # tombstone 在根目录之外，purge 删除 owner 根后仍然生效
+    # tombstone 文件在根目录之外，purge 删除 owner 根与 SQL 行后仍然生效
     if read_json(_tombstone_path(owner_id)) is not None:
         return "purged"
+    if _sql.use_sql():
+        record = _sql.get_owner_record(owner_id)
+        if record is None:
+            return "unknown"
+        return str(record.get("lifecycle", "active"))
     if not owner_meta_path(owner_id).exists():
         return "unknown"
     record = read_json(owner_meta_path(owner_id)) or {}
@@ -458,11 +472,20 @@ def owner_lifecycle(owner_id: str) -> str:
 
 
 def mark_owner_purged(owner_id: str) -> None:
-    """写根外 tombstone：owner 根删除后的晚到课堂写入全部拒绝。"""
+    """写根外 tombstone：owner 根删除后的晚到课堂写入全部拒绝。
+
+    SQL 模式同步镜像 owner 记录（9 域 purge_owner 循环会删行，持久围栏
+    仍是根外 tombstone 文件——两种模式一致）。
+    """
     write_json(_tombstone_path(owner_id), {
         "owner_id": owner_id, "lifecycle": "purged",
         "purged_at": utcnow().isoformat(),
     })
+    if _sql.use_sql():
+        record = owner_record(owner_id)
+        record["lifecycle"] = "purged"
+        record["purged_at"] = utcnow().isoformat()
+        _sql.put_owner_record(owner_id, record)
 
 
 def clear_owner_tombstone(owner_id: str) -> None:
@@ -471,13 +494,40 @@ def clear_owner_tombstone(owner_id: str) -> None:
         _tombstone_path(owner_id).unlink(missing_ok=True)
     except OSError:
         pass
+    if _sql.use_sql():
+        record = _sql.get_owner_record(owner_id)
+        if record is not None:
+            record["lifecycle"] = "active"
+            record.pop("purged_at", None)
+            _sql.put_owner_record(owner_id, record)
 
 
 def ensure_owner(owner_id: str) -> None:
     if owner_lifecycle(owner_id) == "purged":
         raise ClassroomStorageError("owner 已注销，拒绝晚到写入")
+    if _sql.use_sql():
+        if _sql.get_owner_record(owner_id) is None:
+            _sql.put_owner_record(owner_id, owner_record(owner_id))
+        return
     if not owner_meta_path(owner_id).exists():
         write_json(owner_meta_path(owner_id), owner_record(owner_id))
+
+
+def mutate_owner_record(owner_id: str,
+                        mutate: Callable[[dict], None]) -> dict:
+    """锁内读-改-写 owner 记录（幂等键/配额记账；file_lock 或 SQL 行锁）。"""
+    if _sql.use_sql():
+        def closure(record: dict) -> dict:
+            mutate(record)          # 就地语义；返回记录供行锁写回
+            return record
+
+        return _sql.mutate_owner_record(owner_id, closure)
+    path = owner_meta_path(owner_id)
+    with file_lock(path):
+        record = read_json(path) or owner_record(owner_id)
+        mutate(record)
+        write_json(path, record)
+        return record
 
 
 def assert_owner_writable(owner_id: str) -> None:
@@ -489,19 +539,66 @@ def assert_owner_writable(owner_id: str) -> None:
 # Lesson / Job / Run 读写与 CAS
 # ---------------------------------------------------------------------------
 
+def _validate_model(data: Any, model_cls: Type[M], *, name: str = "") -> M:
+    try:
+        return model_cls.model_validate(data)
+    except Exception as exc:  # pydantic ValidationError
+        raise LessonDamagedError(f"损坏的模型: {name or model_cls.__name__}") \
+            from exc
+
+
+def _dump_payload(model: Any) -> dict:
+    """pydantic → JSON-safe dict（datetime 等 round-trip 成 ISO 字符串，
+    与文件态 model_dump_json 同构）。"""
+    return json.loads(model.model_dump_json(by_alias=True))
+
+
+def _mutate_model_doc(kind: str, owner_id: str, doc_id: str,
+                      model_cls: Type[M],
+                      mutate: Callable[[M], None], *,
+                      post: Callable[[M], None] | None = None) -> M:
+    """SQL 模式的 load→CAS→mutate→写：行锁内一次完成（等价 file_lock）。"""
+    def closure(existing: dict) -> dict:
+        model = _validate_model(existing, model_cls, name=doc_id)
+        mutate(model)
+        if post is not None:
+            post(model)
+        return _dump_payload(model)
+
+    try:
+        payload = _sql.mutate_payload(kind, owner_id, doc_id, closure)
+    except _sql.MissingDocumentError as exc:
+        raise ClassroomStorageError(f"缺失文件: {doc_id}") from exc
+    return _validate_model(payload, model_cls, name=doc_id)
+
+
 def load_lesson(owner_id: str, workspace_id: str,
                 lesson_id: str) -> sc.Lesson | None:
+    if _sql.use_sql():
+        payload = _sql.load_payload("lesson", owner_id, lesson_id)
+        if payload is None:
+            return None
+        return _validate_model(payload, sc.Lesson, name=lesson_id)
     return _read_model(lesson_meta_path(owner_id, workspace_id, lesson_id),
                        sc.Lesson)
 
 
 def save_lesson(lesson: sc.Lesson) -> None:
+    if _sql.use_sql():
+        _sql.save_payload("lesson", lesson.owner_id, lesson.lesson_id,
+                          _dump_payload(lesson))
+        return
     _write_model(lesson_meta_path(lesson.owner_id, lesson.workspace_id,
                                   lesson.lesson_id), lesson)
 
 
 def update_lesson(owner_id: str, workspace_id: str, lesson_id: str,
                   mutate: Callable[[sc.Lesson], None]) -> sc.Lesson:
+    if _sql.use_sql():
+        return _mutate_model_doc(
+            "lesson", owner_id, lesson_id, sc.Lesson, mutate,
+            post=lambda m: setattr(m, "updated_at", utcnow()))
+
     path = lesson_meta_path(owner_id, workspace_id, lesson_id)
     with file_lock(path):
         lesson = _read_model(path, sc.Lesson, allow_missing=False)
@@ -517,11 +614,20 @@ def update_lesson(owner_id: str, workspace_id: str, lesson_id: str,
 
 def load_job(owner_id: str, workspace_id: str, lesson_id: str,
              job_id: str) -> sc.GenerationJob | None:
+    if _sql.use_sql():
+        payload = _sql.load_payload("job", owner_id, job_id)
+        if payload is None:
+            return None
+        return _validate_model(payload, sc.GenerationJob, name=job_id)
     return _read_model(job_meta_path(owner_id, workspace_id, lesson_id, job_id),
                        sc.GenerationJob)
 
 
 def save_job(job: sc.GenerationJob) -> None:
+    if _sql.use_sql():
+        _sql.save_payload("job", job.owner_id, job.job_id,
+                          _dump_payload(job))
+        return
     _write_model(job_meta_path(job.owner_id, job.workspace_id, job.lesson_id,
                                job.job_id), job)
 
@@ -529,6 +635,40 @@ def save_job(job: sc.GenerationJob) -> None:
 def update_job(owner_id: str, workspace_id: str, lesson_id: str, job_id: str,
                mutate: Callable[[sc.GenerationJob], None], *,
                expected_state_revision: int | None = None) -> sc.GenerationJob:
+    if _sql.use_sql():
+        # 注意：mutate 闭包运行在 worker 线程的事件循环上，禁止嵌套
+        # bridge.call（update_index 在闭包外同步，索引仅是可重建投影）。
+        seen: dict[str, Any] = {"before": None, "after": None}
+
+        def closure(existing: dict) -> dict:
+            job = _validate_model(existing, sc.GenerationJob, name=job_id)
+            if expected_state_revision is not None and \
+                    job.state_revision != expected_state_revision:
+                raise CasConflictError("job state revision 冲突")
+            seen["before"] = job.state
+            mutate(job)
+            job.state_revision += 1
+            job.updated_at = utcnow()
+            seen["after"] = job.state
+            return _dump_payload(job)
+
+        try:
+            payload = _sql.mutate_payload("job", owner_id, job_id, closure)
+        except _sql.MissingDocumentError as exc:
+            raise ClassroomStorageError(f"缺失文件: {job_id}") from exc
+        if seen["before"] != seen["after"]:
+            def _sync(data: dict) -> None:
+                data["jobs"][job_id] = {
+                    "lesson_id": str(payload.get("lesson_id") or ""),
+                    "state": str(payload.get("state") or ""),
+                    "updated_at": str(payload.get("updated_at") or ""),
+                }
+            try:
+                update_index(owner_id, workspace_id, _sync)
+            except Exception:
+                pass  # job 事实源在 SQL；索引可重建，失败不阻塞任务
+        return _validate_model(payload, sc.GenerationJob, name=job_id)
+
     path = job_meta_path(owner_id, workspace_id, lesson_id, job_id)
     with file_lock(path):
         job = _read_model(path, sc.GenerationJob, allow_missing=False)
@@ -562,11 +702,20 @@ def update_job(owner_id: str, workspace_id: str, lesson_id: str, job_id: str,
 
 def load_run(owner_id: str, workspace_id: str, lesson_id: str,
              run_id: str) -> sc.ClassroomRun | None:
+    if _sql.use_sql():
+        payload = _sql.load_payload("run", owner_id, run_id)
+        if payload is None:
+            return None
+        return _validate_model(payload, sc.ClassroomRun, name=run_id)
     return _read_model(run_path(owner_id, workspace_id, lesson_id, run_id),
                        sc.ClassroomRun)
 
 
 def save_run(run: sc.ClassroomRun) -> None:
+    if _sql.use_sql():
+        _sql.save_payload("run", run.owner_id, run.run_id,
+                          _dump_payload(run))
+        return
     _write_model(run_path(run.owner_id, run.workspace_id, run.lesson_id,
                           run.run_id), run)
 
@@ -575,12 +724,30 @@ def update_run(owner_id: str, workspace_id: str, lesson_id: str, run_id: str,
                mutate: Callable[[sc.ClassroomRun], None], *,
                expected_state_revision: int | None = None,
                bump_revision: bool = True) -> sc.ClassroomRun:
-    """run JSON 的 load→CAS→mutate→atomic write。
+    """run 的 load→CAS→mutate→atomic write。
 
     ``bump_revision=False`` 供纯记账写入（lease 心跳、audio_refs、TTS 回退
     锁）：它们不是内容状态变化，不得推进 state_revision——否则 15s 一次的
     lease 续期会让播放端的进度 CAS 永远 409。
     """
+    if _sql.use_sql():
+        def closure(existing: dict) -> dict:
+            run = _validate_model(existing, sc.ClassroomRun, name=run_id)
+            if expected_state_revision is not None and \
+                    run.state_revision != expected_state_revision:
+                raise CasConflictError("run state revision 冲突")
+            mutate(run)
+            if bump_revision:
+                run.state_revision += 1
+            run.updated_at = utcnow()
+            return _dump_payload(run)
+
+        try:
+            payload = _sql.mutate_payload("run", owner_id, run_id, closure)
+        except _sql.MissingDocumentError as exc:
+            raise ClassroomStorageError(f"缺失文件: {run_id}") from exc
+        return _validate_model(payload, sc.ClassroomRun, name=run_id)
+
     path = run_path(owner_id, workspace_id, lesson_id, run_id)
     with file_lock(path):
         run = _read_model(path, sc.ClassroomRun, allow_missing=False)
@@ -601,10 +768,21 @@ def update_run(owner_id: str, workspace_id: str, lesson_id: str, run_id: str,
 
 def list_runs(owner_id: str, workspace_id: str,
               lesson_id: str) -> list[sc.ClassroomRun]:
+    result: list[sc.ClassroomRun] = []
+    if _sql.use_sql():
+        for payload in _sql.list_payloads("run", owner_id):
+            if str(payload.get("lesson_id") or "") != lesson_id:
+                continue
+            try:
+                run = _validate_model(payload, sc.ClassroomRun)
+            except LessonDamagedError:
+                continue
+            result.append(run)
+        result.sort(key=lambda r: r.run_id)   # 与文件名排序一致
+        return result
     runs_dir = lesson_root(owner_id, workspace_id, lesson_id) / "runs"
     if not runs_dir.exists():
         return []
-    result: list[sc.ClassroomRun] = []
     for entry in sorted(runs_dir.iterdir()):
         if not entry.name.endswith(".json"):
             continue
@@ -818,6 +996,11 @@ def empty_index() -> dict:
 
 
 def read_index(owner_id: str, workspace_id: str) -> dict:
+    if _sql.use_sql():
+        data = _sql.load_payload("index", owner_id, workspace_id)
+        if not isinstance(data, dict) or "lessons" not in data:
+            return empty_index()
+        return data
     data = read_json(index_path(owner_id, workspace_id))
     if not isinstance(data, dict) or "lessons" not in data:
         return empty_index()
@@ -826,6 +1009,16 @@ def read_index(owner_id: str, workspace_id: str) -> dict:
 
 def update_index(owner_id: str, workspace_id: str,
                  mutate: Callable[[dict], None]) -> dict:
+    if _sql.use_sql():
+        def closure(data: dict) -> dict:
+            if "lessons" not in data:
+                data = empty_index()
+            mutate(data)
+            data["updated_at"] = utcnow().isoformat()
+            return data
+
+        return _sql.mutate_index(owner_id, workspace_id, closure)
+
     path = index_path(owner_id, workspace_id)
     with file_lock(path):
         data = read_json(path)
@@ -874,10 +1067,16 @@ def index_remove_lesson(owner_id: str, workspace_id: str,
 
 
 def list_lesson_ids(owner_id: str, workspace_id: str) -> list[str]:
-    """从索引读取课程 ID；索引缺失时扫目录重建（不 mkdir）。"""
+    """从索引读取课程 ID；索引缺失时扫事实源重建（不 mkdir）。"""
     index = read_index(owner_id, workspace_id)
     if index["lessons"]:
         return list(index["lessons"].keys())
+    if _sql.use_sql():
+        ids = sorted(
+            str(p.get("lesson_id") or "")
+            for p in _sql.list_payloads("lesson", owner_id)
+            if str(p.get("workspace_id") or "") == workspace_id)
+        return [i for i in ids if i]
     lessons_dir = workspace_root(owner_id, workspace_id) / "lessons"
     if not lessons_dir.exists():
         return []
@@ -885,7 +1084,39 @@ def list_lesson_ids(owner_id: str, workspace_id: str) -> list[str]:
 
 
 def rebuild_index(owner_id: str, workspace_id: str) -> dict:
-    """全量扫描 lessons/ 重建索引（内容以 lesson.json/job.json 为事实源）。"""
+    """全量扫描事实源重建索引（lesson/job JSON 或 SQL 文档）。"""
+    if _sql.use_sql():
+        lessons: dict[str, dict] = {}
+        jobs: dict[str, dict] = {}
+        for payload in _sql.list_payloads("lesson", owner_id):
+            try:
+                lesson = _validate_model(payload, sc.Lesson)
+            except LessonDamagedError:
+                continue
+            lessons[lesson.lesson_id] = {
+                "lesson_id": lesson.lesson_id,
+                "title": lesson.title,
+                "updated_at": lesson.updated_at.isoformat(),
+                "latest_ready_revision": lesson.latest_ready_revision,
+                "lifecycle": lesson.lifecycle.value,
+                "latest_job_id": lesson.latest_job_id,
+            }
+        for payload in _sql.list_payloads("job", owner_id):
+            try:
+                job = _validate_model(payload, sc.GenerationJob)
+            except LessonDamagedError:
+                continue
+            jobs[job.job_id] = {
+                "lesson_id": job.lesson_id,
+                "state": job.state.value,
+                "updated_at": job.updated_at.isoformat(),
+            }
+        data = empty_index()
+        data["lessons"] = lessons
+        data["jobs"] = jobs
+        _sql.save_payload("index", owner_id, workspace_id, data)
+        return data
+
     lessons_dir = workspace_root(owner_id, workspace_id) / "lessons"
     lessons: dict[str, dict] = {}
     jobs: dict[str, dict] = {}

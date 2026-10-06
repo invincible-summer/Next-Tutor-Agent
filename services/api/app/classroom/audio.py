@@ -225,20 +225,20 @@ def validate_request_window(spec: Any, run: sc.ClassroomRun,
 # ---------------------------------------------------------------------------
 
 def _tts_counters(owner_id: str) -> dict:
-    record = store.read_json(store.owner_meta_path(owner_id)) or {}
+    record = store.owner_record(owner_id)
     tts = (record.get("quota") or {}).get("tts")
     return tts if isinstance(tts, dict) else {}
 
 
 def _mutate_tts_counters(owner_id: str, mutate) -> None:
-    with store.file_lock(store.owner_meta_path(owner_id)):
-        record = store.read_json(store.owner_meta_path(owner_id)) or {}
+    def record_mutate(record: dict) -> None:
         record.setdefault("quota", {})
         tts = record["quota"].get("tts")
         tts = tts if isinstance(tts, dict) else {}
         mutate(tts)
         record["quota"]["tts"] = tts
-        store.write_json(store.owner_meta_path(owner_id), record)
+
+    store.mutate_owner_record(owner_id, record_mutate)
 
 
 def _chars_today(tts: dict) -> int:
@@ -894,14 +894,19 @@ class AudioEngine:
     def _lesson_writable(self, item: _PendingClip) -> bool:
         """晚写防护（§16.4）：课程已删除/归档后不得再落音频复活目录。
 
-        run 文件仍在 = 课程子树仍在（写不复活任何目录）；lifecycle 已进入
-        archiving/archived/purging 或 run 文件消失（子树已删）则丢弃。
+        run 仍在 = 课程子树仍在（写不复活任何目录）；lifecycle 已进入
+        archiving/archived/purging 或 run 消失（子树已删）则丢弃。
+        SQL 模式查 run 文档（音频字节仍走文件树，事实以 run 为准）。
         """
         lesson = store.load_lesson(item.owner_id, item.workspace_id,
                                    item.lesson_id)
         if lesson is not None and \
                 lesson.lifecycle != sc.LessonLifecycle.active:
             return False
+        from .storage import _sql
+        if _sql.use_sql():
+            return store.load_run(item.owner_id, item.workspace_id,
+                                  item.lesson_id, item.run_id) is not None
         return store.run_path(item.owner_id, item.workspace_id,
                               item.lesson_id, item.run_id).is_file()
 

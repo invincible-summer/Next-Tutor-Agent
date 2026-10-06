@@ -1275,12 +1275,12 @@ def export_content(student_id: str, workspace_id: str, lesson_id: str,
 # ---------------------------------------------------------------------------
 
 def _preview_rate_allow(student_id: str) -> bool:
-    """TTS_PREVIEW_PER_HOUR 滑窗限频（owner.json quota.tts.preview_times）。"""
+    """TTS_PREVIEW_PER_HOUR 滑窗限频（owner 记录 quota.tts.preview_times）。"""
     import time as _time
 
     from . import limits
     now = _time.time()
-    record = store.read_json(store.owner_meta_path(student_id)) or {}
+    record = store.owner_record(student_id)
     tts = (record.get("quota") or {}).get("tts")
     times = tts.get("preview_times") if isinstance(tts, dict) else None
     times = [t for t in (times or []) if isinstance(t, (int, float))]
@@ -1288,20 +1288,20 @@ def _preview_rate_allow(student_id: str) -> bool:
     if len(window) >= limits.TTS_PREVIEW_PER_HOUR:
         return False
 
-    def mutate(entry: dict) -> None:
+    def mutate_entry(entry: dict) -> None:
         kept = [t for t in entry.get("preview_times") or []
                 if isinstance(t, (int, float)) and now - t < 3600]
         kept.append(now)
         entry["preview_times"] = kept[-limits.TTS_PREVIEW_PER_HOUR * 2:]
 
-    with store.file_lock(store.owner_meta_path(student_id)):
-        record2 = store.read_json(store.owner_meta_path(student_id)) or {}
+    def mutate_record(record2: dict) -> None:
         record2.setdefault("quota", {})
         tts2 = record2["quota"].get("tts")
         tts2 = tts2 if isinstance(tts2, dict) else {}
-        mutate(tts2)
+        mutate_entry(tts2)
         record2["quota"]["tts"] = tts2
-        store.write_json(store.owner_meta_path(student_id), record2)
+
+    store.mutate_owner_record(student_id, mutate_record)
     return True
 
 

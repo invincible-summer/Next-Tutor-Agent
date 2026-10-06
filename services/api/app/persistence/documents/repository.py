@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import time
 from collections.abc import Callable
+from copy import deepcopy
 
 from sqlalchemy import delete as sa_delete
 from sqlalchemy import func, select
@@ -47,7 +48,8 @@ class SqlDocumentRepository:
     def _to_record(self, row: DomainDocumentBase) -> DocumentRecord:
         return DocumentRecord(
             doc_id=row.doc_id, owner_id=row.owner_id, kind=row.kind,
-            tenant_id=row.tenant_id, payload=dict(row.payload or {}),
+            tenant_id=row.tenant_id,
+            payload=deepcopy(row.payload or {}),
             epoch=int(row.epoch), created_at=float(row.created_at),
             updated_at=float(row.updated_at))
 
@@ -190,7 +192,12 @@ class SqlDocumentRepository:
                     .where(self._key_filter(owner_id, doc_id, kind,
                                             tenant_id))
                     .with_for_update())).scalar_one_or_none()
-                existing = dict(row.payload or {}) if row is not None else None
+                # Deep copy: closures routinely mutate nested structures in
+                # place. A shallow copy would share the nested objects with
+                # the loaded row, so the in-place edit would surface in BOTH
+                # the old and new values — the change-detection comparison
+                # then sees them equal and drops payload from the UPDATE.
+                existing = deepcopy(row.payload) if row is not None else None
                 replacement = mutate(existing)
                 if replacement is None:
                     if row is not None:

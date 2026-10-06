@@ -45,6 +45,18 @@ def _iter_owner_dirs() -> list[Path]:
                   if d.is_dir() and not d.name.startswith("."))
 
 
+def _iter_owner_names() -> list[str]:
+    """健康扫描的 owner 口径：SQL 模式取文档侧 owner，否则取目录名。"""
+    from . import sql_store as _sql
+
+    if _sql.use_sql():
+        try:
+            return _sql.list_owners()
+        except Exception:
+            return []
+    return [d.name for d in _iter_owner_dirs()]
+
+
 def _parse_ts(raw: Any) -> datetime | None:
     if not raw:
         return None
@@ -55,11 +67,32 @@ def _parse_ts(raw: Any) -> datetime | None:
     return ts if ts.tzinfo else ts.replace(tzinfo=timezone.utc)
 
 
-def _collect_jobs(owners: list[Path]) -> list[dict]:
-    """按 mtime 取最新 _JOB_SCAN_CAP 个 job.json 的关键字段。"""
+def _collect_jobs(owners: list[str]) -> list[dict]:
+    """按 mtime 取最新 _JOB_SCAN_CAP 个 job 的关键字段（文件或 SQL）。"""
+    from . import sql_store as _sql
+
+    if _sql.use_sql():
+        jobs: list[dict] = []
+        try:
+            for owner in _sql.list_owners():
+                for raw in _sql.list_payloads("job", owner):
+                    jobs.append({
+                        "owner_id": str(raw.get("owner_id") or owner),
+                        "job_id": str(raw.get("job_id") or ""),
+                        "state": str(raw.get("state") or ""),
+                        "updated_at": _parse_ts(raw.get("updated_at")),
+                        "last_error": str(raw.get("last_error") or ""),
+                        "lesson_id": str(raw.get("lesson_id") or ""),
+                    })
+        except Exception:
+            return []
+        jobs.sort(key=lambda j: j["updated_at"] or datetime.min.replace(
+            tzinfo=timezone.utc), reverse=True)
+        return jobs[:_JOB_SCAN_CAP]
+
     candidates: list[tuple[float, Path]] = []
     for owner in owners:
-        workspaces = owner / "workspaces"
+        workspaces = store.owner_root(owner) / "workspaces"
         if not workspaces.is_dir():
             continue
         for ws in workspaces.iterdir():
@@ -83,7 +116,7 @@ def _collect_jobs(owners: list[Path]) -> list[dict]:
         if not raw:
             continue
         jobs.append({
-            "owner_id": raw.get("owner_id") or owner.name,
+            "owner_id": str(raw.get("owner_id") or ""),
             "job_id": raw.get("job_id") or "",
             "state": str(raw.get("state") or ""),
             "updated_at": _parse_ts(raw.get("updated_at")),
@@ -95,7 +128,10 @@ def _collect_jobs(owners: list[Path]) -> list[dict]:
 
 def scan_alerts() -> dict[str, Any]:
     """确定性健康扫描；只读，返回告警列表与检查摘要。"""
-    owners = _iter_owner_dirs()
+    from . import sql_store as _sql
+
+    sql_mode = _sql.use_sql()
+    owners = _iter_owner_names()
     alerts: list[dict[str, Any]] = []
     checked: dict[str, Any] = {"owners": len(owners)}
 
@@ -119,11 +155,11 @@ def scan_alerts() -> dict[str, Any]:
     # -- 云 TTS 鉴权连击 ---------------------------------------------------
     auth_owners: list[str] = []
     for owner in owners:
-        record = store.read_json(store.owner_meta_path(owner.name)) or {}
+        record = store.owner_record(owner)
         tts = (record.get("quota") or {}).get("tts") or {}
         if int(tts.get("cloud_auth_fail_streak") or 0) >= \
                 limits.CLOUD_AUTH_FAIL_ALERT:
-            auth_owners.append(owner.name)
+            auth_owners.append(owner)
     checked["cloud_auth_fail_owners"] = len(auth_owners)
     if auth_owners:
         alerts.append({
@@ -186,16 +222,28 @@ def scan_alerts() -> dict[str, Any]:
     # -- 损坏课程（JSON 损坏可观察；隔离由运维决定，不自动删） ----------------
     damaged: list[dict[str, str]] = []
     for owner in owners:
-        workspaces = owner / "workspaces"
+        if sql_mode:
+            from . import sql_store as _sql
+
+            for workspace_id, index_payload in _sql.list_docs(
+                    "index", owner):
+                for lesson_id in (index_payload.get("lessons") or {}):
+                    try:
+                        store.load_lesson(owner, workspace_id, lesson_id)
+                    except store.LessonDamagedError:
+                        damaged.append({"owner_id": owner,
+                                        "lesson_id": lesson_id})
+            continue
+        workspaces = store.owner_root(owner) / "workspaces"
         if not workspaces.is_dir():
             continue
         for ws in workspaces.iterdir():
-            index = store.read_index(owner.name, ws.name)
+            index = store.read_index(owner, ws.name)
             for lesson_id in (index.get("lessons") or {}):
                 try:
-                    store.load_lesson(owner.name, ws.name, lesson_id)
+                    store.load_lesson(owner, ws.name, lesson_id)
                 except store.LessonDamagedError:
-                    damaged.append({"owner_id": owner.name,
+                    damaged.append({"owner_id": owner,
                                     "lesson_id": lesson_id})
     checked["damaged_lessons"] = len(damaged)
     if damaged:
@@ -210,9 +258,9 @@ def scan_alerts() -> dict[str, Any]:
     over_budget: list[dict[str, Any]] = []
     budget_bytes = limits.AUDIO_OWNER_MB * 1024 * 1024
     for owner in owners:
-        _, audio_bytes = storage_sizes(owner.name)
+        _, audio_bytes = storage_sizes(owner)
         if audio_bytes > budget_bytes:
-            over_budget.append({"owner_id": owner.name,
+            over_budget.append({"owner_id": owner,
                                 "audio_bytes": audio_bytes})
     checked["audio_over_budget_owners"] = len(over_budget)
     if over_budget:

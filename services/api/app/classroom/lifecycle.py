@@ -64,6 +64,31 @@ def fail_operation(owner_id: str, workspace_id: str, op_id: str,
 # 单课归档/恢复载荷（由 core/trash.py 调用）
 # ---------------------------------------------------------------------------
 
+_ACTIVE_JOB_STATES = ("queued", "running", "awaiting_outline")
+
+
+def _iter_active_job_ids(owner_id: str, workspace_id: str,
+                         lesson_id: str) -> list[str]:
+    """该课程在途 job 的 ID 列表（SQL 文档或 job.json 目录）。"""
+    from .storage import _sql
+
+    if _sql.use_sql():
+        return [str(raw.get("job_id") or "")
+                for raw in _sql.list_payloads("job", owner_id)
+                if str(raw.get("lesson_id") or "") == lesson_id
+                and str(raw.get("state") or "") in _ACTIVE_JOB_STATES]
+    jobs_dir = store.jobs_root(owner_id, workspace_id, lesson_id)
+    out: list[str] = []
+    if jobs_dir.exists():
+        for jentry in sorted(jobs_dir.iterdir()):
+            if not jentry.is_dir():
+                continue
+            job = store.read_json(jentry / "job.json")
+            if job and job.get("state") in _ACTIVE_JOB_STATES:
+                out.append(str(job.get("job_id")))
+    return out
+
+
 def freeze_lesson(owner_id: str, workspace_id: str, lesson_id: str) -> None:
     """归档前冻结：lifecycle=archiving + 取消在途 job + 清 lease。"""
 
@@ -72,23 +97,15 @@ def freeze_lesson(owner_id: str, workspace_id: str, lesson_id: str) -> None:
 
     store.update_lesson(owner_id, workspace_id, lesson_id, mutate)
 
-    jobs_dir = store.jobs_root(owner_id, workspace_id, lesson_id)
-    if jobs_dir.exists():
-        for jentry in sorted(jobs_dir.iterdir()):
-            if not jentry.is_dir():
-                continue
-            job = store.read_json(jentry / "job.json")
-            if not job:
-                continue
-            if job.get("state") in ("queued", "running", "awaiting_outline"):
-                def cancel(j: sc.GenerationJob) -> None:
-                    j.cancel_requested = True
-                    j.epoch += 1
-                try:
-                    store.update_job(owner_id, workspace_id, lesson_id,
-                                     str(job.get("job_id")), cancel)
-                except Exception:
-                    pass
+    for job_id in _iter_active_job_ids(owner_id, workspace_id, lesson_id):
+        def cancel(j: sc.GenerationJob) -> None:
+            j.cancel_requested = True
+            j.epoch += 1
+        try:
+            store.update_job(owner_id, workspace_id, lesson_id,
+                             job_id, cancel)
+        except Exception:
+            pass
 
     for run in store.list_runs(owner_id, workspace_id, lesson_id):
         def clear_lease(r: sc.ClassroomRun) -> None:
@@ -102,13 +119,39 @@ def freeze_lesson(owner_id: str, workspace_id: str, lesson_id: str) -> None:
 
 def snapshot_lesson_into(owner_id: str, workspace_id: str, lesson_id: str,
                          dest: Path) -> dict[str, Any]:
-    """把课程子树快照到 trash bundle 的 payload 位置；返回摘要元数据。"""
+    """把课程子树快照到 trash bundle 的 payload 位置；返回摘要元数据。
+
+    SQL 模式额外把 lesson/job/run 事实导出成同构 JSON 文件（恢复时回灌）；
+    文件树的修订/资产字节仍按目录拷贝。
+    """
     lesson = store.load_lesson(owner_id, workspace_id, lesson_id)
     if lesson is None:
         raise FileNotFoundError("课程不存在")
     src = store.lesson_root(owner_id, workspace_id, lesson_id)
     dest.parent.mkdir(parents=True, exist_ok=True)
-    shutil.copytree(src, dest, ignore=_SNAPSHOT_IGNORE, dirs_exist_ok=True)
+    if src.is_dir():
+        shutil.copytree(src, dest, ignore=_SNAPSHOT_IGNORE, dirs_exist_ok=True)
+
+    from .storage import _sql
+
+    if _sql.use_sql():
+        from ..core.atomic import atomic_write_text
+
+        def _export_json(path: Path, payload: dict) -> None:
+            # bundle 在课堂根之外（trash payload），用原子写直写而非
+            # write_json 的根内守卫。
+            path.parent.mkdir(parents=True, exist_ok=True)
+            atomic_write_text(path, store.canonical_json(payload))
+
+        _export_json(dest / "lesson.json", store._dump_payload(lesson))
+        for raw in _sql.list_payloads("job", owner_id):
+            if str(raw.get("lesson_id") or "") != lesson_id:
+                continue
+            _export_json(dest / "jobs" / str(raw.get("job_id"))
+                         / "job.json", raw)
+        for run in store.list_runs(owner_id, workspace_id, lesson_id):
+            _export_json(dest / "runs" / f"{run.run_id}.json",
+                         store._dump_payload(run))
     return {
         "workspace_id": workspace_id,
         "lesson_id": lesson_id,
@@ -136,6 +179,18 @@ def _prune_empty_parents(path: Path, stop_at: Path) -> None:
 
 def delete_lesson_active(owner_id: str, workspace_id: str,
                          lesson_id: str) -> None:
+    from .storage import _sql
+
+    if _sql.use_sql():
+        _sql.delete_payload("lesson", owner_id, lesson_id)
+        for raw in _sql.list_payloads("job", owner_id):
+            if str(raw.get("lesson_id") or "") == lesson_id:
+                _sql.delete_payload("job", owner_id,
+                                    str(raw.get("job_id") or ""))
+        for raw in _sql.list_payloads("run", owner_id):
+            if str(raw.get("lesson_id") or "") == lesson_id:
+                _sql.delete_payload("run", owner_id,
+                                    str(raw.get("run_id") or ""))
     root = store.lesson_root(owner_id, workspace_id, lesson_id)
     shutil.rmtree(root, ignore_errors=True)
     store.index_remove_lesson(owner_id, workspace_id, lesson_id)
@@ -178,11 +233,37 @@ def _adjust_restored_tree(owner_id: str, workspace_id: str,
 def restore_lesson_tree(owner_id: str, workspace_id: str, lesson_id: str,
                         src: Path) -> dict[str, Any]:
     """按原 ID 恢复课程子树；已存在同 ID 课程则报冲突。"""
+    from .storage import _sql
+
+    if _sql.use_sql() and store.load_lesson(owner_id, workspace_id,
+                                            lesson_id) is not None:
+        raise FileExistsError("同 ID 课程已存在")
     dest = store.lesson_root(owner_id, workspace_id, lesson_id)
     if dest.exists():
         raise FileExistsError("同 ID 课程已存在")
     dest.parent.mkdir(parents=True, exist_ok=True)
     shutil.copytree(src, dest)
+
+    if _sql.use_sql():
+        # 快照导出的同构事实回灌 SQL（lesson/jobs/runs）。
+        lesson_raw = store.read_json(dest / "lesson.json")
+        if isinstance(lesson_raw, dict):
+            _sql.save_payload("lesson", owner_id, lesson_id, lesson_raw)
+        jobs_dir = dest / "jobs"
+        if jobs_dir.is_dir():
+            for jentry in sorted(jobs_dir.iterdir()):
+                raw = store.read_json(jentry / "job.json")
+                if isinstance(raw, dict) and raw.get("job_id"):
+                    _sql.save_payload("job", owner_id,
+                                      str(raw["job_id"]), raw)
+        runs_dir = dest / "runs"
+        if runs_dir.is_dir():
+            for rentry in sorted(runs_dir.glob("*.json")):
+                raw = store.read_json(rentry)
+                if isinstance(raw, dict) and raw.get("run_id"):
+                    _sql.save_payload("run", owner_id,
+                                      str(raw["run_id"]), raw)
+
     _adjust_restored_tree(owner_id, workspace_id, lesson_id)
 
     def revive(lesson: sc.Lesson) -> None:

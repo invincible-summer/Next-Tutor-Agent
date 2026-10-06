@@ -268,6 +268,65 @@ def _iter_assistant_documents() -> list[tuple[str, str, str, dict[str, Any]]]:
 WALKERS["assistant"] = _iter_assistant_documents
 
 
+def _iter_classroom_documents() -> list[tuple[str, str, str, dict[str, Any]]]:
+    """(owner, kind, doc_id, payload) for classroom facts: owner records,
+    lesson/job/run JSON. The workspace index is a rebuildable projection
+    and stays file-side (rebuild via storage.rebuild_index); revision
+    trees, assets, audio and exports are object bytes."""
+    from app.classroom.storage import classroom_root
+
+    out: list[tuple[str, str, str, dict[str, Any]]] = []
+
+    def _json(path) -> dict[str, Any] | None:
+        try:
+            payload = json.loads(path.read_text(encoding="utf-8"))
+        except Exception:
+            return None
+        return payload if isinstance(payload, dict) else None
+
+    root = classroom_root()
+    if not root.is_dir():
+        return out
+    for owner_dir in sorted(p for p in root.iterdir()
+                            if p.is_dir() and not p.name.startswith(".")):
+        owner = owner_dir.name
+        owner_meta = _json(owner_dir / "owner.json")
+        if owner_meta:
+            out.append((owner, "owner", owner, owner_meta))
+        workspaces = owner_dir / "workspaces"
+        if not workspaces.is_dir():
+            continue
+        for ws in sorted(p for p in workspaces.iterdir() if p.is_dir()):
+            lessons = ws / "lessons"
+            if not lessons.is_dir():
+                continue
+            for lesson_dir in sorted(p for p in lessons.iterdir()
+                                     if p.is_dir()):
+                lesson = _json(lesson_dir / "lesson.json")
+                if lesson and lesson.get("lesson_id"):
+                    out.append((owner, "lesson",
+                                str(lesson["lesson_id"]), lesson))
+                jobs_dir = lesson_dir / "jobs"
+                if jobs_dir.is_dir():
+                    for jentry in sorted(p for p in jobs_dir.iterdir()
+                                         if p.is_dir()):
+                        job = _json(jentry / "job.json")
+                        if job and job.get("job_id"):
+                            out.append((owner, "job",
+                                        str(job["job_id"]), job))
+                runs_dir = lesson_dir / "runs"
+                if runs_dir.is_dir():
+                    for rentry in sorted(runs_dir.glob("*.json")):
+                        run = _json(rentry)
+                        if run and run.get("run_id"):
+                            out.append((owner, "run",
+                                        str(run["run_id"]), run))
+    return out
+
+
+WALKERS["classroom"] = _iter_classroom_documents
+
+
 async def _import_domain(domain: str, dry_run: bool) -> dict[str, Any]:
     from app.persistence.documents import DocumentRecord
     from app.persistence.documents.repository import SqlDocumentRepository

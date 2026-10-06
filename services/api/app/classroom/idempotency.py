@@ -19,21 +19,11 @@ from .errors import ClassroomError
 _MAX_ENTRIES = 256
 
 
-def _owner_file_lock(owner_id: str):
-    return store.file_lock(store.owner_meta_path(owner_id))
-
-
 def _load(owner_id: str) -> dict:
-    record = store.read_json(store.owner_meta_path(owner_id)) or {}
-    if "idempotency" not in record:
-        record["idempotency"] = {}
-    if "quota" not in record:
-        record["quota"] = {}
+    record = store.owner_record(owner_id)
+    record.setdefault("idempotency", {})
+    record.setdefault("quota", {})
     return record
-
-
-def _save(owner_id: str, record: dict) -> None:
-    store.write_json(store.owner_meta_path(owner_id), record)
 
 
 def lookup(owner_id: str, scope: str, key: str,
@@ -51,8 +41,7 @@ def lookup(owner_id: str, scope: str, key: str,
 
 def remember(owner_id: str, scope: str, key: str, body_hash: str,
              result: dict[str, Any]) -> None:
-    with _owner_file_lock(owner_id):
-        record = _load(owner_id)
+    def mutate(record: dict) -> None:
         entries = record.setdefault("idempotency", {})
         entries[f"{scope}:{key}"] = {
             "body_hash": body_hash,
@@ -65,7 +54,8 @@ def remember(owner_id: str, scope: str, key: str, body_hash: str,
                              key=lambda kv: kv[1].get("created_at", 0))
             for stale_key, _ in ordered[:len(entries) - _MAX_ENTRIES]:
                 entries.pop(stale_key, None)
-        _save(owner_id, record)
+
+    store.mutate_owner_record(owner_id, mutate)
 
 
 def body_hash_of(obj: Any) -> str:
@@ -102,8 +92,7 @@ def check_generation_quota(owner_id: str) -> None:
 
 
 def consume_generation_quota(owner_id: str) -> None:
-    with _owner_file_lock(owner_id):
-        record = _load(owner_id)
+    def mutate(record: dict) -> None:
         now = time.time()
         quota = record.setdefault("quota", {})
         quota["generation_window"] = _prune(
@@ -112,4 +101,5 @@ def consume_generation_quota(owner_id: str) -> None:
         quota["generation_daily"] = _prune(
             list(quota.get("generation_daily") or []),
             now, 86400) + [now]
-        _save(owner_id, record)
+
+    store.mutate_owner_record(owner_id, mutate)

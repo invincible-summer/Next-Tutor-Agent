@@ -77,6 +77,7 @@
 - revision 分配在同一次 lesson 锁内 mutation 中检查 base revision/版本上限、读取 next_revision 并递增；API 与 durable worker 共享文件锁时也不会分配重复版本。生成失败留下的空号保持不复用。这个局部并发约束不代表全部业务存储已完成数据库多实例切换。
 - owner 级 tombstone（`.tombstones/`）在 purge 后拦截一切晚到写入。
 - 缓存治理：音频 owner 500MB / 7 天 LRU；导出 24h TTL。
+- **双模存储（ADR-0017）**：`classroom=sql`（`DOMAIN_DOCUMENT_BACKENDS`，需 `DATABASE_URL`）时 owner 记录与 lesson/job/run 事实、学习区索引写入 `classroom_documents` 表（kind `owner`/`lesson`/`job`/`run`/`index`）；CAS 更新在行锁 mutate 内完成（等价 file_lock）。tombstone 文件双模保留为持久围栏（9 域 `purge_owner` 循环会删行，根外文件不受影响）；配额/幂等记账统一走 `storage.mutate_owner_record`；归档快照在 SQL 模式把事实导出为同构 JSON 进 trash bundle、恢复时回灌。修订目录、assets、音频与导出字节、图片/试听缓存留文件/对象存储态；六步发布事务继续按目录执行、只经由双路由的 lesson/job 原语。健康扫描（`health.scan_alerts`）按双模 owner 口径收集 job 事实。历史数据用 `scripts/migrations/runtime_to_enterprise/import_documents.py --domain classroom` 迁移并 `--verify`。
 
 ## Main flows（关键流程）
 
