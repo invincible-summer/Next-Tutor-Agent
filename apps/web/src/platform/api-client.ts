@@ -3,10 +3,11 @@
 // 其余模块一律消费 @next-tutor/api-client 的注入式接口。
 import { createApiClient, type ApiClient, type FetchInitLike } from "@next-tutor/api-client";
 import { API_BASE } from "@/lib/api";
+import { silentRefresh } from "@/lib/api-fetch";
 import { DEMO_MODE } from "@/lib/demo";
 import { demoFetch } from "@/lib/demo-fetch";
 import { endGuestSession, getGuestToken } from "@/lib/guest-session";
-import { getToken } from "./token";
+import { enterpriseSessionActive, getToken, setMemoryToken } from "./token";
 
 interface BrowserClientOptions {
   /**
@@ -39,6 +40,22 @@ function dispatchUnauthorized(): void {
   }
 }
 
+/**
+ * 401 处理（企业刷新轨优先）：先尝试用 HttpOnly cookie 静默换新 access
+ * token；成功则更新内存令牌后直接返回——transport 会因 tokenProvider 产出
+ * 了不同令牌而自动重试一次。刷新失败才降级为旧事件语义（会话失效）。
+ */
+async function handleUnauthorized(): Promise<void> {
+  if (typeof window !== "undefined" && !DEMO_MODE && enterpriseSessionActive()) {
+    const fresh = await silentRefresh();
+    if (fresh) {
+      setMemoryToken(fresh);
+      return;
+    }
+  }
+  dispatchUnauthorized();
+}
+
 export function createBrowserClient(options: BrowserClientOptions = {}): ApiClient {
   const { withUnauthorizedHook = true } = options;
   return createApiClient({
@@ -47,7 +64,7 @@ export function createBrowserClient(options: BrowserClientOptions = {}): ApiClie
     tokenProvider: () => getToken(),
     guestTokenProvider: () => (!DEMO_MODE && !getToken() ? getGuestToken() : null),
     clientMetadataProvider: () => ({ platform: "web" }),
-    onUnauthorized: withUnauthorizedHook ? dispatchUnauthorized : undefined,
+    onUnauthorized: withUnauthorizedHook ? handleUnauthorized : undefined,
     // 与旧 apiFetch 的读超时一致：GET/HEAD 无显式 signal 时 30s。
     defaultReadTimeoutMs: 30_000,
   });

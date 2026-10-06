@@ -12,10 +12,14 @@ Security notes:
 Enterprise mode (DATABASE_URL set) additionally issues rotating sessions:
 login/register responses gain ``access_token``/``refresh_token``/
 ``expires_in`` alongside the legacy ``token`` (the current Web client keeps
-working unchanged during the migration window). ``/auth/refresh``,
-``/auth/sessions`` and ``DELETE /auth/sessions/{id}`` manage the session
-families; they answer 409 ``enterprise_auth_required`` in file mode instead
-of pretending sessions exist.
+working unchanged during the migration window) and seed an HttpOnly
+``edu_refresh`` cookie (Secure+SameSite=Lax, scoped to /api/v1/auth) for
+the Web refresh lane. ``/auth/refresh`` accepts the body token (mobile,
+unchanged) or the cookie and re-seeds it on every rotation; ``/auth/logout``
+revokes the cookie's session family and clears it. ``/auth/sessions`` and
+``DELETE /auth/sessions/{id}`` manage the session families; they answer 409
+``enterprise_auth_required`` in file mode instead of pretending sessions
+exist.
 """
 from __future__ import annotations
 
@@ -80,7 +84,9 @@ class StatusResponse(BaseModel):
 
 
 class RefreshRequest(BaseModel):
-    refresh_token: str = Field(min_length=8, max_length=256)
+    """Body token stays the mobile lane; Web refreshes through the HttpOnly
+    cookie and may post an empty body/{}."""
+    refresh_token: str = Field(default="", max_length=256)
 
 
 class RefreshResponse(BaseModel):
@@ -120,6 +126,44 @@ def _session_service():
 
 def _request_id(request: Request) -> str:
     return (request.headers.get("x-request-id") or "")[:80]
+
+
+# --- refresh cookie（Web 刷新轨；移动端继续走 body token） -------------------
+
+REFRESH_COOKIE = "edu_refresh"
+# Cookie 只随 /auth/* 请求发送，缩小暴露面（其它 API 路径永远看不到它）。
+_REFRESH_COOKIE_PATH = "/api/v1/auth"
+
+
+def _cookie_secure() -> bool:
+    # 生产同源 HTTPS 默认 Secure；本地纯 http（非 localhost）联调可显式关。
+    import os
+
+    return os.environ.get("AUTH_REFRESH_COOKIE_SECURE", "1") != "0"
+
+
+def _seed_refresh_cookie(response: Response, raw_token: str) -> None:
+    response.set_cookie(
+        REFRESH_COOKIE, raw_token,
+        max_age=config.AUTH_REFRESH_SESSION_DAYS * 86400,
+        path=_REFRESH_COOKIE_PATH, httponly=True, secure=_cookie_secure(),
+        samesite="lax")
+
+
+def _clear_refresh_cookie(response: Response) -> None:
+    response.delete_cookie(REFRESH_COOKIE, path=_REFRESH_COOKIE_PATH)
+
+
+def _cleared_refresh_cookie_header() -> str:
+    """Same deletion as _clear_refresh_cookie, as a raw header value for
+    paths that raise HTTPException (FastAPI drops the injected response's
+    cookies when an exception response is built)."""
+    return (f'{REFRESH_COOKIE}=""; expires=Thu, 01 Jan 1970 00:00:00 GMT; '
+            f'Max-Age=0; Path={_REFRESH_COOKIE_PATH}; HttpOnly; SameSite=lax')
+
+
+def _cookie_refresh_token(request: Request) -> str:
+    return (request.cookies.get(REFRESH_COOKIE) or "").strip()
 
 
 async def _issue_enterprise_tokens(*, user: User, tenant_id: str | None,
@@ -162,7 +206,8 @@ def auth_status(response: Response,
 @router.post("/register", response_model=AuthResponse,
              response_model_exclude_defaults=True,
              dependencies=[Depends(rate_limit("auth_register", 5))])
-async def register(req: RegisterRequest, request: Request):
+async def register(req: RegisterRequest, request: Request,
+                   response: Response):
     """Create a new user account. The user_id becomes the student namespace
     key for all M2-M9 data."""
     profile = UserProfile(
@@ -197,6 +242,7 @@ async def register(req: RegisterRequest, request: Request):
                 detail="enterprise_registration_failed")
         issued = await _issue_enterprise_tokens(
             user=user, tenant_id=tenant_id, request=request)
+        _seed_refresh_cookie(response, issued["refresh_token"])
         return AuthResponse(
             token=create_token(user.id, token_version=user.token_version),
             user=user.to_public_dict(), **issued)
@@ -224,7 +270,8 @@ _LOGIN_FAIL_WINDOW = 900
 @router.post("/login", response_model=AuthResponse,
              response_model_exclude_defaults=True,
              dependencies=[Depends(rate_limit("auth_login", 10))])
-async def login(req: LoginRequest, request: Request):
+async def login(req: LoginRequest, request: Request,
+                response: Response):
     """Authenticate and issue a JWT (plus rotating session in enterprise)."""
     acct_key = f"acct:{req.email.strip().lower()}"
     # 账号已锁定 → 直接 429：不为爆破流量付出 bcrypt 校验成本。
@@ -257,14 +304,35 @@ async def login(req: LoginRequest, request: Request):
         service = _session_service()
         await service.audit_login(user_id=user.id, tenant_id=tenant_id,
                                   request_id=_request_id(request))
+        _seed_refresh_cookie(response, issued["refresh_token"])
         return AuthResponse(token=token, user=user.to_public_dict(), **issued)
     return AuthResponse(token=token, user=user.to_public_dict())
 
 
 @router.post("/logout")
-def logout(_user: User = Depends(require_user)):
+async def logout(request: Request, response: Response,
+                 _user: User = Depends(require_user)):
     """Stateless JWT: logout is a client-side token discard. This endpoint
-    exists for symmetry and future token-blacklist support."""
+    exists for symmetry and future token-blacklist support.
+
+    Enterprise mode: when the browser holds a refresh cookie, the session
+    family behind it is revoked server-side and the cookie cleared — the
+    HttpOnly cookie holder is by definition its owner."""
+    from app.identity.sessions import get_session_service
+
+    service = get_session_service()
+    if service is not None:
+        raw = _cookie_refresh_token(request)
+        if raw:
+            try:
+                await service.revoke_by_raw_token(
+                    raw_refresh_token=raw, request_id=_request_id(request))
+            except Exception:  # revocation is best-effort; cookie clears anyway
+                import logging
+
+                logging.getLogger(__name__).warning(
+                    "logout session revocation failed", exc_info=True)
+    _clear_refresh_cookie(response)
     return {"status": "ok"}
 
 
@@ -278,25 +346,40 @@ def me(user: User = Depends(require_user)):
 
 @router.post("/refresh", response_model=RefreshResponse,
              dependencies=[Depends(rate_limit("auth_refresh", 30))])
-async def refresh(body: RefreshRequest, request: Request):
-    """Rotate a refresh token; reuse of a rotated token revokes the family."""
+async def refresh(request: Request, response: Response,
+                  body: RefreshRequest | None = None):
+    """Rotate a refresh token; reuse of a rotated token revokes the family.
+
+    Token source: body first (mobile lane, unchanged), then the HttpOnly
+    refresh cookie (Web lane — the SPA never sees the raw value). A
+    successful rotation re-seeds the cookie so the browser always holds the
+    newest token of the family.
+    """
     from app.identity.sessions import SessionError
 
+    raw = ((body.refresh_token if body is not None else "").strip()
+           or _cookie_refresh_token(request))
     service = _session_service()
     try:
         issued = await service.refresh(
-            raw_refresh_token=body.refresh_token,
+            raw_refresh_token=raw,
             request_id=_request_id(request))
     except SessionError as exc:
         code = exc.code
         http_status = (401 if code in {
             "invalid_refresh_token", "session_revoked", "session_expired",
             "refresh_token_expired", "refresh_token_reused"} else 400)
+        # A dead/expired session must not leave a stale refresh cookie in
+        # the browser: clear it so the next hydrate goes straight to login.
+        headers = ({"Set-Cookie": _cleared_refresh_cookie_header()}
+                   if http_status == 401 else None)
         raise HTTPException(
             status_code=http_status,
             detail={"error": {"code": code,
                               "message": "刷新令牌无效或已被撤销。",
-                              "retryable": False}}) from exc
+                              "retryable": False}},
+            headers=headers) from exc
+    _seed_refresh_cookie(response, issued["refresh_token"])
     return RefreshResponse(access_token=issued["access_token"],
                            refresh_token=issued["refresh_token"],
                            expires_in=issued["expires_in"])
@@ -313,6 +396,7 @@ async def list_sessions(user: User = Depends(require_user)):
 
 @router.delete("/sessions/{session_id}")
 async def revoke_session(session_id: str, request: Request,
+                         response: Response,
                          user: User = Depends(require_user)):
     """Revoke one of the current user's session families (logout a device)."""
     service = _session_service()
@@ -323,6 +407,11 @@ async def revoke_session(session_id: str, request: Request,
     if not revoked:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
                             detail="session_not_found")
+    # 当被撤销的正是本浏览器 cookie 所属的会话时同步清 cookie；撤销
+    # 其它设备不应把当前设备踢出刷新轨。
+    raw = _cookie_refresh_token(request)
+    if raw and await service.session_of_raw_token(raw) == session_id:
+        _clear_refresh_cookie(response)
     return {"status": "ok"}
 
 

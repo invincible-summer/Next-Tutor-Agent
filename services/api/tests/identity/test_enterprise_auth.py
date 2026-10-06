@@ -142,6 +142,98 @@ class EnterpriseRegistrationTest(_EnterpriseAuthTestCase):
         self.assertEqual(shadow.id, user_id)
 
 
+class RefreshCookieTest(_EnterpriseAuthTestCase):
+    """WS5e: the HttpOnly refresh-cookie lane. Flows drive the cookie via an
+    explicit ``Cookie`` header (httpx would otherwise refuse to replay a
+    Secure cookie over http://testserver); attributes are asserted on the
+    raw Set-Cookie header."""
+
+    def _login(self, email: str) -> dict:
+        resp = self.client.post("/api/v1/auth/login", json={
+            "email": email, "password": "password-123"})
+        # register on demand (first login of a fresh account)
+        if resp.status_code == 401:
+            self.client.post("/api/v1/auth/register", json={
+                "email": email, "password": "password-123"})
+            resp = self.client.post("/api/v1/auth/login", json={
+                "email": email, "password": "password-123"})
+        self.assertEqual(resp.status_code, 200)
+        return resp.json()
+
+    def test_login_seeds_hardened_cookie(self) -> None:
+        self._login("cookie-attrs@example.com")
+        # A fresh login response carries the seed cookie.
+        raw = self.client.post("/api/v1/auth/login", json={
+            "email": "cookie-attrs@example.com",
+            "password": "password-123"})
+        header = raw.headers.get("set-cookie", "")
+        self.assertIn("edu_refresh=", header)
+        self.assertIn("HttpOnly", header)
+        self.assertIn("SameSite=lax", header)
+        self.assertIn("Path=/api/v1/auth", header)
+        self.assertIn("Secure", header)
+
+    def test_refresh_via_cookie_rotates_cookie(self) -> None:
+        body = self._login("cookie-flow@example.com")
+        old = body["refresh_token"]
+        resp = self.client.post(
+            "/api/v1/auth/refresh", json={},
+            headers={"Cookie": f"edu_refresh={old}"})
+        self.assertEqual(resp.status_code, 200)
+        data = resp.json()
+        self.assertTrue(data["access_token"])
+        self.assertTrue(data["refresh_token"])
+        self.assertNotEqual(data["refresh_token"], old)
+        self.assertIn("edu_refresh=", resp.headers.get("set-cookie", ""))
+
+    def test_body_token_wins_over_cookie(self) -> None:
+        a = self._login("cookie-precedence-a@example.com")
+        b = self._login("cookie-precedence-b@example.com")
+        # A's cookie + B's body: B's family rotates; A's stays untouched.
+        resp = self.client.post(
+            "/api/v1/auth/refresh",
+            json={"refresh_token": b["refresh_token"]},
+            headers={"Cookie": f"edu_refresh={a['refresh_token']}"})
+        self.assertEqual(resp.status_code, 200)
+        new_b = resp.json()["refresh_token"]
+        a_still = self.client.post(
+            "/api/v1/auth/refresh", json={},
+            headers={"Cookie": f"edu_refresh={a['refresh_token']}"})
+        self.assertEqual(a_still.status_code, 200)
+        self.assertNotEqual(a_still.json()["refresh_token"], new_b)
+
+    def test_logout_revokes_cookie_session_and_clears_cookie(self) -> None:
+        body = self._login("cookie-logout@example.com")
+        logout = self.client.post(
+            "/api/v1/auth/logout",
+            headers={"Authorization": f"Bearer {body['access_token']}",
+                     "Cookie": f"edu_refresh={body['refresh_token']}"})
+        self.assertEqual(logout.status_code, 200)
+        set_cookie = logout.headers.get("set-cookie", "")
+        self.assertIn("edu_refresh=", set_cookie)
+        self.assertIn("Max-Age=0", set_cookie.replace(" ", ""))
+        # The family behind the cookie is dead server-side.
+        again = self.client.post(
+            "/api/v1/auth/refresh", json={},
+            headers={"Cookie": f"edu_refresh={body['refresh_token']}"})
+        self.assertEqual(again.status_code, 401)
+
+    def test_dead_session_refresh_clears_stale_cookie(self) -> None:
+        body = self._login("cookie-dead@example.com")
+        old = body["refresh_token"]
+        first = self.client.post(
+            "/api/v1/auth/refresh", json={},
+            headers={"Cookie": f"edu_refresh={old}"})
+        self.assertEqual(first.status_code, 200)
+        # Replaying the rotated token is reuse → 401 AND cookie cleared.
+        replay = self.client.post(
+            "/api/v1/auth/refresh", json={},
+            headers={"Cookie": f"edu_refresh={old}"})
+        self.assertEqual(replay.status_code, 401)
+        set_cookie = replay.headers.get("set-cookie", "")
+        self.assertIn("edu_refresh=", set_cookie)
+
+
 class TenantIsolationAPITest(_EnterpriseAuthTestCase):
     """WS5c end-to-end: the tenant claim on the access token scopes every
     SQL-mode document read/write for the whole request (middleware copies

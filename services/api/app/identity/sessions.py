@@ -262,6 +262,38 @@ class AuthSessionService:
                               request_id=request_id, detail={"reason": reason})
         return revoked
 
+    async def session_of_raw_token(self, raw_refresh_token: str) -> str | None:
+        """Which session family does this raw refresh token belong to (for
+        cookie-vs-target comparisons; None when unknown)."""
+        record = await self._repo.find_refresh_token(
+            hash_refresh_token(raw_refresh_token))
+        return record.session_id if record else None
+
+    async def revoke_by_raw_token(self, *, raw_refresh_token: str,
+                                  request_id: str = "") -> bool:
+        """Logout lane: revoke the session family a raw refresh token (or
+        its already-rotated descendant) belongs to. Possession of the token
+        IS the authorization — the HttpOnly cookie holder logs itself out."""
+        record = await self._repo.find_refresh_token(
+            hash_refresh_token(raw_refresh_token))
+        if record is None:
+            return False
+        session = await self._repo.get_session(record.session_id)
+        if session is None:
+            return False
+        revoked = await self._repo.revoke_session(
+            record.session_id, "user_logout")
+        if revoked:
+            await self._repo.revoke_session_tokens(record.session_id)
+            await self.invalidate_session_cache(record.session_id)
+            await self._audit("auth.session_revoked",
+                              user_id=session.user_id,
+                              session_id=session.session_id,
+                              tenant_id=session.tenant_id,
+                              request_id=request_id,
+                              detail={"reason": "user_logout"})
+        return revoked
+
     async def audit_login(self, *, user_id: str, tenant_id: str | None,
                           request_id: str = "") -> None:
         await self._audit("auth.login", user_id=user_id, tenant_id=tenant_id,

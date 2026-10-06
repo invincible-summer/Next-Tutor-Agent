@@ -53,7 +53,10 @@ Web 与 Expo/React Native 移动端不复制 API 代码：传输、契约、设�
   Retry-After 上限）；写请求仅当 endpoint 显式 `retryWrites` 且携带
   `Idempotency-Key` 时重试；
 - 401：`onUnauthorized` 单飞（并发 401 共享一次 refresh）；只有 token 变化才
-  重试一次，否则立即抛 `UnauthorizedError`；
+  重试一次，否则立即抛 `UnauthorizedError`。Web adapter 的钩子实现为企业
+  刷新轨：先用 HttpOnly `edu_refresh` cookie 静默换新 access token（成功即
+  更新内存令牌、transport 因 token 变化自动重试），失败才降级派发
+  `edu-auth-expired`/`edu-access-changed` 事件；
 - 409：透传为 `ConflictError`；仅当调用方声明 `waitForConflict`（如
   `evaluation_pending`）时有界重轮询；
 - 响应体解析支持 `json`/`text`/`bytes`/`none`——`bytes` 走

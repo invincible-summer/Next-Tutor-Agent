@@ -41,6 +41,8 @@ function LoginForm() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
+        // 接收刷新轨的 HttpOnly cookie（跨源部署下 include 必需）。
+        credentials: "include",
       });
       const data = await res.json();
       if (!res.ok) {
@@ -48,7 +50,9 @@ function LoginForm() {
         setLoading(false);
         return;
       }
-      setAuth(data.token, data.user);
+      // 企业响应含 access_token/refresh_token：access token 只进内存，
+      // 刷新凭据由服务端种进 HttpOnly cookie。
+      setAuth(data.access_token ?? data.token, data.user, { enterprise: !!data.access_token });
       router.push(SITE_BASE_PATH && redirect.startsWith(SITE_BASE_PATH + "/") ? redirect.slice(SITE_BASE_PATH.length) : redirect);
     } catch {
       setError(tr("auth.error.network"));

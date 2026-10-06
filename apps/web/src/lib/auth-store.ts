@@ -5,7 +5,7 @@ import { useChatStore, useEvaluationCacheStore } from "./store";
 import { endGuestSession } from "./guest-session";
 import { clearQuizAnswerDrafts } from "./quiz-drafts";
 import { createBrowserClient } from "@/platform/api-client";
-import { clearToken, getToken, setToken } from "@/platform/token";
+import { clearToken, enterpriseSessionActive, getToken, setMemoryToken, startSessionToken } from "@/platform/token";
 import { UnauthorizedError } from "@next-tutor/api-client";
 
 // --- types ------------------------------------------------------------------
@@ -39,7 +39,7 @@ interface AuthState {
   statusLoaded: boolean; // authRequired 已确定？（并行水合下防未登录闪屏）
   loading: boolean; // request in flight?
   error: string | null;
-  setAuth: (token: string, user: AuthUser) => void;
+  setAuth: (token: string, user: AuthUser, opts?: { enterprise?: boolean }) => void;
   clearAuth: () => void;
   logout: () => void;
   fetchStatus: () => Promise<void>;
@@ -61,14 +61,16 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   statusLoaded: false,
   loading: false,
   error: null,
-  setAuth: (token, user) => {
+  setAuth: (token, user, opts) => {
     clearQuizAnswerDrafts();
     endGuestSession();
     clearAllDrafts();
     useChatStore.getState().newChat();
     // 换账号登录：清空上一账号的评价查询缓存并 abort 在途请求（§15.3）。
     useEvaluationCacheStore.getState().clearAll();
-    setToken(token);
+    // enterprise 会话：令牌只进内存（刷新走 HttpOnly cookie）；文件模式
+    // 维持 localStorage 持久化。
+    startSessionToken(token, opts?.enterprise === true);
     set({ token, user, error: null });
   },
   clearAuth: () => {
@@ -98,7 +100,17 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
   },
   fetchMe: async () => {
-    const token = getToken();
+    let token = getToken();
+    // 企业会话水合：内存令牌在页面刷新后为空，先用 HttpOnly cookie 静默
+    // 换新 access token（失败即会话过期，回落未登录态）。
+    if (!token && enterpriseSessionActive()) {
+      const { silentRefresh } = await import("./api-fetch");
+      const fresh = await silentRefresh();
+      if (fresh) {
+        setMemoryToken(fresh);
+        token = fresh;
+      }
+    }
     if (!token) {
       set({ loaded: true });
       return;
@@ -106,7 +118,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     try {
       const data = await authClient.auth.me<AuthUser>();
       if (getToken() !== token) return;
-      if (get().user && get().user?.id !== data.user.id) get().setAuth(token, data.user);
+      if (get().user && get().user?.id !== data.user.id) {
+        get().setAuth(token, data.user, { enterprise: enterpriseSessionActive() });
+      }
       set({ token, user: data.user, loaded: true });
     } catch (error) {
       if (getToken() !== token) return;

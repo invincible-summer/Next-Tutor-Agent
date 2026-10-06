@@ -68,7 +68,7 @@
 前端不拥有任何服务端存储；状态分三层：
 
 - **zustand store**：`lib/store.ts`（`useUIStore` 学段/语言/主题/字号/侧栏、`useChatStore` 会话与消息、`useEvaluationCacheStore`）、`lib/auth-store.ts`（token/user/authRequired，水合并行；账户默认配图方式 `quiz_illustration_mode` 支持 `v1|v2|v3`，缺省 V1）、`lib/ws-settings.ts`（工作区设置弹窗目标 + `WS_CHANGED_EVENT`/`SESSION_CHANGED_EVENT` 广播）、`lib/store-notes.ts`、`lib/assistant/store.ts`。store 初始化器不读 localStorage（SSR 水合安全），mount 后 `hydrateClient()` 恢复。
-- **浏览器持久化**：localStorage——`edu-agent-token`（demo 模式换用独立 `edu-agent-pages-demo-token`）、`edu-agent-lang`、`edu-agent-theme`、`edu-agent-fs`（字号倍率，经 `--fs-scale` 驱动根字号）、`edu-agent-grade`/`edu-agent-output-lang` 等偏好、对话与答题草稿（`chat-drafts`/`quiz-drafts`，登出清空）、课堂折叠分组等页面级 UI 状态；sessionStorage——对话草稿正文（登出/换账号时随 `clearAllDrafts` 清空）。头像经 apiFetch 认证后转临时 blob URL，换号/退出/卸载时撤销，不做本地持久化。
+- **浏览器持久化**：localStorage——`edu-agent-token`（demo 模式换用独立 `edu-agent-pages-demo-token`；企业会话不再写入，见不变量节）、`edu-agent-session`（仅会话模式标记 `enterprise`，不是凭据）、`edu-agent-lang`、`edu-agent-theme`、`edu-agent-fs`（字号倍率，经 `--fs-scale` 驱动根字号）、`edu-agent-grade`/`edu-agent-output-lang` 等偏好、对话与答题草稿（`chat-drafts`/`quiz-drafts`，登出清空）、课堂折叠分组等页面级 UI 状态；sessionStorage——对话草稿正文（登出/换账号时随 `clearAllDrafts` 清空）。头像经 apiFetch 认证后转临时 blob URL，换号/退出/卸载时撤销，不做本地持久化。
 - **运行数据**：全部由后端落在 `NEXT_TUTOR_DATA_DIR` 单根（ADR-0002）；E2E 用隔离 scratch 目录，绝不落仓库。Pages 演示快照由后端导出流程在 storage sandbox 中读取 git 跟踪的 synthetic fixtures 生成（ADR-0001/0005），产物不入库。
 
 ## Main flows（关键流程）
@@ -116,7 +116,7 @@ chat 页右上角电话按钮为唯一入口（`GET /voice/status` 决定显隐�
 ## Invariants / security boundaries（不变量与安全边界）
 
 - **一切请求经 `apiFetch`**：JWT 只注入可信目标——`trustedRequestUrl` 只对相对路径、页面 origin 与显式配置的后端 origin 附加凭证，防响应中的绝对 URL 把 Bearer token 外送到攻击者主机；协议相对 `//host` 按外域处理。
-- token 存 localStorage（与 CSP 纵深组合）；demo token 与正式 token 使用不同存储键。前端代码只读 `NEXT_PUBLIC_*` 变量，不含任何密钥。
+- token 存储（双模式）：企业会话（登录响应含 `access_token`/`refresh_token`）access token 只留内存，刷新凭据由后端种进 HttpOnly+Secure+SameSite=Lax 的 `edu_refresh` cookie（仅 `/api/v1/auth` 路径可见）——localStorage 不存任何可重放令牌，仅留 `edu-agent-session` 模式标记，登录时一次性清除遗留的 `edu-agent-token`；页面刷新后由 `silentRefresh`（cookie 单飞）+ `/auth/me` 恢复会话，401 经 `apiFetch` 与共享客户端 `onUnauthorized` 钩子各做一次刷新重试。文件模式（后端无 refresh 端点）维持 legacy token 存 localStorage；demo token 与正式 token 使用不同存储键。前端代码只读 `NEXT_PUBLIC_*` 变量，不含任何密钥。
 - `next.config.ts` 全站安全头：CSP（外域脚本/样式/连接一律拒绝、dev 才放开 `unsafe-eval`、`microphone=(self)`）、`frame-ancestors 'self'` + XFO、`object-src 'none'`、`base-uri`/`form-action 'self'`。
 - 鉴权门控不闪屏：`statusLoaded` 与 token 校验双落定才渲染工作区；访客面收敛到 `/chat`、`/assessment`；`/admin` 后端硬门。
 - 水合安全：store 初始化器禁止读 localStorage；主题/字号经预水合脚本先行落定。

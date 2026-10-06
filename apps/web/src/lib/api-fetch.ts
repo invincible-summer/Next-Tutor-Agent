@@ -2,12 +2,43 @@ import { endGuestSession, getGuestToken } from "./guest-session";
 import { API_BASE } from "./api";
 import { DEMO_MODE } from "./demo";
 import { demoFetch } from "./demo-fetch";
-import { getToken } from "@/platform/token";
+import { enterpriseSessionActive, getToken, setMemoryToken } from "@/platform/token";
 
 // 遗留传输层：服务未迁移域（admin/trash/quiz/UX 等）与任意 URL 下载。
 // token 存取与共享客户端同源（platform/token）；已迁移域走
 // platform/api-client 的共享客户端。
 export { getToken };
+
+let refreshInFlight: Promise<string | null> | null = null;
+
+/**
+ * 用 HttpOnly refresh cookie 静默换新 access token（企业模式）。全局单飞：
+ * 并发 401 只触发一次刷新；失败返回 null，调用方按会话失效处理。
+ */
+export function silentRefresh(): Promise<string | null> {
+  if (typeof window === "undefined") return Promise.resolve(null);
+  if (!refreshInFlight) {
+    refreshInFlight = fetch(`${API_BASE}/auth/refresh`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      // 空 refresh_token：服务端回落到 cookie（body token 是移动端轨道）。
+      body: "{}",
+      credentials: "include",
+    })
+      .then(async (resp) => {
+        if (!resp.ok) return null;
+        const data = await resp.json().catch(() => null);
+        return typeof data?.access_token === "string" && data.access_token
+          ? data.access_token
+          : null;
+      })
+      .catch(() => null)
+      .finally(() => {
+        refreshInFlight = null;
+      });
+  }
+  return refreshInFlight;
+}
 const pendingRequests = new Map<string, Promise<Response>>();
 
 export function authHeaders(extra?: Record<string, string>): Record<string, string> {
@@ -104,24 +135,40 @@ export function apiFetch(input: string, init?: RequestInit): Promise<Response> {
   const pathname = input.split("?")[0].replace(/\/$/, "");
   const start = method === "POST" && pathname.endsWith("/assessment/start");
   const next = method === "POST" && pathname.endsWith("/assessment/next");
+  // 刷新请求自身的 401 不再触发刷新（避免自旋）。
+  const isRefreshCall = pathname.endsWith("/auth/refresh");
+  let lastToken = token;
+  const run = () => request(input, options, next);
+  const attempt: Promise<Response> = run().then(async (first) => {
+    if (first.status !== 401 || isRefreshCall) return first;
+    // 企业刷新轨：401 → 用 cookie 单飞换新 access token 后重试一次。
+    // 文件模式（无 cookie/标记）维持旧行为，直接交给 checkAccess。
+    if (!token && !enterpriseSessionActive()) return first;
+    const fresh = await silentRefresh();
+    if (!fresh || fresh === lastToken) return first;
+    setMemoryToken(fresh);
+    lastToken = fresh;
+    headers.set("Authorization", `Bearer ${fresh}`);
+    return run();
+  });
   const checkAccess = (response: Response) => {
     if (response.status === 401 && typeof window !== "undefined") {
-      if (!token && ((guestToken && getGuestToken() === guestToken) || pathname.endsWith("/guest/session"))) {
+      if (!lastToken && ((guestToken && getGuestToken() === guestToken) || pathname.endsWith("/guest/session"))) {
         endGuestSession();
         window.dispatchEvent(new Event("edu-access-changed"));
-      } else if (token && getToken() === token) {
+      } else if (lastToken && getToken() === lastToken) {
         window.dispatchEvent(new Event("edu-auth-expired"));
       }
     }
     return response;
   };
   if ((!start && !next) || init?.signal || typeof init?.body !== "string") {
-    return request(input, options, next).then(checkAccess);
+    return attempt.then(checkAccess);
   }
   const key = JSON.stringify([input, Array.from(headers.entries()), init.body]);
   let pending = pendingRequests.get(key);
   if (!pending) {
-    pending = request(input, options, next).finally(() => pendingRequests.delete(key));
+    pending = attempt.finally(() => pendingRequests.delete(key));
     pendingRequests.set(key, pending);
   }
   return pending.then((response) => checkAccess(response.clone()));
