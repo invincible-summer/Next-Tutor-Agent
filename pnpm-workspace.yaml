@@ -12,8 +12,17 @@ allowBuilds:
   sharp: true
   unrs-resolver: false
 
+auditConfig:
+  ignoreGhsas:
+    - GHSA-86w9-cpqp-85rv
+    - GHSA-vfj7-8cjw-p6xm
+    - GHSA-hp3w-g68c-fv3c
+
 # Security fixes for transitive CLI/URL utilities; native SDK versions remain pinned.
 overrides:
   "uuid@<11.1.1": "11.1.1"
   "decode-uri-component@<0.5.0": "0.5.0"
   "@types/react-dom@>=19.3.0 <20": "19.2.7"
+  # KaTeX GHSA-238p-pmpm-9mq7 (trust-restriction bypass, fixed 0.18.2):
+  # rehype-katex@7 still pins ^0.16, so force the whole tree to 0.18.11.
+  katex: "0.18.11"

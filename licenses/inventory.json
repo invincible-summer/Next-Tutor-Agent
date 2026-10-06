@@ -13339,6 +13339,32 @@
       "ecosystem": "npm",
       "evidence": "installed-package",
       "homepage": null,
+      "integrity": "sha512-z67u4ZhzCL/Tydu1lJARtEZYWbWaN7oYLHbsuzocr6y4N6WZAagG3RQ4FW61V1/0+jImpj293XfrcYnd1qxtPg==",
+      "license_declared": "MIT",
+      "license_expression": "MIT",
+      "license_files": [
+        {
+          "bytes": 1098,
+          "origin": "npm:commander@15.0.0/LICENSE",
+          "path": "licenses/texts/04512a63dce4d2d506ad612dc0bd7681ccf6e3655f7b6eaef7dfac8323d1ec0b.txt",
+          "sha256": "04512a63dce4d2d506ad612dc0bd7681ccf6e3655f7b6eaef7dfac8323d1ec0b"
+        }
+      ],
+      "name": "commander",
+      "optional": false,
+      "purl": "pkg:npm/commander@15.0.0",
+      "scopes": [
+        "apps/mobile:dependencies",
+        "apps/web:dependencies"
+      ],
+      "version": "15.0.0"
+    },
+    {
+      "dependencies": [],
+      "direct_in": [],
+      "ecosystem": "npm",
+      "evidence": "installed-package",
+      "homepage": null,
       "integrity": "sha512-GpVkmM8vF2vQUkj2LvZmD35JxeJOLCwJ9cUkugyk2nuhbv3+mJvpLYYt+0+USMxE+oj+ey/lJEnhZw75x/OMcQ==",
       "license_declared": "MIT",
       "license_expression": "MIT",
@@ -13384,32 +13410,6 @@
         "apps/mobile:devDependencies"
       ],
       "version": "7.2.0"
-    },
-    {
-      "dependencies": [],
-      "direct_in": [],
-      "ecosystem": "npm",
-      "evidence": "installed-package",
-      "homepage": null,
-      "integrity": "sha512-OkTL9umf+He2DZkUq8f8J9of7yL6RJKI24dVITBmNfZBmri9zYZQrKkuXiKhyfPSu8tUhnVBB1iKXevvnlR4Ww==",
-      "license_declared": "MIT",
-      "license_expression": "MIT",
-      "license_files": [
-        {
-          "bytes": 1098,
-          "origin": "npm:commander@8.3.0/LICENSE",
-          "path": "licenses/texts/04512a63dce4d2d506ad612dc0bd7681ccf6e3655f7b6eaef7dfac8323d1ec0b.txt",
-          "sha256": "04512a63dce4d2d506ad612dc0bd7681ccf6e3655f7b6eaef7dfac8323d1ec0b"
-        }
-      ],
-      "name": "commander",
-      "optional": false,
-      "purl": "pkg:npm/commander@8.3.0",
-      "scopes": [
-        "apps/mobile:dependencies",
-        "apps/web:dependencies"
-      ],
-      "version": "8.3.0"
     },
     {
       "dependencies": [
@@ -23102,7 +23102,7 @@
     },
     {
       "dependencies": [
-        "commander@8.3.0"
+        "commander@15.0.0"
       ],
       "direct_in": [
         "apps/mobile:dependencies",
@@ -23111,25 +23111,25 @@
       "ecosystem": "npm",
       "evidence": "installed-package",
       "homepage": "https://katex.org",
-      "integrity": "sha512-Eeo8Ys1doU1z+x8AZsPpQu+p/QcZBI5PeOo7QGQdy2x2m0MU/hYagBbGOmXwr5KVbEfVuWv9LpnQWeehogurjg==",
+      "integrity": "sha512-yvyz/2VMKqoho/35Hat5w37wIEdWJ5ElVMidTAlWrxr5uW4aBGsEpveTmKh18/zw08v/7lGswCPon4OhqmqrTA==",
       "license_declared": "MIT",
       "license_expression": "MIT",
       "license_files": [
         {
           "bytes": 1107,
-          "origin": "npm:katex@0.16.47/LICENSE",
+          "origin": "npm:katex@0.18.11/LICENSE",
           "path": "licenses/texts/766ccc1f306c885aa45542a9846bbd0a505b27a0374f146778171c2254ce18e3.txt",
           "sha256": "766ccc1f306c885aa45542a9846bbd0a505b27a0374f146778171c2254ce18e3"
         }
       ],
       "name": "katex",
       "optional": false,
-      "purl": "pkg:npm/katex@0.16.47",
+      "purl": "pkg:npm/katex@0.18.11",
       "scopes": [
         "apps/mobile:dependencies",
         "apps/web:dependencies"
       ],
-      "version": "0.16.47"
+      "version": "0.18.11"
     },
     {
       "dependencies": [
@@ -25997,7 +25997,7 @@
       "dependencies": [
         "@types/katex@0.16.8",
         "devlop@1.1.0",
-        "katex@0.16.47",
+        "katex@0.18.11",
         "micromark-factory-space@2.1.0",
         "micromark-util-character@2.1.1",
         "micromark-util-symbol@2.0.1",
@@ -31282,7 +31282,7 @@
         "@types/katex@0.16.8",
         "hast-util-from-html-isomorphic@2.0.0",
         "hast-util-to-text@4.0.2",
-        "katex@0.16.47",
+        "katex@0.18.11",
         "unist-util-visit-parents@6.0.2",
         "vfile@6.0.3"
       ],
@@ -37466,10 +37466,23 @@
           "origin": "pypi:boto3@1.43.108/boto3-1.43.108.dist-info/NOTICE",
           "path": "licenses/texts/04fb1e61484a7810f1ba09bb42bc01ca58c9af33927d7c5a21556e4c4d1c7fa4.txt",
           "sha256": "04fb1e61484a7810f1ba09bb42bc01ca58c9af33927d7c5a21556e4c4d1c7fa4"
+        },
+        {
+          "bytes": 10174,
+          "origin": "https://files.pythonhosted.org/packages/74/e4/7e88c40e9f61888e12dac0de41a5fddc2bcd1c3992d9b28e17d915cce0df/boto3-1.43.108-py3-none-any.whl#boto3-1.43.108.dist-info/LICENSE",
+          "path": "licenses/texts/0d542e0c8804e39aa7f37eb00da5a762149dc682d7829451287e11b938e94594.txt",
+          "sha256": "0d542e0c8804e39aa7f37eb00da5a762149dc682d7829451287e11b938e94594"
+        },
+        {
+          "bytes": 83,
+          "origin": "https://files.pythonhosted.org/packages/74/e4/7e88c40e9f61888e12dac0de41a5fddc2bcd1c3992d9b28e17d915cce0df/boto3-1.43.108-py3-none-any.whl#boto3-1.43.108.dist-info/NOTICE",
+          "path": "licenses/texts/04fb1e61484a7810f1ba09bb42bc01ca58c9af33927d7c5a21556e4c4d1c7fa4.txt",
+          "sha256": "04fb1e61484a7810f1ba09bb42bc01ca58c9af33927d7c5a21556e4c4d1c7fa4"
         }
       ],
       "name": "boto3",
       "purl": "pkg:pypi/boto3@1.43.108",
+      "registry_source": "https://pypi.org/pypi/boto3/1.43.108/json",
       "scopes": [
         "services/api/constraints.txt:constraint-only",
         "services/api/requirements-test.txt:observed-transitive",
@@ -37481,7 +37494,7 @@
       "dependencies": [
         "pkg:pypi/jmespath@1.1.0",
         "pkg:pypi/python-dateutil@2.9.0.post0",
-        "pkg:pypi/urllib3@2.7.0"
+        "pkg:pypi/urllib3@2.8.0"
       ],
       "direct_in": [],
       "ecosystem": "pypi",
@@ -37501,10 +37514,23 @@
           "origin": "pypi:botocore@1.43.108/botocore-1.43.108.dist-info/NOTICE",
           "path": "licenses/texts/1d1c5a6f3d68cb11f4fad1afa86a7450d0286f15c176ef0ea048f255b46d95b0.txt",
           "sha256": "1d1c5a6f3d68cb11f4fad1afa86a7450d0286f15c176ef0ea048f255b46d95b0"
+        },
+        {
+          "bytes": 10174,
+          "origin": "https://files.pythonhosted.org/packages/7a/0b/4670b7e23914b5cc357be5ca45fae503b57d98ecff4b3eabea70412809fd/botocore-1.43.108-py3-none-any.whl#botocore-1.43.108.dist-info/LICENSE.txt",
+          "path": "licenses/texts/0d542e0c8804e39aa7f37eb00da5a762149dc682d7829451287e11b938e94594.txt",
+          "sha256": "0d542e0c8804e39aa7f37eb00da5a762149dc682d7829451287e11b938e94594"
+        },
+        {
+          "bytes": 2467,
+          "origin": "https://files.pythonhosted.org/packages/7a/0b/4670b7e23914b5cc357be5ca45fae503b57d98ecff4b3eabea70412809fd/botocore-1.43.108-py3-none-any.whl#botocore-1.43.108.dist-info/NOTICE",
+          "path": "licenses/texts/1d1c5a6f3d68cb11f4fad1afa86a7450d0286f15c176ef0ea048f255b46d95b0.txt",
+          "sha256": "1d1c5a6f3d68cb11f4fad1afa86a7450d0286f15c176ef0ea048f255b46d95b0"
         }
       ],
       "name": "botocore",
       "purl": "pkg:pypi/botocore@1.43.108",
+      "registry_source": "https://pypi.org/pypi/botocore/1.43.108/json",
       "scopes": [
         "services/api/constraints.txt:constraint-only",
         "services/api/requirements-test.txt:observed-transitive",
@@ -38549,10 +38575,17 @@
           "origin": "pypi:jmespath@1.1.0/jmespath-1.1.0.dist-info/LICENSE",
           "path": "licenses/texts/6eefacfa4d71b82d08408c751470ac8d9854538da2142cb27be0287fb13d0ab9.txt",
           "sha256": "6eefacfa4d71b82d08408c751470ac8d9854538da2142cb27be0287fb13d0ab9"
+        },
+        {
+          "bytes": 1113,
+          "origin": "https://files.pythonhosted.org/packages/14/2f/967ba146e6d58cf6a652da73885f52fc68001525b4197effc174321d70b4/jmespath-1.1.0-py3-none-any.whl#jmespath-1.1.0.dist-info/LICENSE",
+          "path": "licenses/texts/6eefacfa4d71b82d08408c751470ac8d9854538da2142cb27be0287fb13d0ab9.txt",
+          "sha256": "6eefacfa4d71b82d08408c751470ac8d9854538da2142cb27be0287fb13d0ab9"
         }
       ],
       "name": "jmespath",
       "purl": "pkg:pypi/jmespath@1.1.0",
+      "registry_source": "https://pypi.org/pypi/jmespath/1.1.0/json",
       "scopes": [
         "services/api/constraints.txt:constraint-only",
         "services/api/requirements-test.txt:observed-transitive",
@@ -38730,11 +38763,23 @@
       "dependencies": [],
       "direct_in": [],
       "ecosystem": "pypi",
-      "evidence": "registry-artifact;not-installed",
+      "evidence": "installed-distribution",
       "homepage": "https://github.com/executablebooks/markdown-it-py",
       "license_declared": null,
       "license_expression": "MIT",
       "license_files": [
+        {
+          "bytes": 1078,
+          "origin": "pypi:markdown-it-py@4.2.0/markdown_it_py-4.2.0.dist-info/licenses/LICENSE",
+          "path": "licenses/texts/4a2260d6e2cd0f5a151a1e86dbfe7d3ed552b1e2beabf9941c1ba5c49cbce484.txt",
+          "sha256": "4a2260d6e2cd0f5a151a1e86dbfe7d3ed552b1e2beabf9941c1ba5c49cbce484"
+        },
+        {
+          "bytes": 1073,
+          "origin": "pypi:markdown-it-py@4.2.0/markdown_it_py-4.2.0.dist-info/licenses/LICENSE.markdown-it",
+          "path": "licenses/texts/792c48c5a849a15fdf9e37e8bcf9e6d1dd13b32b46c642a748a0a46a9919d473.txt",
+          "sha256": "792c48c5a849a15fdf9e37e8bcf9e6d1dd13b32b46c642a748a0a46a9919d473"
+        },
         {
           "bytes": 1078,
           "origin": "https://files.pythonhosted.org/packages/b3/81/4da04ced5a082363ecfa159c010d200ecbd959ae410c10c0264a38cac0f5/markdown_it_py-4.2.0-py3-none-any.whl#markdown_it_py-4.2.0.dist-info/licenses/LICENSE",
@@ -38798,11 +38843,17 @@
       "dependencies": [],
       "direct_in": [],
       "ecosystem": "pypi",
-      "evidence": "registry-artifact;not-installed",
+      "evidence": "installed-distribution",
       "homepage": "https://github.com/executablebooks/mdurl",
       "license_declared": null,
       "license_expression": "MIT",
       "license_files": [
+        {
+          "bytes": 2338,
+          "origin": "pypi:mdurl@0.1.2/mdurl-0.1.2.dist-info/LICENSE",
+          "path": "licenses/texts/7c605df6e28667a9603118e98274f64a49ce3eed0d26fccce9534a345e0ef955.txt",
+          "sha256": "7c605df6e28667a9603118e98274f64a49ce3eed0d26fccce9534a345e0ef955"
+        },
         {
           "bytes": 2338,
           "origin": "https://files.pythonhosted.org/packages/b3/38/89ba8ad64ae25be8de66a6d463314cf1eb366222074cfda9ee839c56a4b4/mdurl-0.1.2-py3-none-any.whl#mdurl-0.1.2.dist-info/LICENSE",
@@ -38872,10 +38923,23 @@
           "origin": "pypi:moto@5.2.3/moto-5.2.3.dist-info/licenses/LICENSE",
           "path": "licenses/texts/f12ef9fd396a13e90878630b1b4fab471c6ed9cb7a48cf2abb2516281632218e.txt",
           "sha256": "f12ef9fd396a13e90878630b1b4fab471c6ed9cb7a48cf2abb2516281632218e"
+        },
+        {
+          "bytes": 3128,
+          "origin": "https://files.pythonhosted.org/packages/58/80/ee7ace7a49bd525455497fa2ff198111877d6f93b908b657adeb2cf057a4/moto-5.2.3-py3-none-any.whl#moto-5.2.3.dist-info/licenses/AUTHORS.md",
+          "path": "licenses/texts/3c06bc60bf60fd29b45f715e24434e87a52c3725910e760bbc8226e40edcc167.txt",
+          "sha256": "3c06bc60bf60fd29b45f715e24434e87a52c3725910e760bbc8226e40edcc167"
+        },
+        {
+          "bytes": 10834,
+          "origin": "https://files.pythonhosted.org/packages/58/80/ee7ace7a49bd525455497fa2ff198111877d6f93b908b657adeb2cf057a4/moto-5.2.3-py3-none-any.whl#moto-5.2.3.dist-info/licenses/LICENSE",
+          "path": "licenses/texts/f12ef9fd396a13e90878630b1b4fab471c6ed9cb7a48cf2abb2516281632218e.txt",
+          "sha256": "f12ef9fd396a13e90878630b1b4fab471c6ed9cb7a48cf2abb2516281632218e"
         }
       ],
       "name": "moto",
       "purl": "pkg:pypi/moto@5.2.3",
+      "registry_source": "https://pypi.org/pypi/moto/5.2.3/json",
       "scopes": [
         "services/api/constraints.txt:constraint-only",
         "services/api/requirements-test.txt"
@@ -41229,7 +41293,7 @@
         "pkg:pypi/certifi@2026.7.22",
         "pkg:pypi/charset-normalizer@3.4.9",
         "pkg:pypi/idna@3.18",
-        "pkg:pypi/urllib3@2.7.0"
+        "pkg:pypi/urllib3@2.8.0"
       ],
       "direct_in": [],
       "ecosystem": "pypi",
@@ -41276,7 +41340,7 @@
       "dependencies": [
         "pkg:pypi/pyyaml@6.0.3",
         "pkg:pypi/requests@2.34.2",
-        "pkg:pypi/urllib3@2.7.0"
+        "pkg:pypi/urllib3@2.8.0"
       ],
       "direct_in": [],
       "ecosystem": "pypi",
@@ -41303,11 +41367,17 @@
       "dependencies": [],
       "direct_in": [],
       "ecosystem": "pypi",
-      "evidence": "registry-artifact;not-installed",
+      "evidence": "installed-distribution",
       "homepage": "https://github.com/Textualize/rich",
       "license_declared": "MIT",
       "license_expression": "MIT",
       "license_files": [
+        {
+          "bytes": 1056,
+          "origin": "pypi:rich@15.0.0/rich-15.0.0.dist-info/licenses/LICENSE",
+          "path": "licenses/texts/deed7c17a4318158190a3ea239cc879a5a50271cebb98ae7025f48fbe58dca15.txt",
+          "sha256": "deed7c17a4318158190a3ea239cc879a5a50271cebb98ae7025f48fbe58dca15"
+        },
         {
           "bytes": 1056,
           "origin": "https://files.pythonhosted.org/packages/82/3b/64d4899d73f91ba49a8c18a8ff3f0ea8f1c1d75481760df8c68ef5235bf5/rich-15.0.0-py3-none-any.whl#rich-15.0.0.dist-info/licenses/LICENSE",
@@ -41369,10 +41439,23 @@
           "origin": "pypi:s3transfer@0.19.2/s3transfer-0.19.2.dist-info/NOTICE.txt",
           "path": "licenses/texts/d8354e0fa7fb762da7bc054a8a6774a0b310dfbbc78006393ee573a0e57612b5.txt",
           "sha256": "d8354e0fa7fb762da7bc054a8a6774a0b310dfbbc78006393ee573a0e57612b5"
+        },
+        {
+          "bytes": 11358,
+          "origin": "https://files.pythonhosted.org/packages/bc/e7/5c595c75e9f41a44f30e526eda465ea0b4eec93470e074e4a111b253f13a/s3transfer-0.19.2-py3-none-any.whl#s3transfer-0.19.2.dist-info/LICENSE.txt",
+          "path": "licenses/texts/cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30.txt",
+          "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+        },
+        {
+          "bytes": 83,
+          "origin": "https://files.pythonhosted.org/packages/bc/e7/5c595c75e9f41a44f30e526eda465ea0b4eec93470e074e4a111b253f13a/s3transfer-0.19.2-py3-none-any.whl#s3transfer-0.19.2.dist-info/NOTICE.txt",
+          "path": "licenses/texts/d8354e0fa7fb762da7bc054a8a6774a0b310dfbbc78006393ee573a0e57612b5.txt",
+          "sha256": "d8354e0fa7fb762da7bc054a8a6774a0b310dfbbc78006393ee573a0e57612b5"
         }
       ],
       "name": "s3transfer",
       "purl": "pkg:pypi/s3transfer@0.19.2",
+      "registry_source": "https://pypi.org/pypi/s3transfer/0.19.2/json",
       "scopes": [
         "services/api/constraints.txt:constraint-only",
         "services/api/requirements-test.txt:observed-transitive",
@@ -42169,26 +42252,26 @@
       "license_files": [
         {
           "bytes": 1093,
-          "origin": "pypi:urllib3@2.7.0/urllib3-2.7.0.dist-info/licenses/LICENSE.txt",
+          "origin": "pypi:urllib3@2.8.0/urllib3-2.8.0.dist-info/licenses/LICENSE.txt",
           "path": "licenses/texts/130e3a64d5fdd5d096a752694634a7d9df284469de86e5732100268041e3d686.txt",
           "sha256": "130e3a64d5fdd5d096a752694634a7d9df284469de86e5732100268041e3d686"
         },
         {
           "bytes": 1093,
-          "origin": "https://files.pythonhosted.org/packages/7f/3e/5db95bcf282c52709639744ca2a8b149baccf648e39c8cc87553df9eae0c/urllib3-2.7.0-py3-none-any.whl#urllib3-2.7.0.dist-info/licenses/LICENSE.txt",
+          "origin": "https://files.pythonhosted.org/packages/92/9d/c4e665119135114480843e7ab388fa94d8480650450e6f8e26b70d323a4c/urllib3-2.8.0-py3-none-any.whl#urllib3-2.8.0.dist-info/licenses/LICENSE.txt",
           "path": "licenses/texts/130e3a64d5fdd5d096a752694634a7d9df284469de86e5732100268041e3d686.txt",
           "sha256": "130e3a64d5fdd5d096a752694634a7d9df284469de86e5732100268041e3d686"
         }
       ],
       "name": "urllib3",
-      "purl": "pkg:pypi/urllib3@2.7.0",
-      "registry_source": "https://pypi.org/pypi/urllib3/2.7.0/json",
+      "purl": "pkg:pypi/urllib3@2.8.0",
+      "registry_source": "https://pypi.org/pypi/urllib3/2.8.0/json",
       "scopes": [
         "services/api/constraints.txt:constraint-only",
         "services/api/requirements-test.txt:observed-transitive",
         "services/api/requirements.txt:observed-transitive"
       ],
-      "version": "2.7.0"
+      "version": "2.8.0"
     },
     {
       "dependencies": [
@@ -43120,8 +43203,8 @@
     }
   ],
   "inputs": {
-    "apps/mobile/package.json": "e01d49d07110638db92fcfa5e3f7a71cc2c18a9424e94f93165b36ccfbc43937",
-    "apps/web/package.json": "f72259599deeba4739391289872b66fb3429be31b678af06982241f4cdff35e0",
+    "apps/mobile/package.json": "52f47001337e5f2c2e1076b276ead714533f2624d864011cd512a8c4171ca1ac",
+    "apps/web/package.json": "8635330876e621ee9dee2f192574517a12ff72353668aca804df9494215d9d99",
     "deploy/local/docker-compose.yml": "5fce70d80e194f468eb32aa980cda1522bd634158a80c539f6937c04209166e4",
     "deploy/self-hosted/install_voice.sh": "1cff453657b3d6e6880910f00419be775b541bddbd01f90ad070a7bc0ab58cef",
     "licenses/external-components.json": "95664170776f494f0bdabe75e8a965cc3b515530126022ca2e31b7e10d3f0f26",
@@ -43131,9 +43214,9 @@
     "packages/design-tokens/package.json": "45734e5465376ce355def1e7c02e4e82c28d5d91ee6dd9bafd64caa40561fba7",
     "packages/domain/package.json": "24adda98849d4983191c37db9efc1e41bb8d7f4dec0f665b1e33d5fa79ba7e4d",
     "packages/i18n/package.json": "af8ff9690e072f50ec43d297197b06b2848b79ea6f07a1188c4b8be25463db32",
-    "pnpm-lock.yaml": "49a78df85b161b0734ee559f35923a769de9cdcf6c4a84b7266cb147f05d5db8",
-    "pnpm-workspace.yaml": "b0c3cef369caf4a3266664818b1fd8c64aa655857ec6a20d8aa7a74642af91c3",
-    "services/api/constraints.txt": "0e7ffce6872a7eb365bcdf315302508c8bb33994a5564dad8d930c1a1cd9948b",
+    "pnpm-lock.yaml": "570b1669d268bd1b4a92450b1c3d2779e9d30b3b15cf06e88953e6ce08bc8c58",
+    "pnpm-workspace.yaml": "c455a411229a161e09c60c37e33b32854b947d7b4e6136e5bee1d8e19ed961a7",
+    "services/api/constraints.txt": "aa696a017e68f5cbd2e9a2c41e031aece307ed625a1ebb2f19729fc7ad60d1d0",
     "services/api/requirements-observability.txt": "a6deaa638de34c7f065027613357fa345a7abc3ad37bd4e4cb532dec479fe061",
     "services/api/requirements-test.txt": "4541b7b2ee3082fdfd83938f0a132df3acb5ea0de3a2f4666068ffca6ebc5834",
     "services/api/requirements-vector.txt": "ef47363894604e939ccc36fd299b070a36eeb7cea41ead05c6d96ad08ec4e7f9",

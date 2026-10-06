@@ -15120,6 +15120,34 @@
       "version": "12.1.0"
     },
     {
+      "bom-ref": "pkg:npm/commander@15.0.0",
+      "licenses": [
+        {
+          "license": {
+            "name": "MIT"
+          }
+        }
+      ],
+      "name": "commander",
+      "properties": [
+        {
+          "name": "next-tutor:evidence",
+          "value": "installed-package"
+        },
+        {
+          "name": "next-tutor:scopes",
+          "value": "apps/mobile:dependencies,apps/web:dependencies"
+        },
+        {
+          "name": "next-tutor:license-files",
+          "value": "licenses/texts/04512a63dce4d2d506ad612dc0bd7681ccf6e3655f7b6eaef7dfac8323d1ec0b.txt"
+        }
+      ],
+      "purl": "pkg:npm/commander@15.0.0",
+      "type": "library",
+      "version": "15.0.0"
+    },
+    {
       "bom-ref": "pkg:npm/commander@2.20.3",
       "licenses": [
         {
@@ -15174,34 +15202,6 @@
       "purl": "pkg:npm/commander@7.2.0",
       "type": "library",
       "version": "7.2.0"
-    },
-    {
-      "bom-ref": "pkg:npm/commander@8.3.0",
-      "licenses": [
-        {
-          "license": {
-            "name": "MIT"
-          }
-        }
-      ],
-      "name": "commander",
-      "properties": [
-        {
-          "name": "next-tutor:evidence",
-          "value": "installed-package"
-        },
-        {
-          "name": "next-tutor:scopes",
-          "value": "apps/mobile:dependencies,apps/web:dependencies"
-        },
-        {
-          "name": "next-tutor:license-files",
-          "value": "licenses/texts/04512a63dce4d2d506ad612dc0bd7681ccf6e3655f7b6eaef7dfac8323d1ec0b.txt"
-        }
-      ],
-      "purl": "pkg:npm/commander@8.3.0",
-      "type": "library",
-      "version": "8.3.0"
     },
     {
       "bom-ref": "pkg:npm/compressible@2.0.18",
@@ -25477,7 +25477,7 @@
       "version": "3.3.5"
     },
     {
-      "bom-ref": "pkg:npm/katex@0.16.47",
+      "bom-ref": "pkg:npm/katex@0.18.11",
       "externalReferences": [
         {
           "type": "website",
@@ -25506,9 +25506,9 @@
           "value": "licenses/texts/766ccc1f306c885aa45542a9846bbd0a505b27a0374f146778171c2254ce18e3.txt"
         }
       ],
-      "purl": "pkg:npm/katex@0.16.47",
+      "purl": "pkg:npm/katex@0.18.11",
       "type": "library",
-      "version": "0.16.47"
+      "version": "0.18.11"
     },
     {
       "bom-ref": "pkg:npm/keyv@4.5.4",
@@ -41611,7 +41611,7 @@
       "properties": [
         {
           "name": "next-tutor:evidence",
-          "value": "registry-artifact;not-installed"
+          "value": "installed-distribution"
         },
         {
           "name": "next-tutor:scopes",
@@ -41673,7 +41673,7 @@
       "properties": [
         {
           "name": "next-tutor:evidence",
-          "value": "registry-artifact;not-installed"
+          "value": "installed-distribution"
         },
         {
           "name": "next-tutor:scopes",
@@ -43393,7 +43393,7 @@
       "properties": [
         {
           "name": "next-tutor:evidence",
-          "value": "registry-artifact;not-installed"
+          "value": "installed-distribution"
         },
         {
           "name": "next-tutor:scopes",
@@ -44063,7 +44063,7 @@
       "version": "0.4.2"
     },
     {
-      "bom-ref": "pkg:pypi/urllib3@2.7.0",
+      "bom-ref": "pkg:pypi/urllib3@2.8.0",
       "licenses": [
         {
           "license": {
@@ -44086,9 +44086,9 @@
           "value": "licenses/texts/130e3a64d5fdd5d096a752694634a7d9df284469de86e5732100268041e3d686.txt"
         }
       ],
-      "purl": "pkg:pypi/urllib3@2.7.0",
+      "purl": "pkg:pypi/urllib3@2.8.0",
       "type": "library",
-      "version": "2.7.0"
+      "version": "2.8.0"
     },
     {
       "bom-ref": "pkg:pypi/uvicorn@0.51.0",
@@ -47789,15 +47789,15 @@
     },
     {
       "dependsOn": [],
+      "ref": "pkg:npm/commander@15.0.0"
+    },
+    {
+      "dependsOn": [],
       "ref": "pkg:npm/commander@2.20.3"
     },
     {
       "dependsOn": [],
       "ref": "pkg:npm/commander@7.2.0"
-    },
-    {
-      "dependsOn": [],
-      "ref": "pkg:npm/commander@8.3.0"
     },
     {
       "dependsOn": [
@@ -50295,9 +50295,9 @@
     },
     {
       "dependsOn": [
-        "pkg:npm/commander@8.3.0"
+        "pkg:npm/commander@15.0.0"
       ],
-      "ref": "pkg:npm/katex@0.16.47"
+      "ref": "pkg:npm/katex@0.18.11"
     },
     {
       "dependsOn": [
@@ -51163,7 +51163,7 @@
       "dependsOn": [
         "pkg:npm/%40types/katex@0.16.8",
         "pkg:npm/devlop@1.1.0",
-        "pkg:npm/katex@0.16.47",
+        "pkg:npm/katex@0.18.11",
         "pkg:npm/micromark-factory-space@2.1.0",
         "pkg:npm/micromark-util-character@2.1.1",
         "pkg:npm/micromark-util-symbol@2.0.1",
@@ -52231,7 +52231,7 @@
         "pkg:npm/%40types/katex@0.16.8",
         "pkg:npm/hast-util-from-html-isomorphic@2.0.0",
         "pkg:npm/hast-util-to-text@4.0.2",
-        "pkg:npm/katex@0.16.47",
+        "pkg:npm/katex@0.18.11",
         "pkg:npm/unist-util-visit-parents@6.0.2",
         "pkg:npm/vfile@6.0.3"
       ],
@@ -53632,7 +53632,7 @@
       "dependsOn": [
         "pkg:pypi/jmespath@1.1.0",
         "pkg:pypi/python-dateutil@2.9.0.post0",
-        "pkg:pypi/urllib3@2.7.0"
+        "pkg:pypi/urllib3@2.8.0"
       ],
       "ref": "pkg:pypi/botocore@1.43.108"
     },
@@ -54161,7 +54161,7 @@
         "pkg:pypi/certifi@2026.7.22",
         "pkg:pypi/charset-normalizer@3.4.9",
         "pkg:pypi/idna@3.18",
-        "pkg:pypi/urllib3@2.7.0"
+        "pkg:pypi/urllib3@2.8.0"
       ],
       "ref": "pkg:pypi/requests@2.34.2"
     },
@@ -54169,7 +54169,7 @@
       "dependsOn": [
         "pkg:pypi/pyyaml@6.0.3",
         "pkg:pypi/requests@2.34.2",
-        "pkg:pypi/urllib3@2.7.0"
+        "pkg:pypi/urllib3@2.8.0"
       ],
       "ref": "pkg:pypi/responses@0.26.3"
     },
@@ -54277,7 +54277,7 @@
     },
     {
       "dependsOn": [],
-      "ref": "pkg:pypi/urllib3@2.7.0"
+      "ref": "pkg:pypi/urllib3@2.8.0"
     },
     {
       "dependsOn": [

@@ -1570,6 +1570,46 @@
     ],
     "registry_source": "https://pypi.org/pypi/bcrypt/5.0.0/json"
   },
+  "pypi:boto3@1.43.108": {
+    "homepage": "https://github.com/boto/boto3",
+    "license_declared": "Apache-2.0",
+    "license_expression": "Apache-2.0",
+    "license_files": [
+      {
+        "bytes": 10174,
+        "origin": "https://files.pythonhosted.org/packages/74/e4/7e88c40e9f61888e12dac0de41a5fddc2bcd1c3992d9b28e17d915cce0df/boto3-1.43.108-py3-none-any.whl#boto3-1.43.108.dist-info/LICENSE",
+        "path": "licenses/texts/0d542e0c8804e39aa7f37eb00da5a762149dc682d7829451287e11b938e94594.txt",
+        "sha256": "0d542e0c8804e39aa7f37eb00da5a762149dc682d7829451287e11b938e94594"
+      },
+      {
+        "bytes": 83,
+        "origin": "https://files.pythonhosted.org/packages/74/e4/7e88c40e9f61888e12dac0de41a5fddc2bcd1c3992d9b28e17d915cce0df/boto3-1.43.108-py3-none-any.whl#boto3-1.43.108.dist-info/NOTICE",
+        "path": "licenses/texts/04fb1e61484a7810f1ba09bb42bc01ca58c9af33927d7c5a21556e4c4d1c7fa4.txt",
+        "sha256": "04fb1e61484a7810f1ba09bb42bc01ca58c9af33927d7c5a21556e4c4d1c7fa4"
+      }
+    ],
+    "registry_source": "https://pypi.org/pypi/boto3/1.43.108/json"
+  },
+  "pypi:botocore@1.43.108": {
+    "homepage": "https://github.com/boto/botocore",
+    "license_declared": "Apache-2.0",
+    "license_expression": "Apache-2.0",
+    "license_files": [
+      {
+        "bytes": 10174,
+        "origin": "https://files.pythonhosted.org/packages/7a/0b/4670b7e23914b5cc357be5ca45fae503b57d98ecff4b3eabea70412809fd/botocore-1.43.108-py3-none-any.whl#botocore-1.43.108.dist-info/LICENSE.txt",
+        "path": "licenses/texts/0d542e0c8804e39aa7f37eb00da5a762149dc682d7829451287e11b938e94594.txt",
+        "sha256": "0d542e0c8804e39aa7f37eb00da5a762149dc682d7829451287e11b938e94594"
+      },
+      {
+        "bytes": 2467,
+        "origin": "https://files.pythonhosted.org/packages/7a/0b/4670b7e23914b5cc357be5ca45fae503b57d98ecff4b3eabea70412809fd/botocore-1.43.108-py3-none-any.whl#botocore-1.43.108.dist-info/NOTICE",
+        "path": "licenses/texts/1d1c5a6f3d68cb11f4fad1afa86a7450d0286f15c176ef0ea048f255b46d95b0.txt",
+        "sha256": "1d1c5a6f3d68cb11f4fad1afa86a7450d0286f15c176ef0ea048f255b46d95b0"
+      }
+    ],
+    "registry_source": "https://pypi.org/pypi/botocore/1.43.108/json"
+  },
   "pypi:build@1.5.0": {
     "homepage": null,
     "license_declared": null,
@@ -1952,6 +1992,20 @@
     "license_files": [],
     "registry_source": "https://pypi.org/pypi/jieba/0.42.1/json"
   },
+  "pypi:jmespath@1.1.0": {
+    "homepage": "https://github.com/jmespath/jmespath.py",
+    "license_declared": "MIT",
+    "license_expression": "MIT",
+    "license_files": [
+      {
+        "bytes": 1113,
+        "origin": "https://files.pythonhosted.org/packages/14/2f/967ba146e6d58cf6a652da73885f52fc68001525b4197effc174321d70b4/jmespath-1.1.0-py3-none-any.whl#jmespath-1.1.0.dist-info/LICENSE",
+        "path": "licenses/texts/6eefacfa4d71b82d08408c751470ac8d9854538da2142cb27be0287fb13d0ab9.txt",
+        "sha256": "6eefacfa4d71b82d08408c751470ac8d9854538da2142cb27be0287fb13d0ab9"
+      }
+    ],
+    "registry_source": "https://pypi.org/pypi/jmespath/1.1.0/json"
+  },
   "pypi:jsonschema-specifications@2023.12.1": {
     "homepage": "https://github.com/python-jsonschema/jsonschema-specifications",
     "license_declared": "MIT",
@@ -2143,6 +2197,26 @@
       }
     ],
     "registry_source": "https://pypi.org/pypi/mmh3/5.2.1/json"
+  },
+  "pypi:moto@5.2.3": {
+    "homepage": "https://github.com/getmoto/moto",
+    "license_declared": "Apache-2.0",
+    "license_expression": "Apache-2.0",
+    "license_files": [
+      {
+        "bytes": 3128,
+        "origin": "https://files.pythonhosted.org/packages/58/80/ee7ace7a49bd525455497fa2ff198111877d6f93b908b657adeb2cf057a4/moto-5.2.3-py3-none-any.whl#moto-5.2.3.dist-info/licenses/AUTHORS.md",
+        "path": "licenses/texts/3c06bc60bf60fd29b45f715e24434e87a52c3725910e760bbc8226e40edcc167.txt",
+        "sha256": "3c06bc60bf60fd29b45f715e24434e87a52c3725910e760bbc8226e40edcc167"
+      },
+      {
+        "bytes": 10834,
+        "origin": "https://files.pythonhosted.org/packages/58/80/ee7ace7a49bd525455497fa2ff198111877d6f93b908b657adeb2cf057a4/moto-5.2.3-py3-none-any.whl#moto-5.2.3.dist-info/licenses/LICENSE",
+        "path": "licenses/texts/f12ef9fd396a13e90878630b1b4fab471c6ed9cb7a48cf2abb2516281632218e.txt",
+        "sha256": "f12ef9fd396a13e90878630b1b4fab471c6ed9cb7a48cf2abb2516281632218e"
+      }
+    ],
+    "registry_source": "https://pypi.org/pypi/moto/5.2.3/json"
   },
   "pypi:multidict@6.7.1": {
     "homepage": "https://github.com/aio-libs/multidict",
@@ -3525,6 +3599,26 @@
     ],
     "registry_source": "https://pypi.org/pypi/rpds-py/2026.6.3/json"
   },
+  "pypi:s3transfer@0.19.2": {
+    "homepage": "https://github.com/boto/s3transfer",
+    "license_declared": "Apache License 2.0",
+    "license_expression": "Apache License 2.0",
+    "license_files": [
+      {
+        "bytes": 11358,
+        "origin": "https://files.pythonhosted.org/packages/bc/e7/5c595c75e9f41a44f30e526eda465ea0b4eec93470e074e4a111b253f13a/s3transfer-0.19.2-py3-none-any.whl#s3transfer-0.19.2.dist-info/LICENSE.txt",
+        "path": "licenses/texts/cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30.txt",
+        "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+      },
+      {
+        "bytes": 83,
+        "origin": "https://files.pythonhosted.org/packages/bc/e7/5c595c75e9f41a44f30e526eda465ea0b4eec93470e074e4a111b253f13a/s3transfer-0.19.2-py3-none-any.whl#s3transfer-0.19.2.dist-info/NOTICE.txt",
+        "path": "licenses/texts/d8354e0fa7fb762da7bc054a8a6774a0b310dfbbc78006393ee573a0e57612b5.txt",
+        "sha256": "d8354e0fa7fb762da7bc054a8a6774a0b310dfbbc78006393ee573a0e57612b5"
+      }
+    ],
+    "registry_source": "https://pypi.org/pypi/s3transfer/0.19.2/json"
+  },
   "pypi:scipy@1.17.1": {
     "homepage": null,
     "license_declared": null,
@@ -3948,6 +4042,20 @@
       }
     ],
     "registry_source": "https://pypi.org/pypi/urllib3/2.7.0/json"
+  },
+  "pypi:urllib3@2.8.0": {
+    "homepage": null,
+    "license_declared": null,
+    "license_expression": "MIT",
+    "license_files": [
+      {
+        "bytes": 1093,
+        "origin": "https://files.pythonhosted.org/packages/92/9d/c4e665119135114480843e7ab388fa94d8480650450e6f8e26b70d323a4c/urllib3-2.8.0-py3-none-any.whl#urllib3-2.8.0.dist-info/licenses/LICENSE.txt",
+        "path": "licenses/texts/130e3a64d5fdd5d096a752694634a7d9df284469de86e5732100268041e3d686.txt",
+        "sha256": "130e3a64d5fdd5d096a752694634a7d9df284469de86e5732100268041e3d686"
+      }
+    ],
+    "registry_source": "https://pypi.org/pypi/urllib3/2.8.0/json"
   },
   "pypi:uvicorn@0.52.4": {
     "homepage": "https://uvicorn.dev/",
