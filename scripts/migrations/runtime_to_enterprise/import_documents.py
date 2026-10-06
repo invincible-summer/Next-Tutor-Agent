@@ -268,6 +268,44 @@ def _iter_assistant_documents() -> list[tuple[str, str, str, dict[str, Any]]]:
 WALKERS["assistant"] = _iter_assistant_documents
 
 
+def _iter_illustration_documents() -> list[tuple[str, str, str, dict[str, Any]]]:
+    """(owner, kind, doc_id, payload) for illustration/tool-assistant
+    jobs, runs, artifacts, sessions and scenario kinds. Preview PNG bytes
+    stay on the file/object-store layer (ADR-0017)."""
+    from app.illustration.persistence import _ILLUSTRATIONS_DIR, safe
+
+    out: list[tuple[str, str, str, dict[str, Any]]] = []
+    if not _ILLUSTRATIONS_DIR.is_dir():
+        return out
+    kinds = ("jobs", "runs", "artifacts", "sessions", "scenario_jobs",
+             "scenario_revisions")
+    for owner_dir in sorted(p for p in _ILLUSTRATIONS_DIR.iterdir()
+                            if p.is_dir()):
+        try:
+            owner = safe(owner_dir.name)
+        except ValueError:
+            continue
+        for kind in kinds:
+            kind_dir = owner_dir / kind
+            if not kind_dir.is_dir():
+                continue
+            for p in sorted(kind_dir.glob("*.json")):
+                try:
+                    payload = json.loads(p.read_text(encoding="utf-8"))
+                except Exception:
+                    continue
+                if isinstance(payload, dict):
+                    out.append((owner, kind, p.stem, payload))
+    return out
+
+
+WALKERS["illustration"] = _iter_illustration_documents
+
+#: Walker keys whose rows land in another domain's table (illustration
+#: rides assistant_documents — shared owner+kind key space, ADR-0017).
+_TABLE_DOMAIN = {"illustration": "assistant"}
+
+
 def _iter_classroom_documents() -> list[tuple[str, str, str, dict[str, Any]]]:
     """(owner, kind, doc_id, payload) for classroom facts: owner records,
     lesson/job/run JSON. The workspace index is a rebuildable projection
@@ -334,7 +372,7 @@ async def _import_domain(domain: str, dry_run: bool) -> dict[str, Any]:
     _common.require_enterprise_database()
     walker = WALKERS[domain]
     items = walker()
-    repo = SqlDocumentRepository(domain)
+    repo = SqlDocumentRepository(_TABLE_DOMAIN.get(domain, domain))
     created = skipped = 0
     conflicts: list[dict[str, Any]] = []
     for owner, kind, doc_id, payload in items:
@@ -366,7 +404,7 @@ async def _verify_domain(domain: str) -> dict[str, Any]:
 
     _common.require_enterprise_database()
     items = WALKERS[domain]()
-    repo = SqlDocumentRepository(domain)
+    repo = SqlDocumentRepository(_TABLE_DOMAIN.get(domain, domain))
     missing: list[dict[str, Any]] = []
     mismatched: list[dict[str, Any]] = []
     checked = 0

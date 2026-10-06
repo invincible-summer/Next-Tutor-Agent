@@ -37,7 +37,7 @@
 
 ## State & storage
 
-- 会话、任务和成功版本位于统一运行根 `illustrations/<owner>/{sessions,scenario_jobs,scenario_revisions,previews}`，使用文件锁与 `core/atomic.py`；与既有题图的 `jobs/runs/artifacts` 分开，不在浏览器持久化服务端成果，不进入版本库。
+- 会话、任务和成功版本位于统一运行根 `illustrations/<owner>/{sessions,scenario_jobs,scenario_revisions,previews}`，使用文件锁与 `core/atomic.py`；与既有题图的 `jobs/runs/artifacts` 分开，不在浏览器持久化服务端成果，不进入版本库。企业模式下六类 JSON 文档路由至 `assistant_documents` 表（ADR-0017，`DOMAIN_DOCUMENT_BACKENDS=assistant=sql`），预览 PNG 与 owner epoch 标记仍留在数据根；会话删除按 kind 删行并落 `deleted` 墓碑文档，语义与文件模式一致。
 - 只有成功生成才增加图片版本。每个成果冻结模式、需求和素材版本来源，历史成果不被重试覆盖；失败和进行中轮次保留既有图片。
 - 多轮输入结合基础版本所属的历史需求及其已有图稿，并保留当前轮要求；用户修改事实或对象会形成新合同及版本。
 - 进程重启后的无存活任务标记 `run_interrupted`，用户可显式重试；不静默重放模型调用。文件模式由读路径内联标记；durable 模式（`TEMPORAL_ADDRESS`，media 队列）由 job workflow 的 settle activity 兜底结算 + worker 启动对账（ADR-0013），轮询合同不变。

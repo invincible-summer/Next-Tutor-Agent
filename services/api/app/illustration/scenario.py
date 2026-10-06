@@ -71,14 +71,13 @@ def create_session(owner, body: CreateSession):
 
 def list_sessions(owner):
     with file_lock(persistence.owner_dir(owner)):
-        root = persistence.owner_dir(owner)/"sessions"
         rows = []
-        for path in root.glob("scene_*.json") if root.is_dir() else []:
-            session = persistence.read(owner, "sessions", path.stem)
-            if session and not session.get("deleted"):
-                _recover_session(owner, session)
-                rows.append({key: session[key] for key in (
-                    "session_id", "title", "revision", "active_job_id", "created_at", "updated_at")})
+        for session in persistence.list_docs(owner, "sessions", prefix="scene_"):
+            if session.get("deleted"):
+                continue
+            _recover_session(owner, session)
+            rows.append({key: session[key] for key in (
+                "session_id", "title", "revision", "active_job_id", "created_at", "updated_at")})
     rows.sort(key=lambda row: row["updated_at"], reverse=True)
     return {"items": rows, "total": len(rows)}
 
@@ -402,9 +401,9 @@ def delete_session(owner, session_id):
             running = _running.get((str(persistence.owner_dir(owner)), job_id))
             if running:
                 running.get_loop().call_soon_threadsafe(running.cancel)
-            (persistence.owner_dir(owner)/"scenario_jobs"/f"{job_id}.json").unlink(missing_ok=True)
+            persistence.delete_doc(owner, "scenario_jobs", job_id)
         for artifact_id in session["revision_ids"]:
-            (persistence.owner_dir(owner)/"scenario_revisions"/f"{artifact_id}.json").unlink(missing_ok=True)
+            persistence.delete_doc(owner, "scenario_revisions", artifact_id)
             (persistence.owner_dir(owner)/"previews"/f"{artifact_id}.png").unlink(missing_ok=True)
         # A minimal tombstone prevents a provider's late result from reviving
         # a removed conversation, without retaining user text or artifacts.

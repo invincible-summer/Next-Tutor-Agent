@@ -11,7 +11,11 @@ from pathlib import Path
 from app.core import paths
 from app.core.atomic import atomic_write_bytes, atomic_write_text, file_lock
 
+from . import sql_store as _sql
 from .contracts import IllustrationError
+
+_KINDS = {"jobs", "runs", "artifacts", "sessions", "scenario_jobs",
+          "scenario_revisions"}
 
 _ILLUSTRATIONS_DIR = paths.bind_storage_path(__name__, "_ILLUSTRATIONS_DIR", "illustrations")
 
@@ -68,6 +72,8 @@ def _bump_epoch(owner: str) -> int:
 
 def iter_owners() -> list[str]:
     """列出有存储目录的 owner（跳过内部标记目录）。"""
+    if _sql.use_sql():
+        return _sql.list_owners()
     root = _ILLUSTRATIONS_DIR
     if not root.is_dir():
         return []
@@ -76,8 +82,12 @@ def iter_owners() -> list[str]:
 
 
 def read(owner: str, kind: str, key: str) -> dict | None:
-    if kind not in {"jobs", "runs", "artifacts", "sessions", "scenario_jobs", "scenario_revisions"}:
+    if kind not in _KINDS:
         raise ValueError("invalid_illustration_kind")
+    if _sql.use_sql():
+        safe(owner)
+        safe(key)
+        return _sql.load_payload(owner, kind, key)
     path = owner_dir(owner) / kind / f"{safe(key)}.json"
     try:
         result = json.loads(path.read_text("utf-8"))
@@ -89,11 +99,33 @@ def read(owner: str, kind: str, key: str) -> dict | None:
 
 
 def write(owner: str, kind: str, key: str, value: dict, *, expected_epoch=None, immutable=False):
+    if _sql.use_sql():
+        # SQL 模式：owner epoch 标记仍是磁盘文件（跨进程 purge 闸，行删除
+        # 之后仍要拦住迟到写），检查-写入-复查与文件分支同一补偿语义。
+        safe(owner)
+        if expected_epoch is not None and epoch(owner) != expected_epoch:
+            raise IllustrationError("policy_disabled")
+        if kind not in _KINDS:
+            raise ValueError("invalid_illustration_kind")
+        safe(key)
+        if immutable:
+            existing = _sql.load_payload(owner, kind, key)
+            if existing is not None:
+                if existing != value:
+                    raise IllustrationError("patch_conflict")
+                return
+        _sql.save_payload(owner, kind, key, value)
+        if expected_epoch is not None and epoch(owner) != expected_epoch:
+            # durable 模式跨进程删除竞态：撤销刚落的行，不让迟到写复活
+            # 已清除的 owner 数据（等价于文件分支的补偿 unlink）。
+            _sql.delete_doc(owner, kind, key)
+            raise IllustrationError("policy_disabled")
+        return
     root = owner_dir(owner)
     with file_lock(root):
         if expected_epoch is not None and epoch(owner) != expected_epoch:
             raise IllustrationError("policy_disabled")
-        if kind not in {"jobs", "runs", "artifacts", "sessions", "scenario_jobs", "scenario_revisions"}:
+        if kind not in _KINDS:
             raise ValueError("invalid_illustration_kind")
         path = root / kind / f"{safe(key)}.json"
         if immutable and path.exists():
@@ -110,11 +142,49 @@ def write(owner: str, kind: str, key: str, value: dict, *, expected_epoch=None, 
             raise IllustrationError("policy_disabled")
 
 
+def list_docs(owner: str, kind: str, *, prefix: str = "") -> list[dict]:
+    """同一 kind 下的全部文档（会话/任务枚举；损坏文件跳过）。"""
+    if kind not in _KINDS:
+        raise ValueError("invalid_illustration_kind")
+    if _sql.use_sql():
+        safe(owner)
+        return _sql.list_payloads(owner, kind)
+    safe(owner)
+    base = owner_dir(owner) / kind
+    rows: list[dict] = []
+    if not base.is_dir():
+        return rows
+    for path in base.glob(f"{prefix}*.json" if prefix else "*.json"):
+        try:
+            row = json.loads(path.read_text("utf-8"))
+        except (OSError, ValueError):
+            continue
+        if isinstance(row, dict):
+            rows.append(row)
+    return rows
+
+
+def delete_doc(owner: str, kind: str, key: str) -> None:
+    """删除单个文档（会话删除清理；不做 epoch 闸，与文件语义一致）。"""
+    if kind not in _KINDS:
+        raise ValueError("invalid_illustration_kind")
+    if _sql.use_sql():
+        safe(owner)
+        safe(key)
+        _sql.delete_doc(owner, kind, key)
+        return
+    (owner_dir(owner) / kind / f"{safe(key)}.json").unlink(missing_ok=True)
+
+
 def find_job(owner: str, question_id: str, revision: int, *, include_shadow=False, pipeline_mode=None):
-    root = owner_dir(owner) / "jobs"
-    if not root.is_dir():
-        return None
-    rows = [read(owner, "jobs", path.stem) for path in root.glob("illjob_*.json")]
+    if _sql.use_sql():
+        safe(owner)
+        rows = [row for row in _sql.list_payloads(owner, "jobs") if row]
+    else:
+        root = owner_dir(owner) / "jobs"
+        if not root.is_dir():
+            return None
+        rows = [read(owner, "jobs", path.stem) for path in root.glob("illjob_*.json")]
     rows = [r for r in rows if r and r["question_id"] == question_id and r["question_revision"] == revision
             and (include_shadow or not r.get("shadow"))]
     if pipeline_mode is not None:
@@ -125,6 +195,31 @@ def find_job(owner: str, question_id: str, revision: int, *, include_shadow=Fals
 
 
 def stage(owner: str, job: dict, name: str, *, data=None, expected_epoch=None):
+    if _sql.use_sql():
+        # run 事件 append 走行级互斥的 read-modify-write（API/worker 双进程
+        # 下不能 read-then-write）；job 更新复用 write 的 epoch 补偿闸。
+        if expected_epoch is not None and epoch(owner) != expected_epoch:
+            raise IllustrationError("policy_disabled")
+
+        def _append(run):
+            if run is None:
+                run = {"run_id": job["run_id"], "job_id": job["job_id"],
+                       "events": [], "created_at": time.time()}
+            event = {"sequence": len(run["events"])+1, "stage": name, "at": time.time()}
+            if data:
+                event.update(data)
+            run["events"].append(event)
+            return run
+
+        safe(owner)
+        _sql.mutate_payload(owner, "runs", job["run_id"], _append)
+        if expected_epoch is not None and epoch(owner) != expected_epoch:
+            _sql.delete_doc(owner, "runs", job["run_id"])
+            raise IllustrationError("policy_disabled")
+        job["stage"] = name
+        job["updated_at"] = time.time()
+        write(owner, "jobs", job["job_id"], job, expected_epoch=expected_epoch)
+        return
     root = owner_dir(owner)
     with file_lock(root):
         run = read(owner, "runs", job["run_id"]) or {
@@ -170,6 +265,13 @@ def freeze(owner: str, job: dict, compiled, png: bytes, *, contract, reviews, ex
 
 def _active_job_ids(owner: str) -> tuple[list[str], list[str]]:
     """扫描该 owner 仍处 queued/running 的 (quiz, scenario) job id。"""
+    if _sql.use_sql():
+        safe(owner)
+        quiz = [row["job_id"] for row in _sql.list_payloads(owner, "jobs")
+                if row.get("job_id") and row.get("status") in {"queued", "running"}]
+        scenario = [row["job_id"] for row in _sql.list_payloads(owner, "scenario_jobs")
+                    if row.get("job_id") and row.get("status") in {"queued", "running"}]
+        return quiz, scenario
     active: list[list[str]] = [[], []]
     for kind, sink in zip(("jobs", "scenario_jobs"), active):
         base = owner_dir(owner) / kind
@@ -213,6 +315,10 @@ def purge(owner: str):
         from .scenario import stop_owner as stop_scenario_owner
         stop_scenario_owner(owner)
         _cancel_durable_workflows(owner)
+        if _sql.use_sql():
+            # 行删除在 epoch bump 之后：标记文件跨 rmtree 保留，仍是双模式
+            # 下拦截迟到写的权威闸（与 classroom tombstone 同一论证）。
+            _sql.purge_owner(owner)
         shutil.rmtree(root, ignore_errors=True)
 
 
