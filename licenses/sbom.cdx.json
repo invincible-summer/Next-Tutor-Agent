@@ -3768,7 +3768,7 @@
       "version": "0.4.48"
     },
     {
-      "bom-ref": "pkg:npm/%40expo/cli@57.0.27",
+      "bom-ref": "pkg:npm/%40expo/cli@57.0.28",
       "externalReferences": [
         {
           "type": "website",
@@ -3797,9 +3797,9 @@
           "value": "licenses/texts/fb3ca4a837f5779e83cef89b78253a8949cfb9429c340309f62d0465ec6610b4.txt"
         }
       ],
-      "purl": "pkg:npm/%40expo/cli@57.0.27",
+      "purl": "pkg:npm/%40expo/cli@57.0.28",
       "type": "library",
-      "version": "57.0.27"
+      "version": "57.0.28"
     },
     {
       "bom-ref": "pkg:npm/%40expo/code-signing-certificates@0.0.6",
@@ -3834,6 +3834,40 @@
       "purl": "pkg:npm/%40expo/code-signing-certificates@0.0.6",
       "type": "library",
       "version": "0.0.6"
+    },
+    {
+      "bom-ref": "pkg:npm/%40expo/config-plugins@57.0.10",
+      "externalReferences": [
+        {
+          "type": "website",
+          "url": "https://docs.expo.dev/guides/config-plugins/"
+        }
+      ],
+      "licenses": [
+        {
+          "license": {
+            "name": "MIT"
+          }
+        }
+      ],
+      "name": "@expo/config-plugins",
+      "properties": [
+        {
+          "name": "next-tutor:evidence",
+          "value": "installed-package"
+        },
+        {
+          "name": "next-tutor:scopes",
+          "value": "apps/mobile:dependencies,apps/mobile:devDependencies"
+        },
+        {
+          "name": "next-tutor:license-files",
+          "value": "licenses/texts/16feb932ce2ba7bc7712657bb28afe409eaa4334f9f05d0e1b7a5f12bf6132f4.txt"
+        }
+      ],
+      "purl": "pkg:npm/%40expo/config-plugins@57.0.10",
+      "type": "library",
+      "version": "57.0.10"
     },
     {
       "bom-ref": "pkg:npm/%40expo/config-plugins@57.0.9",
@@ -3902,6 +3936,40 @@
       "purl": "pkg:npm/%40expo/config-types@57.0.2",
       "type": "library",
       "version": "57.0.2"
+    },
+    {
+      "bom-ref": "pkg:npm/%40expo/config@57.0.10",
+      "externalReferences": [
+        {
+          "type": "website",
+          "url": "https://github.com/expo/expo/tree/main/packages/@expo/config#readme"
+        }
+      ],
+      "licenses": [
+        {
+          "license": {
+            "name": "MIT"
+          }
+        }
+      ],
+      "name": "@expo/config",
+      "properties": [
+        {
+          "name": "next-tutor:evidence",
+          "value": "installed-package"
+        },
+        {
+          "name": "next-tutor:scopes",
+          "value": "apps/mobile:dependencies,apps/mobile:devDependencies"
+        },
+        {
+          "name": "next-tutor:license-files",
+          "value": "licenses/texts/16feb932ce2ba7bc7712657bb28afe409eaa4334f9f05d0e1b7a5f12bf6132f4.txt"
+        }
+      ],
+      "purl": "pkg:npm/%40expo/config@57.0.10",
+      "type": "library",
+      "version": "57.0.10"
     },
     {
       "bom-ref": "pkg:npm/%40expo/config@57.0.9",
@@ -4164,7 +4232,7 @@
         },
         {
           "name": "next-tutor:scopes",
-          "value": "apps/mobile:dependencies,apps/mobile:devDependencies"
+          "value": "apps/mobile:dependencies"
         },
         {
           "name": "next-tutor:license-files",
@@ -4174,6 +4242,40 @@
       "purl": "pkg:npm/%40expo/image-utils@0.11.5",
       "type": "library",
       "version": "0.11.5"
+    },
+    {
+      "bom-ref": "pkg:npm/%40expo/image-utils@0.11.6",
+      "externalReferences": [
+        {
+          "type": "website",
+          "url": "https://github.com/expo/expo/tree/main/packages/%40expo/image-utils#readme"
+        }
+      ],
+      "licenses": [
+        {
+          "license": {
+            "name": "MIT"
+          }
+        }
+      ],
+      "name": "@expo/image-utils",
+      "properties": [
+        {
+          "name": "next-tutor:evidence",
+          "value": "installed-package"
+        },
+        {
+          "name": "next-tutor:scopes",
+          "value": "apps/mobile:dependencies,apps/mobile:devDependencies"
+        },
+        {
+          "name": "next-tutor:license-files",
+          "value": "licenses/texts/fb3ca4a837f5779e83cef89b78253a8949cfb9429c340309f62d0465ec6610b4.txt"
+        }
+      ],
+      "purl": "pkg:npm/%40expo/image-utils@0.11.6",
+      "type": "library",
+      "version": "0.11.6"
     },
     {
       "bom-ref": "pkg:npm/%40expo/inline-modules@0.1.7",
@@ -4306,7 +4408,7 @@
       "version": "57.0.4"
     },
     {
-      "bom-ref": "pkg:npm/%40expo/metro-config@57.0.12",
+      "bom-ref": "pkg:npm/%40expo/metro-config@57.0.13",
       "externalReferences": [
         {
           "type": "website",
@@ -4335,12 +4437,12 @@
           "value": "licenses/texts/16feb932ce2ba7bc7712657bb28afe409eaa4334f9f05d0e1b7a5f12bf6132f4.txt"
         }
       ],
-      "purl": "pkg:npm/%40expo/metro-config@57.0.12",
+      "purl": "pkg:npm/%40expo/metro-config@57.0.13",
       "type": "library",
-      "version": "57.0.12"
+      "version": "57.0.13"
     },
     {
-      "bom-ref": "pkg:npm/%40expo/metro-file-map@57.0.3",
+      "bom-ref": "pkg:npm/%40expo/metro-file-map@57.0.4",
       "externalReferences": [
         {
           "type": "website",
@@ -4369,9 +4471,9 @@
           "value": "licenses/texts/fb3ca4a837f5779e83cef89b78253a8949cfb9429c340309f62d0465ec6610b4.txt"
         }
       ],
-      "purl": "pkg:npm/%40expo/metro-file-map@57.0.3",
+      "purl": "pkg:npm/%40expo/metro-file-map@57.0.4",
       "type": "library",
-      "version": "57.0.3"
+      "version": "57.0.4"
     },
     {
       "bom-ref": "pkg:npm/%40expo/metro-runtime@57.0.16",
@@ -4538,7 +4640,7 @@
       "version": "0.8.1"
     },
     {
-      "bom-ref": "pkg:npm/%40expo/prebuild-config@57.0.16",
+      "bom-ref": "pkg:npm/%40expo/prebuild-config@57.0.17",
       "externalReferences": [
         {
           "type": "website",
@@ -4567,9 +4669,9 @@
           "value": "licenses/texts/16feb932ce2ba7bc7712657bb28afe409eaa4334f9f05d0e1b7a5f12bf6132f4.txt"
         }
       ],
-      "purl": "pkg:npm/%40expo/prebuild-config@57.0.16",
+      "purl": "pkg:npm/%40expo/prebuild-config@57.0.17",
       "type": "library",
-      "version": "57.0.16"
+      "version": "57.0.17"
     },
     {
       "bom-ref": "pkg:npm/%40expo/require-utils@57.0.5",
@@ -4606,7 +4708,41 @@
       "version": "57.0.5"
     },
     {
-      "bom-ref": "pkg:npm/%40expo/router-server@57.0.11",
+      "bom-ref": "pkg:npm/%40expo/require-utils@57.0.6",
+      "externalReferences": [
+        {
+          "type": "website",
+          "url": "https://github.com/expo/expo/tree/main/packages/@expo/require-utils#readme"
+        }
+      ],
+      "licenses": [
+        {
+          "license": {
+            "name": "MIT"
+          }
+        }
+      ],
+      "name": "@expo/require-utils",
+      "properties": [
+        {
+          "name": "next-tutor:evidence",
+          "value": "installed-package"
+        },
+        {
+          "name": "next-tutor:scopes",
+          "value": "apps/mobile:dependencies,apps/mobile:devDependencies"
+        },
+        {
+          "name": "next-tutor:license-files",
+          "value": "licenses/texts/49c5f9c7097c9a940ff663a54c27a4c60e379df6cc2b3052df0d37a09a85df93.txt"
+        }
+      ],
+      "purl": "pkg:npm/%40expo/require-utils@57.0.6",
+      "type": "library",
+      "version": "57.0.6"
+    },
+    {
+      "bom-ref": "pkg:npm/%40expo/router-server@57.0.12",
       "externalReferences": [
         {
           "type": "website",
@@ -4635,9 +4771,9 @@
           "value": "licenses/texts/fb3ca4a837f5779e83cef89b78253a8949cfb9429c340309f62d0465ec6610b4.txt"
         }
       ],
-      "purl": "pkg:npm/%40expo/router-server@57.0.11",
+      "purl": "pkg:npm/%40expo/router-server@57.0.12",
       "type": "library",
-      "version": "57.0.11"
+      "version": "57.0.12"
     },
     {
       "bom-ref": "pkg:npm/%40expo/schema-utils@57.0.2",
@@ -4770,7 +4906,7 @@
       "version": "9.3.2"
     },
     {
-      "bom-ref": "pkg:npm/%40expo/ui@57.0.21",
+      "bom-ref": "pkg:npm/%40expo/ui@57.0.22",
       "externalReferences": [
         {
           "type": "website",
@@ -4799,9 +4935,9 @@
           "value": "licenses/texts/22a28f29cff8f5ecf9f463301d9c03b8245a2952ebae0bcab633fd654c0792fb.txt"
         }
       ],
-      "purl": "pkg:npm/%40expo/ui@57.0.21",
+      "purl": "pkg:npm/%40expo/ui@57.0.22",
       "type": "library",
-      "version": "57.0.21"
+      "version": "57.0.22"
     },
     {
       "bom-ref": "pkg:npm/%40expo/ws-tunnel@2.0.1",
@@ -13410,7 +13546,7 @@
       "version": "1.2.0"
     },
     {
-      "bom-ref": "pkg:npm/babel-preset-expo@57.0.13",
+      "bom-ref": "pkg:npm/babel-preset-expo@57.0.14",
       "externalReferences": [
         {
           "type": "website",
@@ -13439,9 +13575,9 @@
           "value": "licenses/texts/fb3ca4a837f5779e83cef89b78253a8949cfb9429c340309f62d0465ec6610b4.txt"
         }
       ],
-      "purl": "pkg:npm/babel-preset-expo@57.0.13",
+      "purl": "pkg:npm/babel-preset-expo@57.0.14",
       "type": "library",
-      "version": "57.0.13"
+      "version": "57.0.14"
     },
     {
       "bom-ref": "pkg:npm/babel-preset-jest@29.6.3",
@@ -18351,7 +18487,7 @@
       "version": "29.7.0"
     },
     {
-      "bom-ref": "pkg:npm/expo-asset@57.0.18",
+      "bom-ref": "pkg:npm/expo-asset@57.0.19",
       "externalReferences": [
         {
           "type": "website",
@@ -18380,9 +18516,9 @@
           "value": "licenses/texts/fb3ca4a837f5779e83cef89b78253a8949cfb9429c340309f62d0465ec6610b4.txt"
         }
       ],
-      "purl": "pkg:npm/expo-asset@57.0.18",
+      "purl": "pkg:npm/expo-asset@57.0.19",
       "type": "library",
-      "version": "57.0.18"
+      "version": "57.0.19"
     },
     {
       "bom-ref": "pkg:npm/expo-audio@57.0.5",
@@ -18453,7 +18589,7 @@
       "version": "57.0.2"
     },
     {
-      "bom-ref": "pkg:npm/expo-constants@57.0.20",
+      "bom-ref": "pkg:npm/expo-constants@57.0.21",
       "externalReferences": [
         {
           "type": "website",
@@ -18482,9 +18618,9 @@
           "value": "licenses/texts/fb3ca4a837f5779e83cef89b78253a8949cfb9429c340309f62d0465ec6610b4.txt"
         }
       ],
-      "purl": "pkg:npm/expo-constants@57.0.20",
+      "purl": "pkg:npm/expo-constants@57.0.21",
       "type": "library",
-      "version": "57.0.20"
+      "version": "57.0.21"
     },
     {
       "bom-ref": "pkg:npm/expo-crypto@57.0.3",
@@ -18997,7 +19133,7 @@
       "version": "57.0.2"
     },
     {
-      "bom-ref": "pkg:npm/expo-linking@57.0.11",
+      "bom-ref": "pkg:npm/expo-linking@57.0.12",
       "externalReferences": [
         {
           "type": "website",
@@ -19026,9 +19162,9 @@
           "value": "licenses/texts/fb3ca4a837f5779e83cef89b78253a8949cfb9429c340309f62d0465ec6610b4.txt"
         }
       ],
-      "purl": "pkg:npm/expo-linking@57.0.11",
+      "purl": "pkg:npm/expo-linking@57.0.12",
       "type": "library",
-      "version": "57.0.11"
+      "version": "57.0.12"
     },
     {
       "bom-ref": "pkg:npm/expo-manifests@57.0.2",
@@ -19065,7 +19201,7 @@
       "version": "57.0.2"
     },
     {
-      "bom-ref": "pkg:npm/expo-modules-autolinking@57.0.13",
+      "bom-ref": "pkg:npm/expo-modules-autolinking@57.0.14",
       "externalReferences": [
         {
           "type": "website",
@@ -19094,12 +19230,12 @@
           "value": "licenses/texts/fb3ca4a837f5779e83cef89b78253a8949cfb9429c340309f62d0465ec6610b4.txt"
         }
       ],
-      "purl": "pkg:npm/expo-modules-autolinking@57.0.13",
+      "purl": "pkg:npm/expo-modules-autolinking@57.0.14",
       "type": "library",
-      "version": "57.0.13"
+      "version": "57.0.14"
     },
     {
-      "bom-ref": "pkg:npm/expo-modules-core@57.0.20",
+      "bom-ref": "pkg:npm/expo-modules-core@57.0.21",
       "externalReferences": [
         {
           "type": "website",
@@ -19128,9 +19264,9 @@
           "value": "licenses/texts/fb3ca4a837f5779e83cef89b78253a8949cfb9429c340309f62d0465ec6610b4.txt"
         }
       ],
-      "purl": "pkg:npm/expo-modules-core@57.0.20",
+      "purl": "pkg:npm/expo-modules-core@57.0.21",
       "type": "library",
-      "version": "57.0.20"
+      "version": "57.0.21"
     },
     {
       "bom-ref": "pkg:npm/expo-modules-jsi@57.1.1",
@@ -19167,7 +19303,7 @@
       "version": "57.1.1"
     },
     {
-      "bom-ref": "pkg:npm/expo-router@57.0.24",
+      "bom-ref": "pkg:npm/expo-router@57.0.25",
       "externalReferences": [
         {
           "type": "website",
@@ -19196,9 +19332,9 @@
           "value": "licenses/texts/c358ea82eed53098b2ee0913e1de8243c69d45862e11c48614db47fd5889d947.txt"
         }
       ],
-      "purl": "pkg:npm/expo-router@57.0.24",
+      "purl": "pkg:npm/expo-router@57.0.25",
       "type": "library",
-      "version": "57.0.24"
+      "version": "57.0.25"
     },
     {
       "bom-ref": "pkg:npm/expo-secure-store@57.0.4",
@@ -19473,7 +19609,7 @@
       "version": "57.0.2"
     },
     {
-      "bom-ref": "pkg:npm/expo@57.0.26",
+      "bom-ref": "pkg:npm/expo@57.0.27",
       "externalReferences": [
         {
           "type": "website",
@@ -19502,9 +19638,9 @@
           "value": "licenses/texts/fb3ca4a837f5779e83cef89b78253a8949cfb9429c340309f62d0465ec6610b4.txt"
         }
       ],
-      "purl": "pkg:npm/expo@57.0.26",
+      "purl": "pkg:npm/expo@57.0.27",
       "type": "library",
-      "version": "57.0.26"
+      "version": "57.0.27"
     },
     {
       "bom-ref": "pkg:npm/exponential-backoff@3.1.3",
@@ -45252,23 +45388,23 @@
     {
       "dependsOn": [
         "pkg:npm/%40expo/code-signing-certificates@0.0.6",
-        "pkg:npm/%40expo/config-plugins@57.0.9",
-        "pkg:npm/%40expo/config@57.0.9",
+        "pkg:npm/%40expo/config-plugins@57.0.10",
+        "pkg:npm/%40expo/config@57.0.10",
         "pkg:npm/%40expo/devcert@1.2.2",
         "pkg:npm/%40expo/env@2.4.3",
-        "pkg:npm/%40expo/image-utils@0.11.5",
+        "pkg:npm/%40expo/image-utils@0.11.6",
         "pkg:npm/%40expo/inline-modules@0.1.7",
         "pkg:npm/%40expo/json-file@11.0.1",
         "pkg:npm/%40expo/log-box@57.0.4",
-        "pkg:npm/%40expo/metro-config@57.0.12",
-        "pkg:npm/%40expo/metro-file-map@57.0.3",
+        "pkg:npm/%40expo/metro-config@57.0.13",
+        "pkg:npm/%40expo/metro-file-map@57.0.4",
         "pkg:npm/%40expo/metro@56.0.2",
         "pkg:npm/%40expo/osascript@2.7.1",
         "pkg:npm/%40expo/package-manager@1.13.1",
         "pkg:npm/%40expo/plist@0.8.1",
-        "pkg:npm/%40expo/prebuild-config@57.0.16",
-        "pkg:npm/%40expo/require-utils@57.0.5",
-        "pkg:npm/%40expo/router-server@57.0.11",
+        "pkg:npm/%40expo/prebuild-config@57.0.17",
+        "pkg:npm/%40expo/require-utils@57.0.6",
+        "pkg:npm/%40expo/router-server@57.0.12",
         "pkg:npm/%40expo/schema-utils@57.0.2",
         "pkg:npm/%40expo/spawn-async@1.8.0",
         "pkg:npm/%40expo/ws-tunnel@2.0.1",
@@ -45285,9 +45421,9 @@
         "pkg:npm/connect@3.7.0",
         "pkg:npm/debug@4.4.3",
         "pkg:npm/dnssd-advertise@1.1.6",
-        "pkg:npm/expo-router@57.0.24",
+        "pkg:npm/expo-router@57.0.25",
         "pkg:npm/expo-server@57.0.3",
-        "pkg:npm/expo@57.0.26",
+        "pkg:npm/expo@57.0.27",
         "pkg:npm/fetch-nodeshim@0.4.10",
         "pkg:npm/getenv@2.0.0",
         "pkg:npm/glob@13.0.6",
@@ -45314,13 +45450,31 @@
         "pkg:npm/ws@8.22.0",
         "pkg:npm/zod@3.25.76"
       ],
-      "ref": "pkg:npm/%40expo/cli@57.0.27"
+      "ref": "pkg:npm/%40expo/cli@57.0.28"
     },
     {
       "dependsOn": [
         "pkg:npm/node-forge@1.4.0"
       ],
       "ref": "pkg:npm/%40expo/code-signing-certificates@0.0.6"
+    },
+    {
+      "dependsOn": [
+        "pkg:npm/%40expo/config-types@57.0.2",
+        "pkg:npm/%40expo/json-file@11.0.1",
+        "pkg:npm/%40expo/plist@0.8.1",
+        "pkg:npm/%40expo/require-utils@57.0.6",
+        "pkg:npm/%40expo/sdk-runtime-versions@1.0.1",
+        "pkg:npm/chalk@4.1.2",
+        "pkg:npm/debug@4.4.3",
+        "pkg:npm/getenv@2.0.0",
+        "pkg:npm/glob@13.0.6",
+        "pkg:npm/semver@7.8.5",
+        "pkg:npm/slugify@1.6.9",
+        "pkg:npm/xcode@3.0.1",
+        "pkg:npm/xml2js@0.6.0"
+      ],
+      "ref": "pkg:npm/%40expo/config-plugins@57.0.10"
     },
     {
       "dependsOn": [
@@ -45346,10 +45500,25 @@
     },
     {
       "dependsOn": [
+        "pkg:npm/%40expo/config-plugins@57.0.10",
+        "pkg:npm/%40expo/config-types@57.0.2",
+        "pkg:npm/%40expo/json-file@11.0.1",
+        "pkg:npm/%40expo/require-utils@57.0.6",
+        "pkg:npm/deepmerge@4.3.1",
+        "pkg:npm/getenv@2.0.0",
+        "pkg:npm/glob@13.0.6",
+        "pkg:npm/resolve-workspace-root@2.0.1",
+        "pkg:npm/semver@7.8.5",
+        "pkg:npm/slugify@1.6.9"
+      ],
+      "ref": "pkg:npm/%40expo/config@57.0.10"
+    },
+    {
+      "dependsOn": [
         "pkg:npm/%40expo/config-plugins@57.0.9",
         "pkg:npm/%40expo/config-types@57.0.2",
         "pkg:npm/%40expo/json-file@11.0.1",
-        "pkg:npm/%40expo/require-utils@57.0.5",
+        "pkg:npm/%40expo/require-utils@57.0.6",
         "pkg:npm/deepmerge@4.3.1",
         "pkg:npm/getenv@2.0.0",
         "pkg:npm/glob@13.0.6",
@@ -45376,7 +45545,7 @@
     },
     {
       "dependsOn": [
-        "pkg:npm/expo@57.0.26",
+        "pkg:npm/expo@57.0.27",
         "pkg:npm/react-native@0.86.3",
         "pkg:npm/react@19.2.3"
       ],
@@ -45424,6 +45593,18 @@
     },
     {
       "dependsOn": [
+        "pkg:npm/%40expo/require-utils@57.0.6",
+        "pkg:npm/%40expo/spawn-async@1.8.0",
+        "pkg:npm/chalk@4.1.2",
+        "pkg:npm/getenv@2.0.0",
+        "pkg:npm/jimp-compact@0.16.1",
+        "pkg:npm/parse-png@2.1.0",
+        "pkg:npm/semver@7.8.5"
+      ],
+      "ref": "pkg:npm/%40expo/image-utils@0.11.6"
+    },
+    {
+      "dependsOn": [
         "pkg:npm/%40expo/config-plugins@57.0.9"
       ],
       "ref": "pkg:npm/%40expo/inline-modules@0.1.7"
@@ -45446,7 +45627,7 @@
       "dependsOn": [
         "pkg:npm/%40expo/dom-webview@57.0.1",
         "pkg:npm/anser@1.4.10",
-        "pkg:npm/expo@57.0.26",
+        "pkg:npm/expo@57.0.27",
         "pkg:npm/react-native@0.86.3",
         "pkg:npm/react@19.2.3",
         "pkg:npm/stacktrace-parser@0.1.11"
@@ -45458,11 +45639,11 @@
         "pkg:npm/%40babel/code-frame@7.29.7",
         "pkg:npm/%40babel/core@7.29.7",
         "pkg:npm/%40babel/generator@7.29.8",
-        "pkg:npm/%40expo/config@57.0.9",
+        "pkg:npm/%40expo/config@57.0.10",
         "pkg:npm/%40expo/env@2.4.3",
         "pkg:npm/%40expo/json-file@11.0.1",
         "pkg:npm/%40expo/metro@56.0.2",
-        "pkg:npm/%40expo/require-utils@57.0.5",
+        "pkg:npm/%40expo/require-utils@57.0.6",
         "pkg:npm/%40expo/spawn-async@1.8.0",
         "pkg:npm/%40jridgewell/gen-mapping@0.3.13",
         "pkg:npm/%40jridgewell/remapping@2.3.5",
@@ -45470,7 +45651,7 @@
         "pkg:npm/browserslist@4.29.3",
         "pkg:npm/chalk@4.1.2",
         "pkg:npm/debug@4.4.3",
-        "pkg:npm/expo@57.0.26",
+        "pkg:npm/expo@57.0.27",
         "pkg:npm/getenv@2.0.0",
         "pkg:npm/glob@13.0.6",
         "pkg:npm/hermes-parser@0.36.1",
@@ -45480,7 +45661,7 @@
         "pkg:npm/postcss@8.5.28",
         "pkg:npm/resolve-from@5.0.0"
       ],
-      "ref": "pkg:npm/%40expo/metro-config@57.0.12"
+      "ref": "pkg:npm/%40expo/metro-config@57.0.13"
     },
     {
       "dependsOn": [
@@ -45488,16 +45669,15 @@
         "pkg:npm/fb-watchman@2.0.2",
         "pkg:npm/invariant@2.2.4",
         "pkg:npm/jest-worker@29.7.0",
-        "pkg:npm/micromatch@4.0.8",
         "pkg:npm/walker@1.0.8"
       ],
-      "ref": "pkg:npm/%40expo/metro-file-map@57.0.3"
+      "ref": "pkg:npm/%40expo/metro-file-map@57.0.4"
     },
     {
       "dependsOn": [
         "pkg:npm/%40expo/log-box@57.0.4",
         "pkg:npm/anser@1.4.10",
-        "pkg:npm/expo@57.0.26",
+        "pkg:npm/expo@57.0.27",
         "pkg:npm/pretty-format@29.7.0",
         "pkg:npm/react-dom@19.2.3",
         "pkg:npm/react-native@0.86.3",
@@ -45553,18 +45733,18 @@
     },
     {
       "dependsOn": [
-        "pkg:npm/%40expo/config-plugins@57.0.9",
+        "pkg:npm/%40expo/config-plugins@57.0.10",
         "pkg:npm/%40expo/config-types@57.0.2",
-        "pkg:npm/%40expo/config@57.0.9",
-        "pkg:npm/%40expo/image-utils@0.11.5",
+        "pkg:npm/%40expo/config@57.0.10",
+        "pkg:npm/%40expo/image-utils@0.11.6",
         "pkg:npm/%40expo/json-file@11.0.1",
         "pkg:npm/%40react-native/normalize-colors@0.86.3",
         "pkg:npm/debug@4.4.3",
-        "pkg:npm/expo-modules-autolinking@57.0.13",
+        "pkg:npm/expo-modules-autolinking@57.0.14",
         "pkg:npm/resolve-from@5.0.0",
         "pkg:npm/semver@7.8.5"
       ],
-      "ref": "pkg:npm/%40expo/prebuild-config@57.0.16"
+      "ref": "pkg:npm/%40expo/prebuild-config@57.0.17"
     },
     {
       "dependsOn": [
@@ -45577,17 +45757,26 @@
     },
     {
       "dependsOn": [
+        "pkg:npm/%40babel/code-frame@7.29.7",
+        "pkg:npm/%40babel/core@7.29.7",
+        "pkg:npm/%40babel/plugin-transform-modules-commonjs@7.29.7",
+        "pkg:npm/typescript@6.0.3"
+      ],
+      "ref": "pkg:npm/%40expo/require-utils@57.0.6"
+    },
+    {
+      "dependsOn": [
         "pkg:npm/%40expo/metro-runtime@57.0.16",
         "pkg:npm/debug@4.4.3",
-        "pkg:npm/expo-constants@57.0.20",
+        "pkg:npm/expo-constants@57.0.21",
         "pkg:npm/expo-font@57.0.4",
-        "pkg:npm/expo-router@57.0.24",
+        "pkg:npm/expo-router@57.0.25",
         "pkg:npm/expo-server@57.0.3",
-        "pkg:npm/expo@57.0.26",
+        "pkg:npm/expo@57.0.27",
         "pkg:npm/react-dom@19.2.3",
         "pkg:npm/react@19.2.3"
       ],
-      "ref": "pkg:npm/%40expo/router-server@57.0.11"
+      "ref": "pkg:npm/%40expo/router-server@57.0.12"
     },
     {
       "dependsOn": [],
@@ -45610,7 +45799,7 @@
     {
       "dependsOn": [
         "pkg:npm/%40babel/core@7.29.7",
-        "pkg:npm/expo@57.0.26",
+        "pkg:npm/expo@57.0.27",
         "pkg:npm/react-dom@19.2.3",
         "pkg:npm/react-native-worklets@0.10.1",
         "pkg:npm/react-native@0.86.3",
@@ -45618,7 +45807,7 @@
         "pkg:npm/sf-symbols-typescript@2.2.0",
         "pkg:npm/vaul@1.1.2"
       ],
-      "ref": "pkg:npm/%40expo/ui@57.0.21"
+      "ref": "pkg:npm/%40expo/ui@57.0.22"
     },
     {
       "dependsOn": [
@@ -47483,10 +47672,10 @@
         "pkg:npm/babel-plugin-syntax-hermes-parser@0.36.1",
         "pkg:npm/babel-plugin-transform-flow-enums@0.0.2",
         "pkg:npm/debug@4.4.3",
-        "pkg:npm/expo@57.0.26",
+        "pkg:npm/expo@57.0.27",
         "pkg:npm/react-refresh@0.14.2"
       ],
-      "ref": "pkg:npm/babel-preset-expo@57.0.13"
+      "ref": "pkg:npm/babel-preset-expo@57.0.14"
     },
     {
       "dependsOn": [
@@ -48578,18 +48767,18 @@
     },
     {
       "dependsOn": [
-        "pkg:npm/%40expo/image-utils@0.11.5",
-        "pkg:npm/expo-constants@57.0.20",
-        "pkg:npm/expo@57.0.26",
+        "pkg:npm/%40expo/image-utils@0.11.6",
+        "pkg:npm/expo-constants@57.0.21",
+        "pkg:npm/expo@57.0.27",
         "pkg:npm/react-native@0.86.3",
         "pkg:npm/react@19.2.3"
       ],
-      "ref": "pkg:npm/expo-asset@57.0.18"
+      "ref": "pkg:npm/expo-asset@57.0.19"
     },
     {
       "dependsOn": [
-        "pkg:npm/expo-asset@57.0.18",
-        "pkg:npm/expo@57.0.26",
+        "pkg:npm/expo-asset@57.0.19",
+        "pkg:npm/expo@57.0.27",
         "pkg:npm/react-native@0.86.3",
         "pkg:npm/react@19.2.3"
       ],
@@ -48597,7 +48786,7 @@
     },
     {
       "dependsOn": [
-        "pkg:npm/expo@57.0.26",
+        "pkg:npm/expo@57.0.27",
         "pkg:npm/react-native@0.86.3",
         "pkg:npm/react@19.2.3"
       ],
@@ -48606,14 +48795,14 @@
     {
       "dependsOn": [
         "pkg:npm/%40expo/env@2.4.3",
-        "pkg:npm/expo@57.0.26",
+        "pkg:npm/expo@57.0.27",
         "pkg:npm/react-native@0.86.3"
       ],
-      "ref": "pkg:npm/expo-constants@57.0.20"
+      "ref": "pkg:npm/expo-constants@57.0.21"
     },
     {
       "dependsOn": [
-        "pkg:npm/expo@57.0.26"
+        "pkg:npm/expo@57.0.27"
       ],
       "ref": "pkg:npm/expo-crypto@57.0.3"
     },
@@ -48624,7 +48813,7 @@
         "pkg:npm/expo-dev-menu@57.0.18",
         "pkg:npm/expo-manifests@57.0.2",
         "pkg:npm/expo-updates-interface@57.0.2",
-        "pkg:npm/expo@57.0.26"
+        "pkg:npm/expo@57.0.27"
       ],
       "ref": "pkg:npm/expo-dev-client@57.0.19"
     },
@@ -48633,21 +48822,21 @@
         "pkg:npm/%40expo/schema-utils@57.0.2",
         "pkg:npm/expo-dev-menu@57.0.18",
         "pkg:npm/expo-manifests@57.0.2",
-        "pkg:npm/expo@57.0.26",
+        "pkg:npm/expo@57.0.27",
         "pkg:npm/react-native@0.86.3"
       ],
       "ref": "pkg:npm/expo-dev-launcher@57.0.20"
     },
     {
       "dependsOn": [
-        "pkg:npm/expo@57.0.26"
+        "pkg:npm/expo@57.0.27"
       ],
       "ref": "pkg:npm/expo-dev-menu-interface@57.0.0"
     },
     {
       "dependsOn": [
         "pkg:npm/expo-dev-menu-interface@57.0.0",
-        "pkg:npm/expo@57.0.26",
+        "pkg:npm/expo@57.0.27",
         "pkg:npm/react-native@0.86.3"
       ],
       "ref": "pkg:npm/expo-dev-menu@57.0.18"
@@ -48658,20 +48847,20 @@
     },
     {
       "dependsOn": [
-        "pkg:npm/expo@57.0.26"
+        "pkg:npm/expo@57.0.27"
       ],
       "ref": "pkg:npm/expo-document-picker@57.0.3"
     },
     {
       "dependsOn": [
-        "pkg:npm/expo@57.0.26",
+        "pkg:npm/expo@57.0.27",
         "pkg:npm/react-native@0.86.3"
       ],
       "ref": "pkg:npm/expo-file-system@57.0.7"
     },
     {
       "dependsOn": [
-        "pkg:npm/expo@57.0.26",
+        "pkg:npm/expo@57.0.27",
         "pkg:npm/fontfaceobserver@2.3.0",
         "pkg:npm/react-native@0.86.3",
         "pkg:npm/react@19.2.3"
@@ -48680,7 +48869,7 @@
     },
     {
       "dependsOn": [
-        "pkg:npm/expo@57.0.26",
+        "pkg:npm/expo@57.0.27",
         "pkg:npm/react-native@0.86.3",
         "pkg:npm/react@19.2.3"
       ],
@@ -48688,20 +48877,20 @@
     },
     {
       "dependsOn": [
-        "pkg:npm/expo@57.0.26"
+        "pkg:npm/expo@57.0.27"
       ],
       "ref": "pkg:npm/expo-haptics@57.0.3"
     },
     {
       "dependsOn": [
-        "pkg:npm/expo@57.0.26"
+        "pkg:npm/expo@57.0.27"
       ],
       "ref": "pkg:npm/expo-image-loader@57.0.1"
     },
     {
       "dependsOn": [
         "pkg:npm/expo-image-loader@57.0.1",
-        "pkg:npm/expo@57.0.26"
+        "pkg:npm/expo@57.0.27"
       ],
       "ref": "pkg:npm/expo-image-picker@57.0.20"
     },
@@ -48711,35 +48900,35 @@
     },
     {
       "dependsOn": [
-        "pkg:npm/expo@57.0.26",
+        "pkg:npm/expo@57.0.27",
         "pkg:npm/react@19.2.3"
       ],
       "ref": "pkg:npm/expo-keep-awake@57.0.2"
     },
     {
       "dependsOn": [
-        "pkg:npm/expo-constants@57.0.20",
+        "pkg:npm/expo-constants@57.0.21",
         "pkg:npm/invariant@2.2.4",
         "pkg:npm/react-native@0.86.3",
         "pkg:npm/react@19.2.3"
       ],
-      "ref": "pkg:npm/expo-linking@57.0.11"
+      "ref": "pkg:npm/expo-linking@57.0.12"
     },
     {
       "dependsOn": [
         "pkg:npm/expo-json-utils@57.0.2",
-        "pkg:npm/expo@57.0.26"
+        "pkg:npm/expo@57.0.27"
       ],
       "ref": "pkg:npm/expo-manifests@57.0.2"
     },
     {
       "dependsOn": [
-        "pkg:npm/%40expo/require-utils@57.0.5",
+        "pkg:npm/%40expo/require-utils@57.0.6",
         "pkg:npm/%40expo/spawn-async@1.8.0",
         "pkg:npm/chalk@4.1.2",
         "pkg:npm/commander@7.2.0"
       ],
-      "ref": "pkg:npm/expo-modules-autolinking@57.0.13"
+      "ref": "pkg:npm/expo-modules-autolinking@57.0.14"
     },
     {
       "dependsOn": [
@@ -48750,7 +48939,7 @@
         "pkg:npm/react-native@0.86.3",
         "pkg:npm/react@19.2.3"
       ],
-      "ref": "pkg:npm/expo-modules-core@57.0.20"
+      "ref": "pkg:npm/expo-modules-core@57.0.21"
     },
     {
       "dependsOn": [
@@ -48763,7 +48952,7 @@
         "pkg:npm/%40expo/log-box@57.0.4",
         "pkg:npm/%40expo/metro-runtime@57.0.16",
         "pkg:npm/%40expo/schema-utils@57.0.2",
-        "pkg:npm/%40expo/ui@57.0.21",
+        "pkg:npm/%40expo/ui@57.0.22",
         "pkg:npm/%40radix-ui/react-slot@1.3.3",
         "pkg:npm/%40radix-ui/react-tabs@1.1.21",
         "pkg:npm/%40react-native-masked-view/masked-view@0.3.2",
@@ -48772,12 +48961,12 @@
         "pkg:npm/color@4.2.3",
         "pkg:npm/debug@4.4.3",
         "pkg:npm/escape-string-regexp@4.0.0",
-        "pkg:npm/expo-constants@57.0.20",
+        "pkg:npm/expo-constants@57.0.21",
         "pkg:npm/expo-glass-effect@57.0.4",
-        "pkg:npm/expo-linking@57.0.11",
+        "pkg:npm/expo-linking@57.0.12",
         "pkg:npm/expo-server@57.0.3",
         "pkg:npm/expo-symbols@57.0.3",
-        "pkg:npm/expo@57.0.26",
+        "pkg:npm/expo@57.0.27",
         "pkg:npm/fast-deep-equal@3.1.3",
         "pkg:npm/invariant@2.2.4",
         "pkg:npm/nanoid@3.3.19",
@@ -48798,11 +48987,11 @@
         "pkg:npm/standard-navigation@0.0.5",
         "pkg:npm/vaul@1.1.2"
       ],
-      "ref": "pkg:npm/expo-router@57.0.24"
+      "ref": "pkg:npm/expo-router@57.0.25"
     },
     {
       "dependsOn": [
-        "pkg:npm/expo@57.0.26"
+        "pkg:npm/expo@57.0.27"
       ],
       "ref": "pkg:npm/expo-secure-store@57.0.4"
     },
@@ -48815,7 +49004,7 @@
         "pkg:npm/%40expo/config-plugins@57.0.9",
         "pkg:npm/%40expo/config-types@57.0.2",
         "pkg:npm/%40expo/plist@0.8.1",
-        "pkg:npm/expo@57.0.26",
+        "pkg:npm/expo@57.0.27",
         "pkg:npm/react-native@0.86.3",
         "pkg:npm/react@19.2.3"
       ],
@@ -48825,14 +49014,14 @@
       "dependsOn": [
         "pkg:npm/%40expo/config-plugins@57.0.9",
         "pkg:npm/%40expo/image-utils@0.11.5",
-        "pkg:npm/expo@57.0.26",
+        "pkg:npm/expo@57.0.27",
         "pkg:npm/xml2js@0.6.0"
       ],
       "ref": "pkg:npm/expo-splash-screen@57.0.9"
     },
     {
       "dependsOn": [
-        "pkg:npm/expo@57.0.26",
+        "pkg:npm/expo@57.0.27",
         "pkg:npm/react-native@0.86.3",
         "pkg:npm/react@19.2.3"
       ],
@@ -48842,7 +49031,7 @@
       "dependsOn": [
         "pkg:npm/%40expo-google-fonts/material-symbols@0.4.48",
         "pkg:npm/expo-font@57.0.4",
-        "pkg:npm/expo@57.0.26",
+        "pkg:npm/expo@57.0.27",
         "pkg:npm/react-native@0.86.3",
         "pkg:npm/react@19.2.3",
         "pkg:npm/sf-symbols-typescript@2.2.0"
@@ -48853,40 +49042,40 @@
       "dependsOn": [
         "pkg:npm/%40react-native/normalize-colors@0.86.3",
         "pkg:npm/debug@4.4.3",
-        "pkg:npm/expo@57.0.26",
+        "pkg:npm/expo@57.0.27",
         "pkg:npm/react-native@0.86.3"
       ],
       "ref": "pkg:npm/expo-system-ui@57.0.4"
     },
     {
       "dependsOn": [
-        "pkg:npm/expo@57.0.26"
+        "pkg:npm/expo@57.0.27"
       ],
       "ref": "pkg:npm/expo-updates-interface@57.0.2"
     },
     {
       "dependsOn": [
         "pkg:npm/%40babel/runtime@7.29.7",
-        "pkg:npm/%40expo/cli@57.0.27",
-        "pkg:npm/%40expo/config-plugins@57.0.9",
-        "pkg:npm/%40expo/config@57.0.9",
+        "pkg:npm/%40expo/cli@57.0.28",
+        "pkg:npm/%40expo/config-plugins@57.0.10",
+        "pkg:npm/%40expo/config@57.0.10",
         "pkg:npm/%40expo/devtools@57.0.1",
         "pkg:npm/%40expo/dom-webview@57.0.1",
         "pkg:npm/%40expo/fingerprint@0.20.13",
         "pkg:npm/%40expo/local-build-cache-provider@57.0.8",
         "pkg:npm/%40expo/log-box@57.0.4",
-        "pkg:npm/%40expo/metro-config@57.0.12",
+        "pkg:npm/%40expo/metro-config@57.0.13",
         "pkg:npm/%40expo/metro-runtime@57.0.16",
         "pkg:npm/%40expo/metro@56.0.2",
         "pkg:npm/%40ungap/structured-clone@1.4.0",
-        "pkg:npm/babel-preset-expo@57.0.13",
-        "pkg:npm/expo-asset@57.0.18",
-        "pkg:npm/expo-constants@57.0.20",
+        "pkg:npm/babel-preset-expo@57.0.14",
+        "pkg:npm/expo-asset@57.0.19",
+        "pkg:npm/expo-constants@57.0.21",
         "pkg:npm/expo-file-system@57.0.7",
         "pkg:npm/expo-font@57.0.4",
         "pkg:npm/expo-keep-awake@57.0.2",
-        "pkg:npm/expo-modules-autolinking@57.0.13",
-        "pkg:npm/expo-modules-core@57.0.20",
+        "pkg:npm/expo-modules-autolinking@57.0.14",
+        "pkg:npm/expo-modules-core@57.0.21",
         "pkg:npm/pretty-format@29.7.0",
         "pkg:npm/react-dom@19.2.3",
         "pkg:npm/react-native-webview@13.16.1",
@@ -48895,7 +49084,7 @@
         "pkg:npm/react@19.2.3",
         "pkg:npm/whatwg-url-minimum@0.1.2"
       ],
-      "ref": "pkg:npm/expo@57.0.26"
+      "ref": "pkg:npm/expo@57.0.27"
     },
     {
       "dependsOn": [],
@@ -49929,7 +50118,7 @@
         "pkg:npm/%40jest/globals@29.7.0",
         "pkg:npm/%40react-native/jest-preset@0.86.3",
         "pkg:npm/babel-jest@29.7.0",
-        "pkg:npm/expo@57.0.26",
+        "pkg:npm/expo@57.0.27",
         "pkg:npm/jest-environment-jsdom@29.7.0",
         "pkg:npm/jest-snapshot@29.7.0",
         "pkg:npm/jest-watch-select-projects@2.0.0",

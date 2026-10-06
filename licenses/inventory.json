@@ -3405,23 +3405,23 @@
     {
       "dependencies": [
         "@expo/code-signing-certificates@0.0.6",
-        "@expo/config-plugins@57.0.9",
-        "@expo/config@57.0.9",
+        "@expo/config-plugins@57.0.10",
+        "@expo/config@57.0.10",
         "@expo/devcert@1.2.2",
         "@expo/env@2.4.3",
-        "@expo/image-utils@0.11.5",
+        "@expo/image-utils@0.11.6",
         "@expo/inline-modules@0.1.7",
         "@expo/json-file@11.0.1",
         "@expo/log-box@57.0.4",
-        "@expo/metro-config@57.0.12",
-        "@expo/metro-file-map@57.0.3",
+        "@expo/metro-config@57.0.13",
+        "@expo/metro-file-map@57.0.4",
         "@expo/metro@56.0.2",
         "@expo/osascript@2.7.1",
         "@expo/package-manager@1.13.1",
         "@expo/plist@0.8.1",
-        "@expo/prebuild-config@57.0.16",
-        "@expo/require-utils@57.0.5",
-        "@expo/router-server@57.0.11",
+        "@expo/prebuild-config@57.0.17",
+        "@expo/require-utils@57.0.6",
+        "@expo/router-server@57.0.12",
         "@expo/schema-utils@57.0.2",
         "@expo/spawn-async@1.8.0",
         "@expo/ws-tunnel@2.0.1",
@@ -3438,9 +3438,9 @@
         "connect@3.7.0",
         "debug@4.4.3",
         "dnssd-advertise@1.1.6",
-        "expo-router@57.0.24",
+        "expo-router@57.0.25",
         "expo-server@57.0.3",
-        "expo@57.0.26",
+        "expo@57.0.27",
         "fetch-nodeshim@0.4.10",
         "getenv@2.0.0",
         "glob@13.0.6",
@@ -3471,25 +3471,25 @@
       "ecosystem": "npm",
       "evidence": "installed-package",
       "homepage": "https://github.com/expo/expo/tree/main/packages/@expo/cli",
-      "integrity": "sha512-Jauk4chxmpVG5ElrMLTCwjFP20jbYU7PB4l3LYV8j+4e/3HU5jdl7qTQ4eVy1AaDUE9Ia2NCQ5A9kar2V1gaLg==",
+      "integrity": "sha512-4969gk/B2JyP3kAv2ftpwU1f9dLG2j9TsQuYCTTjfnyRx0O49Jwu1O1mie2c3HmKXbwfNA6QTS+3i3sNetMTag==",
       "license_declared": "MIT",
       "license_expression": "MIT",
       "license_files": [
         {
           "bytes": 1106,
-          "origin": "npm:@expo/cli@57.0.27/LICENSE",
+          "origin": "npm:@expo/cli@57.0.28/LICENSE",
           "path": "licenses/texts/fb3ca4a837f5779e83cef89b78253a8949cfb9429c340309f62d0465ec6610b4.txt",
           "sha256": "fb3ca4a837f5779e83cef89b78253a8949cfb9429c340309f62d0465ec6610b4"
         }
       ],
       "name": "@expo/cli",
       "optional": false,
-      "purl": "pkg:npm/%40expo/cli@57.0.27",
+      "purl": "pkg:npm/%40expo/cli@57.0.28",
       "scopes": [
         "apps/mobile:dependencies",
         "apps/mobile:devDependencies"
       ],
-      "version": "57.0.27"
+      "version": "57.0.28"
     },
     {
       "dependencies": [
@@ -3518,6 +3518,46 @@
         "apps/mobile:devDependencies"
       ],
       "version": "0.0.6"
+    },
+    {
+      "dependencies": [
+        "@expo/config-types@57.0.2",
+        "@expo/json-file@11.0.1",
+        "@expo/plist@0.8.1",
+        "@expo/require-utils@57.0.6",
+        "@expo/sdk-runtime-versions@1.0.1",
+        "chalk@4.1.2",
+        "debug@4.4.3",
+        "getenv@2.0.0",
+        "glob@13.0.6",
+        "semver@7.8.5",
+        "slugify@1.6.9",
+        "xcode@3.0.1",
+        "xml2js@0.6.0"
+      ],
+      "direct_in": [],
+      "ecosystem": "npm",
+      "evidence": "installed-package",
+      "homepage": "https://docs.expo.dev/guides/config-plugins/",
+      "integrity": "sha512-XFcj01blofSohoOxibrPsrsFPt2gAigrcWE3s6Vg+rSHvP9QVEfnyfmJNVsuIVT0EjY/1rZVJ4SajNDR5cJjpA==",
+      "license_declared": "MIT",
+      "license_expression": "MIT",
+      "license_files": [
+        {
+          "bytes": 1107,
+          "origin": "npm:@expo/config-plugins@57.0.10/LICENSE",
+          "path": "licenses/texts/16feb932ce2ba7bc7712657bb28afe409eaa4334f9f05d0e1b7a5f12bf6132f4.txt",
+          "sha256": "16feb932ce2ba7bc7712657bb28afe409eaa4334f9f05d0e1b7a5f12bf6132f4"
+        }
+      ],
+      "name": "@expo/config-plugins",
+      "optional": false,
+      "purl": "pkg:npm/%40expo/config-plugins@57.0.10",
+      "scopes": [
+        "apps/mobile:dependencies",
+        "apps/mobile:devDependencies"
+      ],
+      "version": "57.0.10"
     },
     {
       "dependencies": [
@@ -3587,10 +3627,47 @@
     },
     {
       "dependencies": [
+        "@expo/config-plugins@57.0.10",
+        "@expo/config-types@57.0.2",
+        "@expo/json-file@11.0.1",
+        "@expo/require-utils@57.0.6",
+        "deepmerge@4.3.1",
+        "getenv@2.0.0",
+        "glob@13.0.6",
+        "resolve-workspace-root@2.0.1",
+        "semver@7.8.5",
+        "slugify@1.6.9"
+      ],
+      "direct_in": [],
+      "ecosystem": "npm",
+      "evidence": "installed-package",
+      "homepage": "https://github.com/expo/expo/tree/main/packages/@expo/config#readme",
+      "integrity": "sha512-YpexTqLWEXdbbXgHh7Zhpq+qA5diuvO46lb7TiY81JwqKLAl9zK31APY1D7jUFlDX56owje5RtK0o5bMmGIMUg==",
+      "license_declared": "MIT",
+      "license_expression": "MIT",
+      "license_files": [
+        {
+          "bytes": 1107,
+          "origin": "npm:@expo/config@57.0.10/LICENSE",
+          "path": "licenses/texts/16feb932ce2ba7bc7712657bb28afe409eaa4334f9f05d0e1b7a5f12bf6132f4.txt",
+          "sha256": "16feb932ce2ba7bc7712657bb28afe409eaa4334f9f05d0e1b7a5f12bf6132f4"
+        }
+      ],
+      "name": "@expo/config",
+      "optional": false,
+      "purl": "pkg:npm/%40expo/config@57.0.10",
+      "scopes": [
+        "apps/mobile:dependencies",
+        "apps/mobile:devDependencies"
+      ],
+      "version": "57.0.10"
+    },
+    {
+      "dependencies": [
         "@expo/config-plugins@57.0.9",
         "@expo/config-types@57.0.2",
         "@expo/json-file@11.0.1",
-        "@expo/require-utils@57.0.5",
+        "@expo/require-utils@57.0.6",
         "deepmerge@4.3.1",
         "getenv@2.0.0",
         "glob@13.0.6",
@@ -3683,7 +3760,7 @@
     },
     {
       "dependencies": [
-        "expo@57.0.26",
+        "expo@57.0.27",
         "react-native@0.86.3",
         "react@19.2.3"
       ],
@@ -3834,10 +3911,43 @@
       "optional": false,
       "purl": "pkg:npm/%40expo/image-utils@0.11.5",
       "scopes": [
+        "apps/mobile:dependencies"
+      ],
+      "version": "0.11.5"
+    },
+    {
+      "dependencies": [
+        "@expo/require-utils@57.0.6",
+        "@expo/spawn-async@1.8.0",
+        "chalk@4.1.2",
+        "getenv@2.0.0",
+        "jimp-compact@0.16.1",
+        "parse-png@2.1.0",
+        "semver@7.8.5"
+      ],
+      "direct_in": [],
+      "ecosystem": "npm",
+      "evidence": "installed-package",
+      "homepage": "https://github.com/expo/expo/tree/main/packages/%40expo/image-utils#readme",
+      "integrity": "sha512-rmMpn7QGp6pUGRCQ3vvB9RP/vqq2q/PpToRh4dL/FbhSZOLZ1YTotpuLHf71FGOEfgKil/4PCd3hkWe/CCeiEg==",
+      "license_declared": "MIT",
+      "license_expression": "MIT",
+      "license_files": [
+        {
+          "bytes": 1106,
+          "origin": "npm:@expo/image-utils@0.11.6/LICENSE",
+          "path": "licenses/texts/fb3ca4a837f5779e83cef89b78253a8949cfb9429c340309f62d0465ec6610b4.txt",
+          "sha256": "fb3ca4a837f5779e83cef89b78253a8949cfb9429c340309f62d0465ec6610b4"
+        }
+      ],
+      "name": "@expo/image-utils",
+      "optional": false,
+      "purl": "pkg:npm/%40expo/image-utils@0.11.6",
+      "scopes": [
         "apps/mobile:dependencies",
         "apps/mobile:devDependencies"
       ],
-      "version": "0.11.5"
+      "version": "0.11.6"
     },
     {
       "dependencies": [
@@ -3929,7 +4039,7 @@
       "dependencies": [
         "@expo/dom-webview@57.0.1",
         "anser@1.4.10",
-        "expo@57.0.26",
+        "expo@57.0.27",
         "react-native@0.86.3",
         "react@19.2.3",
         "stacktrace-parser@0.1.11"
@@ -3963,11 +4073,11 @@
         "@babel/code-frame@7.29.7",
         "@babel/core@7.29.7",
         "@babel/generator@7.29.8",
-        "@expo/config@57.0.9",
+        "@expo/config@57.0.10",
         "@expo/env@2.4.3",
         "@expo/json-file@11.0.1",
         "@expo/metro@56.0.2",
-        "@expo/require-utils@57.0.5",
+        "@expo/require-utils@57.0.6",
         "@expo/spawn-async@1.8.0",
         "@jridgewell/gen-mapping@0.3.13",
         "@jridgewell/remapping@2.3.5",
@@ -3975,7 +4085,7 @@
         "browserslist@4.29.3",
         "chalk@4.1.2",
         "debug@4.4.3",
-        "expo@57.0.26",
+        "expo@57.0.27",
         "getenv@2.0.0",
         "glob@13.0.6",
         "hermes-parser@0.36.1",
@@ -3989,25 +4099,25 @@
       "ecosystem": "npm",
       "evidence": "installed-package",
       "homepage": "https://github.com/expo/expo/tree/main/packages/@expo/metro-config#readme",
-      "integrity": "sha512-S62Lrq35HZqBFD55423pmWb8PjaiR/W02zQC1uECBmw1vTN8WZaFz4TJ0i21EeJzwfebMb9MLxL8JZ102Z6VbA==",
+      "integrity": "sha512-r+YCwqh8FM5cymkC3MdYO32DqLZQ2wDWkGEnzwgwI40Bj355BvL4XoY0hGgao9vNHjYa7be7XxbVqtMTi76snw==",
       "license_declared": "MIT",
       "license_expression": "MIT",
       "license_files": [
         {
           "bytes": 1107,
-          "origin": "npm:@expo/metro-config@57.0.12/LICENSE",
+          "origin": "npm:@expo/metro-config@57.0.13/LICENSE",
           "path": "licenses/texts/16feb932ce2ba7bc7712657bb28afe409eaa4334f9f05d0e1b7a5f12bf6132f4.txt",
           "sha256": "16feb932ce2ba7bc7712657bb28afe409eaa4334f9f05d0e1b7a5f12bf6132f4"
         }
       ],
       "name": "@expo/metro-config",
       "optional": false,
-      "purl": "pkg:npm/%40expo/metro-config@57.0.12",
+      "purl": "pkg:npm/%40expo/metro-config@57.0.13",
       "scopes": [
         "apps/mobile:dependencies",
         "apps/mobile:devDependencies"
       ],
-      "version": "57.0.12"
+      "version": "57.0.13"
     },
     {
       "dependencies": [
@@ -4015,38 +4125,37 @@
         "fb-watchman@2.0.2",
         "invariant@2.2.4",
         "jest-worker@29.7.0",
-        "micromatch@4.0.8",
         "walker@1.0.8"
       ],
       "direct_in": [],
       "ecosystem": "npm",
       "evidence": "installed-package",
       "homepage": "https://github.com/expo/expo/tree/main/packages/@expo/metro-file-map#readme",
-      "integrity": "sha512-1OXy+uPYY5uc7Tm4VBsd2NRn+3wHhqeqNuEO/Xo4kmYgv8FjYgUAc+bUXON9FpC2ikcLn4EVlGM9ce2exx9Mlg==",
+      "integrity": "sha512-gLABIbU3SlxRVVCe56ZfYFbxjhdpAKomQYr6LIeDYf7rca8Pfvzv8FS39hH0+IcdpEHly2Jy0X2nd4/obd8Kig==",
       "license_declared": "MIT",
       "license_expression": "MIT",
       "license_files": [
         {
           "bytes": 1106,
-          "origin": "npm:@expo/metro-file-map@57.0.3/LICENSE",
+          "origin": "npm:@expo/metro-file-map@57.0.4/LICENSE",
           "path": "licenses/texts/fb3ca4a837f5779e83cef89b78253a8949cfb9429c340309f62d0465ec6610b4.txt",
           "sha256": "fb3ca4a837f5779e83cef89b78253a8949cfb9429c340309f62d0465ec6610b4"
         }
       ],
       "name": "@expo/metro-file-map",
       "optional": false,
-      "purl": "pkg:npm/%40expo/metro-file-map@57.0.3",
+      "purl": "pkg:npm/%40expo/metro-file-map@57.0.4",
       "scopes": [
         "apps/mobile:dependencies",
         "apps/mobile:devDependencies"
       ],
-      "version": "57.0.3"
+      "version": "57.0.4"
     },
     {
       "dependencies": [
         "@expo/log-box@57.0.4",
         "anser@1.4.10",
-        "expo@57.0.26",
+        "expo@57.0.27",
         "pretty-format@29.7.0",
         "react-dom@19.2.3",
         "react-native@0.86.3",
@@ -4212,14 +4321,14 @@
     },
     {
       "dependencies": [
-        "@expo/config-plugins@57.0.9",
+        "@expo/config-plugins@57.0.10",
         "@expo/config-types@57.0.2",
-        "@expo/config@57.0.9",
-        "@expo/image-utils@0.11.5",
+        "@expo/config@57.0.10",
+        "@expo/image-utils@0.11.6",
         "@expo/json-file@11.0.1",
         "@react-native/normalize-colors@0.86.3",
         "debug@4.4.3",
-        "expo-modules-autolinking@57.0.13",
+        "expo-modules-autolinking@57.0.14",
         "resolve-from@5.0.0",
         "semver@7.8.5"
       ],
@@ -4227,25 +4336,25 @@
       "ecosystem": "npm",
       "evidence": "installed-package",
       "homepage": "https://github.com/expo/expo/tree/main/packages/@expo/prebuild-config#readme",
-      "integrity": "sha512-QA8oMZ7y70kjOzw+abhRl9uYC8Nu/abeUTHr0YVxb3pgIC14gc7w543bYtI+5gEDI3q55jKUViIauC76QvZN1w==",
+      "integrity": "sha512-PnPw4QT8afAA1RqTktK89+JpyJz46cZsZx6gEAe6QCHgOHc7dlA0rXlOFy0xbHpBnYT8x7wl6vTz2ydT99gykw==",
       "license_declared": "MIT",
       "license_expression": "MIT",
       "license_files": [
         {
           "bytes": 1107,
-          "origin": "npm:@expo/prebuild-config@57.0.16/LICENSE",
+          "origin": "npm:@expo/prebuild-config@57.0.17/LICENSE",
           "path": "licenses/texts/16feb932ce2ba7bc7712657bb28afe409eaa4334f9f05d0e1b7a5f12bf6132f4.txt",
           "sha256": "16feb932ce2ba7bc7712657bb28afe409eaa4334f9f05d0e1b7a5f12bf6132f4"
         }
       ],
       "name": "@expo/prebuild-config",
       "optional": false,
-      "purl": "pkg:npm/%40expo/prebuild-config@57.0.16",
+      "purl": "pkg:npm/%40expo/prebuild-config@57.0.17",
       "scopes": [
         "apps/mobile:dependencies",
         "apps/mobile:devDependencies"
       ],
-      "version": "57.0.16"
+      "version": "57.0.17"
     },
     {
       "dependencies": [
@@ -4280,13 +4389,44 @@
     },
     {
       "dependencies": [
+        "@babel/code-frame@7.29.7",
+        "@babel/core@7.29.7",
+        "@babel/plugin-transform-modules-commonjs@7.29.7",
+        "typescript@6.0.3"
+      ],
+      "direct_in": [],
+      "ecosystem": "npm",
+      "evidence": "installed-package",
+      "homepage": "https://github.com/expo/expo/tree/main/packages/@expo/require-utils#readme",
+      "integrity": "sha512-PKWfFdMgwWrlSP6NGplCi2nK0dEM5MeJ2Cj1ijr5VWTmZ+pKsJsJw2dWkBtlFDyxMY8eUjCPZ7hoqFEnbc0Pcw==",
+      "license_declared": "MIT",
+      "license_expression": "MIT",
+      "license_files": [
+        {
+          "bytes": 1106,
+          "origin": "npm:@expo/require-utils@57.0.6/LICENSE",
+          "path": "licenses/texts/49c5f9c7097c9a940ff663a54c27a4c60e379df6cc2b3052df0d37a09a85df93.txt",
+          "sha256": "49c5f9c7097c9a940ff663a54c27a4c60e379df6cc2b3052df0d37a09a85df93"
+        }
+      ],
+      "name": "@expo/require-utils",
+      "optional": false,
+      "purl": "pkg:npm/%40expo/require-utils@57.0.6",
+      "scopes": [
+        "apps/mobile:dependencies",
+        "apps/mobile:devDependencies"
+      ],
+      "version": "57.0.6"
+    },
+    {
+      "dependencies": [
         "@expo/metro-runtime@57.0.16",
         "debug@4.4.3",
-        "expo-constants@57.0.20",
+        "expo-constants@57.0.21",
         "expo-font@57.0.4",
-        "expo-router@57.0.24",
+        "expo-router@57.0.25",
         "expo-server@57.0.3",
-        "expo@57.0.26",
+        "expo@57.0.27",
         "react-dom@19.2.3",
         "react@19.2.3"
       ],
@@ -4294,25 +4434,25 @@
       "ecosystem": "npm",
       "evidence": "installed-package",
       "homepage": "https://docs.expo.dev/routing/introduction/",
-      "integrity": "sha512-0QxbqEkceb1WDeu5VqNdnTPVHlm3U183F7Y1t5LMohmGRAkHVL0PB4tCHBvEqKpLzOzHVObw3reGkJ1tX48h8Q==",
+      "integrity": "sha512-afP8Lu+ozEP/6qvLuxeBKoBVSeU+e0zwk+iYBUM6fBxGRniJQyG1HqpHQFr0ZEocuVxRjmq9eoCnspFuuzDQoA==",
       "license_declared": "MIT",
       "license_expression": "MIT",
       "license_files": [
         {
           "bytes": 1106,
-          "origin": "npm:@expo/router-server@57.0.11/LICENSE",
+          "origin": "npm:@expo/router-server@57.0.12/LICENSE",
           "path": "licenses/texts/fb3ca4a837f5779e83cef89b78253a8949cfb9429c340309f62d0465ec6610b4.txt",
           "sha256": "fb3ca4a837f5779e83cef89b78253a8949cfb9429c340309f62d0465ec6610b4"
         }
       ],
       "name": "@expo/router-server",
       "optional": false,
-      "purl": "pkg:npm/%40expo/router-server@57.0.11",
+      "purl": "pkg:npm/%40expo/router-server@57.0.12",
       "scopes": [
         "apps/mobile:dependencies",
         "apps/mobile:devDependencies"
       ],
-      "version": "57.0.11"
+      "version": "57.0.12"
     },
     {
       "dependencies": [],
@@ -4423,7 +4563,7 @@
     {
       "dependencies": [
         "@babel/core@7.29.7",
-        "expo@57.0.26",
+        "expo@57.0.27",
         "react-dom@19.2.3",
         "react-native-worklets@0.10.1",
         "react-native@0.86.3",
@@ -4435,25 +4575,25 @@
       "ecosystem": "npm",
       "evidence": "installed-package",
       "homepage": "https://docs.expo.dev/versions/latest/sdk/ui/",
-      "integrity": "sha512-4s1ypGNxJhJv2r1fj3wZo4Aubao0zGnCajCuiaTp8pTNrT+1vR8KvyoFEwp+c7gpKm2D58nGCiGBXhEnmKHtDQ==",
+      "integrity": "sha512-v0p397fI7XhYBt+O5Q4MCWKB1lwR8cA2xjoQbc/V6W+EmP9qU1sHh0eQ7QHdeE/lyNjWW4wIut0/H/8OjcHo3w==",
       "license_declared": "MIT",
       "license_expression": "MIT",
       "license_files": [
         {
           "bytes": 1080,
-          "origin": "npm:@expo/ui@57.0.21/src/community/segmented-control/vendor/LICENSE",
+          "origin": "npm:@expo/ui@57.0.22/src/community/segmented-control/vendor/LICENSE",
           "path": "licenses/texts/22a28f29cff8f5ecf9f463301d9c03b8245a2952ebae0bcab633fd654c0792fb.txt",
           "sha256": "22a28f29cff8f5ecf9f463301d9c03b8245a2952ebae0bcab633fd654c0792fb"
         }
       ],
       "name": "@expo/ui",
       "optional": false,
-      "purl": "pkg:npm/%40expo/ui@57.0.21",
+      "purl": "pkg:npm/%40expo/ui@57.0.22",
       "scopes": [
         "apps/mobile:dependencies",
         "apps/mobile:devDependencies"
       ],
-      "version": "57.0.21"
+      "version": "57.0.22"
     },
     {
       "dependencies": [
@@ -11802,32 +11942,32 @@
         "babel-plugin-syntax-hermes-parser@0.36.1",
         "babel-plugin-transform-flow-enums@0.0.2",
         "debug@4.4.3",
-        "expo@57.0.26",
+        "expo@57.0.27",
         "react-refresh@0.14.2"
       ],
       "direct_in": [],
       "ecosystem": "npm",
       "evidence": "installed-package",
       "homepage": "https://github.com/expo/expo/tree/main/packages/babel-preset-expo#readme",
-      "integrity": "sha512-OOl3lqNQ4IagJfsNgtxuna0wpTWt1BswdyktGTOJ5EJCgdQUk/B2vaj/jsl03+kMyuIvpxKioVtbTzxh3mdvvQ==",
+      "integrity": "sha512-ALhPgXS0pvMcuORYh3THz4qYhQlOsRIw6FB+AbawM81tvP9V9pZpiK+Au9wihyYIb/Hdv2Z7Zwud4tFXF1ysJQ==",
       "license_declared": "MIT",
       "license_expression": "MIT",
       "license_files": [
         {
           "bytes": 1106,
-          "origin": "npm:babel-preset-expo@57.0.13/LICENSE",
+          "origin": "npm:babel-preset-expo@57.0.14/LICENSE",
           "path": "licenses/texts/fb3ca4a837f5779e83cef89b78253a8949cfb9429c340309f62d0465ec6610b4.txt",
           "sha256": "fb3ca4a837f5779e83cef89b78253a8949cfb9429c340309f62d0465ec6610b4"
         }
       ],
       "name": "babel-preset-expo",
       "optional": false,
-      "purl": "pkg:npm/babel-preset-expo@57.0.13",
+      "purl": "pkg:npm/babel-preset-expo@57.0.14",
       "scopes": [
         "apps/mobile:dependencies",
         "apps/mobile:devDependencies"
       ],
-      "version": "57.0.13"
+      "version": "57.0.14"
     },
     {
       "dependencies": [
@@ -16438,9 +16578,9 @@
     },
     {
       "dependencies": [
-        "@expo/image-utils@0.11.5",
-        "expo-constants@57.0.20",
-        "expo@57.0.26",
+        "@expo/image-utils@0.11.6",
+        "expo-constants@57.0.21",
+        "expo@57.0.27",
         "react-native@0.86.3",
         "react@19.2.3"
       ],
@@ -16450,30 +16590,30 @@
       "ecosystem": "npm",
       "evidence": "installed-package",
       "homepage": "https://docs.expo.dev/versions/latest/sdk/asset/",
-      "integrity": "sha512-zDIQkUr0NM2S7YRj98Zohf/OBuM1q0o4ctxLz1C1oe4/33lHNLjp+2v3qUtBWVwn0zKka8UGADmS8M+83Wi6pw==",
+      "integrity": "sha512-y9ymKidyPBDUFXljbvo7LNgivQvMhEJEoEXi6aLRugUxRDUvAKoZsy+KB5UXSjLMS7l7JNDwYKk5thovI0MLog==",
       "license_declared": "MIT",
       "license_expression": "MIT",
       "license_files": [
         {
           "bytes": 1106,
-          "origin": "npm:expo-asset@57.0.18/LICENSE",
+          "origin": "npm:expo-asset@57.0.19/LICENSE",
           "path": "licenses/texts/fb3ca4a837f5779e83cef89b78253a8949cfb9429c340309f62d0465ec6610b4.txt",
           "sha256": "fb3ca4a837f5779e83cef89b78253a8949cfb9429c340309f62d0465ec6610b4"
         }
       ],
       "name": "expo-asset",
       "optional": false,
-      "purl": "pkg:npm/expo-asset@57.0.18",
+      "purl": "pkg:npm/expo-asset@57.0.19",
       "scopes": [
         "apps/mobile:dependencies",
         "apps/mobile:devDependencies"
       ],
-      "version": "57.0.18"
+      "version": "57.0.19"
     },
     {
       "dependencies": [
-        "expo-asset@57.0.18",
-        "expo@57.0.26",
+        "expo-asset@57.0.19",
+        "expo@57.0.27",
         "react-native@0.86.3",
         "react@19.2.3"
       ],
@@ -16504,7 +16644,7 @@
     },
     {
       "dependencies": [
-        "expo@57.0.26",
+        "expo@57.0.27",
         "react-native@0.86.3",
         "react@19.2.3"
       ],
@@ -16536,7 +16676,7 @@
     {
       "dependencies": [
         "@expo/env@2.4.3",
-        "expo@57.0.26",
+        "expo@57.0.27",
         "react-native@0.86.3"
       ],
       "direct_in": [
@@ -16545,29 +16685,29 @@
       "ecosystem": "npm",
       "evidence": "installed-package",
       "homepage": "https://docs.expo.dev/versions/latest/sdk/constants/",
-      "integrity": "sha512-WycPVvBgbluSa6yAh6DKnX646ZHrae0gV2ZLum5fioNkR+DiWyulq1+UfS++Jc6yfAh/l55NOirv6mt5cnQhSw==",
+      "integrity": "sha512-D5fV2GELYGbNkoiEVZZp5zrUXZDaAx6ZzErDzGirm3jCjOhaE8iU/GyJiB0ZQE+K4Bg8gY82nIQ/RZR8CJLVjA==",
       "license_declared": "MIT",
       "license_expression": "MIT",
       "license_files": [
         {
           "bytes": 1106,
-          "origin": "npm:expo-constants@57.0.20/LICENSE",
+          "origin": "npm:expo-constants@57.0.21/LICENSE",
           "path": "licenses/texts/fb3ca4a837f5779e83cef89b78253a8949cfb9429c340309f62d0465ec6610b4.txt",
           "sha256": "fb3ca4a837f5779e83cef89b78253a8949cfb9429c340309f62d0465ec6610b4"
         }
       ],
       "name": "expo-constants",
       "optional": false,
-      "purl": "pkg:npm/expo-constants@57.0.20",
+      "purl": "pkg:npm/expo-constants@57.0.21",
       "scopes": [
         "apps/mobile:dependencies",
         "apps/mobile:devDependencies"
       ],
-      "version": "57.0.20"
+      "version": "57.0.21"
     },
     {
       "dependencies": [
-        "expo@57.0.26"
+        "expo@57.0.27"
       ],
       "direct_in": [
         "apps/mobile:dependencies"
@@ -16601,7 +16741,7 @@
         "expo-dev-menu@57.0.18",
         "expo-manifests@57.0.2",
         "expo-updates-interface@57.0.2",
-        "expo@57.0.26"
+        "expo@57.0.27"
       ],
       "direct_in": [
         "apps/mobile:dependencies"
@@ -16633,7 +16773,7 @@
         "@expo/schema-utils@57.0.2",
         "expo-dev-menu@57.0.18",
         "expo-manifests@57.0.2",
-        "expo@57.0.26",
+        "expo@57.0.27",
         "react-native@0.86.3"
       ],
       "direct_in": [],
@@ -16661,7 +16801,7 @@
     },
     {
       "dependencies": [
-        "expo@57.0.26"
+        "expo@57.0.27"
       ],
       "direct_in": [],
       "ecosystem": "npm",
@@ -16689,7 +16829,7 @@
     {
       "dependencies": [
         "expo-dev-menu-interface@57.0.0",
-        "expo@57.0.26",
+        "expo@57.0.27",
         "react-native@0.86.3"
       ],
       "direct_in": [],
@@ -16744,7 +16884,7 @@
     },
     {
       "dependencies": [
-        "expo@57.0.26"
+        "expo@57.0.27"
       ],
       "direct_in": [
         "apps/mobile:dependencies"
@@ -16773,7 +16913,7 @@
     },
     {
       "dependencies": [
-        "expo@57.0.26",
+        "expo@57.0.27",
         "react-native@0.86.3"
       ],
       "direct_in": [
@@ -16804,7 +16944,7 @@
     },
     {
       "dependencies": [
-        "expo@57.0.26",
+        "expo@57.0.27",
         "fontfaceobserver@2.3.0",
         "react-native@0.86.3",
         "react@19.2.3"
@@ -16835,7 +16975,7 @@
     },
     {
       "dependencies": [
-        "expo@57.0.26",
+        "expo@57.0.27",
         "react-native@0.86.3",
         "react@19.2.3"
       ],
@@ -16865,7 +17005,7 @@
     },
     {
       "dependencies": [
-        "expo@57.0.26"
+        "expo@57.0.27"
       ],
       "direct_in": [
         "apps/mobile:dependencies"
@@ -16894,7 +17034,7 @@
     },
     {
       "dependencies": [
-        "expo@57.0.26"
+        "expo@57.0.27"
       ],
       "direct_in": [],
       "ecosystem": "npm",
@@ -16922,7 +17062,7 @@
     {
       "dependencies": [
         "expo-image-loader@57.0.1",
-        "expo@57.0.26"
+        "expo@57.0.27"
       ],
       "direct_in": [
         "apps/mobile:dependencies"
@@ -16976,7 +17116,7 @@
     },
     {
       "dependencies": [
-        "expo@57.0.26",
+        "expo@57.0.27",
         "react@19.2.3"
       ],
       "direct_in": [],
@@ -17005,7 +17145,7 @@
     },
     {
       "dependencies": [
-        "expo-constants@57.0.20",
+        "expo-constants@57.0.21",
         "invariant@2.2.4",
         "react-native@0.86.3",
         "react@19.2.3"
@@ -17016,30 +17156,30 @@
       "ecosystem": "npm",
       "evidence": "installed-package",
       "homepage": "https://docs.expo.dev/versions/latest/sdk/linking",
-      "integrity": "sha512-bfTyiPb8szacs8XkGowXt5ssH/vbF26vFG8WUWQar8CcRpQcIzXY980ZkP7pK7Pcdy5MattwFdujrWOxwv5s3Q==",
+      "integrity": "sha512-oKLva5FOBx4txZa9LFu6RaHGAy1lFCyoOM91uU9H+gZi1iskjuSxV12GgS9H+yGGe2aSLufh6IfwSWrjEIsOuA==",
       "license_declared": "MIT",
       "license_expression": "MIT",
       "license_files": [
         {
           "bytes": 1106,
-          "origin": "npm:expo-linking@57.0.11/LICENSE",
+          "origin": "npm:expo-linking@57.0.12/LICENSE",
           "path": "licenses/texts/fb3ca4a837f5779e83cef89b78253a8949cfb9429c340309f62d0465ec6610b4.txt",
           "sha256": "fb3ca4a837f5779e83cef89b78253a8949cfb9429c340309f62d0465ec6610b4"
         }
       ],
       "name": "expo-linking",
       "optional": false,
-      "purl": "pkg:npm/expo-linking@57.0.11",
+      "purl": "pkg:npm/expo-linking@57.0.12",
       "scopes": [
         "apps/mobile:dependencies",
         "apps/mobile:devDependencies"
       ],
-      "version": "57.0.11"
+      "version": "57.0.12"
     },
     {
       "dependencies": [
         "expo-json-utils@57.0.2",
-        "expo@57.0.26"
+        "expo@57.0.27"
       ],
       "direct_in": [],
       "ecosystem": "npm",
@@ -17066,7 +17206,7 @@
     },
     {
       "dependencies": [
-        "@expo/require-utils@57.0.5",
+        "@expo/require-utils@57.0.6",
         "@expo/spawn-async@1.8.0",
         "chalk@4.1.2",
         "commander@7.2.0"
@@ -17075,25 +17215,25 @@
       "ecosystem": "npm",
       "evidence": "installed-package",
       "homepage": "https://github.com/expo/expo/tree/main/packages/expo-modules-autolinking#readme",
-      "integrity": "sha512-Hj5NjZRlfccazhKab+wK19leRVUr1Y/PUERaRvegIbUSkq4GVxKq6lU9QHlKQyC16MdD/VS4iwsiLivB4o7lvQ==",
+      "integrity": "sha512-dWql3NU2tvgfwkdZY3u9Sy3iWRA4IGDk91aOGZAJm3ZqudFxDRzAxlh8oQCVQ81Z+U9VmlUXw/4P9CbL33Ty0A==",
       "license_declared": "MIT",
       "license_expression": "MIT",
       "license_files": [
         {
           "bytes": 1106,
-          "origin": "npm:expo-modules-autolinking@57.0.13/LICENSE",
+          "origin": "npm:expo-modules-autolinking@57.0.14/LICENSE",
           "path": "licenses/texts/fb3ca4a837f5779e83cef89b78253a8949cfb9429c340309f62d0465ec6610b4.txt",
           "sha256": "fb3ca4a837f5779e83cef89b78253a8949cfb9429c340309f62d0465ec6610b4"
         }
       ],
       "name": "expo-modules-autolinking",
       "optional": false,
-      "purl": "pkg:npm/expo-modules-autolinking@57.0.13",
+      "purl": "pkg:npm/expo-modules-autolinking@57.0.14",
       "scopes": [
         "apps/mobile:dependencies",
         "apps/mobile:devDependencies"
       ],
-      "version": "57.0.13"
+      "version": "57.0.14"
     },
     {
       "dependencies": [
@@ -17108,25 +17248,25 @@
       "ecosystem": "npm",
       "evidence": "installed-package",
       "homepage": "https://github.com/expo/expo/tree/main/packages/expo-modules-core",
-      "integrity": "sha512-vEL3aeih32yuD7sQHB3Y3LKXRT8mMgoVQWFIcHtX811Bl0StnNZUG2vT5je4fe+OWYVfkjb6gNqfMc04moREgA==",
+      "integrity": "sha512-g0pf9/tQ6IdJWCzr6PDrEiYT8mTaOhMRnXm3T2XtSzJJaNYgnyyDonkkPN1wd2+PqojIBPhytqqzeLxjM5y/Wg==",
       "license_declared": "MIT",
       "license_expression": "MIT",
       "license_files": [
         {
           "bytes": 1106,
-          "origin": "npm:expo-modules-core@57.0.20/LICENSE",
+          "origin": "npm:expo-modules-core@57.0.21/LICENSE",
           "path": "licenses/texts/fb3ca4a837f5779e83cef89b78253a8949cfb9429c340309f62d0465ec6610b4.txt",
           "sha256": "fb3ca4a837f5779e83cef89b78253a8949cfb9429c340309f62d0465ec6610b4"
         }
       ],
       "name": "expo-modules-core",
       "optional": false,
-      "purl": "pkg:npm/expo-modules-core@57.0.20",
+      "purl": "pkg:npm/expo-modules-core@57.0.21",
       "scopes": [
         "apps/mobile:dependencies",
         "apps/mobile:devDependencies"
       ],
-      "version": "57.0.20"
+      "version": "57.0.21"
     },
     {
       "dependencies": [
@@ -17161,7 +17301,7 @@
         "@expo/log-box@57.0.4",
         "@expo/metro-runtime@57.0.16",
         "@expo/schema-utils@57.0.2",
-        "@expo/ui@57.0.21",
+        "@expo/ui@57.0.22",
         "@radix-ui/react-slot@1.3.3",
         "@radix-ui/react-tabs@1.1.21",
         "@react-native-masked-view/masked-view@0.3.2",
@@ -17170,12 +17310,12 @@
         "color@4.2.3",
         "debug@4.4.3",
         "escape-string-regexp@4.0.0",
-        "expo-constants@57.0.20",
+        "expo-constants@57.0.21",
         "expo-glass-effect@57.0.4",
-        "expo-linking@57.0.11",
+        "expo-linking@57.0.12",
         "expo-server@57.0.3",
         "expo-symbols@57.0.3",
-        "expo@57.0.26",
+        "expo@57.0.27",
         "fast-deep-equal@3.1.3",
         "invariant@2.2.4",
         "nanoid@3.3.19",
@@ -17202,29 +17342,29 @@
       "ecosystem": "npm",
       "evidence": "installed-package",
       "homepage": "https://docs.expo.dev/routing/introduction/",
-      "integrity": "sha512-XpqE4Oh4yrmc+sVfsDQPLErBlus//85ulLRghVZltYcdvFm9yNzErmaKrXuBVMUL6D3tnpDtkIgxESG9hYBd7w==",
+      "integrity": "sha512-S/xWUGeVqMozG8gFJT0CHOVErZEbQnsAEAqlBIvHJSUZPH0hBcxy2kduUrV7ZDLNI4xCPIlOJ4SI29X/1z/hxw==",
       "license_declared": "MIT",
       "license_expression": "MIT",
       "license_files": [
         {
           "bytes": 11356,
-          "origin": "npm:expo-router@57.0.24/vendor/react-helmet-async/LICENSE",
+          "origin": "npm:expo-router@57.0.25/vendor/react-helmet-async/LICENSE",
           "path": "licenses/texts/c358ea82eed53098b2ee0913e1de8243c69d45862e11c48614db47fd5889d947.txt",
           "sha256": "c358ea82eed53098b2ee0913e1de8243c69d45862e11c48614db47fd5889d947"
         }
       ],
       "name": "expo-router",
       "optional": false,
-      "purl": "pkg:npm/expo-router@57.0.24",
+      "purl": "pkg:npm/expo-router@57.0.25",
       "scopes": [
         "apps/mobile:dependencies",
         "apps/mobile:devDependencies"
       ],
-      "version": "57.0.24"
+      "version": "57.0.25"
     },
     {
       "dependencies": [
-        "expo@57.0.26"
+        "expo@57.0.27"
       ],
       "direct_in": [
         "apps/mobile:dependencies"
@@ -17282,7 +17422,7 @@
         "@expo/config-plugins@57.0.9",
         "@expo/config-types@57.0.2",
         "@expo/plist@0.8.1",
-        "expo@57.0.26",
+        "expo@57.0.27",
         "react-native@0.86.3",
         "react@19.2.3"
       ],
@@ -17315,7 +17455,7 @@
       "dependencies": [
         "@expo/config-plugins@57.0.9",
         "@expo/image-utils@0.11.5",
-        "expo@57.0.26",
+        "expo@57.0.27",
         "xml2js@0.6.0"
       ],
       "direct_in": [
@@ -17345,7 +17485,7 @@
     },
     {
       "dependencies": [
-        "expo@57.0.26",
+        "expo@57.0.27",
         "react-native@0.86.3",
         "react@19.2.3"
       ],
@@ -17378,7 +17518,7 @@
       "dependencies": [
         "@expo-google-fonts/material-symbols@0.4.48",
         "expo-font@57.0.4",
-        "expo@57.0.26",
+        "expo@57.0.27",
         "react-native@0.86.3",
         "react@19.2.3",
         "sf-symbols-typescript@2.2.0"
@@ -17411,7 +17551,7 @@
       "dependencies": [
         "@react-native/normalize-colors@0.86.3",
         "debug@4.4.3",
-        "expo@57.0.26",
+        "expo@57.0.27",
         "react-native@0.86.3"
       ],
       "direct_in": [
@@ -17441,7 +17581,7 @@
     },
     {
       "dependencies": [
-        "expo@57.0.26"
+        "expo@57.0.27"
       ],
       "direct_in": [],
       "ecosystem": "npm",
@@ -17469,26 +17609,26 @@
     {
       "dependencies": [
         "@babel/runtime@7.29.7",
-        "@expo/cli@57.0.27",
-        "@expo/config-plugins@57.0.9",
-        "@expo/config@57.0.9",
+        "@expo/cli@57.0.28",
+        "@expo/config-plugins@57.0.10",
+        "@expo/config@57.0.10",
         "@expo/devtools@57.0.1",
         "@expo/dom-webview@57.0.1",
         "@expo/fingerprint@0.20.13",
         "@expo/local-build-cache-provider@57.0.8",
         "@expo/log-box@57.0.4",
-        "@expo/metro-config@57.0.12",
+        "@expo/metro-config@57.0.13",
         "@expo/metro-runtime@57.0.16",
         "@expo/metro@56.0.2",
         "@ungap/structured-clone@1.4.0",
-        "babel-preset-expo@57.0.13",
-        "expo-asset@57.0.18",
-        "expo-constants@57.0.20",
+        "babel-preset-expo@57.0.14",
+        "expo-asset@57.0.19",
+        "expo-constants@57.0.21",
         "expo-file-system@57.0.7",
         "expo-font@57.0.4",
         "expo-keep-awake@57.0.2",
-        "expo-modules-autolinking@57.0.13",
-        "expo-modules-core@57.0.20",
+        "expo-modules-autolinking@57.0.14",
+        "expo-modules-core@57.0.21",
         "pretty-format@29.7.0",
         "react-dom@19.2.3",
         "react-native-webview@13.16.1",
@@ -17503,25 +17643,25 @@
       "ecosystem": "npm",
       "evidence": "installed-package",
       "homepage": "https://github.com/expo/expo/tree/main/packages/expo",
-      "integrity": "sha512-U1rsFwcuZNnU61Z/YLnnVC/ZqP0wpxh/rCKUMff3ot/rhLpxFY1zxEqu4vyaexyvBAB1mwpl9lA/ltcHBoQGyg==",
+      "integrity": "sha512-Jc3nByHsmzjakvIrqV3/3viVj+jFw1OCfMc+WpClemwL3/hSrS7ktkVCACSTI7/j+1uH+eHmBJwe1kujDLMnbQ==",
       "license_declared": "MIT",
       "license_expression": "MIT",
       "license_files": [
         {
           "bytes": 1106,
-          "origin": "npm:expo@57.0.26/LICENSE",
+          "origin": "npm:expo@57.0.27/LICENSE",
           "path": "licenses/texts/fb3ca4a837f5779e83cef89b78253a8949cfb9429c340309f62d0465ec6610b4.txt",
           "sha256": "fb3ca4a837f5779e83cef89b78253a8949cfb9429c340309f62d0465ec6610b4"
         }
       ],
       "name": "expo",
       "optional": false,
-      "purl": "pkg:npm/expo@57.0.26",
+      "purl": "pkg:npm/expo@57.0.27",
       "scopes": [
         "apps/mobile:dependencies",
         "apps/mobile:devDependencies"
       ],
-      "version": "57.0.26"
+      "version": "57.0.27"
     },
     {
       "dependencies": [],
@@ -21933,7 +22073,7 @@
         "@jest/globals@29.7.0",
         "@react-native/jest-preset@0.86.3",
         "babel-jest@29.7.0",
-        "expo@57.0.26",
+        "expo@57.0.27",
         "jest-environment-jsdom@29.7.0",
         "jest-snapshot@29.7.0",
         "jest-watch-select-projects@2.0.0",
@@ -43203,7 +43343,7 @@
     }
   ],
   "inputs": {
-    "apps/mobile/package.json": "92864edd12e086d467916e84acc29924369271951847625fef3fb688823c7b4d",
+    "apps/mobile/package.json": "62c347de1b8bd4f66faba6fd5d959d476938322cfd0db401731e37142551dcb1",
     "apps/web/package.json": "e13ab379a7ad39d05808a6a2c1ab48eaa5c773d3d95b0c499817cdb1caea5f83",
     "deploy/local/docker-compose.yml": "5fce70d80e194f468eb32aa980cda1522bd634158a80c539f6937c04209166e4",
     "deploy/self-hosted/install_voice.sh": "1cff453657b3d6e6880910f00419be775b541bddbd01f90ad070a7bc0ab58cef",
@@ -43214,8 +43354,8 @@
     "packages/design-tokens/package.json": "45734e5465376ce355def1e7c02e4e82c28d5d91ee6dd9bafd64caa40561fba7",
     "packages/domain/package.json": "24adda98849d4983191c37db9efc1e41bb8d7f4dec0f665b1e33d5fa79ba7e4d",
     "packages/i18n/package.json": "af8ff9690e072f50ec43d297197b06b2848b79ea6f07a1188c4b8be25463db32",
-    "pnpm-lock.yaml": "570b1669d268bd1b4a92450b1c3d2779e9d30b3b15cf06e88953e6ce08bc8c58",
-    "pnpm-workspace.yaml": "c455a411229a161e09c60c37e33b32854b947d7b4e6136e5bee1d8e19ed961a7",
+    "pnpm-lock.yaml": "0d1c626cb5cb5996512f483965c914c487382ca329d832ef5aaf2ad4999572d0",
+    "pnpm-workspace.yaml": "a75b798dcab6be5a1af6331998790f193595d169bc19af888cd8671c527c7e8b",
     "services/api/constraints.txt": "aa696a017e68f5cbd2e9a2c41e031aece307ed625a1ebb2f19729fc7ad60d1d0",
     "services/api/requirements-observability.txt": "a6deaa638de34c7f065027613357fa345a7abc3ad37bd4e4cb532dec479fe061",
     "services/api/requirements-test.txt": "4541b7b2ee3082fdfd83938f0a132df3acb5ea0de3a2f4666068ffca6ebc5834",
