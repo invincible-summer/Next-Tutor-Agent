@@ -31,6 +31,9 @@ asyncpg>=0.31
 greenlet>=3.0
 alembic>=1.20
 redis>=8.1
+# S3-compatible ObjectStore adapter (ADR-0018; lazy import — only loaded
+# when OBJECT_STORE_BACKEND=s3, file/local modes never touch it).
+boto3>=1.43
 cryptography>=43
 # Durable workflow lane (ADR-0013): TEMPORAL_ADDRESS unset keeps every
 # domain on its in-process job execution; set → jobs move to the worker

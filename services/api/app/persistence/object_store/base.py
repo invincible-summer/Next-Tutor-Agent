@@ -90,6 +90,10 @@ def default_store() -> ObjectStore:
     backend = (os.getenv("OBJECT_STORE_BACKEND", "local").strip().lower()
                or "local")
     if backend == "local":
+        # Lazy import: local.py imports this module's names, so the edge
+        # stays one-directional at import time.
+        from .local import LocalObjectStore
+
         # runtime_paths() re-resolves under set_runtime_root/NEXT_TUTOR_DATA_DIR
         # (no repeated bind_storage_path registration on every call).
         root = paths.runtime_paths().object_store

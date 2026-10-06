@@ -29,3 +29,4 @@
 | [ADR-0015](./0015-permissive-pdf-backend.md) | 许可宽松的 PDF 后端 | pypdf/pdfplumber/pypdfium2/ReportLab 替代 PyMuPDF（AGPL），core/pdf 门面 + PDFIUM_LOCK，页边界契约不变 |
 | [ADR-0017](./0017-domain-document-repositories.md) | 域文档仓储 JSONB cutover | 九域同构 `<domain>_documents` 表 + DocumentRepository 协议与逐域路由，epoch CAS，字节走 ObjectStore，派生索引留文件态 |
 | [ADR-0016](./0016-valkey-cache-and-minio-removal.md) | Valkey 缓存与 MinIO 移除 | 缓存服务端换 Valkey 9.1.2（BSD-3）+ CACHE_URL，删 AGPL MinIO 占位，缓存即弃态不迁移 |
+| [ADR-0018](./0018-s3-object-store-adapter.md) | S3 兼容 ObjectStore 适配器 | boto3（Apache-2.0）S3 兼容字节层：sha256 元数据完整性、SSE-S3、multipart、standard retry；local 保持默认，误配 loud 失败 |

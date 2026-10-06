@@ -8,3 +8,5 @@ httpx2>=2.13
 aiosqlite>=0.20
 # Synthetic PDF fixtures for the PDF backend and parser suites (BSD).
 reportlab>=5.0
+# In-process S3 endpoint for the ObjectStore adapter suite (Apache-2.0).
+moto>=5.2

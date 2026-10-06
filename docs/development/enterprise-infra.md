@@ -26,7 +26,9 @@ EDU_MIGRATION_DATABASE_URL=...                        # 仅 alembic 用的独立
 |------|------|------|
 | `DATABASE_URL` | — | PostgreSQL 连接串；配置即企业模式 |
 | `CACHE_URL` | — | 共享缓存原语（限流/lease/短 TTL，RESP 连接 Valkey，ADR-0016；旧 `REDIS_URL` 保留一版兼容）；未设或不可达回退进程内实现，请求绝不因缓存失败 |
-| `OBJECT_STORE_ROOT` | 数据根 `object_store/` | 对象存储本地实现根（namespace + opaque key）；远程适配为接口位 |
+| `OBJECT_STORE_ROOT` | 数据根 `object_store/` | 对象存储本地实现根（namespace + opaque key），`OBJECT_STORE_BACKEND=local`（默认）时生效 |
+| `OBJECT_STORE_BACKEND` | `local` | `local` / `s3`；`s3` 为 boto3 S3 兼容适配器（ADR-0018，惰性导入），误配/缺配置 startup loud 失败 |
+| `OBJECT_STORE_ENDPOINT` / `OBJECT_STORE_BUCKET` / `OBJECT_STORE_ACCESS_KEY` / `OBJECT_STORE_SECRET_KEY` | — | S3 后端必填（AWS S3、自建 MinIO/Garage 等）；`OBJECT_STORE_REGION`（默认 `us-east-1`）、`OBJECT_STORE_S3_SSE`（默认 `AES256` SSE-S3，`off` 关闭）、`OBJECT_STORE_TIMEOUT_SECONDS`（默认 30）、`OBJECT_STORE_S3_FORCE_PATH_STYLE`（默认 1，自建端点友好）可选 |
 | `AZURE_STORAGE_*` | — | 远程对象存储占位（未实现，配置不生效） |
 | `AUTH_ACCESS_TOKEN_SECONDS` | `900` | RS256 access token 寿命 |
 | `AUTH_REFRESH_SESSION_DAYS` | `30` | refresh 会话族寿命 |
