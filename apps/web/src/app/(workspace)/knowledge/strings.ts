@@ -4,7 +4,7 @@ import type { PageStrings } from "@/lib/i18n-page";
 export const STRINGS = {
   zh: {
     title: "知识图谱",
-    desc: "M5 知识本体 × 学习评价叠加 × M3 学习路径",
+    desc: "知识本体 × 学习评价叠加 × 学习路径",
     all: "全部",
     // 分层筛选栏
     filterSubject: "学科",
@@ -12,6 +12,8 @@ export const STRINGS = {
     filterVolume: "卷",
     filterAny: "全部",
     clearFilters: "清除筛选",
+    scopeLabel: "范围",
+    scopeAll: "全部教材",
     // 搜索
     searchPh: "搜索概念名称 / ID / 别名…",
     searchResultCount: "共 %n 个结果",
@@ -41,7 +43,7 @@ export const STRINGS = {
     emptyTitle: "暂无知识图谱数据",
     emptyDesc: "知识本体尚未构建，或当前没有任何概念节点。先去对话中学习几个概念吧。",
     disabledTitle: "知识智能层未启用",
-    disabledDesc: "该智能层（M5 知识图谱）被环境开关关闭。在后端开启对应开关后重启即可恢复。",
+    disabledDesc: "该智能层（知识图谱）被环境开关关闭。在后端开启对应开关后重启即可恢复。",
     loadFail: "知识图谱加载失败",
     pathTitle: "推荐学习路径",
     pathEmpty: "暂无可推荐的学习内容",
@@ -85,7 +87,7 @@ export const STRINGS = {
   },
   en: {
     title: "Knowledge Graph",
-    desc: "M5 ontology × learning-evaluation overlay × M3 learning path",
+    desc: "Ontology × learning-evaluation overlay × learning path",
     all: "All",
     // Filter bar
     filterSubject: "Subject",
@@ -93,6 +95,8 @@ export const STRINGS = {
     filterVolume: "Volume",
     filterAny: "All",
     clearFilters: "Clear filters",
+    scopeLabel: "Scope",
+    scopeAll: "All textbooks",
     // Search
     searchPh: "Search name / ID / alias…",
     searchResultCount: "%n results",
@@ -122,7 +126,7 @@ export const STRINGS = {
     emptyTitle: "No knowledge graph yet",
     emptyDesc: "The ontology has not been built, or there are no concept nodes yet. Learn a few concepts in chat first.",
     disabledTitle: "Knowledge layer disabled",
-    disabledDesc: "The M5 knowledge layer is turned off by an environment switch. Enable it on the backend and restart.",
+    disabledDesc: "The knowledge graph layer is turned off by an environment switch. Enable it on the backend and restart.",
     loadFail: "Failed to load the knowledge graph",
     pathTitle: "Recommended path",
     pathEmpty: "Nothing to recommend yet",

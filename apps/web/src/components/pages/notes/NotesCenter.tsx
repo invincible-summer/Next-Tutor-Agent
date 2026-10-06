@@ -204,10 +204,9 @@ export function NotesCenter({
           </div>}
         </div>
         <Button demoWrite variant="accent2" size="sm" icon={<Sparkles size={14} />} onClick={onGenerate}>AI</Button>
-        <button onClick={onExportAll} title={tr("notes.exportAll")} aria-label={tr("notes.exportAll")}
-          className="cursor-pointer rounded-md p-1.5 text-muted transition-colors hover:bg-surface-hover hover:text-accent">
+        <Button iconOnly variant="ghost" tone="accent" size="sm" onClick={onExportAll} title={tr("notes.exportAll")} aria-label={tr("notes.exportAll")}>
           <Download size={15} />
-        </button>
+        </Button>
       </div>
 
       {/* 批量操作条 */}

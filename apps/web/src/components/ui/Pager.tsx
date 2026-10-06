@@ -50,7 +50,7 @@ export function Pager({
   const btn =
     "cursor-pointer rounded-[6px] p-1 text-muted transition-colors hover:bg-surface-hover hover:text-fg disabled:cursor-default disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-muted";
   return (
-    <div className={cn("flex items-center justify-end gap-1 pt-1.5 text-[0.68rem] text-muted", className)}>
+    <div className={cn("flex items-center justify-end gap-1 pt-1.5 text-[0.6875rem] text-muted", className)}>
       <button type="button" className={btn} disabled={cur <= 0}
         onClick={() => onPage(cur - 1)} aria-label={t(lang, "pager.prev")}>
         <ChevronLeft size={13} />
@@ -71,7 +71,7 @@ export function Pager({
         }}
         inputMode="numeric"
         aria-label={t(lang, "pager.page")}
-        className="tnum w-9 rounded-[5px] border border-border bg-surface px-1 py-0.5 text-center text-[0.68rem] text-fg outline-none focus:border-accent"
+        className="tnum w-9 rounded-[5px] border border-border bg-surface px-1 py-0.5 text-center text-[0.6875rem] text-fg outline-none focus:border-accent"
       />
       <span className="tnum pr-1">/ {pages}</span>
       <button type="button" className={btn} disabled={cur >= pages - 1}

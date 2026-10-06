@@ -3,7 +3,7 @@ import { useEffect, useRef } from "react";
 
 /**
  * Hero 背景：墨色粒子网络 canvas。
- * 粒子缓慢漂移，邻近粒子间以黛青细线相连（呼应 M0–M10 编排流水线），
+ * 粒子缓慢漂移，邻近粒子间以黛青细线相连（呼应多智能体编排流水线），
  * 鼠标靠近时粒子被轻微牵引并与指针连线。颜色读取 --accent token，
  * 跟随浅/深主题；prefers-reduced-motion 下不渲染动画。
  */

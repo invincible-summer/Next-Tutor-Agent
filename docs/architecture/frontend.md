@@ -17,7 +17,7 @@
 | 路径 | 职责 |
 |------|------|
 | `src/app/layout.tsx` + `globals.css` | 根布局、预水合主题/字号脚本（`edu-theme-init`）、设计令牌（`@theme inline`）与 `motion-*` 动效类 |
-| `src/app/page.tsx` + `landing-strings.ts` | `/` 落地页（`components/landing/` Hero/Features/Marquee 等） |
+| `src/app/page.tsx` + `landing-strings.ts` | `/` 落地页（`components/landing/` Hero/Features 等） |
 | `src/app/login/`、`src/app/register/` | 认证页（M0，`components/auth/AuthShell`） |
 | `src/app/(workspace)/` | 路由组：`layout.tsx`（鉴权门控 + AppShell）、`loading.tsx`（PageSkeleton）及各模块页（见 Public contracts 路由表） |
 | `src/components/ui/` | 设计系统原语：`Button`/`Card`/`Badge`/`Modal`/`Drawer`/`Input`（含 `Field`/`Textarea`/`FIELD_CLS`）/`Hint`/`Pager`/`Tabs`/`Toast`/`Progress`/`Stat`/`EmptyState`/`AnchoredPopover` 等 |
@@ -62,6 +62,14 @@
 ### 设计系统约定（团队强制）
 
 表单控件用 `ui/Input` 原语（`Input`/`Textarea`/`Field`/`FIELD_CLS`）；条目列表统一 `ui/Pager`（`paged()` 客户端切片，默认 5 条/页，页码可输入跳页）；浮层入场用 `motion-modal`/`motion-drawer`/`motion-pop` 类（reduced-motion 下停用，页面进入和骨架呼吸同样停用）；长表单进 `Modal` 而非页内卡片。
+
+视觉系统事实源：`packages/design-tokens`（色板/字体/间距/圆角/动效/断点）。关键约定：
+
+- `Button`：文本按钮三档尺寸；纯图标一律 `Button iconOnly`（方形 hit area ≥32px，配 `aria-label`）；ghost 支持 `tone`（plain/accent/danger）与 `selected`（选中态 + `aria-pressed`）。不再手写 `p-1` 图标按钮。
+- `Card`：默认 flat（border 界定，无 shadow）；elevation 只出现在 hover/overlay/modal。Card 不是默认页面骨架——同组阅读数据用排版 + 分隔线组织（见 `components/pages/dashboard/sections.tsx` 的 `SectionHeader` 无框分区头与 `CompactEmpty` 紧凑空态，各页空态复用此模式，不用又大又空的虚线框）。
+- 覆盖层：`Modal`/`Drawer`/`CenterPanel` 均 portal 到 body（fixed 不受父级 transform 影响）、打开期间经 `lockBodyScroll()`（`lib/assistant/overlay.ts`，引用计数 + 滚动条宽度补偿）锁定背景滚动、注册 OverlayCoordinator（Escape 只关最上层，AC-30）；`Drawer` 支持固定 `footer` 槽。锚定浮层（下拉/行菜单）一律 `AnchoredPopover`（滚动/缩放实时跟随、防裁剪），不在滚动容器内写 absolute 浮层。
+- 排版：阅读正文/AI 回答为最舒适层；metadata 弱化靠颜色与字重，字号下限 11px（`text-[0.6875rem]`），课堂播放器/语音黑板等特殊场景除外；数据数字保留 `tnum`。
+- 内部模块编号（M0–M9 等）只出现在源码注释（后端模块映射），用户界面与文案一律不出现。
 
 ## State & storage（状态与存储布局，含 runtime data 路径）
 

@@ -35,7 +35,7 @@ export function Hint({
         id={id}
         role="tooltip"
         className={cn(
-          "pointer-events-none absolute z-50 hidden rounded-md border border-border bg-surface px-2.5 py-2 text-left text-[0.65rem] leading-relaxed text-fg-secondary shadow-lg group-hover/hint:block group-focus-within/hint:block",
+          "pointer-events-none absolute z-50 hidden rounded-md border border-border bg-surface px-2.5 py-2 text-left text-[0.6875rem] leading-relaxed text-fg-secondary shadow-lg group-hover/hint:block group-focus-within/hint:block",
           width,
           side === "top" ? "bottom-[calc(100%+5px)]" : "top-[calc(100%+5px)]",
           align === "start" && "left-0",

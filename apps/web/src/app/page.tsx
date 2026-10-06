@@ -10,7 +10,6 @@ import { currentRouteEpoch } from "@/lib/assistant/page-context";
 import { LANDING_STRINGS } from "./landing-strings";
 import { LandingNav } from "@/components/landing/LandingNav";
 import { Hero } from "@/components/landing/Hero";
-import { Marquee } from "@/components/landing/Marquee";
 import { Features } from "@/components/landing/Features";
 import { Modules } from "@/components/landing/Modules";
 import { HowItWorks } from "@/components/landing/HowItWorks";
@@ -53,7 +52,6 @@ export default function Home() {
       <LandingNav tr={tr} loggedIn={!!user} />
       <main>
         <Hero tr={tr} loggedIn={!!user} />
-        <Marquee tr={tr} />
         <Features tr={tr} />
         <Modules tr={tr} />
         <HowItWorks tr={tr} />

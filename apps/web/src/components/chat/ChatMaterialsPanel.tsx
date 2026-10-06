@@ -18,8 +18,8 @@ function SourceRow({ source, lang }: { source: MaterialSource; lang: Lang }) {
         <FileText size={14} className="mt-0.5 shrink-0 text-accent" />
         <div className="min-w-0 flex-1">
           <p className="truncate text-[0.74rem] font-medium text-fg" title={source.filename}>{source.filename}</p>
-          <p className="mt-0.5 text-[0.65rem] text-muted">{label}</p>
-          <p className="mt-1 text-[0.65rem] text-muted">
+          <p className="mt-0.5 text-[0.6875rem] text-muted">{label}</p>
+          <p className="mt-1 text-[0.6875rem] text-muted">
             {source.chunk_count ?? 0} {t(lang, "chat.materials.chunks", "个片段")}{source.has_original ? ` · ${t(lang, "chat.materials.original", "可下载原件")}` : ""}
             {source.ocr_used ? ` · ${t(lang, "chat.materials.ocr", "已 OCR")}` : ""}
           </p>
@@ -51,11 +51,11 @@ export function ChatMaterialsPanel({
   const session = sources.filter((s) => !workspace.includes(s) && !references.includes(s));
   const group = (title: string, icon: React.ReactNode, items: MaterialSource[]) => (
     <section className="space-y-1.5">
-      <div className="flex items-center gap-1.5 px-1 text-[0.68rem] font-semibold text-fg-secondary">
+      <div className="flex items-center gap-1.5 px-1 text-[0.6875rem] font-semibold text-fg-secondary">
         {icon}<span>{title}</span><span className="text-muted">{items.length}</span>
       </div>
       {items.length > 0 ? items.map((source) => <SourceRow key={`${source.source_scope}-${source.id}`} source={source} lang={lang} />) : (
-        <p className="rounded-[8px] border border-dashed border-border-light px-2.5 py-2 text-[0.68rem] text-muted">{t(lang, "chat.materials.empty", "暂无资料")}</p>
+        <p className="rounded-[8px] border border-dashed border-border-light px-2.5 py-2 text-[0.6875rem] text-muted">{t(lang, "chat.materials.empty", "暂无资料")}</p>
       )}
     </section>
   );
@@ -90,8 +90,8 @@ export function ChatMaterialsPanel({
             <PanelRightClose size={15} />
           </button>
         </div>
-        <p className="mb-3 text-[0.68rem] leading-relaxed text-muted">{t(lang, "chat.materials.desc", "只显示当前会话真实可检索的资料来源。")}</p>
-        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto">
+        <p className="mb-3 text-[0.6875rem] leading-relaxed text-muted">{t(lang, "chat.materials.desc", "只显示当前会话真实可检索的资料来源。")}</p>
+        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain">
           {group(t(lang, "chat.materials.workspace.group", "工作区公共资料"), <BookOpen size={12} className="text-accent" />, workspace)}
           {group(t(lang, "chat.materials.reference.group", "本对话引用教材"), <BookOpen size={12} className="text-warning" />, references)}
           {group(t(lang, "chat.materials.session.group", "本对话上传文件"), <UploadCloud size={12} className="text-success" />, session)}

@@ -3,13 +3,8 @@ import { type ReactNode } from "react";
 import { GraduationCap } from "lucide-react";
 import { useUIStore } from "@/lib/store";
 import { t, LANGS } from "@/lib/i18n";
-import { ModuleBadge } from "@/components/ui/Badge";
 
-const FEATURES = [
-  { module: "M1", key: "auth.brand.f1" },
-  { module: "M9", key: "auth.brand.f2" },
-  { module: "M6", key: "auth.brand.f3" },
-];
+const FEATURES = ["auth.brand.f1", "auth.brand.f2", "auth.brand.f3"];
 
 /**
  * 认证页共享骨架（登录/注册）：桌面端左黛青品牌栏 + 右表单栏，移动端收起品牌栏。
@@ -76,16 +71,16 @@ export function AuthShell({
             {tr("app.tagline")}
           </h2>
           <ul className="page-in mt-10 space-y-4" style={{ animationDelay: "160ms" }}>
-            {FEATURES.map((f) => (
-              <li key={f.module} className="flex items-center gap-3">
-                <ModuleBadge id={f.module} className="border-white/40 text-white" />
-                <span className="text-sm text-white/85">{tr(f.key)}</span>
+            {FEATURES.map((key) => (
+              <li key={key} className="flex items-center gap-3">
+                <span aria-hidden className="h-1.5 w-1.5 shrink-0 rounded-full bg-white/50" />
+                <span className="text-sm text-white/85">{tr(key)}</span>
               </li>
             ))}
           </ul>
         </div>
         <p className="page-in relative text-xs text-white/45" style={{ animationDelay: "240ms" }}>
-          M0 – M9 · {tr("app.role")}
+          {tr("app.role")}
         </p>
       </aside>
 

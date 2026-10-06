@@ -1,6 +1,7 @@
 "use client";
 // 知识谱系分层筛选栏：行 1 学段单选 segmented tabs（同屏只展示一个学段），
-// 右侧挂搜索槽位；行 2 学科 / 教材组 / 卷 三级下拉 + 清除筛选 + 前置链开关。
+// 右侧挂搜索槽位（二级，退后）；行 2 范围主链（学科 / 教材组 / 卷 三级下拉）
+// 收进一条分组横条与二级动作（清除筛选 / 前置链开关）拉开层级，窄屏自然折行。
 // 全部状态由页面持有，本组件只负责呈现与回调。
 import { GitFork, X } from "lucide-react";
 import { cn } from "@/lib/cn";
@@ -92,8 +93,12 @@ export function FilterBar({
         {right}
       </div>
 
-      {/* 行 2：学科 / 教材组 / 卷 下拉 + 清除筛选 + 前置链开关 */}
-      <div className="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-2">
+      {/* 行 2：范围主链 —— 学科 / 教材组 / 卷 收进一条分组横条；
+          清除筛选 / 前置链开关等二级动作退到行尾，视觉上更轻 */}
+      <div className="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-2 rounded-[10px] border border-border-light bg-surface px-3 py-2">
+        <span className="text-[11px] font-semibold uppercase tracking-wide text-muted">
+          {tr("scopeLabel")}
+        </span>
         <label className="flex shrink-0 items-center gap-1.5">
           <span className="text-xs text-muted">{tr("filterSubject")}</span>
           {/* 学科必选（单科显示）：不提供「全部」选项 */}
@@ -150,29 +155,33 @@ export function FilterBar({
           </label>
         )}
 
-        {hasScopeFilters && (
-          <button
-            onClick={onClearFilters}
-            className="flex h-7 cursor-pointer items-center gap-1 rounded-[7px] border border-border bg-surface px-2 text-xs text-fg-secondary transition-colors hover:border-accent hover:text-accent"
-          >
-            <X size={12} />
-            {tr("clearFilters")}
-          </button>
-        )}
-
-        {showPrereq && (
-          <button
-            onClick={onTogglePrereq}
-            className={cn(
-              "flex h-7 cursor-pointer items-center gap-1.5 rounded-full border px-3 text-xs transition-colors",
-              prereqOnly
-                ? "border-accent bg-accent-soft text-accent-strong"
-                : "border-border bg-surface text-fg-secondary hover:border-accent hover:text-accent",
+        {(hasScopeFilters || showPrereq) && (
+          <div className="ml-auto flex items-center gap-2">
+            {hasScopeFilters && (
+              <button
+                onClick={onClearFilters}
+                className="flex h-7 cursor-pointer items-center gap-1 rounded-[7px] px-2 text-xs text-muted transition-colors hover:bg-surface-hover hover:text-accent"
+              >
+                <X size={12} />
+                {tr("clearFilters")}
+              </button>
             )}
-          >
-            <GitFork size={12} />
-            {tr("prereqOnly")}
-          </button>
+
+            {showPrereq && (
+              <button
+                onClick={onTogglePrereq}
+                className={cn(
+                  "flex h-7 cursor-pointer items-center gap-1.5 rounded-full border px-3 text-xs transition-colors",
+                  prereqOnly
+                    ? "border-accent bg-accent-soft text-accent-strong"
+                    : "border-transparent bg-surface-sunken text-fg-secondary hover:text-accent",
+                )}
+              >
+                <GitFork size={12} />
+                {tr("prereqOnly")}
+              </button>
+            )}
+          </div>
         )}
       </div>
     </>

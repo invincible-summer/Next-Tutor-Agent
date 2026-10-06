@@ -84,12 +84,12 @@ export function ToolCallCard({ name, result }: { name: string; result: unknown }
           <Icon size={13} />
         </span>
         <span className="text-[0.78rem] font-medium text-fg-secondary">{label}</span>
-        <span className="flex items-center gap-1.5 text-[0.68rem] text-muted">
+        <span className="flex items-center gap-1.5 text-[0.6875rem] text-muted">
           <StatusDot status={status} />
           {statusText}
         </span>
         {questions.length > 0 && (
-          <span className="tnum text-[0.68rem] text-muted">
+          <span className="tnum text-[0.6875rem] text-muted">
             · {questions.length} {tr("quiz.questions.unit")}
           </span>
         )}
@@ -108,7 +108,7 @@ export function ToolCallCard({ name, result }: { name: string; result: unknown }
           ) : name === "knowledge_search" && knowledgeResults.length > 0 ? (
             <div className="space-y-2.5">
               <div className="rounded-[8px] border border-accent/20 bg-accent-soft/20 px-2.5 py-2">
-                <p className="mb-1 text-[0.68rem] font-semibold text-accent-strong">
+                <p className="mb-1 text-[0.6875rem] font-semibold text-accent-strong">
                   {tr("tool.knowledge.sources", "命中来源")}
                   {Number(r?.data?.omitted_count || 0) > 0 && (
                     <span className="ml-1 font-normal text-muted">· {tr("tool.knowledge.filtered", "已过滤")} {String(r?.data?.omitted_count)} {tr("tool.knowledge.items", "条")}</span>
@@ -143,7 +143,7 @@ export function ToolCallCard({ name, result }: { name: string; result: unknown }
               </div>
               {knowledgeResults.map((item, i) => (
                 <div key={`excerpt-${String(item.chunk_id || i)}`} className="rounded-[7px] border border-border-light px-2.5 py-2">
-                  <p className="mb-1 flex items-center gap-1.5 text-[0.68rem] text-muted">
+                  <p className="mb-1 flex items-center gap-1.5 text-[0.6875rem] text-muted">
                     <span>
                       {String(item.filename || item.source || tr("tool.knowledge.resource"))}
                       {item.printed_page
@@ -205,7 +205,7 @@ export function ActiveToolCard({
         {progress.length > 0 ? progress[progress.length - 1] : `${tr("tool.running")}…`}
       </span>
       {heartbeatElapsed > 0 && (
-        <span className="tnum shrink-0 text-[0.68rem] text-muted/50">{heartbeatElapsed}s</span>
+        <span className="tnum shrink-0 text-[0.6875rem] text-muted/50">{heartbeatElapsed}s</span>
       )}
     </div>
   );

@@ -227,7 +227,7 @@ export function GenerationProgress({ workspaceId, lessonId, job,
           return (
             <li key={stage.key} className="flex items-center gap-3 rounded-xl bg-bg/50 px-3 py-3">
               <span className={cn(
-                "flex h-8 w-8 shrink-0 items-center justify-center rounded-full border text-[0.65rem] transition-colors",
+                "flex h-8 w-8 shrink-0 items-center justify-center rounded-full border text-[0.6875rem] transition-colors",
                 state === "done" && "border-emerald-500/40 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
                 state === "active" && "border-accent bg-accent-soft/50 text-accent-strong",
                 state === "error" && "border-danger/40 bg-danger/10 text-danger",
@@ -275,7 +275,7 @@ export function GenerationProgress({ workspaceId, lessonId, job,
         <p className="text-[0.7rem] text-muted/80">{tr("cls.progress.minutes")}</p>
       )}
       {connLabel === "poll" && !done && (
-        <p className="text-[0.68rem] text-amber-600 dark:text-amber-400">{tr("cls.progress.polling")}</p>
+        <p className="text-[0.6875rem] text-amber-600 dark:text-amber-400">{tr("cls.progress.polling")}</p>
       )}
       {actionError && <p role="alert" className="text-[0.75rem] text-danger">{actionError}</p>}
       {current.state === "queued" && current.last_error && (
@@ -298,7 +298,7 @@ export function GenerationProgress({ workspaceId, lessonId, job,
               {tr("cls.progress.retry")}
             </Button>}
           </div>
-          {canRetry && <p className="mt-2 text-[0.68rem] text-muted">{tr("cls.progress.retry.hint")}</p>}
+          {canRetry && <p className="mt-2 text-[0.6875rem] text-muted">{tr("cls.progress.retry.hint")}</p>}
         </div>
       )}
       {current.state === "cancelled" && (
@@ -415,7 +415,7 @@ function OutlineReviewBlock({ workspaceId, lessonId, jobId, titles, onTitles }: 
         </li>
       ))}
       {outline.scope_note && (
-        <p className="mt-1 text-[0.68rem] text-muted/80">{outline.scope_note}</p>
+        <p className="mt-1 text-[0.6875rem] text-muted/80">{outline.scope_note}</p>
       )}
     </ol>
   );

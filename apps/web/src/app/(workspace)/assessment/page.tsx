@@ -5,8 +5,8 @@ import { navigationAnchor, navigationSucceeded, navigationMissing, navigationFai
 // /assessment 测评中心：M4 CAT 自适应测试全流程。
 // 状态机：idle（配置卡）→ asking（答题）→ feedback（即时判分）→ done（总结报告）。
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ModuleBadge } from "@/components/ui/Badge";
 import { EmptyState, ErrorNote, Skeleton } from "@/components/ui/EmptyState";
+import { Button } from "@/components/ui/Button";
 import {
   DeepLinkQueryReader, focusDeepTarget,
 } from "@/lib/assistant/deep-link";
@@ -430,9 +430,8 @@ function AuthenticatedAssessmentPage() {
           <div>
             <h1 className="flex items-center gap-2.5 font-serif text-xl font-semibold text-fg">
               {tr("nav.assessment")}
-              <ModuleBadge id="M4" />
             </h1>
-            <p className="mt-1 text-sm text-muted">{tr("page.desc")}</p>
+            <p className="mt-0.5 text-xs text-muted">{tr("page.desc")}</p>
           </div>
         </div>
         {deepNotice && (
@@ -492,12 +491,9 @@ function AuthenticatedAssessmentPage() {
                 <EmptyState
                   title={tr("sum.empty")}
                   action={
-                    <button
-                      onClick={resetFlow}
-                      className="cursor-pointer text-sm font-medium text-accent underline"
-                    >
+                    <Button size="sm" onClick={resetFlow}>
                       {tr("sum.again")}
-                    </button>
+                    </Button>
                   }
                 />
               ))}

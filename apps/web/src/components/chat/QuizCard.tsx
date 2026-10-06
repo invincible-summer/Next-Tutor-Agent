@@ -237,7 +237,7 @@ export function QuizQuestionCard({
     <div className="rounded-[10px] border border-border bg-surface p-3 shadow-sm" data-testid="quiz-card">
       {/* 题号 + 题型 + 教材依据 */}
       <div className="flex items-center gap-2">
-        <span className="flex h-5 w-5 items-center justify-center rounded-[5px] bg-accent-soft font-mono text-[0.68rem] font-semibold text-accent-strong">
+        <span className="flex h-5 w-5 items-center justify-center rounded-[5px] bg-accent-soft font-mono text-[0.6875rem] font-semibold text-accent-strong">
           {index + 1}
         </span>
         <Badge tone="outline">{tr(`quiz.type.${q.type || "multiple_choice"}`, q.type)}</Badge>
@@ -248,7 +248,7 @@ export function QuizQuestionCard({
           </Badge>
         )}
         {q.difficulty && (
-          <span className="ml-auto text-[0.65rem] text-muted/70">
+          <span className="ml-auto text-[0.6875rem] text-muted/70">
             {tr("quiz.difficulty")} {q.difficulty}
           </span>
         )}
@@ -279,7 +279,7 @@ export function QuizQuestionCard({
                 )}
               >
                 <span className={cn(
-                  "flex h-5 w-5 shrink-0 items-center justify-center rounded-full border text-[0.68rem] font-semibold",
+                  "flex h-5 w-5 shrink-0 items-center justify-center rounded-full border text-[0.6875rem] font-semibold",
                   !submitted && isSelected ? "border-accent bg-accent text-white" : "border-border text-fg-secondary",
                   submitted && isCorrect ? "border-success bg-success text-white" : "",
                   submitted && isSelected && !isCorrect ? "border-danger bg-danger text-white" : "",
@@ -406,7 +406,7 @@ export function QuizQuestionCard({
                 <div className="mt-2 space-y-1.5" data-testid="quiz-source-refs">
                   {(sourcesOpen ? sourceRefs : sourceRefs.slice(0, 2)).map((ref, i) => (
                     <div key={`${ref.chunk_id}-${i}`} className="rounded-[6px] border border-border-light bg-bg/60 px-2.5 py-1.5">
-                      <p className="flex items-center gap-1 text-[0.68rem] font-medium text-accent-strong">
+                      <p className="flex items-center gap-1 text-[0.6875rem] font-medium text-accent-strong">
                         <BookOpen size={11} className="shrink-0" />
                         {sourceLocation(ref, lang)}
                       </p>
@@ -418,7 +418,7 @@ export function QuizQuestionCard({
                   {sourceRefs.length > 2 && (
                     <button
                       onClick={() => setSourcesOpen((v) => !v)}
-                      className="flex items-center gap-1 text-[0.68rem] text-muted transition-colors hover:text-accent"
+                      className="flex items-center gap-1 text-[0.6875rem] text-muted transition-colors hover:text-accent"
                     >
                       <ChevronDown size={11} className={cn("transition-transform", sourcesOpen ? "" : "-rotate-90")} />
                       {sourcesOpen

@@ -383,7 +383,7 @@ export default function CourseHubPage() {
                             <p className="truncate text-[0.85rem] font-semibold text-fg">
                               {resume.title}
                             </p>
-                            <p className="tnum mt-0.5 truncate text-[0.68rem] text-muted">
+                            <p className="tnum mt-0.5 truncate text-[0.6875rem] text-muted">
                               {wsName}
                               {resume.slide_count
                                 ? ` · ${tr("cls.list.resume.page")
@@ -464,11 +464,11 @@ export default function CourseHubPage() {
                             : <ChevronDown size={14} className="shrink-0 text-muted" />}
                           <FolderOpen size={15} className="shrink-0 text-accent" />
                           <span className="truncate text-sm font-semibold text-fg">{ws.name}</span>
-                          <span className="tnum shrink-0 text-[0.68rem] text-muted">
+                          <span className="tnum shrink-0 text-[0.6875rem] text-muted">
                             {tr("course.group.lessons").replace("%n", String(lessonCount))}
                           </span>
                           {generating > 0 && (
-                            <span className="tnum inline-flex shrink-0 items-center gap-1 rounded-full border border-accent/30 bg-accent-soft/40 px-2 py-0.5 text-[0.65rem] font-medium text-accent-strong">
+                            <span className="tnum inline-flex shrink-0 items-center gap-1 rounded-full border border-accent/30 bg-accent-soft/40 px-2 py-0.5 text-[0.6875rem] font-medium text-accent-strong">
                               <Loader2 size={10} className="animate-spin" />
                               {tr("ws.classroom.generating").replace("%n", String(generating))}
                             </span>

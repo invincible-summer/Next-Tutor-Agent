@@ -137,7 +137,7 @@ export function FormulaBoard({ lang, sentence, table, active, onClearTable }: {
       <div className="voice-board board-in pointer-events-auto flex h-[calc(100vh*3/7)] w-full max-w-[min(94%,760px)] flex-col overflow-hidden">
         <div className="flex items-center gap-1.5 px-3.5 pb-1 pt-2.5">
           <Presentation size={12} className="shrink-0" />
-          <span className="text-[0.66rem] font-medium tracking-wide">{t(lang, "chat.voice.call.board.title")}</span>
+          <span className="text-[0.6875rem] font-medium tracking-wide">{t(lang, "chat.voice.call.board.title")}</span>
           <span className="board-chalk-dash mx-1.5 flex-1" aria-hidden />
         </div>
         {table ? (
@@ -279,7 +279,7 @@ export function CallBar({ lang, voice, onHangUp }: {
             <p className={cn("truncate text-[0.78rem] font-medium", voice.error ? "text-danger" : "text-fg")}>
               {statusLineFor(lang, voice.phase, voice.error)}
             </p>
-            <p className="truncate text-[0.66rem] text-muted">
+            <p className="truncate text-[0.6875rem] text-muted">
               {extraStatus ?? tr("chat.voice.call.inCall")}
             </p>
           </div>

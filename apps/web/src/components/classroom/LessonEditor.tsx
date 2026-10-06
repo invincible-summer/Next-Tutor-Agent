@@ -537,7 +537,7 @@ function ScriptTab({ slide, editing, onEditToggle, busy, onSave, onDirtyChange }
             <Field label={tr("cls.script.field.bullets")}>
               {bullets.map((t, i) => (
                 t == null ? (
-                  <p key={i} className="mb-1.5 rounded-[6px] bg-surface-hover px-2 py-1.5 text-[0.66rem] text-muted">
+                  <p key={i} className="mb-1.5 rounded-[6px] bg-surface-hover px-2 py-1.5 text-[0.6875rem] text-muted">
                     {tr("cls.script.rich.bullet")}
                   </p>
                 ) : (
@@ -570,7 +570,7 @@ function ScriptTab({ slide, editing, onEditToggle, busy, onSave, onDirtyChange }
             onClick={save}>
             {tr("cls.script.save")}
           </Button>
-          <p className="text-[0.65rem] leading-relaxed text-muted/80">{tr("cls.script.save.hint")}</p>
+          <p className="text-[0.6875rem] leading-relaxed text-muted/80">{tr("cls.script.save.hint")}</p>
         </>
       ) : (
         <>
@@ -621,7 +621,7 @@ function SourcesTab({ revision, slide }: {
             </span>
             <span className="truncate">{r.title}</span>
           </p>
-          <p className="mt-1 flex flex-wrap gap-x-2 text-[0.65rem] text-muted">
+          <p className="mt-1 flex flex-wrap gap-x-2 text-[0.6875rem] text-muted">
             {(r.section_path ?? []).length > 0 && <span>{(r.section_path ?? []).join(" / ")}</span>}
             {r.printed_page && <span className="tnum">p.{r.printed_page}</span>}
             {r.url && (
@@ -663,7 +663,7 @@ function SettingsTab({ revision, busy, onTheme, onRegen, onImages,
           {REGEN_PRESETS.map((p) => (
             <button key={p.key} type="button" disabled={busy}
               onClick={() => onRegen(tr(p.instrKey))}
-              className="cursor-pointer rounded-full border border-border px-2.5 py-1 text-[0.68rem] text-fg-secondary transition-colors hover:border-accent/50 hover:text-accent-strong disabled:opacity-50">
+              className="cursor-pointer rounded-full border border-border px-2.5 py-1 text-[0.6875rem] text-fg-secondary transition-colors hover:border-accent/50 hover:text-accent-strong disabled:opacity-50">
               {tr(p.key)}
             </button>
           ))}
@@ -682,20 +682,20 @@ function SettingsTab({ revision, busy, onTheme, onRegen, onImages,
       <div>
         <p className="mb-1.5 text-[0.73rem] font-medium text-fg">{tr("cls.edit.theme")}</p>
         <ThemeSwitcher value={revision.brief.theme_id} disabled={busy} onPick={onTheme} />
-        <p className="mt-1 text-[0.64rem] text-muted/80">{tr("cls.edit.theme.hint")}</p>
+        <p className="mt-1 text-[0.6875rem] text-muted/80">{tr("cls.edit.theme.hint")}</p>
       </div>
 
       {/* 换图 */}
       <div>
         <p className="mb-1.5 text-[0.73rem] font-medium text-fg">{tr("cls.img.title")}</p>
         {!hasImageBlock ? (
-          <p className="text-[0.68rem] text-muted">{tr("cls.img.noblock")}</p>
+          <p className="text-[0.6875rem] text-muted">{tr("cls.img.noblock")}</p>
         ) : candidates === null ? (
           <Button size="sm" variant="outline" icon={<ImageIcon size={12} />} disabled={busy} onClick={onImages}>
             {tr("cls.img.search")}
           </Button>
         ) : candidates.length === 0 ? (
-          <p className="text-[0.68rem] text-muted">{tr("cls.img.empty")}</p>
+          <p className="text-[0.6875rem] text-muted">{tr("cls.img.empty")}</p>
         ) : (
           <div className="grid grid-cols-2 gap-1.5">
             {candidates.map((c) => (
@@ -737,7 +737,7 @@ function SettingsTab({ revision, busy, onTheme, onRegen, onImages,
           </Button>
         </div>
         {!canDelete && (
-          <p className="mt-1 text-[0.62rem] text-muted/70">{tr("cls.page.last")}</p>
+          <p className="mt-1 text-[0.6875rem] text-muted/70">{tr("cls.page.last")}</p>
         )}
       </div>
     </div>

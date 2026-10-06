@@ -34,7 +34,7 @@ export function TodayTasksCard({ plan, tasks, tr }: {
           </span>
           <div className="min-w-0">
             <p className="text-sm font-semibold text-fg">{tr("orch.title")}</p>
-            <p className="truncate text-[0.68rem] text-muted">
+            <p className="truncate text-[0.6875rem] text-muted">
               {tr("orch.goal")}: {goals[0].title}
               {goals.length > 1 && ` +${goals.length - 1}`}
             </p>
@@ -45,7 +45,7 @@ export function TodayTasksCard({ plan, tasks, tr }: {
             <span className="flex items-center gap-1 text-accent2">
               <Flame size={14} />
               <span className="tnum text-sm font-semibold">{streak}</span>
-              <span className="text-[0.66rem] text-muted">{tr("orch.days")}</span>
+              <span className="text-[0.6875rem] text-muted">{tr("orch.days")}</span>
             </span>
           )}
           <Link href="/orchestration" className="flex items-center gap-0.5 text-[0.72rem] text-accent-strong hover:underline">

@@ -228,7 +228,7 @@ export function GenealogyConceptPicker({
           <button
             type="button"
             onClick={() => onChange([])}
-            className="shrink-0 cursor-pointer text-[0.68rem] text-muted transition-colors hover:text-danger"
+            className="shrink-0 cursor-pointer text-[0.6875rem] text-muted transition-colors hover:text-danger"
           >
             {t("clear")}
           </button>
@@ -240,7 +240,7 @@ export function GenealogyConceptPicker({
           {selected.slice(0, 12).map((s) => (
             <span
               key={s.id}
-              className="inline-flex max-w-full items-center gap-1 rounded-full bg-accent-soft px-2 py-0.5 text-[0.68rem] text-accent-strong"
+              className="inline-flex max-w-full items-center gap-1 rounded-full bg-accent-soft px-2 py-0.5 text-[0.6875rem] text-accent-strong"
             >
               <span className="max-w-40 truncate">{s.name}</span>
               <button
@@ -254,9 +254,9 @@ export function GenealogyConceptPicker({
             </span>
           ))}
           {selected.length > 12 && (
-            <span className="self-center text-[0.68rem] text-muted">+{selected.length - 12}</span>
+            <span className="self-center text-[0.6875rem] text-muted">+{selected.length - 12}</span>
           )}
-          <span className="self-center text-[0.68rem] text-muted">
+          <span className="self-center text-[0.6875rem] text-muted">
             · {t("selected", selected.length)}
             {selected.length > 40 ? ` · ${t("overLimit")}` : ""}
           </span>
@@ -391,7 +391,7 @@ export function GenealogyConceptPicker({
                         <span className="truncate text-xs font-medium text-fg">
                           {group.chapter.id === "__loose" ? "" : group.chapter.name}
                         </span>
-                        <span className="tnum shrink-0 text-[0.66rem] text-muted">
+                        <span className="tnum shrink-0 text-[0.6875rem] text-muted">
                           {group.concepts.length} {t("concepts")}
                         </span>
                       </label>

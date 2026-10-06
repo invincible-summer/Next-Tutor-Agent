@@ -120,7 +120,7 @@ export function LLMRunPolicyPanel({ tr }: { tr: Tr }) {
       </div>
       {error && <p className="mt-2 text-xs text-danger">{error}</p>}
       <div className="mt-3 flex items-center justify-between">
-        <span className="text-[0.65rem] text-muted">
+        <span className="text-[0.6875rem] text-muted">
           {policy?.updated_at
             ? `${tr("adm.llm.updatedAt")}: ${new Date(policy.updated_at * 1000).toLocaleString(localeFor(lang))}`
             : ""}

@@ -8,7 +8,6 @@ import { useUIStore } from "@/lib/store";
 import { useAuthStore } from "@/lib/auth-store";
 import { t } from "@/lib/i18n";
 import { cn } from "@/lib/cn";
-import { ModuleBadge } from "@/components/ui/Badge";
 import { getClassroomCapabilities } from "@/lib/api-classroom";
 
 // 课堂特性开关：乐观显示，确认关闭后隐藏（模块级缓存避免重复请求）。
@@ -117,10 +116,7 @@ export function SideNav() {
                   >
                     <Icon size={17} aria-hidden="true" className="shrink-0" />
                     {!navCollapsed && (
-                      <>
-                        <span className="min-w-0 flex-1 truncate">{tr(item.i18nKey)}</span>
-                        {item.module && <ModuleBadge id={item.module} />}
-                      </>
+                      <span className="min-w-0 flex-1 truncate">{tr(item.i18nKey)}</span>
                     )}
                   </Link>
                 );

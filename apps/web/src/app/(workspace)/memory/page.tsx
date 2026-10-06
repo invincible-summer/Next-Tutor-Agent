@@ -20,6 +20,7 @@ import {
   Users,
 } from "lucide-react";
 import { Badge } from "@/components/ui/Badge";
+import { Button } from "@/components/ui/Button";
 import { Card, CardHeader } from "@/components/ui/Card";
 import { Tabs } from "@/components/ui/Tabs";
 import { EmptyState, ErrorNote, PageSkeleton } from "@/components/ui/EmptyState";
@@ -134,7 +135,7 @@ function PromptMemorySection({
       <div className="mb-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
         {fields.map(([key, label]) => (
           <div key={key} className="rounded-[8px] border border-border-light bg-surface px-3 py-2">
-            <div className="mb-0.5 text-[0.68rem] font-medium text-fg-secondary">{label}</div>
+            <div className="mb-0.5 text-[0.6875rem] font-medium text-fg-secondary">{label}</div>
             <div className="text-xs leading-relaxed text-fg">
               {profile.core_profile?.[key]?.trim() || tr("pm.field.empty")}
             </div>
@@ -174,7 +175,7 @@ function PromptMemorySection({
                 {s.workspace_id && (
                   <Badge tone="info">{tr("pm.inWorkspace")}</Badge>
                 )}
-                <span className="tnum shrink-0 text-[0.66rem] text-muted">
+                <span className="tnum shrink-0 text-[0.6875rem] text-muted">
                   {fmtDate(s.updated_at)}
                 </span>
               </li>
@@ -184,7 +185,7 @@ function PromptMemorySection({
           <p className="py-1 text-[0.72rem] text-muted">{tr("pm.sessions.empty")}</p>
         )}
         {(profile.compacted_session_count ?? 0) > 0 && (
-          <p className="mt-1 text-[0.66rem] text-muted">{tr("pm.compacted.note")}</p>
+          <p className="mt-1 text-[0.6875rem] text-muted">{tr("pm.compacted.note")}</p>
         )}
       </div>
     </Card>
@@ -251,7 +252,7 @@ function WorkspaceMemorySection({
                 <Badge tone={w.has_memory ? "accent" : "outline"}>
                   {w.has_memory ? tr("ws.hasMemory") : tr("ws.noMemory")}
                 </Badge>
-                <span className="tnum text-[0.66rem] text-muted">{w.session_count}</span>
+                <span className="tnum text-[0.6875rem] text-muted">{w.session_count}</span>
               </button>
               {expanded === w.workspace_id && (
                 <div className="pb-2.5 pl-5">
@@ -261,7 +262,7 @@ function WorkspaceMemorySection({
                         {detail.text}
                       </pre>
                       {detail.at > 0 && (
-                        <p className="mt-1 text-[0.66rem] text-muted">
+                        <p className="mt-1 text-[0.6875rem] text-muted">
                           {tr("ws.updated")} {relTime(detail.at, lang)}
                         </p>
                       )}
@@ -618,7 +619,7 @@ function LearningArchiveRegion({ tr, lang, deepSignal = 0 }: {
             </select>
           </label>
           {summary?.updated_at && (
-            <span className="tnum text-[0.66rem] text-muted">
+            <span className="tnum text-[0.6875rem] text-muted">
               {tr("arc.updated")} {fmtIso(summary.updated_at)}
             </span>
           )}
@@ -652,7 +653,7 @@ function LearningArchiveRegion({ tr, lang, deepSignal = 0 }: {
               <Badge tone="muted">
                 {et(lang, "eval.state.not_observed")} {coverage?.not_observed_concepts ?? 0}
               </Badge>
-              <span className="text-[0.66rem] text-muted">{tr("arc.concepts.note")}</span>
+              <span className="text-[0.6875rem] text-muted">{tr("arc.concepts.note")}</span>
             </div>
             <StatusNote
               status={summary.evaluation_status}
@@ -668,13 +669,9 @@ function LearningArchiveRegion({ tr, lang, deepSignal = 0 }: {
                   probe={probe}
                   lang={lang}
                   actions={
-                    <button
-                      type="button"
-                      onClick={() => startProbe(probe)}
-                      className="cursor-pointer rounded-[7px] bg-accent px-2.5 py-1 text-xs font-medium text-white hover:bg-accent-strong"
-                    >
+                    <Button size="sm" onClick={() => startProbe(probe)}>
                       {tr("arc.startProbe")}
-                    </button>
+                    </Button>
                   }
                 />
               </div>
@@ -720,13 +717,14 @@ function LearningArchiveRegion({ tr, lang, deepSignal = 0 }: {
               />
             )}
             {!evidenceDone && !evidenceMore && !evidenceErr && evidence.length > 0 && (
-              <button
-                type="button"
+              <Button
+                variant="outline"
+                size="sm"
+                className="mx-auto"
                 onClick={() => loadEvidencePage(evidence.length)}
-                className="mx-auto cursor-pointer rounded-[7px] border border-border px-3 py-1 text-xs text-fg-secondary hover:border-accent"
               >
                 {tr("arc.loadMore")}
-              </button>
+              </Button>
             )}
             {evidenceMore && <p className="py-1 text-center text-xs text-muted">…</p>}
           </div>
@@ -779,7 +777,7 @@ function LearningArchiveRegion({ tr, lang, deepSignal = 0 }: {
                               : et(lang, `eval.avail.${s.availability}`)}
                           </Badge>
                         )}
-                        <span className="tnum shrink-0 text-[0.66rem] text-muted">
+                        <span className="tnum shrink-0 text-[0.6875rem] text-muted">
                           {fmtIso(s.last_observed_at)}
                         </span>
                       </button>
@@ -799,7 +797,7 @@ function LearningArchiveRegion({ tr, lang, deepSignal = 0 }: {
                                   <Badge tone={it.kind === "dialogue" ? "info" : "accent"}>
                                     {et(lang, `eval.source.${it.kind || "dialogue"}`)}
                                   </Badge>
-                                  <span className="tnum text-[0.66rem] text-muted">
+                                  <span className="tnum text-[0.6875rem] text-muted">
                                     {fmtIso(it.observed_at)}
                                   </span>
                                 </div>
@@ -826,13 +824,14 @@ function LearningArchiveRegion({ tr, lang, deepSignal = 0 }: {
                 })}
               </ul>
               {!sessionsDone && !sessionsMore && (
-                <button
-                  type="button"
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="mt-2"
                   onClick={() => loadSessionsPage(sessions.length)}
-                  className="mt-2 cursor-pointer rounded-[7px] border border-border px-3 py-1 text-xs text-fg-secondary hover:border-accent"
                 >
                   {tr("arc.loadMore")}
-                </button>
+                </Button>
               )}
               {sessionsMore && <p className="py-1 text-center text-xs text-muted">…</p>}
             </>
@@ -1108,8 +1107,8 @@ export default function MemoryPage() {
       <Suspense><DeepLinkQueryReader keys={["section", "ws", "tab", "concept", "source"]} onParams={applyDeepLink} /></Suspense>
       <div className="mx-auto flex max-w-[1200px] flex-col gap-4">
         <header>
-          <h1 className="font-serif text-xl font-bold text-fg">{tr("nav.memory")}</h1>
-          <p className="mt-1 text-sm text-muted">{tr("mem.desc")}</p>
+          <h1 className="font-serif text-xl font-semibold text-fg">{tr("nav.memory")}</h1>
+          <p className="mt-0.5 text-xs text-muted">{tr("mem.desc")}</p>
         </header>
         {deepNotice && (
           <div className="rounded-[8px] border border-border bg-surface px-3 py-2 text-xs text-muted">{deepNotice}</div>

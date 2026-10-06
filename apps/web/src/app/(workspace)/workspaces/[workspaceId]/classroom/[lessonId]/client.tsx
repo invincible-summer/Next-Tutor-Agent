@@ -236,7 +236,7 @@ function LessonDetailInner() {
             </Button>
           )}
           {!generating && detail.revision && (
-            <span className="tnum hidden rounded-full border border-border px-2 py-0.5 text-[0.65rem] text-muted sm:inline">
+            <span className="tnum hidden rounded-full border border-border px-2 py-0.5 text-[0.6875rem] text-muted sm:inline">
               {tr("cls.card.revision").replace("%n", String(detail.revision.revision))}
             </span>
           )}
@@ -318,7 +318,7 @@ function LessonDetailInner() {
                         <li key={sl.slide_id} className="flex items-baseline gap-2 text-[0.75rem] text-fg-secondary">
                           <span className="tnum w-5 shrink-0 text-muted">{sl.order}</span>
                           <span className="truncate">{sl.title}</span>
-                          <span className="ml-auto shrink-0 text-[0.65rem] text-muted/70">{sl.layout}</span>
+                          <span className="ml-auto shrink-0 text-[0.6875rem] text-muted/70">{sl.layout}</span>
                         </li>
                       ))}
                     </ol>

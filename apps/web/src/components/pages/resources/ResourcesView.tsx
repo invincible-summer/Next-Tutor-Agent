@@ -5,7 +5,6 @@ import { FilePagePreview } from "./FilePagePreview";
 import { navigationAnchor, navigationSucceeded, navigationMissing, navigationFailed, navigationUnavailable } from "@/lib/assistant/navigation";
 import Link from "next/link";
 import dynamic from "next/dynamic";
-import { FolderOpen, LibraryBig } from "lucide-react";
 import { useUIStore } from "@/lib/store";
 import { makePageT } from "@/lib/i18n-page";
 import { relTime } from "@/lib/format";
@@ -34,7 +33,8 @@ import { getKnowledgeTaxonomy } from "@/lib/api-modules";
 import type { LibraryFolder, LibraryTree, SessionItem } from "@/lib/types";
 import type { KnowledgeTaxonomyLevel } from "@/lib/types-modules";
 import { ConfirmModal } from "@/components/ui/Modal";
-import { EmptyState, ErrorNote, Skeleton } from "@/components/ui/EmptyState";
+import { ErrorNote, Skeleton } from "@/components/ui/EmptyState";
+import { CompactEmpty } from "@/components/pages/dashboard/sections";
 import { STRINGS } from "@/app/(workspace)/resources/strings";
 import { SourceSidebar } from "./SourceSidebar";
 import { UploadZone } from "./UploadZone";
@@ -382,7 +382,7 @@ export function ResourcesView({ tab }: { tab: "files" | "textbooks" }) {
     : undefined;
 
   return (
-    <div className="page-in flex h-full">
+    <div className="page-in flex h-full flex-col md:flex-row">
       {deep.page && previewFile && previewSupported && (!deep.folder || previewFile.folder_id === deep.folder) && <FilePagePreview
         key={`${deep.file}:${deep.page}`} fileId={deep.file} filename={previewFile.filename} page={deep.page} lang={lang}
         onClose={() => updatePreviewPage(null)}
@@ -417,7 +417,7 @@ export function ResourcesView({ tab }: { tab: "files" | "textbooks" }) {
         />
       )}
 
-      <div className="min-w-0 flex-1 overflow-y-auto p-6">
+      <div className="min-w-0 flex-1 overflow-y-auto p-4 sm:p-6">
         <div className="mx-auto flex max-w-[1200px] flex-col gap-4">
           <header>
             <h1 className="font-serif text-xl font-semibold text-fg">{tr("res.title")}</h1>
@@ -474,16 +474,12 @@ export function ResourcesView({ tab }: { tab: "files" | "textbooks" }) {
             <>
               <UploadZone uploading={uploading} tr={tr} onFiles={handleUpload} />
               {uploadError && <ErrorNote message={uploadError} />}
-              <EmptyState
-                icon={<LibraryBig size={28} />}
-                title={tr("res.empty.title")}
-                desc={tr("res.empty.desc")}
-              />
+              <CompactEmpty title={tr("res.empty.title")} desc={tr("res.empty.desc")} />
             </>
           )}
 
           {boot === "ready" && !globalEmpty && !selected && (
-            <EmptyState icon={<FolderOpen size={28} />} title={tr("res.pick.hint.title")} desc={tr("res.pick.hint.desc")} />
+            <CompactEmpty title={tr("res.pick.hint.title")} desc={tr("res.pick.hint.desc")} />
           )}
 
           {boot === "ready" && !globalEmpty && selected && (
@@ -536,7 +532,7 @@ export function ResourcesView({ tab }: { tab: "files" | "textbooks" }) {
                   </div>
 
                   {currentFiles.length === 0 ? (
-                    <EmptyState title={tr("res.empty.files")} className="py-8" />
+                    <CompactEmpty title={tr("res.empty.files")} />
                   ) : (
                     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
                       {currentFiles.map((f) => (

@@ -117,7 +117,7 @@ export function LessonCard({ wsId, lesson, tr, hrefBase, onRetry, retrying,
                   type="button"
                   disabled={retrying}
                   onClick={() => onRetry(lesson)}
-                  className="inline-flex cursor-pointer items-center gap-1 rounded-full border border-danger/40 px-2 py-0.5 text-[0.65rem] transition-colors hover:bg-danger/10 disabled:opacity-50"
+                  className="inline-flex cursor-pointer items-center gap-1 rounded-full border border-danger/40 px-2 py-0.5 text-[0.6875rem] transition-colors hover:bg-danger/10 disabled:opacity-50"
                 >
                   {retrying
                     ? <Loader2 size={10} className="animate-spin" />

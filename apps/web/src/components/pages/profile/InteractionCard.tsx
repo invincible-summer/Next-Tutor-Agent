@@ -1,5 +1,5 @@
 import { HeartPulse } from "lucide-react";
-import { Badge, ModuleBadge } from "@/components/ui/Badge";
+import { Badge } from "@/components/ui/Badge";
 import { Card, CardHeader } from "@/components/ui/Card";
 import type { UxProfileSummary } from "@/lib/types";
 import { Row } from "./Row";
@@ -14,12 +14,7 @@ export function InteractionCard({ ux, tr }: { ux: UxProfileSummary; tr: Tr }) {
     <Card>
       <CardHeader
         icon={<HeartPulse size={16} />}
-        title={
-          <span className="inline-flex items-center gap-2">
-            {tr("m8.title")}
-            <ModuleBadge id="M8" />
-          </span>
-        }
+        title={tr("m8.title")}
         desc={tr("m8.desc")}
       />
 

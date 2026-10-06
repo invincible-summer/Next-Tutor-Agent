@@ -41,7 +41,7 @@ function GapRow({ gap, tr }: { gap: OrchGap; tr: Tr }) {
       </Badge>
       <span className="min-w-0 flex-1 truncate text-xs font-medium text-fg">{gap.name}</span>
       {(gap.layer ?? 0) > 0 && (
-        <span className="tnum shrink-0 text-[0.68rem] text-muted">
+        <span className="tnum shrink-0 text-[0.6875rem] text-muted">
           {tr("goal.gap.layer", "第 %n 层").replace("%n", String(gap.layer))}
         </span>
       )}
@@ -49,7 +49,7 @@ function GapRow({ gap, tr }: { gap: OrchGap; tr: Tr }) {
         type="button"
         onClick={learn}
         title={tr("goal.gap.learn", "去学这个概念")}
-        className="shrink-0 cursor-pointer rounded-[6px] px-1.5 py-0.5 text-[0.66rem] text-accent-strong opacity-0 transition-opacity group-hover/gap:opacity-100 focus-visible:opacity-100"
+        className="shrink-0 cursor-pointer rounded-[6px] px-1.5 py-0.5 text-[0.6875rem] text-accent-strong opacity-0 transition-opacity group-hover/gap:opacity-100 focus-visible:opacity-100"
       >
         {tr("goal.gap.learn", "去学")}
       </button>
@@ -57,7 +57,7 @@ function GapRow({ gap, tr }: { gap: OrchGap; tr: Tr }) {
         <a
           href={`/knowledge?concept=${encodeURIComponent(gap.skill_id)}`}
           title={tr("goal.gap.locate", "在谱系中查看")}
-          className="shrink-0 text-[0.66rem] text-muted opacity-0 transition-opacity group-hover/gap:opacity-100 focus-visible:opacity-100 hover:text-accent"
+          className="shrink-0 text-[0.6875rem] text-muted opacity-0 transition-opacity group-hover/gap:opacity-100 focus-visible:opacity-100 hover:text-accent"
         >
           {tr("goal.gap.locate", "谱系")}
         </a>
@@ -84,7 +84,7 @@ function GapLayers({ gaps, tr }: { gaps: OrchGap[]; tr: Tr }) {
     <div className="space-y-2">
       {layers.map(([layer, items]) => (
         <div key={layer}>
-          <p className="mb-0.5 text-[0.68rem] font-medium text-fg-secondary">
+          <p className="mb-0.5 text-[0.6875rem] font-medium text-fg-secondary">
             {layer === 1
               ? tr("goal.layer.first", "第 1 层 · 现在就能学")
               : layer > 1
@@ -97,7 +97,7 @@ function GapLayers({ gaps, tr }: { gaps: OrchGap[]; tr: Tr }) {
             {items.slice(0, 8).map((g) => <GapRow key={g.skill_id} gap={g} tr={tr} />)}
           </div>
           {items.length > 8 && (
-            <p className="mt-0.5 pl-2 text-[0.66rem] text-muted">
+            <p className="mt-0.5 pl-2 text-[0.6875rem] text-muted">
               +{items.length - 8} …
             </p>
           )}

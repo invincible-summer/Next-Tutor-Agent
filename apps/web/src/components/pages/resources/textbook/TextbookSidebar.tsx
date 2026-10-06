@@ -85,7 +85,7 @@ export function TextbookSidebar({
     cn("shrink-0 text-muted transition-transform", open && "rotate-90");
 
   return (
-    <aside className="flex w-72 shrink-0 flex-col overflow-y-auto border-r border-border bg-surface">
+    <aside className="flex max-h-[38vh] w-full shrink-0 flex-col overflow-y-auto border-b border-border bg-surface md:max-h-none md:w-72 md:border-b-0 md:border-r">
       <div className="flex flex-col gap-1 p-3">
         <GroupLabel>{tr("res.tb.title", "教材库")}</GroupLabel>
 

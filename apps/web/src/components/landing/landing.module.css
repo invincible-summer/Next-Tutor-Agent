@@ -20,9 +20,6 @@
 .sectionFoot p { max-width: 780px; }
 .textLink { display: inline-flex; align-items: center; gap: 9px; color: rgb(var(--accent)); white-space: nowrap; font-weight: 500; }
 .textLink:hover { text-decoration: underline; text-underline-offset: 5px; }
-.capabilityStrip { display: flex; justify-content: center; gap: clamp(30px, 6vw, 100px); padding: 27px 30px; border-block: 1px solid rgb(var(--border-light)); background: rgb(var(--surface)); }
-.capabilityStrip > span { display: inline-flex; align-items: center; gap: 12px; color: rgb(var(--fg-secondary)); font-size: 13px; letter-spacing: .06em; }
-.capabilityStrip svg { color: rgb(var(--accent)); }
 .principles { background: rgb(var(--surface-sunken) / .65); border-block: 1px solid rgb(var(--border-light)); scroll-margin-top: 76px; }
 .principleInner { max-width: 1240px; margin: auto; display: grid; grid-template-columns: 1fr 1fr; gap: 100px; padding: 100px 40px; align-items: center; }
 .evidenceArt { padding: 38px; position: relative; border: 1px solid rgb(var(--border)); border-radius: 8px; background-color: rgb(var(--bg)); background-image: radial-gradient(rgb(var(--accent) / .18) .7px, transparent .7px); background-size: 17px 17px; }
@@ -92,4 +89,21 @@
   .lessonPreview { min-height: 250px; padding: 12px; }
   .slide { padding: 16px; }
   .slideRail { display: none; }
+}
+@media (max-width: 840px) {
+  .section { padding: 72px 24px; scroll-margin-top: 76px; }
+  .sectionHeading { flex-direction: column; align-items: start; gap: 18px; margin-bottom: 36px; }
+  .sectionHeading > p { max-width: 560px; }
+  .principleInner { grid-template-columns: 1fr; gap: 44px; padding: 72px 24px; }
+  .steps { grid-template-columns: 1fr; gap: 32px; }
+  .step { max-width: 560px; }
+}
+@media (max-width: 640px) {
+  .section { padding: 56px 18px; }
+  .principleInner { padding: 56px 18px; }
+  .featureGrid { grid-template-columns: minmax(0, 1fr); }
+  .feature > p, .featureLead > p, .feature:not(.featureLead) > p { min-height: 0; }
+  .chatPreview, .lessonPreview { min-height: 0; }
+  .step > span { font-size: 40px; }
+  .sectionFoot { flex-direction: column; gap: 12px; }
 }

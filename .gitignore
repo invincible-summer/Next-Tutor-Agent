@@ -107,6 +107,11 @@ backend/models/
 .zcode/
 .zcodeignore
 
+# 本地工具目录（编辑器/代理配置与审查产物），不入库
+.agents/
+.codex/
+.impeccable/
+
 # Playwright E2E artifacts
 test-results/
 playwright-report/

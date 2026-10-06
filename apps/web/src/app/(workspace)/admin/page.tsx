@@ -151,11 +151,11 @@ export default function AdminPage() {
     <div className="page-in mx-auto flex h-full w-full max-w-[1200px] flex-col gap-4 overflow-y-auto p-6">
       <Suspense><DeepLinkQueryReader keys={["section"]} onParams={applyDeepLink} /></Suspense>
       <header>
-        <h1 className="flex items-center gap-2 font-serif text-xl font-bold text-fg">
+        <h1 className="flex items-center gap-2 font-serif text-xl font-semibold text-fg">
           <ShieldCheck size={20} className="text-accent" />
           {tr("adm.title")}
         </h1>
-        <p className="mt-1 text-xs text-muted">{tr("adm.desc")}</p>
+        <p className="mt-0.5 text-xs text-muted">{tr("adm.desc")}</p>
       </header>
 
       {deepNotice && (

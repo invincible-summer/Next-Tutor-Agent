@@ -1,17 +1,16 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { History } from "lucide-react";
-import { Card, CardHeader } from "@/components/ui/Card";
-import { Badge, ModuleBadge } from "@/components/ui/Badge";
-import { EmptyState } from "@/components/ui/EmptyState";
+import { Badge } from "@/components/ui/Badge";
 import { Pager, paged, pageCount } from "@/components/ui/Pager";
 import { relTime } from "@/lib/format";
 import { dt, modeTone } from "@/lib/labels";
 import type { Lang } from "@/lib/i18n";
 import type { TeachingLogResp } from "@/lib/types-modules";
 import type { Tr } from "./shared";
+import { SectionHeader, CompactEmpty } from "./sections";
 
-/** 最近学习：teaching-log 按 last_ts 排序，分页展示。 */
+/** 最近学习（回顾层，扁平分区）：teaching-log 按 last_ts 排序，分页展示。 */
 export function RecentCard({
   teachingLog,
   lang,
@@ -34,17 +33,16 @@ export function RecentCard({
   const visible = paged(rows, cur);
 
   return (
-    <Card>
-      <CardHeader
-        icon={<History size={16} />}
+    <section>
+      <SectionHeader
+        icon={<History size={14} />}
         title={tr("recent.title")}
         desc={tr("recent.desc")}
-        right={<ModuleBadge id="M3" />}
       />
       {disabled ? (
-        <EmptyState title={tr("empty.recent")} desc={tr("empty.disabled")} />
+        <CompactEmpty title={tr("empty.recent")} desc={tr("empty.disabled")} />
       ) : rows.length === 0 ? (
-        <EmptyState title={tr("empty.recent")} desc={tr("empty.recent.desc")} />
+        <CompactEmpty title={tr("empty.recent")} desc={tr("empty.recent.desc")} />
       ) : (
         <div className="-mx-2 flex flex-col">
           {visible.map((r) => (
@@ -65,6 +63,6 @@ export function RecentCard({
         </div>
       )}
       <Pager page={cur} total={rows.length} onPage={setPage} />
-    </Card>
+    </section>
   );
 }

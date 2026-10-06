@@ -124,7 +124,7 @@ export function WorkspaceItem({
         ) : (
           <span className="flex-1 truncate text-[0.8rem] font-medium text-fg-secondary group-hover:text-fg">{ws.name}</span>
         )}
-        <span className="tnum text-[0.62rem] text-muted">{ws.session_count}</span>
+        <span className="tnum text-[0.6875rem] text-muted">{ws.session_count}</span>
         {/* Workspace menu */}
         <div className="relative" ref={menuRef}>
           <button

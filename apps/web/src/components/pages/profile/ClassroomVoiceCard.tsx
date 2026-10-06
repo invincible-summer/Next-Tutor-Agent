@@ -169,7 +169,7 @@ export function ClassroomVoiceCard({ tr, onDirtyChange }: { tr: Tr; onDirtyChang
       </div>
       {policy !== "silent" && policyVoices.length > 0 && (
         <div className="mt-3">
-          <div className="mb-1 flex items-center gap-2 text-[0.68rem] text-muted">
+          <div className="mb-1 flex items-center gap-2 text-[0.6875rem] text-muted">
             <label htmlFor={voiceIdField}>{tr("account.classroomVoice.voice")}</label>{help(tr("account.classroomVoice.voice"), st("settings.voice.voice.hint"))}
           </div>
           <select id={voiceIdField} value={effectiveVoiceId}

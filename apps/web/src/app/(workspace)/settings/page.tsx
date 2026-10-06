@@ -58,9 +58,9 @@ function SettingsContent() {
   const needsAccount = section === "voice" || section === "assistant" || section === "processing" || section === "account";
   return <div className="h-full overflow-y-auto p-6 page-in">
     <div className="mx-auto max-w-[1100px]">
-      <header className="mb-6"><h1 className="font-serif text-xl font-semibold text-fg">{t(lang, "settings.title")}</h1><p className="mt-1 text-xs text-muted">{tr("settings.desc")}</p></header>
-      <div className="grid grid-cols-[11rem_minmax(0,1fr)] items-start gap-7">
-        <nav aria-label={t(lang, "settings.title")} className="sticky top-0 flex flex-col gap-1">
+      <header className="mb-6"><h1 className="font-serif text-xl font-semibold text-fg">{t(lang, "settings.title")}</h1><p className="mt-0.5 text-xs text-muted">{tr("settings.desc")}</p></header>
+      <div className="grid grid-cols-1 items-start gap-4 sm:grid-cols-[11rem_minmax(0,1fr)] sm:gap-7">
+        <nav aria-label={t(lang, "settings.title")} className="flex flex-row flex-wrap gap-1 sm:sticky sm:top-0 sm:flex-col">
           {SECTIONS.map(({ id, icon: Icon }) => <Link key={id} href={`/settings?section=${id}`} aria-current={id === section ? "page" : undefined}
             className={cn("flex min-h-10 items-center gap-3 rounded-xl px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-accent", section === id ? "bg-accent-soft font-medium text-accent-strong" : "text-fg-secondary hover:bg-surface-hover")}><Icon size={16} aria-hidden="true" />{tr(`settings.${id}`)}</Link>)}
         </nav>

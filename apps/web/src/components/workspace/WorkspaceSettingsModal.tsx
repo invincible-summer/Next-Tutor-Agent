@@ -291,7 +291,7 @@ function Content({ target }: { target: "new" | string }) {
       )}
 
       {phase === "ready" && (
-        <div className="flex max-h-[62vh] flex-col gap-3 overflow-y-auto pr-0.5">
+        <div className="flex max-h-[62vh] flex-col gap-3 overflow-y-auto overscroll-contain pr-0.5">
           {/* 名称 */}
           <div>
             <label className="mb-1 block text-xs font-medium text-muted">{tr("wsm.name.label")}</label>

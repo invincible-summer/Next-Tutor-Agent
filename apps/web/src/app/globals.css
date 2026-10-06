@@ -59,7 +59,7 @@ input:focus, textarea:focus, select:focus {
 .chat-prose code { font-family: var(--font-mono); font-size: 0.875em; background: rgb(var(--surface-hover)); padding: 0.125em 0.25em; border-radius: 3px; }
 .chat-prose pre { background: rgb(var(--surface-sunken)); padding: 0.75em; border-radius: 8px; overflow-x: auto; margin: 0.5em 0; }
 .chat-prose pre code { background: none; padding: 0; }
-.chat-prose blockquote { border-left: 3px solid rgb(var(--accent)); padding-left: 1em; margin: 0.5em 0; color: rgb(var(--muted)); }
+.chat-prose blockquote { border-left: 2px solid rgb(var(--accent) / 0.45); padding-left: 1em; margin: 0.5em 0; color: rgb(var(--muted)); }
 .chat-prose a { color: rgb(var(--accent)); text-decoration: none; }
 .chat-prose a:hover { text-decoration: underline; }
 .chat-prose table { border-collapse: collapse; margin: 0.5em 0; width: 100%; }
@@ -86,10 +86,10 @@ input:focus, textarea:focus, select:focus {
 @keyframes blink { 50% { opacity: 0; } }
 /* bouncing dots loader */
 .dot-loader { display: inline-flex; gap: 4px; align-items: center; }
-.dot-loader span { width: 8px; height: 8px; border-radius: 50%; background: rgb(var(--muted) / 0.4); animation: bounce 1.4s ease-in-out infinite; }
+.dot-loader span { width: 8px; height: 8px; border-radius: 50%; background: rgb(var(--muted) / 0.4); animation: dot-rise 1.4s cubic-bezier(0.33, 1, 0.68, 1) infinite; }
 .dot-loader span:nth-child(2) { animation-delay: 0.15s; }
 .dot-loader span:nth-child(3) { animation-delay: 0.3s; }
-@keyframes bounce { 0%, 80%, 100% { transform: translateY(0); } 40% { transform: translateY(-6px); } }
+@keyframes dot-rise { 0%, 80%, 100% { transform: translateY(0); } 40% { transform: translateY(-5px); } }
 
 /* 骨架屏微光 */
 @keyframes shimmer { 0% { opacity: 0.5; } 50% { opacity: 1; } 100% { opacity: 0.5; } }
@@ -139,11 +139,6 @@ input:focus, textarea:focus, select:focus {
   color: transparent;
   animation: rise-in 0.7s cubic-bezier(0.22, 1, 0.36, 1) both, gradient-x 12s linear infinite;
 }
-
-/* 无限滚动 Marquee（悬停暂停） */
-@keyframes marquee { from { transform: translateX(0); } to { transform: translateX(-50%); } }
-.marquee-track { animation: marquee 36s linear infinite; }
-.marquee:hover .marquee-track { animation-play-state: paused; }
 
 /* Hero 底部滚动提示线 */
 @keyframes scroll-line { 0% { transform: scaleY(0); transform-origin: top; } 45% { transform: scaleY(1); transform-origin: top; } 55% { transform: scaleY(1); transform-origin: bottom; } 100% { transform: scaleY(0); transform-origin: bottom; } }
@@ -248,7 +243,6 @@ input:focus, textarea:focus, select:focus {
 @media (prefers-reduced-motion: reduce) {
   .page-in, .skeleton { animation: none; }
   .hero-title-char, .hero-gradient-text { animation: none; }
-  .marquee-track { animation: none; }
   .drift-a, .drift-b { animation: none; }
   .motion-fade, .motion-modal, .motion-drawer, .motion-pop { animation: none; }
   .reveal { opacity: 1; transform: none; transition: none; }

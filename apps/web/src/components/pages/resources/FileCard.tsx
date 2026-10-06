@@ -4,6 +4,7 @@ import { Check, Download, Eye, FolderInput, Pencil, Trash2, X } from "lucide-rea
 import type { Lang } from "@/lib/i18n";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
+import { Button } from "@/components/ui/Button";
 import { AnchoredPopover } from "@/components/ui/AnchoredPopover";
 import { FileTypeIcon } from "./file-icon";
 import type { ResourceFile } from "./types";
@@ -53,9 +54,6 @@ export function FileCard({
     .filter(Boolean)
     .join(" · ");
 
-  const iconBtn =
-    "cursor-pointer rounded-[6px] p-1 text-muted opacity-0 transition-opacity group-hover:opacity-100";
-
   return (
     <Card className="group relative flex h-full flex-col gap-2 p-3.5 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md" pad={false}>
       <div className="flex items-start gap-2.5">
@@ -64,13 +62,22 @@ export function FileCard({
           {editing ? (
             <div className="flex items-center gap-1">
               <input autoFocus value={name} onChange={(e) => setName(e.target.value)}
+                aria-label={tr("res.rename")}
                 className="min-w-0 flex-1 rounded border border-accent bg-transparent px-1.5 py-1 text-sm text-fg outline-none" />
-              <button disabled={savingName} onClick={() => {
-                if (!onRename || !name.trim()) return;
-                setSavingName(true);
-                Promise.resolve(onRename(name.trim())).then(() => setEditing(false)).finally(() => setSavingName(false));
-              }} className="rounded p-1 text-accent hover:bg-accent-soft disabled:opacity-50"><Check size={13} /></button>
-              <button disabled={savingName} onClick={() => { setName(file.filename); setEditing(false); }} className="rounded p-1 text-muted hover:bg-surface-hover disabled:opacity-50"><X size={13} /></button>
+              <Button iconOnly variant="ghost" tone="accent" size="sm" disabled={savingName} aria-label={tr("res.rename")} title={tr("res.rename")}
+                onClick={() => {
+                  if (!onRename || !name.trim()) return;
+                  setSavingName(true);
+                  Promise.resolve(onRename(name.trim())).then(() => setEditing(false)).finally(() => setSavingName(false));
+                }}
+              >
+                <Check size={13} />
+              </Button>
+              <Button iconOnly variant="ghost" size="sm" disabled={savingName} aria-label={tr("common.cancel")} title={tr("common.cancel")}
+                onClick={() => { setName(file.filename); setEditing(false); }}
+              >
+                <X size={13} />
+              </Button>
             </div>
           ) : (
             <div className="truncate text-sm font-medium text-fg" title={file.filename}>
@@ -79,37 +86,50 @@ export function FileCard({
           )}
           <div className="tnum mt-0.5 text-[11px] text-muted">{stats}</div>
         </div>
-        <div className="flex shrink-0 items-center gap-0.5">
-          {onPreview && <button onClick={onPreview} title={lang === "en" ? "Preview PDF" : "预览 PDF"} className={`${iconBtn} hover:bg-accent-soft hover:text-accent`}><Eye size={14} /></button>}
+        {/* 行内动作：悬停/键盘聚焦显现，触屏（<sm）常显，避免 hover-only */}
+        <div className="flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100 max-sm:opacity-100">
+          {onPreview && (
+            <Button iconOnly variant="ghost" tone="accent" size="sm" onClick={onPreview}
+              title={lang === "en" ? "Preview PDF" : "预览 PDF"}
+              aria-label={lang === "en" ? "Preview PDF" : "预览 PDF"}
+            >
+              <Eye size={14} />
+            </Button>
+          )}
           {onDownload && (
-            <button
+            <Button
+              iconOnly variant="ghost" tone="accent" size="sm"
               onClick={(e) => {
                 e.stopPropagation();
                 onDownload();
               }}
               title={tr("res.download")}
-              className={`${iconBtn} hover:bg-accent-soft hover:text-accent`}
+              aria-label={tr("res.download")}
             >
               <Download size={14} />
-            </button>
+            </Button>
           )}
           {onRename && !editing && (
-            <button onClick={(e) => { e.stopPropagation(); setName(file.filename); setEditing(true); }} title={tr("res.rename")} className={`${iconBtn} hover:bg-accent-soft hover:text-accent`}>
+            <Button iconOnly variant="ghost" tone="accent" size="sm"
+              onClick={(e) => { e.stopPropagation(); setName(file.filename); setEditing(true); }}
+              title={tr("res.rename")} aria-label={tr("res.rename")}
+            >
               <Pencil size={14} />
-            </button>
+            </Button>
           )}
           {moveTargets && onMove && (
             <div className="relative" ref={moveRef}>
-              <button
+              <Button
+                iconOnly variant="ghost" tone="accent" size="sm"
                 onClick={(e) => {
                   e.stopPropagation();
                   setMoveOpen((v) => !v);
                 }}
                 title={tr("res.move")}
-                className={`${iconBtn} hover:bg-accent-soft hover:text-accent`}
+                aria-label={tr("res.move")}
               >
                 <FolderInput size={14} />
-              </button>
+              </Button>
               {moveOpen && (
                 <AnchoredPopover
                   anchorRef={moveRef}
@@ -136,16 +156,17 @@ export function FileCard({
             </div>
           )}
           {onDelete && (
-            <button
+            <Button
+              iconOnly variant="ghost" tone="danger" size="sm"
               onClick={(e) => {
                 e.stopPropagation();
                 onDelete();
               }}
               title={tr("res.delete")}
-              className={`${iconBtn} hover:bg-danger/10 hover:text-danger`}
+              aria-label={tr("res.delete")}
             >
               <Trash2 size={14} />
-            </button>
+            </Button>
           )}
         </div>
       </div>

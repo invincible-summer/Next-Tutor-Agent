@@ -2,9 +2,10 @@
 import { useEffect, useId, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { Button } from "./Button";
-import { MODAL_LAYER, isTopmost, registerOverlay } from "@/lib/assistant/overlay";
+import { MODAL_LAYER, isTopmost, lockBodyScroll, registerOverlay } from "@/lib/assistant/overlay";
 
-/** 居中确认弹窗。Escape 只关最上层覆盖层（OverlayCoordinator，AC-30）。 */
+/** 居中确认弹窗。Escape 只关最上层覆盖层（OverlayCoordinator，AC-30）；
+ *  打开期间锁定背景滚动（Landing 等 body 可滚动页面不再跟着滚）。 */
 export function Modal({
   open,
   onClose,
@@ -28,12 +29,14 @@ export function Modal({
     const unregister = registerOverlay({
       id: overlayId, kind: "modal", layer: MODAL_LAYER, onClose,
     });
+    const unlock = lockBodyScroll();
     const fn = (e: KeyboardEvent) => {
       if (e.key === "Escape" && isTopmost(overlayId)) onClose();
     };
     window.addEventListener("keydown", fn);
     return () => {
       window.removeEventListener("keydown", fn);
+      unlock();
       unregister();
     };
   }, [open, onClose, overlayId]);

@@ -8,9 +8,9 @@ export const STRINGS = {
     "ins.title": "系统洞察",
     "ins.deep.proposalMissing": "未找到该教学提案，可能已被处理或移除。",
     "ins.deep.guidanceMissing": "未找到该生效指导，可能已被撤销。",
-    "ins.subtitle": "M7 评估与改进智能 · 改进顾问层",
+    "ins.subtitle": "评估与改进智能 · 改进顾问层",
     "ins.observer":
-      "M7 是纯观察者：observe → diagnose → propose。批准与部署由人工在此确认，智能层不会自行修改教学行为。",
+      "它是纯观察者：observe → diagnose → propose。批准与部署由人工在此确认，智能层不会自行修改教学行为。",
     "ins.stat.turns": "总教学轮次",
     "ins.stat.evaluated": "已评估轮次",
     "ins.stat.pending": "待审批提案",
@@ -90,7 +90,7 @@ export const STRINGS = {
     "ins.outcome.engaged": "积极参与",
     "ins.error.load": "评估数据加载失败，请确认后端服务已启动。",
     "ins.error.patch": "提案状态更新失败，请重试。",
-    "ins.disabled": "M7 评估智能已被环境开关关闭。",
+    "ins.disabled": "评估智能已被环境开关关闭。",
   },
   en: {
     "ins.stat.strategies": "Teaching strategies",
@@ -98,9 +98,9 @@ export const STRINGS = {
     "ins.title": "Insights",
     "ins.deep.proposalMissing": "Proposal not found; it may have been handled or removed.",
     "ins.deep.guidanceMissing": "Active guidance not found; it may have been revoked.",
-    "ins.subtitle": "M7 Evaluation & Improvement · advisor layer",
+    "ins.subtitle": "Evaluation & Improvement · advisor layer",
     "ins.observer":
-      "M7 is a pure observer: observe → diagnose → propose. Approve & deploy are confirmed by a human here — the agent never changes teaching behavior on its own.",
+      "It is a pure observer: observe → diagnose → propose. Approve & deploy are confirmed by a human here — the agent never changes teaching behavior on its own.",
     "ins.stat.turns": "Total turns",
     "ins.stat.evaluated": "Evaluated turns",
     "ins.stat.pending": "Pending proposals",
@@ -180,6 +180,6 @@ export const STRINGS = {
     "ins.outcome.engaged": "Engaged",
     "ins.error.load": "Failed to load evaluation data — check that the backend is running.",
     "ins.error.patch": "Failed to update proposal status — please retry.",
-    "ins.disabled": "The M7 evaluation intelligence is disabled by an environment switch.",
+    "ins.disabled": "The evaluation intelligence is disabled by an environment switch.",
   },
 } satisfies PageStrings;

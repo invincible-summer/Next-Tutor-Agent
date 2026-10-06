@@ -2,11 +2,12 @@
 import { DEMO_MODE, guardDemoAction } from "@/lib/demo";
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { X, BookOpen, Loader2, AlertTriangle, Pencil, Download, Trash2, Check, X as CloseIcon } from "lucide-react";
+import { X as CloseIcon, BookOpen, Loader2, AlertTriangle, Pencil, Download, Trash2, Check } from "lucide-react";
 import type { TextbookDetail, TextbookGraphPolicy, TextbookListItem } from "@/lib/api";
 import { getTextbook, patchTextbook, patchTextbookVolume, removeTextbookVolume, downloadTextbookVolume, setTextbookGraphPolicy } from "@/lib/api";
 import type { Lang } from "@/lib/i18n";
 import { Badge } from "@/components/ui/Badge";
+import { Drawer } from "@/components/ui/Drawer";
 import { Input, Textarea, FIELD_CLS } from "@/components/ui/Input";
 import { gradeLabel, GRADE_LABELS } from "@/lib/i18n";
 
@@ -121,20 +122,29 @@ export function TextbookDrawer({
   };
 
   return (
-    <div className="fixed inset-0 z-40 flex justify-end" role="dialog" aria-modal="true">
-      <div className="absolute inset-0 bg-black/30" onClick={onClose} />
-      <div className="relative flex h-full w-full max-w-md flex-col bg-surface shadow-xl">
-        <div className="flex items-center justify-between border-b border-border px-4 py-3">
-          <div className="flex min-w-0 items-center gap-2">
-            <BookOpen size={16} className="shrink-0 text-accent" />
-            <h2 className="truncate font-serif text-base font-semibold text-fg">{tr("res.tb.detail.title")}</h2>
-          </div>
-          <button onClick={onClose} className="rounded-[6px] p-1 text-muted hover:bg-surface-hover hover:text-fg">
-            <X size={18} />
-          </button>
-        </div>
-
-        <div className="flex-1 overflow-y-auto px-4 py-4">
+    <Drawer
+      open={open}
+      onClose={onClose}
+      width={448}
+      title={
+        <span className="flex min-w-0 items-center gap-2">
+          <BookOpen size={16} className="shrink-0 text-accent" />
+          <span className="truncate font-serif text-base font-semibold text-fg">{tr("res.tb.detail.title")}</span>
+        </span>
+      }
+      footer={
+        tb && !loading ? (
+          <Link
+            href={`/knowledge?level=${encodeURIComponent(tb.level || "自定义")}${tb.subject ? `&subject=${encodeURIComponent(tb.subject)}` : ""}`}
+            onClick={onClose}
+            className="inline-flex w-full items-center justify-center rounded-[8px] border border-border bg-surface px-3 py-2 text-sm font-medium text-fg transition-colors hover:border-accent hover:text-accent"
+          >
+            {tr("res.tb.view_graph")}
+          </Link>
+        ) : undefined
+      }
+    >
+      <div>
           {loading && <div className="flex justify-center py-8"><Loader2 className="animate-spin text-muted" /></div>}
           {err && !loading && <p className="text-sm text-danger">{err}</p>}
           {tb && !loading && (
@@ -323,20 +333,7 @@ export function TextbookDrawer({
               </div>
             </div>
           )}
-        </div>
-
-        {tb && !loading && (
-          <div className="border-t border-border px-4 py-3">
-            <Link
-              href={`/knowledge?level=${encodeURIComponent(tb.level || "自定义")}${tb.subject ? `&subject=${encodeURIComponent(tb.subject)}` : ""}`}
-              onClick={onClose}
-              className="inline-flex w-full items-center justify-center rounded-[8px] border border-border bg-surface px-3 py-2 text-sm font-medium text-fg transition-colors hover:border-accent hover:text-accent"
-            >
-              {tr("res.tb.view_graph")}
-            </Link>
-          </div>
-        )}
       </div>
-    </div>
+    </Drawer>
   );
 }

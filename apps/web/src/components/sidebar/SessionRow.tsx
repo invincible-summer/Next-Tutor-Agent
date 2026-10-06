@@ -116,7 +116,7 @@ export function SessionRow({
       </div>
       {/* 元信息行：相对时间 + 轮数/quiz/文件徽标 */}
       <div className={cn(
-        "mt-0.5 flex items-center gap-2 text-[0.62rem]",
+        "mt-0.5 flex items-center gap-2 text-[0.6875rem]",
         active ? "text-accent-strong/70" : "text-muted/80",
       )}>
         <span className="tnum">{relTime(session.updated_at, lang)}</span>

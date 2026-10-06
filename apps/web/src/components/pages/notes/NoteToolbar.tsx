@@ -159,14 +159,14 @@ export function NoteToolbar({
   return (
     <div className="border-b border-border bg-surface">
       <div className="flex items-center gap-1.5 px-2 py-2">
-        <button
+        <Button
+          iconOnly variant="ghost" tone="accent" size="sm"
           onClick={onOpenCenter}
           title={tr("tb.center")}
           aria-label={tr("tb.center")}
-          className="shrink-0 cursor-pointer rounded-md p-1.5 text-muted transition-colors hover:bg-surface-hover hover:text-accent"
         >
           <FolderOpen size={15} />
-        </button>
+        </Button>
         <div className="min-w-0 flex-1">
           <InlineEdit
             initialValue={note.title}
@@ -184,42 +184,34 @@ export function NoteToolbar({
         <span className="mx-1 h-4 w-px shrink-0 bg-border" />
         <ViewModeSwitch mode={viewMode} onChange={onViewMode} tr={tr} />
         <span className="mx-1 h-4 w-px shrink-0 bg-border" />
-        <button
+        <Button
+          iconOnly variant="ghost" tone="accent" size="sm"
+          selected={graphOn}
           onClick={onToggleGraph}
           title={tr("graph.title")}
           aria-label={tr("graph.title")}
-          className={cn(
-            "shrink-0 cursor-pointer rounded-md p-1.5 transition-colors",
-            graphOn
-              ? "bg-accent-soft text-accent-strong"
-              : "text-muted hover:bg-surface-hover hover:text-accent",
-          )}
         >
           <Network size={15} />
-        </button>
-        <button
+        </Button>
+        <Button
+          iconOnly variant="ghost" tone="accent" size="sm"
           onClick={onFocus}
           title={tr("tb.focus")}
           aria-label={tr("tb.focus")}
-          className="shrink-0 cursor-pointer rounded-md p-1.5 text-muted transition-colors hover:bg-surface-hover hover:text-accent"
         >
           <Maximize2 size={15} />
-        </button>
+        </Button>
         <span className="mx-1 h-4 w-px shrink-0 bg-border" />
         <div className="relative shrink-0" ref={menuRef}>
-          <button
+          <Button
+            iconOnly variant="ghost" tone="accent" size="sm"
+            selected={menuOpen}
             onClick={() => setMenuOpen((v) => !v)}
             title={tr("tb.settings")}
             aria-label={tr("tb.settings")}
-            className={cn(
-              "cursor-pointer rounded-md p-1.5 transition-colors",
-              menuOpen
-                ? "bg-surface-hover text-accent"
-                : "text-muted hover:bg-surface-hover hover:text-accent",
-            )}
           >
             <Settings2 size={15} />
-          </button>
+          </Button>
           {menuOpen && (
             <div className="motion-pop absolute right-0 top-9 z-40 w-72 space-y-2.5 rounded-[10px] border border-border bg-surface p-3 shadow-lg">
               {/* 文件夹 */}

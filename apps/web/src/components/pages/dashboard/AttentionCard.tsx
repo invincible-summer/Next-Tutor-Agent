@@ -2,11 +2,11 @@ import { useState } from "react";
 import Link from "next/link";
 import { ChevronRight } from "lucide-react";
 import { Card, CardHeader } from "@/components/ui/Card";
-import { Badge, ModuleBadge } from "@/components/ui/Badge";
-import { EmptyState } from "@/components/ui/EmptyState";
+import { Badge } from "@/components/ui/Badge";
 import { et, evalStateTone, type Lang } from "@/lib/evaluation-labels";
 import type { WorkspaceEvaluationListItem } from "@/lib/types-modules";
 import type { Tr } from "./shared";
+import { CompactEmpty } from "./sections";
 
 /** 学习区近况：各工作区的简短评价状态，点击回学习
  * 档案；Dashboard 不另算指标、不展示总体能力等级。 */
@@ -15,24 +15,25 @@ export function AttentionCard({
   deepWorkspaceId,
   lang,
   tr,
+  className,
 }: {
   workspaces: WorkspaceEvaluationListItem[];
   deepWorkspaceId?: string;
   lang: Lang;
   tr: Tr;
+  className?: string;
 }) {
   const [open, setOpen] = useState(false);
   const rows = open || deepWorkspaceId ? workspaces : workspaces.slice(0, 4);
   return (
-    <Card>
+    <Card className={className}>
       <CardHeader
         icon={<ChevronRight size={16} />}
         title={tr("attention.title")}
         desc={tr("attention.desc")}
-        right={<ModuleBadge id="L1" />}
       />
       {workspaces.length === 0 ? (
-        <EmptyState title={tr("empty.attention")} desc={tr("empty.attention.desc")} />
+        <CompactEmpty title={tr("empty.attention")} desc={tr("empty.attention.desc")} />
       ) : (
         <div className="-mx-2 flex flex-col">
           {rows.map((w) => {
@@ -67,7 +68,7 @@ export function AttentionCard({
                       {et(lang, "eval.state.supported_in_scope")} {by.supported_in_scope}
                     </Badge>
                   )}
-                  <span className="text-[0.66rem] text-muted">
+                  <span className="text-[0.6875rem] text-muted">
                     {et(lang, "eval.state.not_observed")} {w.coverage?.not_observed_concepts ?? 0}
                   </span>
                 </div>

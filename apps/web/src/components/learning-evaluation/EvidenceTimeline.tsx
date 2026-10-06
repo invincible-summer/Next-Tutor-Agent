@@ -238,7 +238,7 @@ export function EvidenceDetailDrawer({
               {detail.kind === "dialogue" ? <MessagesSquare size={11} className="mr-1" /> : <FileQuestion size={11} className="mr-1" />}
               {et(lang, `eval.source.${detail.kind || "dialogue"}`)}
             </Badge>
-            <span className="tnum text-[0.66rem] text-muted">{fmtIso(detail.observed_at)}</span>
+            <span className="tnum text-[0.6875rem] text-muted">{fmtIso(detail.observed_at)}</span>
             {detail.availability !== "available" && (
               <Badge tone="muted">{et(lang, `eval.avail.${detail.availability}`)}</Badge>
             )}
@@ -318,7 +318,7 @@ export function EvidenceDetailDrawer({
                       </p>
                       {processes.length > 0 && (
                         <div className="mt-1 flex flex-wrap items-center gap-1.5">
-                          <span className="text-[0.66rem] text-muted">{t.processes}:</span>
+                          <span className="text-[0.6875rem] text-muted">{t.processes}:</span>
                           {processes.map((p) => (
                             <Badge key={p} tone="outline">
                               {et(lang, `eval.process.${p}`)}
@@ -474,7 +474,7 @@ export function EvidenceTimeline({
               <Badge tone={it.kind === "dialogue" ? "info" : "accent"}>
                 {et(lang, `eval.source.${it.kind || "dialogue"}`)}
               </Badge>
-              <span className="tnum text-[0.66rem] text-muted">{fmtIso(it.observed_at)}</span>
+              <span className="tnum text-[0.6875rem] text-muted">{fmtIso(it.observed_at)}</span>
               {it.review_status === "active" && <Badge tone="warning">{t.review}</Badge>}
               {it.availability === "deleted" && <Badge tone="muted">{t.deleted}</Badge>}
             </div>

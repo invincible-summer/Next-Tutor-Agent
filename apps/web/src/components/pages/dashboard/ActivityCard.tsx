@@ -1,10 +1,10 @@
 import { useMemo } from "react";
 import { Activity } from "lucide-react";
 import { Card, CardHeader } from "@/components/ui/Card";
-import { EmptyState } from "@/components/ui/EmptyState";
 import { Sparkline } from "@/components/charts/Sparkline";
 import type { UxActivity } from "@/lib/types";
 import type { Tr } from "./shared";
+import { CompactEmpty } from "./sections";
 
 const SERIES = [
   { key: "answers", tone: "accent", label: "activity.answers" },
@@ -16,9 +16,11 @@ const SERIES = [
 export function ActivityCard({
   activity,
   tr,
+  className,
 }: {
   activity: UxActivity | null;
   tr: Tr;
+  className?: string;
 }) {
   const { rows, total, first, last, empty } = useMemo(() => {
     const days = activity?.days ?? [];
@@ -32,7 +34,7 @@ export function ActivityCard({
   }, [activity]);
 
   return (
-    <Card>
+    <Card className={className}>
       <CardHeader
         icon={<Activity size={16} />}
         title={tr("activity.title")}
@@ -47,7 +49,7 @@ export function ActivityCard({
         }
       />
       {empty ? (
-        <EmptyState title={tr("empty.activity")} desc={tr("empty.activity.desc")} />
+        <CompactEmpty title={tr("empty.activity")} desc={tr("empty.activity.desc")} />
       ) : (
         <div className="flex flex-col gap-2.5">
           {rows.map((r) => (

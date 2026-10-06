@@ -106,17 +106,17 @@ export function AccountCard({ tr, onDirtyChange }: { tr: Tr; onDirtyChange?: (di
       <Modal open={editing} onClose={closeEdit} title={tr("account.edit")}>
           <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
             <label className="block">
-              <span className="mb-1 block text-[0.68rem] text-muted">{tr("account.name")}</span>
+              <span className="mb-1 block text-[0.6875rem] text-muted">{tr("account.name")}</span>
               <Input value={form.name} maxLength={40}
                 onChange={(e) => setForm({ ...form, name: e.target.value })} />
             </label>
             <label className="block">
-              <span className="mb-1 block text-[0.68rem] text-muted">{tr("account.school")}</span>
+              <span className="mb-1 block text-[0.6875rem] text-muted">{tr("account.school")}</span>
               <Input value={form.school} maxLength={80}
                 onChange={(e) => setForm({ ...form, school: e.target.value })} />
             </label>
             <label className="block">
-              <span className="mb-1 block text-[0.68rem] text-muted">
+              <span className="mb-1 block text-[0.6875rem] text-muted">
                 {tr("account.subjects")} · {tr("account.subjects.hint")}
               </span>
               <Input value={form.subjects}

@@ -7,7 +7,7 @@ import { navigationSucceeded, navigationMissing, navigationFailed } from "@/lib/
 // 一样为客户端过滤、切换即时不重拉）；搜索按学段全量穿透，命中后自动把
 // 学科/教材组范围切过去，结果面板 + ‹ i/N › 循环定位（匹配逻辑统一在
 // components/.../search.ts）。
-import { useCallback, useEffect, useMemo, useRef, useState, Suspense } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, Suspense, Fragment } from "react";
 import { ChevronRight, Network, Sparkles } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { useUIStore } from "@/lib/store";
@@ -606,6 +606,62 @@ function KnowledgePageInner() {
     };
   }, [model, drilled, drilledSection, showSectionLayer, sectionCards, directCard, directConcepts, scopeNodes, scopeEdges]);
 
+  // --- 当前范围面包屑：学段 / 学科 / 教材组 / 卷（+ 下钻章节 / 节） ---
+  // 未下钻时筛选段只读回显（当前范围一眼可见）；下钻后逐级可点返回，
+  // 行为与原「仅下钻时显示」的面包屑一致，只是层级前移、常驻。
+  const scopeCrumbs = useMemo(() => {
+    if (!level) return [];
+    const undrillAll = () => {
+      setDrill(null);
+      setSectionDrill(null);
+      clearSearch();
+    };
+    const hasScope = Boolean(textbookId || fileId);
+    const list: { id: string; label: string; onClick?: () => void }[] = [
+      {
+        id: "level",
+        label: tr(`level.${level}`, level),
+        onClick: drilled || hasScope ? clearScopeFilters : undefined,
+      },
+      {
+        id: "subject",
+        label: subject ?? model.chapterById.get(drilled ?? "")?.subject ?? tr("all"),
+        onClick: drilled ? undrillAll : hasScope ? clearScopeFilters : undefined,
+      },
+    ];
+    if (selectedGroup) {
+      list.push({
+        id: "group",
+        label: selectedGroup.name,
+        onClick: drilled ? undrillAll : fileId ? () => pickFile(null) : undefined,
+      });
+      const volume = fileId ? selectedGroup.volumes.find((v) => v.file_id === fileId) : undefined;
+      if (volume) {
+        list.push({ id: "volume", label: volume.name, onClick: drilled ? undrillAll : undefined });
+      }
+    } else if (!drilled) {
+      list.push({ id: "group", label: tr("scopeAll") });
+    }
+    if (drilled) {
+      list.push({
+        id: "chapter",
+        label: model.chapterById.get(drilled)?.name ?? drilled,
+        onClick: showSectionLayer && drilledSection
+          ? () => { setSectionDrill(null); clearSearch(); }
+          : undefined,
+      });
+      if (showSectionLayer && drilledSection) {
+        list.push({
+          id: "section",
+          label: model.sectionById.get(drilledSection)?.name
+            ?? (drilledSection === directCard?.id ? tr("unitDirectConcepts") : drilledSection),
+        });
+      }
+    }
+    return list;
+  }, [level, subject, drilled, drilledSection, showSectionLayer, textbookId, fileId,
+    selectedGroup, model, directCard, tr, clearScopeFilters, pickFile, clearSearch]);
+
   const chapterSubtitle = useCallback(
     (n: KnowledgeNode) => {
       if (n.kind !== "chapter") return undefined;
@@ -695,13 +751,13 @@ function KnowledgePageInner() {
   return (
     <div className="page-in h-full overflow-y-auto p-5">
       <div className="mx-auto flex w-full max-w-[1200px] flex-col gap-3">
-        {/* 页头 */}
-        <div className="flex shrink-0 items-end justify-between gap-3">
-          <div>
+        {/* 页头：窄屏下控制组整行折到标题下方，不再挤压标题 */}
+        <div className="flex shrink-0 flex-wrap items-end justify-between gap-x-3 gap-y-2">
+          <div className="min-w-0">
             <h1 className="font-serif text-xl font-semibold text-fg">{tr("title")}</h1>
             <p className="mt-0.5 text-xs text-muted">{tr("desc")}</p>
           </div>
-          <div className="flex shrink-0 items-center gap-3">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
             <label className="flex items-center gap-1.5 text-xs text-fg-secondary">
               {tr("ws.label")}
               <select
@@ -719,7 +775,7 @@ function KnowledgePageInner() {
               </select>
             </label>
             {graphStatus === "ok" && (
-              <span className="tnum text-xs text-muted">
+              <span className="tnum hidden text-xs text-muted lg:inline">
                 {model.hasChapters && `${model.chapterById.size} ${tr("statChapters")} · `}
                 {sectionTotal > 0 && `${sectionTotal} ${tr("statSections")} · `}
                 {conceptCount} {tr("statConcepts")} · {scopeEdges.length} {tr("statEdges")}
@@ -781,55 +837,35 @@ function KnowledgePageInner() {
         />
         {customErr && <p className="shrink-0 text-xs text-danger">{customErr}</p>}
 
-        {/* 下钻面包屑：学段 / 学科 / 章节名 / 节名（逐级返回；筛选为「全部」时回显章节自身的学段/学科） */}
-        {drilled && (
-          <div data-testid="kg-breadcrumb" className="flex shrink-0 items-center gap-1 text-xs text-muted">
-            <button
-              onClick={clearScopeFilters}
-              className="cursor-pointer rounded px-1 py-0.5 transition-colors hover:text-accent"
-            >
-              {(() => {
-                const lv = level ?? model.chapterById.get(drilled)?.level;
-                return lv ? tr(`level.${lv}`, lv) : tr("all");
-              })()}
-            </button>
-            <ChevronRight size={12} />
-            <button
-              onClick={() => {
-                setDrill(null);
-                setSectionDrill(null);
-                clearSearch();
-              }}
-              className="cursor-pointer rounded px-1 py-0.5 transition-colors hover:text-accent"
-            >
-              {subject ?? model.chapterById.get(drilled)?.subject ?? tr("all")}
-            </button>
-            <ChevronRight size={12} />
-            {showSectionLayer ? (
-              <button
-                onClick={() => {
-                  setSectionDrill(null);
-                  clearSearch();
-                }}
-                className="cursor-pointer rounded px-1 py-0.5 transition-colors hover:text-accent"
-              >
-                {model.chapterById.get(drilled)?.name ?? drilled}
-              </button>
-            ) : (
-              <span className="rounded px-1 py-0.5 font-medium text-fg">
-                {model.chapterById.get(drilled)?.name ?? drilled}
-              </span>
-            )}
-            {showSectionLayer && drilledSection && (
-              <>
-                <ChevronRight size={12} />
-                <span className="rounded px-1 py-0.5 font-medium text-fg">
-                  {model.sectionById.get(drilledSection)?.name
-                    ?? (drilledSection === directCard?.id ? tr("unitDirectConcepts") : drilledSection)}
-                </span>
-              </>
-            )}
-          </div>
+        {/* 当前范围 / 下钻路径：常驻面包屑（学段 / 学科 / 教材组 / 卷 / 章节 / 节）。
+            叶子为当前位置（高亮），其余级可点返回 */}
+        {scopeCrumbs.length > 0 && (
+          <nav
+            data-testid="kg-breadcrumb"
+            aria-label={tr("scopeLabel")}
+            className="flex shrink-0 flex-wrap items-center gap-x-1 gap-y-0.5 text-xs"
+          >
+            {scopeCrumbs.map((c, i) => {
+              const last = i === scopeCrumbs.length - 1;
+              return (
+                <Fragment key={c.id}>
+                  {i > 0 && <ChevronRight size={12} className="shrink-0 text-muted/60" />}
+                  {last || !c.onClick ? (
+                    <span className={last ? "rounded px-1 py-0.5 font-medium text-fg" : "rounded px-1 py-0.5 text-muted"}>
+                      {c.label}
+                    </span>
+                  ) : (
+                    <button
+                      onClick={c.onClick}
+                      className="cursor-pointer rounded px-1 py-0.5 text-muted transition-colors hover:text-accent"
+                    >
+                      {c.label}
+                    </button>
+                  )}
+                </Fragment>
+              );
+            })}
+          </nav>
         )}
 
         {/* 画布区：定高（视口比例 + 最小高度），标签多时整页滚动而非压缩画布 */}

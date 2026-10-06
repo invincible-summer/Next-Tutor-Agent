@@ -63,7 +63,7 @@ export function WorkspaceFiles({
             <Icon size={13} className="flex-shrink-0 text-accent/70" />
             <div className="flex-1 min-w-0">
               <p className="truncate text-xs text-fg-secondary" title={f.filename}>{f.filename}</p>
-              <p className="text-[0.65rem] text-muted/70">{fileMeta(f, tr("ws.chunks.unit"))}</p>
+              <p className="text-[0.6875rem] text-muted/70">{fileMeta(f, tr("ws.chunks.unit"))}</p>
             </div>
             {f.has_original && (
               <button
@@ -89,7 +89,7 @@ export function WorkspaceFiles({
           </div>
         );
       })}
-      {dlError && <p className="px-1.5 pt-1 text-[0.65rem] text-danger">{dlError}</p>}
+      {dlError && <p className="px-1.5 pt-1 text-[0.6875rem] text-danger">{dlError}</p>}
     </div>
   );
 }

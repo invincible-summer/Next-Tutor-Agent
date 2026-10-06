@@ -6,6 +6,7 @@ import { navigationAnchor, navigationSucceeded } from "@/lib/assistant/navigatio
 // 409 冲突处理、来自 AI 面板的远程热更新、编辑/预览/分屏切换、
 // 居中「笔记中心」弹窗（文件夹/标签/列表/新建）、AI 面板折叠/拖宽。
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { listSessions } from "@/lib/api";
 import { FolderOpen, Minimize2, Network, NotebookPen, Sparkles, X } from "lucide-react";
@@ -28,6 +29,7 @@ import {
   consumeAssistantDraft, deleteAssistantDraft, getAssistantDraft,
 } from "@/lib/assistant/api";
 import { useAssistantPage } from "@/lib/assistant/useAssistantPage";
+import { MODAL_LAYER, isTopmost, lockBodyScroll, registerOverlay } from "@/lib/assistant/overlay";
 import { currentRouteEpoch } from "@/lib/assistant/page-context";
 import { DeepLinkQueryReader } from "@/lib/assistant/deep-link";
 import { STRINGS } from "@/app/(workspace)/notes/[[...noteId]]/strings";
@@ -362,6 +364,25 @@ export function NotesView({ noteId }: { noteId?: string }) {
     }
   };
 
+  // 移动端 AI 抽屉：注册进覆盖层栈（Escape 只关最上层）并锁定背景滚动
+  useEffect(() => {
+    if (!aiDrawerOpen) return;
+    const unregister = registerOverlay({
+      id: "notes-ai-drawer", kind: "drawer", layer: MODAL_LAYER,
+      onClose: () => setAiDrawerOpen(false),
+    });
+    const unlock = lockBodyScroll();
+    const fn = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && isTopmost("notes-ai-drawer")) setAiDrawerOpen(false);
+    };
+    window.addEventListener("keydown", fn);
+    return () => {
+      window.removeEventListener("keydown", fn);
+      unlock();
+      unregister();
+    };
+  }, [aiDrawerOpen]);
+
   if (vaultLoading && !vault) return <PageSkeleton />;
   if (vaultError && !vault) {
     return (
@@ -382,28 +403,24 @@ export function NotesView({ noteId }: { noteId?: string }) {
       <div className="flex min-w-0 flex-1 flex-col bg-bg">
         {chromeHeader && (
           <div className="flex h-9 shrink-0 items-center gap-1 border-b border-border bg-surface px-1.5">
-            <button
+            <Button
+              iconOnly variant="ghost" tone="accent" size="sm"
               onClick={() => setCenterOpen(true)}
               title={tr("tb.center")}
               aria-label={tr("tb.center")}
-              className="shrink-0 cursor-pointer rounded-md p-1.5 text-muted transition-colors hover:bg-surface-hover hover:text-accent"
             >
               <FolderOpen size={15} />
-            </button>
+            </Button>
             {currentId && (
-              <button
+              <Button
+                iconOnly variant="ghost" tone="accent" size="sm"
+                selected={showGraph}
                 onClick={() => setShowGraph((v) => !v)}
                 title={tr("graph.title")}
                 aria-label={tr("graph.title")}
-                className={cn(
-                  "cursor-pointer rounded-md p-1.5 transition-colors",
-                  showGraph
-                    ? "bg-accent-soft text-accent-strong"
-                    : "text-muted hover:bg-surface-hover hover:text-accent",
-                )}
               >
                 <Network size={15} />
-              </button>
+              </Button>
             )}
             <div className="flex-1" />
             <PanelToggleButton
@@ -630,7 +647,7 @@ export function NotesView({ noteId }: { noteId?: string }) {
           <Sparkles size={16} />
         </button>
       )}
-      {aiDrawerOpen && (
+      {aiDrawerOpen && typeof document !== "undefined" && createPortal(
         <div className="fixed inset-0 z-50 lg:hidden">
           <div
             className="absolute inset-0 bg-black/30"
@@ -645,7 +662,8 @@ export function NotesView({ noteId }: { noteId?: string }) {
               onClose={() => setAiDrawerOpen(false)}
             />
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
 
       {/* 专注模式：覆盖整个应用的编辑覆盖层，Esc 退出 */}
@@ -659,14 +677,14 @@ export function NotesView({ noteId }: { noteId?: string }) {
             <SaveBadge saveState={saveState} tr={tr} />
             <div className="ml-auto flex items-center gap-1.5">
               <ViewModeSwitch mode={viewMode} onChange={setViewMode} tr={tr} />
-              <button
+              <Button
+                iconOnly variant="ghost" tone="accent" size="sm"
                 onClick={() => setFocusMode(false)}
                 title={tr("tb.focus.exit")}
                 aria-label={tr("tb.focus.exit")}
-                className="cursor-pointer rounded-md p-1.5 text-muted transition-colors hover:bg-surface-hover hover:text-accent"
               >
                 <Minimize2 size={15} />
-              </button>
+              </Button>
             </div>
           </div>
           <div className="flex min-h-0 flex-1">

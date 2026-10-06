@@ -124,13 +124,14 @@ export function SourceSidebar({
             <span className={textCls(active)} title={f.name}>{f.name}</span>
             {exclusive && <Badge tone="accent">{tr("res.exclusive")}</Badge>}
             {!exclusive && (
-              <span className="hidden items-center gap-0.5 group-hover:flex">
+              <span className="hidden items-center gap-0.5 max-md:flex md:group-focus-within:flex md:group-hover:flex">
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
                     setEditingId(f.id);
                   }}
                   title={tr("res.rename")}
+                  aria-label={tr("res.rename")}
                   className="cursor-pointer rounded-[5px] p-1 text-muted hover:bg-surface hover:text-fg"
                 >
                   <Pencil size={12} />
@@ -141,13 +142,14 @@ export function SourceSidebar({
                     onDeleteFolder(f);
                   }}
                   title={tr("res.delete")}
+                  aria-label={tr("res.delete")}
                   className="cursor-pointer rounded-[5px] p-1 text-muted hover:bg-danger/10 hover:text-danger"
                 >
                   <Trash2 size={12} />
                 </button>
               </span>
             )}
-            <Badge tone="muted" className={cn("tnum", !exclusive && "group-hover:hidden")}>
+            <Badge tone="muted" className={cn("tnum", !exclusive && "md:group-focus-within:hidden md:group-hover:hidden")}>
               {f.file_count}
             </Badge>
           </>
@@ -157,13 +159,14 @@ export function SourceSidebar({
   };
 
   return (
-    <aside className="flex w-72 shrink-0 flex-col overflow-y-auto border-r border-border bg-surface">
+    <aside className="flex max-h-[38vh] w-full shrink-0 flex-col overflow-y-auto border-b border-border bg-surface md:max-h-none md:w-72 md:border-b-0 md:border-r">
       <div className="flex flex-col gap-1 p-3">
         <div className="flex items-center justify-between pr-1">
           <GroupLabel>{tr("res.group.library")}</GroupLabel>
           <button
             onClick={() => setCreating(true)}
             title={tr("res.new.folder")}
+            aria-label={tr("res.new.folder")}
             className="cursor-pointer rounded-[6px] p-1 text-muted hover:bg-surface-hover hover:text-accent"
           >
             <FolderPlus size={14} />

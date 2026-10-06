@@ -208,7 +208,7 @@ function TaskRow({
       <Icon size={13} className="mt-1 shrink-0 text-accent" />
       <div className="min-w-0 flex-1">
         <p className={cn("truncate text-[0.8rem] font-medium text-fg", done && "line-through")}>{name}</p>
-        <p className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-[0.66rem] text-muted">
+        <p className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-[0.6875rem] text-muted">
           <Badge tone={task.kind === "review" ? "warning" : "muted"}>
             {tr(`today.kind.${task.kind}`, task.kind)}
           </Badge>
@@ -223,13 +223,13 @@ function TaskRow({
           <span className="tnum">{task.estimate_minutes} {tr("today.min")}</span>
         </p>
         {task.reason && (
-          <p className="mt-0.5 text-[0.66rem] leading-relaxed text-accent-strong/80">{task.reason}</p>
+          <p className="mt-0.5 text-[0.6875rem] leading-relaxed text-accent-strong/80">{task.reason}</p>
         )}
         {task.concept_id && (
           <a
             href={`/knowledge?concept=${encodeURIComponent(task.concept_id)}`}
             title={tr("goal.gap.locate", "在谱系中查看")}
-            className="mt-0.5 inline-flex items-center gap-1 text-[0.66rem] text-muted transition-colors hover:text-accent"
+            className="mt-0.5 inline-flex items-center gap-1 text-[0.6875rem] text-muted transition-colors hover:text-accent"
           >
             <Network size={10} />
             {tr("goal.gap.locate", "在谱系中查看")}
@@ -359,7 +359,7 @@ export function TodayCard({
       type="button"
       onClick={() => { setTab(id); setPage(0); }}
       className={cn(
-        "cursor-pointer rounded-full border px-2.5 py-0.5 text-[0.68rem] transition-colors",
+        "cursor-pointer rounded-full border px-2.5 py-0.5 text-[0.6875rem] transition-colors",
         tab === id
           ? "border-accent bg-accent-soft font-medium text-accent-strong"
           : "border-border text-muted hover:border-accent/50 hover:text-fg-secondary",

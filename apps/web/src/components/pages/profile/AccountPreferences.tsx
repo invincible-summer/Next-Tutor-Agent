@@ -243,12 +243,12 @@ export function AccountPreferences({ tr, section, onDirtyChange }: { tr: Tr; sec
         <p className="text-xs leading-relaxed">{tr("account.delete.desc")}</p>
         <div className="mt-3 space-y-2.5">
           <div>
-            <div className="mb-1 flex items-center gap-2 text-[0.68rem] text-muted"><label htmlFor={passwordId}>{tr("account.delete.password")}</label>{help(tr("account.delete.password"), st("settings.delete.password.hint"))}</div>
+            <div className="mb-1 flex items-center gap-2 text-[0.6875rem] text-muted"><label htmlFor={passwordId}>{tr("account.delete.password")}</label>{help(tr("account.delete.password"), st("settings.delete.password.hint"))}</div>
             <Input id={passwordId} type="password" value={delPwd}
               onChange={(e) => setDelPwd(e.target.value)} autoComplete="current-password" />
           </div>
           <div>
-            <div className="mb-1 flex items-center gap-2 text-[0.68rem] text-muted"><label htmlFor={phraseId}>{tr("account.delete.confirm.hint")}</label>{help(tr("account.delete.confirm.hint"), st("settings.delete.confirm.hint"))}</div>
+            <div className="mb-1 flex items-center gap-2 text-[0.6875rem] text-muted"><label htmlFor={phraseId}>{tr("account.delete.confirm.hint")}</label>{help(tr("account.delete.confirm.hint"), st("settings.delete.confirm.hint"))}</div>
             <Input id={phraseId} value={delPhrase} placeholder={phrase}
               onChange={(e) => setDelPhrase(e.target.value)} />
           </div>

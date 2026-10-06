@@ -21,7 +21,9 @@ export function Card({
       onClick={onClick}
       {...rest}
       className={cn(
-        "rounded-[10px] border border-border bg-surface shadow-sm",
+        // 默认 flat：只用 border 界定；hover/overlay 才升 elevation，
+        // 避免 Dashboard 一类页面的「border + 明显 shadow」同权卡矩阵感。
+        "rounded-[10px] border border-border bg-surface",
         pad && "p-4",
         hover && "cursor-pointer transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md",
         onClick && "cursor-pointer",

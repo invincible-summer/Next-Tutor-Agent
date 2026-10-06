@@ -11,7 +11,7 @@ import type { Lang } from "@/lib/i18n";
 import { dt } from "@/lib/labels";
 import { getTeachingLog } from "@/lib/api-modules";
 import type { LearningPathResp, TeachingLogResp } from "@/lib/types-modules";
-import { Badge, ModuleBadge } from "@/components/ui/Badge";
+import { Badge } from "@/components/ui/Badge";
 import { Card, CardHeader } from "@/components/ui/Card";
 import { EmptyState, ErrorNote, Skeleton } from "@/components/ui/EmptyState";
 import { ModeStepper } from "@/components/pages/plan/ModeStepper";
@@ -92,7 +92,6 @@ export function PlanSection({
     <section className="flex flex-col gap-3">
       <div className="flex items-center gap-2">
         <h2 className="font-serif text-base font-semibold text-fg">{tr("page.title")}</h2>
-        <ModuleBadge id="M3" />
       </div>
 
       {state === "loading" && <Skeleton className="h-28 w-full" />}

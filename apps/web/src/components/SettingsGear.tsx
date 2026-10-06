@@ -195,7 +195,7 @@ export function SettingsGear() {
                 <button
                   key={g.token}
                   onClick={() => setGrade(g.token as Grade)}
-                  className={`rounded-md px-1 py-1.5 text-[0.65rem] transition-colors ${
+                  className={`rounded-md px-1 py-1.5 text-[0.6875rem] transition-colors ${
                     grade === g.token
                       ? "bg-accent-soft/40 text-accent"
                       : "text-fg-secondary hover:bg-surface-hover"

@@ -8,11 +8,11 @@ export const STRINGS = {
     "form.desc.ph": "例如：期末物理上册考到 85 分，重点补力学",
     "lt.suggesting": "建议生成中…",
     "page.title": "学习编排",
-    "page.desc": "M9 学习编排智能 · 多长期目标 → 周计划 → 今日任务 + 间隔复习",
+    "page.desc": "学习编排智能 · 多长期目标 → 周计划 → 今日任务 + 间隔复习",
     "action.dismiss": "关闭",
 
     "goal.title": "长期目标",
-    "goal.desc": "差距分析 · 读学习评价与 M5 图谱",
+    "goal.desc": "差距分析 · 读学习评价与知识图谱",
     "goal.type.exam": "考试目标",
     "goal.type.ability": "能力提升",
     "goal.type.interest": "兴趣探索",
@@ -154,7 +154,7 @@ export const STRINGS = {
     "task.msg.summary": "帮我总结今天学习的内容并指出薄弱点",
 
     "week.title": "周计划",
-    "week.desc": "复用 M3 学习路径推理生成的每周安排",
+    "week.desc": "由学习路径推理生成的每周安排",
     "week.n": "第 %n 周",
     "week.review": "本周复盘",
     "week.review.msg": "帮我做本周学习复盘：本周重点是「%f」，计划任务已完成 %d/%t 个，请总结我的学习表现并指出待巩固的概念。",
@@ -204,7 +204,7 @@ export const STRINGS = {
     "habit.procrastination": "拖延次数",
 
     "empty.title": "还没有长期目标",
-    "empty.desc": "设定一个长期目标，M9 编排智能会为你倒推周计划与每日任务，并用 SM-2 间隔复习对抗遗忘。",
+    "empty.desc": "设定一个长期目标，编排智能会为你倒推周计划与每日任务，并用 SM-2 间隔复习对抗遗忘。",
     "err.load": "学习编排数据加载失败，请确认后端服务已启动。",
   },
   en: {
@@ -215,11 +215,11 @@ export const STRINGS = {
     "orch.deep.taskMissing": "Task not found in today's list; it may be completed or removed.",
     "orch.deep.goalMissing": "Goal not found; it may have been deleted.",
     "page.title": "Orchestration",
-    "page.desc": "M9 learning orchestration · goals → weekly plan → daily tasks + spaced review",
+    "page.desc": "Learning orchestration · goals → weekly plan → daily tasks + spaced review",
     "action.dismiss": "Dismiss",
 
     "goal.title": "Long-term Goal",
-    "goal.desc": "Gap analysis · reads learning evaluation & the M5 graph",
+    "goal.desc": "Gap analysis · reads learning evaluation & the knowledge graph",
     "goal.type.exam": "Exam",
     "goal.type.ability": "Ability",
     "goal.type.interest": "Interest",
@@ -359,7 +359,7 @@ export const STRINGS = {
     "task.msg.summary": "Summarize what I learned today and point out my weak spots",
 
     "week.title": "Weekly Plan",
-    "week.desc": "Weekly schedule derived with the M3 path reasoning engine",
+    "week.desc": "Weekly schedule derived with the path reasoning engine",
     "week.n": "Week %n",
     "week.review": "Weekly review",
     "week.review.msg": "Help me review this week: the focus was \"%f\" and I completed %d/%t planned tasks — summarize my learning performance and point out concepts to consolidate.",
@@ -409,7 +409,7 @@ export const STRINGS = {
     "habit.procrastination": "Procrastinations",
 
     "empty.title": "No long-term goal yet",
-    "empty.desc": "Set a long-term goal and M9 will back-plan weekly plans and daily tasks, with SM-2 spaced review against forgetting.",
+    "empty.desc": "Set a long-term goal and the planner will back-plan weekly plans and daily tasks, with SM-2 spaced review against forgetting.",
     "err.load": "Failed to load orchestration data — is the backend running?",
   },
 } satisfies PageStrings;

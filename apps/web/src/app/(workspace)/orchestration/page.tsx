@@ -13,7 +13,6 @@ import Link from "next/link";
 import { AlertTriangle, MessagesSquare, Play, Plus, Target, X } from "lucide-react";
 import { useUIStore } from "@/lib/store";
 import { makePageT } from "@/lib/i18n-page";
-import { cn } from "@/lib/cn";
 import {
   addOrchSubtask,
   addOrchTask,
@@ -47,8 +46,8 @@ import type {
   OrchPlanSummary,
   OrchWeek,
 } from "@/lib/types-modules";
+import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
-import { ModuleBadge } from "@/components/ui/Badge";
 import { ConfirmModal, Modal } from "@/components/ui/Modal";
 import { EmptyState, ErrorNote, PageSkeleton } from "@/components/ui/EmptyState";
 import { GoalCard, GoalForm } from "@/components/pages/orchestration/GoalCard";
@@ -415,7 +414,6 @@ export default function OrchestrationPage() {
           <div>
             <div className="flex items-center gap-2">
               <h1 className="font-serif text-xl font-semibold text-fg">{tr("page.title")}</h1>
-              <ModuleBadge id="M9" />
             </div>
             <p className="mt-0.5 text-xs text-muted">{tr("page.desc")}</p>
           </div>
@@ -481,23 +479,23 @@ export default function OrchestrationPage() {
                     const firstTask = kickoff.firstTask;
                     const launching = kickoffLaunching === firstTask.id;
                     return (
-                      <button
-                        onClick={guardDemoAction(() => void kickoffLaunch(firstTask))}
+                      <Button
+                        icon={<Play size={14} />}
                         disabled={launching}
-                        className={cn(
-                          "inline-flex h-8.5 cursor-pointer items-center gap-2 rounded-[8px] bg-accent px-3.5 text-sm font-medium text-white shadow-sm transition-colors hover:bg-accent-strong",
-                          launching && "cursor-wait opacity-70",
-                        )}
+                        onClick={guardDemoAction(() => void kickoffLaunch(firstTask))}
                       >
-                        <Play size={14} />
                         {launching ? tr("today.launching") : tr("kickoff.cta")}
-                      </button>
+                      </Button>
                     );
                   })()}
-                  <button onClick={() => setKickoff(null)} aria-label={tr("kickoff.dismiss")}
-                    className="cursor-pointer rounded-[6px] p-1 text-muted transition-colors hover:bg-surface-hover hover:text-fg">
-                    <X size={14} />
-                  </button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    iconOnly
+                    icon={<X size={14} />}
+                    aria-label={tr("kickoff.dismiss")}
+                    onClick={() => setKickoff(null)}
+                  />
                 </div>
               </Card>
             )}

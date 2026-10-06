@@ -196,7 +196,7 @@ function WeekTaskRow({
           {task.title}
         </span>
         {task.subtasks.length > 0 && (
-          <span className="tnum shrink-0 text-[0.66rem] text-muted">
+          <span className="tnum shrink-0 text-[0.6875rem] text-muted">
             {doneCount}/{task.subtasks.length}
           </span>
         )}
@@ -209,7 +209,7 @@ function WeekTaskRow({
           title={tr("week.sub.suggest")}
           aria-label={tr("week.sub.suggest")}
           className={cn(
-            "flex shrink-0 cursor-pointer items-center gap-1 rounded-full border border-accent/40 px-2 py-0.5 text-[0.66rem] text-accent-strong transition-colors hover:bg-accent-soft disabled:opacity-50",
+            "flex shrink-0 cursor-pointer items-center gap-1 rounded-full border border-accent/40 px-2 py-0.5 text-[0.6875rem] text-accent-strong transition-colors hover:bg-accent-soft disabled:opacity-50",
             suggesting && "animate-pulse",
           )}
         >
@@ -225,7 +225,7 @@ function WeekTaskRow({
       {expanded && (
         <div className="mt-2 border-t border-border-light pt-2">
           {suggestFailed && (
-            <p className="mb-1.5 text-[0.68rem] text-warning">{tr("week.sub.suggest.failed")}</p>
+            <p className="mb-1.5 text-[0.6875rem] text-warning">{tr("week.sub.suggest.failed")}</p>
           )}
           {task.subtasks.length === 0 ? (
             <p className="py-1 text-[0.7rem] text-muted">{tr("week.sub.empty")}</p>
@@ -250,7 +250,7 @@ function WeekTaskRow({
                   )}>
                     {s.title}
                   </span>
-                  <span className="tnum shrink-0 text-[0.64rem] text-muted">{s.estimate_minutes}{tr("week.sub.min")}</span>
+                  <span className="tnum shrink-0 text-[0.6875rem] text-muted">{s.estimate_minutes}{tr("week.sub.min")}</span>
                   <button type="button" onClick={() => onDeleteSubtask(s.id)}
                     className="shrink-0 cursor-pointer text-muted transition-colors hover:text-danger"
                     aria-label={tr("today.delete")}>
@@ -446,7 +446,7 @@ export function WeeklyPlanCard({
             <div data-selected-week={week.week_index}>
               <div className="mb-1.5 flex items-center gap-2">
                 {week.week_start > 0 && (
-                  <span className="tnum text-[0.66rem] text-muted">{fmtDate(week.week_start)}</span>
+                  <span className="tnum text-[0.6875rem] text-muted">{fmtDate(week.week_start)}</span>
                 )}
                 {week.focus && <span className="min-w-0 flex-1 truncate text-[0.72rem] font-medium text-fg-secondary">{week.focus}</span>}
                 {week.origin === "user" && <Badge tone="outline">{tr("week.task.custom")}</Badge>}
@@ -454,7 +454,7 @@ export function WeeklyPlanCard({
                   <button
                     type="button"
                     onClick={() => { setFailed(false); setConceptWeek(week.week_index); }}
-                    className="inline-flex shrink-0 cursor-pointer items-center gap-0.5 text-[0.66rem] text-muted transition-colors hover:text-accent"
+                    className="inline-flex shrink-0 cursor-pointer items-center gap-0.5 text-[0.6875rem] text-muted transition-colors hover:text-accent"
                   >
                     <Plus size={11} />
                     {tr("week.concept.add")}

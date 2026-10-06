@@ -385,7 +385,7 @@ export function CreateLessonModal({ open, onClose, workspaceId, workspaceName,
       }
       footer={
         <div className="w-full">
-          <p className="mb-2 text-[0.65rem] leading-relaxed text-muted/80">
+          <p className="mb-2 text-[0.6875rem] leading-relaxed text-muted/80">
             {tr("cls.form.privacy")}
           </p>
           {error && <p className="mb-2 text-[0.72rem] text-danger">{tr("cls.form.error")}：{error}</p>}
@@ -462,7 +462,7 @@ export function CreateLessonModal({ open, onClose, workspaceId, workspaceName,
 
         {/* 来源：教材/章节 + 额外对话材料 */}
         <Field label={tr("cls.form.sources")}>
-          <p className="mb-2 text-[0.68rem] leading-relaxed text-muted">
+          <p className="mb-2 text-[0.6875rem] leading-relaxed text-muted">
             {tr("cls.form.sources.desc")}
           </p>
           {files.length === 0 ? (
@@ -495,13 +495,13 @@ export function CreateLessonModal({ open, onClose, workspaceId, workspaceName,
                         <button
                           type="button"
                           onClick={() => loadOutline(idx)}
-                          className="shrink-0 cursor-pointer text-[0.68rem] text-accent-strong hover:underline"
+                          className="shrink-0 cursor-pointer text-[0.6875rem] text-accent-strong hover:underline"
                         >
                           {f.outlineLoading ? tr("cls.form.sources.chapters.loading") : tr("cls.form.sources.chapters.load")}
                         </button>
                       )}
                       {selected && !f.isTextbook && (
-                        <span className="shrink-0 text-[0.65rem] text-muted">{tr("cls.form.sources.chapters.none")}</span>
+                        <span className="shrink-0 text-[0.6875rem] text-muted">{tr("cls.form.sources.chapters.none")}</span>
                       )}
                     </div>
                     {selected && f.outline && f.outline.length > 0 && (
@@ -514,7 +514,7 @@ export function CreateLessonModal({ open, onClose, workspaceId, workspaceName,
                               type="button"
                               onClick={() => toggleChapter(idx, ch.chapter)}
                               className={cn(
-                                "cursor-pointer rounded-full border px-2 py-0.5 text-[0.65rem] transition-colors",
+                                "cursor-pointer rounded-full border px-2 py-0.5 text-[0.6875rem] transition-colors",
                                 on
                                   ? "border-accent bg-accent-soft/50 text-accent-strong"
                                   : "border-border text-muted hover:border-accent/50 hover:text-fg-secondary",
@@ -532,7 +532,7 @@ export function CreateLessonModal({ open, onClose, workspaceId, workspaceName,
             </div>
           )}
           {selectedChapterCount > 0 && (
-            <p className="mt-1 text-[0.65rem] text-muted">
+            <p className="mt-1 text-[0.6875rem] text-muted">
               {tr("cls.form.sources.chapters.count").replace("%n", String(selectedChapterCount))}
             </p>
           )}
@@ -541,7 +541,7 @@ export function CreateLessonModal({ open, onClose, workspaceId, workspaceName,
         {/* 额外对话材料（默认不选） */}
         {wsSessions.length > 0 && (
           <Field label={tr("cls.form.sources.sessions")}>
-            <p className="mb-1.5 text-[0.68rem] leading-relaxed text-muted">
+            <p className="mb-1.5 text-[0.6875rem] leading-relaxed text-muted">
               {tr("cls.form.sources.sessions.desc")}
             </p>
             <div className="flex max-h-28 flex-col gap-0.5 overflow-y-auto rounded-[8px] border border-border p-1.5">
@@ -574,7 +574,7 @@ export function CreateLessonModal({ open, onClose, workspaceId, workspaceName,
             />
             {tr("cls.form.contentReview.enable")}
           </label>
-          <p id="content-review-hint" className="mt-1 text-[0.68rem] leading-relaxed text-muted">
+          <p id="content-review-hint" className="mt-1 text-[0.6875rem] leading-relaxed text-muted">
             {tr("cls.form.contentReview.hint")}
           </p>
         </Field>
@@ -592,7 +592,7 @@ export function CreateLessonModal({ open, onClose, workspaceId, workspaceName,
                 label: `${d} ${tr("cls.form.duration.unit")}`,
               }))}
             />
-            <p className="mt-1 text-[0.65rem] text-muted/80">{tr("cls.form.duration.hint")}</p>
+            <p className="mt-1 text-[0.6875rem] text-muted/80">{tr("cls.form.duration.hint")}</p>
           </Field>
           <Field label={tr("cls.form.pages")}>
             <Select
@@ -606,7 +606,7 @@ export function CreateLessonModal({ open, onClose, workspaceId, workspaceName,
                 })),
               ]}
             />
-            <p className="mt-1 text-[0.65rem] text-muted/80">{tr("cls.form.pages.hint")}</p>
+            <p className="mt-1 text-[0.6875rem] text-muted/80">{tr("cls.form.pages.hint")}</p>
           </Field>
         </div>
 
@@ -631,7 +631,7 @@ export function CreateLessonModal({ open, onClose, workspaceId, workspaceName,
                   )}
                 >
                   <p className={cn("text-[0.75rem] font-medium", on ? "text-accent-strong" : "text-fg")}>{name}</p>
-                  <p className="mt-0.5 line-clamp-2 text-[0.63rem] leading-snug text-muted">{desc}</p>
+                  <p className="mt-0.5 line-clamp-2 text-[0.6875rem] leading-snug text-muted">{desc}</p>
                 </button>
               );
             })}
@@ -653,7 +653,7 @@ export function CreateLessonModal({ open, onClose, workspaceId, workspaceName,
           <div className="mb-4 flex items-center gap-2 text-sm font-semibold text-fg"><AudioLines size={17} className="text-accent" />{tr("cls.form.step.voice")}</div>
               <Field label={tr("cls.form.voice")}>
                 {ttsUnavailable && (
-                  <p className="mb-1.5 text-[0.68rem] text-muted">
+                  <p className="mb-1.5 text-[0.6875rem] text-muted">
                     {tr("cls.form.voice.unavailable").replace("%s", capabilities?.tts?.reason ?? "")}
                   </p>
                 )}
@@ -693,7 +693,7 @@ export function CreateLessonModal({ open, onClose, workspaceId, workspaceName,
                   )}
                 </div>
                 {voicePreview.failed && (
-                  <p role="alert" className="mt-1.5 text-[0.68rem] text-danger">
+                  <p role="alert" className="mt-1.5 text-[0.6875rem] text-danger">
                     {tr("cls.voice.preview.failed")}
                   </p>
                 )}
@@ -813,7 +813,7 @@ export function CreateLessonModal({ open, onClose, workspaceId, workspaceName,
                   {tr("cls.form.research.desc")}
                 </label>
                 {researchUnavailable && (
-                  <p className="mt-1 text-[0.68rem] text-muted">
+                  <p className="mt-1 text-[0.6875rem] text-muted">
                     {tr("cls.form.research.unavailable").replace("%s", capabilities?.research?.reason ?? "")}
                   </p>
                 )}
@@ -840,11 +840,11 @@ export function CreateLessonModal({ open, onClose, workspaceId, workspaceName,
                     }))}
                   />
                   {imagesUnavailable && images !== "none" && (
-                    <p className="mt-1 text-[0.68rem] text-muted">
+                    <p className="mt-1 text-[0.6875rem] text-muted">
                       {tr("cls.form.image.unavailable").replace("%s", capabilities?.images?.reason ?? "")}
                     </p>
                   )}
-                  <p className="mt-1 text-[0.65rem] text-muted/80">{tr("cls.form.image.hint")}</p>
+                  <p className="mt-1 text-[0.6875rem] text-muted/80">{tr("cls.form.image.hint")}</p>
                 </Field>
                 <Field label={tr("cls.form.checkpoint")}>
                   <Select
@@ -854,7 +854,7 @@ export function CreateLessonModal({ open, onClose, workspaceId, workspaceName,
                       value: v, label: tr(`cls.form.checkpoint.${v}`),
                     }))}
                   />
-                  <p className="mt-1 text-[0.65rem] text-muted/80">{tr("cls.form.checkpoint.hint")}</p>
+                  <p className="mt-1 text-[0.6875rem] text-muted/80">{tr("cls.form.checkpoint.hint")}</p>
                 </Field>
               </div>
 

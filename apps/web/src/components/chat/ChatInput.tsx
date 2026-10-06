@@ -359,8 +359,8 @@ export function ChatInput({ onSend, disabled, onStop, prefill }: {
 
           {/* 工具行 */}
           <div className="flex items-center gap-1.5 px-2 pb-2 pt-1">
-            <div className="flex h-8 items-center gap-1 rounded-full bg-surface-hover px-3">
-              <GraduationCap size={13} className="text-muted" />
+            <div className="flex h-7 items-center gap-1 rounded-full border border-border-light px-2.5">
+              <GraduationCap size={12} className="text-muted/80" />
               <select
                 value={grade}
                 onChange={(e) => {
@@ -375,7 +375,7 @@ export function ChatInput({ onSend, disabled, onStop, prefill }: {
                   }
                 }}
                 disabled={disabled}
-                className="cursor-pointer border-none bg-transparent pr-0.5 text-[0.72rem] text-fg-secondary outline-none"
+                className="cursor-pointer border-none bg-transparent pr-0.5 text-[0.6875rem] text-muted outline-none"
               >
                 {grades.map((g) => <option key={g.token} value={g.token}>{g.label}</option>)}
               </select>
@@ -432,7 +432,7 @@ export function ChatInput({ onSend, disabled, onStop, prefill }: {
           </div>
         </div>
 
-        <p className="mt-1.5 text-center text-[0.65rem] text-muted/70">{tr("chat.input.hint")}</p>
+        <p className="mt-1.5 text-center text-[0.6875rem] text-muted/70">{tr("chat.input.hint")}</p>
       </div>
 
       {libRefOpen && (

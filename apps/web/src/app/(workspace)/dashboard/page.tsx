@@ -180,17 +180,19 @@ export default function DashboardPage() {
               greeting={data.greeting?.greeting ?? null}
               tr={tr}
             />
-            <StatCards workspaces={data.evalWorkspaces} motivation={data.motivation} tr={tr} />
+            {/* 第一阅读区：今日行动优先于纯统计 */}
             <TodayTasksCard plan={data.orchPlan} tasks={data.orchToday} tr={tr} />
-            <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
-              <AttentionCard deepWorkspaceId={deepWs} workspaces={data.evalWorkspaces} lang={lang} tr={tr} />
-              <ActivityCard activity={data.activity} tr={tr} />
+            <StatCards workspaces={data.evalWorkspaces} motivation={data.motivation} tr={tr} />
+            {/* 待解决优先于活动：行动区 3:2 非对称分栏 */}
+            <div className="grid grid-cols-1 gap-4 xl:grid-cols-5">
+              <AttentionCard className="xl:col-span-3" deepWorkspaceId={deepWs} workspaces={data.evalWorkspaces} lang={lang} tr={tr} />
+              <ActivityCard className="xl:col-span-2" activity={data.activity} tr={tr} />
             </div>
-            <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+            {/* 回顾层：扁平分区，标题 + 分隔线组织，视觉退后 */}
+            <div className="grid grid-cols-1 gap-x-8 gap-y-6 border-t border-border-light pt-5 xl:grid-cols-2">
               <RecentCard teachingLog={data.teachingLog} lang={lang} tr={tr} />
-              <div className="flex flex-col gap-4" />
+              <RecentAnswersCard items={data.recentAnswers} tr={tr} />
             </div>
-            <RecentAnswersCard items={data.recentAnswers} tr={tr} />
           </>
         )}
       </div>

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { BookOpenCheck, Goal, Target } from "lucide-react";
 import Link from "next/link";
-import { Badge, ModuleBadge } from "@/components/ui/Badge";
+import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Card, CardHeader } from "@/components/ui/Card";
 import { getOrchPlan } from "@/lib/api-modules";
@@ -146,12 +146,7 @@ export function AcademicCard({ profile, lang, tr }: { profile: StudentProfileDat
     <Card>
       <CardHeader
         icon={<BookOpenCheck size={16} />}
-        title={
-          <span className="inline-flex items-center gap-2">
-            {tr("m2.title")}
-            <ModuleBadge id="M2" />
-          </span>
-        }
+        title={tr("m2.title")}
         desc={tr("m2.desc")}
       />
 

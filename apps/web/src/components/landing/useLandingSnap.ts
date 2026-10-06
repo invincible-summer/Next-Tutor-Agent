@@ -3,17 +3,20 @@ import { useEffect } from "react";
 
 /**
  * 落地页首屏翻页：仅作用于 Hero ↔ 功能区（前两个 [data-landing-snap]
- * 分节）这一条边界。Hero 可见时一次向下的轻滚意图（≥12px）立即平滑翻到
+ * 分节）这一条边界。Hero 可见时一次明确的向下滚动意图（≥40px）平滑翻到
  * 功能区；在功能区顶部附近（25% 视口内）向上滚即翻回 Hero。其余页面
  * 一律原生滚动，不劫持。翻页后短锁定防连跳；锁定中新的明确意图（反向，
  * 或 450ms 后大幅滚动）立即中断动画交还原生滚动（忽略触控板惯性衰减的
- * 同向小增量）。prefers-reduced-motion 下退化为原生滚动。
+ * 同向小增量）。触屏（coarse pointer）、矮视口（<640px）与
+ * prefers-reduced-motion 下退化为原生滚动。
  */
 export function useLandingSnap() {
   useEffect(() => {
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    if (window.matchMedia("(pointer: coarse)").matches) return;
+    if (window.innerHeight < 640) return;
 
-    const WHEEL_TRIGGER = 12; // 一次轻滚即翻页，不做时间窗累积
+    const WHEEL_TRIGGER = 40; // 明确的翻页意图才触发，惯性小增量不劫持
     const LOCK_MS = 700;
     const CANCEL_AFTER_MS = 450;
     const CANCEL_DELTA = 80;

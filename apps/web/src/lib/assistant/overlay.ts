@@ -65,3 +65,34 @@ export function handleEscape(): boolean {
 export function resetOverlayStack(): void {
   _stack.length = 0;
 }
+
+// 背景滚动锁定（GAP-08 配套）：Modal/Drawer 打开时锁住 body 滚动，
+// 引用计数支持嵌套弹层；补偿滚动条宽度避免页面抖动。Landing 页 body
+// 可滚动（未锁定时滚轮会滚动背后页面）；工作区内容器滚动由遮罩拦截。
+let _locks = 0;
+let _savedOverflow = "";
+let _savedPaddingRight = "";
+
+/** 锁定 body 滚动；返回解锁函数（重复调用安全，计数归零才恢复）。 */
+export function lockBodyScroll(): () => void {
+  if (typeof document === "undefined") return () => {};
+  _locks++;
+  if (_locks === 1) {
+    const body = document.body;
+    _savedOverflow = body.style.overflow;
+    _savedPaddingRight = body.style.paddingRight;
+    const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
+    if (scrollbarWidth > 0) body.style.paddingRight = `${scrollbarWidth}px`;
+    body.style.overflow = "hidden";
+  }
+  let released = false;
+  return () => {
+    if (released) return;
+    released = true;
+    _locks = Math.max(0, _locks - 1);
+    if (_locks === 0) {
+      document.body.style.overflow = _savedOverflow;
+      document.body.style.paddingRight = _savedPaddingRight;
+    }
+  };
+}

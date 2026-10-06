@@ -54,7 +54,7 @@ export const STRINGS = {
     "config.starting": "正在出题…",
 
     "disabled.title": "自适应测评未启用",
-    "disabled.desc": "M4 智能层已被环境开关关闭。可继续使用下方的练习会话，或联系管理员开启后重试。",
+    "disabled.desc": "该智能层已被环境开关关闭。可继续使用下方的练习会话，或联系管理员开启后重试。",
 
     "ask.answered": "已答",
     "ask.difficulty": "难度",
@@ -174,7 +174,7 @@ export const STRINGS = {
     "config.starting": "Generating…",
 
     "disabled.title": "Adaptive assessment unavailable",
-    "disabled.desc": "The M4 intelligence layer is turned off by an environment flag. You can still use the practice sessions below, or ask an admin to enable it.",
+    "disabled.desc": "This intelligence layer is turned off by an environment flag. You can still use the practice sessions below, or ask an admin to enable it.",
 
     "ask.answered": "Answered",
     "ask.difficulty": "Difficulty",

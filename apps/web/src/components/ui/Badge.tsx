@@ -51,18 +51,3 @@ export function Badge({
     </span>
   );
 }
-
-/** M1–M8 模块徽章：篆刻式小方章，系统识别符。 */
-export function ModuleBadge({ id, className }: { id: string; className?: string }) {
-  return (
-    <span
-      className={cn(
-        "inline-flex h-[18px] items-center rounded-[4px] border border-accent/40 px-1",
-        "font-mono text-[10px] font-semibold tracking-wide text-accent",
-        className,
-      )}
-    >
-      {id}
-    </span>
-  );
-}

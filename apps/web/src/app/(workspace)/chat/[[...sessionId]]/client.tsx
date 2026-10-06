@@ -11,14 +11,13 @@ import { consumeAssistantDraft, getAssistantDraft } from "@/lib/assistant/api";
 import { useAssistantPage } from "@/lib/assistant/useAssistantPage";
 import { currentRouteEpoch } from "@/lib/assistant/page-context";
 import { focusDeepTarget } from "@/lib/assistant/deep-link";
-import { t, type Lang } from "@/lib/i18n";
+import { t, gradeLabel, type Lang } from "@/lib/i18n";
 import { Sidebar } from "@/components/sidebar/Sidebar";
 import { ChatMessage, StreamingMessage } from "@/components/chat/ChatMessage";
 import { ChatInput } from "@/components/chat/ChatInput";
 import { DEMO_MODE, demoReadOnly } from "@/lib/demo";
 import { VoiceCallLayer, type VoiceTextController } from "@/components/chat/VoiceCallLayer";
 import { ChatMaterialsPanel } from "@/components/chat/ChatMaterialsPanel";
-import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { chatStream, listSessions, loadSession, getUxGreeting, attachLibraryFiles, getWorkspace, voiceStatus } from "@/lib/api";
@@ -343,8 +342,10 @@ function AuthenticatedChatWorkspace() {
   useEffect(() => {
     const el = scrollRef.current;
     if (!el || !pinnedRef.current) return;
+    // 空状态不追底：没有消息时滚动到底是把品牌区裁到视口外
+    if (chat.messages.length === 0 && !chat.streaming) return;
     el.scrollTop = el.scrollHeight;
-  }, [chat.messages, chat.pendingAnswer, chat.pendingThinking, chat.activeTool, chat.toolProgress, chat.retry]);
+  }, [chat.messages, chat.pendingAnswer, chat.pendingThinking, chat.activeTool, chat.toolProgress, chat.retry, chat.streaming]);
 
   const handleSend = useCallback(async (message: string, attachments?: AttachmentMeta[]) => {
     if (DEMO_MODE) { demoReadOnly(); return; }
@@ -652,39 +653,53 @@ function AuthenticatedChatWorkspace() {
         </div>
         <div ref={scrollRef} className="flex-1 overflow-y-auto">
           {isEmpty ? (
-            <div className="flex min-h-full flex-col items-center justify-center px-6 py-10">
-              <div className="page-in mb-5 flex h-14 w-14 items-center justify-center rounded-[14px] bg-accent text-white shadow-md">
-                <GraduationCap className="h-7 w-7" />
+            <div className="flex min-h-full flex-col items-center justify-center px-6 pb-10 pt-24 sm:pt-16">
+              <div className="page-in flex h-9 w-9 items-center justify-center rounded-[10px] bg-accent text-white">
+                <GraduationCap className="h-[18px] w-[18px]" />
               </div>
-              <h1 className="page-in mb-2 font-serif text-[1.6rem] font-bold tracking-tight text-fg" style={{ animationDelay: "90ms" }}>{tr("app.name")}</h1>
-              <p className="page-in mb-6 max-w-md text-center text-[0.85rem] leading-relaxed text-muted" style={{ animationDelay: "90ms" }}>
-                {tr("app.tagline")}
+              <h1 className="page-in mt-3 font-serif text-[1.15rem] font-semibold tracking-tight text-fg" style={{ animationDelay: "90ms" }}>{tr("app.name")}</h1>
+              <p className="page-in mt-1.5 max-w-md text-center text-[0.8rem] leading-relaxed text-muted" style={{ animationDelay: "90ms" }}>
+                {greeting || tr("app.tagline")}
               </p>
-              {greeting && (
-                <p className="page-in mb-6 max-w-md rounded-[10px] border border-accent/20 bg-accent-soft/30 px-4 py-2 text-center text-[0.78rem] leading-relaxed text-accent-strong" style={{ animationDelay: "180ms" }}>
-                  {greeting}
-                </p>
-              )}
-              <div className="page-in grid w-full max-w-xl grid-cols-1 gap-2.5 sm:grid-cols-2" style={{ animationDelay: "270ms" }}>
-                {suggestions.map((s) => (
-                  <Card
-                    key={s.text}
-                    hover
-                    onClick={() => handleSend(s.text)}
-                    className="group px-4 py-3 hover:border-accent/40"
-                  >
-                    <div className="flex items-start gap-3">
-                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[10px] bg-accent-soft text-accent">
-                        <s.icon className="h-4 w-4" />
-                      </div>
-                      <div className="min-w-0">
-                        <p className="text-[0.8rem] font-medium text-fg">{s.text}</p>
-                        <p className="mt-0.5 text-[0.68rem] text-muted/80">{s.desc}</p>
-                      </div>
-                      <ArrowRight className="ml-auto h-3.5 w-3.5 shrink-0 text-muted/30 transition-all group-hover:translate-x-0.5 group-hover:text-accent" />
-                    </div>
-                  </Card>
-                ))}
+              {/* 第一层：当前学习上下文（学段 + 辅导区/资料状态），安静排版 */}
+              {(() => {
+                const materialCount = workspaceSources.length + chat.files.length;
+                return (
+                  <div className="page-in mt-4 flex max-w-md flex-col items-center gap-1 text-center" style={{ animationDelay: "180ms" }}>
+                    <p className="text-[0.75rem] text-fg-secondary">
+                      <span className="font-medium">{gradeLabel(lang, grade)}</span>
+                      <span className="mx-1.5 text-muted/50">·</span>
+                      {materialCount > 0
+                        ? tr("chat.empty.sources").replace("%n", String(materialCount))
+                        : tr("chat.empty.noContext")}
+                    </p>
+                    {materialCount === 0 && (
+                      <p className="text-[0.6875rem] leading-relaxed text-muted/80">
+                        {tr("chat.empty.noContext.hint")}
+                      </p>
+                    )}
+                  </div>
+                );
+              })()}
+              {/* 学习动作列表：行式，点击行为不变 */}
+              <div className="page-in mt-6 w-full max-w-xl" style={{ animationDelay: "270ms" }}>
+                <p className="mb-2 text-[0.6875rem] font-medium text-muted">{tr("chat.empty.try")}</p>
+                <div className="divide-y divide-border-light rounded-[10px] border border-border-light bg-surface/60">
+                  {suggestions.map((s) => (
+                    <button
+                      key={s.text}
+                      onClick={() => handleSend(s.text)}
+                      className="group flex w-full cursor-pointer items-center gap-3 px-3.5 py-2.5 text-left transition-colors first:rounded-t-[10px] last:rounded-b-[10px] hover:bg-surface-hover"
+                    >
+                      <s.icon className="h-4 w-4 shrink-0 text-accent/70 transition-colors group-hover:text-accent" />
+                      <span className="min-w-0 flex-1">
+                        <span className="block text-[0.8rem] text-fg">{s.text}</span>
+                        <span className="mt-0.5 block text-[0.6875rem] text-muted/80">{s.desc}</span>
+                      </span>
+                      <ArrowRight className="h-3.5 w-3.5 shrink-0 text-muted/30 transition-all group-hover:translate-x-0.5 group-hover:text-accent" />
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
           ) : (

@@ -225,7 +225,7 @@ function ClassroomListInner() {
           <h1 className="truncate font-serif text-[1.3rem] font-bold tracking-tight text-fg">
             {wsName ? `${wsName} · ` : ""}{tr("cls.list.title.suffix")}
           </h1>
-          <p className="hidden text-[0.68rem] text-muted sm:block">{tr("cls.list.subtitle")}</p>
+          <p className="hidden text-[0.6875rem] text-muted sm:block">{tr("cls.list.subtitle")}</p>
         </div>
         <div className="ml-auto flex items-center gap-2">
           <ClassroomBreadcrumb
@@ -263,7 +263,7 @@ function ClassroomListInner() {
             {tr(f.key)}
           </button>
         ))}
-        <span className="tnum ml-auto text-[0.68rem] text-muted/70">{total}</span>
+        <span className="tnum ml-auto text-[0.6875rem] text-muted/70">{total}</span>
       </div>
 
       {/* 课程卡列表 */}
@@ -313,7 +313,7 @@ function ClassroomListInner() {
               ) : undefined}
             />
             {!filter && !classroomDisabled && (
-              <p className="mt-1 text-center text-[0.68rem] text-muted/70">
+              <p className="mt-1 text-center text-[0.6875rem] text-muted/70">
                 {tr("cls.empty.general.hint")}
               </p>
             )}

@@ -16,7 +16,7 @@ export function Field({ label, helper, hint, children }: {
         {hint && <Hint text={hint} />}
       </span>
       {children}
-      {helper && <span className="text-[0.65rem] leading-snug text-muted">{helper}</span>}
+      {helper && <span className="text-[0.6875rem] leading-snug text-muted">{helper}</span>}
     </label>
   );
 }

@@ -10,10 +10,10 @@ type Tr = (key: string, fallback?: string) => string;
 function MiniStat({ label, value, unit }: { label: string; value: number; unit?: string }) {
   return (
     <div className="rounded-[8px] bg-bg px-3 py-2">
-      <p className="text-[0.64rem] text-muted">{label}</p>
+      <p className="text-[0.6875rem] text-muted">{label}</p>
       <p className="tnum text-lg font-semibold leading-tight text-fg">
         {value}
-        {unit && <span className="ml-0.5 text-[0.66rem] font-normal text-muted">{unit}</span>}
+        {unit && <span className="ml-0.5 text-[0.6875rem] font-normal text-muted">{unit}</span>}
       </p>
     </div>
   );
@@ -33,7 +33,7 @@ export function HabitCard({ habit, tr }: { habit: Partial<OrchHabit>; tr: Tr }) 
             <span className="flex items-center gap-1 text-accent2">
               <Flame size={15} />
               <span className="tnum text-lg font-semibold">{streak}</span>
-              <span className="text-[0.66rem] text-muted">{tr("habit.days")}</span>
+              <span className="text-[0.6875rem] text-muted">{tr("habit.days")}</span>
             </span>
           ) : undefined
         }

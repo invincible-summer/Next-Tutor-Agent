@@ -80,14 +80,14 @@ export const STRINGS = {
     "m2.evaluation.desc": "有条件的学习主张与证据在「记忆中心 · 学习档案」按学习区展示。",
     "m2.evaluation.open": "查看学习档案",
     "m2.goal.supported": "已支持",
-    "m2.sources": "数据来源：M2 学习事件（风格）· M8 交互反馈推断（讲解风格）· M9 编排（目标镜像）· 统一学习评价（主张与证据，见学习档案）。",
-    "m8.sources": "数据来源：M8 交互智能 —— 由对话交互事件实时推断，写侧仅此一处。",
+    "m2.sources": "数据来源：学习事件（风格）· 交互反馈推断（讲解风格）· 学习编排（目标镜像）· 统一学习评价（主张与证据，见学习档案）。",
+    "m8.sources": "数据来源：交互智能 —— 由对话交互事件实时推断，写侧仅此一处。",
     "moti.sources": "数据来源：五源学习活动按日聚合（作答 / 讲解 / 编排 / 交互 / 评估）。",
-    "src.m8infer": "M8 反馈推断",
-    "src.m9": "M9 编排",
+    "src.m8infer": "反馈推断",
+    "src.m9": "编排",
 
     "m8.title": "交互画像",
-    "m8.desc": "语气、节奏等互动偏好 · 由 M8 交互智能维护",
+    "m8.desc": "语气、节奏等互动偏好 · 由交互智能维护",
     "m8.feedback": "近期反馈",
     "m8.signals": "互动信号",
     "m8.empty": "还没有足够互动数据，多聊几句就能看到你的交互画像了。",
@@ -102,7 +102,7 @@ export const STRINGS = {
 
     "about.title": "系统如何理解我",
     "about.body":
-      "M2 学生模型拥有学术讲解偏好（单真相源），M8 交互智能只拥有语气、节奏等交互维度并只读投影 M2。画像随每次对话自动更新，无需手动填写。",
+      "学生模型拥有学术讲解偏好（单真相源），交互智能只拥有语气、节奏等交互维度并只读投影学生模型。画像随每次对话自动更新，无需手动填写。",
 
     "err.load": "加载失败，请稍后重试",
     "deep.sectionMissing": "未找到该设置分区。",
@@ -189,14 +189,14 @@ export const STRINGS = {
     "m2.evaluation.desc": "Conditional claims and evidence live in Memory · Learning archive, per workspace.",
     "m2.evaluation.open": "Open the archive",
     "m2.goal.supported": "Supported",
-    "m2.sources": "Sources: M2 learning events (style) · M8 feedback inference (explanation style) · M9 orchestration (goal mirror) · unified learning evaluation (claims & evidence, see archive).",
-    "m8.sources": "Source: M8 UX intelligence — inferred live from interaction events; this is its only writer.",
+    "m2.sources": "Sources: learning events (style) · feedback inference (explanation style) · orchestration (goal mirror) · unified learning evaluation (claims & evidence, see archive).",
+    "m8.sources": "Source: UX intelligence — inferred live from interaction events; this is its only writer.",
     "moti.sources": "Source: daily union of five learning-activity ledgers (answers / teaching / orchestration / interaction / evaluation).",
-    "src.m8infer": "inferred from M8 feedback",
-    "src.m9": "M9 orchestration",
+    "src.m8infer": "inferred from feedback",
+    "src.m9": "Orchestration",
 
     "m8.title": "Interaction Profile",
-    "m8.desc": "Tone, pacing and other interaction preferences · maintained by M8 UX intelligence",
+    "m8.desc": "Tone, pacing and other interaction preferences · maintained by UX intelligence",
     "m8.feedback": "Recent feedback",
     "m8.signals": "Engagement signals",
     "m8.empty": "Not enough interactions yet — chat a bit and your interaction profile will appear here.",
@@ -211,7 +211,7 @@ export const STRINGS = {
 
     "about.title": "How the system understands me",
     "about.body":
-      "The M2 student model owns academic explanation preferences (single source of truth); M8 UX intelligence owns only interaction dimensions like tone and pacing, projecting M2 read-only. Your profile updates automatically with every conversation — nothing to fill in.",
+      "The student model owns academic explanation preferences (single source of truth); UX intelligence owns only interaction dimensions like tone and pacing, projecting it read-only. Your profile updates automatically with every conversation — nothing to fill in.",
 
     "err.load": "Failed to load — please try again",
     "deep.sectionMissing": "Settings section not found.",

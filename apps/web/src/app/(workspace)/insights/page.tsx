@@ -9,7 +9,6 @@ import {
 } from "@/lib/assistant/deep-link";
 import { useAssistantPage } from "@/lib/assistant/useAssistantPage";
 import { currentRouteEpoch } from "@/lib/assistant/page-context";
-import { ModuleBadge } from "@/components/ui/Badge";
 import { EmptyState, ErrorNote, PageSkeleton } from "@/components/ui/EmptyState";
 import { getContextBudgetReport, getEvalGuidance, getEvalProposals, getEvalReport, getEvalTraces } from "@/lib/api-modules";
 import { makePageT } from "@/lib/i18n-page";
@@ -136,12 +135,11 @@ export default function InsightsPage() {
       <div className="mx-auto flex max-w-[1200px] flex-col gap-4">
         <header>
           <div className="flex items-center gap-2.5">
-            <h1 className="font-serif text-xl font-bold tracking-tight text-fg">
+            <h1 className="font-serif text-xl font-semibold text-fg">
               {tr("ins.title")}
             </h1>
-            <ModuleBadge id="M7" />
           </div>
-          <p className="mt-1 text-xs text-muted">{tr("ins.subtitle")}</p>
+          <p className="mt-0.5 text-xs text-muted">{tr("ins.subtitle")}</p>
         </header>
 
         <div className="flex items-start gap-2.5 rounded-[10px] border border-accent/30 bg-accent-soft px-3.5 py-2.5">

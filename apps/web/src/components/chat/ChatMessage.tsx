@@ -20,7 +20,7 @@ function AttachmentCard({ filename, charCount }: { filename: string; charCount?:
       <span className="min-w-0">
         <span className="block max-w-40 truncate text-[0.7rem] font-medium text-fg-secondary">{filename}</span>
         {charCount ? (
-          <span className="tnum block text-[0.62rem] text-muted/70">
+          <span className="tnum block text-[0.6875rem] text-muted/70">
             {charCount} {t(lang, "unit.chars")}
           </span>
         ) : null}
@@ -42,10 +42,10 @@ function AssistantActions({ msg, onRegenerate, disabled }: { msg: ChatMessageTyp
     } catch { /* clipboard unavailable */ }
   };
   return (
-    <div className="mt-1.5 flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+    <div className="mt-1.5 flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 [@media(hover:none)]:opacity-100">
       <button
         onClick={copy}
-        className="flex items-center gap-1 rounded-[6px] px-2 py-1 text-[0.68rem] text-muted transition-colors hover:bg-surface-hover hover:text-fg"
+        className="flex items-center gap-1 rounded-[6px] px-2 py-1 text-[0.6875rem] text-muted transition-colors hover:bg-surface-hover hover:text-fg"
       >
         {copied ? <Check className="h-3 w-3 text-success" /> : <Copy className="h-3 w-3" />}
         {copied ? tr("msg.copied") : tr("msg.copy")}
@@ -54,7 +54,7 @@ function AssistantActions({ msg, onRegenerate, disabled }: { msg: ChatMessageTyp
         <button
           onClick={onRegenerate}
           disabled={disabled}
-          className="flex items-center gap-1 rounded-[6px] px-2 py-1 text-[0.68rem] text-muted transition-colors hover:bg-surface-hover hover:text-fg disabled:opacity-40"
+          className="flex items-center gap-1 rounded-[6px] px-2 py-1 text-[0.6875rem] text-muted transition-colors hover:bg-surface-hover hover:text-fg disabled:opacity-40"
         >
           <RefreshCw className="h-3 w-3" />
           {tr("chat.regenerate")}
@@ -95,7 +95,7 @@ function ChatMessageImpl({ msg, isPending, onRegenerate, disabled }: {
 
   return (
     <div className="group px-1 py-3">
-      <div className="border-l-2 border-accent/35 pl-4">
+      <div className="border-l border-accent/30 pl-4">
         {thinking && !isPending && <ThinkingBlock text={thinking} />}
         <div className="py-0.5">
           <Markdown>{msg.content || (isPending ? "…" : "")}</Markdown>
@@ -143,7 +143,7 @@ function StepIndicator({ currentStep, heartbeatElapsed }: { currentStep: string;
       })}
       <span className="ml-1 text-[0.72rem] text-muted">{label}…</span>
       {heartbeatElapsed > 0 && (
-        <span className="tnum text-[0.68rem] text-muted/50">{heartbeatElapsed}s</span>
+        <span className="tnum text-[0.6875rem] text-muted/50">{heartbeatElapsed}s</span>
       )}
     </div>
   );
@@ -164,7 +164,7 @@ export function StreamingMessage({
 
   return (
     <div className="px-1 py-3">
-      <div className="border-l-2 border-accent/35 pl-4">
+      <div className="border-l border-accent/30 pl-4">
         {/* Retry indicator */}
         {retry && retry.visible && (
           <div className="mb-2 flex items-center gap-2 rounded-[8px] bg-warning/10 px-3 py-1.5 text-[0.72rem] text-warning">
@@ -172,9 +172,11 @@ export function StreamingMessage({
             {tr("chat.retrying")} · {tr("chat.retry.attempt").replace("%n", String(retry.attempt))}: {retry.reason}…
           </div>
         )}
-        {/* Step indicator (until the answer starts streaming) */}
-        {currentStep && !answer && (
-          <StepIndicator currentStep={currentStep} heartbeatElapsed={activeTool ? 0 : heartbeatElapsed} />
+        {/* Step indicator：只在没有更丰富的主状态表达时出现——
+            thinking 流式有 ThinkingBlock spinner、工具执行有 ActiveToolCard
+            脉冲点、回答流式有光标；步骤序列不与之叠加抢注意力。 */}
+        {currentStep && !answer && !activeTool && !thinking && (
+          <StepIndicator currentStep={currentStep} heartbeatElapsed={heartbeatElapsed} />
         )}
         {/* Thinking block: 流式期间自动展开，实时预览真实推理（有界） */}
         {thinking && (

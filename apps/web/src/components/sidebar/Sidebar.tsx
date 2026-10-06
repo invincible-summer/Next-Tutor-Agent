@@ -16,6 +16,7 @@ import { notifyWsChanged, useWsSettings, WS_CHANGED_EVENT, SESSION_CHANGED_EVENT
 import { clearDraft, draftKey } from "@/lib/chat-drafts";
 import { useAuthStore } from "@/lib/auth-store";
 import { Button } from "@/components/ui/Button";
+import { Modal } from "@/components/ui/Modal";
 import { WorkspaceItem } from "./WorkspaceItem";
 import { SessionRow } from "./SessionRow";
 import { ConfirmDialog } from "./ConfirmDialog";
@@ -425,7 +426,7 @@ export function Sidebar() {
             );
           })}
           {workspaces.length === 0 && (
-            <p className="px-3 py-1 text-[0.65rem] text-muted/50">{tr("ws.empty")}</p>
+            <p className="px-3 py-1 text-[0.6875rem] text-muted/50">{tr("ws.empty")}</p>
           )}
 
           {workspaces.length === 0 && looseSessions.length === 0 && (
@@ -506,24 +507,28 @@ export function Sidebar() {
         />
       )}
       {sessionArchive && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/30" onClick={() => setSessionArchive(null)} />
-          <div className="relative flex max-h-[calc(100vh-2rem)] w-[min(460px,94vw)] flex-col rounded-[10px] border border-border bg-surface p-5 shadow-lg">
-            <div className="shrink-0 text-sm font-semibold text-fg">{tr("session.delete.title")}</div>
-            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
-              <p className="mt-2 text-sm leading-relaxed text-fg-secondary">{tr("session.archive.info")}</p>
-              {sessionArchive.memoryStatus === "recent" && (
-                <label className="mt-4 flex cursor-pointer items-start gap-2 rounded-[8px] border border-danger/25 bg-danger/5 p-3 text-xs text-fg-secondary">
-                  <input type="checkbox" className="mt-0.5" checked={sessionArchive.forget} onChange={(e) => setSessionArchive({ ...sessionArchive, forget: e.target.checked })} />
-                  <span><b className="text-danger">{tr("session.archive.forget")}</b><br />{tr("session.archive.forget.desc")}</span>
-                </label>
-              )}
-              {sessionArchive.memoryStatus === "compacted" && <p className="mt-3 rounded-[8px] bg-surface-hover p-3 text-xs text-muted">{tr("session.archive.compacted")}</p>}
-              {sessionArchive.memoryStatus === "legacy_unknown" && <p className="mt-3 rounded-[8px] bg-surface-hover p-3 text-xs text-muted">{tr("session.archive.legacyUnknown")}</p>}
-            </div>
-            <div className="mt-5 flex shrink-0 justify-end gap-2"><Button size="sm" variant="ghost" onClick={() => setSessionArchive(null)}>{tr("common.cancel")}</Button><Button size="sm" variant="danger" onClick={() => void confirmSessionArchive()}>{tr("session.archive.confirm")}</Button></div>
-          </div>
-        </div>
+        <Modal
+          open
+          onClose={() => setSessionArchive(null)}
+          title={tr("session.delete.title")}
+          width={460}
+          footer={
+            <>
+              <Button size="sm" variant="ghost" onClick={() => setSessionArchive(null)}>{tr("common.cancel")}</Button>
+              <Button size="sm" variant="danger" onClick={() => void confirmSessionArchive()}>{tr("session.archive.confirm")}</Button>
+            </>
+          }
+        >
+          <p className="leading-relaxed">{tr("session.archive.info")}</p>
+          {sessionArchive.memoryStatus === "recent" && (
+            <label className="mt-4 flex cursor-pointer items-start gap-2 rounded-[8px] border border-danger/25 bg-danger/5 p-3 text-xs text-fg-secondary">
+              <input type="checkbox" className="mt-0.5" checked={sessionArchive.forget} onChange={(e) => setSessionArchive({ ...sessionArchive, forget: e.target.checked })} />
+              <span><b className="text-danger">{tr("session.archive.forget")}</b><br />{tr("session.archive.forget.desc")}</span>
+            </label>
+          )}
+          {sessionArchive.memoryStatus === "compacted" && <p className="mt-3 rounded-[8px] bg-surface-hover p-3 text-xs text-muted">{tr("session.archive.compacted")}</p>}
+          {sessionArchive.memoryStatus === "legacy_unknown" && <p className="mt-3 rounded-[8px] bg-surface-hover p-3 text-xs text-muted">{tr("session.archive.legacyUnknown")}</p>}
+        </Modal>
       )}
     </aside>
   );
