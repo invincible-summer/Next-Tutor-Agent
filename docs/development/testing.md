@@ -84,12 +84,11 @@ CI 使用 Ubuntu 24.04、Python 3.11、Node.js 22，pnpm 版本由根 `package.j
 
 Mobile 使用同一 setup-project 的 `node=true`、`python=false`；不安装 Chromium 或后端 Python 依赖。Doctor 从移动 devDependency 解析，遵守根 lockfile，不通过 npx 临时获取最新版。CNG 在一次性 runner 中运行 `--clean --no-install --platform all`；生成的 android/ios 工程被忽略，最后要求 package.json 与 lockfile 无漂移。
 
-从仓库根目录准备一个独立 Python 环境（以下以 Linux 为例）：
+准备一个独立 Python 环境——标准 venv 固定在 `services/api/.venv`（启动脚本 `start.sh` 按该路径解析解释器；不使用 Conda）（以下以 Linux 为例）：
 
 ```bash
-python3.11 -m venv .venv
-source .venv/bin/activate
-python -m pip install -r services/api/requirements.txt -r services/api/requirements-test.txt
+python3.11 -m venv services/api/.venv
+services/api/.venv/bin/python -m pip install -r services/api/requirements.txt -r services/api/requirements-test.txt
 cd apps/web
 pnpm install --frozen-lockfile
 pnpm exec playwright install --with-deps chromium

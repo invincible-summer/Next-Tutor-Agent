@@ -80,15 +80,15 @@ Next Tutor Agent 把教材、讲解、练习与复习放进同一个学习空间
 git clone https://github.com/invincible-summer/Next-Tutor-Agent.git
 cd Next-Tutor-Agent
 
-python3.11 -m venv .venv
-source .venv/bin/activate
-pip install -r services/api/requirements.txt
+# 后端：标准 venv 固定在 services/api/.venv（启动脚本按此路径解析解释器）
+python3.11 -m venv services/api/.venv
+services/api/.venv/bin/pip install -r services/api/requirements.txt
 
 # 根目录是唯一的 pnpm workspace：安装会同时链接 apps/web、apps/mobile 与 packages/* 共享包
 pnpm install
 ```
 
-如果已使用 Conda，可建立名为 `edu_agent` 的 Python 3.11 环境代替 `.venv`；启动脚本会优先尝试激活该环境。
+后端环境统一使用标准 venv（`python3 -m venv` + pip），不依赖也不自动激活 Conda。语音 sidecar 同样使用 `services/voice/.venv`（由 `deploy/self-hosted/install_voice.sh` 安装）。
 
 ### 2. 配置模型
 

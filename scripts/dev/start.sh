@@ -30,14 +30,14 @@ fi
 unset http_proxy https_proxy all_proxy HTTP_PROXY HTTPS_PROXY ALL_PROXY 2>/dev/null || true
 echo "[start.sh] direct network: proxy environment disabled"
 
-# --- Activate conda if available (WSL2 + Miniconda) ---
-if command -v conda &>/dev/null; then
-    eval "$(conda shell.bash hook)" 2>/dev/null
-    conda activate edu_agent 2>/dev/null || true
-fi
-# Prefer conda python; fall back to system python3
-PYTHON_BIN="python"
-if ! command -v "$PYTHON_BIN" &>/dev/null; then
+# --- Backend interpreter: the standard services/api venv (never conda) ---
+# The locked environment is services/api/.venv; resolving it by absolute path
+# keeps uvicorn, port probing and process_cleanup deterministic regardless of
+# whatever python happens to be first on PATH (conda base included).
+if [ -x "$ROOT/services/api/.venv/bin/python" ]; then
+    PYTHON_BIN="$ROOT/services/api/.venv/bin/python"
+else
+    echo "[start.sh] services/api/.venv missing; system python3 is used for helpers only. Create it with: python3 -m venv services/api/.venv && services/api/.venv/bin/pip install -r services/api/requirements.txt"
     PYTHON_BIN="python3"
 fi
 
