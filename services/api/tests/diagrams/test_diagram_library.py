@@ -61,6 +61,13 @@ class DiagramLibraryTest(StorageSandboxTestCase):
         self.assertEqual(search("不存在的星际仪器"), [])
         self.assertEqual(search(" "), [])
 
+    def test_gallery_fuzzy_tolerates_typos_but_agent_gate_stays_strict(self):
+        gallery = [a.id for a in search("烧被", gallery=True, top_k=20)]
+        self.assertIn("vessel.beaker", gallery)
+        self.assertEqual(search("beakr", gallery=True)[0].id, "vessel.beaker")
+        self.assertEqual(search("烧被"), [])
+        self.assertEqual(search("bk"), [])
+
     def test_runtime_charts_require_real_data_and_compute_geometry(self):
         assets = catalog()[1]
         with self.assertRaisesRegex(DiagramError, "data_required"):

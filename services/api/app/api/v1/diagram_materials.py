@@ -8,6 +8,7 @@ from typing import Literal
 from app.identity.deps import require_user, require_admin, resolve_student_id
 from app.identity.models import User
 from app.diagrams import materials as store
+from app.diagrams.catalog import is_subsequence
 from app.diagrams.material_templates import TEMPLATES
 
 router = APIRouter(prefix="/diagram-materials", tags=["diagram-library"], dependencies=[Depends(require_user)])
@@ -24,6 +25,19 @@ def _invoke(fn, *args, **kwargs):
         raise HTTPException(exc.status, exc.code) from None
 
 
+def _fuzzy_match(query: str, row: dict) -> bool:
+    """Token AND match: each token is a substring of any field, or a
+    subsequence of a title/alias (CJK-friendly fuzzy, e.g. 烧被→烧杯)."""
+    names = [row["title"], *row["aliases"]]
+    haystack = " ".join([row["title"], row["description"], *row["aliases"]]).casefold()
+    return all(
+        token in haystack
+        or any(len(token) >= 2 and is_subsequence(token, name.casefold().replace(" ", ""))
+               for name in names if name)
+        for token in query.split()
+    )
+
+
 @router.get("")
 def listing(scope: Literal["private", "public"] = "private", q: str = Query("", max_length=100),
         page: int = Query(0, ge=0, le=1000), per: int = Query(12, ge=1, le=48),
@@ -33,8 +47,7 @@ def listing(scope: Literal["private", "public"] = "private", q: str = Query("", 
     if subject:
         rows = [row for row in rows if row.get("subject") == subject]
     if q.strip():
-        query = q.strip().casefold()
-        rows = [row for row in rows if query in " ".join([row["title"], row["description"], *row["aliases"]]).casefold()]
+        rows = [row for row in rows if _fuzzy_match(q.strip().casefold(), row)]
     rows.sort(key=lambda row: row["updated_at"], reverse=True)
     return {"total": len(rows), "page": page, "per": per,
         "items": [_public(store.detail(owner, row["id"])) for row in rows[page*per:(page+1)*per]]}

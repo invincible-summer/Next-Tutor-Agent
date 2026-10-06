@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import { ArrowUpRight, Search, X, ZoomIn, ZoomOut } from "lucide-react";
 import { Button } from "@/components/ui/Button";
+import { EmptyState, ErrorNote, Skeleton } from "@/components/ui/EmptyState";
 import { Field, Input, Textarea, FIELD_CLS } from "@/components/ui/Input";
 import { Modal } from "@/components/ui/Modal";
 import { Pager } from "@/components/ui/Pager";
@@ -12,7 +13,8 @@ import { makePageT } from "@/lib/i18n-page";
 import { getDiagramAsset, getDiagramTaxonomy, listDiagramAssets, previewDiagramAsset, type AssetDetail, type AssetPage, type DiagramAsset, type DiagramTaxonomy } from "@/lib/api-diagrams";
 import type { QuestionIllustrationData } from "@/lib/types";
 import { STRINGS } from "./strings";
-import { MaterialLibrary } from "@/components/diagrams/MaterialLibrary";
+import { MaterialLibrary, SUBJECT_LABELS } from "@/components/diagrams/MaterialLibrary";
+import { listMaterials, type DiagramMaterial } from "@/lib/api-diagram-materials";
 
 const PER = 12;
 
@@ -26,6 +28,8 @@ export default function DiagramLibraryPage() {
   const lang = useUIStore(s => s.lang);
   const tr = useMemo(() => makePageT(lang, STRINGS), [lang]);
   const [query, setQuery] = useState("");
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [publicHits, setPublicHits] = useState<{ term: string; items: DiagramMaterial[] } | null>(null);
   const [scope, setScope] = useState<"public" | "private">("public");
   const [category, setCategory] = useState("");
   const [family, setFamily] = useState("");
@@ -62,30 +66,43 @@ export default function DiagramLibraryPage() {
     return () => { clearTimeout(timer); controller.abort(); };
   }, [query, category, family, level, kind, page, retry]);
 
+  // 检索弹窗同时检索公有自建素材，弥补自建区块无搜索框后的可发现性。
+  useEffect(() => {
+    const term = query.trim();
+    if (!term) return;
+    const controller = new AbortController();
+    const timer = setTimeout(() => {
+      void listMaterials("public", term, 0, controller.signal).then(value => {
+        if (!controller.signal.aborted) setPublicHits({ term, items: value.items });
+      }).catch(() => { if (!controller.signal.aborted) setPublicHits({ term, items: [] }); });
+    }, 220);
+    return () => { clearTimeout(timer); controller.abort(); };
+  }, [query]);
+
   const close = useCallback(() => setSelected(null), []);
-  return <div className="h-full overflow-y-auto overscroll-contain" data-testid="diagram-library">
-    <div className="mx-auto w-full max-w-[1440px] space-y-8 px-8 py-8">
-    <header className="relative overflow-hidden rounded-[22px] border border-border bg-surface p-8">
-      <div className="absolute right-8 top-4 select-none text-[160px] font-light leading-none text-accent/5" aria-hidden="true">◯ △</div>
-      <div className="relative max-w-3xl">
-        <p className="mb-3 text-[10px] font-semibold tracking-[.24em] text-accent-strong">{tr("eyebrow")}</p>
-        <div className="flex items-center gap-4"><h1 className="font-serif text-3xl font-semibold tracking-tight text-fg">{tr("title")}</h1>
-          {data && <span className="rounded-full border border-border px-3 py-1 text-xs text-muted">{data.catalog_total} {tr("assets")}</span>}</div>
-        <p className="mt-3 text-lg text-fg-secondary">{tr("subtitle")}</p>
-        <p className="mt-2 text-sm leading-6 text-muted">{tr("intro")}</p>
+  const publicMaterials = publicHits?.term === query.trim() ? publicHits.items : null;
+  const closeSearch = useCallback(() => { setSearchOpen(false); setQuery(""); setPage(0); }, []);
+  const openAsset = useCallback((asset: DiagramAsset) => { setSearchOpen(false); setQuery(""); setPage(0); setSelected(asset); }, []);
+  return <div className="h-full overflow-y-auto overscroll-contain p-6 page-in" data-testid="diagram-library">
+    <div className="mx-auto flex w-full max-w-[1200px] flex-col gap-4">
+    <header className="flex flex-wrap items-start justify-between gap-3">
+      <div>
+        <h1 className="font-serif text-xl font-semibold text-fg">{tr("title")}</h1>
+        <p className="mt-0.5 max-w-2xl text-xs leading-relaxed text-muted">{tr("intro")}</p>
       </div>
+      {data && <span className="rounded-full border border-border px-3 py-1 text-xs text-muted">{data.catalog_total} {tr("assets")}</span>}
     </header>
 
     <div className="flex gap-2" role="group" aria-label={lang === "en" ? "Material scope" : "素材范围"}>
-      <Button variant={scope === "public" ? "primary" : "outline"} onClick={() => setScope("public")}>{lang === "en" ? "Public materials" : "公有素材"}</Button>
-      <Button variant={scope === "private" ? "primary" : "outline"} onClick={() => setScope("private")}>{lang === "en" ? "My materials" : "我的素材"}</Button>
+      <Button variant={scope === "public" ? "primary" : "outline"} onClick={() => { setScope("public"); closeSearch(); }}>{lang === "en" ? "Public materials" : "公有素材"}</Button>
+      <Button variant={scope === "private" ? "primary" : "outline"} onClick={() => { setScope("private"); closeSearch(); }}>{lang === "en" ? "My materials" : "我的素材"}</Button>
     </div>
     <MaterialLibrary scope={scope} />
     {scope === "public" && <>
-    <h2 className="text-lg font-medium text-fg">{lang === "en" ? "Built-in public materials" : "内置公有素材"}</h2>
+    <h2 className="text-sm font-semibold text-fg-secondary">{lang === "en" ? "Built-in public materials" : "内置公有素材"}</h2>
 
-    <section aria-label={tr("filters")} className="space-y-5">
-      <div className="grid grid-cols-3 gap-4 rounded-xl border border-border bg-surface p-5">
+    <section aria-label={tr("filters")} className="space-y-4">
+      <div className="grid grid-cols-1 gap-4 rounded-[12px] border border-border bg-surface p-4 sm:grid-cols-3">
         <Field label={tr("subject")}><select aria-label={tr("subject")} value={category} className={FIELD_CLS} onChange={e => { setCategory(e.target.value); setFamily(""); setPage(0); }}>
           <option value="">{tr("all")}</option>
           {taxonomy?.subject_groups.map(group => <optgroup key={group.id} label={group[lang === "en" ? "en" : "zh"]}>
@@ -99,10 +116,10 @@ export default function DiagramLibraryPage() {
           <option value="">{tr("allKinds")}</option>{taxonomy?.asset_kinds.map(row => <option key={row.id} value={row.id}>{label(row.id)}</option>)}
         </select></Field>
       </div>
-      <div className="flex items-center gap-4">
+      <div className="flex flex-wrap items-center gap-3">
         <div className="relative max-w-xl flex-1"><Search size={16} className="pointer-events-none absolute left-3 top-3 text-muted" />
           <Input aria-label={tr("searchLabel")} placeholder={tr("search")} value={query} className="pl-10"
-            onChange={e => { setQuery(e.target.value); setPage(0); }} /></div>
+            onChange={e => { setQuery(e.target.value); setPage(0); if (e.target.value.trim()) setSearchOpen(true); }} /></div>
         <select aria-label={tr("family")} value={family} className={`${FIELD_CLS} max-w-56`}
           onChange={e => { setFamily(e.target.value); setPage(0); }}><option value="">{tr("allFamilies")}</option>
           {Object.keys(data?.families ?? {}).map(key => <option key={key} value={key}>{label(key)}</option>)}</select>
@@ -110,25 +127,66 @@ export default function DiagramLibraryPage() {
       </div>
     </section>
 
-    <section aria-label={query ? tr("result") : tr("selection")} aria-busy={busy}>
-      {error || taxonomyError ? <div className="rounded-xl border border-border py-16 text-center text-sm text-muted"><p>{tr("failed")}</p>
-        <Button variant="outline" className="mt-4" onClick={() => setRetry(v => v+1)}>{tr("retry")}</Button></div>
-        : !data ? <p role="status" className="py-20 text-center text-sm text-muted">{tr("loading")}</p>
-        : !data.items.length ? <p className="py-20 text-center text-sm text-muted">{tr("empty")}</p>
-        : <div className={`grid grid-cols-2 gap-5 xl:grid-cols-3 2xl:grid-cols-4 ${busy ? "opacity-60" : ""}`}>
+    {!query.trim() && <section aria-label={tr("selection")} aria-busy={busy}>
+      {error || taxonomyError ? <ErrorNote message={tr("failed")} retry={() => setRetry(v => v+1)} />
+        : !data ? <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4"><Skeleton className="h-48" /><Skeleton className="h-48" /><Skeleton className="h-48" /></div>
+        : !data.items.length ? <EmptyState title={tr("empty")} />
+        : <div className={`grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 ${busy ? "opacity-60" : ""}`}>
           {data.items.map(asset => <button key={asset.id} data-testid="diagram-asset" data-asset-id={asset.id}
-            onClick={() => setSelected(asset)} className="group cursor-pointer overflow-hidden rounded-[16px] border border-border bg-surface text-left transition-[border-color,box-shadow,transform] duration-200 hover:-translate-y-0.5 hover:border-accent/40 hover:shadow-lg focus-visible:outline-2 focus-visible:outline-accent motion-reduce:transform-none">
-            <div className="h-48 border-b border-border-light bg-[#fcfcfb]"><Art illustration={asset.illustration} /></div>
-            <div className="px-5 py-4"><div className="mb-2 flex items-center justify-between gap-2"><span className="text-[10px] tracking-wide text-muted">{label(asset.category)} / {label(asset.asset_kind)}</span>
+            onClick={() => setSelected(asset)} className="group cursor-pointer overflow-hidden rounded-[12px] border border-border bg-surface text-left transition-[border-color,box-shadow,transform] duration-200 hover:-translate-y-0.5 hover:border-accent/40 hover:shadow-lg focus-visible:outline-2 focus-visible:outline-accent motion-reduce:transform-none">
+            <div className="h-48 border-b border-border-light bg-surface-sunken"><Art illustration={asset.illustration} /></div>
+            <div className="px-4 py-3"><div className="mb-1.5 flex items-center justify-between gap-2"><span className="text-[11px] tracking-wide text-muted">{label(asset.category)} / {label(asset.asset_kind)}</span>
               <ArrowUpRight size={14} className="text-muted transition-colors group-hover:text-accent-strong" /></div>
               <h2 className="truncate text-sm font-medium text-fg">{lang === "en" ? asset.english : asset.title}</h2>
               <p className="mt-1 truncate text-[11px] text-muted">{lang === "en" ? asset.title : asset.english}</p>
             </div></button>)}
         </div>}
       {data && data.total > PER && <Pager className="mt-6" page={page} total={data.total} per={PER} onPage={setPage} />}
-    </section>
+    </section>}
     <p className="border-t border-border-light pt-5 text-[11px] text-muted">{tr("original")}</p>
     </>}
+    {searchOpen && query.trim() && <Modal open onClose={closeSearch} width={980} ariaLabel={tr("result")}
+      title={<div className="flex items-center justify-between gap-4">
+        <span>{tr("result")}<span className="ml-2 text-xs font-normal text-muted">“{query.trim()}”</span></span>
+        <Button variant="ghost" size="sm" aria-label={tr("close")} icon={<X size={16} />} onClick={closeSearch} /></div>}>
+      <div className="space-y-6">
+        <section aria-label={tr("builtinGroup")}>
+          <div className="mb-3 flex items-baseline justify-between gap-3">
+            <h3 className="text-sm font-semibold text-fg-secondary">{tr("builtinGroup")}</h3>
+            <span className="text-xs text-muted">{data?.total ?? "—"} {tr("assets")}</span>
+          </div>
+          {error || taxonomyError ? <ErrorNote message={tr("failed")} retry={() => setRetry(v => v+1)} />
+            : !data ? <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4"><Skeleton className="h-44" /><Skeleton className="h-44" /><Skeleton className="h-44" /><Skeleton className="h-44" /></div>
+            : !data.items.length ? <EmptyState title={tr("empty")} />
+            : <>
+              <div className={`grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4 ${busy ? "opacity-60" : ""}`}>
+                {data.items.map(asset => <button key={asset.id} data-testid="diagram-asset" data-asset-id={asset.id}
+                  onClick={() => openAsset(asset)} className="group cursor-pointer overflow-hidden rounded-[10px] border border-border bg-surface text-left transition-colors hover:border-accent/40 focus-visible:outline-2 focus-visible:outline-accent">
+                  <div className="h-32 border-b border-border-light bg-surface-sunken"><Art illustration={asset.illustration} /></div>
+                  <div className="px-3 py-2"><span className="text-[10px] tracking-wide text-muted">{label(asset.category)}</span>
+                    <h4 className="mt-0.5 truncate text-xs font-medium text-fg">{lang === "en" ? asset.english : asset.title}</h4></div>
+                </button>)}
+              </div>
+              {data.total > PER && <Pager className="mt-4" page={page} total={data.total} per={PER} onPage={setPage} />}
+            </>}
+        </section>
+        <section aria-label={tr("publicGroup")}>
+          <div className="mb-3 flex items-baseline justify-between gap-3">
+            <h3 className="text-sm font-semibold text-fg-secondary">{tr("publicGroup")}</h3>
+            {publicMaterials && <span className="text-xs text-muted">{publicMaterials.length} {tr("assets")}</span>}
+          </div>
+          {!publicMaterials ? <Skeleton className="h-24" />
+            : !publicMaterials.length ? <p className="text-xs leading-6 text-muted">{tr("publicEmpty")}</p>
+            : <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4">
+              {publicMaterials.map(material => <div key={material.id} className="overflow-hidden rounded-[10px] border border-border bg-surface">
+                <div className="h-24 border-b border-border-light bg-white"><Art illustration={material.illustration} /></div>
+                <div className="px-3 py-2"><span className="text-[10px] text-muted">{SUBJECT_LABELS[material.subject]?.[lang === "en" ? 1 : 0] ?? material.subject} · v{material.revision}</span>
+                  <p className="mt-0.5 truncate text-xs font-medium text-fg">{material.title}</p></div>
+              </div>)}
+            </div>}
+        </section>
+      </div>
+    </Modal>}
     {selected && <AssetExplorer key={selected.id} asset={selected} onClose={close} label={label} />}
     </div>
   </div>;
@@ -175,7 +233,7 @@ function AssetExplorer({ asset, onClose, label }: { asset: DiagramAsset; onClose
   }
   return <Modal open onClose={onClose} width={1080} title={<div className="flex items-center justify-between gap-4"><span>{lang === "en" ? asset.english : asset.title}</span>
     <Button variant="ghost" size="sm" aria-label={tr("close")} icon={<X size={16} />} onClick={onClose} /></div>}>
-    <div className="grid grid-cols-[minmax(0,1fr)_280px] gap-6">
+    <div className="grid grid-cols-1 gap-6 sm:grid-cols-[minmax(0,1fr)_280px]">
       <div className="min-w-0">
         <div className="mb-3 flex items-center justify-between gap-3"><span className="text-xs text-muted">{label(asset.category)} · {label(asset.asset_kind)}</span>
           <div className="flex items-center gap-2"><Button type="button" variant="ghost" size="sm" aria-label={tr("zoomOut")} disabled={zoom <= 1} onClick={() => setZoom(v => Math.max(1, v - .5))} icon={<ZoomOut size={15} />} />

@@ -59,6 +59,21 @@ class MaterialApiTest(StorageSandboxTestCase, unittest.IsolatedAsyncioTestCase):
         self.assertEqual((await self.request("PUT", "/"+pid, body={**self.body, "scope": "public", "base_revision": 1})).status_code, 403)
         self.assertEqual((await self.client.get("/api/v1/diagram-materials")).status_code, 401)
 
+    async def test_listing_fuzzy_search_over_titles_and_aliases(self):
+        await self.request("POST", owner=self.admin, body={
+            **self.body, "title": "锥形瓶支架", "aliases": ["三角瓶"], "scope": "public"})
+        items = (await self.request("GET", "?scope=public&q=三角瓶")).json()["items"]
+        self.assertEqual([row["title"] for row in items], ["锥形瓶支架"])
+        # CJK-friendly fuzzy: dropped characters still match via subsequence.
+        items = (await self.request("GET", "?scope=public&q=锥支")).json()["items"]
+        self.assertEqual([row["title"] for row in items], ["锥形瓶支架"])
+        self.assertEqual((await self.request("GET", "?scope=public&q=量筒")).json()["total"], 0)
+        # Private drafts stay out of public search even with matching terms.
+        await self.create()
+        self.assertEqual((await self.request("GET", "?scope=public&q=合成容器图")).json()["total"], 0)
+        mine = (await self.request("GET", "?scope=private&q=容器图")).json()["items"]
+        self.assertEqual([row["title"] for row in mine], ["合成容器图"])
+
     async def test_revision_conflict_scope_and_frozen_source(self):
         asset = await self.create()
         frozen_svg = asset["svg"]

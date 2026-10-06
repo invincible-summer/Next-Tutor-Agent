@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import { Plus, Upload, X, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/Button";
+import { EmptyState, ErrorNote, Skeleton } from "@/components/ui/EmptyState";
 import { Input, Textarea, Field, FIELD_CLS } from "@/components/ui/Input";
 import { Modal, ConfirmModal } from "@/components/ui/Modal";
 import { Pager } from "@/components/ui/Pager";
@@ -13,7 +14,7 @@ import { deleteMaterial, generateMaterial, getMaterial, listMaterials, materialT
   STATIC_PARAMETERIZATION, type MaterialParameterization, type DiagramMaterial, type MaterialScope, type MaterialSource, type MaterialTemplate } from "@/lib/api-diagram-materials";
 import type { QuestionIllustrationData } from "@/lib/types";
 
-const SUBJECT_LABELS: Record<string, [string, string]> = {
+export const SUBJECT_LABELS: Record<string, [string, string]> = {
   general: ["综合", "General"], physics: ["物理", "Physics"], chemistry: ["化学", "Chemistry"],
   mathematics: ["数学", "Mathematics"], biology: ["生物", "Biology"], geography: ["地理", "Geography"],
   engineering: ["工程", "Engineering"], language: ["语言", "Language"], history: ["历史", "History"],
@@ -36,31 +37,29 @@ export function MaterialLibrary({ scope }: { scope: MaterialScope }) {
 function OwnedLibrary({ scope, admin }: { scope: MaterialScope; admin: boolean }) {
   const en = useUIStore(s => s.lang) === "en";
   const text = (zh: string, eng: string) => en ? eng : zh;
-  const [query, setQuery] = useState("");
   const [page, setPage] = useState(0);
   const [data, setData] = useState<{ items: DiagramMaterial[]; total: number } | null>(null);
-  const [error, setError] = useState("");
+  const [error, setError] = useState(false);
   const [refresh, setRefresh] = useState(0);
   const [editor, setEditor] = useState<DiagramMaterial | "new" | null>(null);
   useEffect(() => {
     const controller = new AbortController();
     const timer = setTimeout(() => {
-      void listMaterials(scope, query, page, controller.signal).then(value => {
-        if (!controller.signal.aborted) { setData(value); setError(""); }
-      }).catch(() => { if (!controller.signal.aborted) setError(en ? "Could not load materials." : "素材加载失败。"); });
+      void listMaterials(scope, "", page, controller.signal).then(value => {
+        if (!controller.signal.aborted) { setData(value); setError(false); }
+      }).catch(() => { if (!controller.signal.aborted) setError(true); });
     }, 180);
     return () => { clearTimeout(timer); controller.abort(); };
-  }, [scope, query, page, refresh, en]);
+  }, [scope, page, refresh]);
   return <section className="space-y-4" data-testid="custom-material-library">
-    <div className="flex items-center justify-between gap-4">
-      <div><h2 className="text-lg font-medium text-fg">{scope === "public" ? text("新增公有素材", "Added public materials") : text("我的素材", "My materials")}</h2>
-        <p className="mt-1 text-xs text-muted">{text("上传 SVG、按模板设计，或生成 AI 草稿后继续修改。保存并启用的素材可用于测评与情景配图。", "Upload an SVG, design from a template, or edit an AI draft. Saved and enabled materials can be used in assessment and scene illustrations.")}</p></div>
-      {(scope === "private" || admin) && <Button icon={<Plus size={15} />} onClick={() => setEditor("new")} data-testid="new-material">{text("新增素材", "New material")}</Button>}
-    </div>
-    <Input aria-label={text("搜索自建素材", "Search custom materials")} placeholder={text("搜索标题、说明或别名", "Search title, description or aliases")} className="max-w-xl" value={query} onChange={e => { setQuery(e.target.value); setPage(0); }} />
-    {error ? <div role="alert" className="text-sm text-danger">{error} <Button variant="outline" onClick={() => setRefresh(v => v+1)}>{text("重试", "Retry")}</Button></div>
-      : !data ? <p className="text-sm text-muted">{text("加载中…", "Loading…")}</p>
-      : !data.total ? <div className="rounded-xl border border-dashed border-border p-7 text-sm text-muted">{text("还没有素材。选择模板、上传 SVG 或填写要求创建第一个素材。", "No materials yet. Start with a template, SVG upload or a description.")}</div>
+    {scope === "private" && <div className="flex justify-end">
+      <Button variant="outline" size="sm" icon={<Plus size={14} />} onClick={() => setEditor("new")} data-testid="new-material">{text("新增素材", "New material")}</Button>
+    </div>}
+    {error ? <ErrorNote message={text("素材加载失败。", "Could not load materials.")} retry={() => setRefresh(v => v + 1)} />
+      : !data ? <div className="grid grid-cols-2 gap-4 xl:grid-cols-3"><Skeleton className="h-64" /><Skeleton className="h-64" /><Skeleton className="h-64" /></div>
+      : !data.total ? <EmptyState icon={scope === "private" ? <Plus size={18} /> : undefined}
+          title={scope === "private" ? text("还没有素材", "No materials yet") : text("还没有公有素材", "No public materials yet")}
+          action={scope === "private" ? <Button variant="outline" size="sm" icon={<Plus size={14} />} onClick={() => setEditor("new")}>{text("创建第一个素材", "Create the first material")}</Button> : undefined} />
       : <div className="grid grid-cols-2 gap-4 xl:grid-cols-3">
         {data.items.map(material => <button key={material.id} className="overflow-hidden rounded-xl border border-border bg-surface text-left hover:border-accent" onClick={() => setEditor(material)} data-testid="custom-material">
           <div className="h-44 bg-white"><Art image={material.illustration} /></div>
@@ -201,7 +200,7 @@ function MaterialEditor({ material, scope: initialScope, admin, onClose, onSaved
       <fieldset disabled={!!busy || !canEdit} className="grid grid-cols-4 gap-3">
         <Field label={text("素材标题", "Material title")}><Input aria-label={text("素材标题", "Material title")} value={title} maxLength={80} onChange={e => setTitle(e.target.value)} /></Field>
         <Field label={text("学科", "Subject")}><select aria-label={text("学科", "Subject")} className={FIELD_CLS} value={subject} onChange={e => setSubject(e.target.value)}>{Object.entries(SUBJECT_LABELS).map(([v, label]) => <option key={v} value={v}>{label[en ? 1 : 0]}</option>)}</select></Field>
-        <Field label={text("范围", "Scope")}><select aria-label={text("范围", "Scope")} className={FIELD_CLS} value={scope} disabled={!!material} onChange={e => setScope(e.target.value as MaterialScope)}><option value="private">{text("我的素材", "My materials")}</option>{(admin || scope === "public") && <option value="public">{text("公有素材", "Public materials")}</option>}</select></Field>
+        <Field label={text("范围", "Scope")}><select aria-label={text("范围", "Scope")} className={FIELD_CLS} value={scope} disabled={!!material} onChange={e => setScope(e.target.value as MaterialScope)}><option value="private">{text("我的素材", "My materials")}</option>{(admin || material?.scope === "public") && <option value="public">{text("公有素材", "Public materials")}</option>}</select></Field>
         <label className="flex items-center gap-2 text-sm"><Input type="checkbox" checked={enabled} onChange={e => setEnabled(e.target.checked)} />{text("用于配图", "Use in illustrations")}</label>
         <Field label={text("说明", "Description")} className="col-span-2"><Input value={description} maxLength={600} onChange={e => setDescription(e.target.value)} /></Field>
         <Field label={text("别名（逗号分隔）", "Aliases (comma separated)")} className="col-span-2"><Input value={aliases} onChange={e => setAliases(e.target.value)} /></Field>

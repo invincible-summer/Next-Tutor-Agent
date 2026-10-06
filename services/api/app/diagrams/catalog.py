@@ -22,6 +22,12 @@ def _normalize(text: str) -> str:
     return re.sub(r"[\s\W_]+", "", unicodedata.normalize("NFKC", text).lower())
 
 
+def is_subsequence(needle: str, haystack: str) -> bool:
+    """True when every character of ``needle`` appears in ``haystack`` in order."""
+    it = iter(haystack)
+    return all(ch in it for ch in needle)
+
+
 def _json_values(value, depth=0, max_abs=10000):
     if depth > 4:
         raise DiagramError("diagram_invalid_parameter")
@@ -405,15 +411,21 @@ def search(name: str, *, features: list[str] | None = None, category="", top_k=3
         names = [_normalize(v) for v in [asset.title, asset.english, *asset.aliases]]
         exact = query in names
         contained = any(len(n) >= 2 and n in query for n in names)
+        threshold = .55 if gallery else .8
         similarity = max(SequenceMatcher(None, query, n).ratio() for n in names) if len(query) >= 4 else 0
         score = hits.get(asset.id, 0)
         # CJK unigram overlap alone is not a useful instrument match.
         lexical = any(len(n) >= 2 and (n in query or query in n) for n in names)
-        if not (exact or contained or lexical or similarity >= .8):
+        # Gallery browsing also forgives short-query typos against names of
+        # comparable length (烧被→烧杯); agent retrieval stays strict.
+        fuzzy = gallery and 2 <= len(query) <= 3 and any(
+            len(n) <= len(query) + 2 and SequenceMatcher(None, query, n).ratio() >= .5
+            for n in names)
+        if not (exact or contained or lexical or fuzzy or similarity >= threshold):
             continue
         category_bonus = int(category in {asset.category, asset.renderer, *asset.subjects}) if category else 0
         level_bonus = int(education_level in asset.education_levels) if education_level else 0
-        ranked.append(((int(exact), int(contained), category_bonus, level_bonus, similarity, score), asset.id, asset))
+        ranked.append(((int(exact), int(contained), int(bool(fuzzy)), category_bonus, level_bonus, similarity, score), asset.id, asset))
     ranked.sort(key=lambda item: (tuple(-v for v in item[0]), item[1]))
     return [item[2] for item in ranked[:max(1, min(len(assets) if gallery else 5, top_k))]]
 

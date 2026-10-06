@@ -76,6 +76,8 @@ test("管理员界面添加公有素材，普通用户可读历史但不能写�
     expect(admin.user.role).toBe("admin");
     await loginViaStorage(page, admin.token ?? admin.access_token);
     await page.goto("/diagram-library?theme=light");
+    // 公有上传只经管理员的私有入口：在「我的素材」新增并在编辑器选择公有范围。
+    await page.getByRole("button", { name: "我的素材", exact: true }).click();
     await page.getByTestId("new-material").click();
     const dialog = page.getByRole("dialog");
     await dialog.getByRole("combobox", { name: "范围", exact: true }).selectOption("public");
@@ -85,6 +87,7 @@ test("管理员界面添加公有素材，普通用户可读历史但不能写�
     await dialog.getByRole("button", { name: "检查并预览", exact: true }).click();
     await dialog.getByRole("button", { name: "保存素材", exact: true }).click();
     await expect(dialog).toHaveCount(0);
+    await page.getByRole("button", { name: "公有素材", exact: true }).click();
     const card = page.getByTestId("custom-material").filter({ hasText: title });
     await card.click();
     await dialog.getByRole("textbox", { name: "素材标题", exact: true }).fill(title + "第二版");
