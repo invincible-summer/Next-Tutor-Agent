@@ -19,7 +19,8 @@ For keys derived inside the handler (e.g. per-account login throttling) use
 the imperative :func:`check_rate`.
 
 State is process-local: multi-worker deployments need one bucket per worker
-(acceptable for the current single-uvicorn deployment; swap for Redis if
+(acceptable for the current single-uvicorn deployment; swap for the RESP
+# cache (Valkey, ADR-0016) if
 workers scale out).
 """
 from __future__ import annotations

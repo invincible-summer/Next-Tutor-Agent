@@ -64,7 +64,7 @@ async def _lifespan(app: FastAPI):
         ensure_admin_account()
 
     # 企业持久化探活：DATABASE_URL 未配置（文件模式）恒 ok；企业模式下
-    # 数据库不可达必须 fail-fast（critical），Redis 不可达仅记录（非事实源）。
+    # 数据库不可达必须 fail-fast（critical）；缓存服务（Valkey）不可达仅记录（非事实源）。
     async def _persistence_probe() -> dict:
         from app.persistence.health import probe_persistence
         return await probe_persistence()

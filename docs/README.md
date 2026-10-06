@@ -29,7 +29,7 @@
 
 - 想了解整个系统：[`architecture/README.md`](./architecture/README.md)
 - 想跑起来开发/测试：[`development/testing.md`](./development/testing.md)
-- 想接入企业持久化（PostgreSQL/Redis/Alembic/数据迁移）：[`development/enterprise-infra.md`](./development/enterprise-infra.md)
+- 想接入企业持久化（PostgreSQL/Valkey/Alembic/数据迁移）：[`development/enterprise-infra.md`](./development/enterprise-infra.md)
 - 想核对当前发布与企业运行边界：[`validation/platform-release.md`](./validation/platform-release.md)
 - 想开发移动端：[`development/mobile-dev.md`](./development/mobile-dev.md)；验收证据见 [`validation/mobile-validation.md`](./validation/mobile-validation.md)
 - 想部署：[`operations/deployment.md`](./operations/deployment.md)

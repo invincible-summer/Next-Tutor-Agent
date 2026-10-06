@@ -147,17 +147,16 @@ optional records are labeled explicitly. No local embedding model is installed
 by these requirements. An optional vector backend library is not a bundled
 embedding model.
 
-**PyMuPDF/MuPDF is dual licensed under GNU AGPL v3 or Artifex commercial terms.**
-It is used directly by the backend PDF pipeline. The project has not selected or
-purchased a commercial grant through this notice. Review and satisfy the selected
-license before redistributing combined application binaries or deploying a
-covered service; merely adding this notice does not satisfy all AGPL conditions.
-Authoritative terms: [PyMuPDF licensing](https://pymupdf.io/licensing), original
-package and MuPDF COPYING entries in the package index.
+The PDF backend runs on pypdf, pdfplumber (pdfminer.six) and pypdfium2
+(ADR-0015) — BSD-3-Clause, MIT and Apache-2.0/BSD-3-Clause respectively.
+pypdfium2 wheels bundle the PDFium library: preserve the bundled PDFium
+license and third-party notice files shipped inside the wheel with any
+redistributed binary. PyMuPDF/MuPDF (AGPL or commercial) is no longer a
+dependency of this project.
 
 Preserve actual wheel/native notices for Pillow, numpy/scipy (including BLAS,
 LAPACK and compiler runtimes where bundled), cryptography/OpenSSL, ONNX Runtime,
-lxml/libxml2/libxslt, PyMuPDF/MuPDF, soundfile/libsndfile, torch/torchaudio and
+lxml/libxml2/libxslt, soundfile/libsndfile, torch/torchaudio and
 other native packages. Top-level package labels do not replace bundled licenses.
 The source archive preserves inspectable installed/artifact notice files; a
 final deployment's OS libraries and different platform wheels require a separate
@@ -174,8 +173,7 @@ obligations must be recorded when distributing a deployment artifact.
 | Reference | License boundary |
 |---|---|
 | PostgreSQL 18 | PostgreSQL License |
-| Redis 8 server | Choice of RSALv2, SSPLv1 or AGPLv3; not the old BSD-only server terms. `redis` Python client remains separately licensed MIT. [Redis official licenses](https://redis.io/legal/licenses/) |
-| MinIO `RELEASE.2024-08-17T01-24-54Z` | AGPL-3.0; exact upstream LICENSE preserved. Optional infrastructure reference, not application source relicensing. |
+| Valkey `9.1.2` | BSD-3-Clause (upstream COPYING archived). Cache/rate-limit/lease tier only — never business truth. The `redis` Python client (MIT) speaks RESP to it. [Valkey](https://valkey.io/) |
 | Temporal server `1.25.2`, OpenTelemetry Collector Contrib `0.116.0` | MIT / Apache-2.0 at the referenced upstream level, plus final image contents |
 | Tesseract, nginx, Node.js, Python, Docker/container tooling | Independently installed/deployment-selected tools and runtimes; preserve actual distribution terms. Tesseract Apache-2.0 and nginx BSD reference texts are archived; no installed tool version is asserted. |
 

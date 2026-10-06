@@ -1,6 +1,6 @@
 """课堂生成 worker：lifespan 后台 asyncio supervisor（D04）。
 
-单 uvicorn worker，不引入 Redis/Celery。持久化 job 是事实源；内存队列只
+单 uvicorn worker，不引入 Redis/Celery 式中间件。持久化 job 是事实源；内存队列只
 是加速（pending 登记表 + 唤醒事件）。调度约束：
   - 全局并发 ``CLASSROOM_JOB_CONCURRENCY``（默认 2），每 owner 同时 1；
   - owner 轮转挑任务防饥饿；同 lesson 串行；

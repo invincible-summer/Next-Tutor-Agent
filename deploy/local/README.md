@@ -6,14 +6,14 @@
 
 | 文件 | 职责 |
 |------|------|
-| `docker-compose.yml` | PostgreSQL 18 / Redis 8 / MinIO（127.0.0.1 绑定；`temporal`、`otel-collector` 分 profile） |
+| `docker-compose.yml` | PostgreSQL 18 / Valkey 9.1（127.0.0.1 绑定；`temporal`、`otel-collector` 分 profile） |
 | `otel-collector.yaml` | 本地 OTLP collector 配置（接收 4317/4318，debug 导出） |
 
 ## 使用
 
 ```bash
 cd deploy/local
-docker compose up -d postgres redis              # 企业持久化（DATABASE_URL/REDIS_URL）
+docker compose up -d postgres valkey              # 企业持久化（DATABASE_URL/CACHE_URL）
 docker compose --profile temporal up -d          # + Temporal（durable workflow，ADR-0013）
 docker compose --profile observability up -d     # + 本地 OTel sink（OTEL_* env）
 ```
@@ -21,14 +21,13 @@ docker compose --profile observability up -d     # + 本地 OTel sink（OTEL_* e
 对应环境变量（本地回环默认口令，见 compose 注释）：
 
 - `DATABASE_URL=postgresql://tutor:tutor@localhost:5432/tutor`（建表走 `alembic upgrade head`，应用启动不做 DDL）
-- `REDIS_URL=redis://localhost:6379/0`（可选；未设/不可达时回退进程内原语）
+- `CACHE_URL=redis://localhost:6379/0`（可选 RESP 地址，服务端为 Valkey；未设/不可达时回退进程内原语；旧 `REDIS_URL` 保留一版兼容）
 - `TEMPORAL_ADDRESS=127.0.0.1:7233`（可选；未设时各域保持进程内任务执行，设了则需另跑 worker 进程：`cd services/api && python worker.py`，见 [docs/development/enterprise-infra.md](../../docs/development/enterprise-infra.md)）
 - `OTEL_TRACES_ENABLED=1` + `OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317`
-- MinIO（9000/9001）：远程对象存储适配落地前的 wiring 演练位
 
 ## Does not own
 
 - 应用进程与构建 → 仓库根 `./start.sh`、`scripts/dev/start.sh`。
 - 单机/self-host systemd/nginx 模板 → [../self-hosted/](../self-hosted/README.md)。
 - 部署文档与生产检查清单 → [docs/operations/deployment.md](../../docs/operations/deployment.md)（权威）。
-- CI 中的真 PostgreSQL/Redis 集成测试 → `.github/workflows/ci.yml` 的 `backend-enterprise` job（与本地同一迁移集）。
+- CI 中的真 PostgreSQL/Valkey 集成测试 → `.github/workflows/ci.yml` 的 `backend-enterprise` job（与本地同一迁移集）。

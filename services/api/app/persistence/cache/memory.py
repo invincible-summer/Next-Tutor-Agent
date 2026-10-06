@@ -1,4 +1,4 @@
-"""In-process CachePrimitives (default when REDIS_URL is unset).
+"""In-process CachePrimitives (default when CACHE_URL is unset).
 
 Single-instance correct: one asyncio lock guards the window counters, values
 carry monotonic expiry checked lazily. This is the fallback semantics the

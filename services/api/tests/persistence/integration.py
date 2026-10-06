@@ -1,12 +1,12 @@
-"""Integration lane: real PostgreSQL + Redis behind TEST_DATABASE_URL / TEST_REDIS_URL.
+"""Integration lane: real PostgreSQL + Valkey behind TEST_DATABASE_URL / TEST_CACHE_URL.
 
 The module intentionally carries no ``test_`` prefix: neither unittest
 discovery nor the CI shard planner collects it into the ordinary matrix,
 because these suites talk to external services. They run in the CI
-``backend-enterprise`` job (postgres + redis service containers) and locally::
+``backend-enterprise`` job (postgres + valkey service containers) and locally::
 
     TEST_DATABASE_URL=postgresql://u:p@localhost:5432/tutor_test \\
-    TEST_REDIS_URL=redis://localhost:6379/0 \\
+    TEST_CACHE_URL=redis://localhost:6379/0 \\
         python -m tests tests.persistence.integration
 
 The enterprise acceptance criterion lives here: two independent engines (two
@@ -28,7 +28,7 @@ from tests.support.storage_sandbox import StorageSandboxTestCase
 
 _SERVICES_API = Path(__file__).resolve().parents[2]
 _DATABASE_URL = os.getenv("TEST_DATABASE_URL", "").strip()
-_REDIS_URL = os.getenv("TEST_REDIS_URL", "").strip()
+_CACHE_URL = os.getenv("TEST_CACHE_URL", "").strip()
 
 
 @unittest.skipUnless(_DATABASE_URL,
@@ -45,13 +45,13 @@ class _PostgresIntegrationTestCase(StorageSandboxTestCase,
 
         cls._saved_env = {
             "DATABASE_URL": os.environ.get("DATABASE_URL"),
-            "REDIS_URL": os.environ.get("REDIS_URL"),
+            "CACHE_URL": os.environ.get("CACHE_URL"),
         }
         os.environ["DATABASE_URL"] = _DATABASE_URL
-        if _REDIS_URL:
+        if _CACHE_URL:
             # Session-active short cache then goes through the shared tier,
             # matching the enterprise deployment shape.
-            os.environ["REDIS_URL"] = _REDIS_URL
+            os.environ["CACHE_URL"] = _CACHE_URL
         cwd = os.getcwd()
         os.chdir(_SERVICES_API)
         try:
@@ -286,18 +286,18 @@ class TwoInstanceTenantConcurrencyTest(_PostgresIntegrationTestCase):
         self.assertEqual(ctx.exception.code, "session_revoked")
 
 
-@unittest.skipUnless(_REDIS_URL,
-                     "TEST_REDIS_URL not set — Redis integration skipped")
+@unittest.skipUnless(_CACHE_URL,
+                     "TEST_CACHE_URL not set — cache server integration skipped")
 class RedisPrimitivesIntegrationTest(StorageSandboxTestCase,
                                      unittest.IsolatedAsyncioTestCase):
     """Shared-tier primitives on real Redis: cross-instance visibility."""
 
     async def asyncSetUp(self) -> None:
         await super().asyncSetUp()
-        from app.persistence.cache.redis import RedisCachePrimitives
+        from app.persistence.cache.resp import RespCachePrimitives
 
-        self.cache_a = RedisCachePrimitives(_REDIS_URL)
-        self.cache_b = RedisCachePrimitives(_REDIS_URL)
+        self.cache_a = RespCachePrimitives(_CACHE_URL)
+        self.cache_b = RespCachePrimitives(_CACHE_URL)
 
     async def asyncTearDown(self) -> None:
         for attr in ("cache_a", "cache_b"):
@@ -341,9 +341,9 @@ class RedisPrimitivesIntegrationTest(StorageSandboxTestCase,
 
     async def test_unreachable_redis_degrades_to_in_process_primitives(
             self) -> None:
-        from app.persistence.cache.redis import RedisCachePrimitives
+        from app.persistence.cache.resp import RespCachePrimitives
 
-        broken = RedisCachePrimitives("redis://127.0.0.1:1/0")
+        broken = RespCachePrimitives("redis://127.0.0.1:1/0")
         try:
             result = await broken.rate_limit("integration_broken", 1, 60.0)
             self.assertTrue(result.allowed)

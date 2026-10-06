@@ -1,10 +1,11 @@
-"""Redis-backed CachePrimitives.
+"""RESP-server-backed CachePrimitives (Valkey; redis-py client).
 
 One lazy client per process; every operation falls back to the in-process
-implementation when Redis errors (connection loss, timeouts). Redis is not a
-source of truth — a Redis outage may over-admit rate limits or duplicate
-work briefly, it must never fail requests. Failures log at most once per
-backoff window to avoid log storms.
+implementation when the server errors (connection loss, timeouts). The cache
+tier is not a source of truth — an outage may over-admit rate limits or
+duplicate work briefly, it must never fail requests. Failures log at most
+once per backoff window to avoid log storms. ADR-0016: the server is Valkey
+(BSD-3); the Python client stays redis-py (MIT) over RESP.
 """
 from __future__ import annotations
 
@@ -23,8 +24,8 @@ _NAMESPACE = "nt:"
 _LOG_BACKOFF_SECONDS = 60.0
 
 
-class _RedisLease(LeaseHandle):
-    def __init__(self, key: str, token: str, owner: "RedisCachePrimitives") -> None:
+class _RespLease(LeaseHandle):
+    def __init__(self, key: str, token: str, owner: "RespCachePrimitives") -> None:
         super().__init__(key)
         self._token = token
         self._owner = owner
@@ -46,7 +47,7 @@ class _RedisLease(LeaseHandle):
                       self.key, exc_info=True)
 
 
-class RedisCachePrimitives:
+class RespCachePrimitives:
     def __init__(self, url: str) -> None:
         self._url = url
         self._client_obj = None
@@ -65,7 +66,7 @@ class RedisCachePrimitives:
         now = time.monotonic()
         if now - self._last_error_log > _LOG_BACKOFF_SECONDS:
             self._last_error_log = now
-            log.warning("redis %s failed (%s): degrading to in-process "
+            log.warning("cache server %s failed (%s): degrading to in-process "
                         "primitives", scope, type(exc).__name__)
 
     async def rate_limit(self, key: str, limit: int,
@@ -128,7 +129,7 @@ class RedisCachePrimitives:
             if not won:
                 yield None
                 return
-            handle = _RedisLease(lkey, token, self)
+            handle = _RespLease(lkey, token, self)
         except Exception as exc:
             self._note_failure("lease", exc)
             async with self._fallback.lease(key, ttl_seconds) as fallback_handle:

@@ -37,7 +37,7 @@
 在 Python 3.11 隔离环境按 `services/api/requirements*.txt` 运行 pip-audit，本次结果为 60 个解析包、0 个已报告漏洞；这不覆盖可选 voice 环境、容器系统包或最终 native binary。PyJWT 已升至 2.15.1，Pydantic/PyMuPDF 采用兼容补丁版本。
 
 1. Android/iOS 签名 release binary、Maestro 核心/全量、手机/平板/折叠/iPad 窗口、系统大字体、VoiceOver/TalkBack、Reduce Motion 与录音/后台播放/锁屏。
-2. 全业务企业存储迁移、旧 runtime 导入核对、账户删除/retention 等价、对象 orphan、备份恢复及 Redis 丢失演练。
+2. 全业务企业存储迁移、旧 runtime 导入核对、账户删除/retention 等价、对象 orphan、备份恢复及缓存层（Valkey）丢失演练。
 3. 组织 tenant 的高价值 API/worker 越权回归、MASVS/MASTG 与 ASVS5 安全审查、SCA/secret/SAST 证据。
 4. 与同一受保护 commit/tag 绑定的 signed artifact、binary SBOM、商店隐私表、分阶段 rollout、签名 OTA 与 rollback 演练。
 

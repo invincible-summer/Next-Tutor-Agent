@@ -92,29 +92,31 @@ class MemoryCachePrimitivesTest(StorageSandboxTestCase,
 
 
 class CacheFactoryTest(StorageSandboxTestCase):
-    def test_unconfigured_redis_yields_memory_primitives(self) -> None:
+    def test_unconfigured_cache_yields_memory_primitives(self) -> None:
         import os
 
         from app.persistence.cache import (MemoryCachePrimitives,
                                            get_cache_primitives,
-                                           redis_configured)
-        from app.persistence.cache.base import redis_url
+                                           cache_configured)
+        from app.persistence.cache.base import cache_url
 
-        saved = os.environ.pop("REDIS_URL", None)
+        saved_redis = os.environ.pop("REDIS_URL", None)
+        saved_cache = os.environ.pop("CACHE_URL", None)
         try:
-            self.assertIsNone(redis_url())
-            self.assertFalse(redis_configured())
+            self.assertIsNone(cache_url())
+            self.assertFalse(cache_configured())
             self.assertIsInstance(get_cache_primitives(),
                                   MemoryCachePrimitives)
         finally:
-            if saved is not None:
-                os.environ["REDIS_URL"] = saved
+            for key, value in (("REDIS_URL", saved_redis), ("CACHE_URL", saved_cache)):
+                if value is not None:
+                    os.environ[key] = value
 
-    async def test_redis_primitives_fall_back_on_connection_error(self) -> None:
-        from app.persistence.cache.redis import RedisCachePrimitives
+    async def test_resp_primitives_fall_back_on_connection_error(self) -> None:
+        from app.persistence.cache.resp import RespCachePrimitives
 
         # Point at a closed local port: every op must degrade, never raise.
-        cache = RedisCachePrimitives("redis://127.0.0.1:1/15")
+        cache = RespCachePrimitives("redis://127.0.0.1:1/15")
         await cache.set("k", b"v", ttl_seconds=10)
         self.assertEqual(await cache.get("k"), b"v")  # via memory fallback
         async with cache.lease("l", ttl_seconds=10) as handle:

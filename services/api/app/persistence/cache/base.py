@@ -9,20 +9,43 @@ across backends.
 """
 from __future__ import annotations
 
+import logging
 import os
 from dataclasses import dataclass
 from typing import AsyncIterator, Protocol, runtime_checkable
 
-_REDIS_URL_ENV = "REDIS_URL"
+_CACHE_URL_ENV = "CACHE_URL"
+_REDIS_URL_ENV = "REDIS_URL"  # deprecated alias, one-version compat (ADR-0016)
+
+_log = logging.getLogger(__name__)
+_alias_warned = False
 
 
-def redis_url() -> str | None:
+def cache_url() -> str | None:
+    """Preferred CACHE_URL; falls back to the deprecated REDIS_URL alias."""
+    global _alias_warned
+    raw = os.getenv(_CACHE_URL_ENV, "").strip()
+    if raw:
+        return raw
     raw = os.getenv(_REDIS_URL_ENV, "").strip()
+    if raw and not _alias_warned:
+        _alias_warned = True
+        _log.warning("REDIS_URL is deprecated; rename to CACHE_URL "
+                     "(the cache server is Valkey since ADR-0016)")
     return raw or None
 
 
+def cache_configured() -> bool:
+    return cache_url() is not None
+
+
+# Compat shims for the pre-ADR-0016 names (internal callers/tests).
+def redis_url() -> str | None:
+    return cache_url()
+
+
 def redis_configured() -> bool:
-    return redis_url() is not None
+    return cache_configured()
 
 
 @dataclass(slots=True)
@@ -67,16 +90,16 @@ class CachePrimitives(Protocol):
 
 
 def get_cache_primitives() -> CachePrimitives:
-    """REDIS_URL set -> Redis backend (memory fallback on failure).
+    """CACHE_URL set -> RESP server backend (Valkey; memory fallback on failure).
 
-    Redis client errors never propagate to callers: the primitives fall back
-    to the in-process implementation and log once, because losing the shared
-    tier must degrade coordination, not availability.
+    Server errors never propagate to callers: the primitives fall back to the
+    in-process implementation and log once, because losing the shared tier
+    must degrade coordination, not availability.
     """
-    if not redis_configured():
+    if not cache_configured():
         from .memory import MemoryCachePrimitives
 
         return MemoryCachePrimitives()
-    from .redis import RedisCachePrimitives
+    from .resp import RespCachePrimitives
 
-    return RedisCachePrimitives(redis_url() or "")
+    return RespCachePrimitives(cache_url() or "")

@@ -106,71 +106,25 @@
   {
     "ecosystem": "upstream",
     "evidence": "pinned-upstream-reference;not-installed",
-    "homepage": "https://raw.githubusercontent.com/ArtifexSoftware/mupdf/1.28.2/COPYING",
-    "license_expression": "AGPL-3.0-or-later OR LicenseRef-Artifex-Commercial",
+    "homepage": "https://valkey.io/",
+    "license_expression": "BSD-3-Clause",
     "license_files": [
       {
-        "bytes": 34520,
-        "origin": "https://raw.githubusercontent.com/ArtifexSoftware/mupdf/1.28.2/COPYING",
-        "path": "licenses/texts/57c8ff33c9c0cfc3ef00e650a1cc910d7ee479a8bc509f6c9209a7c2a11399d6.txt",
-        "sha256": "57c8ff33c9c0cfc3ef00e650a1cc910d7ee479a8bc509f6c9209a7c2a11399d6"
+        "bytes": 3091,
+        "origin": "https://raw.githubusercontent.com/valkey-io/valkey/9.1.2/COPYING",
+        "path": "licenses/texts/1a53dca3aab7ce048e91e77b03c0342f3075366f9dede8ec4d19d0cf229e12a0.txt",
+        "sha256": "1a53dca3aab7ce048e91e77b03c0342f3075366f9dede8ec4d19d0cf229e12a0"
       }
     ],
-    "name": "MuPDF",
-    "purl": "pkg:generic/MuPDF@1.28.2",
+    "name": "Valkey",
+    "purl": "pkg:generic/Valkey@9.1.2-image-tag",
     "scopes": [
-      "python-native:PyMuPDF"
+      "deployment-reference:valkey"
     ],
     "sources": [
-      "https://raw.githubusercontent.com/ArtifexSoftware/mupdf/1.28.2/COPYING"
+      "https://raw.githubusercontent.com/valkey-io/valkey/9.1.2/COPYING"
     ],
-    "version": "1.28.2"
-  },
-  {
-    "ecosystem": "upstream",
-    "evidence": "pinned-upstream-reference;not-installed",
-    "homepage": "https://raw.githubusercontent.com/redis/redis/8.0.0/LICENSE.txt",
-    "license_expression": "LicenseRef-RSALv2 OR SSPL-1.0 OR AGPL-3.0-only",
-    "license_files": [
-      {
-        "bytes": 70227,
-        "origin": "https://raw.githubusercontent.com/redis/redis/8.0.0/LICENSE.txt",
-        "path": "licenses/texts/a797fcaa899397001f7fb0097583db96bcc74e9b0606c95435d8a293d84cdb76.txt",
-        "sha256": "a797fcaa899397001f7fb0097583db96bcc74e9b0606c95435d8a293d84cdb76"
-      }
-    ],
-    "name": "Redis",
-    "purl": "pkg:generic/Redis@8-image-tag",
-    "scopes": [
-      "deployment-reference:redis"
-    ],
-    "sources": [
-      "https://raw.githubusercontent.com/redis/redis/8.0.0/LICENSE.txt"
-    ],
-    "version": "8-image-tag"
-  },
-  {
-    "ecosystem": "upstream",
-    "evidence": "pinned-upstream-reference;not-installed",
-    "homepage": "https://raw.githubusercontent.com/minio/minio/RELEASE.2024-08-17T01-24-54Z/LICENSE",
-    "license_expression": "AGPL-3.0-only",
-    "license_files": [
-      {
-        "bytes": 34523,
-        "origin": "https://raw.githubusercontent.com/minio/minio/RELEASE.2024-08-17T01-24-54Z/LICENSE",
-        "path": "licenses/texts/0d96a4ff68ad6d4b6f1f30f713b18d5184912ba8dd389f86aa7710db079abcb0.txt",
-        "sha256": "0d96a4ff68ad6d4b6f1f30f713b18d5184912ba8dd389f86aa7710db079abcb0"
-      }
-    ],
-    "name": "MinIO",
-    "purl": "pkg:generic/MinIO@RELEASE.2024-08-17T01-24-54Z",
-    "scopes": [
-      "deployment-reference:minio"
-    ],
-    "sources": [
-      "https://raw.githubusercontent.com/minio/minio/RELEASE.2024-08-17T01-24-54Z/LICENSE"
-    ],
-    "version": "RELEASE.2024-08-17T01-24-54Z"
+    "version": "9.1.2-image-tag"
   },
   {
     "ecosystem": "upstream",

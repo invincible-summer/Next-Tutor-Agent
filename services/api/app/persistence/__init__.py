@@ -1,4 +1,4 @@
-"""Enterprise persistence layer (PostgreSQL / object store / Redis).
+"""Enterprise persistence layer (PostgreSQL / object store / RESP cache).
 
 Activated by environment configuration only:
 

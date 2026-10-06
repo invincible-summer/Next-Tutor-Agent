@@ -36,9 +36,11 @@ class _EnterpriseAuthTestCase(StorageSandboxTestCase):
 
         self._db_path = self.root / "enterprise.db"
         self._saved_env: dict[str, str | None] = {
-            key: os.environ.get(key) for key in ("DATABASE_URL", "REDIS_URL")}
+            key: os.environ.get(key)
+            for key in ("DATABASE_URL", "CACHE_URL", "REDIS_URL")}
         os.environ["DATABASE_URL"] = (
             f"sqlite+aiosqlite:///{self._db_path.as_posix()}")
+        os.environ.pop("CACHE_URL", None)
         os.environ.pop("REDIS_URL", None)
         try:
             self._migrate_and_client()

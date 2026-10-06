@@ -145,11 +145,11 @@ jobs:
           fi
 
   backend-enterprise:
-    # Real PostgreSQL + Redis integration lane (tests/persistence/integration.py):
+    # Real PostgreSQL + Valkey integration lane (tests/persistence/integration.py):
     # two engines concurrently sharing one tenant (Stage B acceptance), atomic
     # refresh rotation, cross-instance cache/lease primitives. Skipped unless
     # the enterprise paths above changed.
-    name: Backend enterprise (PostgreSQL + Redis)
+    name: Backend enterprise (PostgreSQL + Valkey)
     needs: [repo-hygiene, enterprise-paths]
     if: needs.enterprise-paths.outputs.changed == 'true'
     runs-on: ubuntu-24.04
@@ -168,12 +168,12 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
-      redis:
-        image: redis:8
+      valkey:
+        image: valkey/valkey:9.1.2
         ports:
           - 6379:6379
         options: >-
-          --health-cmd "redis-cli ping"
+          --health-cmd "valkey-cli ping"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
@@ -184,7 +184,7 @@ jobs:
         working-directory: services/api
         env:
           TEST_DATABASE_URL: postgresql://tutor:tutor@localhost:5432/tutor_test
-          TEST_REDIS_URL: redis://localhost:6379/0
+          TEST_CACHE_URL: redis://localhost:6379/0
         run: python -m tests tests.persistence.integration
 
   backend-temporal:

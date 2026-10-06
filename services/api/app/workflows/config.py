@@ -1,7 +1,7 @@
 """Temporal lane configuration (ADR-0013).
 
 Same degradation contract as the other enterprise lanes
-(``DATABASE_URL`` / ``REDIS_URL`` / OTel):
+(``DATABASE_URL`` / ``CACHE_URL`` / OTel):
 
 - ``TEMPORAL_ADDRESS`` unset → file/self-hosted mode. Every domain keeps
   its existing in-process job execution and this package is inert.

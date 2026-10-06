@@ -134,11 +134,11 @@ M0 回答三个问题：用户是谁、数据属于谁、如何安全访问；�
 - `test_admin_public.py`（`public` 命名空间管理员写边界）
 - `test_enterprise_auth.py`（企业模式注册/登录双写、token 双轨、refresh 轮换/复用撤族、会话列表与撤销、文件模式 409）
 - `test_shadow_profile.py`（影子迁移期文件 profile 读取、资料/偏好/头像跨请求持久可见、PG 认证事实不被文件副本覆盖）
-- `tests/persistence/*`（repository/模型/迁移/对象存储/缓存原语；`tests/persistence/integration.py` 为真 PostgreSQL/Redis 集成车道，CI `backend-enterprise` job 执行）
+- `tests/persistence/*`（repository/模型/迁移/对象存储/缓存原语；`tests/persistence/integration.py` 为真 PostgreSQL/Valkey 集成车道，CI `backend-enterprise` job 执行）
 
 ## Related ADRs
 
 - ADR-0001 source-only 仓库（账户/运行数据不入库）
 - ADR-0002 运行数据统一 `NEXT_TUTOR_DATA_DIR`
-- [ADR-0010](../adr/0010-enterprise-persistence.md) 企业持久化栈（PostgreSQL/Object/Redis）
+- [ADR-0010](../adr/0010-enterprise-persistence.md) 企业持久化栈（PostgreSQL/Object/缓存层）
 - [ADR-0011](../adr/0011-tenant-rotating-sessions.md) 租户模型与轮换认证会话（含双写影子过渡偏差）

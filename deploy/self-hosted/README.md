@@ -21,11 +21,11 @@ systemd units、nginx 同源反代示例、MeloTTS sidecar 安装脚本与进程
 - 部署文档与生产检查清单 → [../../docs/operations/deployment.md](../../docs/operations/deployment.md)（权威）。
 - MeloTTS sidecar 服务代码 → [../../services/voice/](../../services/voice/README.md)。
 - 本地一键启动 → 仓库根 `start.sh` 与 `scripts/dev/start.sh`。
-- 本地基础设施（PostgreSQL/Redis/MinIO/OTel compose） → [../local/](../local/README.md)。
+- 本地基础设施（PostgreSQL/Valkey/OTel compose） → [../local/](../local/README.md)。
 - `.env.example` → 仓库根（生产密钥 `.env` 永不入库）。
 
 ## Design
 
 模板与实际部署分离：本目录文件是可复制的起点（复制到 `/etc/systemd/system/`、`/etc/nginx/` 后按机器调整）；服务器专属细节（域名、证书、备份策略、私有运维手册）由部署方自行维护，不入库。固定约定：专用账号 `edu-agent`（home `/var/lib/edu-agent`，源码 `/opt/edu-agent`），运行数据在 `NEXT_TUTOR_DATA_DIR` 单根（systemd 形态 `/var/lib/edu-agent/data`），`ReadWritePaths` 只放行数据根、前端 `.next` 与 `/var/lib/edu-agent`。
 
-Worker 策略：文件持久层模式下必须单 worker（ADR-0004）；配置 `DATABASE_URL`（企业持久化模式）后多 worker 放行，一致性由 PostgreSQL 与共享缓存层承担（ADR-0010）。持久化迁移完成后，self-host 也可选择接入 [../local/](../local/README.md) 同款 PostgreSQL/Redis 形态。
+ Worker 策略：文件持久层模式下必须单 worker（ADR-0004）；配置 `DATABASE_URL`（企业持久化模式）后多 worker 放行，一致性由 PostgreSQL 与共享缓存层承担（ADR-0010；缓存服务端为 Valkey，ADR-0016）。持久化迁移完成后，self-host 也可选择接入 [../local/](../local/README.md) 同款 PostgreSQL/Valkey 形态。

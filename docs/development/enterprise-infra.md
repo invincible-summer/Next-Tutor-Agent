@@ -25,7 +25,7 @@ EDU_MIGRATION_DATABASE_URL=...                        # 仅 alembic 用的独立
 | 变量 | 默认 | 说明 |
 |------|------|------|
 | `DATABASE_URL` | — | PostgreSQL 连接串；配置即企业模式 |
-| `REDIS_URL` | — | 共享缓存原语（限流/lease/短 TTL）；未设或不可达回退进程内实现，请求绝不因 Redis 失败 |
+| `CACHE_URL` | — | 共享缓存原语（限流/lease/短 TTL，RESP 连接 Valkey，ADR-0016；旧 `REDIS_URL` 保留一版兼容）；未设或不可达回退进程内实现，请求绝不因缓存失败 |
 | `OBJECT_STORE_ROOT` | 数据根 `object_store/` | 对象存储本地实现根（namespace + opaque key）；远程适配为接口位 |
 | `AZURE_STORAGE_*` | — | 远程对象存储占位（未实现，配置不生效） |
 | `AUTH_ACCESS_TOKEN_SECONDS` | `900` | RS256 access token 寿命 |
@@ -36,7 +36,7 @@ EDU_MIGRATION_DATABASE_URL=...                        # 仅 alembic 用的独立
 | `TEMPORAL_ADDRESS` | — | Temporal frontend `host:port`；未设=各域保持进程内任务执行（零行为变化），已设=API 不再启动对应 in-process worker，需另跑 worker 进程 |
 | `TEMPORAL_NAMESPACE` | `default` | Temporal namespace |
 
-依赖分 lane：基础 `requirements.txt`（SQLAlchemy/asyncpg/alembic/redis/cryptography/temporalio 均在基础 lane）；OTel 为可选 `requirements-observability.txt`；全部受 `constraints.txt` exact pin（契约测试 `tests/core/test_requirements_contract.py`）。
+依赖分 lane：基础 `requirements.txt`（SQLAlchemy/asyncpg/alembic/redis 客户端/cryptography/temporalio 均在基础 lane）；OTel 为可选 `requirements-observability.txt`；全部受 `constraints.txt` exact pin（契约测试 `tests/core/test_requirements_contract.py`）。
 
 ## Durable workflow lane（ADR-0013）
 
@@ -88,18 +88,18 @@ cutover 不删除任何旧文件数据；回滚 = 停用 `DATABASE_URL`。
 
 ## 本地基础设施
 
-`deploy/local/docker-compose.yml`（PostgreSQL 18 / Redis / MinIO；`temporal`、`observability` 分 profile）：用法与环境变量对应见 [../../deploy/local/README.md](../../deploy/local/README.md)。应用本身仍由 `./start.sh` 在宿主机运行。
+`deploy/local/docker-compose.yml`（PostgreSQL 18 / Valkey 9.1；`temporal`、`observability` 分 profile）：用法与环境变量对应见 [../../deploy/local/README.md](../../deploy/local/README.md)。应用本身仍由 `./start.sh` 在宿主机运行。
 
 ## 验收与 CI
 
 - **双实例并发验收**（ADR-0010 验收锚点）：`services/api/tests/persistence/integration.py::TwoInstanceTenantConcurrencyTest` —— 两个独立 engine 并发读写同一 tenant、唯一约束仲裁冲突写入、并发 refresh 恰一胜一败且败方撤族。
-- 该模块不带 `test_` 前缀：普通 CI 分片与本地全量不发现它；`TEST_DATABASE_URL`/`TEST_REDIS_URL` 未设时全部 skip。
-- CI `backend-enterprise` job（`.github/workflows/ci.yml`）：persistence/migrations/依赖/CI 配置路径变更或 push 到 main 时触发，起 postgres:18 + redis:8 service containers 跑上述模块，并纳入 `CI result` 聚合（路径门控由 `enterprise-paths` job 决定，跳过时显式校验其 skipped）。
+- 该模块不带 `test_` 前缀：普通 CI 分片与本地全量不发现它；`TEST_DATABASE_URL`/`TEST_CACHE_URL` 未设时全部 skip。
+- CI `backend-enterprise` job（`.github/workflows/ci.yml`）：persistence/migrations/依赖/CI 配置路径变更或 push 到 main 时触发，起 postgres:18 + valkey:9.1.2 service containers 跑上述模块，并纳入 `CI result` 聚合（路径门控由 `enterprise-paths` job 决定，跳过时显式校验其 skipped）。
 - Durable workflow 集成：`tests/workflows/integration.py` 由 `TEST_TEMPORAL_ADDRESS` 门控（未设全部 skip；workflow 确定性测试用 temporalio 内置 test server，随 `workflows` 分片常规运行）。本地手动运行：
 
 ```bash
 TEST_DATABASE_URL=postgresql://tutor:tutor@localhost:5432/tutor_test \
-TEST_REDIS_URL=redis://localhost:6379/0 \
+TEST_CACHE_URL=redis://localhost:6379/0 \
   python3 -m tests tests.persistence.integration
 
 TEST_TEMPORAL_ADDRESS=127.0.0.1:7233 \
