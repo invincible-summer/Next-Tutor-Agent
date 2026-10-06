@@ -30,6 +30,7 @@ from typing import Any
 from ...core.atomic import atomic_write_text, file_lock
 
 from app.core import paths
+from . import sql_store as _sql
 
 _ASSISTANT_DIR = paths.bind_storage_path(__name__, "_ASSISTANT_DIR", "assistant")
 
@@ -234,7 +235,33 @@ def _summary_of(record: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _derive_sql_index(student_id: str) -> dict[str, Any]:
+    """SQL 模式按需从会话文档派生索引（投影不落盘）。
+
+    受理键来自 accepted 轮键 + 会话记录上的 client_request_id（创建即
+    幂等）；按时间旧→新处理让最新会话赢得重复键。与文件态
+    rebuild_index 同构，条数同样遵守 500 上限。
+    """
+    records = _sql.list_conversation_payloads(student_id)  # 新→旧
+    conversations: list[dict[str, Any]] = []
+    request_index: dict[str, str] = {}
+    for record in reversed(records):                 # 旧→新
+        conversations.append(_summary_of(record))
+        keys = set((record.get("accepted") or {}).keys())
+        crid = record.get("client_request_id")
+        if crid:
+            keys.add(str(crid))
+        for key in keys:
+            request_index[key] = record["conversation_id"]
+    conversations.sort(key=lambda s: s.get("updated_at", ""), reverse=True)
+    return {"version": SCHEMA_VERSION,
+            "conversations": conversations[:500],
+            "request_index": request_index}
+
+
 def _load_index(student_id: str) -> dict[str, Any]:
+    if _sql.use_sql():
+        return _derive_sql_index(student_id)
     data = _read_json(_index_path(student_id))
     if data is None:
         return rebuild_index(student_id)
@@ -242,7 +269,9 @@ def _load_index(student_id: str) -> dict[str, Any]:
 
 
 def rebuild_index(student_id: str) -> dict[str, Any]:
-    """从会话文件重建索引（索引是投影，可随时重建）。"""
+    """从会话重建索引（索引是投影，可随时重建）。"""
+    if _sql.use_sql():
+        return _derive_sql_index(student_id)
     index: dict[str, Any] = {"version": SCHEMA_VERSION,
                              "conversations": [], "request_index": {}}
     conv_dir = _conversations_dir(student_id)
@@ -267,6 +296,31 @@ def create_conversation(
     student_id: str, *, client_request_id: str, title: str | None = None,
 ) -> dict[str, Any]:
     """创建会话；client_request_id 幂等（重复返回同一会话）。"""
+    if _sql.use_sql():
+        index = _derive_sql_index(student_id)
+        existing = index.get("request_index", {}).get(client_request_id)
+        if existing:
+            record = _sql.load_conversation_payload(
+                student_id, Path(existing).name)
+            if record is not None:
+                return record
+        conversation_id = mint_conversation_id()
+        now = utc_now_iso()
+        record = {
+            "schema_version": SCHEMA_VERSION,
+            "conversation_id": conversation_id,
+            "client_request_id": str(client_request_id),
+            "title": (title or "").strip()[:120] or "新对话",
+            "revision": 1,
+            "created_at": now,
+            "updated_at": now,
+            "messages": [],
+            "turns": {},
+            "actions": {},
+            "accepted": {},
+        }
+        _sql.save_conversation_payload(student_id, record)
+        return record
     root = _student_root(student_id)
     root.mkdir(parents=True, exist_ok=True)
     index_path = _index_path(student_id)
@@ -300,12 +354,18 @@ def create_conversation(
 
 def load_conversation(student_id: str, conversation_id: str) -> dict[str, Any] | None:
     """读取会话；不存在返回 None，损坏抛 AssistantStoreError。"""
+    if _sql.use_sql():
+        return _sql.load_conversation_payload(
+            student_id, Path(conversation_id).name)
     return _read_json(_conversation_path(student_id, conversation_id))
 
 
 def save_conversation(student_id: str, record: dict[str, Any]) -> None:
     """原子保存会话并同步索引摘要。"""
     record["updated_at"] = utc_now_iso()
+    if _sql.use_sql():
+        _sql.save_conversation_payload(student_id, record)
+        return
     _write_json(_conversation_path(student_id, record["conversation_id"]),
                 record)
     index_path = _index_path(student_id)
@@ -334,6 +394,24 @@ def list_conversations(
 
 def delete_conversation(student_id: str, conversation_id: str) -> bool:
     """删除会话及其关联草稿与索引/引用条目；幂等（不存在也返回 True）。"""
+    if _sql.use_sql():
+        key = Path(conversation_id).name
+        try:
+            record = _sql.load_conversation_payload(student_id, key)
+            for draft in _sql.list_draft_payloads(student_id):
+                if draft.get("conversation_id") == key:
+                    _sql.delete_draft_doc(
+                        student_id, str(draft.get("draft_id") or ""))
+            _sql.delete_conversation_doc(student_id, key)
+        except Exception as exc:
+            raise AssistantStoreError(
+                "io_error", f"删除会话失败: {exc}") from exc
+        if record is not None:
+            try:
+                drop_references_for_conversation(student_id, key)
+            except AssistantStoreError:
+                pass  # 反向索引可重建，失败不阻塞删除
+        return True
     conv_path = _conversation_path(student_id, conversation_id)
     record = None
     if conv_path.exists():
@@ -407,12 +485,18 @@ def create_draft(student_id: str, draft: dict[str, Any]) -> dict[str, Any]:
         "consumed": False,
         "result_entity": draft.get("result_entity"),
     })
+    if _sql.use_sql():
+        _sql.save_draft_payload(student_id, record)
+        return record
     _write_json(_draft_path(student_id, draft_id), record)
     return record
 
 
 def load_draft(student_id: str, draft_id: str) -> dict[str, Any] | None:
-    draft = _read_json(_draft_path(student_id, draft_id))
+    if _sql.use_sql():
+        draft = _sql.load_draft_payload(student_id, Path(draft_id).name)
+    else:
+        draft = _read_json(_draft_path(student_id, draft_id))
     if draft is None:
         return None
     expires_at = draft.get("expires_at", "")
@@ -429,6 +513,23 @@ def consume_draft(
     student_id: str, draft_id: str, *,
     result_entity: dict[str, Any] | None = None,
 ) -> dict[str, Any] | None:
+    if _sql.use_sql():
+        key = Path(draft_id).name
+        draft = _sql.load_draft_payload(student_id, key)
+        if draft is None:
+            return None
+        if draft.get("consumed"):
+            return draft  # 幂等：重复消费返回同一记录
+
+        def mark(existing: dict[str, Any] | None) -> dict[str, Any] | None:
+            if existing is None:
+                return None
+            existing["consumed"] = True
+            if result_entity is not None:
+                existing["result_entity"] = result_entity
+            return existing
+
+        return _sql.mutate_draft(student_id, key, mark)
     path = _draft_path(student_id, draft_id)
     draft = _read_json(path)
     if draft is None:
@@ -444,6 +545,13 @@ def consume_draft(
 
 
 def delete_draft(student_id: str, draft_id: str) -> bool:
+    if _sql.use_sql():
+        try:
+            _sql.delete_draft_doc(student_id, Path(draft_id).name)
+            return True
+        except Exception as exc:
+            raise AssistantStoreError(
+                "io_error", f"删除草稿失败: {exc}") from exc
     try:
         _draft_path(student_id, draft_id).unlink(missing_ok=True)
         return True
@@ -452,12 +560,26 @@ def delete_draft(student_id: str, draft_id: str) -> bool:
 
 
 def purge_expired_drafts(student_id: str) -> int:
-    """删除已过期草稿；无文件时不创建目录。返回删除数。"""
+    """删除已过期草稿；无数据时不创建目录。返回删除数。"""
+    now = datetime.now(timezone.utc)
+    if _sql.use_sql():
+        removed = 0
+        for draft in _sql.list_draft_payloads(student_id):
+            expires_at = str(draft.get("expires_at") or "")
+            try:
+                expired = (not expires_at
+                           or datetime.fromisoformat(expires_at) < now)
+            except ValueError:
+                expired = True
+            if expired:
+                _sql.delete_draft_doc(
+                    student_id, str(draft.get("draft_id") or ""))
+                removed += 1
+        return removed
     drafts_dir = _drafts_dir(student_id)
     if not drafts_dir.is_dir():
         return 0
     removed = 0
-    now = datetime.now(timezone.utc)
     for path in drafts_dir.glob("*.json"):
         try:
             draft = _read_json(path)
@@ -595,6 +717,50 @@ def current_owner_generation(student_id: str) -> int:
 # ---------------------------------------------------------------------------
 # 账号清理入口（core/account_data 调用）
 # ---------------------------------------------------------------------------
+
+
+def list_owners_with_data() -> list[str]:
+    """有助手数据的 owner 列表（启动恢复/草稿清扫循环用，双模）。"""
+    if _sql.use_sql():
+        try:
+            return _sql.list_owners()
+        except Exception:
+            return []
+    if not _ASSISTANT_DIR.is_dir():
+        return []
+    return sorted(p.name for p in _ASSISTANT_DIR.iterdir() if p.is_dir())
+
+
+def scan_conversation_records() -> list[tuple[str, dict[str, Any]]]:
+    """(owner, record) 全量扫描——runtime 启动恢复专用；坏记录跳过。"""
+    out: list[tuple[str, dict[str, Any]]] = []
+    if _sql.use_sql():
+        try:
+            for owner in _sql.list_owners():
+                for record in _sql.list_conversation_payloads(owner):
+                    if isinstance(record, dict) and record.get(
+                            "conversation_id"):
+                        out.append((owner, record))
+        except Exception:
+            return out
+        return out
+    if not _ASSISTANT_DIR.is_dir():
+        return out
+    for student_dir in sorted(_ASSISTANT_DIR.iterdir()):
+        if not student_dir.is_dir():
+            continue
+        conv_dir = student_dir / "conversations"
+        if not conv_dir.is_dir():
+            continue
+        for path in sorted(conv_dir.glob("*.json")):
+            try:
+                record = _read_json(path)
+            except AssistantStoreError:
+                continue
+            if record is not None:
+                out.append((student_dir.name, record))
+    return out
+
 
 def assistant_storage_size(student_id: str) -> int:
     root = _student_root(student_id)

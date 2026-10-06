@@ -121,39 +121,24 @@ class AssistantRuntime:
     def _recover_interrupted(self) -> None:
         """启动扫描：在途轮标记 interrupted；不重放、不重新执行。"""
         from app.core.guest_runtime import is_legacy_guest_owner
-        if not store._ASSISTANT_DIR.is_dir():
-            return
-        for student_dir in store._ASSISTANT_DIR.iterdir():
-            if not student_dir.is_dir():
+        for owner, record in store.scan_conversation_records():
+            if is_legacy_guest_owner(owner):
                 continue
-            if is_legacy_guest_owner(student_dir.name):
-                continue
-            conv_dir = student_dir / "conversations"
-            if not conv_dir.is_dir():
-                continue
-            for path in conv_dir.glob("*.json"):
+            changed = False
+            for turn_id, turn in (record.get("turns") or {}).items():
+                if turn.get("state") == "running":
+                    turn["state"] = "interrupted"
+                    turn["updated_at"] = store.utc_now_iso()
+                    changed = True
+                    for message in record.get("messages") or []:
+                        if (message.get("turn_id") == turn_id
+                                and message.get("status") == "streaming"):
+                            message["status"] = "interrupted"
+            if changed:
                 try:
-                    record = store.load_conversation(
-                        student_dir.name, path.stem)
+                    store.save_conversation(owner, record)
                 except AssistantStoreError:
-                    continue
-                if record is None:
-                    continue
-                changed = False
-                for turn_id, turn in (record.get("turns") or {}).items():
-                    if turn.get("state") == "running":
-                        turn["state"] = "interrupted"
-                        turn["updated_at"] = store.utc_now_iso()
-                        changed = True
-                        for message in record.get("messages") or []:
-                            if (message.get("turn_id") == turn_id
-                                    and message.get("status") == "streaming"):
-                                message["status"] = "interrupted"
-                if changed:
-                    try:
-                        store.save_conversation(student_dir.name, record)
-                    except AssistantStoreError:
-                        pass
+                    pass
 
     def _finalize_interrupted(self, turn: _RunningTurn) -> None:
         if turn.task and not turn.task.done():

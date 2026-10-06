@@ -167,6 +167,17 @@ class SqlDocumentRepository:
         async with self._open_session() as sess:
             return int(await sess.scalar(query) or 0)
 
+    async def list_owners(self, *, kinds: tuple[str, ...] | None = None,
+                          tenant_id: str = "") -> list[str]:
+        """Distinct owner_ids holding documents (optionally kind-scoped)."""
+        m = self._model
+        query = select(m.owner_id).distinct().where(m.tenant_id == tenant_id)
+        if kinds is not None:
+            query = query.where(m.kind.in_(kinds))
+        async with self._open_session() as sess:
+            rows = await sess.execute(query.order_by(m.owner_id))
+            return [str(r) for r in rows.scalars()]
+
     async def mutate(self, owner_id: str, doc_id: str,
                      mutate: Callable[[dict | None], dict], *,
                      kind: str = "doc",

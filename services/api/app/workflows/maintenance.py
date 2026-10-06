@@ -139,11 +139,9 @@ async def _purge_assistant_drafts() -> int:
     """站点助手草稿清扫（与文件模式 lifespan 循环同一过程体）。"""
     from app.agents.site_assistant import store as asst_store
     purged = 0
-    if asst_store._ASSISTANT_DIR.is_dir():
-        for path in asst_store._ASSISTANT_DIR.iterdir():
-            if path.is_dir():
-                purged += await asyncio.to_thread(
-                    asst_store.purge_expired_drafts, path.name) or 0
+    for owner in asst_store.list_owners_with_data():
+        purged += await asyncio.to_thread(
+            asst_store.purge_expired_drafts, owner) or 0
     return purged
 
 

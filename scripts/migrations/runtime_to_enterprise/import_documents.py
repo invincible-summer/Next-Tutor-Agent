@@ -229,6 +229,45 @@ def _iter_orchestration_documents() -> list[tuple[str, str, str, dict[str, Any]]
 WALKERS["orchestration"] = _iter_orchestration_documents
 
 
+def _iter_assistant_documents() -> list[tuple[str, str, str, dict[str, Any]]]:
+    """(owner, kind, doc_id, payload) for site-assistant conversations
+    and drafts. index/references/invalidations are rebuildable
+    projections and stay file-side (ADR-0017)."""
+    from app.agents.site_assistant.store import _ASSISTANT_DIR
+
+    out: list[tuple[str, str, str, dict[str, Any]]] = []
+    if not _ASSISTANT_DIR.is_dir():
+        return out
+    for owner_dir in sorted(p for p in _ASSISTANT_DIR.iterdir()
+                            if p.is_dir()):
+        owner = owner_dir.name
+        conv_dir = owner_dir / "conversations"
+        if conv_dir.is_dir():
+            for p in sorted(conv_dir.glob("*.json")):
+                try:
+                    payload = json.loads(p.read_text(encoding="utf-8"))
+                except Exception:
+                    continue
+                if isinstance(payload, dict) and payload.get(
+                        "conversation_id"):
+                    out.append((owner, "conversation",
+                                str(payload["conversation_id"]), payload))
+        drafts_dir = owner_dir / "drafts"
+        if drafts_dir.is_dir():
+            for p in sorted(drafts_dir.glob("*.json")):
+                try:
+                    payload = json.loads(p.read_text(encoding="utf-8"))
+                except Exception:
+                    continue
+                if isinstance(payload, dict) and payload.get("draft_id"):
+                    out.append((owner, "draft",
+                                str(payload["draft_id"]), payload))
+    return out
+
+
+WALKERS["assistant"] = _iter_assistant_documents
+
+
 async def _import_domain(domain: str, dry_run: bool) -> dict[str, Any]:
     from app.persistence.documents import DocumentRecord
     from app.persistence.documents.repository import SqlDocumentRepository

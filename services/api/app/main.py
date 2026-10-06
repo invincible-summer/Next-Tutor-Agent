@@ -250,12 +250,9 @@ async def _lifespan(app: FastAPI):
                 from app.agents.site_assistant import store as asst_store
                 while True:
                     try:
-                        if asst_store._ASSISTANT_DIR.is_dir():
-                            for d in asst_store._ASSISTANT_DIR.iterdir():
-                                if d.is_dir():
-                                    await asyncio.to_thread(
-                                        asst_store.purge_expired_drafts,
-                                        d.name)
+                        for owner in asst_store.list_owners_with_data():
+                            await asyncio.to_thread(
+                                asst_store.purge_expired_drafts, owner)
                     except Exception:
                         log.debug("assistant draft purge iteration failed",
                                   exc_info=True)

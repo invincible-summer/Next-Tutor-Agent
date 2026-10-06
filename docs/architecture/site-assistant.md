@@ -73,6 +73,8 @@
 
 会话容量 200 条消息或 2 MiB 先到为准（受理新轮前预留 2 条消息空间）；全部写入经 `core/atomic.py`。
 
+**双模存储（ADR-0017）**：`assistant=sql`（`DOMAIN_DOCUMENT_BACKENDS`，需 `DATABASE_URL`）时会话与草稿事实写入 `assistant_documents` 表（kind `conversation`/`draft`）；列表索引在 SQL 模式按需从会话文档派生（投影不落盘，受理键来自 accepted 轮键 + 会话记录内 `client_request_id`），`references.json`/`invalidations.json` 与报告/通知/音频等工作流与派生产物留文件态。启动恢复扫描（`scan_conversation_records`）与草稿清扫循环（`list_owners_with_data`）均双路由；SQL 态账户清除由 9 域 `purge_owner` 循环覆盖。历史数据用 `scripts/migrations/runtime_to_enterprise/import_documents.py --domain assistant` 迁移并 `--verify`。
+
 ## Main flows（关键流程）
 
 ### 轮次编排（`runtime.py` → `intent` → `tools` → `presenters`）
