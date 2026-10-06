@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import shutil
 import time
 import uuid
@@ -647,10 +648,19 @@ def archive_note(owner_id: str, note_id: str) -> dict[str, Any]:
     try:
         _write_json(staging / "payload" / "note.json", meta)
         _write_text(staging / "payload" / "content.md", content)
-        rdir = notes_store._revisions_dir(owner_id, note_id)
-        if rdir.is_dir():
-            shutil.copytree(rdir, staging / "payload" / "revisions",
-                            dirs_exist_ok=True)
+        from app.notes import sql_store as notes_sql
+        if notes_sql.use_sql():
+            for rev in notes_sql.list_revisions(owner_id, note_id):
+                _write_text(staging / "payload" / "revisions" /
+                            f"{int(rev.get('revision') or 0):04d}_"
+                            f"{int(rev.get('ts') or 0)}_"
+                            f"{_safe(str(rev.get('author') or 'user'))}.md",
+                            str(rev.get("content") or ""))
+        else:
+            rdir = notes_store._revisions_dir(owner_id, note_id)
+            if rdir.is_dir():
+                shutil.copytree(rdir, staging / "payload" / "revisions",
+                                dirs_exist_ok=True)
         manifest["metadata"].update({
             "folder_id": meta.get("folder_id", ""),
             "template_id": meta.get("template_id", ""),
@@ -1025,8 +1035,19 @@ def restore_item(owner_id: str, item_id: str, *, workspace_ids: list[str] | None
             content = ""
         vault.notes.append(meta)
         vault._write_content(restored_id, content)
+        from app.notes import sql_store as notes_sql
         src_revisions = payload / "revisions"
-        if src_revisions.is_dir():
+        if notes_sql.use_sql():
+            for p in (sorted(src_revisions.iterdir())
+                      if src_revisions.is_dir() else []):
+                m = re.match(r"^(\d+)_(\d+)_([^\.]+)\.md$", p.name)
+                if not m:
+                    continue
+                notes_sql.save_revision(
+                    owner_id, restored_id, int(m.group(1)),
+                    float(m.group(2)), m.group(3),
+                    p.read_text(encoding="utf-8"), keep=10 ** 6)
+        elif src_revisions.is_dir():
             shutil.copytree(src_revisions,
                             notes_store._revisions_dir(owner_id, restored_id),
                             dirs_exist_ok=True)

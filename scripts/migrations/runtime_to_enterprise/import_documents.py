@@ -85,6 +85,72 @@ WALKERS = {
 }
 
 
+def _iter_notes_documents() -> list[tuple[str, str, str, dict[str, Any]]]:
+    """(owner, kind, doc_id, payload) for every file-mode notes vault.
+
+    Owner = vault directory name (the student key). Note contents, per-note
+    revision lists and agent states aggregate into their own documents,
+    mirroring the runtime layout.
+    """
+    import re as _re
+
+    from app.core import paths
+
+    notes_root = paths.runtime_paths().notes
+    out: list[tuple[str, str, str, dict[str, Any]]] = []
+    if not notes_root.is_dir():
+        return out
+    for vault_dir in sorted(p for p in notes_root.iterdir() if p.is_dir()):
+        owner = vault_dir.name
+        index = vault_dir / "vault.json"
+        if index.is_file():
+            try:
+                payload = json.loads(index.read_text(encoding="utf-8"))
+                if isinstance(payload, dict):
+                    out.append((owner, "vault", "index", payload))
+            except Exception:
+                pass
+        notes_dir = vault_dir / "notes"
+        if notes_dir.is_dir():
+            for p in sorted(notes_dir.glob("*.md")):
+                out.append((owner, "note", p.stem,
+                            {"content": p.read_text(encoding="utf-8",
+                                                    errors="ignore")}))
+        revisions_root = vault_dir / "revisions"
+        if revisions_root.is_dir():
+            for note_dir in sorted(p for p in revisions_root.iterdir()
+                                   if p.is_dir()):
+                items: list[dict[str, Any]] = []
+                for p in sorted(note_dir.glob("*.md")):
+                    m = _re.match(r"^(\d+)_(\d+)_([^\.]+)\.md$", p.name)
+                    if not m:
+                        continue
+                    items.append({
+                        "revision": int(m.group(1)),
+                        "ts": float(m.group(2)),
+                        "author": m.group(3),
+                        "content": p.read_text(encoding="utf-8",
+                                               errors="ignore"),
+                    })
+                if items:
+                    items.sort(key=lambda r: r["revision"])
+                    out.append((owner, "revisions", note_dir.name,
+                                {"items": items}))
+        agent_dir = vault_dir / "agent"
+        if agent_dir.is_dir():
+            for p in sorted(agent_dir.glob("*.json")):
+                try:
+                    payload = json.loads(p.read_text(encoding="utf-8"))
+                except Exception:
+                    continue
+                if isinstance(payload, dict):
+                    out.append((owner, "agent", p.stem, payload))
+    return out
+
+
+WALKERS["notes"] = _iter_notes_documents
+
+
 async def _import_domain(domain: str, dry_run: bool) -> dict[str, Any]:
     from app.persistence.documents import DocumentRecord
     from app.persistence.documents.repository import SqlDocumentRepository

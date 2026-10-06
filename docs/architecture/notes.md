@@ -42,6 +42,8 @@
 
 ## State & storage
 
+双模式路由（ADR-0017，notes 域）：`DOMAIN_DOCUMENT_BACKENDS` 含 `notes=sql` 且配置 `DATABASE_URL` 时，vault 索引 / 笔记正文 / 修订（聚合为单文档，行锁 mutate 内追加+裁剪）/ 每笔记智能体状态写入 PostgreSQL `notes_documents` 表（`app/notes/sql_store.py`，sync bridge 访问；`threads/` 遗留懒迁移只在文件模式执行）；上传原件/提取文本仍走文件/ObjectStore。导入：`import_documents.py --domain notes`（幂等 + `--verify`）。否则走下列文件布局，行为不变。
+
 存储根 `notes/<safe_sid>/`（统一运行数据根下；`.gitignore` 以 `/notes/` 根锚定）：
 
 - `vault.json`：仓库索引（folders / notes 元数据 / custom_templates）。folder 用 `parent_id` 组成多层树；笔记元数据（标题、文件夹、标签 ≤12、template_id、status、source 溯源、review 调度镜像、revision 版本号）只存索引；首次访问播种四个默认文件夹（错题修正/知识点总结/学习温故/章节笔记）。

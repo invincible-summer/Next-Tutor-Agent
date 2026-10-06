@@ -37,6 +37,7 @@ from pathlib import Path
 from typing import Any, Iterator
 
 from ..core.atomic import atomic_write_text, file_lock
+from . import sql_store as _sql
 from .templates import BUILT_IN_TEMPLATES
 
 from app.core import paths
@@ -394,6 +395,8 @@ class NoteVault:
         return self._read_content(note_id)
 
     def _read_content(self, note_id: str) -> str:
+        if _sql.use_sql():
+            return _sql.read_note_content(self.student_id, note_id)
         hit = self._content_cache.get(note_id)
         path = self.note_path(note_id)
         try:
@@ -410,16 +413,19 @@ class NoteVault:
         return text
 
     def _write_content(self, note_id: str, content: str) -> None:
+        content = content[:_MAX_CONTENT_CHARS]
+        if _sql.use_sql():
+            _sql.write_note_content(self.student_id, note_id, content)
+            return
         path = self.note_path(note_id)
         path.parent.mkdir(parents=True, exist_ok=True)
         # 与 save_vault/agent state 等写路径一致：持路径锁再写。此前无锁时
         # 两个并发保存（双开标签页）会交叉写坏内容或互相覆盖 mtime 缓存。
         # RLock 可重入：外层已持同一把锁时（write_note 全程加锁）直接进入。
         with file_lock(path):
-            atomic_write_text(path, content[:_MAX_CONTENT_CHARS])
+            atomic_write_text(path, content)
             try:
-                self._content_cache[note_id] = (path.stat().st_mtime,
-                                                content[:_MAX_CONTENT_CHARS])
+                self._content_cache[note_id] = (path.stat().st_mtime, content)
             except OSError:
                 pass
 
@@ -427,6 +433,11 @@ class NoteVault:
                            author: str, summary: str) -> None:
         """追加修订快照（写入后的内容），保留最近 _MAX_REVISIONS 份。"""
         rev = int(meta.get("revision") or 1)
+        if _sql.use_sql():
+            _sql.save_revision(self.student_id, str(meta["id"]), rev, _now(),
+                               Path(author or "user").name, content,
+                               keep=_MAX_REVISIONS)
+            return
         rdir = _revisions_dir(self.student_id, meta["id"])
         rdir.mkdir(parents=True, exist_ok=True)
         fname = f"{rev:04d}_{int(_now())}_{Path(author or 'user').name}.md"
@@ -517,11 +528,14 @@ class NoteVault:
             return False
         self.notes = [n for n in self.notes if n.get("id") != note_id]
         self._content_cache.pop(note_id, None)
-        try:
-            self.note_path(note_id).unlink(missing_ok=True)
-        except OSError:
-            pass
-        shutil.rmtree(_revisions_dir(self.student_id, note_id), ignore_errors=True)
+        if _sql.use_sql():
+            _sql.delete_note_everything(self.student_id, note_id)
+        else:
+            try:
+                self.note_path(note_id).unlink(missing_ok=True)
+            except OSError:
+                pass
+            shutil.rmtree(_revisions_dir(self.student_id, note_id), ignore_errors=True)
         delete_agent_history(self.student_id, note_id)
         return True
 
@@ -530,6 +544,17 @@ class NoteVault:
     def list_revisions(self, note_id: str) -> list[dict[str, Any]] | None:
         if self.find_note(note_id) is None:
             return None
+        if _sql.use_sql():
+            from .sql_store import list_revisions as _sql_list
+
+            items = _sql_list(self.student_id, note_id)
+            return [{"revision": int(r.get("revision") or 0),
+                     "ts": float(r.get("ts") or 0),
+                     "author": str(r.get("author") or "user"),
+                     "word_count": word_count(str(r.get("content") or ""))}
+                    for r in sorted(
+                        items, key=lambda r: int(r.get("revision") or 0),
+                        reverse=True)]
         rdir = _revisions_dir(self.student_id, note_id)
         out: list[dict[str, Any]] = []
         if rdir.is_dir():
@@ -556,6 +581,8 @@ class NoteVault:
     def read_revision(self, note_id: str, revision: int) -> str | None:
         if self.find_note(note_id) is None:
             return None
+        if _sql.use_sql():
+            return _sql.read_revision(self.student_id, note_id, revision)
         rdir = _revisions_dir(self.student_id, note_id)
         if not rdir.is_dir():
             return None
@@ -865,14 +892,19 @@ _SEED_FOLDER_NAMES: tuple[str, ...] = tuple(dict.fromkeys(
 def load_vault(student_id: str) -> NoteVault:
     """加载仓库；首次访问播种默认文件夹。损坏索引降级为空仓库。"""
     vault = NoteVault(student_id)
-    path = _index_path(student_id)
-    try:
-        if path.exists():
-            raw = json.loads(path.read_text(encoding="utf-8"))
-            if isinstance(raw, dict):
-                vault = NoteVault.from_dict(student_id, raw)
-    except Exception:
-        vault = NoteVault(student_id)
+    if _sql.use_sql():
+        raw = _sql.load_vault_payload(student_id)
+        if isinstance(raw, dict):
+            vault = NoteVault.from_dict(student_id, raw)
+    else:
+        path = _index_path(student_id)
+        try:
+            if path.exists():
+                raw = json.loads(path.read_text(encoding="utf-8"))
+                if isinstance(raw, dict):
+                    vault = NoteVault.from_dict(student_id, raw)
+        except Exception:
+            vault = NoteVault(student_id)
     if not vault.folders and not vault.notes:
         for name in _SEED_FOLDER_NAMES:
             vault.folders.append({
@@ -890,6 +922,9 @@ def load_vault(student_id: str) -> NoteVault:
 
 
 def save_vault(vault: NoteVault) -> None:
+    if _sql.use_sql():
+        _sql.save_vault_payload(vault.student_id, vault.to_persistable())
+        return
     _vault_dir(vault.student_id).mkdir(parents=True, exist_ok=True)
     path = _index_path(vault.student_id)
     with file_lock(path):
@@ -1010,6 +1045,10 @@ def _legacy_thread_messages_for_note(student_id: str,
 
 def _write_agent_state(student_id: str, state: dict[str, Any]) -> None:
     state["updated_at"] = _now()
+    if _sql.use_sql():
+        _sql.save_agent_state(student_id,
+                              str(state.get("note_id") or ""), state)
+        return
     path = _agent_state_path(student_id, str(state.get("note_id") or ""))
     path.parent.mkdir(parents=True, exist_ok=True)
     with file_lock(path):
@@ -1020,24 +1059,28 @@ def load_agent_history(student_id: str, note_id: str = "") -> dict[str, Any]:
     """读取某笔记的专属智能体状态；文件不存在时建新并懒迁移旧线程。"""
     note_id = str(note_id or "").strip()
     state: dict[str, Any] | None = None
-    path = _agent_state_path(student_id, note_id)
-    try:
-        if path.exists():
-            raw = json.loads(path.read_text(encoding="utf-8"))
-            if isinstance(raw, dict):
-                state = raw
-    except Exception:
-        state = None
+    if _sql.use_sql():
+        state = _sql.load_agent_state(student_id, note_id)
+    else:
+        path = _agent_state_path(student_id, note_id)
+        try:
+            if path.exists():
+                raw = json.loads(path.read_text(encoding="utf-8"))
+                if isinstance(raw, dict):
+                    state = raw
+        except Exception:
+            state = None
     if state is None:
         state = _new_agent_state(student_id, note_id)
-        migrated = _legacy_thread_messages_for_note(student_id, note_id)
-        if migrated:
-            state["messages"] = migrated[-_MAX_AGENT_MESSAGES:]
-            last_mode = next(
-                (str((m.get("context") or {}).get("mode") or "")
-                 for m in reversed(migrated)
-                 if (m.get("context") or {}).get("mode")), "")
-            state["mode"] = normalize_agent_mode(last_mode)
+        if not _sql.use_sql():
+            migrated = _legacy_thread_messages_for_note(student_id, note_id)
+            if migrated:
+                state["messages"] = migrated[-_MAX_AGENT_MESSAGES:]
+                last_mode = next(
+                    (str((m.get("context") or {}).get("mode") or "")
+                     for m in reversed(migrated)
+                     if (m.get("context") or {}).get("mode")), "")
+                state["mode"] = normalize_agent_mode(last_mode)
             _write_agent_state(student_id, state)  # 落盘即完成迁移标记
     state.setdefault("note_id", note_id)
     state["mode"] = normalize_agent_mode(str(state.get("mode") or ""))
@@ -1131,6 +1174,8 @@ def delete_agent_history(student_id: str, note_id: str) -> bool:
     """笔记被删除/归档时清理其专属智能体状态。"""
     if not note_id:
         return False
+    if _sql.use_sql():
+        return _sql.delete_agent_state(student_id, note_id)
     try:
         _agent_state_path(student_id, note_id).unlink(missing_ok=True)
         return True
