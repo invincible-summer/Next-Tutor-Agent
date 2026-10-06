@@ -26,25 +26,19 @@ def _docx_with_image(image_png: bytes, text: str = "讲义正文第一段。") -
 
 
 def _tiny_png() -> bytes:
-    import fitz
-    pix = fitz.Pixmap(fitz.csRGB, fitz.IRect(0, 0, 40, 40))
-    pix.clear_with(200)
-    data = pix.tobytes("png")
-    return data
+    import io
+    from PIL import Image as PILImage
+    buf = io.BytesIO()
+    PILImage.new("RGB", (40, 40), (200, 200, 200)).save(buf, format="PNG")
+    return buf.getvalue()
 
 
 def _pdf_dense_with_figure() -> bytes:
-    import fitz
-    doc = fitz.open()
-    page = doc.new_page()
+    from tests.support import pdf_fixtures
     # ASCII 文本层（默认字体不渲染中文）：保证该页判定为稠密文本层
-    page.insert_text((72, 90), "Chapter 1 mechanics lecture notes, dense text layer. " * 3)
-    img = fitz.Pixmap(fitz.csRGB, fitz.IRect(0, 0, 200, 150))
-    img.clear_with(120)
-    page.insert_image(fitz.Rect(72, 200, 380, 400), pixmap=img)
-    raw = doc.tobytes()
-    doc.close()
-    return raw
+    return pdf_fixtures.page_with_image(
+        ["Chapter 1 mechanics lecture notes, dense text layer. " * 3],
+        image_rect=(72, 200, 380, 400), color=(120, 120, 120))
 
 
 class TestOfficeEmbeddedImages(unittest.TestCase):

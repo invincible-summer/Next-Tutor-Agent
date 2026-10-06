@@ -86,7 +86,10 @@ pydantic-settings==2.14.2
 pydantic_core==2.46.5
 Pygments==2.20.0
 PyJWT==2.15.1
-pymupdf==1.28.2
+pdfminer.six==20260107
+pdfplumber==0.11.10
+pypdf==6.19.0
+pypdfium2==5.14.0
 PyPika==0.51.1
 pyproject_hooks==1.2.0
 pytesseract==0.3.13
@@ -98,6 +101,7 @@ python-pptx==1.0.2
 PyYAML==6.0.3
 redis==8.1.0
 referencing==0.37.0
+reportlab==5.0.1
 requests==2.34.2
 requests-oauthlib==2.0.0
 rich==15.0.0

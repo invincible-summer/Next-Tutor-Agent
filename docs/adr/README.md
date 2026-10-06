@@ -26,3 +26,4 @@
 | [ADR-0012](./0012-cloud-speech-server-mediated.md) | 云语音服务端中转 | 服务端 STT/合成 REST 端点，Azure 凭证只在服务器；`/voice/ws` 兼容保留，MeloTTS 定位 self-hosted/dev 可选 |
 | [ADR-0013](./0013-durable-workflows.md) | Durable workflows | Temporal 承担后台长任务执行所有权，`TEMPORAL_ADDRESS` 门控双模式，域持久化仍是唯一事实源（取代 ADR-0004 的进程内任务持有部分） |
 | [ADR-0014](./0014-single-instance-until-domain-cutover.md) | 完整领域迁移前单实例 | DATABASE_URL 只接入身份基础设施，业务文件事实源仍须单 API 实例/worker |
+| [ADR-0015](./0015-permissive-pdf-backend.md) | 许可宽松的 PDF 后端 | pypdf/pdfplumber/pypdfium2/ReportLab 替代 PyMuPDF（AGPL），core/pdf 门面 + PDFIUM_LOCK，页边界契约不变 |

@@ -17,10 +17,11 @@ class FakeStore:
 
 
 def _png_bytes() -> bytes:
-    import fitz
-    pix = fitz.Pixmap(fitz.csRGB, fitz.IRect(0, 0, 20, 20))
-    pix.clear_with(90)
-    return pix.tobytes("png")
+    import io
+    from PIL import Image as PILImage
+    buf = io.BytesIO()
+    PILImage.new("RGB", (20, 20), (90, 90, 90)).save(buf, format="PNG")
+    return buf.getvalue()
 
 
 class TestWithContextImages(unittest.TestCase):

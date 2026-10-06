@@ -15,7 +15,7 @@
   - `manager.py`（KnowledgeService：`graph_for` / `retriever_for` 合并视图）、`store.py`（图谱持久化）、`graph.py`（KnowledgeGraph 本体、环检测与邻接索引）、`schema.py`（节点/多类型边模型）；
   - `textbook_builder.py`（章节切片 + 教材构建编排）、`custom_graph.py`（spec → graph 确定性合并）、`taxonomy_normalizer.py`（章名/标题规范化）；
   - `retriever.py`（ConceptRetriever）、`content.py`（ContentResolver）、`context_builder.py`（知识指令块组装）、`reasoning.py`（Dependency Reasoner）、`bridge.py`（M5 → SkillGraph 投影）、`scope_primitives.py`（考纲 seed 包与空聚合层已删除，主图初始为空）。
-- `services/api/app/core/`：`file_parser.py`（上传解析）、`multimodal_parser.py`（内嵌媒体对齐）、`pdf_ocr.py`（逐页择优 OCR + `FITZ_LOCK`）、`ocr.py`（视觉 OCR 单页调用 + tesseract 回退）、`ocr_policy.py`（OCR 动态策略）、`textbook_ocr.py`（教材后台 OCR 持久状态机）、`textbook_pipeline.py`（构建队列/有界并发策略）、`figure_harvest.py`（原生 PDF 图表收割）、`text_quality.py`（文本层质量分级）、`structured_chunker.py`（Structured V2.2 切块）、`rag_index.py`（staging 质检 + BM25/向量发布）、`retriever.py`（`chunk_text` + BM25）、`hybrid.py`（BM25+向量 RRF 融合）、`evidence_gate.py`（证据门）、`evidence_context.py`（证据摘录/上下文重建）、`knowledge_store.py`（会话级 KnowledgeStore）、`library.py`（资料库存储与 `chunks_for` 惰性切块）、`textbook.py`（Textbook 记录服务）、`file_summary.py`（文件级摘要）、`vector_store.py`、`embedding.py`、`vector_jobs.py`、`public_vector_artifact.py`（向量轨支撑）。
+- `services/api/app/core/`：`file_parser.py`（上传解析）、`multimodal_parser.py`（内嵌媒体对齐）、`pdf_ocr.py`（逐页择优 OCR）、`pdf/`（pypdf/pdfplumber/pypdfium2 门面 + `PDFIUM_LOCK`，ADR-0015）、`ocr.py`（视觉 OCR 单页调用 + tesseract 回退）、`ocr_policy.py`（OCR 动态策略）、`textbook_ocr.py`（教材后台 OCR 持久状态机）、`textbook_pipeline.py`（构建队列/有界并发策略）、`figure_harvest.py`（原生 PDF 图表收割）、`text_quality.py`（文本层质量分级）、`structured_chunker.py`（Structured V2.2 切块）、`rag_index.py`（staging 质检 + BM25/向量发布）、`retriever.py`（`chunk_text` + BM25）、`hybrid.py`（BM25+向量 RRF 融合）、`evidence_gate.py`（证据门）、`evidence_context.py`（证据摘录/上下文重建）、`knowledge_store.py`（会话级 KnowledgeStore）、`library.py`（资料库存储与 `chunks_for` 惰性切块）、`textbook.py`（Textbook 记录服务）、`file_summary.py`（文件级摘要）、`vector_store.py`、`embedding.py`、`vector_jobs.py`、`public_vector_artifact.py`（向量轨支撑）。
 - `services/api/app/api/v1/`：`library.py`、`textbook.py`、`knowledge.py`；工作区上传端点在 `workspace.py`（`POST /workspaces/{id}/upload`，落 Library 专属夹）。
 - 工具：`services/api/app/tools/knowledge_search.py`、`knowledge_read.py`；检索触发统一在 `services/api/app/agents/material_signals.py`。
 - 前端：资料中心 `/resources/files|textbooks`、知识图谱页 `/knowledge`（属前端模块，此处只定义契约）。
@@ -123,7 +123,7 @@
 
 - `core/atomic.py`（所有 JSON/文本落盘原子写）、`core/config.py`（全部开关）、`core/paths.py`（存储根绑定）、`core/orphan_cleanup.py`（孤儿扫描类别登记）。
 - `core/llm_async.get_llm()`：主 LLM 通道的同一多模态模型承担视觉 OCR/图述与图谱小 JSON 调用（`disable_thinking=True`）；单页调用内置 3 次对异常/空 content 退避重试，耗尽回退 tesseract；未配置主通道走本地 tesseract。谱系构建 LLM 客户端取并发上限 8，实际节流由动态门 `llm_gate()` 负责（限额每次准入动态读取策略）。
-- PyMuPDF（fitz）：所有文档操作必须持 `pdf_ocr.FITZ_LOCK`（MuPDF 共享全局上下文非线程安全）；不得跨 `await` 持锁或持有长命文档对象；多页渲染逐页经 `render_page_pixmap`，整书页数/文本层走锁内助手 `pdf_page_count` / `pdf_page_texts`。
+- PDF 引擎（ADR-0015）：pypdf（页数/目录/page label/逐页文本）、pdfplumber（表格/位图 bbox）、pypdfium2（页面光栅化，`pdf.PDFIUM_LOCK` 全局串行，不跨 `await`、不持有长命文档对象）；业务层只 import `core/pdf` 门面，渲染逐页经 `render_page_png`，整书页数/文本层走 `pdf_page_count` / `pdf_page_texts`。损坏/加密以 `pdf_corrupt`/`pdf_encrypted` 错误码暴露。
 - Chroma（可选向量）、numpy（NPZ 向量包）。
 - `prompts/registry.py`：OCR/目录/逐章抽取 prompt 版本化，prompt 指纹（`_prompt_fingerprint`）进缓存失效（版本 bump 各书刷新时全量重抽一次）。
 - 消费方：chat 工具循环（`knowledge_search`/`knowledge_read`）、M2 证据投影（`/knowledge/graph` 概念着色 = 评价投影 ∪ 教学日志）、M4 出题 grounding、M9 目标链/学习路径、笔记智能体（复用同一检索路径）、课堂备课 sources。

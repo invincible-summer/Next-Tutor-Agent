@@ -233,7 +233,7 @@ def file_page_snapshot(file_id: str, page: int,
     if page < 1 or page > 5000:
         raise HTTPException(404, "页码无效")
     from app.core import textbook as tb_store
-    from app.core.pdf_ocr import render_page_pixmap
+    from app.core.pdf import render_page_png
     data_dir: Path | None = None
     orig_ext = ""
     for sid in (student_id, tb_store.PUBLIC_STUDENT_ID):
@@ -257,7 +257,7 @@ def file_page_snapshot(file_id: str, page: int,
         raw = raw_path.read_bytes()
     except OSError:
         raise HTTPException(404, "未找到可渲染的 PDF 原件")
-    png = render_page_pixmap(raw, page - 1, dpi=150)
+    png = render_page_png(raw, page - 1, dpi=150)
     if not png:
         raise HTTPException(404, "页码超出范围")
     return Response(content=png, media_type="image/png",

@@ -3,7 +3,7 @@
 验收：
 - 注册表：create/find/update/remove/textbook_for_file + 同 file_id 幂等。
 - spec_to_graph 形参：max_chapters/max_concepts 截断 + level 合法学段生效/非法回退。
-- 切片：fitz TOC 精确分页；locate_chapters 确定性定位；whole_book 单章。
+- 切片：PDF 书签目录精确分页；locate_chapters 确定性定位；whole_book 单章。
 - 构建：mock llm 分章输出 → building→ready；LLM 故障→graph_failed；快速路径单次调用。
 - 唯一性：rebuild 走质量门+原子替换，不产生不可管理的隐藏归档。
 """
@@ -247,21 +247,11 @@ class TestChapterSlicing(unittest.TestCase):
         self.assertIn("<章节末段节选>", excerpt)
 
     def test_extract_chapters_pdf_with_toc(self):
-        # 用 fitz 构造一个带目录的多页 PDF，验证 Tier 1 精确分页。
-        try:
-            import fitz
-        except Exception:
-            self.skipTest("fitz not available")
-        doc = fitz.open()
-        for i, txt in enumerate(["第一章封面", "第一章正文导数", "第二章正文积分"]):
-            page = doc.new_page()
-            page.insert_text((72, 72), txt)
-        doc.set_toc([
-            [1, "第一章 导数", 1],
-            [1, "第二章 积分", 2],
-        ])
-        raw = doc.tobytes()
-        doc.close()
+        # 用 fixtures 构造一个带目录的多页 PDF，验证 Tier 1 精确分页。
+        from tests.support import pdf_fixtures
+        raw = pdf_fixtures.with_outline(
+            pdf_fixtures.make_pdf(["第一章封面", "第一章正文导数", "第二章正文积分"]),
+            [(1, "第一章 导数", 1), (1, "第二章 积分", 2)])
         from app.agents.knowledge.textbook_builder import extract_chapters_pdf
         result = extract_chapters_pdf(raw)
         self.assertIsNotNone(result)
@@ -271,53 +261,29 @@ class TestChapterSlicing(unittest.TestCase):
         self.assertIn("积分", slices[1][0])
 
     def test_extract_chapters_pdf_no_toc_returns_none(self):
-        try:
-            import fitz
-        except Exception:
-            self.skipTest("fitz not available")
-        doc = fitz.open()
-        doc.new_page().insert_text((72, 72), "无目录的PDF")
-        raw = doc.tobytes()
-        doc.close()
+        from tests.support import pdf_fixtures
+        raw = pdf_fixtures.make_pdf(["无目录的PDF"])
         from app.agents.knowledge.textbook_builder import extract_chapters_pdf
         self.assertIsNone(extract_chapters_pdf(raw))
 
     def test_garbage_outline_titles_reject_whole_tier1(self):
         """印刷厂分段书签（34172-0-…_DJD 形态）不是教学单元边界：整个
         Tier 1 弃用，交 Tier 2 LLM 从正文定位（语文选必实测缺陷的类级回归）。"""
-        try:
-            import fitz
-        except Exception:
-            self.skipTest("fitz not available")
-        doc = fitz.open()
-        for txt in ["正文A", "正文B", "正文C"]:
-            doc.new_page().insert_text((72, 72), txt)
-        doc.set_toc([
-            [1, "34172-0-示范高中教科书语文选择性必修上册_DJD", 1],
-            [1, "34172-1-示范高中教科书语文选择性必修上册_DJD", 2],
-        ])
-        raw = doc.tobytes()
-        doc.close()
+        from tests.support import pdf_fixtures
+        raw = pdf_fixtures.with_outline(
+            pdf_fixtures.make_pdf(["正文A", "正文B", "正文C"]),
+            [(1, "34172-0-示范高中教科书语文选择性必修上册_DJD", 1),
+             (1, "34172-1-示范高中教科书语文选择性必修上册_DJD", 2)])
         from app.agents.knowledge.textbook_builder import extract_chapters_pdf
         self.assertIsNone(extract_chapters_pdf(raw))
 
     def test_outline_noise_entries_dropped_but_good_kept(self):
         """混合书签（真章名 + 目录/封面噪声）：噪声条目剔除，真章保留。"""
-        try:
-            import fitz
-        except Exception:
-            self.skipTest("fitz not available")
-        doc = fitz.open()
-        for txt in ["封面页", "目录页", "第一章内容", "第二章内容"]:
-            doc.new_page().insert_text((72, 72), txt)
-        doc.set_toc([
-            [1, "封面", 1],
-            [1, "目录", 2],
-            [1, "第一章 静电场", 3],
-            [1, "第二章 恒定电流", 4],
-        ])
-        raw = doc.tobytes()
-        doc.close()
+        from tests.support import pdf_fixtures
+        raw = pdf_fixtures.with_outline(
+            pdf_fixtures.make_pdf(["封面页", "目录页", "第一章内容", "第二章内容"]),
+            [(1, "封面", 1), (1, "目录", 2),
+             (1, "第一章 静电场", 3), (1, "第二章 恒定电流", 4)])
         from app.agents.knowledge.textbook_builder import extract_chapters_pdf
         result = extract_chapters_pdf(raw)
         self.assertIsNotNone(result)
@@ -327,19 +293,10 @@ class TestChapterSlicing(unittest.TestCase):
     def test_outline_volume_wrapper_title_rejected_with_hint(self):
         """书签=卷文件名包装（"化学反应原理第1章" 等）在卷名提示下判为伪章；
         而剥离书名前缀后是真实标题。"""
-        try:
-            import fitz
-        except Exception:
-            self.skipTest("fitz not available")
-        doc = fitz.open()
-        for txt in ["第一章内容", "第二章内容"]:
-            doc.new_page().insert_text((72, 72), txt)
-        doc.set_toc([
-            [1, "化学反应原理第1章", 1],
-            [1, "化学反应原理第2章", 2],
-        ])
-        raw = doc.tobytes()
-        doc.close()
+        from tests.support import pdf_fixtures
+        raw = pdf_fixtures.with_outline(
+            pdf_fixtures.make_pdf(["第一章内容", "第二章内容"]),
+            [(1, "化学反应原理第1章", 1), (1, "化学反应原理第2章", 2)])
         from app.agents.knowledge.textbook_builder import extract_chapters_pdf
         # 无卷名提示：无法判定 → 保留原名（兼容未知来源书签）
         self.assertIsNotNone(extract_chapters_pdf(raw))
@@ -387,16 +344,14 @@ class TestFrontMatterExclusion(unittest.TestCase):
         self.assertFalse(_page_is_front_matter(body, 4, 100))
 
     def test_tier1_slices_clamp_to_body(self):
-        # 注：fixture 用 ASCII（fitz 默认字体渲染不了 CJK，会变点阵）
-        import fitz
+        # 注：fixture 用 ASCII（Helvetica 渲染不了 CJK）
+        from tests.support import pdf_fixtures
         from app.agents.knowledge.textbook_builder import extract_chapters_pdf
-        doc = fitz.open()
-        for txt in ["cover and copyright info", "CONTENTS\nUnit 1...1\nUnit 2...2", "Chapter 1 content A", "Chapter 2 content B"]:
-            page = doc.new_page()
-            page.insert_text((72, 72), txt)
-        doc.set_toc([[1, "第一章 导数", 3], [1, "第二章 积分", 4]])
-        raw = doc.tobytes()
-        doc.close()
+        raw = pdf_fixtures.with_outline(
+            pdf_fixtures.make_pdf(["cover and copyright info",
+                                   "CONTENTS\nUnit 1...1\nUnit 2...2",
+                                   "Chapter 1 content A", "Chapter 2 content B"]),
+            [(1, "第一章 导数", 3), (1, "第二章 积分", 4)])
         result = extract_chapters_pdf(raw)
         self.assertIsNotNone(result)
         slices, _ = result

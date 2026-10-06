@@ -263,14 +263,10 @@ class TestTier1TextSlicing(unittest.TestCase):
     """Tier 1 增强：扫描书用书签目录页码切（OCR）文本；章粒度层级偏好。"""
 
     def _pdf_with_toc(self, n_pages: int, toc: list[list]) -> bytes:
-        import fitz
-        doc = fitz.open()
-        for _ in range(n_pages):
-            doc.new_page()  # 空白页（模拟扫描件：get_text 为空）
-        doc.set_toc(toc)
-        raw = doc.tobytes()
-        doc.close()
-        return raw
+        from tests.support import pdf_fixtures
+        # 空白页（模拟扫描件：文本层为空）
+        raw = pdf_fixtures.blank_pdf(n_pages)
+        return pdf_fixtures.with_outline(raw, [tuple(entry) for entry in toc])
 
     def test_scanned_book_slices_by_toc_into_provided_text(self):
         from app.agents.knowledge.textbook_builder import extract_chapters_pdf

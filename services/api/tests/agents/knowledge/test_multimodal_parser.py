@@ -35,12 +35,8 @@ class TestAsyncMultimodalParser(unittest.IsolatedAsyncioTestCase):
         ocr.assert_awaited_once()
 
     async def test_dense_pdf_skips_page_ocr(self):
-        import fitz
-        doc = fitz.open()
-        page = doc.new_page()
-        page.insert_text((72, 72), "dense textbook text " * 20)
-        raw = doc.tobytes()
-        doc.close()
+        from tests.support import pdf_fixtures
+        raw = pdf_fixtures.make_pdf(["dense textbook text " * 20])
         with patch.object(mp, "ocr_page_image", new=AsyncMock(return_value="should not run")) as ocr:
             result = await mp.extract_text_async("dense.pdf", raw)
         self.assertFalse(result.used_ocr)
@@ -48,13 +44,8 @@ class TestAsyncMultimodalParser(unittest.IsolatedAsyncioTestCase):
         ocr.assert_not_awaited()
 
     async def test_mixed_pdf_ocrs_only_sparse_page(self):
-        import fitz
-        doc = fitz.open()
-        dense = doc.new_page()
-        dense.insert_text((72, 72), "dense page content " * 20)
-        doc.new_page()
-        raw = doc.tobytes()
-        doc.close()
+        from tests.support import pdf_fixtures
+        raw = pdf_fixtures.make_pdf(["dense page content " * 20, ""])
         with patch.object(mp, "ocr_page_image", new=AsyncMock(return_value="扫描页识别内容")) as ocr:
             result = await mp.extract_text_async("mixed.pdf", raw)
         self.assertTrue(result.used_ocr)

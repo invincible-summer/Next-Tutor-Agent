@@ -568,7 +568,7 @@ def _body_text(text: str) -> str:
 
 
 def _split_pages(text: str) -> list[str]:
-    """PyMuPDF/file_parser 页边界 \\f → 页数组。"""
+    """file_parser/core-pdf 页边界 \\f → 页数组。"""
     return text.split("\f")
 
 
@@ -940,31 +940,24 @@ def extract_chapters_pdf(raw: bytes, text: str | None = None,
                          volume_hint: str = "") -> tuple[list[tuple[str, str]], str] | None:
     """Tier 1: PDF 书签目录 → 页码范围切片。失败返回 None。
 
-    fitz.get_toc() 返回 [[level, title, page_1based], ...]。
+    目录抽取经 ``core/pdf``（pypdf outline，ADR-0015），行结构
+    ``[[level, title, page_1based], ...]`` 与旧引擎同构——章节识别算法不变。
     - 层级选择：优先「章粒度」——某层 ≥2 条条目匹配 第N章/Chapter N 才选它
       （有的书 level1 是「篇」容器 + 前言，直接选 level1 会把 270 页切成一章）；
       无章粒度层时回退旧逻辑（level1 ≥2 条 → level1，否则 level2，再否则全部）。
     - 标题质检（类级规则）：文件名/印刷工单/卷包装/目录噪声条目剔除；垃圾占比
       过高 → 整个 Tier 1 弃用（印刷厂分段的页码范围也不是教学单元边界），让
       Tier 2 LLM 从正文定位真实单元。
-    - 切片文本：``text`` 为 None 时逐页 get_text（旧行为，文本版 PDF）；
+    - 切片文本：``text`` 为 None 时逐页抽文本层（旧行为，文本版 PDF）；
       传入时按 \\f 页切它——**扫描版 PDF 因此能用书签目录切 OCR 文本**
       （OCR 合并文本空页占位，页序与物理页一一对应）。超出文本页数范围的
       条目（如 OCR 截断后的页码）跳过/截断。
     """
+    from ...core.pdf import outline as pdf_outline_impl
+    from ...core.pdf import page_count as pdf_page_count_impl
     try:
-        import fitz  # PyMuPDF
-    except Exception:
-        return None
-    from ...core.pdf_ocr import FITZ_LOCK  # PyMuPDF 非线程安全：文档操作持锁
-    try:
-        with FITZ_LOCK:
-            doc = fitz.open(stream=raw, filetype="pdf")
-            try:
-                toc = doc.get_toc()  # [[level, title, page], ...]
-                page_count = doc.page_count
-            finally:
-                doc.close()
+        toc = [entry.as_row() for entry in pdf_outline_impl(raw)]
+        page_count = pdf_page_count_impl(raw)
     except Exception:
         return None
     if not toc:
@@ -1019,12 +1012,8 @@ def extract_chapters_pdf(raw: bytes, text: str | None = None,
     if text is None:
         # 旧行为：原文文本层逐页提取。
         try:
-            with FITZ_LOCK:
-                doc = fitz.open(stream=raw, filetype="pdf")
-                try:
-                    pages = [doc[i].get_text() for i in range(page_count)]
-                finally:
-                    doc.close()
+            from ...core.pdf import page_texts as pdf_page_texts_impl
+            pages = pdf_page_texts_impl(raw)
         except Exception:
             return None
     else:

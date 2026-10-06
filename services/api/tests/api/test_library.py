@@ -34,7 +34,6 @@ from app.core.workspace import Workspace, ensure_library_folder, save_workspace
 from app.identity import config as id_config
 from app.identity import store as id_store
 from app.identity.security import create_token, hash_password
-import fitz
 from fastapi import FastAPI
 from tests.support.storage_sandbox import StorageSandboxTestCase
 from app.api.v1.library import router
@@ -349,14 +348,8 @@ class TestPageSnapshotApi(unittest.TestCase):
 
     @staticmethod
     def _pdf_bytes(pages: int = 2) -> bytes:
-        import fitz
-        doc = fitz.open()
-        for i in range(pages):
-            page = doc.new_page()
-            page.insert_text((72, 90), f"Page {i + 1} content")
-        raw = doc.tobytes()
-        doc.close()
-        return raw
+        from tests.support import pdf_fixtures
+        return pdf_fixtures.make_pdf([f"Page {i + 1} content" for i in range(pages)])
 
     def test_renders_png_for_pdf_page(self):
         res = self.client.post(
@@ -400,10 +393,8 @@ class FileNavigationPreviewTest(StorageSandboxTestCase):
         app.dependency_overrides[resolve_student_id] = lambda: self.owner
         self.client = TestClient(app)
         self.addCleanup(self.client.close)
-        with fitz.open() as doc:
-            for number in (1, 2):
-                doc.new_page().insert_text((30, 50), f"Navigation page {number}")
-            raw = doc.tobytes()
+        from tests.support import pdf_fixtures
+        raw = pdf_fixtures.make_pdf(["Navigation page 1", "Navigation page 2"])
         lib = Library(student_id=self.owner)
         self.pdf = lib.add_file("", "nav.pdf", "Navigation pages", raw=raw, orig_ext=".pdf")["id"]
         self.txt = lib.add_file("", "nav.txt", "Text", raw=b"Text", orig_ext=".txt")["id"]

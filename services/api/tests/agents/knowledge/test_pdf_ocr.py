@@ -12,22 +12,14 @@ import os
 import tempfile
 import unittest
 from pathlib import Path
+from tests.support import pdf_fixtures as fixtures
 from unittest.mock import patch
 
 
 def _make_pdf(pages_text: list[str], *, scanned: bool = False) -> bytes:
-    """Build a PDF with fitz. scanned=True → blank pages (get_text() returns "",
-    renderable pixmap; mocks OCR on the rendered image)."""
-    import fitz
-    doc = fitz.open()
-    for i in range(len(pages_text)):
-        page = doc.new_page()
-        if not scanned:
-            page.insert_text((72, 72), pages_text[i] or f"page {i+1}")
-        # scanned: 空白页，get_text() 返回 ""（is_scanned_pdf 判定成立）
-    data = doc.tobytes()
-    doc.close()
-    return data
+    """Build a synthetic PDF (ReportLab). scanned=True → blank pages (empty
+    text layer, renderable; mocks OCR on the rendered image)."""
+    return fixtures.make_pdf(pages_text, scanned=scanned)
 
 
 class TestIsScannedPdf(unittest.TestCase):
@@ -216,7 +208,7 @@ class TestFileParserSyncFallback(unittest.TestCase):
 
     def test_normal_pdf_no_ocr(self):
         from app.core import file_parser, pdf_ocr, config
-        # 用 ASCII 文本（fitz 默认字体能嵌入；CJK 需 CJK 字体）
+        # 用 ASCII 文本（默认 Helvetica；CJK 需 CID 字体）
         raw = _make_pdf(["enough ascii text content for page one " * 8,
                          "second page also has plenty of ascii text " * 8])
         with patch.object(config.settings, "pdf_ocr_mode", "auto"), \
@@ -497,40 +489,41 @@ class TestMultimodalRetry(unittest.TestCase):
         self.assertEqual(tess.call_args.kwargs.get("psm"), 3)
 
 
-class TestFitzGlobalLock(unittest.TestCase):
-    """PyMuPDF 非线程安全（MuPDF 全局上下文）：并发 50 页渲染曾实测段错误整个
-    进程（2026-08-16，uvicorn SIGSEGV）。所有文档操作必须经 FITZ_LOCK 串行。"""
+class TestPdfiumGlobalLock(unittest.TestCase):
+    """PDFium 非线程安全（共享全局上下文）：并发渲染必须经 PDFIUM_LOCK 串行
+    （沿用 2026-08-16 uvicorn SIGSEGV 的教训，ADR-0015）。"""
 
     def test_render_blocks_while_lock_held_elsewhere(self):
         import threading
         import time
         from app.core import pdf_ocr
+        from app.core.pdf import render_page_png
 
         raw = _make_pdf(["page one", "page two"])
         done = threading.Event()
         out: list[bytes | None] = []
 
         def target():
-            out.append(pdf_ocr.render_page_pixmap(raw, 0))
+            out.append(render_page_png(raw, 0))
             done.set()
 
-        with pdf_ocr.FITZ_LOCK:  # 测试线程占住全局锁：渲染必须阻塞等锁
+        with pdf_ocr.PDFIUM_LOCK:  # 测试线程占住全局锁：渲染必须阻塞等锁
             t = threading.Thread(target=target)
             t.start()
             time.sleep(0.05)
-            self.assertFalse(done.is_set())  # 持锁期间未进入 fitz
+            self.assertFalse(done.is_set())  # 持锁期间未进入 pdfium
         t.join(timeout=3)
         self.assertTrue(done.is_set())
         self.assertTrue(out and out[0] and out[0][:8] == b"\x89PNG\r\n\x1a\n")
 
     def test_concurrent_renders_all_valid(self):
         from concurrent.futures import ThreadPoolExecutor
-        from app.core import pdf_ocr
+        from app.core.pdf import render_page_png
 
         raw = _make_pdf([f"page {i + 1} text" for i in range(8)])
         with ThreadPoolExecutor(max_workers=16) as pool:
             pngs = list(pool.map(
-                lambda i: pdf_ocr.render_page_pixmap(raw, i % 8), range(48)))
+                lambda i: render_page_png(raw, i % 8), range(48)))
         self.assertTrue(all(p and p[:8] == b"\x89PNG\r\n\x1a\n" for p in pngs))
 
     def test_locked_helpers_cover_page_count_and_texts(self):

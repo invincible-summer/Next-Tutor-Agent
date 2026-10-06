@@ -6,3 +6,5 @@
 httpx2>=2.13
 # In-memory sqlite driver for the persistence unit suite (aiosqlite lane).
 aiosqlite>=0.20
+# Synthetic PDF fixtures for the PDF backend and parser suites (BSD).
+reportlab>=5.0

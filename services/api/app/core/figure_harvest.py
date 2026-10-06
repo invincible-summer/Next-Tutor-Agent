@@ -1,15 +1,16 @@
 """原生 PDF（文本层）图表与印刷页码收割（RAG_FIGURE_HARVEST，默认开）。
 
 文本层良好的原生教材 PDF 不会经过视觉模型，导致：表格只剩散乱文字、
-插图完全不可见、印刷页码无从谈起。本模块在教材构建路径上做确定性收割：
+插图完全不可见、印刷页码无从谈起。本模块在教材构建路径上做确定性收割
+（引擎职责在 ``core/pdf``，ADR-0015）：
 
-- **表格**：``page.find_tables()``（PyMuPDF 内置表格识别，零 LLM）→
+- **表格**：``pdfplumber`` 表格识别（零 LLM）→ 反伪造门槛 →
   markdown 行块 ``[表|上下文]``；
-- **插图**：``page.get_images()`` + ``get_image_rects()`` 提取位图区域
-  （过滤小图标/整页扫描图/重复区域），裁剪渲染 PNG → 复用多模态通道
+- **插图**：``pdfplumber`` 位图 bbox（过滤小图标/整页扫描图/重复区域）
+  → 每页单次 pypdfium2 渲染 + Pillow 裁剪 PNG → 复用多模态通道
   （``ocr.describe_figure_image``）生成 ``[图|...] + 图述：`` 块——调用
   受 ``ocr_policy.textbook_ocr_job`` 并发治理；
-- **印刷页码**：PDF page label（``page.get_label()``）为纯数字时输出
+- **印刷页码**：PDF page label（pypdf）为纯数字时输出
   ``[页码=N]`` 页首标记，与扫描书 OCR prompt v2 的标记同构，由
   Structured Chunker V2 统一解析为 ``printed_page`` 元数据。
 
@@ -38,27 +39,14 @@ _MAX_TABLE_ROWS = 60          # 单表 markdown 行数上限
 _LABEL_NUMERIC_RE = re.compile(r"^\s*([0-9]{1,4})\s*$")
 
 
-def _page_label_int(page: Any) -> int | None:
+def _page_label_int(label: str | None) -> int | None:
     """PDF page label 为纯数字时返回印刷页码（罗马数字/空等返回 None）。"""
-    try:
-        label = str(page.get_label() or "").strip()
-    except Exception:
-        return None
-    m = _LABEL_NUMERIC_RE.match(label)
+    m = _LABEL_NUMERIC_RE.match(str(label or ""))
     return int(m.group(1)) if m else None
 
 
-def _extract_rows(table: Any) -> list[list[str]]:
-    """Table → 规整化单元格行（extract 失败返回 []，单元格内换行折叠）。"""
-    try:
-        return [[re.sub(r"\s*\n\s*", " ", str(c or "")).strip() for c in row]
-                for row in (table.extract() or [])]
-    except Exception:
-        return []
-
-
 def _rows_look_like_table(rows: list[list[str]]) -> bool:
-    """反伪造门槛（P8）：``find_tables`` 会把普通问题框/边框装饰也圈成"表"。
+    """反伪造门槛（P8）：表格识别会把普通问题框/边框装饰也圈成"表"。
 
     取证（2026-08）：单卷可产出上百张假表——特征是两列内容逐行重复
     （框内文字被复制进两列）、有效单元格稀疏、伪表头 Col2。真表至少 2 行
@@ -84,17 +72,10 @@ def _rows_look_like_table(rows: list[list[str]]) -> bool:
     return True
 
 
-def _table_markdown(table: Any) -> str:
-    """Table → markdown 行（先过 ``_rows_look_like_table`` 反伪造门槛）。"""
-    rows = _extract_rows(table)
+def _table_markdown(rows: list[list[str]]) -> str:
+    """行网格 → markdown 行（先过 ``_rows_look_like_table`` 反伪造门槛）。"""
     if not _rows_look_like_table(rows):
         return ""
-    try:
-        md = str(table.to_markdown()).strip()
-        if md:
-            return "\n".join(md.splitlines()[:_MAX_TABLE_ROWS])
-    except Exception:
-        pass
     lines = []
     for row in rows[:_MAX_TABLE_ROWS]:
         cells = [c for c in row if c]
@@ -104,42 +85,13 @@ def _table_markdown(table: Any) -> str:
     return "\n".join(lines)
 
 
-def _figure_rects(page: Any) -> list[Any]:
-    """本页可收割的位图区域：去重 + 过滤小图标/整页图。"""
-    page_area = abs(page.rect.width * page.rect.height) or 1.0
-    seen: set[tuple[float, float, float, float]] = set()
-    out: list[Any] = []
-    try:
-        images = page.get_images(full=True) or []
-    except Exception:
-        return out
-    for img in images:
-        xref = img[0] if img else 0
-        try:
-            rects = page.get_image_rects(xref) or []
-        except Exception:
-            continue
-        for rect in rects:
-            key = (round(rect.x0, 1), round(rect.y0, 1),
-                   round(rect.x1, 1), round(rect.y1, 1))
-            if key in seen:
-                continue
-            seen.add(key)
-            if rect.width < _MIN_FIG_PT or rect.height < _MIN_FIG_PT:
-                continue
-            ratio = abs(rect.width * rect.height) / page_area
-            if ratio < _MIN_FIG_AREA_RATIO or ratio > _MAX_FIG_AREA_RATIO:
-                continue
-            out.append(rect)
-    return out
-
-
-def _render_clip(page: Any, rect: Any, dpi: int) -> bytes | None:
-    try:
-        pix = page.get_pixmap(clip=rect, dpi=dpi)
-        return pix.tobytes("png")
-    except Exception:
-        return None
+def _region_selected(region: Any) -> bool:
+    """位图区域政策过滤：小图标 / 面积占比越界的区域不收割。"""
+    if region.width_pt < _MIN_FIG_PT or region.height_pt < _MIN_FIG_PT:
+        return False
+    if region.area_ratio < _MIN_FIG_AREA_RATIO or region.area_ratio > _MAX_FIG_AREA_RATIO:
+        return False
+    return True
 
 
 def harvest_native_blocks_sync(raw: bytes) -> dict[int, dict[str, Any]]:
@@ -147,55 +99,42 @@ def harvest_native_blocks_sync(raw: bytes) -> dict[int, dict[str, Any]]:
 
     返回 ``{page_no(1-based): {"label": int|None, "tables": [str],
     "figure_pngs": [bytes]}}``；figure_pngs 的描述由异步阶段补充。
-    永不抛出；任何 fitz 异常返回已收割部分。
+    永不抛出；任何解析异常返回已收割部分。
     """
-    import fitz
-    from .pdf_ocr import FITZ_LOCK  # PyMuPDF 非线程安全：收割全程持锁（同步，无 await）
+    from .pdf import (harvest_figure_regions, harvest_tables, page_labels,
+                      render_figure_crops)
     out: dict[int, dict[str, Any]] = {}
-    with FITZ_LOCK:
-        try:
-            doc = fitz.open(stream=raw, filetype="pdf")
-        except Exception:
-            return out
-        try:
-            figures_used = 0
-            for idx, page in enumerate(doc, start=1):
-                entry: dict[str, Any] = {}
-                label = _page_label_int(page)
-                if label is not None:
-                    entry["label"] = label
-                tables: list[str] = []
-                try:
-                    finder = page.find_tables()
-                    for table in (finder.tables or []):
-                        md = _table_markdown(table)
-                        if md:
-                            tables.append(md)
-                except Exception:
-                    pass
-                if tables:
-                    entry["tables"] = tables
-                if figures_used < _MAX_FIGURES_PER_VOLUME:
-                    rects = _figure_rects(page)
-                    pngs: list[bytes] = []
-                    for rect in rects[: _MAX_FIGURES_PER_VOLUME - figures_used]:
-                        png = _render_clip(page, rect, settings.pdf_ocr_dpi)
-                        if png:
-                            pngs.append(png)
-                    if pngs:
-                        figures_used += len(pngs)
-                        entry["figure_pngs"] = pngs
-                if entry:
-                    out[idx] = entry
-            return out
-        except Exception as e:
-            log.warning("native figure/table harvest failed: %s", e)
-            return out
-        finally:
-            try:
-                doc.close()
-            except Exception:
-                pass
+    try:
+        labels = page_labels(raw)
+        tables_by_page: dict[int, list[str]] = {}
+        for block in harvest_tables(raw):
+            md = _table_markdown(block.rows)
+            if md:
+                tables_by_page.setdefault(block.page_1based, []).append(md)
+
+        regions = [r for r in harvest_figure_regions(raw) if _region_selected(r)]
+        regions = regions[:_MAX_FIGURES_PER_VOLUME]
+        crops = render_figure_crops(raw, regions, dpi=settings.pdf_ocr_dpi)
+        figures_by_page: dict[int, list[bytes]] = {}
+        for index in sorted(crops):
+            crop = crops[index]
+            figures_by_page.setdefault(crop.page_index + 1, []).append(crop.png)
+
+        pages = set(tables_by_page) | set(figures_by_page)
+        for idx in sorted(pages):
+            entry: dict[str, Any] = {}
+            label = _page_label_int(labels[idx - 1]) if 0 < idx <= len(labels) else None
+            if label is not None:
+                entry["label"] = label
+            if idx in tables_by_page:
+                entry["tables"] = tables_by_page[idx]
+            if idx in figures_by_page:
+                entry["figure_pngs"] = figures_by_page[idx]
+            out[idx] = entry
+        return out
+    except Exception as e:
+        log.warning("native figure/table harvest failed: %s", e)
+        return out
 
 
 async def _describe_figures(pngs: list[bytes]) -> list[str]:

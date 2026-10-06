@@ -16,21 +16,15 @@ from app.core import figure_harvest
 
 def _pdf_with_image_and_label(*, label: str | None = None) -> bytes:
     """文本层页 + 一张中等尺寸位图（≈11% 页面积）+ 可选 page label。"""
-    import fitz
-    doc = fitz.open()
-    page = doc.new_page()
-    page.insert_text((72, 90), "第一章 力学基础")
-    page.insert_text((72, 110), "正文段落，文本层良好。")
-    img = fitz.Pixmap(fitz.csRGB, fitz.IRect(0, 0, 200, 150))
-    img.clear_with(128)
-    page.insert_image(fitz.Rect(72, 150, 350, 350), pixmap=img)
+    from tests.support import pdf_fixtures
+    raw = pdf_fixtures.page_with_image(
+        ["第一章 力学基础", "正文段落，文本层良好。"], image_rect=(72, 150, 350, 350))
     if label:
         # label="iv" 等非数字走罗马 style，数字走十进制 style
-        style = "D" if label.isdigit() else "r"
-        doc.set_page_labels([{"startpage": 0, "prefix": "", "style": style,
-                              "firstpagenum": int(label) if label.isdigit() else 1}])
-    raw = doc.tobytes()
-    doc.close()
+        if label.isdigit():
+            raw = pdf_fixtures.with_page_labels(raw, style="D", first_page_num=int(label))
+        else:
+            raw = pdf_fixtures.with_page_labels(raw, style="r", first_page_num=1)
     return raw
 
 
@@ -54,15 +48,9 @@ class TestFigureHarvestSync(unittest.TestCase):
         self.assertNotIn("label", harvested[1])
 
     def test_tiny_images_skipped(self):
-        import fitz
-        doc = fitz.open()
-        page = doc.new_page()
-        page.insert_text((72, 90), "正文")
-        img = fitz.Pixmap(fitz.csRGB, fitz.IRect(0, 0, 20, 20))
-        img.clear_with(200)
-        page.insert_image(fitz.Rect(72, 120, 92, 140), pixmap=img)  # 20pt 图标
-        raw = doc.tobytes()
-        doc.close()
+        from tests.support import pdf_fixtures
+        raw = pdf_fixtures.page_with_image(  # 20pt 图标
+            ["正文"], image_rect=(72, 120, 92, 140), image_size=(20, 20))
         harvested = figure_harvest.harvest_native_blocks_sync(raw)
         self.assertNotIn("figure_pngs", harvested.get(1, {}))
 
@@ -125,15 +113,9 @@ class TestMergeHarvest(unittest.TestCase):
 
 
 class TestTableMarkdown(unittest.TestCase):
-    def test_fallback_rows_when_no_markdown_api(self):
-        class FakeTable:
-            def to_markdown(self):
-                raise AttributeError("no api")
-
-            def extract(self):
-                return [["函数", "导数"], ["x^n", "nx^(n-1)"], [None, ""]]
-
-        md = figure_harvest._table_markdown(FakeTable())
+    def test_rows_to_markdown_and_none_cells(self):
+        rows = [["函数", "导数"], ["x^n", "nx^(n-1)"], [None, ""]]
+        md = figure_harvest._table_markdown(rows)
         self.assertIn("| 函数 | 导数 |", md)
         self.assertIn("nx^(n-1)", md)
 

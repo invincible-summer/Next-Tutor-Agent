@@ -31,15 +31,11 @@ def extract_text(filename: str, raw: bytes, *, ocr_fallback: bool = True) -> str
 
 
 def _extract_pdf(raw: bytes, *, ocr_fallback: bool = True) -> str:
-    import fitz
-    from .pdf_ocr import FITZ_LOCK  # PyMuPDF 非线程安全：文档操作全程持锁
-    with FITZ_LOCK:
-        doc = fitz.open(stream=raw, filetype="pdf")
-        # \f (form feed) joins pages: the structure-aware chunker uses it as a
-        # hard page boundary so chunks keep their page number for citation.
-        pages = [page.get_text() for page in doc]
-        n = doc.page_count
-        doc.close()
+    from .pdf import page_texts as _pdf_page_texts
+    pages = _pdf_page_texts(raw)
+    n = len(pages)
+    # \f (form feed) joins pages: the structure-aware chunker uses it as a
+    # hard page boundary so chunks keep their page number for citation.
     text = "\f".join(pages)
     if not ocr_fallback:
         return text

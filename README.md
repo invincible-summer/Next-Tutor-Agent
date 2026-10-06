@@ -66,7 +66,7 @@ Next Tutor Agent 把教材、讲解、练习与复习放进同一个学习空间
 | 移动端 | Expo SDK 57 · React Native 0.86 · Expo Router · 原生 SVG · 服务端语音 |
 | 内容呈现 | Markdown · KaTeX · SVG 题图 · HTML 课件 |
 | 后端 | Python 3.11 · FastAPI · Pydantic · OpenAI 兼容模型接口 |
-| 教材与检索 | PyMuPDF · OCR · 结构化切片 · BM25 · 可选 Chroma 向量检索 |
+| 教材与检索 | pypdf/pdfplumber/pypdfium2 · OCR · 结构化切片 · BM25 · 可选 Chroma 向量检索 |
 | 学习与数据 | 多智能体教学编排 · 教材知识图谱 · 学习证据记录 · JSON / JSONL 与 Markdown 文件存储 |
 | 验证工具 | unittest · TypeScript / ESLint · Playwright |
 

@@ -63,7 +63,7 @@ BM25 retrieval works without an embedding model; vector retrieval is optional. A
 | Mobile | Expo SDK 57 · React Native 0.86 · Expo Router · Native SVG · Server speech |
 | Content | Markdown · KaTeX · SVG question diagrams · HTML lessons |
 | Backend | Python 3.11 · FastAPI · Pydantic · OpenAI-compatible model API |
-| Textbooks & retrieval | PyMuPDF · OCR · Structured chunking · BM25 · Optional Chroma vector retrieval |
+| Textbooks & retrieval | pypdf/pdfplumber/pypdfium2 · OCR · Structured chunking · BM25 · Optional Chroma vector retrieval |
 | Learning & data | Multi-agent teaching orchestration · Textbook knowledge graphs · Learning evidence records · JSON / JSONL and Markdown storage |
 | Validation | unittest · TypeScript / ESLint · Playwright |
 

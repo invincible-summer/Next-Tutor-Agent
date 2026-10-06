@@ -25,7 +25,7 @@ FastAPI 后端各领域共用的运行时基建：配置、存储根与路径绑
 - LLM 通道：`llm_async.py`（OpenAI 兼容异步客户端，`trust_env=False` 直连、`disable_thinking` 防饿死）、`llm_policy.py`（管理员在线热调）、`llm_runtime/`（Provider 能力档案与 ReasoningPolicy）。
 - 会话与运行时服务：`session.py`（会话工作集）、`ratelimit.py`（固定窗口限流）、`trace.py`（每轮 trace JSONL）、`bootstrap.py`、`context.py` / `context_budget.py` / `context_telemetry.py`。
 - 检索与知识底座：`retriever.py`、`rag_index.py`、`hybrid.py`（BM25 基线 + 向量可选，ADR-0003）、`vector_store.py`、`vector_jobs.py`、`embedding.py`、`knowledge_store.py`、`structured_chunker.py`、`public_vector_artifact.py`。
-- 文件解析与 OCR：`file_parser.py`、`file_summary.py`、`multimodal_parser.py`、`multimodal_context.py`、`ocr.py`、`pdf_ocr.py`、`ocr_policy.py`、`textbook_ocr.py`、`text_quality.py`。
+- 文件解析与 OCR：`file_parser.py`、`file_summary.py`、`multimodal_parser.py`、`multimodal_context.py`、`ocr.py`、`pdf_ocr.py`、`pdf/`（PDF 引擎门面，ADR-0015）、`ocr_policy.py`、`textbook_ocr.py`、`text_quality.py`。
 - 工具协议：`agent_tools.py`、`tool_base.py`、`tool_context.py`、`tool_protocol.py`、`tool_call_compat.py`、`execution_policy.py`、`message_protocol.py`。
 - 账号与治理：`account_data.py`（注销级联 purge）、`orphan_cleanup.py`（孤儿数据扫描类别）、`guest_*`（游客策略/运行时/清理/学习）、`trash.py`、`uploads.py`、`workspace.py` / `workspace_memory.py`。
 - 其余跨域共享模块：教材管线（`textbook.py`、`textbook_pipeline.py`、`library.py`）、出题配图侧（`quiz_illustration*.py`、`quiz_design.py`、`quiz_grounding.py`、`quiz_attempts.py`、`quiz_submission.py`、`quiz_verify.py`、`quiz_generation_budget.py`）、学习证据与画像消费（`evidence_context.py`、`evidence_gate.py`、`learner_evaluation_policy.py`、`learner_runtime.py`、`learning_episodes.py`、`session_learning_card.py`）、记忆与教学辅助（`memory_safety.py`、`bloom.py`）、使用文档（`usage_docs.py`）、`figure_harvest.py`。课堂/站内助手/笔记的域存储层已迁至所属域（`app/classroom/storage.py`、`app/agents/site_assistant/store.py`、`app/notes/`）。

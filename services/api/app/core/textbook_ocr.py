@@ -127,7 +127,8 @@ def _write_text_and_chunks(owner_id: str, file_id: str, pages: list[str]) -> str
 
 async def _attempt_page(raw: bytes, page_idx: int, attempt: int,
                         timeout_seconds: int, *, local_fallback: bool = False):
-    png = await asyncio.to_thread(pdf_ocr.render_page_pixmap, raw, page_idx)
+    from .pdf import render_page_png
+    png = await asyncio.to_thread(render_page_png, raw, page_idx)
     if png is None:
         return ocr.TextbookOCRResult(False, error_code="render_failed",
                                      error_summary="PDF 页面渲染失败", retryable=True,
@@ -162,10 +163,10 @@ async def process_textbook_ocr_round(owner_id: str, textbook_id: str, file_id: s
         return TextbookOCRRoundResult("cancelled", current_text, state0)
     metric_key = f"{owner_id}:{textbook_id}:{file_id}"
     page_texts = current_text.split("\f") if current_text else []
-    # fitz 探针（页数 + 缺失时逐页文本层）走线程 + 全局锁：PyMuPDF 非线程
-    # 安全，且整书 get_text 可能秒级，不能阻塞事件循环。
+    # 探针（页数 + 缺失时逐页文本层）走线程：pypdf 各调用持有独立 reader
+    # （无全局锁），整书抽取可能秒级，不能阻塞事件循环（ADR-0015）。
     def _probe(raw: bytes, texts: list[str]) -> tuple[int, list[str]]:
-        from .pdf_ocr import FITZ_LOCK, pdf_page_count, pdf_page_texts
+        from .pdf_ocr import pdf_page_count, pdf_page_texts
         if texts:
             return pdf_page_count(raw) or len(texts), texts
         probed = pdf_page_texts(raw)

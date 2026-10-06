@@ -461,12 +461,9 @@ class ReadersTest(StorageSandboxTestCase):
         self.assertEqual(cands[0]["target"]["route_id"], "memory")
 
     def test_destination_file_target_carries_page(self) -> None:
-        import fitz
+        from tests.support import pdf_fixtures
         from app.core.library import Library, save_library
-        with fitz.open() as doc:
-            for number in (1, 2):
-                doc.new_page().insert_text((30, 50), f"Page {number}")
-            raw = doc.tobytes()
+        raw = pdf_fixtures.make_pdf(["Page 1", "Page 2"])
         lib = Library(student_id=self.student_id)
         fid = lib.add_file("", "微积分讲义.pdf", "讲义", raw=raw,
                            orig_ext=".pdf")["id"]
@@ -926,12 +923,9 @@ class ServiceTurnTest(_OrchestrationApiCase):
     def test_open_file_page_turn_yields_page_target(self) -> None:
         # 「打开微积分讲义第3页」→ file 深链目标携带 page=3（NAV-03
         # 生产路径：页码由后端确定性产出）。
-        import fitz
+        from tests.support import pdf_fixtures
         from app.core.library import Library, save_library
-        with fitz.open() as doc:
-            for number in (1, 2, 3):
-                doc.new_page().insert_text((30, 50), f"Page {number}")
-            raw = doc.tobytes()
+        raw = pdf_fixtures.make_pdf(["Page 1", "Page 2", "Page 3"])
         lib = Library(student_id=self.sid)
         fid = lib.add_file("", "微积分讲义.pdf", "讲义", raw=raw,
                            orig_ext=".pdf")["id"]

@@ -89,7 +89,7 @@ def evidence_snapshot_images(results: list[dict[str, Any]], student_id: str,
     """
     try:
         from .library import library_data_dir, load_library
-        from .pdf_ocr import render_page_pixmap
+        from .pdf import render_page_png
         from .textbook import PUBLIC_STUDENT_ID
 
         def _orig_bytes(file_id: str) -> bytes | None:
@@ -125,7 +125,7 @@ def evidence_snapshot_images(results: list[dict[str, Any]], student_id: str,
             raw = _orig_bytes(fid)
             if raw is None:
                 continue
-            png = render_page_pixmap(raw, int(page) - 1, dpi=140)
+            png = render_page_png(raw, int(page) - 1, dpi=140)
             if not png:
                 continue
             url = _data_url(png)

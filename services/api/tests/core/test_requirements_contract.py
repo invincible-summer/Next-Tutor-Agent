@@ -44,13 +44,21 @@ class RequirementsContractTest(unittest.TestCase):
         text = (BACKEND / "requirements.txt").read_text(encoding="utf-8")
         self.assertIn("-c constraints.txt", text)
         names = _requirement_names("requirements.txt")
-        self.assertTrue({"fastapi", "openai", "pillow", "pytesseract"} <= names)
+        self.assertTrue({"fastapi", "openai", "pillow", "pytesseract",
+                         "pypdf", "pdfplumber", "pypdfium2"} <= names)
         self.assertTrue(
             names.isdisjoint({
                 "chromadb", "numpy", "torch", "transformers",
-                "sentence-transformers",
+                "sentence-transformers", "pymupdf",
             })
         )
+
+    def test_pdf_test_lane_pinned_in_requirements_test(self):
+        # ReportLab 只出现在测试 lane：synthetic PDF fixtures（ADR-0015）。
+        names = _requirement_names("requirements-test.txt")
+        self.assertIn("reportlab", names)
+        self.assertIn("reportlab", _pinned_names())
+        self.assertNotIn("reportlab", _requirement_names("requirements.txt"))
 
     def test_optional_files_own_vector_and_local_model_dependencies(self):
         self.assertTrue({"chromadb", "numpy"} <= _requirement_names("requirements-vector.txt"))
@@ -98,7 +106,10 @@ class RequirementsContractTest(unittest.TestCase):
         for expected in (
             "fastapi==0.140.0",
             "openai==2.48.0",
-            "pymupdf==1.28.2",
+            "pypdf==6.19.0",
+            "pdfplumber==0.11.10",
+            "pdfminer.six==20260107",
+            "pypdfium2==5.14.0",
             "pillow==12.3.0",
             "pytesseract==0.3.13",
             "chromadb==1.5.9",
@@ -110,6 +121,7 @@ class RequirementsContractTest(unittest.TestCase):
             "cryptography==50.0.2",
         ):
             self.assertIn(expected, constraints)
+        self.assertNotIn("pymupdf==", constraints)
         self.assertFalse((BACKEND / "requirements.lock").exists())
 
 

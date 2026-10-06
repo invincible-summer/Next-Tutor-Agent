@@ -16,13 +16,8 @@ def _pipeline_policy(mode: str, *, build: int = 2, volume: int = 2, llm: int = 4
     return {"mode": mode, "build_concurrency": build, "volume_concurrency": volume,
             "llm_concurrency": llm, "updated_at": 0.0, "version": 1}
 def _pdf(pages: int = 1) -> bytes:
-    import fitz
-    doc = fitz.open()
-    for _ in range(pages):
-        doc.new_page()
-    raw = doc.tobytes()
-    doc.close()
-    return raw
+    from tests.support import pdf_fixtures
+    return pdf_fixtures.blank_pdf(pages)
 def _persistent_policy(**over):
     policy = {"failure_mode": "persistent_api", "max_attempts": 3,
               "retry_interval_seconds": 60, "request_timeout_seconds": 60,

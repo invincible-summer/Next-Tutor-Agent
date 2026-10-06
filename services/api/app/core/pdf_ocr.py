@@ -1,31 +1,33 @@
 """扫描版/图片型 PDF 的逐页 OCR 回退（接入既有 RAG/图谱管线）。
 
-PyMuPDF 的 ``page.get_text()`` 只抽文本层；扫描版书籍（每页是图片、无文本层）
-返回空，上传会被拒。本模块判定扫描 PDF + 逐页渲染 pixmap → OCR → 按页顺序
-返回文本列表，调用方用 ``"\\f".join`` 拼成与 ``file_parser._extract_pdf`` 同构
-的文本（``retriever.chunk_text`` 的 ``\\f`` 页边界天然带页码）。
+页面渲染/文本层抽取由 ``core/pdf``（pypdf + pypdfium2，ADR-0015）承担；
+扫描版书籍（每页是图片、无文本层）文本层返回空，上传会被拒。本模块判定
+扫描 PDF + 逐页渲染 PNG → OCR → 按页顺序返回文本列表，调用方用
+``"\\f".join`` 拼成与 ``file_parser._extract_pdf`` 同构的文本
+（``retriever.chunk_text`` 的 ``\\f`` 页边界天然带页码）。
 
-永不抛出：任何 fitz/OCR 异常返回空/部分结果，由调用方落 warning/降级。OCR 双
-通道见 ``ocr.ocr_page_image``（视觉模型优先 / 本地 tesseract 回退）。
+永不抛出：任何解析/OCR 异常返回空/部分结果，由调用方落 warning/降级。OCR
+双通道见 ``ocr.ocr_page_image``（视觉模型优先 / 本地 tesseract 回退）。
 """
 from __future__ import annotations
 
 import asyncio
 import logging
-import threading
 from typing import Any, Awaitable, Callable, Optional
 
 from .config import settings
+from .pdf import PDFIUM_LOCK, page_count as _pdf_page_count_impl
+from .pdf import page_texts as _pdf_page_texts_impl
+from .pdf import render_page_png
 
 log = logging.getLogger(__name__)
 
-#: PyMuPDF 非线程安全（MuPDF 共享全局上下文）：多线程同时打开/渲染/抽文本
-#: 会段错误整个进程（2026-08-16 实测：教材 OCR 并发 50 时 uvicorn SIGSEGV）。
-#: 所有 fitz 文档操作必须持此锁完成；渲染/抽文本为毫秒~秒级，全局串行的
-#: 吞吐损失远小于视觉模型调用延迟，换取进程级稳定。异步函数中不得跨
-#: ``await`` 持锁——需要多页渲染时逐页调用 ``render_page_pixmap``（内部
-#: 独立加锁），不共享长命文档对象。
-FITZ_LOCK = threading.Lock()
+#: PDFium 非线程安全（共享全局上下文）：多线程同时打开/渲染会段错误整个进程
+#: （2026-08-16 实测：教材 OCR 并发 50 时 uvicorn SIGSEGV）。所有 pypdfium2
+#: 调用必须持此锁完成；渲染为毫秒~秒级，全局串行的吞吐损失远小于视觉模型
+#: 调用延迟，换取进程级稳定。异步函数中不得跨 ``await`` 持锁——需要多页渲染
+#: 时逐页调用 ``render_page_png``（内部独立加锁），不共享长命文档对象。
+#: （pypdf/pdfplumber 各自持有独立 reader，不经过本锁。）
 
 # 页均字符低于此值判定为「文本层稀疏」（扫描版或图片主导）。20 是经验值：
 # 一页正常教材正文通常数百字符以上；扫描页 get_text() 基本为 0。
@@ -58,78 +60,34 @@ def pages_needing_ocr(page_texts: list[str]) -> list[int]:
             if verdict in ("empty", "sparse", "corrupt")]
 
 
-def _pdf_doc(raw: bytes):
-    """Open a PDF via fitz; None on any failure (not a PDF / fitz missing)."""
-    try:
-        import fitz  # PyMuPDF
-        return fitz.open(stream=raw, filetype="pdf")
-    except Exception:
-        return None
-
-
 def is_scanned_pdf(raw: bytes, *, min_chars_per_page: int = _SCANNED_MIN_CHARS_PER_PAGE) -> bool:
     """True when the PDF's text layer is too sparse to be useful (needs OCR).
 
     判定：页均字符 < 阈值。混合 PDF（部分页有文本）若整体仍稀疏也按需 OCR 处理。
-    非 PDF / fitz 缺失 / 打开失败 → False（调用方按原文本层路径处理）。永不抛出。
+    非 PDF / 引擎缺失 / 打开失败 → False（调用方按原文本层路径处理）。永不抛出。
     """
     try:
-        with FITZ_LOCK:
-            import fitz
-            doc = fitz.open(stream=raw, filetype="pdf")
-            try:
-                n = doc.page_count
-                if n <= 0:
-                    return False
-                total = sum(len(p.get_text() or "") for p in doc)
-                return (total / n) < min_chars_per_page
-            finally:
-                doc.close()
+        pages = _pdf_page_texts_impl(raw)
+        if not pages:
+            return False
+        total = sum(len(p or "") for p in pages)
+        return (total / len(pages)) < min_chars_per_page
     except Exception:
         return False
 
 
-def render_page_pixmap(raw: bytes, page_idx: int, *, dpi: int | None = None) -> bytes | None:
-    """Render one PDF page to PNG bytes (None on failure)."""
-    try:
-        with FITZ_LOCK:
-            import fitz
-            doc = fitz.open(stream=raw, filetype="pdf")
-            try:
-                if page_idx < 0 or page_idx >= doc.page_count:
-                    return None
-                pix = doc[page_idx].get_pixmap(dpi=dpi or settings.pdf_ocr_dpi)
-                return pix.tobytes("png")
-            finally:
-                doc.close()
-    except Exception:
-        return None
-
-
 def pdf_page_count(raw: bytes) -> int:
-    """Total PDF page count under the fitz lock (0 on any failure)."""
+    """Total PDF page count (0 on any failure)."""
     try:
-        with FITZ_LOCK:
-            import fitz
-            doc = fitz.open(stream=raw, filetype="pdf")
-            try:
-                return int(doc.page_count)
-            finally:
-                doc.close()
+        return int(_pdf_page_count_impl(raw))
     except Exception:
         return 0
 
 
 def pdf_page_texts(raw: bytes) -> list[str]:
-    """Per-page text layer under the fitz lock (``[]`` on any failure)."""
+    """Per-page text layer (``[]`` on any failure)."""
     try:
-        with FITZ_LOCK:
-            import fitz
-            doc = fitz.open(stream=raw, filetype="pdf")
-            try:
-                return [(p.get_text() or "") for p in doc]
-            finally:
-                doc.close()
+        return list(_pdf_page_texts_impl(raw))
     except Exception:
         return []
 
@@ -191,7 +149,7 @@ async def ocr_pdf_pages(
         for off in range(0, total, concurrency):
             batch = range(off, min(off + concurrency, total))
             pngs: list[bytes | None] = [
-                render_page_pixmap(raw, i, dpi=eff_dpi) for i in batch]
+                render_page_png(raw, i, dpi=eff_dpi) for i in batch]
             pages.extend(await _gather_ocr_batch(pngs, ocr_page_fn,
                                                  ocr_job=_ocr_job))
             if on_progress is not None:
@@ -203,7 +161,7 @@ async def ocr_pdf_pages(
 
     pages = []
     for i in range(total):
-        png = render_page_pixmap(raw, i, dpi=dpi)
+        png = render_page_png(raw, i, dpi=dpi)
         if png is None:
             pages.append("")
         else:
@@ -246,7 +204,7 @@ def ocr_pdf_pages_sync(
 
     pages: list[str] = []
     for i in range(total):
-        png = render_page_pixmap(raw, i, dpi=dpi)
+        png = render_page_png(raw, i, dpi=dpi)
         if png is None:
             pages.append("")
         else:
@@ -321,7 +279,7 @@ async def ocr_pdf_pages_mixed(
             for off in range(0, len(targets), concurrency):
                 batch = targets[off:off + concurrency]
                 pngs: list[bytes | None] = [
-                    render_page_pixmap(raw, i, dpi=eff_dpi) for i in batch]
+                    render_page_png(raw, i, dpi=eff_dpi) for i in batch]
                 texts = await _gather_ocr_batch(pngs, ocr_page_fn,
                                                 ocr_job=_ocr_job)
                 for i, text in zip(batch, texts):
@@ -338,7 +296,7 @@ async def ocr_pdf_pages_mixed(
             return pages, {"sparse": len(sparse), "ocr_done": done, "ocr_failed": failed}
         for i in targets:
             try:
-                png = render_page_pixmap(raw, i, dpi=dpi)
+                png = render_page_png(raw, i, dpi=dpi)
                 if png is None:
                     text = ""
                 elif _ocr_job is not None:
@@ -396,7 +354,7 @@ def ocr_pdf_pages_mixed_sync(
         failed = 0
         for i in targets:
             try:
-                png = render_page_pixmap(raw, i, dpi=dpi)
+                png = render_page_png(raw, i, dpi=dpi)
                 text = (ocr_page_fn(png) or "") if png is not None else ""
             except Exception as e:
                 log.warning("sync mixed OCR page %d failed: %s", i, e)

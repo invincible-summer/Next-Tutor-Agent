@@ -340,12 +340,9 @@ class TestHarvestModeContract(unittest.TestCase):
         self._s.tearDown()
 
     def _seed_pdf_volume(self, file_id: str = "f1") -> str:
-        import fitz
+        from tests.support import pdf_fixtures
         from app.core.library import library_data_dir
-        doc = fitz.open()
-        doc.new_page().insert_text((72, 72), "Chapter 1 content")
-        raw = doc.tobytes()
-        doc.close()
+        raw = pdf_fixtures.make_pdf(["Chapter 1 content"])
         (library_data_dir("stu1") / f"{file_id}.txt").write_text(
             "原文内容，不含任何图表标记。", encoding="utf-8")
         (library_data_dir("stu1") / f"{file_id}.orig.pdf").write_bytes(raw)
