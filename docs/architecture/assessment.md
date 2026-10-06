@@ -7,7 +7,7 @@ M4 回答「学生真的学会了吗」：统一承载练习题生成、统一�
 - 测评域的**出题侧**：聊天工具 `generate_quiz` / `fit_quiz`、M4 约束出题与 CAT 共用结构校验、量规冻结和有界生成预算；普通 V2/V3 出题另有独立配图预算，实际 PNG 与题目条件、答案、解析和量规在同一次合并审查中核对。
 - 测评域的**作答侧**：所有作答（聊天题卡、习题中心、CAT）经唯一受理入口 `evaluate_submission` 进入统一学习评价协议——服务端权威题目、答案指纹幂等、MC 确定性判分、开放题语义作业。
 - 量规（rubric）在学生作答前冻结；帮助事件在判分前入账；异议走 journal 复核生命周期。
-- 学习证据 journal 本身属 M2 统一学习评价域（`students/<id>.learning_evidence.jsonl`，见 [student-model.md](student-model.md)）；本文只描述 M4 视角的注册、受理与判分协议。
+- 学习证据 journal 本身属 M2 统一学习评价域（`students/<id>.learning_evidence.jsonl`，SQL 模式见 [student-model.md](student-model.md) 的 evidence_documents 单行映射；ADR-0017）；本文只描述 M4 视角的注册、受理与判分协议——M4 的全部持久事实随 journal 走 SQL 路由，`assessment_documents` 表预留给后续独立成行的测评工件。
 - 题图（question illustration）只影响出题与批改交付形态，其管线内部（检索/构图/审核/冻结）见 [diagrams-illustration.md](diagrams-illustration.md)；工具调用协议与 Skill 门控见 [skill-runtime.md](skill-runtime.md)。
 
 ## Owned code

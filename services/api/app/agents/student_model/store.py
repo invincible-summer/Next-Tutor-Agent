@@ -32,6 +32,14 @@ class StudentStateBlob:
 
 
 def load_blob(student_id: str) -> StudentStateBlob:
+    from .evaluation import sql_store as _sql
+    if _sql.use_sql():
+        data = _sql.load_profile_blob(_resolve(student_id).stem)
+        if not data:
+            return StudentStateBlob(profile=StudentProfile(id=student_id))
+        profile = StudentProfile.from_dict(data.get("profile") or data)
+        profile.id = student_id or profile.id
+        return StudentStateBlob(profile=profile)
     path = _resolve(student_id)
     if not path.exists():
         return StudentStateBlob(profile=StudentProfile(id=student_id))
@@ -44,8 +52,13 @@ def load_blob(student_id: str) -> StudentStateBlob:
 
 def save_blob(student_id: str, blob: StudentStateBlob | StudentProfile
               ) -> None:
-    path = _resolve(student_id)
+    from .evaluation import sql_store as _sql
     profile = blob.profile if isinstance(blob, StudentStateBlob) else blob
+    if _sql.use_sql():
+        _sql.save_profile_blob(_resolve(student_id).stem,
+                               {"version": 2, "profile": profile.to_dict()})
+        return
+    path = _resolve(student_id)
     _STUDENTS_DIR.mkdir(parents=True, exist_ok=True)
     with file_lock(path):
         atomic_write_text(path, json.dumps(

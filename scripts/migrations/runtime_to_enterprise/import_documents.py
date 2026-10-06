@@ -151,6 +151,41 @@ def _iter_notes_documents() -> list[tuple[str, str, str, dict[str, Any]]]:
 WALKERS["notes"] = _iter_notes_documents
 
 
+def _iter_evidence_documents() -> list[tuple[str, str, str, dict[str, Any]]]:
+    """(owner, kind, doc_id, payload) for learner journals + profiles.
+
+    Journal lines import verbatim (checksums/generations survive); the
+    profile is the students/<key>.json blob.
+    """
+    from app.agents.student_model.evaluation.store import JOURNAL_SUFFIX
+    from app.core import paths
+
+    students = paths.runtime_paths().students
+    out: list[tuple[str, str, str, dict[str, Any]]] = []
+    if not students.is_dir():
+        return out
+    for p in sorted(students.iterdir()):
+        if not p.is_file():
+            continue
+        owner = p.name.split(".")[0]
+        if p.name.endswith(JOURNAL_SUFFIX):
+            lines = [line for line in
+                     p.read_text(encoding="utf-8").splitlines() if line.strip()]
+            if lines:
+                out.append((owner, "journal", owner, {"lines": lines}))
+        elif p.name == f"{owner}.json":
+            try:
+                payload = json.loads(p.read_text(encoding="utf-8"))
+            except Exception:
+                continue
+            if isinstance(payload, dict):
+                out.append((owner, "profile", owner, payload))
+    return out
+
+
+WALKERS["evidence"] = _iter_evidence_documents
+
+
 async def _import_domain(domain: str, dry_run: bool) -> dict[str, Any]:
     from app.persistence.documents import DocumentRecord
     from app.persistence.documents.repository import SqlDocumentRepository

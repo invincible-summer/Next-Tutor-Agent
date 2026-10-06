@@ -26,6 +26,7 @@ from typing import Any, Callable, Iterator
 from app.core.atomic import (append_line_sync, atomic_write_text,
                              fsync_dir, file_lock)
 from . import schema as S
+from . import sql_store as _sql_journal
 
 # 项目根 students/（与其他 student store 同款解析策略）
 from app.core import paths
@@ -446,6 +447,9 @@ class EvidenceJournal:
         self._state: JournalState | None = None
         self._file_signature: tuple[int, int, int, int, int] | None = None
         self._load_lock = threading.RLock()
+        self._sql_lines: list[str] | None = None
+        self._sql_mode = False
+        self._sql_mode_check()
 
     # -- paths ---------------------------------------------------------
     @property
@@ -466,11 +470,38 @@ class EvidenceJournal:
         # Keep this lock order consistent with append/rewrite.
         with file_lock(self.path):
             with self._load_lock:
+                if self._sql_mode:
+                    signature = self._sql_signature()
+                    if self._state is None or signature != self._file_signature:
+                        self._state = self._load_sql()
+                        self._file_signature = self._sql_signature()
+                    return self._state
                 signature = self._signature()
                 if self._state is None or signature != self._file_signature:
                     self._state = self._load()
                     self._file_signature = self._signature()
                 return self._state
+
+    def _sql_mode_check(self) -> None:
+        # 路由在构造时冻结：journal 实例是进程级缓存，测试中途切库经
+        # reset_journal_cache() 后重建。
+        self._sql_mode = _sql_journal.use_sql()
+
+    def _sql_signature(self) -> tuple | None:
+        lines, signature = _sql_journal.read_journal_lines(self.student_id)
+        self._sql_lines = lines
+        return signature
+
+    def _load_sql(self) -> JournalState:
+        state = JournalState(student_id=self.student_id)
+        lines = getattr(self, "_sql_lines", None)
+        if lines is None:
+            lines, _ = _sql_journal.read_journal_lines(self.student_id)
+        if not lines:
+            state.generation = new_generation()
+            return state
+        state = _replay_lines(state, lines, self.student_id)
+        return state
 
     def _signature(self) -> tuple[int, int, int, int, int] | None:
         try:
@@ -604,6 +635,8 @@ class EvidenceJournal:
         """
         if not operations:
             raise JournalError("empty transaction")
+        if self._sql_mode:
+            return self._append_sql(operations, expected_generation)
         with self.transaction(expected_generation=expected_generation) as state:
             tx = S.JournalTransaction(
                 generation=state.generation,
@@ -619,6 +652,49 @@ class EvidenceJournal:
             self._file_signature = self._signature()
             return tx
 
+    def _append_sql(self, operations: list[Any],
+                    expected_generation: str | None) -> S.JournalTransaction:
+        """整读-派生-追加在一个行锁 mutate 内（跨进程原子，等价文件锁语义）。
+        generation 不匹配/损坏在锁内抛出并回滚。"""
+        holder: dict[str, S.JournalTransaction] = {}
+
+        def mutate(lines: list[str] | None) -> list[str]:
+            state = JournalState(student_id=self.student_id)
+            if lines:
+                _replay_lines(state, lines, self.student_id)
+            else:
+                state.generation = new_generation()
+            if state.corrupt:
+                raise JournalCorruptError(
+                    f"journal corrupt for {self.student_id}: "
+                    f"{state.corrupt_detail}")
+            if expected_generation is not None \
+                    and expected_generation != state.generation:
+                raise GenerationConflictError(
+                    f"generation conflict: expected {expected_generation}, "
+                    f"journal at {state.generation}")
+            tx = S.JournalTransaction(
+                generation=state.generation,
+                seq=state.last_seq + 1,
+                transaction_id=new_transaction_id(),
+                created_at=S.utc_now_iso(),
+                operations=operations)
+            tx.checksum = tx.resolved_checksum()
+            out = list(lines or [])
+            out.append(tx.model_dump_json())
+            holder["tx"] = tx
+            # 提交路径上同步进程内缓存（与文件模式一致）
+            with self._load_lock:
+                if self._state is None:
+                    self._state = state
+                self._state.last_seq = tx.seq
+                _apply_tx(self._state, tx)
+            return out
+
+        _sql_journal.mutate_journal(self.student_id, mutate)
+        self._file_signature = None  # 强制下次 state() 重读行签名
+        return holder["tx"]
+
     # -- rewrite (permanent deletion) ----------------------------------
     def rewrite(self, keep: Callable[[S.JournalTransaction], bool],
                 reason: str,
@@ -628,6 +704,8 @@ class EvidenceJournal:
         """带 generation 的永久删除重写（§5.3：物理去除敏感内容与引用副本，
         不是只追加 tombstone）。返回新 generation。调用方负责范围/权限判断。
         R07：transform 允许保留行脱敏（如独立 assessment detach 会话定位）。"""
+        if self._sql_mode:
+            return self._rewrite_sql(keep, transform)
         with self.transaction():
             kept: list[S.JournalTransaction] = []
             for tx in self._iter_raw_transactions():
@@ -671,7 +749,66 @@ class EvidenceJournal:
             self._file_signature = self._signature()
             return new_gen
 
+    def _rewrite_sql(self, keep, transform) -> str:
+        """整读-筛选-重写在一个行锁 mutate 内；空结果保留 generation fence。"""
+        holder: dict[str, str] = {}
+
+        def mutate(lines: list[str] | None) -> list[str]:
+            kept: list[S.JournalTransaction] = []
+            for text in (lines or []):
+                text = text.strip()
+                if not text:
+                    continue
+                tx = S.JournalTransaction.from_persisted_json(text)
+                if not keep(tx):
+                    continue
+                if transform is not None:
+                    tx = transform(tx)
+                kept.append(tx)
+            new_gen = new_generation()
+            seq = 0
+            out: list[str] = []
+            for old in kept:
+                seq += 1
+                tx = old.model_copy(update={
+                    "generation": new_gen, "seq": seq,
+                    "transaction_id": new_transaction_id(),
+                    "created_at": S.utc_now_iso()})
+                tx.checksum = tx.resolved_checksum()
+                out.append(tx.model_dump_json())
+            if not out:
+                # 空重写保留 generation fence（与文件模式同款保留行）。
+                seq = 1
+                marker = S.JournalTransaction(
+                    generation=new_gen, seq=seq,
+                    transaction_id=new_transaction_id(),
+                    created_at=S.utc_now_iso(),
+                    operations=[S.OpConsumerAck(
+                        event_id="__journal_generation__",
+                        consumer="__journal__")])
+                marker.checksum = marker.resolved_checksum()
+                out.append(marker.model_dump_json())
+            holder["gen"] = new_gen
+            with self._load_lock:
+                self._state = JournalState(student_id=self.student_id)
+                self._state.generation = new_gen
+                self._state.last_seq = seq
+                _replay_lines(self._state, out, self.student_id)
+            return out
+
+        _sql_journal.mutate_journal(self.student_id, mutate)
+        self._file_signature = None
+        return holder["gen"]
+
     def _iter_raw_transactions(self) -> list[S.JournalTransaction]:
+        if self._sql_mode:
+            lines, _ = _sql_journal.read_journal_lines(self.student_id)
+            out: list[S.JournalTransaction] = []
+            for text in lines:
+                text = text.strip()
+                if text:
+                    out.append(S.JournalTransaction.from_persisted_json(text))
+            return out
         if not self.path.exists():
             return []
         out: list[S.JournalTransaction] = []
@@ -693,6 +830,28 @@ class EvidenceJournal:
 
     def register_question(self, task: S.TaskSnapshot) -> S.JournalTransaction:
         return self.append([S.OpQuestionRegistered(task=task)])
+
+
+def _replay_lines(state: JournalState, lines: list[str],
+                  student_id: str) -> JournalState:
+    """Replay complete JSONL lines into ``state`` (SQL 模式：行总是完整的，
+    损坏即抛 JournalCorruptError——行级原子性由数据库保证，无 torn tail）。"""
+    txs: list[S.JournalTransaction] = []
+    for i, line in enumerate(lines):
+        text = str(line).strip()
+        if not text:
+            continue
+        try:
+            txs.append(S.JournalTransaction.from_persisted_json(text))
+        except Exception as exc:  # noqa: BLE001 - 单行损坏定位
+            raise JournalCorruptError(
+                f"journal corrupt for {student_id}: line {i + 1}: {exc}"
+            ) from exc
+    state.generation = txs[-1].generation if txs else new_generation()
+    state.last_seq = txs[-1].seq if txs else 0
+    for tx in txs:
+        _apply_tx(state, tx)
+    return state
 
 
 def _apply_tx(state: JournalState, tx: S.JournalTransaction) -> None:
@@ -726,6 +885,21 @@ def reset_journal_cache() -> None:
 def purge_journal_files(student_id: str) -> bool:
     """账号/证据永久删除：journal + 派生投影文件全部清除，无空目录残留。
     先经 rewrite 取消在途（lifecycle 负责），此处只做物理清除。"""
+    from . import sql_store as _sql
+    if _sql.use_sql():
+        removed = False
+
+        async def _purge() -> bool:
+            nonlocal removed
+            journal_gone = await _sql.bridge.repository("evidence").delete(
+                student_id, student_id, kind="journal")
+            profile_gone = await _sql.bridge.repository("evidence").delete(
+                student_id, student_id, kind="profile")
+            return journal_gone or profile_gone
+
+        removed = _sql.bridge.call(_purge)
+        reset_journal_cache()
+        return removed
     path = journal_path(student_id)
     removed = False
     with file_lock(path):

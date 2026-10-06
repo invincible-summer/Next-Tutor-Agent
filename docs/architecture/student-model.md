@@ -44,8 +44,8 @@
 
 | 路径 | 内容 |
 |------|------|
-| `students/<id>.json` | 画像（profile-only blob，无能力数值） |
-| `students/<id>.learning_evidence.jsonl` | 统一学习证据 journal（唯一事实源；每行一个完整事务：`generation+seq` watermark、canonical checksum） |
+| `students/<id>.json` | 画像（profile-only blob，无能力数值）。SQL 模式（`DOMAIN_DOCUMENT_BACKENDS=evidence=sql`，ADR-0017）写入 `evidence_documents`（kind=profile） |
+| `students/<id>.learning_evidence.jsonl` | 统一学习证据 journal（唯一事实源；每行一个完整事务：`generation+seq` watermark、canonical checksum）。SQL 模式整本 journal 为 `evidence_documents` 单行（kind=journal，行锁 mutate 等价文件锁的跨进程原子性；generation/seq/checksum 语义不变）；`.index.json`/`.learner_views.json` 派生投影保持文件态可重建。导入：`import_documents.py --domain evidence` |
 
 - journal 内的操作是封闭判别联合：`question_registered / source_registered / assistance_recorded / job_* / result_committed / review_* / interpretation_revoked / scope_* / synthesis_committed`。
 - `TaskSnapshot`（题干/选项/答案/等价解/量规）在出题时注册；`question_revision + rubric_hash` 不变即冻结，量规指纹由服务端从冻结内容计算。

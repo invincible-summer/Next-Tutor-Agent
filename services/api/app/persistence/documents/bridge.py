@@ -105,7 +105,13 @@ def _get_worker() -> _Worker:
 
 def call(coro_fn: Callable[..., Any], *args: Any,
          timeout: float = _CALL_TIMEOUT) -> Any:
-    """Run ``coro_fn(*args)`` on the worker loop; block for the result."""
+    """Run ``coro_fn(*args)`` on the worker loop; block for the result.
+
+    Timeouts surface as DocumentRepositoryError; everything else re-raises
+    the coroutine's own exception unchanged — domain closures (journal
+    generation conflicts, CAS losses) carry domain semantics that callers
+    match on, and infrastructure failures are no less actionable raw.
+    """
     worker = _get_worker()
     future = asyncio.run_coroutine_threadsafe(coro_fn(*args), worker.loop)
     try:
@@ -114,12 +120,6 @@ def call(coro_fn: Callable[..., Any], *args: Any,
         future.cancel()
         raise DocumentRepositoryError(
             f"document store call timed out after {timeout}s") from exc
-    except DocumentRepositoryError:
-        raise
-    except Exception as exc:
-        raise DocumentRepositoryError(
-            f"document store call failed: {type(exc).__name__}: {exc}"
-        ) from exc
 
 
 def repository(domain: str):
