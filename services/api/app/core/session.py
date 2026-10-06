@@ -18,6 +18,10 @@ from .atomic import atomic_write_text, file_lock
 from .config import settings
 from .knowledge_store import KnowledgeStore
 
+# chat 域文档仓储路由（ADR-0017）：SQL 模式经 session_sql 走 chat_documents
+# 表；文件模式沿用下方文件实现。配置见 DOMAIN_DOCUMENT_BACKENDS。
+from . import session_sql as _sql_store
+
 # chat_history lives in the runtime data root, so it is independent of
 # the backend cwd. Mirror config.py's data-root resolution.
 from app.core import paths
@@ -91,6 +95,17 @@ def add_trace_id(session_id: str, trace_id: str) -> None:
     file does not exist (it will be written in full by the next save_session).
     """
     if not trace_id:
+        return
+    if _sql_store.use_sql():
+        def _mutate(d: dict) -> dict:
+            ids = list(d.get("trace_ids") or [])
+            if trace_id not in ids:
+                ids.append(trace_id)
+            d["trace_ids"] = ids
+            return d
+
+        if _sql_store.mutate_session(session_id, _mutate) is not None:
+            _sql_store.add_trace_ref(session_id, trace_id)
         return
     path = _resolve(session_id)
     if not path.exists():
@@ -226,17 +241,21 @@ def ensure_message_ids(messages: list[dict[str, Any]]) -> bool:
 
 
 def save_session(session: TutorSession) -> str:
-    _SESSIONS_DIR.mkdir(parents=True, exist_ok=True)
     session.updated_at = time.time()
     if not session.session_id:
         session.session_id = new_session_id(session.title or "untitled")
     if not session.title:
         session.title = derive_title(session.messages, session.title)
     ensure_message_ids(session.messages)
-    path = _resolve(session.session_id)
-    is_new = not path.exists()
-    with file_lock(path):
-        atomic_write_text(path, json.dumps(session.to_persistable(), ensure_ascii=False, indent=2))
+    if _sql_store.use_sql():
+        is_new = _sql_store.save_session_record_created(session)
+        _sql_store.save_session_payload(session.to_persistable())
+    else:
+        _SESSIONS_DIR.mkdir(parents=True, exist_ok=True)
+        path = _resolve(session.session_id)
+        is_new = not path.exists()
+        with file_lock(path):
+            atomic_write_text(path, json.dumps(session.to_persistable(), ensure_ascii=False, indent=2))
     # M6 prompt-memory session window is global across ordinary/workspace
     # conversations. Register at the first durable session write; the helper is
     # best-effort and deliberately does not affect persistence if unavailable.
@@ -272,6 +291,11 @@ def save_session(session: TutorSession) -> str:
 
 
 def load_session(session_id: str) -> TutorSession | None:
+    if _sql_store.use_sql():
+        payload = _sql_store.load_session_payload(session_id)
+        if payload is None:
+            return None
+        return TutorSession.from_dict(payload)
     path = _resolve(session_id)
     if not path.exists():
         return None
@@ -315,13 +339,30 @@ def _session_summary(p) -> dict[str, Any] | None:
     return item
 
 
-def list_sessions() -> list[dict[str, Any]]:
+def list_sessions(student_id: str | None = None) -> list[dict[str, Any]]:
+    """Session summaries, newest first.
+
+    ``student_id`` scopes the listing to one owner (M0 isolation; SQL 模式
+    必需——owner 是 chat_documents 的查询键)。None 时文件模式返回全部
+    （调用方自行过滤的遗留行为），SQL 模式返回空并告警。
+    """
+    if _sql_store.use_sql():
+        if not student_id:
+            import logging as _logging
+            _logging.getLogger(__name__).warning(
+                "list_sessions called without student_id in SQL mode; "
+                "returning nothing (isolation)")
+            return []
+        return _sql_store.list_session_summaries(student_id)
     _SESSIONS_DIR.mkdir(parents=True, exist_ok=True)
     out = []
     seen: set[str] = set()
     for p in sorted(_SESSIONS_DIR.glob("*.json"), key=lambda x: x.stat().st_mtime, reverse=True):
         item = _session_summary(p)
         if item is None:
+            continue
+        if student_id is not None and \
+                (item.get("student_id") or "student_default") != student_id:
             continue
         seen.add(str(p))
         out.append(item)
@@ -371,7 +412,21 @@ def trace_owner_index(default_student_id: str) -> dict[str, str]:
     return out
 
 
+def trace_owner(run_id: str, default_student_id: str) -> str | None:
+    """Owner for one trace/run id, or None when unknown (双模式统一入口)。"""
+    if _sql_store.use_sql():
+        return _sql_store.trace_owner_lookup(run_id, default_student_id)
+    return trace_owner_index(default_student_id).get(run_id)
+
+
 def delete_session(session_id: str) -> bool:
+    if _sql_store.use_sql():
+        payload = _sql_store.delete_session(session_id)
+        if payload is None:
+            return False
+        knowledge_files = list(payload.get("knowledge_files", []))
+        _delete_session_materials(session_id, knowledge_files)
+        return True
     path = _resolve(session_id)
     knowledge_files: list[dict[str, Any]] = []
     with file_lock(path):
@@ -383,6 +438,12 @@ def delete_session(session_id: str) -> bool:
         except Exception:
             knowledge_files = []
         path.unlink()
+    _delete_session_materials(session_id, knowledge_files)
+    return True
+
+
+def _delete_session_materials(session_id: str,
+                              knowledge_files: list[dict[str, Any]]) -> None:
     # Session-private materials (extracted text + originals/OCR images) must not
     # survive deletion or become visible through another session.
     try:
@@ -406,10 +467,12 @@ def delete_session(session_id: str) -> bool:
         vector_store.delete_scope(f"session:{session_id}")
     except Exception:
         pass
-    return True
 
 
 def rename_session(session_id: str, title: str) -> bool:
+    if _sql_store.use_sql():
+        return _sql_store.mutate_session(
+            session_id, lambda d: {**d, "title": title}) is not None
     path = _resolve(session_id)
     with file_lock(path):
         if not path.exists():
@@ -427,6 +490,9 @@ def set_session_grade(session_id: str, grade: str) -> bool:
     the whole session (a full load/save would rebuild BM25 chunks for no reason).
     Returns False when the session file is missing.
     """
+    if _sql_store.use_sql():
+        return _sql_store.mutate_session(
+            session_id, lambda d: {**d, "grade": grade}) is not None
     path = _resolve(session_id)
     with file_lock(path):
         if not path.exists():

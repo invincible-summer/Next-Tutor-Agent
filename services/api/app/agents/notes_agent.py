@@ -151,7 +151,7 @@ def collect_workspace_block(student_id: str, workspace_id: str) -> str | None:
     try:
         from ..core.session import list_sessions
         owned = {m.get("session_id"): m.get("title")
-                 for m in list_sessions()
+                 for m in list_sessions(student_id)
                  if (m.get("student_id") or _default_student_id()) == student_id}
         titles = [str(owned.get(sid) or sid) for sid in ws.session_ids
                   if sid in owned]

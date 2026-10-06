@@ -159,7 +159,7 @@ def _collect_chat(student_id: str, query_norm: str, in_scope_ws: set[str],
     from app.agents.student_model.store import DEFAULT_STUDENT_ID
     from app.core.session import list_sessions
     out = []
-    for s in list_sessions():
+    for s in list_sessions(student_id):
         if (s.get("student_id") or DEFAULT_STUDENT_ID) != student_id:
             continue
         ws = str(s.get("workspace_id") or "")

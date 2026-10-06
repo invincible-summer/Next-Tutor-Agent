@@ -32,8 +32,8 @@ def _authorize_trace(run_id: str, student_id: str) -> None:
     请求全量 load_session 是 O(全部会话总字节) 的读放大，随机 run_id 高频
     请求可当资源消耗面用。
     """
-    from app.core.session import trace_owner_index
-    owner = trace_owner_index(DEFAULT_STUDENT_ID).get(run_id)
+    from app.core.session import trace_owner
+    owner = trace_owner(run_id, DEFAULT_STUDENT_ID)
     if owner is not None:
         if owner != student_id:
             raise HTTPException(404, "Trace not found")

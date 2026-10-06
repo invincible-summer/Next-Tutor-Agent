@@ -78,7 +78,9 @@
 
 ## State & storage（状态与存储布局，含 runtime data 路径）
 
-均在数据根 `NEXT_TUTOR_DATA_DIR` 下（ADR-0002/0004）：
+双模式路由（ADR-0017，chat 域）：`DOMAIN_DOCUMENT_BACKENDS` 含 `chat=sql` 且配置 `DATABASE_URL` 时，会话与转写写入 PostgreSQL `chat_documents` 表（`core/session_sql.py` 经 sync bridge 访问；`list_sessions` 以 owner 为查询键，SQL 模式必须传 student_id）；否则走下列文件布局，行为与历史一致。trace 归属在 SQL 模式经 `trace_ref` 行解析（`trace_owner()` 双模式统一入口），文件模式沿用反向索引缓存。上传原件/提取文本仍走文件/ObjectStore，不进 JSONB。
+
+文件模式均在数据根 `NEXT_TUTOR_DATA_DIR` 下（ADR-0002/0004）：
 
 | 路径 | 内容 | 粒度 |
 |------|------|------|
@@ -87,6 +89,8 @@
 | `chat_history/workspaces/ws_<ts>_<slug>.json` | 工作区（public_memory/selected_*/workspace_file_ids） | 账号 |
 | `chat_history/workspaces/uploads/` | 工作区共享资料上传目录 | 账号 |
 | `uploads/` | 会话上传解析文本（`<id>.txt`）+ 原件；删除会话级联清理 | 会话 |
+
+SQL 模式迁移：`scripts/migrations/runtime_to_enterprise/import_documents.py --domain chat`（幂等导入 + `--verify` 漂移校验）。
 
 ## Main flows（关键流程）
 

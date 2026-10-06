@@ -539,7 +539,7 @@ def get_sessions(student_id: str = Depends(resolve_student_id)):
         return SessionListResponse(sessions=[])
     # M0: 历史记录按身份隔离——每个用户只看到自己的会话。
     # 无 student_id 戳的遗留会话（M0 之前创建）归属共享游客 student_default。
-    visible = [s for s in list_sessions()
+    visible = [s for s in list_sessions(student_id)
                if (s.get("student_id") or DEFAULT_STUDENT_ID) == student_id]
     return SessionListResponse(sessions=[SessionItem(**s) for s in visible])
 

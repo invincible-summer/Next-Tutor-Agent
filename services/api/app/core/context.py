@@ -104,11 +104,16 @@ def append_transcript(session_id: str, turn: int, entries: list[dict[str, Any]])
     transcript JSONL. Append-only, crash-safe — the recoverable backup."""
     if not session_id or not entries:
         return
-    path = transcript_path(session_id)
     ts = time.time()
+    lines = [{"ts": ts, "turn": turn, "session_id": session_id, **e}
+             for e in entries]
+    from . import session_sql
+    if session_sql.use_sql():
+        session_sql.append_transcript_lines(session_id, lines)
+        return
+    path = transcript_path(session_id)
     with path.open("a", encoding="utf-8") as f:
-        for e in entries:
-            line = {"ts": ts, "turn": turn, "session_id": session_id, **e}
+        for line in lines:
             f.write(json.dumps(line, ensure_ascii=False) + "\n")
 
 

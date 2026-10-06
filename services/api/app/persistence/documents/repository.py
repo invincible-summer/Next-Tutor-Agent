@@ -146,6 +146,17 @@ class SqlDocumentRepository:
             rows = (await sess.execute(query)).scalars().all()
             return [self._to_record(row) for row in rows]
 
+    async def find_by_doc_id(self, doc_id: str, *, kind: str,
+                             tenant_id: str = "",
+                             limit: int = 5) -> list[DocumentRecord]:
+        m = self._model
+        query = (select(m).where(m.tenant_id == tenant_id, m.kind == kind,
+                                 m.doc_id == doc_id)
+                 .order_by(m.id.desc()).limit(int(limit)))
+        async with self._open_session() as sess:
+            rows = (await sess.execute(query)).scalars().all()
+            return [self._to_record(row) for row in rows]
+
     async def count_documents(self, owner_id: str, *, kind: str | None = None,
                               tenant_id: str = "") -> int:
         m = self._model

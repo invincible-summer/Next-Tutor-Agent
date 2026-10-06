@@ -200,7 +200,7 @@ def run_read_step(student_id: str, wf: dict[str, Any],
                 "title": str(resume.get("title") or ""),
                 "run_id": str(run.get("run_id") or "")}}
         from app.core.session import list_sessions
-        sessions = [s for s in list_sessions()
+        sessions = [s for s in list_sessions(student_id)
                     if s.get("student_id") in ("", None, student_id)][:1]
         if sessions:
             return {"ok": True, "chat_session": {

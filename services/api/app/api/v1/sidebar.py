@@ -35,7 +35,7 @@ def _etag_of(payload: dict) -> str:
 def sidebar_snapshot(student_id: str = Depends(resolve_student_id),
                      if_none_match: str | None = Header(default=None)):
     """Atomic sidebar snapshot: {sessions, workspaces, details} + ETag."""
-    sessions = [s for s in list_sessions()
+    sessions = [s for s in list_sessions(student_id)
                 if (s.get("student_id") or DEFAULT_STUDENT_ID) == student_id]
     workspaces = _visible_summaries(student_id)
     details: dict[str, dict] = {}

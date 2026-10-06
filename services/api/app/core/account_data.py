@@ -276,7 +276,29 @@ def _clear_sessions_all(uid: str) -> int:
     from app.core import context as context_mod
     from app.core import session as session_mod
     from app.core.config import settings
+    from . import session_sql
     traces_dir = Path(settings.trace_dir)
+
+    if session_sql.use_sql():
+        payloads = session_sql.list_session_payloads(uid)
+        _forget_chat_memory(uid, [_safe(str(d.get("session_id") or ""))
+                                  for d in payloads])
+        for d in payloads:
+            sid = _safe(str(d.get("session_id") or ""))
+            if not sid:
+                continue
+            fids = {_safe(str((m or {}).get("id", ""))) for m in d.get("knowledge_files") or []}
+            fids |= {_safe(str(f)) for f in d.get("pending_material_file_ids") or []}
+            fids.discard("")
+            session_mod.delete_session(sid)  # SQL 行 + 其上传 + session: 向量
+            _delete_upload_files(fids)
+            for tid in d.get("trace_ids") or []:
+                try:
+                    (traces_dir / f"trace_{_safe(str(tid))}.jsonl").unlink(missing_ok=True)
+                except OSError:
+                    pass
+        return len(payloads)
+
     owned = _owned_session_files(uid)
     _forget_chat_memory(uid, [_safe(str(d.get("session_id") or p.stem))
                               for p, d in owned])
@@ -387,20 +409,41 @@ def _strip_uploads_only(uid: str) -> tuple[int, int]:
     from app.agents.student_model.store import DEFAULT_STUDENT_ID
     from app.core import session as session_mod
     from app.core import workspace as ws_mod
+    from . import session_sql
 
     sessions_touched = 0
-    for p, _d in _owned_session_files(uid):
-        fids: set[str] = set()
-        def _mutate(d: dict[str, Any], fids: set[str] = fids) -> None:
-            fids.update(_safe(str((m or {}).get("id", "")))
-                        for m in d.get("knowledge_files") or [])
-            fids.update(_safe(str(f)) for f in d.get("pending_material_file_ids") or [])
-            d["knowledge_files"] = []
-            d["pending_material_file_ids"] = []
-        _rewrite_json(p, _mutate)
-        fids.discard("")
-        _delete_upload_files(fids)
-        sessions_touched += 1
+    if session_sql.use_sql():
+        for d in session_sql.list_session_payloads(uid):
+            sid = _safe(str(d.get("session_id") or ""))
+            if not sid:
+                continue
+            fids: set[str] = set()
+
+            def _strip(payload: dict) -> dict:
+                fids.update(_safe(str((m or {}).get("id", "")))
+                            for m in payload.get("knowledge_files") or [])
+                fids.update(_safe(str(f)) for f in
+                            payload.get("pending_material_file_ids") or [])
+                return {**payload, "knowledge_files": [],
+                        "pending_material_file_ids": []}
+
+            session_sql.mutate_session(sid, _strip)
+            fids.discard("")
+            _delete_upload_files(fids)
+            sessions_touched += 1
+    else:
+        for p, _d in _owned_session_files(uid):
+            fids: set[str] = set()
+            def _mutate(d: dict[str, Any], fids: set[str] = fids) -> None:
+                fids.update(_safe(str((m or {}).get("id", "")))
+                            for m in d.get("knowledge_files") or [])
+                fids.update(_safe(str(f)) for f in d.get("pending_material_file_ids") or [])
+                d["knowledge_files"] = []
+                d["pending_material_file_ids"] = []
+            _rewrite_json(p, _mutate)
+            fids.discard("")
+            _delete_upload_files(fids)
+            sessions_touched += 1
 
     workspaces_touched = 0
     if ws_mod._WORKSPACES_DIR.is_dir():

@@ -101,6 +101,15 @@ python3 scripts/migrations/runtime_to_enterprise/report.py   # 迁移报告
 
 cutover 不删除任何旧文件数据；回滚 = 停用 `DATABASE_URL`。
 
+### 域文档导入（ADR-0017）
+
+```bash
+python3 scripts/migrations/runtime_to_enterprise/import_documents.py --domain chat           # 幂等导入（逐域落地，walker 陆续加入）
+python3 scripts/migrations/runtime_to_enterprise/import_documents.py --domain chat --verify # 双侧 count + payload 摘要比对，漂移 exit 1
+```
+
+导入不覆盖既有 SQL 行（cutover 后 SQL 侧写入优先）；状态记入同一 `state.json`。
+
 ## 本地基础设施
 
 `deploy/local/docker-compose.yml`（PostgreSQL 18 / Valkey 9.1；`temporal`、`observability` 分 profile）：用法与环境变量对应见 [../../deploy/local/README.md](../../deploy/local/README.md)。应用本身仍由 `./start.sh` 在宿主机运行。

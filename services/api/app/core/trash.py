@@ -350,7 +350,15 @@ def _session_snapshot(owner_id: str, session_id: str, dest: Path) -> dict[str, A
         ext = str(meta.get("orig_ext") or "")
         if ext:
             _copy_if_exists(session.knowledge.upload_dir / f"{fid}.orig{ext}", dest / "files" / f"{fid}.orig{ext}")
-    _copy_if_exists(transcript_path(session_id), dest / "transcript.jsonl")
+    from . import session_sql
+    if session_sql.use_sql():
+        lines = session_sql.get_transcript_lines(session_id)
+        if lines:
+            (dest / "transcript.jsonl").write_text(
+                "".join(json.dumps(l, ensure_ascii=False) + "\n"
+                        for l in lines), encoding="utf-8")
+    else:
+        _copy_if_exists(transcript_path(session_id), dest / "transcript.jsonl")
     for trace_id in data.get("trace_ids") or []:
         _copy_if_exists(trace_dir_path() / f"trace_{_safe(trace_id)}.jsonl",
                         dest / "traces" / f"trace_{_safe(trace_id)}.jsonl")
@@ -363,9 +371,13 @@ def _delete_session_active(owner_id: str, session_id: str, data: dict[str, Any])
     from .config import trace_dir_path
     from .workspace import load_workspace, save_workspace, _owner_of
     session_store.delete_session(session_id)
-    tp = transcript_path(session_id)
-    if tp.exists():
-        tp.unlink()
+    from . import session_sql
+    if session_sql.use_sql():
+        session_sql.delete_transcript(session_id)
+    else:
+        tp = transcript_path(session_id)
+        if tp.exists():
+            tp.unlink()
     for trace_id in data.get("trace_ids") or []:
         path = trace_dir_path() / f"trace_{_safe(trace_id)}.jsonl"
         if path.exists():
@@ -411,7 +423,11 @@ def _restore_session_payload(owner_id: str, payload: Path,
                 save_workspace(ws)
             break
     data["workspace_id"] = target_ws
-    _write_json(session_store._resolve(sid), data)
+    from . import session_sql
+    if session_sql.use_sql():
+        session_sql.save_session_payload(data)
+    else:
+        _write_json(session_store._resolve(sid), data)
     upload_dir = session_store.KnowledgeStore().upload_dir
     for meta in data.get("knowledge_files") or []:
         fid = _safe(meta.get("id", ""))
@@ -419,7 +435,15 @@ def _restore_session_payload(owner_id: str, payload: Path,
         ext = str(meta.get("orig_ext") or "")
         if ext:
             _restore_file(payload / "files" / f"{fid}.orig{ext}", upload_dir / f"{fid}.orig{ext}")
-    _restore_file(payload / "transcript.jsonl", transcript_path(sid))
+    transcript_src = payload / "transcript.jsonl"
+    if session_sql.use_sql():
+        if transcript_src.exists():
+            lines = [json.loads(line) for line in
+                     transcript_src.read_text(encoding="utf-8").splitlines()
+                     if line.strip()]
+            session_sql.put_transcript_lines(sid, lines)
+    else:
+        _restore_file(transcript_src, transcript_path(sid))
     for src in (payload / "traces").glob("trace_*.jsonl") if (payload / "traces").exists() else []:
         _restore_file(src, trace_dir_path() / src.name)
     try:

@@ -91,7 +91,7 @@ class RecallHistoryTool(Tool):
                 from ..core.session import list_sessions
                 from ..agents.student_model.store import DEFAULT_STUDENT_ID
                 others = []
-                for s in list_sessions():
+                for s in list_sessions(self._student_id):
                     if (s.get("student_id") or DEFAULT_STUDENT_ID) != self._student_id:
                         continue
                     if s.get("session_id") == self._session_id:

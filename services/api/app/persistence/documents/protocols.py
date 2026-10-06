@@ -55,6 +55,17 @@ class DocumentRepository(Protocol):
         """Owner's documents, newest ``updated_at`` first."""
         ...
 
+    async def find_by_doc_id(self, doc_id: str, *, kind: str,
+                             tenant_id: str = "",
+                             limit: int = 5) -> list[DocumentRecord]:
+        """Cross-owner lookup of one doc_id within a kind.
+
+        Reserved for ownership-resolution reads (e.g. trace-id → owner);
+        callers must re-check tenant/ownership policy on the result before
+        disclosing anything. Not a listing primitive.
+        """
+        ...
+
     async def count_documents(self, owner_id: str, *,
                               kind: str | None = None,
                               tenant_id: str = "") -> int: ...

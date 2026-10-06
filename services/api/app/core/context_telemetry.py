@@ -92,7 +92,7 @@ def aggregate_runtime_events(event_groups: Iterable[list[dict[str, Any]]]) -> di
 
 def context_runtime_report(student_id: str, limit: int = 200) -> dict[str, Any]:
     trace_ids: list[str] = []
-    for item in list_sessions():
+    for item in list_sessions(student_id):
         owner = item.get("student_id") or "student_default"
         if owner != student_id:
             continue
