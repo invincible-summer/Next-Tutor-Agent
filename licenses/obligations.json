@@ -1,0 +1,62 @@
+{
+  "schema_version": 1,
+  "updated": "2026-10-06",
+  "obligations": [
+    {
+      "id": "OBL-MPL-2.0",
+      "applies_to": ["MPL-2.0"],
+      "summary": "MPL-2.0 文件级 copyleft 组合义务",
+      "distribution": [
+        "发行物（含 NOTICE/SBOM 与最终 binary 的 about 页）附 MPL-2.0 许可证全文与版权声明",
+        "指明 MPL 覆盖文件的上游来源",
+        "若修改 MPL 覆盖文件，公开该部分修改后的源码（当前策略：不修改）"
+      ]
+    },
+    {
+      "id": "OBL-LGPL",
+      "applies_to": ["LGPL", "LGPL-2.0-only", "LGPL-2.0-or-later", "LGPL-2.1-only", "LGPL-2.1-or-later", "LGPL-3.0-only", "LGPL-3.0-or-later"],
+      "summary": "LGPL 动态组合义务（sharp/libvips 捆绑二进制与 chardet）",
+      "distribution": [
+        "发行物附对应 LGPL 许可证全文与版权声明",
+        "提供 LGPL 覆盖部分对应源码的获取途径（上游源链接即可）",
+        "向用户提供可重链接/更换 LGPL 库的机会说明；不得对反向工程施加限制",
+        "source-only 发行无需重链接说明；该义务在首个含二进制的发行物上生效并写入其 artifact NOTICE"
+      ]
+    },
+    {
+      "id": "OBL-OFL-1.1",
+      "applies_to": ["OFL-1.1"],
+      "summary": "SIL Open Font License 1.1（@fontsource 字体子集）",
+      "distribution": [
+        "发行物附 OFL-1.1 许可证全文",
+        "不得单独售卖字体本身；衍生字体须改名并同样以 OFL 发布"
+      ]
+    },
+    {
+      "id": "OBL-CC-BY-4.0",
+      "applies_to": ["CC-BY-4.0"],
+      "summary": "CC-BY-4.0 署名（caniuse-lite 浏览器兼容数据）",
+      "distribution": [
+        "发行物 NOTICE 附 caniuse-lite 署名与其 CC-BY-4.0 许可链接"
+      ]
+    },
+    {
+      "id": "OBL-BUNDLED-NOTICES",
+      "applies_to": ["BSD-3-Clause; bundled licenses in original"],
+      "summary": "wheel/容器内捆绑第三方许可的保留义务（pypdfium2 捆绑 PDFium 等）",
+      "distribution": [
+        "发行物原样保留 wheel/镜像内携带的全部 bundled license 与 third-party notice 文本",
+        "artifact 级 SBOM 单列捆绑组件（PDFium 及其第三方清单）"
+      ]
+    },
+    {
+      "id": "OBL-GENERIC-NOTICE",
+      "applies_to": ["MIT", "MIT-0", "BSD-2-Clause", "BSD-3-Clause", "Apache-2.0", "ISC", "PostgreSQL", "PSF-2.0", "Python-2.0", "Zlib", "CC0-1.0", "Unlicense", "0BSD", "BlueOak-1.0.0"],
+      "summary": "常规 permissive 通知义务（由 PACKAGE-NOTICES.md / artifact NOTICE 自动履行）",
+      "distribution": [
+        "发行物附各组件的许可证与版权声明（licenses/PACKAGE-NOTICES.md 与 licenses/texts/ 存档）",
+        "Apache-2.0 组件同时保留 NOTICE 文件（如存在）"
+      ]
+    }
+  ]
+}

@@ -93,7 +93,8 @@ def license_from_metadata(info):
     if not expression:
         classifiers = info.get("classifiers", [])
         mapping = {"MIT License": "MIT", "Apache Software License": "Apache-2.0",
-                   "ISC License (ISCL)": "ISC", "Mozilla Public License 2.0 (MPL 2.0)": "MPL-2.0"}
+                   "ISC License (ISCL)": "ISC", "Mozilla Public License 2.0 (MPL 2.0)": "MPL-2.0",
+                   "BSD License": "BSD-3-Clause", "PSF License": "PSF-2.0"}
         values = {mapping[x.split(" :: ")[-1]] for x in classifiers
                   if x.startswith("License ::") and x.split(" :: ")[-1] in mapping}
         if len(values) == 1:

@@ -1480,6 +1480,54 @@
     "license_files": [],
     "registry_source": "https://registry.npmjs.org/unrs-resolver/1.12.2"
   },
+  "pypi:aiohappyeyeballs@2.7.1": {
+    "homepage": null,
+    "license_declared": "PSF-2.0",
+    "license_expression": "PSF-2.0",
+    "license_files": [
+      {
+        "bytes": 13936,
+        "origin": "https://files.pythonhosted.org/packages/71/43/1947f06babed6b3f1d7f38b0c767f52df66bfb2bc10b468c4a7de9eceff2/aiohappyeyeballs-2.7.1-py3-none-any.whl#aiohappyeyeballs-2.7.1.dist-info/licenses/LICENSE",
+        "path": "licenses/texts/3b2f81fe21d181c499c59a256c8e1968455d6689d269aa85373bfb6af41da3bf.txt",
+        "sha256": "3b2f81fe21d181c499c59a256c8e1968455d6689d269aa85373bfb6af41da3bf"
+      }
+    ],
+    "registry_source": "https://pypi.org/pypi/aiohappyeyeballs/2.7.1/json"
+  },
+  "pypi:aiohttp@3.14.3": {
+    "homepage": "https://github.com/aio-libs/aiohttp",
+    "license_declared": "Apache-2.0 AND MIT",
+    "license_expression": "Apache-2.0 AND MIT",
+    "license_files": [
+      {
+        "bytes": 11313,
+        "origin": "https://files.pythonhosted.org/packages/58/d9/22ce5786ac0c1653ae8b6c23bded02c1686d11f0dbb45b31ce128e0df985/aiohttp-3.14.3.tar.gz#aiohttp-3.14.3/LICENSE.txt",
+        "path": "licenses/texts/2e4be5fc6c4c72a466fcb665d726e049a6891981fe536c4f04b6366749461d23.txt",
+        "sha256": "2e4be5fc6c4c72a466fcb665d726e049a6891981fe536c4f04b6366749461d23"
+      },
+      {
+        "bytes": 1069,
+        "origin": "https://files.pythonhosted.org/packages/58/d9/22ce5786ac0c1653ae8b6c23bded02c1686d11f0dbb45b31ce128e0df985/aiohttp-3.14.3.tar.gz#aiohttp-3.14.3/vendor/llhttp/LICENSE",
+        "path": "licenses/texts/628168d68bb5a8a17e0bbefb3bd74e326e1edc20583d76f52f457c82c921867d.txt",
+        "sha256": "628168d68bb5a8a17e0bbefb3bd74e326e1edc20583d76f52f457c82c921867d"
+      }
+    ],
+    "registry_source": "https://pypi.org/pypi/aiohttp/3.14.3/json"
+  },
+  "pypi:aiosignal@1.4.0": {
+    "homepage": "https://github.com/aio-libs/aiosignal",
+    "license_declared": "Apache 2.0",
+    "license_expression": "Apache 2.0",
+    "license_files": [
+      {
+        "bytes": 11332,
+        "origin": "https://files.pythonhosted.org/packages/fb/76/641ae371508676492379f16e2fa48f4e2c11741bd63c48be4b12a6b09cba/aiosignal-1.4.0-py3-none-any.whl#aiosignal-1.4.0.dist-info/licenses/LICENSE",
+        "path": "licenses/texts/6fd5243e92dd7f98ec69c7ac377728e74905709ff527a5bf98d6d0263c04f5b6.txt",
+        "sha256": "6fd5243e92dd7f98ec69c7ac377728e74905709ff527a5bf98d6d0263c04f5b6"
+      }
+    ],
+    "registry_source": "https://pypi.org/pypi/aiosignal/1.4.0/json"
+  },
   "pypi:attrs@25.4.0": {
     "homepage": null,
     "license_declared": null,
@@ -1591,6 +1639,20 @@
       }
     ],
     "registry_source": "https://pypi.org/pypi/charset-normalizer/3.4.9/json"
+  },
+  "pypi:chromadb@1.5.9": {
+    "homepage": "https://github.com/chroma-core/chroma",
+    "license_declared": null,
+    "license_expression": "Apache-2.0",
+    "license_files": [
+      {
+        "bytes": 11357,
+        "origin": "https://files.pythonhosted.org/packages/34/4c/adcef1f4e82a2ef69ccd3711d55fc289193d54c4c0ff7a0292a3631db46f/chromadb-1.5.9-cp39-abi3-macosx_11_0_arm64.whl#chromadb-1.5.9.dist-info/licenses/LICENSE",
+        "path": "licenses/texts/c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4.txt",
+        "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4"
+      }
+    ],
+    "registry_source": "https://pypi.org/pypi/chromadb/1.5.9/json"
   },
   "pypi:click@8.1.8": {
     "homepage": null,
@@ -1722,6 +1784,20 @@
     "license_expression": "Apache 2.0",
     "license_files": [],
     "registry_source": "https://pypi.org/pypi/flatbuffers/25.12.19/json"
+  },
+  "pypi:frozenlist@1.8.0": {
+    "homepage": "https://github.com/aio-libs/frozenlist",
+    "license_declared": "Apache-2.0",
+    "license_expression": "Apache-2.0",
+    "license_files": [
+      {
+        "bytes": 11332,
+        "origin": "https://files.pythonhosted.org/packages/9a/9a/e35b4a917281c0b8419d4207f4334c8e8c5dbf4f3f5f9ada73958d937dcc/frozenlist-1.8.0-py3-none-any.whl#frozenlist-1.8.0.dist-info/licenses/LICENSE",
+        "path": "licenses/texts/6fd5243e92dd7f98ec69c7ac377728e74905709ff527a5bf98d6d0263c04f5b6.txt",
+        "sha256": "6fd5243e92dd7f98ec69c7ac377728e74905709ff527a5bf98d6d0263c04f5b6"
+      }
+    ],
+    "registry_source": "https://pypi.org/pypi/frozenlist/1.8.0/json"
   },
   "pypi:fsspec@2026.6.0": {
     "homepage": "https://github.com/fsspec/filesystem_spec",
@@ -1855,6 +1931,20 @@
     ],
     "registry_source": "https://pypi.org/pypi/idna/3.18/json"
   },
+  "pypi:importlib-resources@7.1.0": {
+    "homepage": null,
+    "license_declared": null,
+    "license_expression": "Apache-2.0",
+    "license_files": [
+      {
+        "bytes": 10278,
+        "origin": "https://files.pythonhosted.org/packages/8a/db/55a262f3606bebcae07cc14095338471ad7c0bbcaa37707e6f0ee49725b7/importlib_resources-7.1.0-py3-none-any.whl#importlib_resources-7.1.0.dist-info/licenses/LICENSE",
+        "path": "licenses/texts/e2f7bb0557e7a381499f15baa7c1d776d83d6616599179d71d3109b8e39f7b25.txt",
+        "sha256": "e2f7bb0557e7a381499f15baa7c1d776d83d6616599179d71d3109b8e39f7b25"
+      }
+    ],
+    "registry_source": "https://pypi.org/pypi/importlib-resources/7.1.0/json"
+  },
   "pypi:jieba@0.42.1": {
     "homepage": "https://github.com/fxsjy/jieba",
     "license_declared": "MIT",
@@ -1917,6 +2007,20 @@
       }
     ],
     "registry_source": "https://pypi.org/pypi/jsonschema/4.26.0/json"
+  },
+  "pypi:kubernetes@36.0.3": {
+    "homepage": "https://github.com/kubernetes-client/python",
+    "license_declared": "Apache License Version 2.0",
+    "license_expression": "Apache License Version 2.0",
+    "license_files": [
+      {
+        "bytes": 11354,
+        "origin": "https://files.pythonhosted.org/packages/ca/57/b07b96353f902aa1bdbe00e878e3a12a137977d03a962479785576aa8ec9/kubernetes-36.0.3.tar.gz#kubernetes-36.0.3/LICENSE",
+        "path": "licenses/texts/5f52a7f9e6a13f7ce4ec84fe72fbf1f7a9827bee85dd991026aaaccfe2bd655c.txt",
+        "sha256": "5f52a7f9e6a13f7ce4ec84fe72fbf1f7a9827bee85dd991026aaaccfe2bd655c"
+      }
+    ],
+    "registry_source": "https://pypi.org/pypi/kubernetes/36.0.3/json"
   },
   "pypi:librosa@0.11.0": {
     "homepage": "https://librosa.org",
@@ -2040,6 +2144,20 @@
     ],
     "registry_source": "https://pypi.org/pypi/mmh3/5.2.1/json"
   },
+  "pypi:multidict@6.7.1": {
+    "homepage": "https://github.com/aio-libs/multidict",
+    "license_declared": "Apache License 2.0",
+    "license_expression": "Apache License 2.0",
+    "license_files": [
+      {
+        "bytes": 611,
+        "origin": "https://files.pythonhosted.org/packages/81/08/7036c080d7117f28a4af526d794aab6a84463126db031b007717c1a6676e/multidict-6.7.1-py3-none-any.whl#multidict-6.7.1.dist-info/licenses/LICENSE",
+        "path": "licenses/texts/93d11a968e2f0f36373c40811ff6d20e173f58c3cab5884cd6617bbfd795492a.txt",
+        "sha256": "93d11a968e2f0f36373c40811ff6d20e173f58c3cab5884cd6617bbfd795492a"
+      }
+    ],
+    "registry_source": "https://pypi.org/pypi/multidict/6.7.1/json"
+  },
   "pypi:nltk@3.10.3": {
     "homepage": "https://www.nltk.org/",
     "license_declared": "Apache License, Version 2.0",
@@ -2069,7 +2187,7 @@
   "pypi:numpy@1.26.4": {
     "homepage": "https://numpy.org",
     "license_declared": null,
-    "license_expression": null,
+    "license_expression": "BSD-3-Clause",
     "license_files": [
       {
         "bytes": 1539,
@@ -2821,6 +2939,20 @@
     ],
     "registry_source": "https://pypi.org/pypi/orjson/3.11.9/json"
   },
+  "pypi:overrides@7.7.0": {
+    "homepage": "https://github.com/mkorpela/overrides",
+    "license_declared": "Apache License, Version 2.0",
+    "license_expression": "Apache License, Version 2.0",
+    "license_files": [
+      {
+        "bytes": 11358,
+        "origin": "https://files.pythonhosted.org/packages/2c/ab/fc8290c6a4c722e5514d80f62b2dc4c4df1a68a41d1364e625c35990fcf3/overrides-7.7.0-py3-none-any.whl#overrides-7.7.0.dist-info/LICENSE",
+        "path": "licenses/texts/c6596eb7be8581c18be736c846fb9173b69eccf6ef94c5135893ec56bd92ba08.txt",
+        "sha256": "c6596eb7be8581c18be736c846fb9173b69eccf6ef94c5135893ec56bd92ba08"
+      }
+    ],
+    "registry_source": "https://pypi.org/pypi/overrides/7.7.0/json"
+  },
   "pypi:packaging@26.0": {
     "homepage": null,
     "license_declared": null,
@@ -2896,6 +3028,54 @@
       }
     ],
     "registry_source": "https://pypi.org/pypi/packaging/26.2/json"
+  },
+  "pypi:pdfminer-six@20260107": {
+    "homepage": "https://github.com/pdfminer/pdfminer.six",
+    "license_declared": null,
+    "license_expression": "MIT",
+    "license_files": [
+      {
+        "bytes": 1093,
+        "origin": "https://files.pythonhosted.org/packages/20/8b/28c4eaec9d6b036a52cb44720408f26b1a143ca9bce76cc19e8f5de00ab4/pdfminer_six-20260107-py3-none-any.whl#pdfminer_six-20260107.dist-info/licenses/LICENSE",
+        "path": "licenses/texts/f01e5d699a33766b5caf4a5099f2856aba4f3f75ea1df05dc0572b34b4bea8f2.txt",
+        "sha256": "f01e5d699a33766b5caf4a5099f2856aba4f3f75ea1df05dc0572b34b4bea8f2"
+      }
+    ],
+    "registry_source": "https://pypi.org/pypi/pdfminer-six/20260107/json"
+  },
+  "pypi:pdfplumber@0.11.10": {
+    "homepage": "https://github.com/jsvine/pdfplumber",
+    "license_declared": null,
+    "license_expression": "MIT",
+    "license_files": [
+      {
+        "bytes": 1086,
+        "origin": "https://files.pythonhosted.org/packages/a2/9a/07d658e1e7fad860f1c541ab941348125dbdab773be3a0afaf32361866c7/pdfplumber-0.11.10-py3-none-any.whl#pdfplumber-0.11.10.dist-info/licenses/LICENSE.txt",
+        "path": "licenses/texts/0d48994da4d1321e395b5e64a724ed4dec63fb96b88ac5b88fc014771e690821.txt",
+        "sha256": "0d48994da4d1321e395b5e64a724ed4dec63fb96b88ac5b88fc014771e690821"
+      }
+    ],
+    "registry_source": "https://pypi.org/pypi/pdfplumber/0.11.10/json"
+  },
+  "pypi:propcache@0.5.2": {
+    "homepage": "https://github.com/aio-libs/propcache",
+    "license_declared": "Apache-2.0",
+    "license_expression": "Apache-2.0",
+    "license_files": [
+      {
+        "bytes": 11358,
+        "origin": "https://files.pythonhosted.org/packages/3a/ed/1cdcab6ba3d6ab7feca11fc14f0eeea80755bb53ef4e892079f31b10a25f/propcache-0.5.2-py3-none-any.whl#propcache-0.5.2.dist-info/licenses/LICENSE",
+        "path": "licenses/texts/cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30.txt",
+        "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+      },
+      {
+        "bytes": 609,
+        "origin": "https://files.pythonhosted.org/packages/3a/ed/1cdcab6ba3d6ab7feca11fc14f0eeea80755bb53ef4e892079f31b10a25f/propcache-0.5.2-py3-none-any.whl#propcache-0.5.2.dist-info/licenses/NOTICE",
+        "path": "licenses/texts/56d6ac6c8105c0a51304c21db060e361af9a8ea0af9a75c239c28b5d13693838.txt",
+        "sha256": "56d6ac6c8105c0a51304c21db060e361af9a8ea0af9a75c239c28b5d13693838"
+      }
+    ],
+    "registry_source": "https://pypi.org/pypi/propcache/0.5.2/json"
   },
   "pypi:pybase64@1.4.3": {
     "homepage": "https://github.com/mayeut/pybase64",
@@ -3053,6 +3233,84 @@
     ],
     "registry_source": "https://pypi.org/pypi/pymupdf/1.28.2/json"
   },
+  "pypi:pypdf@6.19.0": {
+    "homepage": null,
+    "license_declared": null,
+    "license_expression": "BSD-3-Clause",
+    "license_files": [
+      {
+        "bytes": 1605,
+        "origin": "https://files.pythonhosted.org/packages/3c/2c/c43c03eaf630435f023f1dc61ec4a4a78951ad5530a62c71cc89bde307b7/pypdf-6.19.0-py3-none-any.whl#pypdf-6.19.0.dist-info/licenses/LICENSE",
+        "path": "licenses/texts/a97ac230e5f33ef10a5367a850eb01f91f1a0b064e34742c7794d2294557f524.txt",
+        "sha256": "a97ac230e5f33ef10a5367a850eb01f91f1a0b064e34742c7794d2294557f524"
+      }
+    ],
+    "registry_source": "https://pypi.org/pypi/pypdf/6.19.0/json"
+  },
+  "pypi:pypdfium2@5.14.0": {
+    "homepage": "https://github.com/pypdfium2-team/pypdfium2",
+    "license_declared": "BSD-3-Clause, Apache-2.0, dependency licenses",
+    "license_expression": "BSD-3-Clause, Apache-2.0, dependency licenses",
+    "license_files": [
+      {
+        "bytes": 11358,
+        "origin": "https://files.pythonhosted.org/packages/95/d0/c81d3a7c2a9af37b817ace1de0acd40cf44d15f12407c5e86b3668364a5c/pypdfium2-5.14.0.tar.gz#pypdfium2-5.14.0/LICENSES/Apache-2.0.txt",
+        "path": "licenses/texts/cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30.txt",
+        "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+      },
+      {
+        "bytes": 1459,
+        "origin": "https://files.pythonhosted.org/packages/95/d0/c81d3a7c2a9af37b817ace1de0acd40cf44d15f12407c5e86b3668364a5c/pypdfium2-5.14.0.tar.gz#pypdfium2-5.14.0/LICENSES/BSD-3-Clause.txt",
+        "path": "licenses/texts/a6d11f0694c0137e9b02924b9d33a159f6c72f220fa4655bb2e1ea3654377d39.txt",
+        "sha256": "a6d11f0694c0137e9b02924b9d33a159f6c72f220fa4655bb2e1ea3654377d39"
+      },
+      {
+        "bytes": 14527,
+        "origin": "https://files.pythonhosted.org/packages/95/d0/c81d3a7c2a9af37b817ace1de0acd40cf44d15f12407c5e86b3668364a5c/pypdfium2-5.14.0.tar.gz#pypdfium2-5.14.0/LICENSES/CC-BY-4.0.txt",
+        "path": "licenses/texts/419896aea50c15d6e40c5b4baf4bd346f78223b9a354c7357ad00262afdc08ec.txt",
+        "sha256": "419896aea50c15d6e40c5b4baf4bd346f78223b9a354c7357ad00262afdc08ec"
+      },
+      {
+        "bytes": 42098,
+        "origin": "https://files.pythonhosted.org/packages/95/d0/c81d3a7c2a9af37b817ace1de0acd40cf44d15f12407c5e86b3668364a5c/pypdfium2-5.14.0.tar.gz#pypdfium2-5.14.0/LICENSES/LGPL-3.0-or-later.txt",
+        "path": "licenses/texts/996af0513df21f7496288951c41428a03c174e9e4a9d63665c57d670f845ccb1.txt",
+        "sha256": "996af0513df21f7496288951c41428a03c174e9e4a9d63665c57d670f845ccb1"
+      },
+      {
+        "bytes": 2,
+        "origin": "https://files.pythonhosted.org/packages/95/d0/c81d3a7c2a9af37b817ace1de0acd40cf44d15f12407c5e86b3668364a5c/pypdfium2-5.14.0.tar.gz#pypdfium2-5.14.0/LICENSES/LicenseRef-Ignore.txt",
+        "path": "licenses/texts/e16f1596201850fd4a63680b27f603cb64e67176159be3d8ed78a4403fdb1700.txt",
+        "sha256": "e16f1596201850fd4a63680b27f603cb64e67176159be3d8ed78a4403fdb1700"
+      },
+      {
+        "bytes": 1078,
+        "origin": "https://files.pythonhosted.org/packages/95/d0/c81d3a7c2a9af37b817ace1de0acd40cf44d15f12407c5e86b3668364a5c/pypdfium2-5.14.0.tar.gz#pypdfium2-5.14.0/LICENSES/MIT.txt",
+        "path": "licenses/texts/b05785f9f18e6716bab63424b11454513b9943a222595b70411009202fc592b5.txt",
+        "sha256": "b05785f9f18e6716bab63424b11454513b9943a222595b70411009202fc592b5"
+      },
+      {
+        "bytes": 16727,
+        "origin": "https://files.pythonhosted.org/packages/95/d0/c81d3a7c2a9af37b817ace1de0acd40cf44d15f12407c5e86b3668364a5c/pypdfium2-5.14.0.tar.gz#pypdfium2-5.14.0/LICENSES/MPL-2.0.txt",
+        "path": "licenses/texts/66a3107d5ad6a058aab753eaac2047ccb2ed0e39465dd0fe5844da3e300d5172.txt",
+        "sha256": "66a3107d5ad6a058aab753eaac2047ccb2ed0e39465dd0fe5844da3e300d5172"
+      }
+    ],
+    "registry_source": "https://pypi.org/pypi/pypdfium2/5.14.0/json"
+  },
+  "pypi:pypika@0.51.1": {
+    "homepage": "https://github.com/kayak/pypika",
+    "license_declared": "Apache License Version 2.0",
+    "license_expression": "Apache License Version 2.0",
+    "license_files": [
+      {
+        "bytes": 11356,
+        "origin": "https://files.pythonhosted.org/packages/f8/78/cbaebba88e05e2dcda13ca203131b38d3640219f20ebb49676d26714861b/pypika-0.51.1.tar.gz#pypika-0.51.1/LICENSE.txt",
+        "path": "licenses/texts/c5accbbd8546e94c34aed24afe689a617627d18eed5a6c48277e48db57c23851.txt",
+        "sha256": "c5accbbd8546e94c34aed24afe689a617627d18eed5a6c48277e48db57c23851"
+      }
+    ],
+    "registry_source": "https://pypi.org/pypi/pypika/0.51.1/json"
+  },
   "pypi:pypinyin@0.55.0": {
     "homepage": "https://github.com/mozillazg/python-pinyin",
     "license_declared": "MIT",
@@ -3066,6 +3324,40 @@
       }
     ],
     "registry_source": "https://pypi.org/pypi/pypinyin/0.55.0/json"
+  },
+  "pypi:pyproject-hooks@1.2.0": {
+    "homepage": null,
+    "license_declared": null,
+    "license_expression": "MIT",
+    "license_files": [
+      {
+        "bytes": 1081,
+        "origin": "https://files.pythonhosted.org/packages/bd/24/12818598c362d7f300f18e74db45963dbcb85150324092410c8b49405e42/pyproject_hooks-1.2.0-py3-none-any.whl#pyproject_hooks-1.2.0.dist-info/LICENSE",
+        "path": "licenses/texts/1b22b049b5267d6dfc23a67bf4a84d8ec04b9fdfb1a51d360e42b4342c8b4154.txt",
+        "sha256": "1b22b049b5267d6dfc23a67bf4a84d8ec04b9fdfb1a51d360e42b4342c8b4154"
+      }
+    ],
+    "registry_source": "https://pypi.org/pypi/pyproject-hooks/1.2.0/json"
+  },
+  "pypi:python-dateutil@2.9.0.post0": {
+    "homepage": "https://github.com/dateutil/dateutil",
+    "license_declared": "Dual License",
+    "license_expression": "Dual License",
+    "license_files": [
+      {
+        "bytes": 6655,
+        "origin": "https://files.pythonhosted.org/packages/66/c0/0c8b6ad9f17a802ee498c46e004a0eb49bc148f2fd230864601a86dcf6db/python-dateutil-2.9.0.post0.tar.gz#python-dateutil-2.9.0.post0/AUTHORS.md",
+        "path": "licenses/texts/8747ac728d6aa5d1f66949b9f57513f0be05080c8ff0d3be26ffb94ebb4d437d.txt",
+        "sha256": "8747ac728d6aa5d1f66949b9f57513f0be05080c8ff0d3be26ffb94ebb4d437d"
+      },
+      {
+        "bytes": 2889,
+        "origin": "https://files.pythonhosted.org/packages/66/c0/0c8b6ad9f17a802ee498c46e004a0eb49bc148f2fd230864601a86dcf6db/python-dateutil-2.9.0.post0.tar.gz#python-dateutil-2.9.0.post0/LICENSE",
+        "path": "licenses/texts/ba00f51a0d92823b5a1cde27d8b5b9d2321e67ed8da9bc163eff96d5e17e577e.txt",
+        "sha256": "ba00f51a0d92823b5a1cde27d8b5b9d2321e67ed8da9bc163eff96d5e17e577e"
+      }
+    ],
+    "registry_source": "https://pypi.org/pypi/python-dateutil/2.9.0.post0/json"
   },
   "pypi:pyyaml@6.0.3": {
     "homepage": "https://pyyaml.org/",
@@ -3108,6 +3400,40 @@
       }
     ],
     "registry_source": "https://pypi.org/pypi/referencing/0.37.0/json"
+  },
+  "pypi:reportlab@5.0.1": {
+    "homepage": "https://www.reportlab.com/",
+    "license_declared": "BSD license (see license.txt for details), Copyright (c) 2000-2025, ReportLab Inc.",
+    "license_expression": "BSD license (see license.txt for details), Copyright (c) 2000-2025, ReportLab Inc.",
+    "license_files": [
+      {
+        "bytes": 1707,
+        "origin": "https://files.pythonhosted.org/packages/db/cb/dacbc268cb68d0428ea2cbd85266195a9ab3e677449589ddae59bd7542ac/reportlab-5.0.1-py3-none-any.whl#reportlab-5.0.1.dist-info/licenses/LICENSE",
+        "path": "licenses/texts/ef831761646313921375fc2cb888e8eeaf7da213d0b92852c10c42f3a0b4d138.txt",
+        "sha256": "ef831761646313921375fc2cb888e8eeaf7da213d0b92852c10c42f3a0b4d138"
+      }
+    ],
+    "registry_source": "https://pypi.org/pypi/reportlab/5.0.1/json"
+  },
+  "pypi:requests-oauthlib@2.0.0": {
+    "homepage": "https://github.com/requests/requests-oauthlib",
+    "license_declared": "ISC",
+    "license_expression": "ISC",
+    "license_files": [
+      {
+        "bytes": 863,
+        "origin": "https://files.pythonhosted.org/packages/42/f2/05f29bc3913aea15eb670be136045bf5c5bbf4b99ecb839da9b422bb2c85/requests-oauthlib-2.0.0.tar.gz#requests-oauthlib-2.0.0/AUTHORS.rst",
+        "path": "licenses/texts/2c83c46ce61768b7f26626c13ca991cb1632a746b881224f0fb79106dfa731b4.txt",
+        "sha256": "2c83c46ce61768b7f26626c13ca991cb1632a746b881224f0fb79106dfa731b4"
+      },
+      {
+        "bytes": 745,
+        "origin": "https://files.pythonhosted.org/packages/42/f2/05f29bc3913aea15eb670be136045bf5c5bbf4b99ecb839da9b422bb2c85/requests-oauthlib-2.0.0.tar.gz#requests-oauthlib-2.0.0/LICENSE",
+        "path": "licenses/texts/ae01846afad8a8291fe6a08966f3015af9a8ff675d84b981f9793c122f7876e8.txt",
+        "sha256": "ae01846afad8a8291fe6a08966f3015af9a8ff675d84b981f9793c122f7876e8"
+      }
+    ],
+    "registry_source": "https://pypi.org/pypi/requests-oauthlib/2.0.0/json"
   },
   "pypi:requests@2.32.5": {
     "homepage": "https://requests.readthedocs.io",
@@ -3202,7 +3528,7 @@
   "pypi:scipy@1.17.1": {
     "homepage": null,
     "license_declared": null,
-    "license_expression": null,
+    "license_expression": "BSD-3-Clause",
     "license_files": [
       {
         "bytes": 1531,
@@ -3435,6 +3761,34 @@
     ],
     "registry_source": "https://pypi.org/pypi/scipy/1.17.1/json"
   },
+  "pypi:shellingham@1.5.4": {
+    "homepage": "https://github.com/sarugaku/shellingham",
+    "license_declared": "ISC License",
+    "license_expression": "ISC License",
+    "license_files": [
+      {
+        "bytes": 751,
+        "origin": "https://files.pythonhosted.org/packages/58/15/8b3609fd3830ef7b27b655beb4b4e9c62313a4e8da8c676e142cc210d58e/shellingham-1.5.4.tar.gz#shellingham-1.5.4/LICENSE",
+        "path": "licenses/texts/f388fd38cad13112c1dc0f669bbe80e7f84541edbafb72f3030d2ca7642c3c9d.txt",
+        "sha256": "f388fd38cad13112c1dc0f669bbe80e7f84541edbafb72f3030d2ca7642c3c9d"
+      }
+    ],
+    "registry_source": "https://pypi.org/pypi/shellingham/1.5.4/json"
+  },
+  "pypi:six@1.17.0": {
+    "homepage": "https://github.com/benjaminp/six",
+    "license_declared": "MIT",
+    "license_expression": "MIT",
+    "license_files": [
+      {
+        "bytes": 1066,
+        "origin": "https://files.pythonhosted.org/packages/94/e7/b2c673351809dca68a0e064b6af791aa332cf192da575fd474ed7d6f16a2/six-1.17.0.tar.gz#six-1.17.0/LICENSE",
+        "path": "licenses/texts/4375ba20e2b9c6c4e7cad2940a628fd90e95cc3d50ee92aae755715d8ba1fbd0.txt",
+        "sha256": "4375ba20e2b9c6c4e7cad2940a628fd90e95cc3d50ee92aae755715d8ba1fbd0"
+      }
+    ],
+    "registry_source": "https://pypi.org/pypi/six/1.17.0/json"
+  },
   "pypi:soundfile@0.14.0": {
     "homepage": "https://github.com/bastibe/python-soundfile",
     "license_declared": "BSD 3-Clause License",
@@ -3448,6 +3802,20 @@
       }
     ],
     "registry_source": "https://pypi.org/pypi/soundfile/0.14.0/json"
+  },
+  "pypi:tenacity@9.1.4": {
+    "homepage": "https://github.com/jd/tenacity",
+    "license_declared": "Apache 2.0",
+    "license_expression": "Apache 2.0",
+    "license_files": [
+      {
+        "bytes": 11357,
+        "origin": "https://files.pythonhosted.org/packages/d7/c1/eb8f9debc45d3b7918a32ab756658a0904732f75e555402972246b0b8e71/tenacity-9.1.4-py3-none-any.whl#tenacity-9.1.4.dist-info/licenses/LICENSE",
+        "path": "licenses/texts/58d1e17ffe5109a7ae296caafcadfdbe6a7d176f0bc4ab01e12a689b0499d8bd.txt",
+        "sha256": "58d1e17ffe5109a7ae296caafcadfdbe6a7d176f0bc4ab01e12a689b0499d8bd"
+      }
+    ],
+    "registry_source": "https://pypi.org/pypi/tenacity/9.1.4/json"
   },
   "pypi:tokenizers@0.23.1": {
     "homepage": "https://github.com/huggingface/tokenizers",
@@ -3608,5 +3976,25 @@
       }
     ],
     "registry_source": "https://pypi.org/pypi/websocket-client/1.9.0/json"
+  },
+  "pypi:yarl@1.24.5": {
+    "homepage": "https://github.com/aio-libs/yarl",
+    "license_declared": "Apache-2.0",
+    "license_expression": "Apache-2.0",
+    "license_files": [
+      {
+        "bytes": 11358,
+        "origin": "https://files.pythonhosted.org/packages/61/02/962c1cbfc401a30c1d034dc67ff395f64b52302c6d62de556c1fca99acc0/yarl-1.24.5-py3-none-any.whl#yarl-1.24.5.dist-info/licenses/LICENSE",
+        "path": "licenses/texts/cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30.txt",
+        "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+      },
+      {
+        "bytes": 609,
+        "origin": "https://files.pythonhosted.org/packages/61/02/962c1cbfc401a30c1d034dc67ff395f64b52302c6d62de556c1fca99acc0/yarl-1.24.5-py3-none-any.whl#yarl-1.24.5.dist-info/licenses/NOTICE",
+        "path": "licenses/texts/56d6ac6c8105c0a51304c21db060e361af9a8ea0af9a75c239c28b5d13693838.txt",
+        "sha256": "56d6ac6c8105c0a51304c21db060e361af9a8ea0af9a75c239c28b5d13693838"
+      }
+    ],
+    "registry_source": "https://pypi.org/pypi/yarl/1.24.5/json"
   }
 }

@@ -47,6 +47,8 @@ jobs:
         run: python scripts/repo/check_documentation.py --check-generated
       - name: Pinned dependency notices and source SBOM
         run: python scripts/compliance/generate_notices.py --check
+      - name: Closed-source license policy gate
+        run: python scripts/compliance/check_license_policy.py
 
   backend-shards:
     # Enumerates services/api/tests into the shard matrix below. Fails loudly

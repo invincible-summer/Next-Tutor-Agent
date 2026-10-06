@@ -1,0 +1,99 @@
+{
+  "schema_version": 1,
+  "policy_id": "closed-source-free-distribution",
+  "updated": "2026-10-06",
+  "statement": "Next Tutor Agent 以专有闭源产品发行，且不为任何第三方依赖购买商业授权。本政策是公司发行边界，不是对所列许可证商业合法性的抽象评价；仅约束本产品的依赖选择。",
+  "sources": {
+    "pymupdf_licensing": "https://pymupdf.io/licensing",
+    "agpl_v3": "https://www.gnu.org/licenses/agpl.en.html",
+    "redis_licensing": "https://redis.io/legal/licenses/",
+    "valkey_license": "https://github.com/valkey-io/valkey/blob/unstable/LICENSES/BSD-3-Clause.txt",
+    "minio_repo": "https://github.com/minio/minio"
+  },
+  "auto_allowed": [
+    "MIT",
+    "MIT-0",
+    "MIT-CMU",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "Apache-2.0",
+    "ISC",
+    "PostgreSQL",
+    "PSF-2.0",
+    "Python-2.0",
+    "Zlib",
+    "Zlib-Acknowledgement",
+    "CC0-1.0",
+    "Unlicense",
+    "0BSD",
+    "BlueOak-1.0.0"
+  ],
+  "aliases": {
+    "MIT License": "MIT",
+    "The MIT License (MIT)": "MIT",
+    "Apache 2.0": "Apache-2.0",
+    "Apache License 2.0": "Apache-2.0",
+    "Apache License, Version 2.0": "Apache-2.0",
+    "Apache Software License": "Apache-2.0",
+    "BSD": "BSD-3-Clause",
+    "ISC License": "ISC",
+    "Python Software Foundation License": "PSF-2.0",
+    "The Unlicense": "Unlicense",
+    "Boost Software License 1.0": "BSL-1.0",
+    "PSFL": "PSF-2.0",
+    "Apache": "Apache-2.0",
+    "Apache License Version 2.0": "Apache-2.0",
+    "BSD-3-Clause license": "BSD-3-Clause",
+    "3-Clause BSD License": "BSD-3-Clause",
+    "BSD 3-Clause License": "BSD-3-Clause",
+    "Apache 2.0 License": "Apache-2.0",
+    "BSD license (see license.txt for details), Copyright (c) 2000-2025, ReportLab Inc.": "BSD-3-Clause",
+    "BSD-3-Clause, Apache-2.0, dependency licenses": "Apache-2.0 OR BSD-3-Clause"
+  },
+  "alias_evidence": {
+    "3-Clause BSD License": "pkg:pypi/protobuf@7.35.1 — PyPI License 字段变体写法，其 classifier 与 LICENSE 文本为 BSD-3-Clause",
+    "BSD 3-Clause License": "pkg:pypi/soundfile@0.14.0 — 同上，变体写法",
+    "Apache 2.0 License": "pkg:pypi/transformers@4.27.4 — 变体写法，Apache-2.0 文本已存档",
+    "BSD license (see license.txt for details), Copyright (c) 2000-2025, ReportLab Inc.": "pkg:pypi/reportlab@5.0.1 — 描述性长串，license.txt 为 BSD-3-Clause 且已存档",
+    "BSD-3-Clause, Apache-2.0, dependency licenses": "pkg:pypi/pypdfium2@5.14.0 — 上游 setup 描述串；实际为 Apache-2.0 OR BSD-3-Clause 双许可（DEC-0013 记录 chosen），wheel 捆绑 PDFium notices 义务不变"
+  },
+  "conditional": {
+    "MPL-2.0": "file-level copyleft：允许闭源组合发行；须随发行物提供 MPL 许可证与 notices，修改 MPL 覆盖文件须开源该部分",
+    "LGPL-2.0-only": "LGPL：允许闭源动态组合；二进制发行须附许可证/notice 与对应源码获取途径",
+    "LGPL-2.0-or-later": "LGPL：允许闭源动态组合；二进制发行须附许可证/notice 与对应源码获取途径",
+    "LGPL-2.1-only": "LGPL：允许闭源动态组合；二进制发行须附许可证/notice 与对应源码获取途径",
+    "LGPL-2.1-or-later": "LGPL：允许闭源动态组合；二进制发行须附许可证/notice 与对应源码获取途径",
+    "LGPL-3.0-only": "LGPL：允许闭源动态组合；二进制发行须附许可证/notice 与对应源码获取途径",
+    "LGPL-3.0-or-later": "LGPL：允许闭源动态组合；二进制发行须附许可证/notice 与对应源码获取途径",
+    "LGPL": "bare 'LGPL' 按 LGPL-2.1-or-later 对待，须逐条 decisions 记录",
+    "OFL-1.1": "字体：允许捆绑与嵌入；须附 OFL 许可证文本，不得单独售卖字体本身",
+    "CC-BY-4.0": "数据/内容：允许商用；发行物须附署名（author + license link）",
+    "BSD-3-Clause; bundled licenses in original": "主体 BSD-3-Clause，但 wheel 内捆绑第三方许可须原样保留（OBL-BUNDLED-NOTICES）"
+  },
+  "blocked_patterns": [
+    "AGPL-*",
+    "SSPL-*",
+    "RSAL-*",
+    "BUSL-*",
+    "BSL-1.1",
+    "GPL-2.0-only",
+    "GPL-3.0-only",
+    "LicenseRef-Artifex-Commercial",
+    "*NonCommercial*",
+    "*Research-Only*",
+    "*source-available*"
+  ],
+  "blocked_expressions": [
+    "UNKNOWN",
+    "NOASSERTION",
+    ""
+  ],
+  "or_license_rule": "多许可 OR 组合：存在任一 auto_allowed 分支即按该分支放行；否则必须在 decisions.json 记录 chosen 分支（chosen 分支本身须 allowed/conditional）",
+  "gates": {
+    "runtime_blocked": 0,
+    "dev_blocked": "dev-only 阻断项同样失败（本仓库不区分发行物的 dev 依赖边界，统一从严）",
+    "unknown_or_noassertion": 0,
+    "conditional_without_decision": "conditional 许可须在 decisions.json 有 obligation 关联记录",
+    "original_license_text_missing": "每个 current 组件必须留有原始许可文本存档（licenses/texts/）或 decisions 例外"
+  }
+}

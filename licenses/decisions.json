@@ -1,0 +1,160 @@
+{
+  "schema_version": 1,
+  "updated": "2026-10-06",
+  "decisions": [
+    {
+      "id": "DEC-0001",
+      "kind": "or-license-choice",
+      "component": "pkg:npm/node-forge@1.4.0",
+      "expression": "(BSD-3-Clause OR GPL-2.0)",
+      "chosen": "BSD-3-Clause",
+      "rationale": "BSD-3-Clause 分支满足闭源发行；不采用 GPL 分支。",
+      "decided": "2026-10-06",
+      "review_by": "2027-10-06"
+    },
+    {
+      "id": "DEC-0002",
+      "kind": "conditional-approval",
+      "component": "pkg:npm/%40fontsource/playfair-display@5.3.0",
+      "expression": "OFL-1.1",
+      "obligation": "OBL-OFL-1.1",
+      "rationale": "Web 字体子集捆绑；OFL 允许嵌入与分发。",
+      "decided": "2026-10-06",
+      "review_by": "2027-10-06"
+    },
+    {
+      "id": "DEC-0003",
+      "kind": "conditional-approval",
+      "component": "pkg:npm/caniuse-lite@1.0.30001814",
+      "expression": "CC-BY-4.0",
+      "obligation": "OBL-CC-BY-4.0",
+      "rationale": "browserslist 数据包（构建期解析目标，随依赖树分发）；附署名即可。",
+      "decided": "2026-10-06",
+      "review_by": "2027-10-06"
+    },
+    {
+      "id": "DEC-0004",
+      "kind": "conditional-approval",
+      "component": "family:lightningcss",
+      "expression": "MPL-2.0",
+      "obligation": "OBL-MPL-2.0",
+      "rationale": "MPL-2.0 文件级 copyleft：不修改其源文件，闭源组合允许；发行物附 MPL 许可证与 notice。",
+      "decided": "2026-10-06",
+      "review_by": "2027-10-06"
+    },
+    {
+      "id": "DEC-0005",
+      "kind": "conditional-approval",
+      "component": "family:certifi",
+      "expression": "MPL-2.0",
+      "obligation": "OBL-MPL-2.0",
+      "rationale": "CA 证书束，MPL-2.0；不修改其源文件。",
+      "decided": "2026-10-06",
+      "review_by": "2027-10-06"
+    },
+    {
+      "id": "DEC-0006",
+      "kind": "conditional-approval",
+      "component": "family:orjson",
+      "expression": "MPL-2.0 AND (Apache-2.0 OR MIT)",
+      "obligation": "OBL-MPL-2.0",
+      "rationale": "Rust/PYTHON 混合；MPL 覆盖部分为上游源文件，不修改。OR 分支取 Apache-2.0。",
+      "chosen": "MPL-2.0 AND Apache-2.0",
+      "decided": "2026-10-06",
+      "review_by": "2027-10-06"
+    },
+    {
+      "id": "DEC-0007",
+      "kind": "conditional-approval",
+      "component": "family:tqdm",
+      "expression": "MPL-2.0 AND MIT",
+      "obligation": "OBL-MPL-2.0",
+      "rationale": "MPL+MIT 双条款；不修改其源文件。",
+      "decided": "2026-10-06",
+      "review_by": "2027-10-06"
+    },
+    {
+      "id": "DEC-0008",
+      "kind": "conditional-approval",
+      "component": "family:axe-core",
+      "expression": "MPL-2.0",
+      "obligation": "OBL-MPL-2.0",
+      "rationale": "a11y 测试工具（devDependency）；仍按统一从严策略记录义务。",
+      "decided": "2026-10-06",
+      "review_by": "2027-10-06"
+    },
+    {
+      "id": "DEC-0009",
+      "kind": "conditional-approval",
+      "component": "family:@img/sharp",
+      "expression": "LGPL-3.0-or-later (libvips 捆绑二进制)",
+      "obligation": "OBL-LGPL",
+      "rationale": "sharp/libvips 平台二进制（图像构建管线）；闭源动态组合允许，二进制发行物须附 LGPL 许可证、notice 与 libvips 对应源码获取途径。",
+      "decided": "2026-10-06",
+      "review_by": "2027-10-06"
+    },
+    {
+      "id": "DEC-0010",
+      "kind": "conditional-approval",
+      "component": "pkg:pypi/chardet@5.2.0",
+      "expression": "LGPL",
+      "obligation": "OBL-LGPL",
+      "rationale": "上游声明为 LGPL（按 LGPL-2.1-or-later 对待）；仅作为可选 vector lane 的传递依赖，不修改其源文件。",
+      "decided": "2026-10-06",
+      "review_by": "2027-10-06"
+    },
+    {
+      "id": "DEC-0011",
+      "kind": "license-evidence-exception",
+      "component": "pkg:npm/exit@0.1.2",
+      "expression": "MIT",
+      "evidence": "https://raw.githubusercontent.com/cowboy/node-exit/master/LICENSE-MIT",
+      "rationale": "npm 元数据缺 license 字段；上游仓库 LICENSE-MIT 为标准 MIT（README 同样声明）。按 MIT 放行，证据链接留档。",
+      "decided": "2026-10-06",
+      "review_by": "2027-10-06"
+    },
+    {
+      "id": "DEC-0012",
+      "kind": "license-evidence-exception",
+      "component": "pkg:pypi/socksio@1.0.0",
+      "expression": "MIT",
+      "evidence": "https://pypi.org/pypi/socksio/1.0.0/json (classifier: License :: OSI Approved :: MIT License)",
+      "rationale": "PyPI metadata 无 license 字段但 classifier 明确 MIT；按 MIT 放行。",
+      "decided": "2026-10-06",
+      "review_by": "2027-10-06"
+    },
+    {
+      "id": "DEC-0013",
+      "kind": "or-license-choice",
+      "component": "pkg:pypi/pypdfium2@5.14.0",
+      "expression": "Apache-2.0 OR BSD-3-Clause (wheel 另捆绑 PDFium 及其第三方许可)",
+      "chosen": "Apache-2.0",
+      "obligation": "OBL-BUNDLED-NOTICES",
+      "rationale": "双许可任选；选 Apache-2.0。wheel 内捆绑的 PDFium BSD 许可与第三方 notice 必须随二进制发行物原样保留（见 ADR-0015）。",
+      "decided": "2026-10-06",
+      "review_by": "2027-10-06"
+    },
+    {
+      "id": "DEC-0014",
+      "kind": "conditional-approval",
+      "component": "family:PyTorch-CPU",
+      "expression": "BSD-3-Clause; bundled licenses in original",
+      "obligation": "OBL-BUNDLED-NOTICES",
+      "rationale": "可选 voice 环境的 CPU 参考件；BSD-3-Clause 主体，wheel 捆绑第三方许可以原始 notice 为准随发行物保留。",
+      "decided": "2026-10-06",
+      "review_by": "2027-10-06"
+    },
+    {
+      "id": "DEC-0015",
+      "kind": "or-license-choice",
+      "component": "pkg:pypi/python-dateutil@2.9.0.post0",
+      "expression": "Dual License (upstream metadata 字符串)",
+      "resolve_expression": "Apache-2.0 OR BSD-3-Clause",
+      "chosen": "Apache-2.0",
+      "evidence": "https://github.com/dateutil/dateutil/blob/2.9.0.post0/LICENSE (存档 licenses/texts/8747ac…txt：pre-2017 仅 BSD-3-clause；2017-12-01 起追加 Apache-2.0 双许可)",
+      "rationale": "PyPI License 字段只写 \"Dual License\"；上游 LICENSE 文件明确 BSD-3-Clause 与 Apache-2.0 二选一，两者均 auto_allowed，无需义务附加。",
+      "decided": "2026-10-06",
+      "review_by": "2027-10-06"
+    }
+  ]
+}
