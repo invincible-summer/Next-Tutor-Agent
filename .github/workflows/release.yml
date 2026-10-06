@@ -270,6 +270,8 @@ jobs:
           python: "false"
       - name: Expo SDK dependency compatibility
         run: pnpm --filter @next-tutor/mobile exec expo install --check
+      - name: Third-party licenses drift (generated from inventory)
+        run: node scripts/mobile/generate_licenses.mjs --check
       - name: Expo Doctor (locked local 1.20.4)
         run: pnpm --filter @next-tutor/mobile exec expo-doctor
       - name: Mobile TypeScript

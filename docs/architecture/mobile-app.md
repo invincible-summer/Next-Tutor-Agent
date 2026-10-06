@@ -71,6 +71,8 @@
 
 `RichContentRenderer` 保持 Markdown/TeX 源和公共接口。无数学内容使用原生 Text/View，含数学内容按消息分组为一个离线 KaTeX WebView。当前离线资源由 `bundle_math.mjs` 将 KaTeX 与 WOFF2 字体嵌入包中，许可证保存在移动资产目录。
 
+第三方开源许可页（设置入口）列出 apps/mobile 生产依赖子图的全部组件与许可条款：`generate_licenses.mjs` 从仓库许可清单 `licenses/inventory.json` 生成 `licenses.data.json`（按许可表达式去重的完整文本 + 逐包版权行），`--check` 是 CI drift 门禁——清单变更必须与生成数据同 commit。
+
 富文本 AST 序列化转义正文与属性，链接允许 http/https，KaTeX 使用 trust=false 和展开预算。WebView 使用 nonce、禁止外部网络的 CSP、关闭共享 Cookie/普通存储/文件访问，并限制导航。高度与链接消息验证 nonce 后处理；超长内容启用受限内部滚动，流式 HTML 更新节流。原始文本保留为可访问标签。
 
 目前覆盖标题、代码、列表、引用、表格、链接、图片链接降级、行内/块级公式和流式半成品。项目自有 parser 的支持范围受测试约束。200+ 合成格式测试验证解析/转义语义；它们不能建立真机视觉、辅助阅读或 500 条消息性能结论。候选原生 Markdown/数学引擎的设备准入仍待执行，当前实现采用受控离线 fallback。

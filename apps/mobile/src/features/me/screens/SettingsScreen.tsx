@@ -1,5 +1,7 @@
 import React from "react";
 import { View } from "react-native";
+import { useRouter } from "expo-router";
+import { ChevronRight, ScrollText } from "lucide-react-native";
 import { useCopy } from "@/lib/copy";
 import { useI18n } from "@/providers/I18nProvider";
 import { useUiPrefs } from "@/stores/ui";
@@ -8,11 +10,13 @@ import {
   BUILD_NUMBER,
   resolveApiBaseUrl,
 } from "@/platform/config";
-import { Card, Chip, SegmentedControl, useTheme } from "@/ui";
+import { Card, Chip, ListRow, SegmentedControl, useTheme } from "@/ui";
 import { Body, Hint, Label, Section } from "@/ui/Elements";
 import { FeatureShell } from "@/ui/FeatureShell";
 export function SettingsScreen() {
   const c = useCopy();
+  const router = useRouter();
+  const { theme } = useTheme();
   const { preference, setPreference, fontScale, setFontScale } = useTheme();
   const { lang, setLang } = useI18n();
   const prefs = useUiPrefs();
@@ -87,6 +91,20 @@ export function SettingsScreen() {
               />
             ))}
           </View>
+        </Section>
+        <Section title={c("开源许可", "Open-source licenses")}>
+          <Card style={{ padding: 4 }}>
+            <ListRow
+              title={c("第三方开源许可", "Third-party open-source licenses")}
+              subtitle={c(
+                "随本应用分发的开源组件与其许可条款",
+                "Open-source components and license terms shipped with this app",
+              )}
+              left={<ScrollText size={21} color={theme.colors.accent} />}
+              right={<ChevronRight size={18} color={theme.colors.muted} />}
+              onPress={() => router.push("/(main)/me/licenses" as "/(main)/me/settings")}
+            />
+          </Card>
         </Section>
         <Card style={{ gap: 12 }}>
           <Label>Next Tutor {APP_VERSION}</Label>
