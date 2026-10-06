@@ -1,0 +1,107 @@
+{
+  "audit_date": "2026-10-06",
+  "head_sha": "dc0ccd7a74b6734388720c50a3dd7bdca35243ff",
+  "tags": [
+    "v1.0.0",
+    "v1.1.0",
+    "v2.0.0",
+    "v2.1.0",
+    "v2.2.0",
+    "v2.2.1",
+    "v2.2.2",
+    "v3.0.0",
+    "v3.0.1"
+  ],
+  "scanned_blobs": 8918,
+  "object_hits": [],
+  "blocked_object_count": 0,
+  "text_declaration_note_count": 1,
+  "text_declaration_notes_sample": [
+    {
+      "sha": "f996f607e571bb822ee9aab038c365fc83171cdd",
+      "path": "services/api/app/persistence/cache/redis.py",
+      "note": "text declaration only; allowed by policy"
+    }
+  ],
+  "release_assets": {
+    "source": "github-api",
+    "releases": [
+      {
+        "tag": "v3.0.0",
+        "id": 403956501,
+        "assets": []
+      },
+      {
+        "tag": "v2.2.0",
+        "id": 402837303,
+        "assets": []
+      },
+      {
+        "tag": "v2.1.0",
+        "id": 401851858,
+        "assets": [
+          {
+            "name": "v2.1.0.new.md",
+            "size": 11471,
+            "downloads": 0
+          }
+        ]
+      },
+      {
+        "tag": "v2.0.0",
+        "id": 401851803,
+        "assets": [
+          {
+            "name": "v2.0.0.new.md",
+            "size": 5558,
+            "downloads": 0
+          }
+        ]
+      },
+      {
+        "tag": "v1.1.0",
+        "id": 401851702,
+        "assets": [
+          {
+            "name": "v1.1.0.new.md",
+            "size": 8314,
+            "downloads": 0
+          }
+        ]
+      },
+      {
+        "tag": "v1.0.0",
+        "id": 401851639,
+        "assets": [
+          {
+            "name": "v1.0.0.new.md",
+            "size": 12196,
+            "downloads": 0
+          }
+        ]
+      }
+    ]
+  },
+  "release_binary_asset_hits": [],
+  "verdict": "clean",
+  "policy": {
+    "blocking": [
+      "container-image",
+      "executable-binary",
+      "mobile-binary",
+      "node_modules",
+      "pymupdf-vendor",
+      "shared-object",
+      "site-packages",
+      "static-library",
+      "tessdata",
+      "virtualenv",
+      "wheel"
+    ],
+    "review_only": [
+      "archive-review"
+    ],
+    "allowed": "text declarations (requirements/source imports) only",
+    "history_rewrite": "not required when verdict=clean (plan.md section 2)"
+  }
+}
