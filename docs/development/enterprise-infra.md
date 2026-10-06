@@ -116,6 +116,8 @@ python3 scripts/migrations/runtime_to_enterprise/import_documents.py --domain ch
 
 已支持域：`chat`（会话/转写/trace 引用）、`notes`（仓库索引/正文/修订/智能体状态）、`evidence`（学习证据 journal + 学生档案）、`orchestration`（编排工作集 + 事件日志）、`assistant`（学习助手会话 + 交接草稿）、`classroom`（owner 记录/课程/生成任务/播放 run）、`illustration`（题图与情景会话六类文档，行落 `assistant_documents` 表——预览 PNG 留文件/ObjectStore 侧）、`library`（资料库索引文档）、`textbooks`（教材注册文档）。九域 cutover 全部落地。
 
+灾备与生产恢复基线（备份/恢复 runbook、CI 演练证据、待持有者执行项）：[`docs/validation/disaster-recovery.md`](../validation/disaster-recovery.md)。
+
 ## 多实例部署（ADR-0017 收口）
 
 九域事实源 cutover 完成后，企业模式（`DATABASE_URL` 已配置）解除 `WEB_CONCURRENCY=1` 强制。多 worker / 多实例的完整前提矩阵：
