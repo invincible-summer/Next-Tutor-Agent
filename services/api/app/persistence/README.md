@@ -7,8 +7,9 @@ PostgreSQL（SQLAlchemy 2.0 async）/ 对象存储 / RESP 缓存（Valkey，ADR-
 ```text
 persistence/
 ├── db.py             # async engine/session/transaction factory（URL 归一化 postgresql→asyncpg）
-├── models/           # SQLAlchemy 模型（identity.py：§11.2 八表）
-├── repositories/     # Protocol + records（纯 dataclass）+ SqlAlchemy 实现
+├── models/           # SQLAlchemy 模型（identity.py 八表；documents.py 九域文档表）
+├── repositories/     # identity 的 Protocol + records（纯 dataclass）+ SqlAlchemy 实现
+├── documents/        # 九域 JSONB 文档仓储（ADR-0017）：协议/records/Sql 实现/逐域路由
 ├── object_store/     # ObjectStore 接口 + local 适配（数据根内）；azure/s3 接口位
 ├── cache/            # RESP（Valkey）限流/lease/短缓存原语；未配置回退进程内实现
 └── health.py         # bootstrap /ready 探活（DB critical、cache non-critical）

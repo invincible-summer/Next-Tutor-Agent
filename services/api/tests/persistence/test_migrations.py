@@ -62,6 +62,9 @@ class MigrationSmokeTest(StorageSandboxTestCase):
             "users", "credentials", "tenants", "memberships", "auth_sessions",
             "refresh_tokens", "identity_providers", "audit_events",
             "alembic_version",
+            *{f"{domain}_documents" for domain in (
+                "chat", "library", "textbooks", "notes", "assessment",
+                "evidence", "classroom", "orchestration", "assistant")},
         }
         self.assertTrue(expected <= existing, missing := expected - existing)
         self.assertFalse(missing)

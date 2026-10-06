@@ -539,6 +539,38 @@ def _purge_account(user_id: str) -> dict[str, Any]:
                 pass
     shutil.rmtree(kgs_mod._CUSTOM_DIR / kgs_mod._safe_name(uid), ignore_errors=True)
 
+    # 企业模式：9 域文档表逐域清空（SQL 行与文件态互为镜像时两侧都删，
+    # 幂等）。purge 在 worker 线程执行且共享引擎的连接绑定主事件循环，
+    # 因此这里建独立短命引擎 + 自有事件循环，用后即弃。
+    try:
+        from app.persistence import db as _pdb
+        _url = _pdb.database_url()
+        if _url:
+            import asyncio as _asyncio
+
+            from sqlalchemy.ext.asyncio import async_sessionmaker as _mk
+
+            from app.persistence.documents import (DOCUMENT_DOMAINS,
+                                                   SqlDocumentRepository)
+            _engine = _pdb.create_engine(_url)
+            try:
+                _factory = _mk(_engine, expire_on_commit=False)
+
+                async def _purge_sql() -> None:
+                    for _domain in DOCUMENT_DOMAINS:
+                        await SqlDocumentRepository(
+                            _domain, _factory).purge_owner(uid)
+
+                _asyncio.run(_purge_sql())
+            finally:
+                _asyncio.run(_engine.dispose())
+    except Exception:
+        # 文件态清理已完成（purge 幂等可重试）；SQL 残留必须可见。
+        import logging as _logging
+        _logging.getLogger(__name__).warning(
+            "domain document purge failed for %s (retry the purge)",
+            user_id, exc_info=True)
+
     # 账号记录最后删：中途任何失败都会留下可重试的账号（purge 幂等）。
     from app.identity import avatars
     avatars.purge(uid)

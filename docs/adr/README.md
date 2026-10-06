@@ -27,4 +27,5 @@
 | [ADR-0013](./0013-durable-workflows.md) | Durable workflows | Temporal 承担后台长任务执行所有权，`TEMPORAL_ADDRESS` 门控双模式，域持久化仍是唯一事实源（取代 ADR-0004 的进程内任务持有部分） |
 | [ADR-0014](./0014-single-instance-until-domain-cutover.md) | 完整领域迁移前单实例 | DATABASE_URL 只接入身份基础设施，业务文件事实源仍须单 API 实例/worker |
 | [ADR-0015](./0015-permissive-pdf-backend.md) | 许可宽松的 PDF 后端 | pypdf/pdfplumber/pypdfium2/ReportLab 替代 PyMuPDF（AGPL），core/pdf 门面 + PDFIUM_LOCK，页边界契约不变 |
+| [ADR-0017](./0017-domain-document-repositories.md) | 域文档仓储 JSONB cutover | 九域同构 `<domain>_documents` 表 + DocumentRepository 协议与逐域路由，epoch CAS，字节走 ObjectStore，派生索引留文件态 |
 | [ADR-0016](./0016-valkey-cache-and-minio-removal.md) | Valkey 缓存与 MinIO 移除 | 缓存服务端换 Valkey 9.1.2（BSD-3）+ CACHE_URL，删 AGPL MinIO 占位，缓存即弃态不迁移 |

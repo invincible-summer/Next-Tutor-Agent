@@ -27,9 +27,20 @@ class Base(DeclarativeBase):
 from .identity import (AuditEventModel, AuthSessionModel, CredentialModel,  # noqa: E402
                        IdentityProviderModel, MembershipModel, RefreshTokenModel,
                        TenantModel, UserModel)
+from .documents import (DOCUMENT_DOMAINS, DOCUMENT_MODELS,  # noqa: E402
+                        AssistantDocumentModel, AssessmentDocumentModel,
+                        ChatDocumentModel, ClassroomDocumentModel,
+                        EvidenceDocumentModel, LibraryDocumentModel,
+                        NotesDocumentModel, OrchestrationDocumentModel,
+                        TextbooksDocumentModel)
 
 __all__ = [
     "Base", "UserModel", "CredentialModel", "TenantModel", "MembershipModel",
     "AuthSessionModel", "RefreshTokenModel", "IdentityProviderModel",
     "AuditEventModel",
+    "DOCUMENT_DOMAINS", "DOCUMENT_MODELS",
+    "ChatDocumentModel", "LibraryDocumentModel", "TextbooksDocumentModel",
+    "NotesDocumentModel", "AssessmentDocumentModel", "EvidenceDocumentModel",
+    "ClassroomDocumentModel", "OrchestrationDocumentModel",
+    "AssistantDocumentModel",
 ]
