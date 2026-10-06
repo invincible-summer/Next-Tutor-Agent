@@ -64,15 +64,23 @@ class FileIdentityBackend:
 class EnterpriseIdentityBackend(FileIdentityBackend):
     """PostgreSQL-backed identity with file-store shadow writes.
 
-    Registration order: file store first (existing semantics and 409
-    behavior), then repository (account + personal tenant + owner
-    membership + password credential, in separate transactions). A repository failure
-    after a successful file write surfaces as an error — the account stays
-    usable in file mode and the importer heals the database later.
+    Registration is single-transaction on the repository: account + password
+    credential + personal tenant + owner membership commit together or not
+    at all. The legacy file account is a best-effort shadow written AFTER
+    the commit — a shadow failure (or a legacy file-email collision) logs
+    loudly but does not fail registration, because the database is the
+    authentication fact and the runtime importer re-heals shadows.
     """
 
     def __init__(self, repository) -> None:
         self._repo = repository
+
+    async def email_exists(self, email: str) -> bool:
+        """Both stores: DB-only accounts healed by the importer (no file
+        shadow yet) must keep the 409 semantics, and file-only legacy
+        accounts collide on the shadow write."""
+        record = await self._repo.get_account_by_email(email)
+        return record is not None or _file_email_exists(email)
 
     async def register_account(self, *, email: str, username: str,
                                password_hash: str, role: str,
@@ -84,41 +92,58 @@ class EnterpriseIdentityBackend(FileIdentityBackend):
                                                           MembershipRecord,
                                                           TenantRecord)
 
-        # 1. File store (authoritative for legacy consumers, preserves the
-        #    existing email-taken error).
-        user = _file_create_user(email=email, username=username,
-                                 password_hash=password_hash, role=role,
-                                 profile=profile)
-        # 2. Repository: account + personal tenant + membership + credential.
+        # 1. Repository: account + personal tenant + membership + credential
+        #    in ONE transaction (ids generated here so the shadow write can
+        #    reuse them verbatim).
         now = time.time()
+        user = User(id=f"usr_{uuid.uuid4().hex[:10]}",
+                    email=email.strip().lower(),
+                    username=(username.strip() or email.split("@")[0]),
+                    password_hash=password_hash, role=role, created_at=now,
+                    profile=profile)
         tenant_id = f"tnt_{uuid.uuid4().hex[:10]}"
         try:
-            await self._repo.create_account(AccountRecord(
-                user_id=user.id, email=user.email, username=user.username,
-                role=role, password_hash=password_hash,
-                token_version=user.token_version, created_at=now,
-                profile=_user_profile_dict(user), active_tenant_id=tenant_id))
-            await self._repo.create_tenant(TenantRecord(
-                tenant_id=tenant_id, kind="personal",
-                name=f"personal:{user.email}", display_name=user.username,
-                owner_user_id=user.id, created_at=now))
-            await self._repo.create_membership(MembershipRecord(
-                membership_id=f"mem_{uuid.uuid4().hex[:10]}",
-                tenant_id=tenant_id, user_id=user.id, tenant_role="owner",
-                created_at=now))
-            await self._repo.create_credential(CredentialRecord(
-                id=f"crd_{uuid.uuid4().hex[:10]}", user_id=user.id,
-                kind="password", secret_hash=password_hash, created_at=now,
-                updated_at=now))
+            await self._repo.create_account_bundle(
+                AccountRecord(
+                    user_id=user.id, email=user.email, username=user.username,
+                    role=role, password_hash=password_hash,
+                    token_version=user.token_version, created_at=now,
+                    profile=_user_profile_dict(user),
+                    active_tenant_id=tenant_id),
+                CredentialRecord(
+                    id=f"crd_{uuid.uuid4().hex[:10]}", user_id=user.id,
+                    kind="password", secret_hash=password_hash, created_at=now,
+                    updated_at=now),
+                TenantRecord(
+                    tenant_id=tenant_id, kind="personal",
+                    name=f"personal:{user.email}", display_name=user.username,
+                    owner_user_id=user.id, created_at=now),
+                MembershipRecord(
+                    membership_id=f"mem_{uuid.uuid4().hex[:10]}",
+                    tenant_id=tenant_id, user_id=user.id, tenant_role="owner",
+                    created_at=now))
         except Exception:
-            # Shadow-write failure leaves a file-mode-usable account; the
-            # runtime importer is idempotent and heals it. Surface loudly.
+            # Nothing persisted: the bundle is one transaction, so a failure
+            # (duplicate email included) leaves no orphan tenant/credential/
+            # membership rows behind. Surface loudly for the 503 mapping.
             import logging
 
             logging.getLogger(__name__).exception(
-                "enterprise registration shadow-write failed for %s",
-                user.id)
+                "enterprise registration failed for %s", user.email)
             raise
+        # 2. Legacy file shadow, best-effort AFTER the commit. Reuses the
+        #    committed user id; a collision means a legacy file account the
+        #    importer will reconcile — never a reason to fail registration.
+        try:
+            _file_create_user(email=user.email, username=user.username,
+                              password_hash=password_hash, role=role,
+                              profile=profile, user_id=user.id)
+        except Exception:
+            import logging
+
+            logging.getLogger(__name__).exception(
+                "enterprise registration file-shadow write failed for %s "
+                "(importer will heal)", user.id)
         return user, tenant_id
 
     async def _with_password_hash(self, record):

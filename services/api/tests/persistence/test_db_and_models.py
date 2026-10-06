@@ -110,6 +110,90 @@ class AccountRepositoryTest(_SqliteTestCase):
         self.assertFalse(await self.repo.delete_account("usr_d"))
 
 
+class RegistrationBundleTest(_SqliteTestCase):
+    """WS5d: registration facts (account + credential + personal tenant +
+    owner membership) commit as one transaction or not at all, and the
+    legacy file shadow is strictly best-effort after the commit."""
+
+    @staticmethod
+    def _bundle(email: str, suffix: str):
+        from app.persistence.repositories.records import (
+            AccountRecord, CredentialRecord, MembershipRecord, TenantRecord)
+
+        user_id = f"usr_{suffix}"
+        tenant_id = f"tnt_{suffix}"
+        return (
+            AccountRecord(user_id=user_id, email=email,
+                          username=email.split("@")[0], password_hash="h",
+                          token_version=0, created_at=1.0, profile={},
+                          active_tenant_id=tenant_id),
+            CredentialRecord(id=f"crd_{suffix}", user_id=user_id,
+                             kind="password", secret_hash="h",
+                             created_at=1.0, updated_at=1.0),
+            TenantRecord(tenant_id=tenant_id, kind="personal",
+                         name=f"personal:{email}", display_name=email,
+                         owner_user_id=user_id, created_at=1.0),
+            MembershipRecord(membership_id=f"mem_{suffix}",
+                             tenant_id=tenant_id, user_id=user_id,
+                             tenant_role="owner", created_at=1.0),
+        )
+
+    async def test_bundle_creates_all_four_rows(self) -> None:
+        await self.repo.create_account_bundle(
+            *self._bundle("one@x.io", suffix="a"))
+        by_id = await self.repo.get_account_by_id("usr_a")
+        self.assertIsNotNone(by_id)
+        assert by_id is not None
+        self.assertEqual(by_id.active_tenant_id, "tnt_a")
+        self.assertIsNotNone(await self.repo.get_tenant("tnt_a"))
+        self.assertIsNotNone(await self.repo.get_membership("tnt_a", "usr_a"))
+        self.assertIsNotNone(await self.repo.get_password_credential("usr_a"))
+
+    async def test_bundle_conflict_rolls_back_everything(self) -> None:
+        from app.persistence.repositories.protocols import DuplicateEmailError
+
+        await self.repo.create_account_bundle(
+            *self._bundle("dup@x.io", suffix="a"))
+        with self.assertRaises(DuplicateEmailError):
+            # Same email (case-normalized), fresh ids: the users.email
+            # unique index rejects the insert mid-transaction.
+            await self.repo.create_account_bundle(
+                *self._bundle("Dup@X.io", suffix="b"))
+        # No partial rows from the failed bundle survived the rollback.
+        self.assertEqual(len(await self.repo.list_accounts()), 1)
+        self.assertIsNone(await self.repo.get_tenant("tnt_b"))
+        self.assertIsNone(await self.repo.get_membership("tnt_b", "usr_b"))
+        self.assertIsNone(await self.repo.get_password_credential("usr_b"))
+
+    async def test_backend_register_shadow_collision_still_succeeds(self) -> None:
+        from app.identity.backend import EnterpriseIdentityBackend
+        from app.identity.models import UserProfile
+        from app.identity.store import create_user as file_create_user
+        from app.identity.store import get_by_email as file_get_by_email
+
+        legacy = file_create_user(email="legacy@x.io", username="legacy",
+                                  password_hash="old-hash")
+        backend = EnterpriseIdentityBackend(self.repo)
+        self.assertTrue(await backend.email_exists("legacy@x.io"))
+        # Direct backend call bypasses the route's 409 pre-check on purpose:
+        # the DB has no row for this email yet, so the bundle commits and
+        # only the shadow write collides.
+        user, tenant_id = await backend.register_account(
+            email="legacy@x.io", username="legacy",
+            password_hash="new-hash", role="student",
+            profile=UserProfile())
+        record = await self.repo.get_account_by_email("legacy@x.io")
+        self.assertIsNotNone(record)
+        assert record is not None
+        self.assertEqual(record.user_id, user.id)
+        self.assertIsNotNone(await self.repo.get_tenant(tenant_id))
+        # Registration succeeded; the legacy file account is untouched and
+        # the importer reconciles it on the next pass.
+        shadow = file_get_by_email("legacy@x.io")
+        self.assertEqual(shadow.id, legacy.id)
+        self.assertEqual(shadow.password_hash, "old-hash")
+
+
 class TenantRepositoryTest(_SqliteTestCase):
     async def test_tenant_membership_roundtrip(self) -> None:
         from app.persistence.repositories.records import (AccountRecord,

@@ -118,6 +118,29 @@ class EnterpriseRegistrationTest(_EnterpriseAuthTestCase):
         self.assertTrue(body["access_token"])
         self.assertTrue(body["refresh_token"])
 
+    def test_register_duplicate_email_conflicts(self) -> None:
+        payload = {"email": "dup@example.com", "password": "password-123"}
+        first = self.client.post("/api/v1/auth/register", json=payload)
+        self.assertEqual(first.status_code, 200)
+        again = self.client.post("/api/v1/auth/register", json=payload)
+        self.assertEqual(again.status_code, 409)
+        self.assertEqual(again.json()["detail"], "email_already_registered")
+
+    def test_register_shadow_reuses_committed_user_id(self) -> None:
+        """Single-transaction registration (WS5d): the file shadow is a
+        post-commit best-effort write that reuses the committed user id, so
+        legacy file consumers and the DB address the same account."""
+        from app.identity.store import get_by_email as file_get_by_email
+
+        resp = self.client.post("/api/v1/auth/register", json={
+            "email": "shadow@example.com", "password": "password-123"})
+        self.assertEqual(resp.status_code, 200)
+        user_id = resp.json()["user"]["id"]
+        shadow = file_get_by_email("shadow@example.com")
+        self.assertIsNotNone(shadow)
+        assert shadow is not None
+        self.assertEqual(shadow.id, user_id)
+
 
 class TenantIsolationAPITest(_EnterpriseAuthTestCase):
     """WS5c end-to-end: the tenant claim on the access token scopes every

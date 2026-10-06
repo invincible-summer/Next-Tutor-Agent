@@ -99,6 +99,50 @@ class SqlAlchemyIdentityRepository:
             raise DuplicateEmailError(record.email) from exc
         return record
 
+    async def create_account_bundle(self, account: AccountRecord,
+                                    credential: CredentialRecord,
+                                    tenant: TenantRecord,
+                                    membership: MembershipRecord,
+                                    ) -> AccountRecord:
+        """Registration facts (account + password credential + personal
+        tenant + owner membership) in ONE transaction: they commit together
+        or not at all.
+
+        Insert ordering is explicit because ``users.active_tenant_id`` has an
+        immediate (non-deferrable) FK to ``tenants.id``: the tenant row must
+        be flushed before the account references it. Account-first
+        registration only ever failed on real PostgreSQL — the sqlite test
+        lane does not enforce FKs by default.
+        """
+        try:
+            async with self._txn() as sess:
+                sess.add(TenantModel(
+                    id=tenant.tenant_id, kind=tenant.kind, name=tenant.name,
+                    display_name=tenant.display_name,
+                    owner_user_id=tenant.owner_user_id,
+                    created_at=tenant.created_at,
+                    settings=dict(tenant.settings or {})))
+                await sess.flush()
+                row = UserModel(id=account.user_id)
+                _apply_account(account, row)
+                sess.add(row)
+                await sess.flush()
+                sess.add(CredentialModel(
+                    id=credential.id, user_id=credential.user_id,
+                    kind=credential.kind, secret_hash=credential.secret_hash,
+                    extra=dict(credential.extra or {}),
+                    created_at=credential.created_at,
+                    updated_at=credential.updated_at))
+                sess.add(MembershipModel(
+                    id=membership.membership_id,
+                    tenant_id=membership.tenant_id,
+                    user_id=membership.user_id,
+                    tenant_role=membership.tenant_role,
+                    created_at=membership.created_at))
+        except IntegrityError as exc:
+            raise DuplicateEmailError(account.email) from exc
+        return account
+
     async def get_account_by_email(self, email: str) -> AccountRecord | None:
         key = email.strip().lower()
         async with self._sess() as sess:

@@ -170,6 +170,7 @@ async def register(req: RegisterRequest, request: Request):
         grade=req.grade, subjects=list(req.subjects), school=req.school,
     )
     from app.persistence import db as persistence_db
+    from app.persistence.repositories.protocols import DuplicateEmailError
     if persistence_db.enterprise_mode():
         from app.identity.backend import EnterpriseIdentityBackend, \
             identity_backend
@@ -186,6 +187,10 @@ async def register(req: RegisterRequest, request: Request):
                 role="student", profile=profile)
         except HTTPException:
             raise
+        except DuplicateEmailError:
+            # Race window past the pre-check: the DB rejected the email.
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT,
+                                detail="email_already_registered")
         except Exception:
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
