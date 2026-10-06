@@ -119,6 +119,65 @@ class EnterpriseRegistrationTest(_EnterpriseAuthTestCase):
         self.assertTrue(body["refresh_token"])
 
 
+class TenantIsolationAPITest(_EnterpriseAuthTestCase):
+    """WS5c end-to-end: the tenant claim on the access token scopes every
+    SQL-mode document read/write for the whole request (middleware copies
+    it into the document context). Same-owner rows under another personal
+    tenant are structurally invisible over HTTP."""
+
+    def setUp(self) -> None:
+        from app.core.config import settings
+        self._saved_assistant = settings.site_assistant_enabled
+        settings.site_assistant_enabled = True
+        super().setUp()
+
+    def tearDown(self) -> None:
+        from app.core.config import settings
+        settings.site_assistant_enabled = self._saved_assistant
+        super().tearDown()
+
+    def _register_and_login(self, email: str) -> dict:
+        self.client.post("/api/v1/auth/register", json={
+            "email": email, "password": "password-123"})
+        resp = self.client.post("/api/v1/auth/login", json={
+            "email": email, "password": "password-123"})
+        self.assertEqual(resp.status_code, 200)
+        return resp.json()
+
+    def test_assistant_conversations_isolated_per_tenant(self) -> None:
+        alice = self._register_and_login("tenanta@example.com")
+        bob = self._register_and_login("tenantb@example.com")
+
+        created = self.client.post(
+            "/api/v1/assistant/conversations",
+            headers={"Authorization": f"Bearer {alice['access_token']}"},
+            json={"client_request_id": "0d0e0f0a-1111-4222-8333-444455556666",
+                  "title": "Alice的会话"})
+        self.assertEqual(created.status_code, 201)
+        conversation_id = created.json()["conversation_id"]
+
+        # The other tenant's account sees nothing of it — by list...
+        bob_list = self.client.get(
+            "/api/v1/assistant/conversations",
+            headers={"Authorization": f"Bearer {bob['access_token']}"})
+        self.assertEqual(bob_list.status_code, 200)
+        self.assertEqual(bob_list.json()["total"], 0)
+        # ...and by direct resource id.
+        bob_direct = self.client.get(
+            f"/api/v1/assistant/conversations/{conversation_id}",
+            headers={"Authorization": f"Bearer {bob['access_token']}"})
+        self.assertEqual(bob_direct.status_code, 404)
+
+        alice_list = self.client.get(
+            "/api/v1/assistant/conversations",
+            headers={"Authorization": f"Bearer {alice['access_token']}"})
+        self.assertEqual(alice_list.status_code, 200)
+        self.assertEqual(alice_list.json()["total"], 1)
+        self.assertEqual(
+            alice_list.json()["items"][0]["conversation_id"],
+            conversation_id)
+
+
 class RefreshFlowTest(_EnterpriseAuthTestCase):
     def _login(self) -> dict:
         self.client.post("/api/v1/auth/register", json={

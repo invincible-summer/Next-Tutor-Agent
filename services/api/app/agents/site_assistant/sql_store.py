@@ -45,7 +45,7 @@ def load_conversation_payload(student_id: str,
 
 def save_conversation_payload(student_id: str, record: dict[str, Any]) -> None:
     async def _put() -> None:
-        await _repo().put(DocumentRecord(
+        await _repo().put(DocumentRecord.scoped(
             doc_id=str(record["conversation_id"]), owner_id=student_id,
             kind="conversation", payload=record))
 
@@ -84,7 +84,7 @@ def load_draft_payload(student_id: str, draft_id: str) -> dict[str, Any] | None:
 
 def save_draft_payload(student_id: str, record: dict[str, Any]) -> None:
     async def _put() -> None:
-        await _repo().put(DocumentRecord(
+        await _repo().put(DocumentRecord.scoped(
             doc_id=str(record["draft_id"]), owner_id=student_id,
             kind="draft", payload=record))
 
@@ -124,6 +124,15 @@ def list_draft_payloads(student_id: str) -> list[dict[str, Any]]:
 
 
 # -- owner scan (startup recovery + draft purge loops) ----------------------
+
+
+def list_owner_scopes() -> list[tuple[str, str]]:
+    """(tenant_id, owner) scopes holding assistant/illustration documents."""
+    async def _scopes() -> list[tuple[str, str]]:
+        return await _repo().list_owner_scopes(
+            kinds=("conversation", "draft"))
+
+    return bridge.call(_scopes)
 
 
 def list_owners() -> list[str]:

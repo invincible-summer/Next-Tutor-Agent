@@ -121,8 +121,11 @@ def _dispatch_scenario_job(owner: str, job: dict) -> None:
     from app.workflows.illustration_common import ScenarioIllustrationIntent
     from app.workflows.illustration_scenario import start_scenario_job
 
+    from app.persistence.documents import current_tenant
+
     intent = ScenarioIllustrationIntent(
-        owner=owner, session_id=job["session_id"], job_id=job["job_id"])
+        owner=owner, session_id=job["session_id"], job_id=job["job_id"],
+        tenant_id=current_tenant())
 
     async def _go() -> None:
         try:

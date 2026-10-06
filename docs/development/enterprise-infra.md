@@ -87,6 +87,13 @@ DOMAIN_DOCUMENT_BACKENDS="default=file,chat=sql" # 全量回退 + 单域试点
 
 `sql_enabled(domain)` 同时要求 `DATABASE_URL`；未配置企业库时任何 flag 都不会路由到 SQL。单测 lane：`tests/persistence/test_domain_documents.py`（sqlite，含账号 purge 清空九域行的契约）；账号删除链路（`core/account_data.purge_account`）在企业模式用独立短命引擎清空九域行。
 
+### 租户隔离（WS5c，P0-TEN）
+
+- **请求侧**：`_TenantContextMiddleware`（`app/main.py`）校验 RS256 会话 token 的本地签名后，把 `tenant` 声明拷入文档租户上下文（`app/persistence/documents/context.py`，ContextVar）；整条请求内的全部域文档读写按该租户解析——其它租户的行结构性不可见。旧 HS256 token / 访客 / 匿名请求解析到 `""` 旧作用域，行为与文件模式一致。`bridge.call` 把调用方上下文复制到 worker 任务（`loop.create_task(coro, context=…)`），适配器与协程体看到同一租户。
+- **仓储侧**：`tenant_id=None`（默认）解析为当前上下文租户；显式 `""` 定位旧作用域（导入器/单租户）。记录经 `DocumentRecord.scoped(...)` 在调用线程取租户盖章。唯一键 `(tenant_id, owner_id, kind, doc_id)` 即隔离边界；`purge_owner(tenant_id=None)` 仍为账号删除的跨租户清空通道。
+- **后台与 durable**：跨 owner 的清扫/对账经 `list_owner_scopes()` 枚举 `(tenant, owner)` 并逐一进入租户上下文（助手草稿清扫与恢复、课堂健康扫描、教材对账/OCR 续跑/迁移）；Temporal intent（插图 quiz/scenario、教材 build/refresh）携带 `tenant_id`，activity 内恢复上下文。派生索引（BM25/KG/向量）与导出字节留文件/ObjectStore 侧，owner 目录隔离不变。
+- **验收**：`tests/persistence/test_tenant_isolation.py`（同 owner 双租户 × 9 域读写矩阵 + 后台枚举 + 跨租户 purge）与 `tests/identity/test_enterprise_auth.py::TenantIsolationAPITest`（HTTP 端到端：A 租户会话对 B 租户按列表与资源 id 均不可见）。
+
 ## 存量数据迁移（runtime → enterprise）
 
 `scripts/migrations/runtime_to_enterprise/`（README 见该目录），状态文件在数据根 `migrations/runtime_to_enterprise/state.json`：

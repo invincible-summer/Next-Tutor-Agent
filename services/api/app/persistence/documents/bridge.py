@@ -107,13 +107,27 @@ def call(coro_fn: Callable[..., Any], *args: Any,
          timeout: float = _CALL_TIMEOUT) -> Any:
     """Run ``coro_fn(*args)`` on the worker loop; block for the result.
 
-    Timeouts surface as DocumentRepositoryError; everything else re-raises
-    the coroutine's own exception unchanged — domain closures (journal
-    generation conflicts, CAS losses) carry domain semantics that callers
-    match on, and infrastructure failures are no less actionable raw.
+    The coroutine runs as a task carrying a copy of the caller's context
+    (``contextvars`` — tenant scope, request facts): the default
+    ``run_coroutine_threadsafe`` task would inherit the worker loop's
+    empty context instead. Timeouts surface as DocumentRepositoryError;
+    everything else re-raises the coroutine's own exception unchanged —
+    domain closures (journal generation conflicts, CAS losses) carry
+    domain semantics that callers match on, and infrastructure failures
+    are no less actionable raw.
     """
+    import contextvars
+
     worker = _get_worker()
-    future = asyncio.run_coroutine_threadsafe(coro_fn(*args), worker.loop)
+    ctx = contextvars.copy_context()
+    coro = coro_fn(*args)
+
+    async def _in_caller_context() -> Any:
+        return await asyncio.get_running_loop().create_task(
+            coro, context=ctx)
+
+    future = asyncio.run_coroutine_threadsafe(_in_caller_context(),
+                                              worker.loop)
     try:
         return future.result(timeout)
     except asyncio.TimeoutError as exc:

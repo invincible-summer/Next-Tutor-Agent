@@ -257,11 +257,13 @@ def enqueue_textbook_build(student_id: str, tb_id: str, **build_kwargs) \
         future: asyncio.Future[None] = loop.create_future()
 
         async def _dispatch_durable() -> None:
+            from app.persistence.documents import current_tenant
             from app.workflows import textbook as wf_textbook
             try:
                 await wf_textbook.dispatch_build_intent(
                     wf_textbook.TextbookBuildIntent(
-                        owner=student_id, tb_id=tb_id, kwargs=build_kwargs))
+                        owner=student_id, tb_id=tb_id, kwargs=build_kwargs,
+                        tenant_id=current_tenant()))
             finally:
                 if not future.done():
                     future.set_result(None)

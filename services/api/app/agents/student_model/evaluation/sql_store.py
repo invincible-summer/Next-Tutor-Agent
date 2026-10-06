@@ -75,7 +75,7 @@ def save_profile_blob(student_id: str, blob: dict[str, Any]) -> None:
     from app.persistence.documents import DocumentRecord
 
     async def _put() -> None:
-        await _repo().put(DocumentRecord(
+        await _repo().put(DocumentRecord.scoped(
             doc_id=student_id, owner_id=student_id, kind="profile",
             payload=blob))
 

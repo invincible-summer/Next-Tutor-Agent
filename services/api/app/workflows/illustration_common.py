@@ -55,6 +55,9 @@ _SETTLE_START_TO_CLOSE = timedelta(minutes=1)
 class QuizIllustrationIntent:
     owner: str
     job_id: str
+    # 租户上下文（WS5c）：派发进程的文档隔离键，activity 内恢复。
+    # 默认 "" = 旧作用域，兼容在途 workflow。
+    tenant_id: str = ""
 
 
 @dataclass
@@ -62,6 +65,7 @@ class ScenarioIllustrationIntent:
     owner: str
     session_id: str
     job_id: str
+    tenant_id: str = ""
 
 
 def quiz_workflow_id(owner: str, job_id: str) -> str:
@@ -123,13 +127,16 @@ async def _run_with_heartbeat(coro) -> str:
 @activity.defn(name="illustration.quiz_job.run")
 async def run_quiz_job_activity(intent: QuizIllustrationIntent) -> str:
     from app.illustration import orchestrator, persistence
+    from app.persistence.documents import tenant_scope
 
-    job = persistence.read(intent.owner, "jobs", intent.job_id)
+    with tenant_scope(intent.tenant_id):
+        job = persistence.read(intent.owner, "jobs", intent.job_id)
     if not job or job.get("status") not in {"queued", "running"}:
         # 记录已终态/被删（cutover 残留重放）：无事可做。
         return "already-settled"
-    return await _run_with_heartbeat(
-        orchestrator._run(intent.owner, job, None))
+    with tenant_scope(intent.tenant_id):
+        return await _run_with_heartbeat(
+            orchestrator._run(intent.owner, job, None))
 
 
 @activity.defn(name="illustration.quiz_job.settle")
@@ -137,8 +144,12 @@ async def settle_quiz_job_activity(intent: QuizIllustrationIntent) -> str:
     from app.illustration import orchestrator
     from app.illustration.contracts import IllustrationError
 
+    from app.persistence.documents import tenant_scope
+
     try:
-        return orchestrator._settle_interrupted(intent.owner, intent.job_id)
+        with tenant_scope(intent.tenant_id):
+            return orchestrator._settle_interrupted(intent.owner,
+                                                    intent.job_id)
     except (ValueError, IllustrationError):
         # 损坏/缺失/已被 epoch 闸拒：无需（也无法）结算。
         return "gone"
@@ -148,12 +159,16 @@ async def settle_quiz_job_activity(intent: QuizIllustrationIntent) -> str:
 async def run_scenario_job_activity(
         intent: ScenarioIllustrationIntent) -> str:
     from app.illustration import persistence, scenario
+    from app.persistence.documents import tenant_scope
 
-    job = persistence.read(intent.owner, "scenario_jobs", intent.job_id)
+    with tenant_scope(intent.tenant_id):
+        job = persistence.read(intent.owner, "scenario_jobs",
+                               intent.job_id)
     if not job or job.get("status") not in {"queued", "running"}:
         return "already-settled"
-    return await _run_with_heartbeat(
-        scenario._run(intent.owner, job, None))
+    with tenant_scope(intent.tenant_id):
+        return await _run_with_heartbeat(
+            scenario._run(intent.owner, job, None))
 
 
 @activity.defn(name="illustration.scenario_job.settle")
@@ -161,9 +176,12 @@ async def settle_scenario_job_activity(
         intent: ScenarioIllustrationIntent) -> str:
     from app.illustration import scenario
 
+    from app.persistence.documents import tenant_scope
+
     try:
-        return scenario._settle_interrupted(
-            intent.owner, intent.session_id, intent.job_id)
+        with tenant_scope(intent.tenant_id):
+            return scenario._settle_interrupted(
+                intent.owner, intent.session_id, intent.job_id)
     except (ValueError, scenario.SceneError):
         return "gone"
 

@@ -8,7 +8,10 @@ protocol + records; SQLAlchemy stays inside ``repository.py``.
 from __future__ import annotations
 
 from ..models.documents import DOCUMENT_DOMAINS
+from . import bridge  # noqa: F401  (re-exported for domain adapters)
 from .config import backend_for, sql_enabled
+from .context import (current_tenant, reset_tenant, set_tenant,
+                      tenant_scope)
 from .protocols import (DocumentConflictError, DocumentNotFoundError,
                         DocumentRepository, DocumentRepositoryError)
 from .records import DocumentRecord
@@ -19,6 +22,8 @@ __all__ = [
     "DocumentRecord", "DocumentRepository", "DocumentRepositoryError",
     "DocumentConflictError", "DocumentNotFoundError",
     "SqlDocumentRepository", "backend_for", "sql_enabled",
+    "bridge", "current_tenant", "reset_tenant", "set_tenant",
+    "tenant_scope",
     "get_document_repository",
 ]
 

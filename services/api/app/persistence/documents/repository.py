@@ -26,6 +26,16 @@ def _now() -> float:
     return time.time()
 
 
+def _effective_tenant(tenant_id: str | None) -> str:
+    """``None`` resolves to the caller's tenant scope; ``""`` explicitly
+    addresses the legacy pre-tenant scope (importers, single-tenant)."""
+    if tenant_id is not None:
+        return tenant_id
+    from .context import current_tenant
+
+    return current_tenant()
+
+
 class SqlDocumentRepository:
     """Generic JSONB document access for one domain table."""
 
@@ -69,7 +79,8 @@ class SqlDocumentRepository:
                 row = (await sess.execute(
                     select(self._model)
                     .where(self._key_filter(record.owner_id, record.doc_id,
-                                            record.kind, record.tenant_id))
+                                            record.kind,
+                                            record.tenant_id))
                     .with_for_update())).scalar_one_or_none()
                 if row is None:
                     if expected_epoch not in (None, 0):
@@ -117,28 +128,30 @@ class SqlDocumentRepository:
                 return self._to_record(row)
 
     async def get(self, owner_id: str, doc_id: str, *, kind: str = "doc",
-                  tenant_id: str = "") -> DocumentRecord | None:
+                  tenant_id: str | None = None) -> DocumentRecord | None:
         async with self._open_session() as sess:
             row = (await sess.execute(
                 select(self._model).where(self._key_filter(
-                    owner_id, doc_id, kind, tenant_id)))).scalar_one_or_none()
+                    owner_id, doc_id, kind,
+                    _effective_tenant(tenant_id))))).scalar_one_or_none()
             return self._to_record(row) if row is not None else None
 
     async def delete(self, owner_id: str, doc_id: str, *, kind: str = "doc",
-                     tenant_id: str = "") -> bool:
+                     tenant_id: str | None = None) -> bool:
         async with self._open_session() as sess:
             async with sess.begin():
                 result = await sess.execute(
                     sa_delete(self._model).where(self._key_filter(
-                        owner_id, doc_id, kind, tenant_id)))
+                        owner_id, doc_id, kind,
+                        _effective_tenant(tenant_id))))
                 return bool(result.rowcount)
 
     async def list_documents(self, owner_id: str, *, kind: str | None = None,
-                             tenant_id: str = "",
+                             tenant_id: str | None = None,
                              limit: int | None = None) -> list[DocumentRecord]:
         m = self._model
         query = select(m).where(m.owner_id == owner_id,
-                                m.tenant_id == tenant_id)
+                                m.tenant_id == _effective_tenant(tenant_id))
         if kind is not None:
             query = query.where(m.kind == kind)
         query = query.order_by(m.updated_at.desc(), m.id.desc())
@@ -149,10 +162,11 @@ class SqlDocumentRepository:
             return [self._to_record(row) for row in rows]
 
     async def find_by_doc_id(self, doc_id: str, *, kind: str,
-                             tenant_id: str = "",
+                             tenant_id: str | None = None,
                              limit: int = 5) -> list[DocumentRecord]:
         m = self._model
-        query = (select(m).where(m.tenant_id == tenant_id, m.kind == kind,
+        tenant = _effective_tenant(tenant_id)
+        query = (select(m).where(m.tenant_id == tenant, m.kind == kind,
                                  m.doc_id == doc_id)
                  .order_by(m.id.desc()).limit(int(limit)))
         async with self._open_session() as sess:
@@ -160,20 +174,22 @@ class SqlDocumentRepository:
             return [self._to_record(row) for row in rows]
 
     async def count_documents(self, owner_id: str, *, kind: str | None = None,
-                              tenant_id: str = "") -> int:
+                              tenant_id: str | None = None) -> int:
         m = self._model
         query = select(func.count()).select_from(m).where(
-            m.owner_id == owner_id, m.tenant_id == tenant_id)
+            m.owner_id == owner_id,
+            m.tenant_id == _effective_tenant(tenant_id))
         if kind is not None:
             query = query.where(m.kind == kind)
         async with self._open_session() as sess:
             return int(await sess.scalar(query) or 0)
 
     async def list_owners(self, *, kinds: tuple[str, ...] | None = None,
-                          tenant_id: str = "") -> list[str]:
+                          tenant_id: str | None = None) -> list[str]:
         """Distinct owner_ids holding documents (optionally kind-scoped)."""
         m = self._model
-        query = select(m.owner_id).distinct().where(m.tenant_id == tenant_id)
+        query = select(m.owner_id).distinct().where(
+            m.tenant_id == _effective_tenant(tenant_id))
         if kinds is not None:
             query = query.where(m.kind.in_(kinds))
         async with self._open_session() as sess:
@@ -183,14 +199,14 @@ class SqlDocumentRepository:
     async def mutate(self, owner_id: str, doc_id: str,
                      mutate: Callable[[dict | None], dict], *,
                      kind: str = "doc",
-                     tenant_id: str = "") -> DocumentRecord:
+                     tenant_id: str | None = None) -> DocumentRecord:
         now = _now()
         async with self._open_session() as sess:
             async with sess.begin():
                 row = (await sess.execute(
                     select(self._model)
                     .where(self._key_filter(owner_id, doc_id, kind,
-                                            tenant_id))
+                                            _effective_tenant(tenant_id)))
                     .with_for_update())).scalar_one_or_none()
                 # Deep copy: closures routinely mutate nested structures in
                 # place. A shallow copy would share the nested objects with
@@ -203,14 +219,16 @@ class SqlDocumentRepository:
                     if row is not None:
                         await sess.delete(row)
                         await sess.flush()
-                    return DocumentRecord(doc_id=doc_id, owner_id=owner_id,
-                                           kind=kind, tenant_id=tenant_id,
-                                           epoch=0, updated_at=now)
+                    return DocumentRecord(
+                        doc_id=doc_id, owner_id=owner_id, kind=kind,
+                        tenant_id=_effective_tenant(tenant_id),
+                        epoch=0, updated_at=now)
                 if row is None:
-                    row = self._model(tenant_id=tenant_id, owner_id=owner_id,
-                                      kind=kind, doc_id=doc_id,
-                                      payload=replacement, epoch=1,
-                                      created_at=now, updated_at=now)
+                    row = self._model(
+                        tenant_id=_effective_tenant(tenant_id),
+                        owner_id=owner_id, kind=kind, doc_id=doc_id,
+                        payload=replacement, epoch=1,
+                        created_at=now, updated_at=now)
                     sess.add(row)
                 else:
                     row.payload = replacement
@@ -218,6 +236,22 @@ class SqlDocumentRepository:
                     row.updated_at = now
                 await sess.flush()
                 return self._to_record(row)
+
+    async def list_owner_scopes(self, *, kinds: tuple[str, ...] | None = None,
+                                ) -> list[tuple[str, str]]:
+        """Distinct (tenant_id, owner_id) scopes across EVERY tenant.
+
+        Background sweeps (draft purge, restart reconciliation, health
+        scans) must not be blind to tenant-scoped rows: they enumerate
+        scopes here and re-enter each with ``contextlib.tenant_scope``.
+        """
+        m = self._model
+        query = select(m.tenant_id, m.owner_id).distinct()
+        if kinds is not None:
+            query = query.where(m.kind.in_(kinds))
+        async with self._open_session() as sess:
+            rows = await sess.execute(query.order_by(m.tenant_id, m.owner_id))
+            return [(str(t), str(o)) for t, o in rows.all()]
 
     async def purge_owner(self, owner_id: str, *,
                           tenant_id: str | None = None) -> int:

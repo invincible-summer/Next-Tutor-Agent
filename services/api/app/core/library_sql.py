@@ -46,7 +46,7 @@ def load_index(key: str) -> dict[str, Any] | None:
 
 def save_index(key: str, payload: dict[str, Any]) -> None:
     async def _put() -> None:
-        await _library_repo().put(DocumentRecord(
+        await _library_repo().put(DocumentRecord.scoped(
             doc_id="index", owner_id=key, kind="index", payload=payload))
 
     bridge.call(_put)
@@ -83,7 +83,7 @@ def load_registry(key: str) -> dict[str, Any] | None:
 
 def save_registry(key: str, payload: dict[str, Any]) -> None:
     async def _put() -> None:
-        await _textbooks_repo().put(DocumentRecord(
+        await _textbooks_repo().put(DocumentRecord.scoped(
             doc_id="registry", owner_id=key, kind="registry",
             payload=payload))
 
@@ -95,6 +95,15 @@ def delete_registry(key: str) -> None:
         await _textbooks_repo().delete(key, "registry", kind="registry")
 
     bridge.call(_delete)
+
+
+def registry_owner_scopes() -> list[tuple[str, str]]:
+    """(tenant_id, owner) scopes holding textbook registry documents."""
+    async def _scopes() -> list[tuple[str, str]]:
+        return await _textbooks_repo().list_owner_scopes(
+            kinds=("registry",))
+
+    return bridge.call(_scopes)
 
 
 def registry_owners() -> list[str]:

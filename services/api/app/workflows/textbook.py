@@ -55,6 +55,8 @@ class TextbookBuildIntent:
     owner: str
     tb_id: str
     kwargs: dict[str, Any] = field(default_factory=dict)
+    # 租户上下文（WS5c）；默认 "" = 旧作用域，兼容在途 workflow。
+    tenant_id: str = ""
 
 
 @dataclass
@@ -63,6 +65,7 @@ class TextbookRefreshIntent:
     tb_id: str
     mode: str
     ocr_parallel: bool = True
+    tenant_id: str = ""
 
 
 def build_intent_workflow_id(owner: str, tb_id: str, unique: str) -> str:
@@ -131,9 +134,11 @@ async def _run_with_heartbeat(coro) -> str:
 @activity.defn(name="textbook.build_intent.run")
 async def run_build_intent_activity(intent: TextbookBuildIntent) -> str:
     from app.agents.knowledge.textbook_builder import enqueue_textbook_build
+    from app.persistence.documents import tenant_scope
 
-    future = enqueue_textbook_build(
-        intent.owner, intent.tb_id, **intent.kwargs)
+    with tenant_scope(intent.tenant_id):
+        future = enqueue_textbook_build(
+            intent.owner, intent.tb_id, **intent.kwargs)
     if future is None:
         # 无事件循环（理论不可达：activity 必在循环内）——按已受理返回，
         # 域 intent 已持久化，worker 启动恢复会重入队。
@@ -146,10 +151,12 @@ async def run_refresh_activity(intent: TextbookRefreshIntent) -> str:
     # 刷新的复合编排（RAG 重建 → 队列构建 → 收尾）历史住在 API 模块；
     # wrap-as-activity 原则下原地复用，不搬领域代码。
     from app.api.v1.textbook import _safe_refresh
+    from app.persistence.documents import tenant_scope
 
-    return await _run_with_heartbeat(
-        _safe_refresh(intent.owner, intent.tb_id, intent.mode,
-                      ocr_parallel=intent.ocr_parallel))
+    with tenant_scope(intent.tenant_id):
+        return await _run_with_heartbeat(
+            _safe_refresh(intent.owner, intent.tb_id, intent.mode,
+                          ocr_parallel=intent.ocr_parallel))
 
 
 TEXTBOOK_WORKFLOWS: tuple[type, ...] = (

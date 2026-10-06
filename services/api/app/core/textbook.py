@@ -185,15 +185,26 @@ def _sanitize_record(raw: dict[str, Any]) -> dict[str, Any] | None:
 
 # --- read ---
 
-def registry_owners() -> list[str]:
-    """所有已持久化注册记录的 owner key（双模式：SQL 行 / 索引文件名）。"""
+def registry_owner_scopes() -> list[tuple[str, str]]:
+    """所有已持久化注册记录的 (tenant, owner key) 范围（双模式：SQL 跨
+    租户枚举 / 索引文件名，文件侧 tenant 恒为 ""）。后台对账/续跑按范围
+    进入租户上下文，租户行不遗漏。"""
     from . import library_sql
     if library_sql.textbooks_use_sql():
-        return library_sql.registry_owners()
+        try:
+            return library_sql.registry_owner_scopes()
+        except Exception:
+            return []
     if not _LIBRARY_DIR.is_dir():
         return []
-    return [p.name[: -len(".textbooks.json")]
+    return [("", p.name[: -len(".textbooks.json")])
             for p in _LIBRARY_DIR.glob("*.textbooks.json")]
+
+
+def registry_owners() -> list[str]:
+    """注册记录 owner key 名单（单租户语义；跨租户用
+    registry_owner_scopes）。"""
+    return [key for _, key in registry_owner_scopes()]
 
 
 def load_textbooks(student_id: str) -> list[dict[str, Any]]:
@@ -623,12 +634,14 @@ def reconcile_stale_builds() -> TextbookRecoveryReport:
     - 终态记录不动。幂等：queued 的 job 不会被二次恢复。
     """
     report = TextbookRecoveryReport()
+    from app.persistence.documents import tenant_scope
     from .guest_runtime import is_legacy_guest_owner
-    for key in registry_owners():
+    for tenant, key in registry_owner_scopes():
         try:
             if is_legacy_guest_owner(key):
                 continue
-            records = load_textbooks(key)
+            with tenant_scope(tenant):
+                records = load_textbooks(key)
             changed = False
             for r in records:
                 if r.get("status") != "building":
@@ -719,9 +732,10 @@ def reconcile_stale_builds() -> TextbookRecoveryReport:
                 changed = True
                 report.recovered.append((key, r["id"], r))
             if changed:
-                _save(key, records)
+                with tenant_scope(tenant):
+                    _save(key, records)
         except Exception:
-            continue  # 单个文件损坏不影响其它账号
+            continue  # 单个 owner 损坏不影响其它账号
     return report
 
 
@@ -729,19 +743,22 @@ def interrupted_build_jobs() -> list[tuple[str, str, dict[str, Any]]]:
     """All (sid, tb_id, record) with build_job.state == "queued"（reconcile 后
     待重入队的恢复项）。"""
     out: list[tuple[str, str, dict[str, Any]]] = []
+    from app.persistence.documents import tenant_scope
     from .guest_runtime import is_legacy_guest_owner
-    for key in registry_owners():
+    for tenant, key in registry_owner_scopes():
         try:
             if is_legacy_guest_owner(key):
                 continue
-            for r in load_textbooks(key):
-                job = r.get("build_job") or {}
-                if (r.get("status") == "building"
-                        and job.get("state") == "queued"
-                        and job.get("intent")):
-                    out.append((key, r["id"], r))
+            with tenant_scope(tenant):
+                records = load_textbooks(key)
         except Exception:
             continue
+        for r in records:
+            job = r.get("build_job") or {}
+            if (r.get("status") == "building"
+                    and job.get("state") == "queued"
+                    and job.get("intent")):
+                out.append((key, r["id"], r))
     return out
 
 
@@ -763,12 +780,14 @@ def migrate_legacy_single_to_groups() -> int:
     explicit full rebuild because no complete per-volume spec cache exists.
     """
     migrated = 0
+    from app.persistence.documents import tenant_scope
     from .guest_runtime import is_legacy_guest_owner
-    for key in registry_owners():
+    for tenant, key in registry_owner_scopes():
         try:
             if is_legacy_guest_owner(key):
                 continue
-            records = load_textbooks(key)
+            with tenant_scope(tenant):
+                records = load_textbooks(key)
             changed = False
             for record in records:
                 if not isinstance(record, dict):
@@ -796,7 +815,8 @@ def migrate_legacy_single_to_groups() -> int:
                         record["volumes"] = []
                         changed = True
             if changed:
-                _save(key, records)
+                with tenant_scope(tenant):
+                    _save(key, records)
         except Exception:
             continue
     return migrated

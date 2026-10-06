@@ -39,7 +39,7 @@ def save_session_payload(payload: dict[str, Any]) -> str:
 
     async def _put() -> Any:
         existing = await _repo().get(owner, session_id, kind="session")
-        record = DocumentRecord(doc_id=session_id, owner_id=owner,
+        record = DocumentRecord.scoped(doc_id=session_id, owner_id=owner,
                                 kind="session", payload=payload)
         if existing is not None:
             record.created_at = existing.created_at
@@ -202,7 +202,7 @@ def put_transcript_lines(session_id: str, lines: list[dict]) -> None:
 
     async def _put() -> None:
         owner = await _owner_async(session_id)
-        await _repo().put(DocumentRecord(
+        await _repo().put(DocumentRecord.scoped(
             doc_id=session_id, owner_id=owner, kind="transcript",
             payload={"lines": list(lines)}))
 
@@ -233,7 +233,7 @@ def add_trace_ref(session_id: str, trace_id: str) -> None:
         if existing is None:
             from app.persistence.documents import DocumentRecord
 
-            await _repo().put(DocumentRecord(
+            await _repo().put(DocumentRecord.scoped(
                 doc_id=trace_id, owner_id=owner, kind="trace_ref",
                 payload={"session_id": session_id}))
 

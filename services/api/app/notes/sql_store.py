@@ -46,7 +46,7 @@ def save_vault_payload(student_id: str, payload: dict[str, Any]) -> None:
     from app.persistence.documents import DocumentRecord
 
     async def _put() -> None:
-        await _repo().put(DocumentRecord(
+        await _repo().put(DocumentRecord.scoped(
             doc_id=VAULT_DOC, owner_id=student_id, kind="vault",
             payload=payload))
 
@@ -68,7 +68,7 @@ def write_note_content(student_id: str, note_id: str, content: str) -> None:
     from app.persistence.documents import DocumentRecord
 
     async def _put() -> None:
-        await _repo().put(DocumentRecord(
+        await _repo().put(DocumentRecord.scoped(
             doc_id=note_id, owner_id=student_id, kind="note",
             payload={"content": content}))
 
@@ -142,7 +142,7 @@ def save_agent_state(student_id: str, note_id: str,
     doc = note_id or VAULT_LEVEL_AGENT_DOC
 
     async def _put() -> None:
-        await _repo().put(DocumentRecord(
+        await _repo().put(DocumentRecord.scoped(
             doc_id=doc, owner_id=student_id, kind="agent", payload=state))
 
     bridge.call(_put)

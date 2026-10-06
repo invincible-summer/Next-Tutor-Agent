@@ -45,16 +45,22 @@ def _iter_owner_dirs() -> list[Path]:
                   if d.is_dir() and not d.name.startswith("."))
 
 
-def _iter_owner_names() -> list[str]:
-    """健康扫描的 owner 口径：SQL 模式取文档侧 owner，否则取目录名。"""
+def _iter_owner_scopes() -> list[tuple[str, str]]:
+    """健康扫描的 (tenant, owner) 口径：SQL 模式跨租户枚举文档侧范围，
+    否则目录名即 owner（tenant 恒为 "" 旧作用域）。"""
     from . import sql_store as _sql
 
     if _sql.use_sql():
         try:
-            return _sql.list_owners()
+            return _sql.list_owner_scopes()
         except Exception:
             return []
-    return [d.name for d in _iter_owner_dirs()]
+    return [("", d.name) for d in _iter_owner_dirs()]
+
+
+def _iter_owner_names() -> list[str]:
+    """owner 名单（单租户语义；跨租户遍历用 _iter_owner_scopes）。"""
+    return [owner for _, owner in _iter_owner_scopes()]
 
 
 def _parse_ts(raw: Any) -> datetime | None:
@@ -72,10 +78,14 @@ def _collect_jobs(owners: list[str]) -> list[dict]:
     from . import sql_store as _sql
 
     if _sql.use_sql():
+        from app.persistence.documents import tenant_scope
+
         jobs: list[dict] = []
         try:
-            for owner in _sql.list_owners():
-                for raw in _sql.list_payloads("job", owner):
+            for tenant, owner in _sql.list_owner_scopes():
+                with tenant_scope(tenant):
+                    job_rows = _sql.list_payloads("job", owner)
+                for raw in job_rows:
                     jobs.append({
                         "owner_id": str(raw.get("owner_id") or owner),
                         "job_id": str(raw.get("job_id") or ""),
@@ -131,7 +141,10 @@ def scan_alerts() -> dict[str, Any]:
     from . import sql_store as _sql
 
     sql_mode = _sql.use_sql()
-    owners = _iter_owner_names()
+    from app.persistence.documents import tenant_scope
+
+    scopes = _iter_owner_scopes()
+    owners = [owner for _, owner in scopes]
     alerts: list[dict[str, Any]] = []
     checked: dict[str, Any] = {"owners": len(owners)}
 
@@ -154,8 +167,9 @@ def scan_alerts() -> dict[str, Any]:
 
     # -- 云 TTS 鉴权连击 ---------------------------------------------------
     auth_owners: list[str] = []
-    for owner in owners:
-        record = store.owner_record(owner)
+    for tenant, owner in scopes:
+        with tenant_scope(tenant):
+            record = store.owner_record(owner)
         tts = (record.get("quota") or {}).get("tts") or {}
         if int(tts.get("cloud_auth_fail_streak") or 0) >= \
                 limits.CLOUD_AUTH_FAIL_ALERT:
@@ -221,18 +235,19 @@ def scan_alerts() -> dict[str, Any]:
 
     # -- 损坏课程（JSON 损坏可观察；隔离由运维决定，不自动删） ----------------
     damaged: list[dict[str, str]] = []
-    for owner in owners:
+    for tenant, owner in scopes:
         if sql_mode:
             from . import sql_store as _sql
 
-            for workspace_id, index_payload in _sql.list_docs(
-                    "index", owner):
-                for lesson_id in (index_payload.get("lessons") or {}):
-                    try:
-                        store.load_lesson(owner, workspace_id, lesson_id)
-                    except store.LessonDamagedError:
-                        damaged.append({"owner_id": owner,
-                                        "lesson_id": lesson_id})
+            with tenant_scope(tenant):
+                for workspace_id, index_payload in _sql.list_docs(
+                        "index", owner):
+                    for lesson_id in (index_payload.get("lessons") or {}):
+                        try:
+                            store.load_lesson(owner, workspace_id, lesson_id)
+                        except store.LessonDamagedError:
+                            damaged.append({"owner_id": owner,
+                                            "lesson_id": lesson_id})
             continue
         workspaces = store.owner_root(owner) / "workspaces"
         if not workspaces.is_dir():

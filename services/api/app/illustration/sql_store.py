@@ -47,7 +47,7 @@ def load_payload(owner: str, kind: str, key: str) -> dict[str, Any] | None:
 def save_payload(owner: str, kind: str, key: str,
                  value: dict[str, Any]) -> None:
     async def _put() -> None:
-        await _repo().put(DocumentRecord(
+        await _repo().put(DocumentRecord.scoped(
             doc_id=key, owner_id=owner, kind=kind, payload=value))
 
     bridge.call(_put)

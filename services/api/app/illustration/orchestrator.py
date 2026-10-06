@@ -71,7 +71,10 @@ def _dispatch_quiz_job(owner: str, job: dict) -> None:
     from app.workflows.illustration_quiz import start_quiz_job
     from app.workflows.illustration_common import QuizIllustrationIntent
 
-    intent = QuizIllustrationIntent(owner=owner, job_id=job["job_id"])
+    from app.persistence.documents import current_tenant
+
+    intent = QuizIllustrationIntent(owner=owner, job_id=job["job_id"],
+                                    tenant_id=current_tenant())
 
     async def _go() -> None:
         try:

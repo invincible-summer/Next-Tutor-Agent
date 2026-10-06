@@ -138,10 +138,13 @@ def _tick_coro(kind: str):
 async def _purge_assistant_drafts() -> int:
     """站点助手草稿清扫（与文件模式 lifespan 循环同一过程体）。"""
     from app.agents.site_assistant import store as asst_store
+    from app.persistence.documents import tenant_scope
+
     purged = 0
-    for owner in asst_store.list_owners_with_data():
-        purged += await asyncio.to_thread(
-            asst_store.purge_expired_drafts, owner) or 0
+    for tenant, owner in asst_store.list_owner_scopes():
+        with tenant_scope(tenant):
+            purged += await asyncio.to_thread(
+                asst_store.purge_expired_drafts, owner) or 0
     return purged
 
 

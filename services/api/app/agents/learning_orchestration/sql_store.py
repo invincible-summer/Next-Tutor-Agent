@@ -50,7 +50,7 @@ def load_state_payload(student_id: str) -> dict[str, Any] | None:
 
 def save_state_payload(student_id: str, payload: dict[str, Any]) -> None:
     async def _put() -> None:
-        await _repo().put(DocumentRecord(
+        await _repo().put(DocumentRecord.scoped(
             doc_id=STATE_DOC, owner_id=student_id, kind="state",
             payload=payload))
 

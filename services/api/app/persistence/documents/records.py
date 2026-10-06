@@ -22,3 +22,17 @@ class DocumentRecord:
     epoch: int = 1
     created_at: float = 0.0
     updated_at: float = 0.0
+
+    @classmethod
+    def scoped(cls, *, doc_id: str, owner_id: str, kind: str,
+               payload: dict[str, Any]) -> "DocumentRecord":
+        """A record stamped with the caller's current tenant scope.
+
+        Adapters build records in the calling thread (request or background
+        sweep); the tenant context there is authoritative. ``bridge.call``
+        carries that same context onto the worker loop, so repository-side
+        resolution agrees with this stamp."""
+        from .context import current_tenant
+
+        return cls(doc_id=doc_id, owner_id=owner_id, kind=kind,
+                   tenant_id=current_tenant(), payload=payload)

@@ -131,7 +131,7 @@ class AssistantDocumentsTest(StorageSandboxTestCase):
         owners = store.list_owners_with_data()
         self.assertIn("alice", owners)
         self.assertIn("bob", owners)
-        pairs = dict((cid, owner) for owner, rec
+        pairs = dict((cid, owner) for _tenant, owner, rec
                      in store.scan_conversation_records()
                      for cid in [rec["conversation_id"]])
         self.assertEqual(pairs[a["conversation_id"]], "alice")

@@ -94,6 +94,7 @@ M0 回答三个问题：用户是谁、数据属于谁、如何安全访问；�
 ## Invariants / security boundaries（不变量与安全边界）
 
 - **JWT 唯一事实源（铁律）**：任何端点的 student_id 只来自 `resolve_student_id()`；请求体/query 里的 `student_id` 字段仅为旧客户端兼容保留、一律忽略。同理，route 永不信任请求体中的 owner/tenant 字段——归属只来自 token 与 `resolve_principal()`。
+- **租户隔离键（WS5c）**：RS256 会话 token 的 `tenant` 声明由 `_TenantContextMiddleware`（`app/main.py`，本地验签）拷入域文档租户上下文——SQL 模式下该请求全部九域读写按此租户解析，其它租户的行按列表与资源 id 均不可见（验收：`test_tenant_isolation.py` + `TenantIsolationAPITest`）；会话存活/吊销仍由身份依赖裁决，中间件不做会话查询。
 - refresh token 只存 SHA-256 hash，raw 值仅签发时返回一次；声称 `typ=access` 的 HS256 token 一律拒绝（防 legacy secret 伪造新轨声明）。
 - 数据隔离：会话列表只返回本人；游客返回空列表，不能读取未盖身份戳的遗留会话；按 id 资源端点对外人 404（不泄露存在性）；工作区/资料库/题图产物均按 owner 物理分文件。
 - 游客能力白名单：仅文字聊天、临时出题及本题批改；导航助手（含原公共 guide）、语音、上传、私有材料与完整学习模块均须登录。

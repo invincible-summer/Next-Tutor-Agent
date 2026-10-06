@@ -250,9 +250,12 @@ async def _lifespan(app: FastAPI):
                 from app.agents.site_assistant import store as asst_store
                 while True:
                     try:
-                        for owner in asst_store.list_owners_with_data():
-                            await asyncio.to_thread(
-                                asst_store.purge_expired_drafts, owner)
+                        from app.persistence.documents import tenant_scope
+
+                        for tenant, owner in asst_store.list_owner_scopes():
+                            with tenant_scope(tenant):
+                                await asyncio.to_thread(
+                                    asst_store.purge_expired_drafts, owner)
                     except Exception:
                         log.debug("assistant draft purge iteration failed",
                                   exc_info=True)
@@ -378,6 +381,40 @@ async def _process_time_header(request: Request, call_next):
     return response
 
 
+class _TenantContextMiddleware:
+    """Copy the session token's tenant claim into the document scope (WS5c).
+
+    Enterprise access tokens pin the tenant they were issued for; every
+    SQL-mode domain read/write under this request resolves that tenant —
+    rows of other tenants are structurally invisible. File-mode requests
+    (legacy HS256 tokens, guests, anonymous) resolve the legacy "" scope
+    and behave exactly as before. Signature verification is local and
+    cheap; session liveness stays with the identity dependencies.
+    """
+
+    def __init__(self, app) -> None:
+        self.app = app
+
+    async def __call__(self, scope, receive, send) -> None:
+        if scope["type"] == "http":
+            from app.identity.security import extract_bearer
+            from app.identity.sessions import decode_access_token
+            from app.persistence.documents import set_tenant, reset_tenant
+
+            headers = {k.decode("latin-1").lower(): v.decode("latin-1")
+                       for k, v in scope.get("headers", [])}
+            token = extract_bearer(headers.get("authorization"))
+            payload = decode_access_token(token) if token else None
+            if payload is not None:
+                marker = set_tenant(str(payload.get("tenant") or ""))
+                try:
+                    await self.app(scope, receive, send)
+                finally:
+                    reset_tenant(marker)
+                return
+        await self.app(scope, receive, send)
+
+
 def create_app() -> FastAPI:
     # P2-C：file-backed 业务状态 + 进程内锁只支持单 worker。
     # WEB_CONCURRENCY>1（uvicorn/gunicorn 常用扩展变量）会在多进程下产生
@@ -412,6 +449,9 @@ def create_app() -> FastAPI:
     # X-Request-ID 进出贯通（§17.3 跨端关联）：客户端可带 id，服务端回显同值。
     from app.observability.request_id import RequestIdMiddleware
     app.add_middleware(RequestIdMiddleware)
+    # 租户上下文（WS5c）：企业会话 token 的 tenant 声明是域文档层的隔离键。
+    # 只做本地签名校验并拷贝声明——会话存活/吊销仍由身份依赖统一裁决。
+    app.add_middleware(_TenantContextMiddleware)
     origins = _cors_origins()
     app.add_middleware(
         CORSMiddleware,

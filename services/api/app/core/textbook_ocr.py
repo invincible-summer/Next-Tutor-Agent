@@ -509,30 +509,41 @@ def resume_pending_textbook_ocr() -> int:
     """Schedule durable waiting records during FastAPI startup.
 
     经 per-owner 构建队列入队（严格串行：一本到达终态后才开建下一本），
-    文件记录顺序即构建顺序。
+    文件记录顺序即构建顺序。跨租户枚举 (tenant, owner) 范围并逐一进入
+    对应租户上下文（WS5c）。
     """
+    from app.persistence.documents import tenant_scope
     from . import textbook as tb_store
     from .guest_runtime import is_legacy_guest_owner
-    from app.agents.knowledge.textbook_builder import enqueue_textbook_build
     count = 0
-    for owner in tb_store.registry_owners():
+    for tenant, owner in tb_store.registry_owner_scopes():
         if is_legacy_guest_owner(owner):
             continue
-        for rec in tb_store.load_textbooks(owner):
-            if rec.get("status") != "ocr_waiting":
-                continue
-            if rec.get("parse_cancel_requested"):
-                tb_store.settle_cancelled_parse(owner, rec["id"])
-                continue
-            # 进程重启续跑同样传播 force_full 意图（未完成的全量轮保持全量；
-            # 在途稀疏轮由轮次入口按卷钳制，不受组级传播影响）。spec 缓存有
-            # 效即复用（force_reextract=False）：prompt 升级经缓存指纹失效保证。
-            volumes = ((rec.get("ocr_state") or {}).get("volumes") or {})
-            force_full = any(bool(v.get("force_full"))
-                             and v.get("status") in {"ocr", "waiting"}
-                             for v in volumes.values())
-            enqueue_textbook_build(owner, rec["id"], ocr_parallel=True,
-                                   force_reextract=False, force_full_ocr=force_full,
-                                   auto_retry=True)
-            count += 1
+        with tenant_scope(tenant):
+            count += _resume_owner_textbook_ocr(owner)
+    return count
+
+
+def _resume_owner_textbook_ocr(owner: str) -> int:
+    from . import textbook as tb_store
+    from app.agents.knowledge.textbook_builder import enqueue_textbook_build
+
+    count = 0
+    for rec in tb_store.load_textbooks(owner):
+        if rec.get("status") != "ocr_waiting":
+            continue
+        if rec.get("parse_cancel_requested"):
+            tb_store.settle_cancelled_parse(owner, rec["id"])
+            continue
+        # 进程重启续跑同样传播 force_full 意图（未完成的全量轮保持全量；
+        # 在途稀疏轮由轮次入口按卷钳制，不受组级传播影响）。spec 缓存有
+        # 效即复用（force_reextract=False）：prompt 升级经缓存指纹失效保证。
+        volumes = ((rec.get("ocr_state") or {}).get("volumes") or {})
+        force_full = any(bool(v.get("force_full"))
+                         and v.get("status") in {"ocr", "waiting"}
+                         for v in volumes.values())
+        enqueue_textbook_build(owner, rec["id"], ocr_parallel=True,
+                               force_reextract=False, force_full_ocr=force_full,
+                               auto_retry=True)
+        count += 1
     return count

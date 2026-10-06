@@ -719,28 +719,41 @@ def current_owner_generation(student_id: str) -> int:
 # ---------------------------------------------------------------------------
 
 
-def list_owners_with_data() -> list[str]:
-    """有助手数据的 owner 列表（启动恢复/草稿清扫循环用，双模）。"""
+def list_owner_scopes() -> list[tuple[str, str]]:
+    """有助手数据的 (tenant, owner) 范围（草稿清扫循环用，双模；文件侧
+    tenant 恒为 "" 旧作用域）。SQL 侧跨租户枚举——清扫循环按范围逐一
+    进入对应租户上下文，租户行不会被遗漏。"""
     if _sql.use_sql():
         try:
-            return _sql.list_owners()
+            return _sql.list_owner_scopes()
         except Exception:
             return []
     if not _ASSISTANT_DIR.is_dir():
         return []
-    return sorted(p.name for p in _ASSISTANT_DIR.iterdir() if p.is_dir())
+    return [("", p.name) for p in sorted(_ASSISTANT_DIR.iterdir())
+            if p.is_dir()]
 
 
-def scan_conversation_records() -> list[tuple[str, dict[str, Any]]]:
-    """(owner, record) 全量扫描——runtime 启动恢复专用；坏记录跳过。"""
-    out: list[tuple[str, dict[str, Any]]] = []
+def list_owners_with_data() -> list[str]:
+    """有助手数据的 owner 列表（单租户语义保留；跨租户用
+    list_owner_scopes）。"""
+    return [owner for _, owner in list_owner_scopes()]
+
+
+def scan_conversation_records() -> list[tuple[str, str, dict[str, Any]]]:
+    """(tenant, owner, record) 全量扫描——runtime 启动恢复专用；坏记录
+    跳过。跨租户枚举；消费方在 (tenant, owner) 上下文内回写，租户行不
+    会被遗漏也不会串写。"""
+    out: list[tuple[str, str, dict[str, Any]]] = []
     if _sql.use_sql():
         try:
-            for owner in _sql.list_owners():
-                for record in _sql.list_conversation_payloads(owner):
-                    if isinstance(record, dict) and record.get(
-                            "conversation_id"):
-                        out.append((owner, record))
+            from app.persistence.documents import tenant_scope
+            for tenant, owner in _sql.list_owner_scopes():
+                with tenant_scope(tenant):
+                    for record in _sql.list_conversation_payloads(owner):
+                        if isinstance(record, dict) and record.get(
+                                "conversation_id"):
+                            out.append((tenant, owner, record))
         except Exception:
             return out
         return out
@@ -758,7 +771,7 @@ def scan_conversation_records() -> list[tuple[str, dict[str, Any]]]:
             except AssistantStoreError:
                 continue
             if record is not None:
-                out.append((student_dir.name, record))
+                out.append(("", student_dir.name, record))
     return out
 
 

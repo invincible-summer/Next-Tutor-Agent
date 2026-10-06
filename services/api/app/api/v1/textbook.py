@@ -504,9 +504,11 @@ def _spawn_refresh(student_id: str, tb_id: str, mode: str,
         async def _dispatch_refresh() -> None:
             from app.workflows import textbook as wf_textbook
             try:
+                from app.persistence.documents import current_tenant
+
                 await wf_textbook.start_refresh(wf_textbook.TextbookRefreshIntent(
                     owner=student_id, tb_id=tb_id, mode=mode,
-                    ocr_parallel=ocr_parallel))
+                    ocr_parallel=ocr_parallel, tenant_id=current_tenant()))
             except Exception:
                 log.warning("temporal textbook refresh dispatch failed: %s",
                             tb_id, exc_info=True)

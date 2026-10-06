@@ -121,7 +121,9 @@ class AssistantRuntime:
     def _recover_interrupted(self) -> None:
         """启动扫描：在途轮标记 interrupted；不重放、不重新执行。"""
         from app.core.guest_runtime import is_legacy_guest_owner
-        for owner, record in store.scan_conversation_records():
+        from app.persistence.documents import tenant_scope
+
+        for tenant, owner, record in store.scan_conversation_records():
             if is_legacy_guest_owner(owner):
                 continue
             changed = False
@@ -136,7 +138,8 @@ class AssistantRuntime:
                             message["status"] = "interrupted"
             if changed:
                 try:
-                    store.save_conversation(owner, record)
+                    with tenant_scope(tenant):
+                        store.save_conversation(owner, record)
                 except AssistantStoreError:
                     pass
 

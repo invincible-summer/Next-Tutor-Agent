@@ -49,7 +49,7 @@ def get_owner_record(owner_id: str) -> dict[str, Any] | None:
 
 def put_owner_record(owner_id: str, record: dict[str, Any]) -> None:
     async def _put() -> None:
-        await _repo().put(DocumentRecord(
+        await _repo().put(DocumentRecord.scoped(
             doc_id=owner_id, owner_id=owner_id, kind="owner",
             payload=record))
 
@@ -97,7 +97,7 @@ def load_payload(kind: str, owner_id: str, doc_id: str) -> dict[str, Any] | None
 def save_payload(kind: str, owner_id: str, doc_id: str,
                  payload: dict[str, Any]) -> None:
     async def _put() -> None:
-        await _repo().put(DocumentRecord(
+        await _repo().put(DocumentRecord.scoped(
             doc_id=doc_id, owner_id=owner_id, kind=kind, payload=payload))
 
     bridge.call(_put)
@@ -156,6 +156,23 @@ def list_payloads(kind: str, owner_id: str) -> list[dict[str, Any]]:
         return [dict(r.payload or {}) for r in rows]
 
     return bridge.call(_list)
+
+
+def list_owners() -> list[str]:
+    """Owners holding classroom documents (single-tenant semantics)."""
+    async def _owners() -> list[str]:
+        return await _repo().list_owners()
+
+    return bridge.call(_owners)
+
+
+def list_owner_scopes() -> list[tuple[str, str]]:
+    """(tenant_id, owner_id) scopes holding classroom documents."""
+    async def _scopes() -> list[tuple[str, str]]:
+        return await _repo().list_owner_scopes(
+            kinds=("owner", "lesson", "job", "run", "index"))
+
+    return bridge.call(_scopes)
 
 
 def list_docs(kind: str, owner_id: str) -> list[tuple[str, dict[str, Any]]]:
