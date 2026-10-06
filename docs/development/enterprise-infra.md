@@ -76,13 +76,13 @@ alembic downgrade base      # 仅演练/回退（生产慎用）
 
 九个业务域（chat / library / textbooks / notes / assessment / evidence / classroom / orchestration / assistant+illustration）的事实记录进同构 JSONB 表 `<domain>_documents`（migration 0002）：`tenant_id + owner_id + kind + doc_id + payload + epoch`，唯一键即四元组。访问统一走 `app/persistence/documents/`（`DocumentRepository` 协议 + `SqlDocumentRepository`）：`put(expected_epoch=…)` compare-and-swap、`mutate()` 单事务行锁 read-modify-write、`purge_owner()` 账号删除通道。对象字节不进 JSONB（走 ObjectStore）；BM25/KG/embedding 派生索引保持文件态（可重建缓存）。
 
-**逐域路由**（cutover 期间每域独立开关）：
+**逐域路由**（九域 cutover 已全部完成，默认 `sql`；每域仍可独立回退）：
 
 ```bash
-DOMAIN_DOCUMENT_BACKENDS=""                      # 默认：全部走文件实现（cutover 完成前）
-DOMAIN_DOCUMENT_BACKENDS="chat=sql"              # 单域试点
-DOMAIN_DOCUMENT_BACKENDS="all"                   # 九域全量 SQL（cutover 完成后默认）
-DOMAIN_DOCUMENT_BACKENDS="default=sql,chat=file" # 全量后单域回退
+DOMAIN_DOCUMENT_BACKENDS=""                      # 未配置：走默认（当前为 sql）
+DOMAIN_DOCUMENT_BACKENDS="none"                  # 全部强制文件实现
+DOMAIN_DOCUMENT_BACKENDS="chat=file"             # 单域回退（其余保持默认 sql）
+DOMAIN_DOCUMENT_BACKENDS="default=file,chat=sql" # 全量回退 + 单域试点
 ```
 
 `sql_enabled(domain)` 同时要求 `DATABASE_URL`；未配置企业库时任何 flag 都不会路由到 SQL。单测 lane：`tests/persistence/test_domain_documents.py`（sqlite，含账号 purge 清空九域行的契约）；账号删除链路（`core/account_data.purge_account`）在企业模式用独立短命引擎清空九域行。

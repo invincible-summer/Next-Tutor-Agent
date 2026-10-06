@@ -28,26 +28,29 @@ class DocumentConfigTest(StorageSandboxTestCase):
         from app.persistence.documents import backend_for, sql_enabled
 
         os.environ["DATABASE_URL"] = "sqlite+aiosqlite:///:memory:"
-        # Transition default: file until the cutover flips it.
+        # Cutover complete: the default serves every domain from SQL.
+        self.assertEqual(backend_for("chat"), "sql")
+        self.assertTrue(sql_enabled("chat"))
+        # Unset and "default" fall back to the same default backend.
+        os.environ["DOMAIN_DOCUMENT_BACKENDS"] = "default"
+        self.assertEqual(backend_for("chat"), "sql")
+
+        # Per-domain rollback keeps the others on the default.
+        os.environ["DOMAIN_DOCUMENT_BACKENDS"] = "chat=file"
         self.assertEqual(backend_for("chat"), "file")
         self.assertFalse(sql_enabled("chat"))
-
-        os.environ["DOMAIN_DOCUMENT_BACKENDS"] = "chat=sql"
-        self.assertEqual(backend_for("chat"), "sql")
-        self.assertEqual(backend_for("notes"), "file")
-        self.assertTrue(sql_enabled("chat"))
-        self.assertFalse(sql_enabled("notes"))
+        self.assertEqual(backend_for("notes"), "sql")
+        self.assertTrue(sql_enabled("notes"))
 
         os.environ["DOMAIN_DOCUMENT_BACKENDS"] = "all"
         self.assertEqual(backend_for("evidence"), "sql")
 
-        os.environ["DOMAIN_DOCUMENT_BACKENDS"] = "default=sql,chat=file"
-        self.assertEqual(backend_for("chat"), "file")
-        self.assertEqual(backend_for("classroom"), "sql")
+        os.environ["DOMAIN_DOCUMENT_BACKENDS"] = "none"
+        self.assertEqual(backend_for("classroom"), "file")
 
         # Unknown backend values never widen routing.
         os.environ["DOMAIN_DOCUMENT_BACKENDS"] = "chat=bogus"
-        self.assertEqual(backend_for("chat"), "file")
+        self.assertEqual(backend_for("chat"), "sql")
 
         with self.assertRaises(ValueError):
             backend_for("not-a-domain")

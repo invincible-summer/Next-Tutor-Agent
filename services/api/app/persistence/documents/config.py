@@ -21,9 +21,11 @@ import os
 
 from ..db import enterprise_mode
 
-#: Flip to "sql" in the commit that completes the 9-domain cutover; until
-#: then each domain flips itself via explicit configuration.
-_DEFAULT_BACKEND = "file"
+#: Default since the 9-domain cutover completed (ADR-0017): enterprise
+#: deployments (DATABASE_URL set) serve facts from SQL unless explicitly
+#: overridden per domain. File-only deployments never see SQL —
+#: ``sql_enabled`` still requires the enterprise database.
+_DEFAULT_BACKEND = "sql"
 
 
 def _parse(raw: str) -> tuple[dict[str, str], str | None]:
