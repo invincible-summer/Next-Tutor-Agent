@@ -262,9 +262,23 @@ function AuthenticatedChatWorkspace() {
     // Cancel any in-flight stream before replacing the transcript; the aborted
     // flush is discarded via the generation snapshot in handleSend.
     useChatStore.getState().aborter?.abort();
+    // Bind the URL session SYNCHRONOUSLY, before the tail fetch: a message
+    // sent while that fetch is still in flight must target THIS session, not
+    // spawn a second one (deep link + instant send used to race the load).
+    // newChat() clears the previous session's transcript and bumps the
+    // generation so its stale flush cannot resurrect; messages start empty,
+    // which doubles as the "a send raced the load" marker below.
+    useChatStore.getState().newChat();
+    useChatStore.getState().setSessionId(urlSession);
     loadSession(urlSession, TAIL_INITIAL)
       .then((detail) => {
-        useChatStore.getState().loadFull(detail.messages || [], detail.knowledge_files || [], urlSession);
+        const st = useChatStore.getState();
+        if (st.sessionId !== urlSession) return; // navigated away mid-load
+        // A send raced the tail fetch: the message already went to THIS
+        // session server-side — keep the live transcript instead of
+        // clobbering it with the now-stale pre-send tail.
+        if (st.streaming || st.messages.length > 0) return;
+        st.loadFull(detail.messages || [], detail.knowledge_files || [], urlSession);
         const total = detail.message_total ?? (detail.messages || []).length;
         setEarlierCount(Math.max(0, total - (detail.messages || []).length));
         setWorkspaceSources((detail.material_sources || []).filter((s) =>
