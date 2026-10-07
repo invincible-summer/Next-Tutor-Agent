@@ -13,7 +13,7 @@
 #   5. Print the TTS .env fragment
 set -euo pipefail
 
-ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 SIDECAR="$ROOT/services/voice"
 VENDOR="$SIDECAR/vendor"
 MODELS="$SIDECAR/models"
