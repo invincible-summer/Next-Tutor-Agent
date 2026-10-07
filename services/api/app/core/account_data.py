@@ -579,6 +579,8 @@ def _purge_account(user_id: str) -> dict[str, Any]:
     purge_illustrations(uid)
     from app.diagrams.materials import purge as purge_materials
     purge_materials(uid)
+    from app.core.paths import runtime_paths
+    shutil.rmtree(runtime_paths().worksheets / uid, ignore_errors=True)
     # §16.4：先吊销课堂工作资格（tombstone 防晚到写回），清理内再删根
     try:
         from app.classroom import lifecycle as classroom_lifecycle

@@ -5,10 +5,11 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from pydantic import BaseModel, Field
 from typing import Literal
 
-from app.identity.deps import require_user, require_admin, resolve_student_id
+from app.identity.deps import require_user, resolve_student_id
 from app.identity.models import User
 from app.diagrams import materials as store
-from app.diagrams.catalog import is_subsequence
+from app.diagrams.catalog import catalog, is_subsequence
+from app.diagrams.compiler import preview_asset
 from app.diagrams.material_templates import TEMPLATES
 
 router = APIRouter(prefix="/diagram-materials", tags=["diagram-library"], dependencies=[Depends(require_user)])
@@ -23,6 +24,11 @@ def _invoke(fn, *args, **kwargs):
         return fn(*args, **kwargs)
     except store.MaterialError as exc:
         raise HTTPException(exc.status, exc.code) from None
+
+
+def _require_admin_user(user: User) -> None:
+    if user.role != "admin":
+        raise HTTPException(403, "admin_required")
 
 
 def _fuzzy_match(query: str, row: dict) -> bool:
@@ -64,6 +70,126 @@ def templates():
         "预览值用于检查调整效果，不会修改规范的默认值；出题使用题面事实。"]}
 
 
+@router.get("/catalog")
+def catalog_listing(
+    q: str = Query("", max_length=100),
+    subject: str = Query("", max_length=40),
+    family: str = Query("", max_length=40),
+    education_level: str = Query("", max_length=40),
+    asset_kind: str = Query("", max_length=40),
+    page: int = Query(0, ge=0, le=1000),
+    per: int = Query(12, ge=1, le=48),
+    owner: str = Depends(resolve_student_id),
+):
+    """One discoverable public catalogue for built-in and published SVG art.
+
+    The built-in catalogue remains immutable and the custom namespace remains
+    admin-owned.  The endpoint only joins their read models, so existing
+    material revision and permission contracts stay unchanged.
+    """
+    version, assets = catalog()
+    builtins = [asset for asset in assets.values() if asset.review.get("status") == "passed"]
+    # The joined public catalogue is a publication surface; disabled drafts
+    # stay in the administrator's editor and never enter discovery results.
+    custom = store.visible(owner, scope="public", enabled_only=True)
+    needle = q.strip().casefold()
+    tokens = needle.split()
+    builtin_rows: list[dict] = []
+    for asset in builtins:
+        haystack = " ".join([asset.title, asset.english, *asset.aliases, *asset.features]).casefold()
+        names = [asset.title, asset.english, *asset.aliases]
+        if tokens and not all(
+            token in haystack or any(
+                len(token) >= 2 and is_subsequence(token, name.casefold().replace(" ", ""))
+                for name in names
+            ) for token in tokens
+        ):
+            continue
+        if subject and subject not in asset.subjects:
+            continue
+        if family and family != asset.renderer:
+            continue
+        if education_level and education_level not in asset.education_levels:
+            continue
+        if asset_kind and asset_kind != asset.asset_kind:
+            continue
+        builtin_rows.append({
+            "id": asset.id,
+            "asset_id": asset.id,
+            "source": "builtin",
+            "title": asset.title,
+            "english": asset.english,
+            "description": " · ".join(asset.features),
+            "aliases": list(asset.aliases),
+            "subject": asset.subjects[0] if asset.subjects else "general",
+            "subjects": list(asset.subjects),
+            "family": asset.renderer,
+            "category": asset.category,
+            "education_levels": list(asset.education_levels),
+            "asset_kind": asset.asset_kind,
+            "version": asset.version,
+            "license": asset.license,
+        })
+    custom_rows: list[dict] = []
+    for row in custom:
+        if subject and row.get("subject") != subject:
+            continue
+        if family and family != "custom":
+            continue
+        if education_level:
+            continue
+        if asset_kind and asset_kind != "custom":
+            continue
+        if needle and not _fuzzy_match(needle, row):
+            continue
+        custom_rows.append({
+            "id": row["id"],
+            "asset_id": "material." + row["id"],
+            "source": "public",
+            "title": row["title"],
+            "english": row["title"],
+            "description": row.get("description", ""),
+            "aliases": row.get("aliases", []),
+            "subject": row.get("subject", "general"),
+            "subjects": [row.get("subject", "general")],
+            "family": "custom",
+            "category": "custom",
+            "education_levels": [],
+            "asset_kind": "custom",
+            "version": row.get("revision", 1),
+            "license": "workspace-public",
+            "updated_at": row.get("updated_at", 0),
+        })
+    featured = [
+        "vessel.beaker", "apparatus.alcohol_lamp", "mechanics.pendulum", "chart.pie",
+        "geometry.prism", "biology.microscope", "template.heating_beaker", "geometry.sphere",
+        "measurement.vernier", "function.quadratic", "chemistry.water", "earth.globe",
+    ]
+    priority = {asset_id: index for index, asset_id in enumerate(featured)}
+    builtin_rows.sort(key=lambda row: (priority.get(row["id"], len(featured)), row["title"]))
+    custom_rows.sort(key=lambda row: (-row["updated_at"], row["title"]))
+    # Keep a few familiar project marks at the top while surfacing published
+    # workspace material on the first page; a public card should never be
+    # hidden behind 1,119 immutable catalogue entries.
+    rows = builtin_rows[:4] + custom_rows + builtin_rows[4:]
+    start, end = page * per, (page + 1) * per
+    items = []
+    for row in rows[start:end]:
+        if row["source"] == "builtin":
+            row["illustration"] = preview_asset(row["id"]).model_dump(mode="json")
+        else:
+            row["illustration"] = store.detail(owner, row["id"])["illustration"]
+        items.append(row)
+    return {
+        "catalog_version": version,
+        "total": len(rows),
+        "page": page,
+        "per": per,
+        "source_counts": {"builtin": len(builtin_rows), "public": len(custom_rows)},
+        "items": items,
+    }
+
+
 class SvgInput(BaseModel):
     model_config = {"extra": "forbid"}
     svg: str = Field(min_length=1, max_length=131072)
@@ -101,7 +227,7 @@ async def generate(body: GenerateInput):
 @router.post("")
 def create(body: store.MaterialInput, owner: str = Depends(resolve_student_id), user: User = Depends(require_user)):
     if body.scope == "public":
-        require_admin(user)
+        _require_admin_user(user)
     return _public(_invoke(store.save, owner, body, admin=user.role == "admin"))
 
 
@@ -115,7 +241,7 @@ def detail(asset_id: str, revision: int | None = Query(None, ge=1, le=999), owne
 @router.put("/{asset_id}")
 def update(asset_id: str, body: store.MaterialInput, owner: str = Depends(resolve_student_id), user: User = Depends(require_user)):
     if body.scope == "public":
-        require_admin(user)
+        _require_admin_user(user)
     return _public(_invoke(store.save, owner, body, admin=user.role == "admin", asset_id=asset_id))
 
 
@@ -123,7 +249,7 @@ def update(asset_id: str, body: store.MaterialInput, owner: str = Depends(resolv
 def delete(asset_id: str, base_revision: int = Query(..., ge=1, le=999), owner: str = Depends(resolve_student_id), user: User = Depends(require_user)):
     value = _invoke(store.detail, owner, asset_id)
     if value["scope"] == "public":
-        require_admin(user)
+        _require_admin_user(user)
     _invoke(store.delete, owner, asset_id, admin=user.role == "admin", base_revision=base_revision)
     return {"deleted": True}
 

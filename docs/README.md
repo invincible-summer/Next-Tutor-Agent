@@ -33,6 +33,7 @@
 - 想核对当前发布与企业运行边界：[`validation/platform-release.md`](./validation/platform-release.md)
 - 想核对灾备基线与生产恢复步骤：[`validation/disaster-recovery.md`](./validation/disaster-recovery.md)
 - 想开发移动端：[`development/mobile-dev.md`](./development/mobile-dev.md)；验收证据见 [`validation/mobile-validation.md`](./validation/mobile-validation.md)
+- 想开发工具助手、素材库或组卷编译器：[`architecture/tool-assistant.md`](./architecture/tool-assistant.md)
 - 想部署：[`operations/deployment.md`](./operations/deployment.md)
 - 想确认能否提交某类内容：[`compliance/content-policy.md`](./compliance/content-policy.md)
 - 想知道某个决定为什么如此：[`adr/README.md`](./adr/README.md)

@@ -2,14 +2,20 @@
 from __future__ import annotations
 
 import asyncio
+import base64
+import binascii
 import time
 import uuid
 from typing import get_args
 
+import httpx
+
 from app.core.atomic import atomic_write_bytes, file_lock
 from app.core.config import settings
 from app.core.llm_async import get_llm
+from app.api.v1.tool_image import GenerateImageRequest, generate_image
 from app.diagrams.materials import owner_context
+from app.schemas.illustration import QuestionIllustration
 from . import persistence
 from .contracts import FailureCode, IllustrationError
 from .references import ReferenceError, selected_cards, selected_bundle_v3
@@ -305,6 +311,101 @@ def _fail(owner, session, job, code, *, retryable):
     _write_session(owner, session)
 
 
+def _previous_image_reference(owner: str, previous: dict | None) -> str | None:
+    """Return a bounded inline reference for a prior scene revision.
+
+    V4 revisions are raster artifacts, while an earlier V1/V2/V3 revision is
+    SVG.  Both are rendered through the same owner-scoped preview file so a
+    user can continue from any successful version without submitting image
+    bytes from the client.
+    """
+    if not previous:
+        return None
+    artifact_id = str(previous.get("artifact_id") or "")
+    if not artifact_id:
+        return None
+    path = persistence.owner_dir(owner) / "previews" / f"{artifact_id}.png"
+    try:
+        raw = path.read_bytes()
+    except OSError:
+        return None
+    if not raw or len(raw) > 12 * 1024 * 1024:
+        return None
+    mime = str((previous.get("illustration") or {}).get("mime_type") or "image/png")
+    if not mime.startswith("image/"):
+        mime = "image/png"
+    return f"data:{mime};base64," + base64.b64encode(raw).decode("ascii")
+
+
+async def _v4_image(owner: str, message: str, selected_materials: list[dict], previous: dict | None = None) -> dict:
+    """Run the server-selected raster gateway for a scenario V4 turn."""
+    ids = [str(row.get("asset_id")) for row in selected_materials if row.get("asset_id")]
+    versions = {str(row["asset_id"]): int(row["version"]) for row in selected_materials if row.get("asset_id") and row.get("version")}
+    previous_reference = _previous_image_reference(owner, previous)
+    prompt = message
+    if previous_reference:
+        prompt += "\nModify the previous generated teaching image according to the latest instruction; preserve useful composition and readable labels."
+    body = GenerateImageRequest(
+        prompt=prompt,
+        reference_mode="selected" if ids else "direct",
+        reference_material_ids=ids,
+        reference_material_versions=versions,
+        reference_images=[previous_reference] if previous_reference else [],
+        aspect_ratio="16:9",
+    )
+    try:
+        generated = await generate_image(body, owner=owner)
+    except Exception as exc:
+        detail = getattr(exc, "detail", None)
+        if isinstance(detail, dict):
+            code = detail.get("code") or detail.get("error", {}).get("code")
+        else:
+            code = None
+        error = IllustrationError(
+            code or "provider_unavailable",
+            details={"unrepairable": code in {"image_provider_unconfigured", "image_reference_material_invalid"}},
+        )
+        raise error from exc
+    url = str(generated.get("image_url") or "")
+    mime = str(generated.get("mime_type") or "image/png")
+    raw: bytes
+    if url.startswith("data:"):
+        try:
+            encoded = url.split(",", 1)[1]
+            raw = base64.b64decode(encoded, validate=True)
+            mime = url.split(";", 1)[0][5:] or mime
+        except (IndexError, ValueError, binascii.Error) as exc:
+            raise IllustrationError("provider_invalid_response") from exc
+    elif url.startswith(("http://", "https://")):
+        try:
+            async with httpx.AsyncClient(timeout=httpx.Timeout(30, connect=5), follow_redirects=True) as client:
+                response = await client.get(url)
+            if response.status_code >= 400 or len(response.content) > 12 * 1024 * 1024:
+                raise IllustrationError("provider_invalid_response")
+            raw = response.content
+            mime = response.headers.get("content-type", mime).split(";", 1)[0]
+        except httpx.HTTPError as exc:
+            raise IllustrationError("provider_unreachable") from exc
+    else:
+        raise IllustrationError("provider_invalid_response")
+    if not mime.startswith("image/") or not raw:
+        raise IllustrationError("provider_invalid_response")
+    # Width/height are advisory for raster previews; the client reads the
+    # actual dimensions. Keeping them nonzero lets layout code reserve space.
+    illustration = QuestionIllustration(
+        kind="raster", schema_version=1, sanitizer_version=1,
+        svg="", mime_type=mime, data_url=f"data:{mime};base64," + base64.b64encode(raw).decode("ascii"),
+        alt=message[:160], caption="", width=16, height=9,
+    ).model_dump(mode="json")
+    return {
+        "illustration": illustration,
+        "png": raw,
+        "source": {"message": message, "provider": generated.get("provider"), "model": generated.get("model")},
+        "review": {"status": "provider", "source": "server_image_gateway"},
+        "metrics": {"provider": generated.get("provider"), "model": generated.get("model")},
+    }
+
+
 async def _run(owner, job, llm):
     key = (str(persistence.owner_dir(owner)), job["job_id"])
     def stage(name, data):
@@ -327,10 +428,14 @@ async def _run(owner, job, llm):
             messages = (previous["messages"] if previous else [])+[turn["message"]]
         from .scenario_contracts import MaterialSelection
         cards = selected_cards(owner, [MaterialSelection.model_validate(row) for row in job["selected_materials"]])
-        result = await generate_scene(llm or get_llm("quiz"), owner=owner, mode=job["mode"], messages=messages,
-            latest_request=turn["message"], cards=cards, previous={
-                "mode": previous["mode"], "illustration": previous["illustration"], "source": previous["source"]}
-                if previous else None, stage=stage)
+        if job["mode"] == "v4":
+            stage("composing", None)
+            result = await _v4_image(owner, turn["message"], job["selected_materials"], previous)
+        else:
+            result = await generate_scene(llm or get_llm("quiz"), owner=owner, mode=job["mode"], messages=messages,
+                latest_request=turn["message"], cards=cards, previous={
+                    "mode": previous["mode"], "illustration": previous["illustration"], "source": previous["source"]}
+                    if previous else None, stage=stage)
         with file_lock(persistence.owner_dir(owner)):
             session = _alive(owner, job)
             if session is None:
@@ -339,15 +444,19 @@ async def _run(owner, job, llm):
                 raise IllustrationError("policy_disabled")
             revision = session["revision"]+1
             artifact_id = "sceneart_"+uuid.uuid4().hex
+            illustration = dict(result["illustration"])
+            if illustration.get("kind") == "raster":
+                illustration["asset_url"] = f"/tools/illustration/assets/{artifact_id}"
             artifact = {"artifact_id": artifact_id, "session_id": job["session_id"], "revision": revision,
-                "mode": job["mode"], "illustration": result["illustration"], "source": result["source"],
+                "mode": job["mode"], "illustration": illustration, "source": result["source"],
                 "messages": messages, "source_revision": job["source_revision"],
                 "review": result["review"], "selected_materials": job["selected_materials"],
                 "created_at": time.time(), "prompt_versions": {
                     "scenario_illustration_review": "1.0.0", "scenario_illustration_"+job["mode"]+"_composer": "1.0.0",
                     **({"scenario_illustration_"+job["mode"]+"_requirements": "1.0.0"}
                         if job["mode"] in {"v2", "v3"} else {"quiz_visual_requirements": "1.6.0", "quiz_component_scene": "1.9.0"}),
-                    **({"quiz_illustration_composer": "2.22.0"} if job["mode"] == "v2" else
+                    **({"image_gateway": "1.0.0"} if job["mode"] == "v4" else
+                       {"quiz_illustration_composer": "2.22.0"} if job["mode"] == "v2" else
                        {"quiz_illustration_v3_composer": "1.3.0"} if job["mode"] == "v3" else {})}}
             preview_path = persistence.owner_dir(owner)/"previews"/f"{artifact_id}.png"
             preview_path.parent.mkdir(parents=True, exist_ok=True)

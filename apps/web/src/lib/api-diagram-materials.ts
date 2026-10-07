@@ -23,6 +23,33 @@ export interface DiagramMaterial extends MaterialInput {
   id: string; revision: number; latest_revision?: number; revisions?: number[];
   content_hash: string; illustration: QuestionIllustrationData; validation: string;
 }
+export type UnifiedMaterialSource = "builtin" | "public";
+export interface UnifiedMaterialCard {
+  id: string;
+  asset_id: string;
+  source: UnifiedMaterialSource;
+  title: string;
+  english?: string;
+  description: string;
+  aliases: string[];
+  subject: string;
+  subjects: string[];
+  family: string;
+  category: string;
+  education_levels: string[];
+  asset_kind: string;
+  version: number;
+  license?: string;
+  illustration: QuestionIllustrationData;
+}
+export interface UnifiedMaterialPage {
+  catalog_version: string;
+  total: number;
+  page: number;
+  per: number;
+  source_counts: { builtin: number; public: number };
+  items: UnifiedMaterialCard[];
+}
 export interface MaterialTemplate { id: string; title: string; subject: string; description: string; svg: string; parameterization: MaterialParameterization }
 async function read<T>(path: string, init?: { method?: string; json?: unknown; signal?: AbortSignal | null }): Promise<T> {
   // 传输（鉴权/元数据/读超时/重试）在共享 transport；这里保留 Web 的
@@ -45,6 +72,10 @@ export const materialTemplates = (signal?: AbortSignal) => read<{ templates: Mat
 export const listMaterials = (scope: MaterialScope, q: string, page: number, signal?: AbortSignal, filters?: { subject?: string; enabled_only?: boolean }) =>
   read<{ items: DiagramMaterial[]; total: number }>(`?${new URLSearchParams({ scope, q, page: String(page), per: "12",
     ...(filters?.subject ? { subject: filters.subject } : {}), ...(filters?.enabled_only ? { enabled_only: "true" } : {}) })}`, { signal });
+export const listMaterialCatalog = (q: string, page: number, signal?: AbortSignal, filters?: { subject?: string; family?: string; education_level?: string; asset_kind?: string }) =>
+  read<UnifiedMaterialPage>(`/catalog?${new URLSearchParams({ q, page: String(page), per: "12",
+    ...(filters?.subject ? { subject: filters.subject } : {}), ...(filters?.family ? { family: filters.family } : {}),
+    ...(filters?.education_level ? { education_level: filters.education_level } : {}), ...(filters?.asset_kind ? { asset_kind: filters.asset_kind } : {}) })}`, { signal });
 export const getMaterial = (id: string, revision?: number, signal?: AbortSignal) =>
   read<DiagramMaterial>(`/${encodeURIComponent(id)}${revision ? `?revision=${revision}` : ""}`, { signal });
 export const previewMaterial = (svg: string, signal?: AbortSignal, parameterization: MaterialParameterization = STATIC_PARAMETERIZATION, params: Record<string, string | number> = {}) =>

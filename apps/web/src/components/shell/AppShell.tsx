@@ -33,11 +33,11 @@ export function AppShell({ children }: { children: ReactNode }) {
   }, [immersive]);
 
   return (
-    <div className="flex h-screen overflow-hidden">
-      {!immersive && <SideNav />}
+    <div className="flex h-screen overflow-hidden print:h-auto print:overflow-visible">
+      {!immersive && <div className="print:hidden"><SideNav /></div>}
       <div className="flex min-w-0 flex-1 flex-col">
-        {!immersive && <TopBar key={`topbar:${owner}`} />}
-        <main key={`content:${owner}`} className="min-h-0 flex-1 overflow-hidden">{children}</main>
+        {!immersive && <div className="print:hidden"><TopBar key={`topbar:${owner}`} /></div>}
+        <main key={`content:${owner}`} className="min-h-0 flex-1 overflow-hidden print:h-auto print:overflow-visible">{children}</main>
       </div>
       {/* 全局唯一的工作区设置弹窗（边栏/资料中心等入口经 useWsSettings 唤起） */}
       <WorkspaceSettingsModal />

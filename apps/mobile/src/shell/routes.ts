@@ -11,6 +11,7 @@ export type DomainTarget =
         | "resources"
         | "diagrams"
         | "illustration"
+        | "worksheet"
         | "profile"
         | "insights"
         | "memory"
@@ -55,6 +56,7 @@ export function domainRoute(target: DomainTarget): Href {
     resources: "/(main)/library/resources",
     diagrams: "/(main)/library/diagrams",
     illustration: "/(main)/library/tools/illustration",
+    worksheet: "/(main)/library/tools/worksheet",
     profile: "/(main)/me/profile",
     insights: "/(main)/me/insights",
     memory: "/(main)/me/memory",
@@ -74,7 +76,7 @@ export function safeProductPath(path: string): Href | null {
     return null;
   if (
     !pathname ||
-    !/^\/(?:tutor(?:\/[\w-]+)?|learn(?:\/(?:assessment|plan|courses)(?:\/[\w-]+)?)?|library(?:\/(?:resources|workspaces|notes(?:\/[\w-]+)?|knowledge|diagrams|tools(?:\/illustration)?))?|me(?:\/(?:profile|insights|memory|archive|account|settings))?)?$/.test(
+    !/^\/(?:tutor(?:\/[\w-]+)?|learn(?:\/(?:assessment|plan|courses)(?:\/[\w-]+)?)?|library(?:\/(?:resources|workspaces|notes(?:\/[\w-]+)?|knowledge|diagrams|tools(?:\/(?:illustration|worksheet))?))?|me(?:\/(?:profile|insights|memory|archive|account|settings))?)?$/.test(
       pathname,
     )
   )

@@ -38,6 +38,15 @@ export type {
   ToolIllustrationClient,
 } from "./tools/illustration.ts";
 export type {
+  ImageAspectRatio,
+  ImageCapability,
+  ImageClient,
+  ImageGenerationRequest,
+  ImageGenerationResult,
+  ImageReferenceMode,
+} from "./tools/image.ts";
+export type { WorksheetClient } from "./tools/worksheet.ts";
+export type {
   AssessmentClient,
   AssessmentStartPayload,
   AssessmentStartResponse,

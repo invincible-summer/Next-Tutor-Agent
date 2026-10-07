@@ -18,7 +18,7 @@ export async function shareBytes(
   const file = new File(Paths.cache, `nt-${Date.now()}-${safeFilename(name)}`);
   temporary.add(file);
   try {
-    file.write(typeof bytes === "string" ? bytes : new Uint8Array(bytes));
+    file.write(typeof bytes === "string" ? decodeDataUrl(bytes) ?? bytes : new Uint8Array(bytes));
     if (!(await Sharing.isAvailableAsync()))
       throw new Error("sharing_unavailable");
     await Sharing.shareAsync(file.uri, { mimeType, dialogTitle: name });
@@ -26,6 +26,30 @@ export async function shareBytes(
     if (file.exists) file.delete();
     temporary.delete(file);
   }
+}
+
+/** Convert image data URLs to real bytes before sharing with another app. */
+function decodeDataUrl(value: string): Uint8Array | null {
+  const match = value.match(/^data:[^;,]+;base64,(.*)$/s);
+  if (!match) return null;
+  const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+  const output: number[] = [];
+  let buffer = 0;
+  let bits = 0;
+  const encoded = match[1];
+  if (encoded === undefined) return null;
+  for (const char of encoded.replace(/\s/g, "")) {
+    if (char === "=") break;
+    const digit = alphabet.indexOf(char);
+    if (digit < 0) return null;
+    buffer = (buffer << 6) | digit;
+    bits += 6;
+    if (bits >= 8) {
+      bits -= 8;
+      output.push((buffer >> bits) & 0xff);
+    }
+  }
+  return new Uint8Array(output);
 }
 export function deletePickedFiles(uris: string[]) {
   for (const uri of uris) {

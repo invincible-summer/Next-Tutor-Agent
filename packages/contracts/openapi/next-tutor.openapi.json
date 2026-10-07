@@ -3261,6 +3261,90 @@
         "title": "FormulaBlock",
         "type": "object"
       },
+      "GenerateImageRequest": {
+        "properties": {
+          "aspect_ratio": {
+            "default": "16:9",
+            "enum": [
+              "1:1",
+              "4:3",
+              "16:9",
+              "3:4"
+            ],
+            "title": "Aspect Ratio",
+            "type": "string"
+          },
+          "model": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model"
+          },
+          "prompt": {
+            "maxLength": 12000,
+            "minLength": 1,
+            "title": "Prompt",
+            "type": "string"
+          },
+          "provider": {
+            "anyOf": [
+              {
+                "maxLength": 120,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provider"
+          },
+          "reference_images": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 8,
+            "title": "Reference Images",
+            "type": "array"
+          },
+          "reference_material_ids": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 12,
+            "title": "Reference Material Ids",
+            "type": "array"
+          },
+          "reference_material_versions": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "maxProperties": 12,
+            "title": "Reference Material Versions",
+            "type": "object"
+          },
+          "reference_mode": {
+            "default": "direct",
+            "enum": [
+              "direct",
+              "auto",
+              "selected"
+            ],
+            "title": "Reference Mode",
+            "type": "string"
+          }
+        },
+        "required": [
+          "prompt"
+        ],
+        "title": "GenerateImageRequest",
+        "type": "object"
+      },
       "GenerateInput": {
         "additionalProperties": false,
         "properties": {
@@ -5978,11 +6062,16 @@
         "type": "object"
       },
       "QuestionIllustration": {
-        "description": "Sanitized public SVG artifact; identical for web and mobile consumers.",
+        "description": "Public SVG or raster artifact shared by web and mobile consumers.",
         "properties": {
           "alt": {
             "default": "",
             "title": "Alt",
+            "type": "string"
+          },
+          "asset_url": {
+            "default": "",
+            "title": "Asset Url",
             "type": "string"
           },
           "caption": {
@@ -5995,14 +6084,27 @@
             "title": "Content Hash",
             "type": "string"
           },
+          "data_url": {
+            "default": "",
+            "title": "Data Url",
+            "type": "string"
+          },
           "height": {
             "default": 0,
             "title": "Height",
             "type": "integer"
           },
           "kind": {
-            "const": "svg",
+            "enum": [
+              "svg",
+              "raster"
+            ],
             "title": "Kind",
+            "type": "string"
+          },
+          "mime_type": {
+            "default": "",
+            "title": "Mime Type",
             "type": "string"
           },
           "sanitizer_version": {
@@ -6014,6 +6116,7 @@
             "type": "integer"
           },
           "svg": {
+            "default": "",
             "title": "Svg",
             "type": "string"
           },
@@ -6026,8 +6129,7 @@
         "required": [
           "kind",
           "schema_version",
-          "sanitizer_version",
-          "svg"
+          "sanitizer_version"
         ],
         "title": "QuestionIllustration",
         "type": "object"
@@ -7170,7 +7272,8 @@
             "enum": [
               "v1",
               "v2",
-              "v3"
+              "v3",
+              "v4"
             ],
             "title": "Mode",
             "type": "string"
@@ -7208,7 +7311,8 @@
             "enum": [
               "v1",
               "v2",
-              "v3"
+              "v3",
+              "v4"
             ],
             "title": "Mode",
             "type": "string"
@@ -7301,7 +7405,8 @@
             "enum": [
               "v1",
               "v2",
-              "v3"
+              "v3",
+              "v4"
             ],
             "title": "Mode",
             "type": "string"
@@ -9162,7 +9267,8 @@
             "enum": [
               "v1",
               "v2",
-              "v3"
+              "v3",
+              "v4"
             ],
             "title": "Mode",
             "type": "string"
@@ -10017,6 +10123,855 @@
           "client_request_id"
         ],
         "title": "WorkflowStepRetryRequest",
+        "type": "object"
+      },
+      "WorksheetCreateRequest": {
+        "properties": {
+          "duration_minutes": {
+            "default": 45,
+            "maximum": 600.0,
+            "minimum": 1.0,
+            "title": "Duration Minutes",
+            "type": "integer"
+          },
+          "goal": {
+            "default": "",
+            "maxLength": 4000,
+            "title": "Goal",
+            "type": "string"
+          },
+          "grade": {
+            "default": "",
+            "maxLength": 60,
+            "title": "Grade",
+            "type": "string"
+          },
+          "guidance_prompt": {
+            "default": "",
+            "maxLength": 4000,
+            "title": "Guidance Prompt",
+            "type": "string"
+          },
+          "instructions": {
+            "default": "",
+            "maxLength": 2000,
+            "title": "Instructions",
+            "type": "string"
+          },
+          "knowledge_points": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 12,
+            "title": "Knowledge Points",
+            "type": "array"
+          },
+          "learning_area": {
+            "default": "",
+            "maxLength": 120,
+            "title": "Learning Area",
+            "type": "string"
+          },
+          "reference_textbook": {
+            "default": false,
+            "title": "Reference Textbook",
+            "type": "boolean"
+          },
+          "subject": {
+            "default": "",
+            "maxLength": 60,
+            "title": "Subject",
+            "type": "string"
+          },
+          "title": {
+            "default": "未命名试卷",
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Title",
+            "type": "string"
+          },
+          "unit": {
+            "default": "",
+            "maxLength": 120,
+            "title": "Unit",
+            "type": "string"
+          },
+          "workspace_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Workspace Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "workspace_id"
+        ],
+        "title": "WorksheetCreateRequest",
+        "type": "object"
+      },
+      "WorksheetDocument": {
+        "properties": {
+          "created_at": {
+            "title": "Created At",
+            "type": "number"
+          },
+          "duration_minutes": {
+            "default": 45,
+            "maximum": 600.0,
+            "minimum": 1.0,
+            "title": "Duration Minutes",
+            "type": "integer"
+          },
+          "etag": {
+            "title": "Etag",
+            "type": "string"
+          },
+          "goal": {
+            "default": "",
+            "title": "Goal",
+            "type": "string"
+          },
+          "grade": {
+            "default": "",
+            "title": "Grade",
+            "type": "string"
+          },
+          "guidance_prompt": {
+            "default": "",
+            "title": "Guidance Prompt",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "instructions": {
+            "default": "",
+            "title": "Instructions",
+            "type": "string"
+          },
+          "knowledge_points": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 12,
+            "title": "Knowledge Points",
+            "type": "array"
+          },
+          "learning_area": {
+            "default": "",
+            "title": "Learning Area",
+            "type": "string"
+          },
+          "questions": {
+            "items": {
+              "$ref": "#/components/schemas/WorksheetQuestion"
+            },
+            "title": "Questions",
+            "type": "array"
+          },
+          "reference_textbook": {
+            "default": false,
+            "title": "Reference Textbook",
+            "type": "boolean"
+          },
+          "status": {
+            "default": "draft",
+            "enum": [
+              "draft",
+              "ready"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "subject": {
+            "default": "",
+            "title": "Subject",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "total_score": {
+            "default": 0,
+            "maximum": 10000.0,
+            "minimum": 0.0,
+            "title": "Total Score",
+            "type": "integer"
+          },
+          "unit": {
+            "default": "",
+            "title": "Unit",
+            "type": "string"
+          },
+          "updated_at": {
+            "title": "Updated At",
+            "type": "number"
+          },
+          "workspace_id": {
+            "default": "",
+            "title": "Workspace Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "etag",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "WorksheetDocument",
+        "type": "object"
+      },
+      "WorksheetExport": {
+        "properties": {
+          "content": {
+            "title": "Content",
+            "type": "string"
+          },
+          "format": {
+            "enum": [
+              "markdown",
+              "html"
+            ],
+            "title": "Format",
+            "type": "string"
+          },
+          "variant": {
+            "enum": [
+              "student",
+              "teacher"
+            ],
+            "title": "Variant",
+            "type": "string"
+          }
+        },
+        "required": [
+          "variant",
+          "format",
+          "content"
+        ],
+        "title": "WorksheetExport",
+        "type": "object"
+      },
+      "WorksheetGenerateRequest": {
+        "properties": {
+          "count": {
+            "default": 5,
+            "maximum": 50.0,
+            "minimum": 1.0,
+            "title": "Count",
+            "type": "integer"
+          },
+          "difficulty": {
+            "default": 3,
+            "maximum": 5.0,
+            "minimum": 1.0,
+            "title": "Difficulty",
+            "type": "integer"
+          },
+          "guidance_prompt": {
+            "default": "",
+            "maxLength": 4000,
+            "title": "Guidance Prompt",
+            "type": "string"
+          },
+          "idempotency_key": {
+            "default": "",
+            "maxLength": 128,
+            "title": "Idempotency Key",
+            "type": "string"
+          },
+          "knowledge_points": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 12,
+            "title": "Knowledge Points",
+            "type": "array"
+          },
+          "question_type": {
+            "default": "multiple_choice",
+            "enum": [
+              "multiple_choice",
+              "fill_blank",
+              "short_answer"
+            ],
+            "title": "Question Type",
+            "type": "string"
+          },
+          "score": {
+            "default": 5,
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Score",
+            "type": "integer"
+          },
+          "type_distribution": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Type Distribution",
+            "type": "object"
+          }
+        },
+        "title": "WorksheetGenerateRequest",
+        "type": "object"
+      },
+      "WorksheetGenerateResponse": {
+        "properties": {
+          "errors": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Errors",
+            "type": "array"
+          },
+          "generated": {
+            "minimum": 0.0,
+            "title": "Generated",
+            "type": "integer"
+          },
+          "worksheet": {
+            "$ref": "#/components/schemas/WorksheetDocument"
+          }
+        },
+        "required": [
+          "worksheet",
+          "generated"
+        ],
+        "title": "WorksheetGenerateResponse",
+        "type": "object"
+      },
+      "WorksheetImage": {
+        "properties": {
+          "alt": {
+            "default": "",
+            "title": "Alt",
+            "type": "string"
+          },
+          "asset_id": {
+            "title": "Asset Id",
+            "type": "string"
+          },
+          "data_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Data Url"
+          },
+          "mime_type": {
+            "default": "image/png",
+            "title": "Mime Type",
+            "type": "string"
+          },
+          "url": {
+            "title": "Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "asset_id",
+          "url"
+        ],
+        "title": "WorksheetImage",
+        "type": "object"
+      },
+      "WorksheetImageAttachRequest": {
+        "properties": {
+          "alt": {
+            "default": "",
+            "maxLength": 160,
+            "title": "Alt",
+            "type": "string"
+          },
+          "data_url": {
+            "maxLength": 16000000,
+            "minLength": 20,
+            "title": "Data Url",
+            "type": "string"
+          },
+          "etag": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Etag"
+          }
+        },
+        "required": [
+          "data_url"
+        ],
+        "title": "WorksheetImageAttachRequest",
+        "type": "object"
+      },
+      "WorksheetList": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/WorksheetSummary"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "total": {
+            "minimum": 0.0,
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total"
+        ],
+        "title": "WorksheetList",
+        "type": "object"
+      },
+      "WorksheetPatchRequest": {
+        "properties": {
+          "duration_minutes": {
+            "anyOf": [
+              {
+                "maximum": 600.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duration Minutes"
+          },
+          "etag": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Etag",
+            "type": "string"
+          },
+          "goal": {
+            "anyOf": [
+              {
+                "maxLength": 4000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Goal"
+          },
+          "grade": {
+            "anyOf": [
+              {
+                "maxLength": 60,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Grade"
+          },
+          "guidance_prompt": {
+            "anyOf": [
+              {
+                "maxLength": 4000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Guidance Prompt"
+          },
+          "instructions": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Instructions"
+          },
+          "knowledge_points": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "maxItems": 12,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Knowledge Points"
+          },
+          "learning_area": {
+            "anyOf": [
+              {
+                "maxLength": 120,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Learning Area"
+          },
+          "reference_textbook": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reference Textbook"
+          },
+          "subject": {
+            "anyOf": [
+              {
+                "maxLength": 60,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Subject"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "maxLength": 120,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "unit": {
+            "anyOf": [
+              {
+                "maxLength": 120,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unit"
+          },
+          "workspace_id": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Workspace Id"
+          }
+        },
+        "required": [
+          "etag"
+        ],
+        "title": "WorksheetPatchRequest",
+        "type": "object"
+      },
+      "WorksheetQuestion": {
+        "properties": {
+          "answer": {
+            "default": "",
+            "title": "Answer",
+            "type": "string"
+          },
+          "difficulty": {
+            "default": 3,
+            "maximum": 5.0,
+            "minimum": 1.0,
+            "title": "Difficulty",
+            "type": "integer"
+          },
+          "explanation": {
+            "default": "",
+            "title": "Explanation",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "image": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/WorksheetImage"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "knowledge_points": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 8,
+            "title": "Knowledge Points",
+            "type": "array"
+          },
+          "number": {
+            "minimum": 1.0,
+            "title": "Number",
+            "type": "integer"
+          },
+          "options": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Options",
+            "type": "object"
+          },
+          "score": {
+            "default": 5,
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Score",
+            "type": "integer"
+          },
+          "stem": {
+            "title": "Stem",
+            "type": "string"
+          },
+          "type": {
+            "enum": [
+              "multiple_choice",
+              "fill_blank",
+              "short_answer"
+            ],
+            "title": "Type",
+            "type": "string"
+          },
+          "updated_at": {
+            "default": 0,
+            "title": "Updated At",
+            "type": "number"
+          },
+          "version": {
+            "default": 1,
+            "minimum": 1.0,
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "number",
+          "type",
+          "stem"
+        ],
+        "title": "WorksheetQuestion",
+        "type": "object"
+      },
+      "WorksheetQuestionPatchRequest": {
+        "properties": {
+          "answer": {
+            "anyOf": [
+              {
+                "maxLength": 6000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Answer"
+          },
+          "difficulty": {
+            "anyOf": [
+              {
+                "maximum": 5.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Difficulty"
+          },
+          "etag": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Etag",
+            "type": "string"
+          },
+          "explanation": {
+            "anyOf": [
+              {
+                "maxLength": 8000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Explanation"
+          },
+          "knowledge_points": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "maxItems": 8,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Knowledge Points"
+          },
+          "options": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Options"
+          },
+          "score": {
+            "anyOf": [
+              {
+                "maximum": 100.0,
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Score"
+          },
+          "stem": {
+            "anyOf": [
+              {
+                "maxLength": 12000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stem"
+          }
+        },
+        "required": [
+          "etag"
+        ],
+        "title": "WorksheetQuestionPatchRequest",
+        "type": "object"
+      },
+      "WorksheetRefineRequest": {
+        "properties": {
+          "etag": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Etag",
+            "type": "string"
+          },
+          "instruction": {
+            "maxLength": 2000,
+            "minLength": 1,
+            "title": "Instruction",
+            "type": "string"
+          }
+        },
+        "required": [
+          "instruction",
+          "etag"
+        ],
+        "title": "WorksheetRefineRequest",
+        "type": "object"
+      },
+      "WorksheetSummary": {
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "question_count": {
+            "minimum": 0.0,
+            "title": "Question Count",
+            "type": "integer"
+          },
+          "status": {
+            "enum": [
+              "draft",
+              "ready"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "subject": {
+            "default": "",
+            "title": "Subject",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "total_score": {
+            "minimum": 0.0,
+            "title": "Total Score",
+            "type": "integer"
+          },
+          "updated_at": {
+            "title": "Updated At",
+            "type": "number"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "question_count",
+          "total_score",
+          "status",
+          "updated_at"
+        ],
+        "title": "WorksheetSummary",
         "type": "object"
       },
       "WorkspaceCreate": {
@@ -20975,6 +21930,165 @@
           }
         },
         "summary": "Create",
+        "tags": [
+          "diagram-library"
+        ]
+      }
+    },
+    "/api/v1/diagram-materials/catalog": {
+      "get": {
+        "description": "One discoverable public catalogue for built-in and published SVG art.\n\nThe built-in catalogue remains immutable and the custom namespace remains\nadmin-owned.  The endpoint only joins their read models, so existing\nmaterial revision and permission contracts stay unchanged.",
+        "operationId": "catalog_listing_api_v1_diagram_materials_catalog_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "default": "",
+              "maxLength": 100,
+              "title": "Q",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "subject",
+            "required": false,
+            "schema": {
+              "default": "",
+              "maxLength": 40,
+              "title": "Subject",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "family",
+            "required": false,
+            "schema": {
+              "default": "",
+              "maxLength": 40,
+              "title": "Family",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "education_level",
+            "required": false,
+            "schema": {
+              "default": "",
+              "maxLength": 40,
+              "title": "Education Level",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "asset_kind",
+            "required": false,
+            "schema": {
+              "default": "",
+              "maxLength": 40,
+              "title": "Asset Kind",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "maximum": 1000,
+              "minimum": 0,
+              "title": "Page",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "per",
+            "required": false,
+            "schema": {
+              "default": 12,
+              "maximum": 48,
+              "minimum": 1,
+              "title": "Per",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-guest-token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Guest-Token"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Catalog Listing",
         "tags": [
           "diagram-library"
         ]
@@ -35139,6 +36253,95 @@
         ]
       }
     },
+    "/api/v1/tools/illustration/assets/{artifact_id}": {
+      "get": {
+        "description": "Owner-scoped raster asset endpoint used by V4 revisions.",
+        "operationId": "get_asset_api_v1_tools_illustration_assets__artifact_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "artifact_id",
+            "required": true,
+            "schema": {
+              "title": "Artifact Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-guest-token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Guest-Token"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Asset",
+        "tags": [
+          "tool-assistant"
+        ]
+      }
+    },
     "/api/v1/tools/illustration/jobs/{job_id}": {
       "get": {
         "operationId": "get_job_api_v1_tools_illustration_jobs__job_id__get",
@@ -35762,6 +36965,1453 @@
           }
         },
         "summary": "Create Turn",
+        "tags": [
+          "tool-assistant"
+        ]
+      }
+    },
+    "/api/v1/tools/image/capability": {
+      "get": {
+        "operationId": "capability_api_v1_tools_image_capability_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-guest-token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Guest-Token"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Capability Api V1 Tools Image Capability Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Capability",
+        "tags": [
+          "tool-assistant"
+        ]
+      }
+    },
+    "/api/v1/tools/image/generate": {
+      "post": {
+        "operationId": "generate_api_v1_tools_image_generate_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-guest-token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Guest-Token"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GenerateImageRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Generate Api V1 Tools Image Generate Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Generate",
+        "tags": [
+          "tool-assistant"
+        ]
+      }
+    },
+    "/api/v1/tools/image/providers": {
+      "get": {
+        "description": "Compatibility envelope; only the active server capability is exposed.",
+        "operationId": "providers_api_v1_tools_image_providers_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-guest-token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Guest-Token"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Providers Api V1 Tools Image Providers Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Providers",
+        "tags": [
+          "tool-assistant"
+        ]
+      }
+    },
+    "/api/v1/tools/worksheets": {
+      "get": {
+        "operationId": "list_worksheets_api_v1_tools_worksheets_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-guest-token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Guest-Token"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorksheetList"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Worksheets",
+        "tags": [
+          "tool-assistant"
+        ]
+      },
+      "post": {
+        "operationId": "create_worksheet_api_v1_tools_worksheets_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-guest-token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Guest-Token"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WorksheetCreateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorksheetDocument"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Worksheet",
+        "tags": [
+          "tool-assistant"
+        ]
+      }
+    },
+    "/api/v1/tools/worksheets/{worksheet_id}": {
+      "delete": {
+        "operationId": "delete_worksheet_api_v1_tools_worksheets__worksheet_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "worksheet_id",
+            "required": true,
+            "schema": {
+              "title": "Worksheet Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-guest-token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Guest-Token"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Worksheet",
+        "tags": [
+          "tool-assistant"
+        ]
+      },
+      "get": {
+        "operationId": "get_worksheet_api_v1_tools_worksheets__worksheet_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "worksheet_id",
+            "required": true,
+            "schema": {
+              "title": "Worksheet Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-guest-token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Guest-Token"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorksheetDocument"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Worksheet",
+        "tags": [
+          "tool-assistant"
+        ]
+      },
+      "patch": {
+        "operationId": "patch_worksheet_api_v1_tools_worksheets__worksheet_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "worksheet_id",
+            "required": true,
+            "schema": {
+              "title": "Worksheet Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-guest-token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Guest-Token"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WorksheetPatchRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorksheetDocument"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Patch Worksheet",
+        "tags": [
+          "tool-assistant"
+        ]
+      }
+    },
+    "/api/v1/tools/worksheets/{worksheet_id}/assets/{asset_id}": {
+      "get": {
+        "operationId": "worksheet_asset_api_v1_tools_worksheets__worksheet_id__assets__asset_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "worksheet_id",
+            "required": true,
+            "schema": {
+              "title": "Worksheet Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "asset_id",
+            "required": true,
+            "schema": {
+              "title": "Asset Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-guest-token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Guest-Token"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Worksheet Asset",
+        "tags": [
+          "tool-assistant"
+        ]
+      }
+    },
+    "/api/v1/tools/worksheets/{worksheet_id}/export": {
+      "get": {
+        "operationId": "export_worksheet_api_v1_tools_worksheets__worksheet_id__export_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "worksheet_id",
+            "required": true,
+            "schema": {
+              "title": "Worksheet Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "variant",
+            "required": false,
+            "schema": {
+              "default": "student",
+              "pattern": "^(student|teacher)$",
+              "title": "Variant",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "format",
+            "required": false,
+            "schema": {
+              "default": "markdown",
+              "pattern": "^(markdown|html)$",
+              "title": "Format",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-guest-token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Guest-Token"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorksheetExport"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Export Worksheet",
+        "tags": [
+          "tool-assistant"
+        ]
+      }
+    },
+    "/api/v1/tools/worksheets/{worksheet_id}/generate": {
+      "post": {
+        "operationId": "generate_worksheet_api_v1_tools_worksheets__worksheet_id__generate_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "worksheet_id",
+            "required": true,
+            "schema": {
+              "title": "Worksheet Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-guest-token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Guest-Token"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WorksheetGenerateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorksheetGenerateResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Generate Worksheet",
+        "tags": [
+          "tool-assistant"
+        ]
+      }
+    },
+    "/api/v1/tools/worksheets/{worksheet_id}/questions/{question_id}": {
+      "delete": {
+        "operationId": "delete_question_api_v1_tools_worksheets__worksheet_id__questions__question_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "worksheet_id",
+            "required": true,
+            "schema": {
+              "title": "Worksheet Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "question_id",
+            "required": true,
+            "schema": {
+              "title": "Question Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "etag",
+            "required": true,
+            "schema": {
+              "minLength": 1,
+              "title": "Etag",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-guest-token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Guest-Token"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorksheetDocument"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Question",
+        "tags": [
+          "tool-assistant"
+        ]
+      },
+      "patch": {
+        "operationId": "patch_question_api_v1_tools_worksheets__worksheet_id__questions__question_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "worksheet_id",
+            "required": true,
+            "schema": {
+              "title": "Worksheet Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "question_id",
+            "required": true,
+            "schema": {
+              "title": "Question Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-guest-token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Guest-Token"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WorksheetQuestionPatchRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorksheetDocument"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Patch Question",
+        "tags": [
+          "tool-assistant"
+        ]
+      }
+    },
+    "/api/v1/tools/worksheets/{worksheet_id}/questions/{question_id}/attach-image": {
+      "post": {
+        "operationId": "attach_image_api_v1_tools_worksheets__worksheet_id__questions__question_id__attach_image_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "worksheet_id",
+            "required": true,
+            "schema": {
+              "title": "Worksheet Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "question_id",
+            "required": true,
+            "schema": {
+              "title": "Question Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-guest-token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Guest-Token"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WorksheetImageAttachRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorksheetDocument"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Attach Image",
+        "tags": [
+          "tool-assistant"
+        ]
+      }
+    },
+    "/api/v1/tools/worksheets/{worksheet_id}/questions/{question_id}/refine": {
+      "post": {
+        "operationId": "refine_question_api_v1_tools_worksheets__worksheet_id__questions__question_id__refine_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "worksheet_id",
+            "required": true,
+            "schema": {
+              "title": "Worksheet Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "question_id",
+            "required": true,
+            "schema": {
+              "title": "Question Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-guest-token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Guest-Token"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WorksheetRefineRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorksheetDocument"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Refine Question",
         "tags": [
           "tool-assistant"
         ]

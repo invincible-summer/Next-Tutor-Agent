@@ -32,6 +32,12 @@ export const API_BASE = process.env.NEXT_PUBLIC_DEMO_MODE === "1"
   : "/api/v1";
 const BASE = API_BASE;
 
+/** Resolve a server-owned asset path through the configured API origin. */
+export function apiAssetUrl(path: string): string {
+  if (/^[a-z][a-z\d+.-]*:/i.test(path)) return path;
+  return `${API_BASE.replace(/\/$/, "")}/${path.replace(/^\/+/, "")}`;
+}
+
 // --- workspace / session / chat stream：已迁移到共享客户端 ------------------
 // （@next-tutor/api-client；浏览器 adapter 在 platform/api-client.ts）。
 // 迁移保持每个方法的错误语义不变：原先不检查 res.ok 的方法在 HTTP 错误时

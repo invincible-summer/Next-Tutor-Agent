@@ -74,6 +74,29 @@ class MaterialApiTest(StorageSandboxTestCase, unittest.IsolatedAsyncioTestCase):
         mine = (await self.request("GET", "?scope=private&q=容器图")).json()["items"]
         self.assertEqual([row["title"] for row in mine], ["合成容器图"])
 
+    async def test_unified_public_catalog_contains_builtins_and_published_materials(self):
+        public = await self.request("POST", owner=self.admin, body={
+            **self.body, "title": "公有流程卡", "description": "适合流程关系示意", "scope": "public"})
+        self.assertEqual(public.status_code, 200, public.text)
+        hidden = await self.request("POST", owner=self.admin, body={
+            **self.body, "title": "未发布流程卡", "scope": "public", "enabled": False})
+        self.assertEqual(hidden.status_code, 200, hidden.text)
+        response = await self.request("GET", "/catalog?q=流程卡", owner=self.alice)
+        self.assertEqual(response.status_code, 200, response.text)
+        payload = response.json()
+        self.assertEqual(payload["source_counts"]["public"], 1)
+        self.assertEqual([row["source"] for row in payload["items"]], ["public"])
+        self.assertTrue(payload["items"][0]["asset_id"].startswith("material.m_"))
+        self.assertIn("illustration", payload["items"][0])
+        first_page = await self.request("GET", "/catalog?page=0&per=12", owner=self.alice)
+        self.assertEqual(first_page.json()["items"][4]["source"], "public")
+        builtins = await self.request("GET", "/catalog?page=0&per=1", owner=self.alice)
+        self.assertEqual(builtins.status_code, 200, builtins.text)
+        self.assertEqual(builtins.json()["source_counts"]["builtin"], 1119)
+        self.assertEqual(builtins.json()["items"][0]["source"], "builtin")
+        private = await self.create(title="私有流程卡", description="流程卡", enabled=True)
+        self.assertNotIn(private["id"], [row["id"] for row in builtins.json()["items"]])
+
     async def test_revision_conflict_scope_and_frozen_source(self):
         asset = await self.create()
         frozen_svg = asset["svg"]

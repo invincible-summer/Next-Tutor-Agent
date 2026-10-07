@@ -72,6 +72,15 @@ export function Hub({ kind }: { kind: "learn" | "library" | "tools" }) {
               icon: Sparkles,
             },
             {
+              kind: "worksheet",
+              title: c("组卷出题", "Worksheet builder"),
+              subtitle: c(
+                "批量生成、逐题修改并同步学生版与教师版。",
+                "Batch-generate, edit and sync student and teacher papers.",
+              ),
+              icon: FileText,
+            },
+            {
               kind: "diagrams",
               title: c("图示素材", "Diagram library"),
               subtitle: c(

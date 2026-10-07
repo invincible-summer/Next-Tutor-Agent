@@ -17,7 +17,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
-IllustrationMode = Literal["v1", "v2", "v3"]
+IllustrationMode = Literal["v1", "v2", "v3", "v4"]
 
 ToolJobStatus = Literal["queued", "running", "ready", "failed"]
 ToolJobStage = Literal[
@@ -27,11 +27,14 @@ TurnStatus = Literal["queued", "running", "ready", "failed"]
 
 
 class QuestionIllustration(BaseModel):
-    """Sanitized public SVG artifact; identical for web and mobile consumers."""
-    kind: Literal["svg"]
+    """Public SVG or raster artifact shared by web and mobile consumers."""
+    kind: Literal["svg", "raster"]
     schema_version: int
     sanitizer_version: int
-    svg: str
+    svg: str = ""
+    asset_url: str = ""
+    data_url: str = ""
+    mime_type: str = ""
     alt: str = ""
     caption: str = ""
     width: int = 0

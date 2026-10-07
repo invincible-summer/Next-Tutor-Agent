@@ -95,7 +95,7 @@ def recovered_job(owner, job):
         raise _error(404, "illustration_job_not_found", "配图任务不存在") from None
 
 
-@router.post("/quiz/illustration-jobs", response_model=QuizIllustrationJob)
+@router.post("/quiz/illustration-jobs", response_model=QuizIllustrationJob, response_model_exclude_unset=True)
 async def create_illustration_job(req: DraftReference, owner: str = Depends(resolve_student_id)):
     # Browser clients may reference only already owned server material. New
     # essential drafts use the internal generation path before registration.
@@ -124,7 +124,7 @@ async def create_illustration_job(req: DraftReference, owner: str = Depends(reso
     return public_job(owner, job)
 
 
-@router.get("/illustration-jobs/{job_id}", response_model=QuizIllustrationJob)
+@router.get("/illustration-jobs/{job_id}", response_model=QuizIllustrationJob, response_model_exclude_unset=True)
 def get_illustration_job(job_id: str, owner: str = Depends(resolve_student_id)):
     try:
         job = persistence.read(owner, "jobs", job_id)
@@ -136,7 +136,7 @@ def get_illustration_job(job_id: str, owner: str = Depends(resolve_student_id)):
     return public_job(owner, recovered_job(owner, job))
 
 
-@router.post("/illustration-jobs/{job_id}/retry", response_model=QuizIllustrationJob)
+@router.post("/illustration-jobs/{job_id}/retry", response_model=QuizIllustrationJob, response_model_exclude_unset=True)
 async def retry_illustration_job(job_id: str, owner: str = Depends(resolve_student_id)):
     try:
         job = persistence.read(owner, "jobs", job_id)
@@ -164,7 +164,7 @@ async def retry_illustration_job(job_id: str, owner: str = Depends(resolve_stude
     return public_job(owner, new_job)
 
 
-@router.get("/questions/{question_id}/illustration", response_model=QuizIllustrationJob)
+@router.get("/questions/{question_id}/illustration", response_model=QuizIllustrationJob, response_model_exclude_unset=True)
 def frozen_illustration(question_id: str, question_revision: int = Query(ge=1),
                         owner: str = Depends(resolve_student_id)):
     _, task = owned_task(owner, question_id, question_revision)

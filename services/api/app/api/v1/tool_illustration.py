@@ -1,5 +1,6 @@
 """Independent tool-assistant scene sessions; no assessment task registration."""
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import FileResponse
 
 from app.identity.deps import require_user, resolve_student_id
 from app.illustration import scenario
@@ -50,6 +51,22 @@ async def create_turn(session_id: str, body: SceneTurn, owner: str = Depends(res
 @router.get("/jobs/{job_id}", response_model=ToolIllustrationJob)
 def get_job(job_id: str, owner: str = Depends(resolve_student_id)):
     return _call(scenario.get_job, owner, job_id)
+
+
+@router.get("/assets/{artifact_id}")
+def get_asset(artifact_id: str, owner: str = Depends(resolve_student_id)):
+    """Owner-scoped raster asset endpoint used by V4 revisions."""
+    try:
+        artifact = scenario.persistence.read(owner, "scenario_revisions", artifact_id)
+    except ValueError:
+        artifact = None
+    if not artifact or artifact.get("illustration", {}).get("kind") != "raster":
+        raise HTTPException(404, detail={"code": "illustration_asset_missing"})
+    path = scenario.persistence.owner_dir(owner) / "previews" / f"{artifact_id}.png"
+    if not path.is_file():
+        raise HTTPException(404, detail={"code": "illustration_asset_missing"})
+    mime = artifact.get("illustration", {}).get("mime_type") or "image/png"
+    return FileResponse(path, media_type=mime, filename=f"{artifact_id}.png")
 
 
 @router.post("/jobs/{job_id}/retry", response_model=ToolIllustrationJob)

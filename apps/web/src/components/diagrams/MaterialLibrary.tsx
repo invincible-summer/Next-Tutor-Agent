@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
-import { Plus, Upload, X, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { EmptyState, ErrorNote, Skeleton } from "@/components/ui/EmptyState";
 import { Input, Textarea, Field, FIELD_CLS } from "@/components/ui/Input";
@@ -13,6 +12,7 @@ import { useUIStore } from "@/lib/store";
 import { deleteMaterial, generateMaterial, getMaterial, listMaterials, materialTemplates, previewMaterial, saveMaterial,
   STATIC_PARAMETERIZATION, type MaterialParameterization, type DiagramMaterial, type MaterialScope, type MaterialSource, type MaterialTemplate } from "@/lib/api-diagram-materials";
 import type { QuestionIllustrationData } from "@/lib/types";
+import { CloseMark, ComposeMark, MaterialAtlasMark, SearchMark } from "@/components/pages/tools/ToolMarks";
 
 export const SUBJECT_LABELS: Record<string, [string, string]> = {
   general: ["综合", "General"], physics: ["物理", "Physics"], chemistry: ["化学", "Chemistry"],
@@ -38,6 +38,7 @@ function OwnedLibrary({ scope, admin }: { scope: MaterialScope; admin: boolean }
   const en = useUIStore(s => s.lang) === "en";
   const text = (zh: string, eng: string) => en ? eng : zh;
   const [page, setPage] = useState(0);
+  const [query, setQuery] = useState("");
   const [data, setData] = useState<{ items: DiagramMaterial[]; total: number } | null>(null);
   const [error, setError] = useState(false);
   const [refresh, setRefresh] = useState(0);
@@ -45,21 +46,22 @@ function OwnedLibrary({ scope, admin }: { scope: MaterialScope; admin: boolean }
   useEffect(() => {
     const controller = new AbortController();
     const timer = setTimeout(() => {
-      void listMaterials(scope, "", page, controller.signal).then(value => {
+      void listMaterials(scope, query, page, controller.signal).then(value => {
         if (!controller.signal.aborted) { setData(value); setError(false); }
       }).catch(() => { if (!controller.signal.aborted) setError(true); });
     }, 180);
     return () => { clearTimeout(timer); controller.abort(); };
-  }, [scope, page, refresh]);
+  }, [scope, query, page, refresh]);
   return <section className="space-y-4" data-testid="custom-material-library">
-    {scope === "private" && <div className="flex justify-end">
-      <Button variant="outline" size="sm" icon={<Plus size={14} />} onClick={() => setEditor("new")} data-testid="new-material">{text("新增素材", "New material")}</Button>
-    </div>}
+    <div className="flex flex-wrap items-end justify-between gap-3">
+      <div className="relative min-w-[220px] flex-1"><SearchMark className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-muted" /><Input aria-label={text("搜索我的素材", "Search my materials")} placeholder={text("搜索名称、说明或别名", "Search title, description or alias")} value={query} className="pl-9" onChange={e => { setQuery(e.target.value); setPage(0); }} /></div>
+      {scope === "private" && <Button variant="outline" size="sm" icon={<MaterialAtlasMark className="h-4 w-4" />} onClick={() => setEditor("new")} data-testid="new-material">{text("新增素材", "New material")}</Button>}
+    </div>
     {error ? <ErrorNote message={text("素材加载失败。", "Could not load materials.")} retry={() => setRefresh(v => v + 1)} />
       : !data ? <div className="grid grid-cols-2 gap-4 xl:grid-cols-3"><Skeleton className="h-64" /><Skeleton className="h-64" /><Skeleton className="h-64" /></div>
-      : !data.total ? <EmptyState icon={scope === "private" ? <Plus size={18} /> : undefined}
+      : !data.total ? <EmptyState icon={scope === "private" ? <MaterialAtlasMark className="h-5 w-5" /> : undefined}
           title={scope === "private" ? text("还没有素材", "No materials yet") : text("还没有公有素材", "No public materials yet")}
-          action={scope === "private" ? <Button variant="outline" size="sm" icon={<Plus size={14} />} onClick={() => setEditor("new")}>{text("创建第一个素材", "Create the first material")}</Button> : undefined} />
+          action={scope === "private" ? <Button variant="outline" size="sm" icon={<MaterialAtlasMark className="h-4 w-4" />} onClick={() => setEditor("new")}>{text("创建第一个素材", "Create the first material")}</Button> : undefined} />
       : <div className="grid grid-cols-2 gap-4 xl:grid-cols-3">
         {data.items.map(material => <button key={material.id} className="overflow-hidden rounded-xl border border-border bg-surface text-left hover:border-accent" onClick={() => setEditor(material)} data-testid="custom-material">
           <div className="h-44 bg-white"><Art image={material.illustration} /></div>
@@ -82,7 +84,7 @@ const ATTRIBUTES: Record<string, string[]> = {
   rect: ["x", "y", "width", "height", "rx"], circle: ["cx", "cy", "r"], ellipse: ["cx", "cy", "rx", "ry"],
   line: ["x1", "y1", "x2", "y2"], text: ["x", "y", "font-size"], path: ["d"], polygon: ["points"], polyline: ["points"],
 };
-function MaterialEditor({ material, scope: initialScope, admin, onClose, onSaved }: {
+export function MaterialEditor({ material, scope: initialScope, admin, onClose, onSaved }: {
   material: DiagramMaterial | null; scope: MaterialScope; admin: boolean; onClose: () => void; onSaved: () => void;
 }) {
   const en = useUIStore(s => s.lang) === "en";
@@ -187,7 +189,7 @@ function MaterialEditor({ material, scope: initialScope, admin, onClose, onSaved
     : error === "admin_required" ? text("只有管理员可以修改公有素材。", "Only administrators can edit public materials.")
     : error === "material_svg_file_invalid" ? text("请选择不超过 128 KiB 的 SVG 文件。", "Choose an SVG file up to 128 KiB.")
     : error ? text("操作未完成，请检查 SVG、坐标及输入后重试。", "Could not complete the operation. Check the SVG, coordinates and inputs, then retry.") : "";
-  return <Modal open onClose={onClose} width={1180} title={<div className="flex justify-between items-center"><span>{material ? canEdit ? text("编辑素材", "Edit material") : text("查看素材", "View material") : text("新增素材", "New material")}</span><Button variant="ghost" aria-label={text("关闭", "Close")} icon={<X size={16} />} onClick={onClose} /></div>}
+  return <Modal open onClose={onClose} width={1180} title={<div className="flex justify-between items-center"><span>{material ? canEdit ? text("编辑素材", "Edit material") : text("查看素材", "View material") : text("新增素材", "New material")}</span><Button variant="ghost" aria-label={text("关闭", "Close")} icon={<CloseMark className="h-4 w-4" />} onClick={onClose} /></div>}
     footer={<><span role="status" className="mr-auto text-xs text-muted">{busy ? text("处理中…", "Working…") : svg !== validated || parameterJson !== validatedParameters || JSON.stringify(previewParams) !== validatedPreviewParams ? text("修改后尚未预览", "Changes need a preview") : text("预览已更新", "Preview updated")}</span>
       <Button variant="outline" disabled={!!busy} onClick={() => void run("preview", async () => { const result = await previewMaterial(svg, controller.current?.signal, parameterization(), previewParams); if (!controller.current?.signal.aborted) accept(result, previewParams); })}>{text("检查并预览", "Check and preview")}</Button>
       {canEdit && <Button demoWrite disabled={!!busy || !title.trim() || conflict} onClick={() => void run("save", async () => {
@@ -210,11 +212,11 @@ function MaterialEditor({ material, scope: initialScope, admin, onClose, onSaved
         <div className="flex flex-wrap items-center gap-2"><select aria-label={text("设计模板", "Design template")} className={`${FIELD_CLS} max-w-64`} value="" onChange={e => {
           const template = templates.find(v => v.id === e.target.value); if (template) { setSvg(template.svg); setParameterJson(JSON.stringify(template.parameterization, null, 2)); setPreviewParams({}); setSubject(template.subject); setSource("manual"); setSelected(0); }
         }}><option value="">{text("选择设计模板和样例", "Choose a template or example")}</option>{templates.map(v => <option key={v.id} value={v.id}>{v.title}</option>)}</select>
-          <Button variant="outline" icon={<Upload size={14} />} onClick={() => fileInput.current?.click()}>{text("上传 SVG", "Upload SVG")}</Button>
+          <Button variant="outline" icon={<MaterialAtlasMark className="h-4 w-4" />} onClick={() => fileInput.current?.click()}>{text("上传 SVG", "Upload SVG")}</Button>
           <input ref={fileInput} type="file" accept=".svg,image/svg+xml" className="hidden" aria-label={text("SVG 文件", "SVG file")} onChange={e => { void upload(e.target.files?.[0]); e.target.value = ""; }} />
         </div>
         <div className="flex items-start gap-3"><Textarea aria-label={text("AI 设计要求", "AI design request")} rows={2} maxLength={2400} value={requirement} onChange={e => setRequirement(e.target.value)} placeholder={text("描述对象、位置、文字和科学关系，例如：两步流程，左边光照，右边光合作用…", "Describe objects, positions, labels and relations…")} className="flex-1" />
-          <Button demoWrite disabled={requirement.trim().length < 3} icon={<Sparkles size={15} />} onClick={() => void run("generate", async () => {
+          <Button demoWrite disabled={requirement.trim().length < 3} icon={<ComposeMark className="h-4 w-4" />} onClick={() => void run("generate", async () => {
             // Current edits must pass the same sanitizer before model input.
             const result = await generateMaterial(requirement, svg, controller.current?.signal, parameterization());
             if (!controller.current?.signal.aborted) { accept(result); setSource("llm"); }

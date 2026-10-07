@@ -46,7 +46,7 @@
 `(workspace)` 路由组内（经 `AppShell`）：`/chat/[[...sessionId]]`（catch-all 唯一事实源）、`/course`（课堂 Hub，受 `CLASSROOM_ENABLED` 隐藏）、`/notes/[[...noteId]]`、`/dashboard`、`/knowledge`、`/orchestration`、`/assessment`、`/memory`、`/resources/files` 与 `/resources/textbooks`（`/resources` 在 `next.config.ts` 307 落到 files，兼容 `?tab=textbooks` 旧深链）、`/diagram-library`、`/archive`、`/insights`、`/plan`、`/profile`、`/account`、`/settings`（`?section=` 分类深链）、`/admin`（仅 admin）、`/docs`（匿名可读的使用文档）、`/workspaces/[workspaceId]/classroom`（`/[lessonId]`、`/learn/[runId]`）。组外：`/` 落地页、`/login`、`/register`。
 
 - 对话深链契约：`/chat?q=<问题>` 预填不发送；追加 `&send=1` 在裸 `/chat` 自动发送后 `history.replaceState` 清参（StrictMode 安全）。
-- 工具助手：`/tools` 工具目录与 `/tools/illustration?session=<id>` 情景配图工作台均为静态路由；需要登录，会话在服务端恢复。产品合同见 [tool-assistant.md](./tool-assistant.md)。
+- 工具助手：`/tools` 工具目录、`/tools/illustration?session=<id>` 情景配图和 `/tools/worksheet` 组卷编译器均为工作区路由；V4 通过 `/tools/illustration?mode=v4` 进入，旧 `/tools/image` 深链兼容重定向；需要登录。V4 与组卷产品合同见 [tool-assistant.md](./tool-assistant.md)。
 - 概念/任务/复盘等跨模块跳转（图谱双 CTA、编排行动按钮、周复盘）均经此契约，消息携带概念上下文；助手 `NavigationTarget` 深链走 `lib/assistant/routes.ts` 白名单。
 
 ### API 消费面
@@ -99,7 +99,7 @@ chat 页右上角电话按钮为唯一入口（`GET /voice/status` 决定显隐�
 
 ### 工具助手与情景配图
 
-一级导航「工具助手」与测评、资料并列。情景配图工作台包含会话列表、聊天轮次和成果预览；V1/V2/V3 每轮选择，V2/V3 可打开素材 Modal 搜索、筛选及多选。未选时由模型提出需求、服务端检索。会话和素材列表使用共享 Pager，任务通过 `apiFetch` 观察，切会话/换账户防止迟到响应覆盖；成功图沿用规范化 SVG 展示，支持历史版本作为修改基础和下载 SVG。演示模式只显示只读入口，不生成图片。服务端合同由 [tool-assistant.md](./tool-assistant.md) 拥有。
+一级导航「工具助手」与测评、资料并列，教学素材库保持独立一级入口。工具助手首页提供情景配图和组卷编译器两个等权入口；情景配图工作台包含会话列表、聊天轮次和成果预览；V1/V2/V3/V4 每轮选择，V2/V3/V4 可打开素材 Modal 搜索、筛选及多选，内置素材与公有自建素材在同一公有目录中展示。V4 成果以 raster artifact 展示，并可从题目编辑器生成配图后保存到组卷。未选时由模型提出需求、服务端检索。会话和素材列表使用共享 Pager，任务通过共享客户端观察，切会话/换账户防止迟到响应覆盖；成功图沿用规范化 SVG 或 owner-scoped raster 展示，支持历史版本作为修改基础和下载。演示模式只显示只读入口，不生成图片。组卷编译器 `/tools/worksheet` 使用服务端草稿和 ETag，设置阶段强制选择学习区，并提供知识图谱点、教材检索开关和出卷目标。工作台按「题目导航—出题对话与编辑—单题预览」三栏组织，单题追加是默认动作，批量生成和整卷预览通过按钮打开；预览、打印和 HTML 导出均保留 KaTeX 公式。服务端合同由 [tool-assistant.md](./tool-assistant.md) 拥有。
 
 ### i18n 与主题
 

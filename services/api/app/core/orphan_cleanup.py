@@ -30,7 +30,7 @@ _PROTECTED_STUDENT_FILES = frozenset({"prompt_memory_policy.json"})
 
 CATEGORIES = ("students", "sessions", "transcripts", "traces", "uploads",
               "workspaces", "library", "trash", "notes", "knowledge",
-              "classroom", "assistant", "avatars", "illustrations", "diagram_assets")
+              "classroom", "assistant", "avatars", "illustrations", "diagram_assets", "worksheets")
 
 _SAMPLE_LIMIT = 6
 
@@ -78,6 +78,11 @@ def _collect_orphans(protected_ids) -> dict[str, list[Path]]:
         for d in sorted(illustration_store._ILLUSTRATIONS_DIR.iterdir()):
             if d.is_dir() and not d.name.startswith(".") and d.name not in protected:
                 out["illustrations"].append(d)
+    worksheets_dir = runtime_paths().worksheets
+    if worksheets_dir.is_dir():
+        for d in sorted(worksheets_dir.iterdir()):
+            if d.is_dir() and not d.name.startswith(".") and d.name not in protected:
+                out["worksheets"].append(d)
 
     # --- students/<owner>.*：owner = 首个 "." 前的前缀 ---
     if sm_store._STUDENTS_DIR.is_dir():

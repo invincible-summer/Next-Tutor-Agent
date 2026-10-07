@@ -13,8 +13,14 @@ import type { QuestionIllustrationData } from "@/lib/types";
 import { getFrozenIllustration, illustrationFailure, illustrationStage, type IllustrationJob, type VisualRole } from "@/lib/api-illustrations";
 import { DEMO_MODE } from "@/lib/demo";
 import { useAuthStore } from "@/lib/auth-store";
+import { apiAssetUrl } from "@/lib/api";
 
 function supported(value: QuestionIllustrationData): boolean {
+  if (value.kind === "raster") {
+    return ((typeof value.data_url === "string" && value.data_url.startsWith("data:image/")) ||
+      (typeof value.asset_url === "string" && value.asset_url.startsWith("/"))) &&
+      typeof value.alt === "string" && value.alt.trim().length > 0;
+  }
   const sanitizerVersion = Number(value.sanitizer_version);
   const components = (value.schema_version === 2 || value.schema_version === 3) && sanitizerVersion === 3;
   return value.kind === "svg" && (components || (value.schema_version === 1
@@ -38,7 +44,29 @@ export function QuestionIllustration({ illustration, questionId, revision = 1, v
   const owner = useAuthStore(store => store.user?.id ?? "local");
   if (!illustration) return questionId && !DEMO_MODE
     ? <FrozenDiagram key={`${owner}:${questionId}:${revision}`} questionId={questionId} revision={revision} visualRole={visualRole} /> : null;
-  return <Diagram key={`${illustration.content_hash}:${illustration.svg}`} value={illustration} />;
+  return illustration.kind === "raster"
+    ? <RasterDiagram key={`${illustration.asset_url}:${illustration.alt}`} value={illustration} />
+    : <Diagram key={`${illustration.content_hash}:${illustration.svg}`} value={illustration} />;
+}
+
+function RasterDiagram({ value }: { value: QuestionIllustrationData }) {
+  const lang = useUIStore((store) => store.lang);
+  const tr = useMemo(() => makePageT(lang, STRINGS), [lang]);
+  const [open, setOpen] = useState(false);
+  const src = value.data_url?.startsWith("data:image/") ? value.data_url : apiAssetUrl(value.asset_url ?? "");
+  const picture = (expanded: boolean) => (
+    <div className="mx-auto w-full" style={{ maxWidth: expanded ? 960 : 640 }}>
+      <Image src={src} alt={value.alt} width={960} height={540} unoptimized className="block h-auto w-full bg-white object-contain" />
+    </div>
+  );
+  return <figure data-testid="question-illustration" className="my-3 min-w-0 overflow-hidden rounded-lg border border-border-light bg-surface">
+    <div className="bg-white p-2">{picture(false)}</div>
+    <figcaption className="flex items-start justify-between gap-2 border-t border-border-light px-3 py-2">
+      <p className="min-w-0 flex-1 text-xs leading-5 text-fg-secondary">{value.caption || tr("illustration.title")}</p>
+      <Button type="button" size="sm" variant="outline" className="shrink-0" onClick={() => setOpen(true)}>{tr("illustration.expand")}</Button>
+    </figcaption>
+    {open && <DiagramDialog title={tr("illustration.title")} closeText={tr("illustration.close")} onClose={() => setOpen(false)}>{picture(true)}</DiagramDialog>}
+  </figure>;
 }
 
 function FrozenDiagram({ questionId, revision, visualRole }: { questionId: string; revision: number; visualRole: VisualRole }) {

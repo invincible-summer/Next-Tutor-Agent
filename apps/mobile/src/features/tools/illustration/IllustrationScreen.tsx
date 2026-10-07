@@ -1,6 +1,6 @@
 import { randomUUID } from "expo-crypto";
 import React, { useEffect, useRef, useState } from "react";
-import { ScrollView, View } from "react-native";
+import { Image, ScrollView, View } from "react-native";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/providers/AuthProvider";
 import { useAdaptive } from "@/shell/adaptive/window-class";
@@ -75,6 +75,11 @@ export function IllustrationScreen() {
       apiClient().tools.illustration.getJob(session.data!.active_job_id!, s),
     { enabled: !!session.data?.active_job_id, poll: 1500 },
   );
+  const imageCapability = useServerQuery(
+    ["image-capability"],
+    (s) => apiClient().tools.image.capability(s),
+    { enabled: mode === "v4" },
+  );
   const seen = useRef<string | null>(null);
   useEffect(() => {
     if (
@@ -137,7 +142,7 @@ export function IllustrationScreen() {
           sessionId: current.session_id,
           payload: {
             message: message.trim(),
-            mode: mode as "v1" | "v2" | "v3",
+            mode: mode as "v1" | "v2" | "v3" | "v4",
             selected_materials:
               mode === "v1"
                 ? []
@@ -177,11 +182,8 @@ export function IllustrationScreen() {
       setError(errorMessage(e, c));
       if (e instanceof ApiError && e.status === 409) {
         retry.current = null;
-        if (retry.current) await session.refetch();
-        else
-          void cache.invalidateQueries({
-            queryKey: [owner, "illustration-session"],
-          });
+        await session.refetch();
+        void cache.invalidateQueries({ queryKey: [owner, "illustration-session"] });
         setError(
           c(
             "会话状态已变化。已重新载入，请确认后再次发送。",
@@ -219,7 +221,16 @@ export function IllustrationScreen() {
   const canvas = (
     <Body>
       <Section title={c("当前图示", "Your illustration")}>
-        {image?.illustration?.svg ? (
+        {image?.illustration?.kind === "raster" && image.illustration.data_url ? (
+          <>
+            <Image source={{ uri: image.illustration.data_url }} accessibilityLabel={image.illustration.alt} style={{ width: "100%", height: 360, resizeMode: "contain", backgroundColor: "#fff" }} />
+            <Hint>{image.mode.toUpperCase()} · V{image.revision}</Hint>
+            <View style={{ flexDirection: "row", gap: 8, flexWrap: "wrap" }}>
+              <Button title={c("以此版本继续修改", "Continue from this version")} variant="outline" disabled={active || busy} onPress={() => setSource(image.revision)} />
+              <Button title={c("导出图片", "Export image")} variant="ghost" loading={action.pending} onPress={() => void action.run(() => shareBytes(image.illustration!.data_url!, `illustration-v${image.revision}.png`, image.illustration!.mime_type || "image/png"))} />
+            </View>
+          </>
+        ) : image?.illustration?.svg ? (
           <>
             <SvgCanvas
               svg={image.illustration.svg}
@@ -243,7 +254,7 @@ export function IllustrationScreen() {
                 onPress={() =>
                   void action.run(() =>
                     shareBytes(
-                      image.illustration!.svg,
+                      image.illustration!.svg!,
                       `illustration-v${image.revision}.svg`,
                       "image/svg+xml",
                     ),
@@ -304,7 +315,7 @@ export function IllustrationScreen() {
           <ScrollView keyboardShouldPersistTaps="handled">
             <Body>
               <SegmentedControl
-                items={["v1", "v2", "v3"].map((key) => ({
+                items={["v1", "v2", "v3", "v4"].map((key) => ({
                   key,
                   label: key.toUpperCase(),
                 }))}
@@ -313,6 +324,16 @@ export function IllustrationScreen() {
                   if (!busy && !active && !retry.current) setMode(value);
                 }}
               />
+              {mode === "v4" ? (
+                <Hint>
+                  {imageCapability.data?.configured
+                    ? `${c("服务端生图", "Server image")} · ${imageCapability.data.provider} · ${imageCapability.data.model}`
+                    : c("V4 尚未配置，请联系部署方设置 IMAGE_API_*。", "V4 is not configured. Ask the deployment owner to set IMAGE_API_*.")}
+                </Hint>
+              ) : null}
+              {mode === "v4" && imageCapability.data?.configured && !imageCapability.data.supports_reference ? (
+                <Hint>{c("当前服务只支持直接生成，参考素材已关闭。", "This server only supports direct generation; references are disabled.")}</Hint>
+              ) : null}
               {adaptive.maxPanes < 3 ? canvas : null}
               {active ? (
                 <Card style={{ gap: 8 }}>
@@ -403,7 +424,7 @@ export function IllustrationScreen() {
                   <Button
                     title={c("选择素材", "Choose materials")}
                     variant="outline"
-                    disabled={active || busy}
+                    disabled={active || busy || (mode === "v4" && imageCapability.data?.supports_reference === false)}
                     onPress={() => setPicker(true)}
                   />
                 </Section>
@@ -428,7 +449,7 @@ export function IllustrationScreen() {
                     ? c("恢复 / 重试发送", "Recover / Retry sending")
                     : c("生成图示", "Create illustration")
                 }
-                disabled={active || (!message.trim() && !retry.current)}
+                disabled={active || (!message.trim() && !retry.current) || (mode === "v4" && imageCapability.data !== undefined && (!imageCapability.data.configured || (materials.length > 0 && !imageCapability.data.supports_reference)))}
                 loading={busy}
                 onPress={() => void send()}
               />

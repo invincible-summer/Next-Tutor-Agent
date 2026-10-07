@@ -93,7 +93,7 @@ def _public_result(question_id: str, question_revision: int,
     }
 
 
-@router.post("/questions/{question_id}/illustration", response_model=QuizIllustrationJob | QuizIllustrationStatus)
+@router.post("/questions/{question_id}/illustration", response_model=QuizIllustrationJob | QuizIllustrationStatus, response_model_exclude_unset=True)
 async def enrich_question_illustration(
     question_id: str,
     req: IllustrationRequest,

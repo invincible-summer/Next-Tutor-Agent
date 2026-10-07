@@ -28,13 +28,15 @@ Beyond answering questions, it considers **what supports the answer, what your w
 | **Courses** | Generate slides and scripts from chapters or topics, preview and edit lessons, start AI teaching, resume unfinished lessons, and export slides and scripts. |
 | **Resources** | Use public textbooks, upload personal materials, and associate them with workspaces. Search becomes available after indexing while the knowledge graph continues building. |
 | **Practice & assessment** | Generate questions in chat, create variations of a reference problem, or start an assessment that adjusts difficulty to your answers. Review explanations, recent questions, mistakes, and optional diagrams. |
-| **Tool Assistant · Scenario Illustration** | Describe and refine images through chat with V1/V2/V3. Search, filter and select references in V2/V3 or retrieve them automatically; keep sessions and image revisions and download SVG. |
+| **Tool Assistant · Scenario Illustration** | Describe and refine images through chat with V1/V2/V3/V4. Search, filter and select built-in or approved public references in one shared catalogue, use personal materials when needed, and keep sessions and image revisions. |
+| **Tool Assistant · Worksheet Compiler** | Bind every paper to a workspace, search optional knowledge-graph points, and ground generation in that workspace's textbooks only when requested. Set goals and authoring guidance, add questions one by one or in batches, preview the active question, open a full-paper preview on demand, and print KaTeX formulas in student or teacher versions. |
+| **Teaching material library** | Browse public and personal SVG materials with search, zoom, parameter controls, and monochrome preview. Built-in and approved public materials share one searchable catalogue; templates, AI drafts, manual editing, version history, and admin publication are supported. |
 | **Knowledge map & dashboard** | Explore concepts and their connections, review learning records and current evaluations, and identify areas to revisit. |
 | **Notes & review** | Organize Markdown notes with backlinks, tags, and folders. Create notes from conversations, textbooks, or mistakes, and schedule reviews. |
 | **Learning orchestration** | Break long-term goals into weekly plans and daily tasks, with study and review in one routine. |
 | **Site assistant** | When enabled, discover features, check recent learning activity, and confirm actions to navigate or resume lessons. |
 
-The interface supports Chinese and English, with light and dark themes. Version 3.0.0 adds an Expo native mobile client with one source tree for phones and tablets. See [mobile development](../development/mobile-dev.md) and the [current device validation scope](../validation/mobile-validation.md). Classroom, voice, and assistant availability depends on the instance configuration.
+The interface supports Chinese and English, with light and dark themes. Tool Assistant uses original geometric SVG marks and a responsive desktop layout of question navigation, authoring conversation, and single-question preview; full-paper preview and printing open on demand. Version 3.0.0 adds an Expo native mobile client with one source tree for phones and tablets. See [mobile development](../development/mobile-dev.md) and the [current device validation scope](../validation/mobile-validation.md). Classroom, voice, and assistant availability depends on the instance configuration.
 
 ## A typical learning session
 

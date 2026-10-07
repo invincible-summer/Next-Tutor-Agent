@@ -35,6 +35,8 @@ from app.api.v1 import speech
 from app.api.v1 import capabilities
 from app.api.v1 import classroom
 from app.api.v1 import assistant
+from app.api.v1 import tool_image
+from app.api.v1 import worksheet
 
 api_router = APIRouter(prefix="/api/v1", dependencies=[Depends(require_api_access)])
 api_router.include_router(guest.router)
@@ -71,3 +73,5 @@ api_router.include_router(speech.router)
 api_router.include_router(capabilities.router)
 api_router.include_router(classroom.router)
 api_router.include_router(assistant.router)
+api_router.include_router(tool_image.router)
+api_router.include_router(worksheet.router)

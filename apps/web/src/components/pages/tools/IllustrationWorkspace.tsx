@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ArrowLeft, Download, ImagePlus, LoaderCircle, Plus, Send, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Field, FIELD_CLS, Textarea } from "@/components/ui/Input";
@@ -14,17 +13,22 @@ import { useUIStore } from "@/lib/store";
 import { useAuthStore } from "@/lib/auth-store";
 import { makePageT } from "@/lib/i18n-page";
 import { DEMO_MODE, demoReadOnly } from "@/lib/demo";
-import { illustrationFailure, illustrationMode, type IllustrationMode } from "@/lib/api-illustrations";
+import { illustrationFailure } from "@/lib/api-illustrations";
 import {
   createIllustrationSession, deleteIllustrationSession, getIllustrationSession, getToolIllustrationJob,
   listIllustrationSessions, retryToolIllustrationJob, startIllustrationTurn, IllustrationToolError,
-  type IllustrationSession, type IllustrationSessionSummary, type ToolIllustrationJob,
+  type IllustrationSession, type IllustrationSessionSummary, type ToolIllustrationJob, type IllustrationMode,
 } from "@/lib/api-illustration-tools";
 import { useAssistantPage } from "@/lib/assistant/useAssistantPage";
 import { currentRouteEpoch } from "@/lib/assistant/page-context";
 import { MaterialPicker, type SelectedMaterial } from "./MaterialPicker";
-import { IdeaDiagramMark } from "./IdeaDiagramMark";
+import { ArchiveMark, BackMark, BusyMark, CloseMark, ComposeMark, ExportMark, MaterialAtlasMark, RevisionMark, SceneWeaveMark } from "./ToolMarks";
 import { STRINGS } from "@/app/(workspace)/tools/strings";
+import { apiAssetUrl } from "@/lib/api";
+
+function toolIllustrationMode(value: unknown): IllustrationMode {
+  return value === "v2" || value === "v3" || value === "v4" ? value : "v1";
+}
 
 export function IllustrationWorkspace() {
   const owner = useAuthStore(s => s.user?.id ?? "guest");
@@ -46,7 +50,7 @@ function OwnedIllustrationWorkspace() {
   const [error, setError] = useState("");
   const [refresh, setRefresh] = useState(0);
   const [draft, setDraft] = useState("");
-  const [mode, setMode] = useState<IllustrationMode>(() => illustrationMode(preferredMode));
+  const [mode, setMode] = useState<IllustrationMode>(() => toolIllustrationMode(query.get("mode") ?? preferredMode));
   const [materials, setMaterials] = useState<SelectedMaterial[]>([]);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -94,7 +98,7 @@ function OwnedIllustrationWorkspace() {
       setJob(null); setActiveJobId(""); setError(""); setSubmitting(false); setObservationStopped(null);
       if (changed) {
         setSession(null); setMaterials([]); setDraft(""); setViewRevision(0); setRevisionPage(0);
-        setSourceRevision(null); setMode(illustrationMode(preferredMode)); pendingSubmission.current = null;
+        setSourceRevision(null); setMode(toolIllustrationMode(query.get("mode") ?? preferredMode)); pendingSubmission.current = null;
       }
       if (!sessionId || DEMO_MODE) { setLoading(false); return; }
       setLoading(true);
@@ -257,20 +261,24 @@ function OwnedIllustrationWorkspace() {
   }
   function download() {
     if (!revision?.illustration) return;
-    const url = URL.createObjectURL(new Blob([revision.illustration.svg], { type: "image/svg+xml;charset=utf-8" }));
+    if (revision.illustration.kind === "raster" && (revision.illustration.data_url || revision.illustration.asset_url)) {
+      const anchor = document.createElement("a"); anchor.href = revision.illustration.data_url || apiAssetUrl(revision.illustration.asset_url || ""); anchor.download = `illustration-v${revision.revision}.png`; anchor.target = "_blank"; anchor.rel = "noreferrer"; anchor.click();
+      return;
+    }
+    const url = URL.createObjectURL(new Blob([String(revision.illustration.svg ?? "")], { type: "image/svg+xml;charset=utf-8" }));
     const anchor = document.createElement("a"); anchor.href = url; anchor.download = `illustration-v${revision.revision}.svg`;
     anchor.click(); setTimeout(() => URL.revokeObjectURL(url), 0);
   }
 
   // 一级顶栏（TopBar）已显示「工具助手 · 情景配图」，页面不再渲染二级标题；
   // 返回入口放进会话侧栏，窄屏时三栏退化为单列：对话 → 成果 → 会话。
-  return <div className="flex h-full min-w-0 flex-col overflow-y-auto lg:overflow-hidden" data-testid="illustration-workspace">
-    <div className="grid min-h-0 min-w-0 flex-1 grid-cols-1 lg:grid-cols-[212px_minmax(0,1fr)_minmax(240px,30%)]">
-      <aside className="order-3 flex min-h-0 flex-col border-t border-border-light bg-surface px-3 py-4 lg:order-1 lg:border-t-0 lg:border-r" aria-label={tr("sessions")}>
+  return <div className="flex h-full min-w-0 flex-col overflow-y-auto bg-bg lg:overflow-hidden" data-testid="illustration-workspace">
+    <div className="grid min-h-0 min-w-0 flex-1 grid-cols-1 lg:grid-cols-[236px_minmax(0,1fr)_360px]">
+      <aside className="order-3 flex min-h-0 flex-col border-t border-border-light bg-surface px-4 py-5 lg:order-1 lg:border-t-0 lg:border-r" aria-label={tr("sessions")}>
         <Link href="/tools" data-testid="back-to-tools" className="flex items-center gap-1.5 rounded-[8px] px-2 py-1.5 text-xs text-muted transition-colors hover:bg-surface-hover hover:text-fg">
-          <ArrowLeft size={13} aria-hidden="true" />{tr("backToTools")}
+          <BackMark className="h-4 w-4" />{tr("backToTools")}
         </Link>
-        <Button className="mt-3" icon={<Plus size={14} aria-hidden="true" />} disabled={submitting} onClick={() => { router.replace("/tools/illustration"); if (!sessionId) { setDraft(""); setMaterials([]); } }} data-testid="new-illustration-session">{tr("newSession")}</Button>
+        <Button className="mt-3" icon={<SceneWeaveMark className="h-4 w-4" />} disabled={submitting} onClick={() => { router.replace("/tools/illustration"); if (!sessionId) { setDraft(""); setMaterials([]); } }} data-testid="new-illustration-session">{tr("newSession")}</Button>
         <h2 className="mb-3 mt-6 text-[11px] font-medium tracking-wide text-muted">{tr("sessions")}</h2>
         <div className="min-h-0 flex-1 overflow-y-auto">
           {historyError ? <div role="alert" className="text-xs leading-5 text-muted"><p>{tr("loadFailed")}</p><Button className="mt-2" size="sm" variant="outline" onClick={() => setRefresh(v => v + 1)}>{tr("retry")}</Button></div>
@@ -278,16 +286,20 @@ function OwnedIllustrationWorkspace() {
             : paged(history, visibleHistoryPage).map(row => <div key={row.session_id} className={`mb-2 rounded-lg border ${row.session_id === sessionId ? "border-accent/30 bg-accent-soft" : "border-transparent hover:bg-surface-hover"}`}>
               <div className="flex items-start gap-1"><button type="button" disabled={submitting} onClick={() => router.replace(`/tools/illustration?session=${encodeURIComponent(row.session_id)}`)} data-testid="illustration-session" data-session-id={row.session_id} aria-current={row.session_id === sessionId ? "page" : undefined} className="min-w-0 flex-1 cursor-pointer rounded-lg px-2 py-3 text-left focus-visible:outline-2 focus-visible:outline-accent disabled:opacity-50">
                 <span className="block truncate text-xs font-medium text-fg">{row.title || tr("unnamed")}</span><span className="mt-1 block text-[10px] text-muted">{row.active_job_id ? tr("working") : tr("revision").replace("%n", String(row.revision))}</span></button>
-                <Button variant="ghost" size="sm" className="mt-2 shrink-0 px-1.5" disabled={submitting} icon={<Trash2 size={12} aria-hidden="true" />} aria-label={`${tr("delete")}：${row.title}`} onClick={() => setDeleting(row)} />
+                <Button variant="ghost" size="sm" className="mt-2 shrink-0 px-1.5" disabled={submitting} icon={<ArchiveMark className="h-3.5 w-3.5" />} aria-label={`${tr("delete")}：${row.title}`} onClick={() => setDeleting(row)} />
               </div></div>)}
         </div>
         <Pager page={visibleHistoryPage} total={history.length} onPage={setHistoryPage} />
       </aside>
-      <section className="order-1 flex min-h-[72vh] min-w-0 flex-col lg:order-2 lg:min-h-0" aria-label={tr("workspace")}>
+      <section className="order-1 flex min-h-[72vh] min-w-0 flex-col bg-bg lg:order-2 lg:min-h-0" aria-label={tr("workspace")}>
+        <div className="flex items-center justify-between gap-4 border-b border-border-light bg-surface px-5 py-3 sm:px-6">
+          <div className="flex min-w-0 items-center gap-3"><span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[9px] bg-accent-soft text-accent-strong"><SceneWeaveMark className="h-5 w-5" /></span><div className="min-w-0"><p className="truncate text-xs font-semibold text-fg">{tr("workspace")}</p><p className="truncate text-[10px] text-muted">{session?.revision ? tr("revision").replace("%n", String(session.revision)) : tr("firstVersion")}</p></div></div>
+          <span className={`shrink-0 rounded-full border px-2.5 py-1 text-[10px] ${busy ? "border-accent/30 bg-accent-soft text-accent-strong" : "border-border-light text-muted"}`}>{busy ? tr("working") : tr("ready")}</span>
+        </div>
         <div className="min-h-0 flex-1 overflow-y-auto px-5 py-6 sm:px-6" data-testid="illustration-messages" aria-live="polite">
           {loading ? <p role="status" className="py-12 text-center text-sm text-muted">{tr("loading")}</p>
             : !session?.turns.length ? <div className="mx-auto flex max-w-lg flex-col items-center py-12 text-center">
-              <IdeaDiagramMark className="mb-5 h-10 w-10 text-accent" />
+              <SceneWeaveMark className="mb-5 h-12 w-12 text-accent" />
               <h2 className="font-serif text-xl font-medium text-fg">{tr("startTitle")}</h2>
               <p className="mt-3 text-sm leading-7 text-muted">{DEMO_MODE ? tr("demo") : tr("startDesc")}</p>
               <Button variant="outline" size="sm" className="mt-6" disabled={DEMO_MODE} onClick={() => setDraft(tr("example"))}>{tr("useExample")}</Button></div>
@@ -296,9 +308,9 @@ function OwnedIllustrationWorkspace() {
               const observed = job?.job_id === turn.job_id ? job : null;
               const pending = observed ? observed.status === "queued" || observed.status === "running" : turn.status === "queued" || turn.status === "running";
               return <div key={turn.turn_id} className="mb-6 space-y-3" data-testid="illustration-turn">
-                <div className="ml-auto max-w-[88%] rounded-[12px] bg-accent-soft/60 px-4 py-3"><p className="mb-2 text-[10px] text-accent-strong">{tr("user")} · {turn.mode.toUpperCase()} · {turn.mode !== "v1" && (turn.selected_materials.length ? tr("manual") : tr("automatic"))}</p><p className="whitespace-pre-wrap break-words text-sm leading-6 text-fg">{turn.message}</p></div>
-                <div className="mr-auto max-w-[88%] rounded-[12px] border border-border-light bg-surface px-4 py-3"><p className="mb-2 text-[10px] font-medium text-accent-strong">{tr("assistant")}</p>
-                  {pending ? <div role="status" className="flex items-center gap-2 text-xs text-muted" data-testid="tool-illustration-generating"><LoaderCircle size={14} className="animate-spin" aria-hidden="true" /><span>{stageText(observed?.stage ?? "preparing")} · {observed?.progress ?? 0}%</span></div>
+                <div className="ml-auto max-w-[88%] rounded-[14px] border border-accent/20 bg-accent-soft/65 px-4 py-3 shadow-sm"><p className="mb-2 text-[10px] font-semibold tracking-wide text-accent-strong">{tr("user")} · {turn.mode.toUpperCase()} · {turn.mode !== "v1" && (turn.selected_materials.length ? tr("manual") : tr("automatic"))}</p><p className="whitespace-pre-wrap break-words text-sm leading-6 text-fg">{turn.message}</p></div>
+                <div className="mr-auto max-w-[88%] rounded-[14px] border border-border bg-surface px-4 py-3 shadow-sm"><p className="mb-2 text-[10px] font-semibold tracking-wide text-accent-strong">{tr("assistant")}</p>
+                  {pending ? <div role="status" className="flex items-center gap-2 text-xs text-muted" data-testid="tool-illustration-generating"><BusyMark className="h-4 w-4 animate-spin" /><span>{stageText(observed?.stage ?? "preparing")} · {observed?.progress ?? 0}%</span></div>
                     : result ? <><p className="text-xs leading-5 text-fg-secondary">{tr("finished").replace("%n", String(result.revision))}</p><Button className="mt-2" variant="outline" size="sm" onClick={() => setViewRevision(result.revision)}>{tr("viewRevision")} {result.revision}</Button></>
                     : <div role="status" data-testid="tool-illustration-failed"><p className="text-xs leading-6 text-muted">{observed?.failure ? illustrationFailure(observed.failure.code, lang === "en") : tr("failed")}</p>{observed?.failure?.retryable && <Button className="mt-2" demoWrite size="sm" variant="outline" disabled={busy} onClick={() => void retry(turn.job_id)}>{tr("retry")}</Button>}</div>}
                 </div>
@@ -306,29 +318,29 @@ function OwnedIllustrationWorkspace() {
             })}
           <div ref={messagesEnd} />
         </div>
-        <form className="shrink-0 space-y-3 border-t border-border-light bg-surface px-5 py-4" onSubmit={event => { if (DEMO_MODE) { event.preventDefault(); demoReadOnly(); } else void send(event); }}>
-          <div className="flex items-end gap-3"><Field className="min-w-0 flex-1" label={tr("mode")}><select className={FIELD_CLS} aria-label={tr("mode")} value={mode} disabled={busy} onChange={e => setMode(illustrationMode(e.target.value))} data-testid="illustration-tool-mode">
-            {(["v1", "v2", "v3"] as const).map(value => <option key={value} value={value}>{value.toUpperCase()} · {tr(value)}</option>)}</select></Field>
-            {mode !== "v1" && <Button variant="outline" size="sm" disabled={busy || DEMO_MODE} icon={<ImagePlus size={14} aria-hidden="true" />} onClick={() => setPickerOpen(true)} type="button" data-testid="choose-illustration-materials">{tr("materials")}</Button>}
+        <form className="shrink-0 space-y-3 border-t border-border bg-surface px-5 py-4 shadow-[0_-8px_24px_rgba(30,30,36,0.04)]" onSubmit={event => { if (DEMO_MODE) { event.preventDefault(); demoReadOnly(); } else void send(event); }}>
+          <div className="flex items-end gap-3"><Field className="min-w-0 flex-1" label={tr("mode")}><select className={`${FIELD_CLS} bg-bg`} aria-label={tr("mode")} value={mode} disabled={busy} onChange={e => setMode(toolIllustrationMode(e.target.value))} data-testid="illustration-tool-mode">
+            {(["v1", "v2", "v3", "v4"] as const).map(value => <option key={value} value={value}>{value.toUpperCase()} · {tr(value)}</option>)}</select></Field>
+            {mode !== "v1" && <Button variant="outline" size="sm" disabled={busy || DEMO_MODE} icon={<MaterialAtlasMark className="h-4 w-4" />} onClick={() => setPickerOpen(true)} type="button" data-testid="choose-illustration-materials">{tr("materials")}</Button>}
           </div>
           <p className="text-[11px] leading-5 text-muted">{tr(`${mode}Desc`)}</p>
-          {mode !== "v1" && (materials.length ? <div className="flex flex-wrap gap-1.5" aria-label={tr("selectedMaterials")}>{materials.map(row => <span key={row.asset_id} className="inline-flex max-w-full items-center gap-1 rounded-full bg-accent-soft px-2 py-1 text-[10px] text-accent-strong"><span className="truncate">{row.title}</span><button type="button" disabled={busy} onClick={() => setMaterials(items => items.filter(item => item.asset_id !== row.asset_id))} aria-label={`${tr("removeMaterial")}：${row.title}`} className="rounded p-0.5 hover:bg-surface"><X size={11} aria-hidden="true" /></button></span>)}<Button size="sm" variant="ghost" type="button" disabled={busy} onClick={() => setMaterials([])}>{tr("clearMaterials")}</Button></div>
+          {mode !== "v1" && (materials.length ? <div className="flex flex-wrap gap-1.5" aria-label={tr("selectedMaterials")}>{materials.map(row => <span key={row.asset_id} className="inline-flex max-w-full items-center gap-1 rounded-full bg-accent-soft px-2 py-1 text-[10px] text-accent-strong"><span className="truncate">{row.title}</span><button type="button" disabled={busy} onClick={() => setMaterials(items => items.filter(item => item.asset_id !== row.asset_id))} aria-label={`${tr("removeMaterial")}：${row.title}`} className="rounded p-0.5 hover:bg-surface"><CloseMark className="h-3 w-3" /></button></span>)}<Button size="sm" variant="ghost" type="button" disabled={busy} onClick={() => setMaterials([])}>{tr("clearMaterials")}</Button></div>
             : <p className="text-[11px] leading-5 text-muted" data-testid="automatic-material-search">{tr("autoMaterials")}</p>)}
           <Textarea rows={3} maxLength={2400} aria-label={tr("message")} placeholder={tr("placeholder")} value={draft} disabled={busy || loading} onChange={e => setDraft(e.target.value)} data-testid="illustration-composer"
             onKeyDown={e => { if (e.key === "Enter" && (e.ctrlKey || e.metaKey) && !e.nativeEvent.isComposing) { e.preventDefault(); e.currentTarget.form?.requestSubmit(); } }} />
           {error && <p role="alert" className="text-xs leading-5 text-danger">{error}{!busy && !draft && <Button className="ml-2" type="button" size="sm" variant="ghost" onClick={() => setRefresh(v => v + 1)}>{tr("retry")}</Button>}</p>}
           {observationStopped && <div role="status" className="text-xs leading-5 text-muted"><p>{tr("observeStopped")}</p><Button className="mt-2" type="button" variant="outline" size="sm" onClick={() => { if (observationStopped.retryable) { setActiveJobId(observationStopped.jobId); setObservationStopped(null); } else setRefresh(v => v + 1); }}>{observationStopped.retryable ? tr("resume") : tr("retry")}</Button></div>}
           <div className="flex items-center justify-between gap-3"><span className="text-[10px] text-muted">{(sourceRevision ?? session?.revision ?? 0) ? tr("basedOn").replace("%n", String(sourceRevision ?? session?.revision)) : tr("firstVersion")}</span>
-            <Button type="submit" demoWrite disabled={!draft.trim() || busy || loading} icon={busy ? <LoaderCircle size={14} className="animate-spin" aria-hidden="true" /> : <Send size={14} aria-hidden="true" />} data-testid="send-illustration-request">{submitting ? tr("sending") : activeJobId ? tr("working") : session?.revision ? tr("improve") : tr("send")}</Button></div>
+            <Button type="submit" demoWrite disabled={!draft.trim() || busy || loading} icon={busy ? <BusyMark className="h-4 w-4 animate-spin" /> : <ComposeMark className="h-4 w-4" />} data-testid="send-illustration-request">{submitting ? tr("sending") : activeJobId ? tr("working") : session?.revision ? tr("improve") : tr("send")}</Button></div>
         </form>
       </section>
       <aside className="order-2 min-h-0 min-w-0 overflow-y-auto border-t border-border-light bg-surface px-4 py-5 lg:order-3 lg:border-t-0 lg:border-l" aria-label={tr("preview")} data-testid="illustration-result">
-        <h2 className="mb-4 text-sm font-medium text-fg">{tr("preview")}</h2>
-        {revision ? <><div className="mb-2 flex items-center justify-between gap-2"><span className="text-xs text-muted">{tr("revision").replace("%n", String(revision.revision))} · {revision.mode.toUpperCase()}</span>{revision.revision === session?.revision && <span className="text-[10px] text-accent-strong">{tr("latest")}</span>}</div>{revision.illustration ? <QuestionIllustration illustration={revision.illustration as import("@/lib/types").QuestionIllustrationData} /> : null}
-          <Button variant="outline" size="sm" icon={<Download size={13} aria-hidden="true" />} onClick={download}>{tr("download")}</Button>
+        <div className="mb-4 flex items-start justify-between gap-3"><div><p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted">{tr("preview")}</p><h2 className="mt-1 text-sm font-semibold text-fg">{revision ? tr("revision").replace("%n", String(revision.revision)) : tr("noPreview")}</h2></div><RevisionMark className="h-7 w-7 text-accent" /></div>
+        {revision ? <><div className="mb-2 flex items-center justify-between gap-2"><span className="text-xs text-muted">{tr("revision").replace("%n", String(revision.revision))} · {revision.mode.toUpperCase()}</span>{revision.revision === session?.revision && <span className="rounded-full bg-accent-soft px-2 py-1 text-[10px] text-accent-strong">{tr("latest")}</span>}</div>{revision.illustration ? <QuestionIllustration illustration={revision.illustration as import("@/lib/types").QuestionIllustrationData} /> : null}
+          <Button variant="outline" size="sm" icon={<ExportMark className="h-4 w-4" />} onClick={download}>{tr("download")}</Button>
           <Button variant="outline" size="sm" className="mt-2" disabled={busy} onClick={() => setSourceRevision(revision.revision)} data-testid="use-illustration-revision">{revision.revision === (sourceRevision ?? session?.revision) ? tr("usingAsBase") : tr("useAsBase")}</Button>
           <div className="mt-6 border-t border-border-light pt-4"><h3 className="mb-2 text-xs font-medium text-fg">{tr("revisions")}</h3><p className="mb-3 text-[10px] leading-5 text-muted">{tr("chooseBase")}</p><div className="space-y-1">{paged(revisions, visibleRevisionPage).map(row => <button key={row.revision} type="button" className={`flex w-full cursor-pointer items-center justify-between gap-2 rounded-lg px-3 py-2 text-xs ${row.revision === revision.revision ? "bg-accent-soft text-accent-strong" : "text-muted hover:bg-surface-hover"}`} onClick={() => setViewRevision(row.revision)} data-testid="illustration-revision" data-revision={row.revision} aria-pressed={row.revision === revision.revision}><span>{tr("revision").replace("%n", String(row.revision))}</span><span>{row.mode.toUpperCase()}</span></button>)}</div><Pager page={visibleRevisionPage} total={revisions.length} onPage={setRevisionPage} /></div></>
-          : <EmptyState icon={<ImagePlus size={18} aria-hidden="true" />} title={tr("noPreview")} />}
+          : <EmptyState icon={<MaterialAtlasMark className="h-5 w-5" />} title={tr("noPreview")} />}
       </aside>
     </div>
     {pickerOpen && <MaterialPicker selected={materials} onClose={() => setPickerOpen(false)} onApply={items => { setMaterials(items); setPickerOpen(false); }} />}

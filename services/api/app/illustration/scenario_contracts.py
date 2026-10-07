@@ -23,7 +23,7 @@ class CreateSession(StrictModel):
 
 class SceneTurn(StrictModel):
     message: str = Field(min_length=1, max_length=2400)
-    mode: Literal["v1", "v2", "v3"] = "v1"
+    mode: Literal["v1", "v2", "v3", "v4"] = "v1"
     selected_materials: list[MaterialSelection] = Field(default_factory=list, max_length=12)
     base_revision: int = Field(default=0, ge=0, le=1_000_000)
     source_revision: int | None = Field(default=None, ge=0, le=1_000_000)

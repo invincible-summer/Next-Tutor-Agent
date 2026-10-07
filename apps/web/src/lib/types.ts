@@ -181,11 +181,15 @@ export interface QuizSourceRef {
 }
 
 export interface QuestionIllustrationData {
-  kind: "svg";
-  schema_version: 1 | 2 | 3;
+  kind: "svg" | "raster";
+  /** Raster V4 uses the same public envelope; SVG versions remain 1/2/3. */
+  schema_version: number;
   /** v1 = original closed grammar; v2 = safe defs/marker + normalized inline presentation style. */
-  sanitizer_version: 1 | 2 | 3;
+  sanitizer_version: number;
   svg: string;
+  asset_url?: string;
+  data_url?: string;
+  mime_type?: string;
   alt: string;
   caption: string;
   width: number;

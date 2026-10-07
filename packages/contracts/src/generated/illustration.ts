@@ -4,10 +4,13 @@
 
 
 export interface QuestionIllustration {
-  kind: "svg";
+  kind: "svg" | "raster";
   schema_version: number;
   sanitizer_version: number;
-  svg: string;
+  svg?: string;
+  asset_url?: string;
+  data_url?: string;
+  mime_type?: string;
   alt?: string;
   caption?: string;
   width?: number;
@@ -42,7 +45,7 @@ export interface IllustrationSessionList {
 export interface ScenarioTurn {
   turn_id: string;
   message: string;
-  mode: "v1" | "v2" | "v3";
+  mode: "v1" | "v2" | "v3" | "v4";
   selected_materials: Array<SelectedMaterialRef>;
   job_id: string;
   status: "queued" | "running" | "ready" | "failed";
@@ -55,7 +58,7 @@ export interface ScenarioTurn {
 export interface ScenarioRevision {
   revision: number;
   artifact_id: string;
-  mode: "v1" | "v2" | "v3";
+  mode: "v1" | "v2" | "v3" | "v4";
   illustration?: QuestionIllustration | null;
   created_at: number;
 }
@@ -79,7 +82,7 @@ export interface ToolIllustrationJob {
   job_id: string;
   session_id: string;
   turn_id: string;
-  mode: "v1" | "v2" | "v3";
+  mode: "v1" | "v2" | "v3" | "v4";
   status: "queued" | "running" | "ready" | "failed";
   stage: "preparing" | "retrieving" | "composing" | "rendering" | "reviewing" | "ready" | "failed";
   base_revision: number;

@@ -72,6 +72,30 @@ class Settings:
     # 模型无视觉能力时 OCR 自动回退本地 tesseract）。
     llm_base_url: str = os.getenv("LLM_BASE_URL", "https://api.deepseek.com/v1")
     llm_api_key: str = os.getenv("LLM_API_KEY", "")
+    # Image gateway: one server-selected provider/protocol.  The client never
+    # chooses a provider or model; arbitrary model identifiers are forwarded as
+    # configured so OpenAI-compatible third-party endpoints work without a
+    # code/catalog release.
+    image_api_enabled: bool = _env_bool("IMAGE_API_ENABLED", False)
+    image_api_provider: str = os.getenv("IMAGE_API_PROVIDER", "custom").strip() or "custom"
+    image_api_protocol: str = _resolve_mode(
+        "IMAGE_API_PROTOCOL",
+        {"openai_compatible", "dashscope", "seedream"},
+        "openai_compatible",
+    )
+    image_api_base_url: str = os.getenv("IMAGE_API_BASE_URL", "").strip().rstrip("/")
+    image_api_key: str = os.getenv("IMAGE_API_KEY", "").strip()
+    image_api_model: str = os.getenv("IMAGE_API_MODEL", "").strip()
+    image_api_timeout_seconds: int = max(15, min(300, int(os.getenv("IMAGE_API_TIMEOUT_SECONDS", "120"))))
+    image_api_supports_reference: bool = _env_bool("IMAGE_API_SUPPORTS_REFERENCE", True)
+    # Legacy provider-specific values are kept during migration.  New code
+    # only uses them when the unified IMAGE_API_* block is incomplete.
+    gpt_image_api_key: str = os.getenv("OPENAI_API_KEY", "").strip()
+    gpt_image_base_url: str = os.getenv("OPENAI_IMAGE_BASE_URL", "https://api.openai.com/v1").rstrip("/")
+    qwen_image_api_key: str = os.getenv("DASHSCOPE_API_KEY", "").strip()
+    qwen_image_base_url: str = os.getenv("QWEN_IMAGE_BASE_URL", "https://dashscope.aliyuncs.com/api/v1/services/aigc/image-generation/generation").rstrip("/")
+    seed_image_api_key: str = os.getenv("SEED_API_KEY", os.getenv("ARK_API_KEY", "")).strip()
+    seed_image_base_url: str = os.getenv("SEED_IMAGE_BASE_URL", "https://ark.cn-beijing.volces.com/api/v3/images/generations").rstrip("/")
     # 2026-09 DeepSeek API 只接受 deepseek-flash / deepseek-v4-pro；
     # 旧名（deepseek-v4-flash 等）会被 400 invalid_request_error 拒绝，
     # 表现为出题/对话全部 generation_failed。

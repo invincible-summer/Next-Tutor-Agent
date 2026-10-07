@@ -81,6 +81,37 @@ input:focus, textarea:focus, select:focus {
 .chat-prose .katex .mfrac .frac-line { border-color: rgb(var(--fg)); }
 .dark .chat-prose .katex .frac-line { border-color: rgb(var(--fg)); }
 
+/* Worksheet paper text reuses the chat Markdown/KaTeX parser but keeps the
+   compact spacing expected on a printed sheet. */
+.worksheet-markdown { color: inherit; }
+.worksheet-markdown > .chat-prose { font-size: inherit; line-height: inherit; }
+.worksheet-markdown > .chat-prose p { margin: 0; }
+.worksheet-markdown > .chat-prose ul, .worksheet-markdown > .chat-prose ol { margin: .25em 0; }
+.worksheet-markdown .katex-scroll { max-width: 100%; overflow-x: auto; }
+
+/* Worksheet builder: the paper is a reading surface, while the rail and chat
+   stay visually lighter. The third column only arrives when there is room for
+   three useful measures; at laptop widths the preview follows the chat. */
+.worksheet-layout { display: grid; grid-template-columns: minmax(0, 1fr); gap: 1rem; min-height: min(720px, calc(100vh - 250px)); }
+.worksheet-rail, .worksheet-chat, .worksheet-preview { min-height: 560px; }
+.worksheet-chat { min-height: 680px; }
+.worksheet-preview { min-height: 560px; }
+@media (min-width: 900px) {
+  .worksheet-layout { grid-template-columns: minmax(190px, 0.42fr) minmax(0, 1fr); }
+  .worksheet-preview { grid-column: 1 / -1; min-height: 500px; }
+}
+@media (min-width: 1380px) {
+  .worksheet-layout { grid-template-columns: minmax(190px, 0.42fr) minmax(420px, 1.3fr) minmax(330px, 0.84fr); }
+  .worksheet-preview { grid-column: auto; }
+}
+.worksheet-paper { background: rgb(var(--surface)); color: rgb(var(--fg)); }
+.worksheet-paper .worksheet-question + .worksheet-question { border-top: 1px solid rgb(var(--border)); padding-top: 1.75rem; }
+.worksheet-prose { color: inherit; font-size: inherit; line-height: 1.8; }
+.worksheet-prose > p { margin: 0; }
+.worksheet-prose > p + p { margin-top: .65rem; }
+.worksheet-prose .katex { color: inherit; }
+.worksheet-answer { background: rgb(var(--surface-sunken)); }
+
 /* streaming cursor */
 .streaming-cursor { display: inline-block; width: 2px; height: 1em; background: rgb(var(--accent)); animation: blink 1s step-end infinite; vertical-align: text-bottom; margin-left: 2px; }
 @keyframes blink { 50% { opacity: 0; } }

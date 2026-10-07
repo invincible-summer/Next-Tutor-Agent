@@ -14,3 +14,4 @@
 export * from "./ids.ts";
 export * from "./protocols/chat.ts";
 export * from "./generated/illustration.ts";
+export * from "./generated/worksheet.ts";

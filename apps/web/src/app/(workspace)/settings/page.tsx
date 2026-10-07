@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { Suspense, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { SlidersHorizontal, BookOpen, AudioLines, Sparkles, ScanLine, Shield, Info } from "lucide-react";
+import { SlidersHorizontal, BookOpen, AudioLines, Sparkles, ScanLine, Shield, Info, WandSparkles } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { Hint } from "@/components/ui/Hint";
 import { PageSkeleton } from "@/components/ui/EmptyState";
@@ -11,6 +11,7 @@ import { LocalSettings } from "@/components/pages/settings/LocalSettings";
 import { AccountPreferences } from "@/components/pages/profile/AccountPreferences";
 import { ClassroomVoiceCard } from "@/components/pages/profile/ClassroomVoiceCard";
 import { AssistantSettings } from "@/components/assistant/AssistantSettings";
+import { ImageModelSettings } from "@/components/pages/settings/ImageModelSettings";
 import { useAuthStore } from "@/lib/auth-store";
 import { useAssistantStore } from "@/lib/assistant/store";
 import { useUIStore } from "@/lib/store";
@@ -28,6 +29,7 @@ import { STRINGS } from "./strings";
 const SECTIONS = [
   { id: "general", icon: SlidersHorizontal }, { id: "learning", icon: BookOpen },
   { id: "voice", icon: AudioLines }, { id: "assistant", icon: Sparkles },
+  { id: "image", icon: WandSparkles },
   { id: "processing", icon: ScanLine }, { id: "account", icon: Shield }, { id: "about", icon: Info },
 ] as const;
 
@@ -70,6 +72,7 @@ function SettingsContent() {
             {(section === "general" || section === "learning" || section === "about") && <LocalSettings section={section} onDirtyChange={setPreferenceDirty} />}
             {(section === "voice" || section === "processing" || section === "account") && <AccountPreferences section={section} tr={pt} onDirtyChange={setPreferenceDirty} />}
             {section === "voice" && <ClassroomVoiceCard tr={pt} onDirtyChange={setVoiceDirty} />}
+            {section === "image" && <ImageModelSettings />}
             {section === "assistant" && (caps?.enabled ? <AssistantSettings /> : <Card>
               <p className="text-sm text-muted">{tr(capsError ? "settings.loadFailed" : caps === null ? "settings.loading" : "settings.disabled")}</p>
               {capsError && <div className="mt-3 flex items-center gap-2"><button type="button" className="text-sm text-accent" onClick={() => void refreshCapabilities()}>{tr("settings.retry")}</button><Hint label={tr("settings.help").replace("{label}", tr("settings.retry"))} text={tr("settings.retry.hint")} align="end" /></div>}

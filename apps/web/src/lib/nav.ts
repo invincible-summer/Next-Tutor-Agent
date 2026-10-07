@@ -75,6 +75,7 @@ export const ACCOUNT_NAV: NavItem[] = [
 /** 二级页面标题：TopBar 以「一级 · 二级」复合标题显示（键为路由前缀，值为 i18n key）。 */
 export const NAV_SUBTITLES: Record<string, string> = {
   "/tools/illustration": "nav.toolsIllustration",
+  "/tools/worksheet": "nav.toolsWorksheet",
 };
 
 /** 由路径反查当前导航项（TopBar 标题用）。 */

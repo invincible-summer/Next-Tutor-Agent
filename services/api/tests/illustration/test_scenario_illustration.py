@@ -49,6 +49,17 @@ class ScenarioEngineTest(StorageSandboxTestCase, unittest.IsolatedAsyncioTestCas
         return await scenario_engine.generate_scene(llm, owner="scene_alice", mode=mode,
             messages=[REQUEST], latest_request=REQUEST, cards=cards, previous=previous)
 
+    def test_v4_previous_revision_is_materialized_as_owner_scoped_reference(self):
+        artifact_id = "sceneart_previous"
+        preview = persistence.owner_dir("scene_alice") / "previews" / f"{artifact_id}.png"
+        preview.parent.mkdir(parents=True, exist_ok=True)
+        preview.write_bytes(b"previous-png")
+        reference = scenario._previous_image_reference(
+            "scene_alice", {"artifact_id": artifact_id, "illustration": {"mime_type": "image/png"}}
+        )
+        self.assertTrue(reference.startswith("data:image/png;base64,"))
+        self.assertIsNone(scenario._previous_image_reference("scene_bob", {"artifact_id": artifact_id}))
+
     async def test_v1_shared_component_compiler_real_png(self):
         llm = QueueLLM(REQUIREMENTS, SCENE, PASSED)
         out = await self.generate(llm, "v1")

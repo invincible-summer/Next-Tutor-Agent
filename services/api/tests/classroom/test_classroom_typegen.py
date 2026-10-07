@@ -54,7 +54,7 @@ class TypegenTests(unittest.TestCase):
                      "ScenarioRevision", "QuestionIllustration", "QuizIllustrationJob"):
             self.assertIn(f"export interface {name} ", content)
         # IllustrationMode 是 Literal 别名，以内联联合形式出现在字段上。
-        self.assertIn('mode: "v1" | "v2" | "v3";', content)
+        self.assertIn('mode: "v1" | "v2" | "v3" | "v4";', content)
         # 公开 job 阶段枚举完整（公开 stage 全集）。
         self.assertIn('"preparing" | "retrieving" | "composing" | "rendering" | "reviewing" | "ready" | "failed";',
                       content)
