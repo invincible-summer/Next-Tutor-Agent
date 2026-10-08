@@ -1,7 +1,8 @@
 "use client";
 
 /**
- * Presentation lifecycle for one lab motion at a time (plan §7.1): derives
+ * Presentation lifecycle for one lab motion at a time (see the 演出层 notes in
+ * docs/architecture/chem-lab.md): derives
  * the motion from the session's read-only `lastTransition` at render time
  * (the sanctioned derived-state pattern — no setState-in-effect), expires
  * finished one-shots via a timeout, and cancels on tab hide. Idle sessions

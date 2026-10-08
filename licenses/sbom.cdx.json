@@ -39953,11 +39953,11 @@
       "properties": [
         {
           "name": "next-tutor:evidence",
-          "value": "registry-artifact;not-installed"
+          "value": "installed-distribution"
         },
         {
           "name": "next-tutor:scopes",
-          "value": "services/api/constraints.txt:constraint-only"
+          "value": "services/api/constraints.txt:constraint-only,services/api/requirements-vector.txt:observed-transitive"
         },
         {
           "name": "next-tutor:license-files",
@@ -39987,11 +39987,11 @@
       "properties": [
         {
           "name": "next-tutor:evidence",
-          "value": "registry-artifact;not-installed"
+          "value": "installed-distribution"
         },
         {
           "name": "next-tutor:scopes",
-          "value": "services/api/constraints.txt:constraint-only"
+          "value": "services/api/constraints.txt:constraint-only,services/api/requirements-vector.txt:observed-transitive"
         },
         {
           "name": "next-tutor:license-files",
@@ -40021,11 +40021,11 @@
       "properties": [
         {
           "name": "next-tutor:evidence",
-          "value": "registry-artifact;not-installed"
+          "value": "installed-distribution"
         },
         {
           "name": "next-tutor:scopes",
-          "value": "services/api/constraints.txt:constraint-only"
+          "value": "services/api/constraints.txt:constraint-only,services/api/requirements-vector.txt:observed-transitive"
         },
         {
           "name": "next-tutor:license-files",
@@ -40109,7 +40109,7 @@
         },
         {
           "name": "next-tutor:scopes",
-          "value": "services/api/constraints.txt:constraint-only,services/api/requirements.txt:observed-transitive"
+          "value": "services/api/constraints.txt:constraint-only,services/api/requirements-vector.txt:observed-transitive,services/api/requirements.txt:observed-transitive"
         },
         {
           "name": "next-tutor:license-files",
@@ -40137,7 +40137,7 @@
         },
         {
           "name": "next-tutor:scopes",
-          "value": "services/api/constraints.txt:constraint-only,services/api/requirements.txt:observed-transitive,services/voice/requirements.txt:observed-transitive"
+          "value": "services/api/constraints.txt:constraint-only,services/api/requirements-vector.txt:observed-transitive,services/api/requirements.txt:observed-transitive"
         },
         {
           "name": "next-tutor:license-files",
@@ -40165,7 +40165,7 @@
         },
         {
           "name": "next-tutor:scopes",
-          "value": "services/api/constraints.txt:constraint-only,services/api/requirements-test.txt:observed-transitive,services/api/requirements.txt:observed-transitive"
+          "value": "services/api/constraints.txt:constraint-only,services/api/requirements-vector.txt:observed-transitive,services/api/requirements.txt:observed-transitive"
         },
         {
           "name": "next-tutor:license-files",
@@ -40178,19 +40178,32 @@
     },
     {
       "bom-ref": "pkg:pypi/asgiref@3.12.1",
+      "externalReferences": [
+        {
+          "type": "website",
+          "url": "https://github.com/django/asgiref/"
+        }
+      ],
+      "licenses": [
+        {
+          "license": {
+            "name": "BSD-3-Clause"
+          }
+        }
+      ],
       "name": "asgiref",
       "properties": [
         {
           "name": "next-tutor:evidence",
-          "value": "declared;not-installed"
+          "value": "installed-distribution"
         },
         {
           "name": "next-tutor:scopes",
-          "value": "services/api/constraints.txt:constraint-only"
+          "value": "services/api/constraints.txt:constraint-only,services/api/requirements-observability.txt:observed-transitive"
         },
         {
           "name": "next-tutor:license-files",
-          "value": ""
+          "value": "licenses/texts/b846415d1b514e9c1dff14a22deb906d794bc546ca6129f950a18cd091e2a669.txt"
         }
       ],
       "purl": "pkg:pypi/asgiref@3.12.1",
@@ -40224,6 +40237,34 @@
       "purl": "pkg:pypi/asyncpg@0.31.0",
       "type": "library",
       "version": "0.31.0"
+    },
+    {
+      "bom-ref": "pkg:pypi/attrs@25.4.0",
+      "licenses": [
+        {
+          "license": {
+            "name": "MIT"
+          }
+        }
+      ],
+      "name": "attrs",
+      "properties": [
+        {
+          "name": "next-tutor:evidence",
+          "value": "installed-distribution"
+        },
+        {
+          "name": "next-tutor:scopes",
+          "value": "services/api/requirements-vector.txt:observed-transitive"
+        },
+        {
+          "name": "next-tutor:license-files",
+          "value": "licenses/texts/882115c95dfc2af1eeb6714f8ec6d5cbcabf667caff8729f42420da63f714e9f.txt"
+        }
+      ],
+      "purl": "pkg:pypi/attrs@25.4.0",
+      "type": "library",
+      "version": "25.4.0"
     },
     {
       "bom-ref": "pkg:pypi/attrs@26.1.0",
@@ -40270,7 +40311,7 @@
         },
         {
           "name": "next-tutor:scopes",
-          "value": "services/api/constraints.txt:constraint-only,services/api/requirements.txt"
+          "value": "services/api/constraints.txt:constraint-only,services/api/requirements-vector.txt:observed-transitive,services/api/requirements.txt"
         },
         {
           "name": "next-tutor:license-files",
@@ -40300,11 +40341,11 @@
       "properties": [
         {
           "name": "next-tutor:evidence",
-          "value": "installed-distribution"
+          "value": "registry-artifact;not-installed"
         },
         {
           "name": "next-tutor:scopes",
-          "value": "services/api/constraints.txt:constraint-only,services/api/requirements-test.txt:observed-transitive,services/api/requirements.txt"
+          "value": "services/api/constraints.txt:constraint-only,services/api/requirements.txt"
         },
         {
           "name": "next-tutor:license-files",
@@ -40334,11 +40375,11 @@
       "properties": [
         {
           "name": "next-tutor:evidence",
-          "value": "installed-distribution"
+          "value": "registry-artifact;not-installed"
         },
         {
           "name": "next-tutor:scopes",
-          "value": "services/api/constraints.txt:constraint-only,services/api/requirements-test.txt:observed-transitive,services/api/requirements.txt:observed-transitive"
+          "value": "services/api/constraints.txt:constraint-only"
         },
         {
           "name": "next-tutor:license-files",
@@ -40378,7 +40419,35 @@
       "version": "1.5.0"
     },
     {
-      "bom-ref": "pkg:pypi/certifi@2026.7.22",
+      "bom-ref": "pkg:pypi/build@1.6.0",
+      "licenses": [
+        {
+          "license": {
+            "name": "MIT"
+          }
+        }
+      ],
+      "name": "build",
+      "properties": [
+        {
+          "name": "next-tutor:evidence",
+          "value": "installed-distribution"
+        },
+        {
+          "name": "next-tutor:scopes",
+          "value": "services/api/requirements-vector.txt:observed-transitive"
+        },
+        {
+          "name": "next-tutor:license-files",
+          "value": "licenses/texts/aaf9a29ca5907971ccf07de025375db34539a8d5eeebce20b46099805722106f.txt"
+        }
+      ],
+      "purl": "pkg:pypi/build@1.6.0",
+      "type": "library",
+      "version": "1.6.0"
+    },
+    {
+      "bom-ref": "pkg:pypi/certifi@2026.1.4",
       "externalReferences": [
         {
           "type": "website",
@@ -40400,7 +40469,41 @@
         },
         {
           "name": "next-tutor:scopes",
-          "value": "services/api/constraints.txt:constraint-only,services/api/requirements-test.txt:observed-transitive,services/api/requirements.txt:observed-transitive"
+          "value": "services/api/requirements-vector.txt:observed-transitive,services/api/requirements.txt:observed-transitive"
+        },
+        {
+          "name": "next-tutor:license-files",
+          "value": "licenses/texts/e93716da6b9c0d5a4a1df60fe695b370f0695603d21f6f83f053e42cfc10caf7.txt"
+        }
+      ],
+      "purl": "pkg:pypi/certifi@2026.1.4",
+      "type": "library",
+      "version": "2026.1.4"
+    },
+    {
+      "bom-ref": "pkg:pypi/certifi@2026.7.22",
+      "externalReferences": [
+        {
+          "type": "website",
+          "url": "https://github.com/certifi/python-certifi"
+        }
+      ],
+      "licenses": [
+        {
+          "license": {
+            "name": "MPL-2.0"
+          }
+        }
+      ],
+      "name": "certifi",
+      "properties": [
+        {
+          "name": "next-tutor:evidence",
+          "value": "registry-artifact;not-installed"
+        },
+        {
+          "name": "next-tutor:scopes",
+          "value": "services/api/constraints.txt:constraint-only"
         },
         {
           "name": "next-tutor:license-files",
@@ -40428,7 +40531,7 @@
         },
         {
           "name": "next-tutor:scopes",
-          "value": "services/api/constraints.txt:constraint-only,services/api/requirements-test.txt:observed-transitive,services/api/requirements.txt:observed-transitive"
+          "value": "services/api/constraints.txt:constraint-only"
         },
         {
           "name": "next-tutor:license-files",
@@ -40438,6 +40541,40 @@
       "purl": "pkg:pypi/cffi@2.1.1",
       "type": "library",
       "version": "2.1.1"
+    },
+    {
+      "bom-ref": "pkg:pypi/chardet@5.2.0",
+      "externalReferences": [
+        {
+          "type": "website",
+          "url": "https://github.com/chardet/chardet"
+        }
+      ],
+      "licenses": [
+        {
+          "license": {
+            "name": "LGPL"
+          }
+        }
+      ],
+      "name": "chardet",
+      "properties": [
+        {
+          "name": "next-tutor:evidence",
+          "value": "installed-distribution"
+        },
+        {
+          "name": "next-tutor:scopes",
+          "value": "services/api/requirements-vector.txt:observed-transitive"
+        },
+        {
+          "name": "next-tutor:license-files",
+          "value": "licenses/texts/dc626520dcd53a22f727af3ee42c770e56c97a64fe3adb063799d8ab032fe551.txt"
+        }
+      ],
+      "purl": "pkg:pypi/chardet@5.2.0",
+      "type": "library",
+      "version": "5.2.0"
     },
     {
       "bom-ref": "pkg:pypi/charset-normalizer@3.4.9",
@@ -40452,11 +40589,11 @@
       "properties": [
         {
           "name": "next-tutor:evidence",
-          "value": "installed-distribution"
+          "value": "registry-artifact;not-installed"
         },
         {
           "name": "next-tutor:scopes",
-          "value": "services/api/constraints.txt:constraint-only,services/api/requirements-test.txt:observed-transitive,services/api/requirements.txt:observed-transitive"
+          "value": "services/api/constraints.txt:constraint-only"
         },
         {
           "name": "next-tutor:license-files",
@@ -40486,7 +40623,7 @@
       "properties": [
         {
           "name": "next-tutor:evidence",
-          "value": "registry-artifact;not-installed"
+          "value": "installed-distribution"
         },
         {
           "name": "next-tutor:scopes",
@@ -40502,7 +40639,7 @@
       "version": "1.5.9"
     },
     {
-      "bom-ref": "pkg:pypi/click@8.4.2",
+      "bom-ref": "pkg:pypi/click@8.1.8",
       "licenses": [
         {
           "license": {
@@ -40518,7 +40655,35 @@
         },
         {
           "name": "next-tutor:scopes",
-          "value": "services/api/constraints.txt:constraint-only,services/api/requirements.txt:observed-transitive"
+          "value": "services/api/requirements-vector.txt:observed-transitive,services/api/requirements.txt:observed-transitive"
+        },
+        {
+          "name": "next-tutor:license-files",
+          "value": "licenses/texts/9a8ad106a394e853bfe21f42f4e72d592819a22805d991b5f3275029292b658d.txt"
+        }
+      ],
+      "purl": "pkg:pypi/click@8.1.8",
+      "type": "library",
+      "version": "8.1.8"
+    },
+    {
+      "bom-ref": "pkg:pypi/click@8.4.2",
+      "licenses": [
+        {
+          "license": {
+            "name": "BSD-3-Clause"
+          }
+        }
+      ],
+      "name": "click",
+      "properties": [
+        {
+          "name": "next-tutor:evidence",
+          "value": "registry-artifact;not-installed"
+        },
+        {
+          "name": "next-tutor:scopes",
+          "value": "services/api/constraints.txt:constraint-only"
         },
         {
           "name": "next-tutor:license-files",
@@ -40576,11 +40741,11 @@
       "properties": [
         {
           "name": "next-tutor:evidence",
-          "value": "installed-distribution"
+          "value": "registry-artifact;not-installed"
         },
         {
           "name": "next-tutor:scopes",
-          "value": "services/api/constraints.txt:constraint-only,services/api/requirements-test.txt:observed-transitive,services/api/requirements.txt,services/api/requirements.txt:observed-transitive"
+          "value": "services/api/constraints.txt:constraint-only,services/api/requirements.txt"
         },
         {
           "name": "next-tutor:license-files",
@@ -40722,6 +40887,40 @@
       "version": "0.10"
     },
     {
+      "bom-ref": "pkg:pypi/durationpy@0.11",
+      "externalReferences": [
+        {
+          "type": "website",
+          "url": "https://github.com/icholy/durationpy"
+        }
+      ],
+      "licenses": [
+        {
+          "license": {
+            "name": "MIT"
+          }
+        }
+      ],
+      "name": "durationpy",
+      "properties": [
+        {
+          "name": "next-tutor:evidence",
+          "value": "installed-distribution"
+        },
+        {
+          "name": "next-tutor:scopes",
+          "value": "services/api/requirements-vector.txt:observed-transitive"
+        },
+        {
+          "name": "next-tutor:license-files",
+          "value": "licenses/texts/b6c5adfeed4ba4385ea6ab33c4e9b730fd22937350b2e17f862ae169f8d90dc9.txt"
+        }
+      ],
+      "purl": "pkg:pypi/durationpy@0.11",
+      "type": "library",
+      "version": "0.11"
+    },
+    {
       "bom-ref": "pkg:pypi/email-validator@2.3.0",
       "externalReferences": [
         {
@@ -40852,6 +41051,34 @@
       "version": "3.32.0"
     },
     {
+      "bom-ref": "pkg:pypi/filelock@3.32.4",
+      "licenses": [
+        {
+          "license": {
+            "name": "MIT"
+          }
+        }
+      ],
+      "name": "filelock",
+      "properties": [
+        {
+          "name": "next-tutor:evidence",
+          "value": "installed-distribution"
+        },
+        {
+          "name": "next-tutor:scopes",
+          "value": "services/api/requirements-vector.txt:observed-transitive"
+        },
+        {
+          "name": "next-tutor:license-files",
+          "value": "licenses/texts/608c89d5060ae9921adccf3236695bc654a9946e12323ef6c021dfa04e294d48.txt"
+        }
+      ],
+      "purl": "pkg:pypi/filelock@3.32.4",
+      "type": "library",
+      "version": "3.32.4"
+    },
+    {
       "bom-ref": "pkg:pypi/flatbuffers@25.12.19",
       "externalReferences": [
         {
@@ -40870,11 +41097,11 @@
       "properties": [
         {
           "name": "next-tutor:evidence",
-          "value": "registry-artifact;not-installed"
+          "value": "installed-distribution"
         },
         {
           "name": "next-tutor:scopes",
-          "value": "services/api/constraints.txt:constraint-only"
+          "value": "services/api/constraints.txt:constraint-only,services/api/requirements-vector.txt:observed-transitive"
         },
         {
           "name": "next-tutor:license-files",
@@ -40904,11 +41131,11 @@
       "properties": [
         {
           "name": "next-tutor:evidence",
-          "value": "registry-artifact;not-installed"
+          "value": "installed-distribution"
         },
         {
           "name": "next-tutor:scopes",
-          "value": "services/api/constraints.txt:constraint-only"
+          "value": "services/api/constraints.txt:constraint-only,services/api/requirements-vector.txt:observed-transitive"
         },
         {
           "name": "next-tutor:license-files",
@@ -40954,6 +41181,34 @@
       "version": "2026.6.0"
     },
     {
+      "bom-ref": "pkg:pypi/fsspec@2026.7.0",
+      "licenses": [
+        {
+          "license": {
+            "name": "BSD-3-Clause"
+          }
+        }
+      ],
+      "name": "fsspec",
+      "properties": [
+        {
+          "name": "next-tutor:evidence",
+          "value": "installed-distribution"
+        },
+        {
+          "name": "next-tutor:scopes",
+          "value": "services/api/requirements-vector.txt:observed-transitive"
+        },
+        {
+          "name": "next-tutor:license-files",
+          "value": "licenses/texts/2dc35496ce53a7307915c008a844aad53e772b49b34cdd00445067691407ec94.txt"
+        }
+      ],
+      "purl": "pkg:pypi/fsspec@2026.7.0",
+      "type": "library",
+      "version": "2026.7.0"
+    },
+    {
       "bom-ref": "pkg:pypi/g2p-en@2.1.0",
       "externalReferences": [
         {
@@ -40989,19 +41244,26 @@
     },
     {
       "bom-ref": "pkg:pypi/googleapis-common-protos@1.75.0",
+      "licenses": [
+        {
+          "license": {
+            "name": "Apache 2.0"
+          }
+        }
+      ],
       "name": "googleapis-common-protos",
       "properties": [
         {
           "name": "next-tutor:evidence",
-          "value": "declared;not-installed"
+          "value": "installed-distribution"
         },
         {
           "name": "next-tutor:scopes",
-          "value": "services/api/constraints.txt:constraint-only"
+          "value": "services/api/constraints.txt:constraint-only,services/api/requirements-observability.txt:observed-transitive,services/api/requirements-vector.txt:observed-transitive"
         },
         {
           "name": "next-tutor:license-files",
-          "value": ""
+          "value": "licenses/texts/cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30.txt"
         }
       ],
       "purl": "pkg:pypi/googleapis-common-protos@1.75.0",
@@ -41038,19 +41300,26 @@
     },
     {
       "bom-ref": "pkg:pypi/grpcio@1.83.0",
+      "licenses": [
+        {
+          "license": {
+            "name": "Apache-2.0"
+          }
+        }
+      ],
       "name": "grpcio",
       "properties": [
         {
           "name": "next-tutor:evidence",
-          "value": "declared;not-installed"
+          "value": "installed-distribution"
         },
         {
           "name": "next-tutor:scopes",
-          "value": "services/api/constraints.txt:constraint-only"
+          "value": "services/api/constraints.txt:constraint-only,services/api/requirements-observability.txt:observed-transitive,services/api/requirements-vector.txt:observed-transitive"
         },
         {
           "name": "next-tutor:license-files",
-          "value": ""
+          "value": "licenses/texts/58c86a3f2b5cca0ebdf9ed3e7f4e6dc38e3b38796d8c3dc92064c62a4e39d0dd.txt"
         }
       ],
       "purl": "pkg:pypi/grpcio@1.83.0",
@@ -41080,7 +41349,7 @@
         },
         {
           "name": "next-tutor:scopes",
-          "value": "services/api/constraints.txt:constraint-only,services/api/requirements-test.txt:observed-transitive,services/api/requirements.txt:observed-transitive"
+          "value": "services/api/constraints.txt:constraint-only,services/api/requirements-vector.txt:observed-transitive,services/api/requirements.txt:observed-transitive"
         },
         {
           "name": "next-tutor:license-files",
@@ -41126,6 +41395,34 @@
       "version": "1.5.2"
     },
     {
+      "bom-ref": "pkg:pypi/hf-xet@1.6.0",
+      "licenses": [
+        {
+          "license": {
+            "name": "Apache-2.0"
+          }
+        }
+      ],
+      "name": "hf-xet",
+      "properties": [
+        {
+          "name": "next-tutor:evidence",
+          "value": "installed-distribution"
+        },
+        {
+          "name": "next-tutor:scopes",
+          "value": "services/api/requirements-vector.txt:observed-transitive"
+        },
+        {
+          "name": "next-tutor:license-files",
+          "value": "licenses/texts/c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4.txt"
+        }
+      ],
+      "purl": "pkg:pypi/hf-xet@1.6.0",
+      "type": "library",
+      "version": "1.6.0"
+    },
+    {
       "bom-ref": "pkg:pypi/httpcore2@2.13.0",
       "externalReferences": [
         {
@@ -41144,11 +41441,11 @@
       "properties": [
         {
           "name": "next-tutor:evidence",
-          "value": "installed-distribution"
+          "value": "registry-artifact;not-installed"
         },
         {
           "name": "next-tutor:scopes",
-          "value": "services/api/constraints.txt:constraint-only,services/api/requirements-test.txt:observed-transitive"
+          "value": "services/api/constraints.txt:constraint-only"
         },
         {
           "name": "next-tutor:license-files",
@@ -41176,7 +41473,7 @@
         },
         {
           "name": "next-tutor:scopes",
-          "value": "services/api/constraints.txt:constraint-only,services/api/requirements.txt:observed-transitive"
+          "value": "services/api/constraints.txt:constraint-only,services/api/requirements-vector.txt:observed-transitive,services/api/requirements.txt:observed-transitive"
         },
         {
           "name": "next-tutor:license-files",
@@ -41204,7 +41501,7 @@
         },
         {
           "name": "next-tutor:scopes",
-          "value": "services/api/constraints.txt:constraint-only,services/api/requirements.txt:observed-transitive"
+          "value": "services/api/constraints.txt:constraint-only,services/api/requirements-vector.txt:observed-transitive,services/api/requirements.txt:observed-transitive"
         },
         {
           "name": "next-tutor:license-files",
@@ -41234,7 +41531,7 @@
       "properties": [
         {
           "name": "next-tutor:evidence",
-          "value": "installed-distribution"
+          "value": "registry-artifact;not-installed"
         },
         {
           "name": "next-tutor:scopes",
@@ -41266,7 +41563,7 @@
         },
         {
           "name": "next-tutor:scopes",
-          "value": "services/api/constraints.txt:constraint-only,services/api/requirements.txt,services/api/requirements.txt:observed-transitive"
+          "value": "services/api/constraints.txt:constraint-only,services/api/requirements-vector.txt:observed-transitive,services/api/requirements.txt,services/api/requirements.txt:observed-transitive"
         },
         {
           "name": "next-tutor:license-files",
@@ -41346,7 +41643,41 @@
       "version": "1.25.1"
     },
     {
-      "bom-ref": "pkg:pypi/idna@3.18",
+      "bom-ref": "pkg:pypi/huggingface-hub@1.29.0",
+      "externalReferences": [
+        {
+          "type": "website",
+          "url": "https://github.com/huggingface/huggingface_hub"
+        }
+      ],
+      "licenses": [
+        {
+          "license": {
+            "name": "Apache-2.0"
+          }
+        }
+      ],
+      "name": "huggingface-hub",
+      "properties": [
+        {
+          "name": "next-tutor:evidence",
+          "value": "installed-distribution"
+        },
+        {
+          "name": "next-tutor:scopes",
+          "value": "services/api/requirements-vector.txt:observed-transitive"
+        },
+        {
+          "name": "next-tutor:license-files",
+          "value": "licenses/texts/c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4.txt"
+        }
+      ],
+      "purl": "pkg:pypi/huggingface-hub@1.29.0",
+      "type": "library",
+      "version": "1.29.0"
+    },
+    {
+      "bom-ref": "pkg:pypi/idna@3.11",
       "licenses": [
         {
           "license": {
@@ -41362,7 +41693,35 @@
         },
         {
           "name": "next-tutor:scopes",
-          "value": "services/api/constraints.txt:constraint-only,services/api/requirements-test.txt:observed-transitive,services/api/requirements.txt:observed-transitive"
+          "value": "services/api/requirements-vector.txt:observed-transitive,services/api/requirements.txt:observed-transitive"
+        },
+        {
+          "name": "next-tutor:license-files",
+          "value": "licenses/texts/b7a336abf3b04e180ec065cdd16e705d079e1cc7a14f910aa6e9187f36b9cd87.txt"
+        }
+      ],
+      "purl": "pkg:pypi/idna@3.11",
+      "type": "library",
+      "version": "3.11"
+    },
+    {
+      "bom-ref": "pkg:pypi/idna@3.18",
+      "licenses": [
+        {
+          "license": {
+            "name": "BSD-3-Clause"
+          }
+        }
+      ],
+      "name": "idna",
+      "properties": [
+        {
+          "name": "next-tutor:evidence",
+          "value": "registry-artifact;not-installed"
+        },
+        {
+          "name": "next-tutor:scopes",
+          "value": "services/api/constraints.txt:constraint-only"
         },
         {
           "name": "next-tutor:license-files",
@@ -41386,11 +41745,11 @@
       "properties": [
         {
           "name": "next-tutor:evidence",
-          "value": "registry-artifact;not-installed"
+          "value": "installed-distribution"
         },
         {
           "name": "next-tutor:scopes",
-          "value": "services/api/constraints.txt:constraint-only"
+          "value": "services/api/constraints.txt:constraint-only,services/api/requirements-vector.txt:observed-transitive"
         },
         {
           "name": "next-tutor:license-files",
@@ -41488,11 +41847,11 @@
       "properties": [
         {
           "name": "next-tutor:evidence",
-          "value": "installed-distribution"
+          "value": "registry-artifact;not-installed"
         },
         {
           "name": "next-tutor:scopes",
-          "value": "services/api/constraints.txt:constraint-only,services/api/requirements-test.txt:observed-transitive,services/api/requirements.txt:observed-transitive"
+          "value": "services/api/constraints.txt:constraint-only"
         },
         {
           "name": "next-tutor:license-files",
@@ -41502,6 +41861,40 @@
       "purl": "pkg:pypi/jmespath@1.1.0",
       "type": "library",
       "version": "1.1.0"
+    },
+    {
+      "bom-ref": "pkg:pypi/jsonschema-specifications@2023.12.1",
+      "externalReferences": [
+        {
+          "type": "website",
+          "url": "https://github.com/python-jsonschema/jsonschema-specifications"
+        }
+      ],
+      "licenses": [
+        {
+          "license": {
+            "name": "MIT"
+          }
+        }
+      ],
+      "name": "jsonschema-specifications",
+      "properties": [
+        {
+          "name": "next-tutor:evidence",
+          "value": "installed-distribution"
+        },
+        {
+          "name": "next-tutor:scopes",
+          "value": "services/api/requirements-vector.txt:observed-transitive"
+        },
+        {
+          "name": "next-tutor:license-files",
+          "value": "licenses/texts/42dcd63495f87b4eb7c7757afa379bb55a53f94afd7a5f657d9adf57236e515c.txt"
+        }
+      ],
+      "purl": "pkg:pypi/jsonschema-specifications@2023.12.1",
+      "type": "library",
+      "version": "2023.12.1"
     },
     {
       "bom-ref": "pkg:pypi/jsonschema-specifications@2025.9.1",
@@ -41536,6 +41929,40 @@
       "purl": "pkg:pypi/jsonschema-specifications@2025.9.1",
       "type": "library",
       "version": "2025.9.1"
+    },
+    {
+      "bom-ref": "pkg:pypi/jsonschema@4.19.2",
+      "externalReferences": [
+        {
+          "type": "website",
+          "url": "https://github.com/python-jsonschema/jsonschema"
+        }
+      ],
+      "licenses": [
+        {
+          "license": {
+            "name": "MIT"
+          }
+        }
+      ],
+      "name": "jsonschema",
+      "properties": [
+        {
+          "name": "next-tutor:evidence",
+          "value": "installed-distribution"
+        },
+        {
+          "name": "next-tutor:scopes",
+          "value": "services/api/requirements-vector.txt:observed-transitive"
+        },
+        {
+          "name": "next-tutor:license-files",
+          "value": "licenses/texts/4f92a015a13c4d1a040bef018aa13430b4f1bc73b41b16bb846c346766de7439.txt"
+        }
+      ],
+      "purl": "pkg:pypi/jsonschema@4.19.2",
+      "type": "library",
+      "version": "4.19.2"
     },
     {
       "bom-ref": "pkg:pypi/jsonschema@4.26.0",
@@ -41590,11 +42017,11 @@
       "properties": [
         {
           "name": "next-tutor:evidence",
-          "value": "registry-artifact;not-installed"
+          "value": "installed-distribution"
         },
         {
           "name": "next-tutor:scopes",
-          "value": "services/api/constraints.txt:constraint-only"
+          "value": "services/api/constraints.txt:constraint-only,services/api/requirements-vector.txt:observed-transitive"
         },
         {
           "name": "next-tutor:license-files",
@@ -41702,6 +42129,40 @@
       "version": "1.4.3"
     },
     {
+      "bom-ref": "pkg:pypi/markdown-it-py@3.0.0",
+      "externalReferences": [
+        {
+          "type": "website",
+          "url": "https://github.com/executablebooks/markdown-it-py"
+        }
+      ],
+      "licenses": [
+        {
+          "license": {
+            "name": "MIT"
+          }
+        }
+      ],
+      "name": "markdown-it-py",
+      "properties": [
+        {
+          "name": "next-tutor:evidence",
+          "value": "installed-distribution"
+        },
+        {
+          "name": "next-tutor:scopes",
+          "value": "services/api/requirements-vector.txt:observed-transitive"
+        },
+        {
+          "name": "next-tutor:license-files",
+          "value": "licenses/texts/4a2260d6e2cd0f5a151a1e86dbfe7d3ed552b1e2beabf9941c1ba5c49cbce484.txt,licenses/texts/792c48c5a849a15fdf9e37e8bcf9e6d1dd13b32b46c642a748a0a46a9919d473.txt"
+        }
+      ],
+      "purl": "pkg:pypi/markdown-it-py@3.0.0",
+      "type": "library",
+      "version": "3.0.0"
+    },
+    {
       "bom-ref": "pkg:pypi/markdown-it-py@4.2.0",
       "externalReferences": [
         {
@@ -41736,7 +42197,7 @@
       "version": "4.2.0"
     },
     {
-      "bom-ref": "pkg:pypi/markupsafe@3.0.4",
+      "bom-ref": "pkg:pypi/markupsafe@3.0.3",
       "licenses": [
         {
           "license": {
@@ -41752,7 +42213,35 @@
         },
         {
           "name": "next-tutor:scopes",
-          "value": "services/api/constraints.txt:constraint-only,services/api/requirements-test.txt:observed-transitive,services/api/requirements.txt:observed-transitive"
+          "value": "services/api/requirements.txt:observed-transitive"
+        },
+        {
+          "name": "next-tutor:license-files",
+          "value": "licenses/texts/489a8e1108509ed98a37bb983e11e0f7e1d31f0bd8f99a79c8448e7ff37d07ea.txt,licenses/texts/6fc7e80b75b5999783a328d90976a2585e0956c4a348c3c888453938ceca742d.txt"
+        }
+      ],
+      "purl": "pkg:pypi/markupsafe@3.0.3",
+      "type": "library",
+      "version": "3.0.3"
+    },
+    {
+      "bom-ref": "pkg:pypi/markupsafe@3.0.4",
+      "licenses": [
+        {
+          "license": {
+            "name": "BSD-3-Clause"
+          }
+        }
+      ],
+      "name": "markupsafe",
+      "properties": [
+        {
+          "name": "next-tutor:evidence",
+          "value": "registry-artifact;not-installed"
+        },
+        {
+          "name": "next-tutor:scopes",
+          "value": "services/api/constraints.txt:constraint-only"
         },
         {
           "name": "next-tutor:license-files",
@@ -41782,11 +42271,11 @@
       "properties": [
         {
           "name": "next-tutor:evidence",
-          "value": "registry-artifact;not-installed"
+          "value": "installed-distribution"
         },
         {
           "name": "next-tutor:scopes",
-          "value": "services/api/constraints.txt:constraint-only"
+          "value": "services/api/constraints.txt:constraint-only,services/api/requirements-vector.txt:observed-transitive"
         },
         {
           "name": "next-tutor:license-files",
@@ -41832,6 +42321,34 @@
       "version": "5.2.1"
     },
     {
+      "bom-ref": "pkg:pypi/mmh3@5.3.0",
+      "licenses": [
+        {
+          "license": {
+            "name": "MIT"
+          }
+        }
+      ],
+      "name": "mmh3",
+      "properties": [
+        {
+          "name": "next-tutor:evidence",
+          "value": "installed-distribution"
+        },
+        {
+          "name": "next-tutor:scopes",
+          "value": "services/api/requirements-vector.txt:observed-transitive"
+        },
+        {
+          "name": "next-tutor:license-files",
+          "value": "licenses/texts/bf3469397307c3081d44d89c1dd72191348d93837ec6f6bd354d6d4ecdcae8e4.txt"
+        }
+      ],
+      "purl": "pkg:pypi/mmh3@5.3.0",
+      "type": "library",
+      "version": "5.3.0"
+    },
+    {
       "bom-ref": "pkg:pypi/moto@5.2.3",
       "externalReferences": [
         {
@@ -41850,7 +42367,7 @@
       "properties": [
         {
           "name": "next-tutor:evidence",
-          "value": "installed-distribution"
+          "value": "registry-artifact;not-installed"
         },
         {
           "name": "next-tutor:scopes",
@@ -41884,11 +42401,11 @@
       "properties": [
         {
           "name": "next-tutor:evidence",
-          "value": "registry-artifact;not-installed"
+          "value": "installed-distribution"
         },
         {
           "name": "next-tutor:scopes",
-          "value": "services/api/constraints.txt:constraint-only"
+          "value": "services/api/constraints.txt:constraint-only,services/api/requirements-vector.txt:observed-transitive"
         },
         {
           "name": "next-tutor:license-files",
@@ -42024,6 +42541,34 @@
       "version": "2.4.6"
     },
     {
+      "bom-ref": "pkg:pypi/numpy@2.5.2",
+      "licenses": [
+        {
+          "license": {
+            "name": "BSD-3-Clause AND 0BSD AND MIT AND Zlib AND CC0-1.0"
+          }
+        }
+      ],
+      "name": "numpy",
+      "properties": [
+        {
+          "name": "next-tutor:evidence",
+          "value": "installed-distribution"
+        },
+        {
+          "name": "next-tutor:scopes",
+          "value": "services/api/requirements-vector.txt:observed-transitive"
+        },
+        {
+          "name": "next-tutor:license-files",
+          "value": "licenses/texts/05f3b88351988ecfad10abe92c0c50e5875c6452d5009a0084cc291551ffcca6.txt,licenses/texts/0e111337b25494a773106695f0e799f642b8567aaacca4f116a74a8177179156.txt,licenses/texts/103166b62b80443afb9eb3488e052ea06be0cff566b908f199e561fde49af19f.txt,licenses/texts/211e7d737d6179a08f791ebb0a99897ce7cd2457410c542876d125576edfe910.txt,licenses/texts/268b0ca06759d31ea3ca68dd35f20e877916e927b1c2a835e4592a3c4354b1f9.txt,licenses/texts/3f2c1ffa76383a55ae0aac01c9737cd70050dff63e1f026694fbe9d662573c98.txt,licenses/texts/469778be8f33d54e1bcaab28c281cc472916d2d273f835e55bc487d30503face.txt,licenses/texts/4860083caa0de2ac3292ca98bd074bd8f45d8b32624e37b1e70a240bff61e488.txt,licenses/texts/6f5828a57223d4cc7f8ea505a2623e7b978b242752c1515e355f46ba2cec1800.txt,licenses/texts/9d4098846018319cd68e228ee6220361787f73bccbf00237a85e4fc9621b998f.txt,licenses/texts/a14cc25e10d40a3aa705b7de2fb764a6535d8ee9b2db4e1724900585457dfd55.txt,licenses/texts/a85ca13fdf90160b64a0698215868c13b74d835ad0a4e2ba44713b8c5058a056.txt,licenses/texts/c17011467b4fe6e20fbfbeda4df09e58c2bca5480a063e55735a4000a379aad9.txt,licenses/texts/e340270d4f64384569a91d546acb5b094d69ce47f0c015db77abb74dc6f815af.txt,licenses/texts/e7d4f4fb20358f314210a892ae17351e04993813646f697ec387385ca2a36918.txt,licenses/texts/f7b14309e5f54e5022b26448eefd419988ada2aec01d3c1162d84a0ea8f21f2c.txt,licenses/texts/fbc539f47d0cf83bc61378080fb873d5c14630126cacbfe754035c3926daa5ec.txt"
+        }
+      ],
+      "purl": "pkg:pypi/numpy@2.5.2",
+      "type": "library",
+      "version": "2.5.2"
+    },
+    {
       "bom-ref": "pkg:pypi/oauthlib@3.3.1",
       "externalReferences": [
         {
@@ -42042,11 +42587,11 @@
       "properties": [
         {
           "name": "next-tutor:evidence",
-          "value": "registry-artifact;not-installed"
+          "value": "installed-distribution"
         },
         {
           "name": "next-tutor:scopes",
-          "value": "services/api/constraints.txt:constraint-only"
+          "value": "services/api/constraints.txt:constraint-only,services/api/requirements-vector.txt:observed-transitive"
         },
         {
           "name": "next-tutor:license-files",
@@ -42092,6 +42637,40 @@
       "version": "1.28.0"
     },
     {
+      "bom-ref": "pkg:pypi/onnxruntime@1.29.0",
+      "externalReferences": [
+        {
+          "type": "website",
+          "url": "https://onnxruntime.ai"
+        }
+      ],
+      "licenses": [
+        {
+          "license": {
+            "name": "MIT License"
+          }
+        }
+      ],
+      "name": "onnxruntime",
+      "properties": [
+        {
+          "name": "next-tutor:evidence",
+          "value": "installed-distribution"
+        },
+        {
+          "name": "next-tutor:scopes",
+          "value": "services/api/requirements-vector.txt:observed-transitive"
+        },
+        {
+          "name": "next-tutor:license-files",
+          "value": "licenses/texts/2f07c72751aed99790b8a4869cf2311df85a860b22ded05fa22803587a48922c.txt"
+        }
+      ],
+      "purl": "pkg:pypi/onnxruntime@1.29.0",
+      "type": "library",
+      "version": "1.29.0"
+    },
+    {
       "bom-ref": "pkg:pypi/openai@2.48.0",
       "licenses": [
         {
@@ -42121,19 +42700,26 @@
     },
     {
       "bom-ref": "pkg:pypi/opentelemetry-api@1.44.0",
+      "licenses": [
+        {
+          "license": {
+            "name": "Apache-2.0"
+          }
+        }
+      ],
       "name": "opentelemetry-api",
       "properties": [
         {
           "name": "next-tutor:evidence",
-          "value": "declared;not-installed"
+          "value": "installed-distribution"
         },
         {
           "name": "next-tutor:scopes",
-          "value": "services/api/constraints.txt:constraint-only,services/api/requirements-observability.txt"
+          "value": "services/api/constraints.txt:constraint-only,services/api/requirements-observability.txt,services/api/requirements-observability.txt:observed-transitive,services/api/requirements-vector.txt:observed-transitive"
         },
         {
           "name": "next-tutor:license-files",
-          "value": ""
+          "value": "licenses/texts/c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4.txt"
         }
       ],
       "purl": "pkg:pypi/opentelemetry-api@1.44.0",
@@ -42142,19 +42728,26 @@
     },
     {
       "bom-ref": "pkg:pypi/opentelemetry-exporter-otlp-proto-common@1.44.0",
+      "licenses": [
+        {
+          "license": {
+            "name": "Apache-2.0"
+          }
+        }
+      ],
       "name": "opentelemetry-exporter-otlp-proto-common",
       "properties": [
         {
           "name": "next-tutor:evidence",
-          "value": "declared;not-installed"
+          "value": "installed-distribution"
         },
         {
           "name": "next-tutor:scopes",
-          "value": "services/api/constraints.txt:constraint-only"
+          "value": "services/api/constraints.txt:constraint-only,services/api/requirements-observability.txt:observed-transitive,services/api/requirements-vector.txt:observed-transitive"
         },
         {
           "name": "next-tutor:license-files",
-          "value": ""
+          "value": "licenses/texts/c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4.txt"
         }
       ],
       "purl": "pkg:pypi/opentelemetry-exporter-otlp-proto-common@1.44.0",
@@ -42163,19 +42756,26 @@
     },
     {
       "bom-ref": "pkg:pypi/opentelemetry-exporter-otlp-proto-grpc@1.44.0",
+      "licenses": [
+        {
+          "license": {
+            "name": "Apache-2.0"
+          }
+        }
+      ],
       "name": "opentelemetry-exporter-otlp-proto-grpc",
       "properties": [
         {
           "name": "next-tutor:evidence",
-          "value": "declared;not-installed"
+          "value": "installed-distribution"
         },
         {
           "name": "next-tutor:scopes",
-          "value": "services/api/constraints.txt:constraint-only,services/api/requirements-observability.txt"
+          "value": "services/api/constraints.txt:constraint-only,services/api/requirements-observability.txt,services/api/requirements-vector.txt:observed-transitive"
         },
         {
           "name": "next-tutor:license-files",
-          "value": ""
+          "value": "licenses/texts/c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4.txt"
         }
       ],
       "purl": "pkg:pypi/opentelemetry-exporter-otlp-proto-grpc@1.44.0",
@@ -42184,19 +42784,26 @@
     },
     {
       "bom-ref": "pkg:pypi/opentelemetry-instrumentation-asgi@0.65b0",
+      "licenses": [
+        {
+          "license": {
+            "name": "Apache-2.0"
+          }
+        }
+      ],
       "name": "opentelemetry-instrumentation-asgi",
       "properties": [
         {
           "name": "next-tutor:evidence",
-          "value": "declared;not-installed"
+          "value": "installed-distribution"
         },
         {
           "name": "next-tutor:scopes",
-          "value": "services/api/constraints.txt:constraint-only"
+          "value": "services/api/constraints.txt:constraint-only,services/api/requirements-observability.txt:observed-transitive"
         },
         {
           "name": "next-tutor:license-files",
-          "value": ""
+          "value": "licenses/texts/c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4.txt"
         }
       ],
       "purl": "pkg:pypi/opentelemetry-instrumentation-asgi@0.65b0",
@@ -42205,11 +42812,18 @@
     },
     {
       "bom-ref": "pkg:pypi/opentelemetry-instrumentation-fastapi@0.65b0",
+      "licenses": [
+        {
+          "license": {
+            "name": "Apache-2.0"
+          }
+        }
+      ],
       "name": "opentelemetry-instrumentation-fastapi",
       "properties": [
         {
           "name": "next-tutor:evidence",
-          "value": "declared;not-installed"
+          "value": "installed-distribution"
         },
         {
           "name": "next-tutor:scopes",
@@ -42217,7 +42831,7 @@
         },
         {
           "name": "next-tutor:license-files",
-          "value": ""
+          "value": "licenses/texts/c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4.txt"
         }
       ],
       "purl": "pkg:pypi/opentelemetry-instrumentation-fastapi@0.65b0",
@@ -42226,11 +42840,18 @@
     },
     {
       "bom-ref": "pkg:pypi/opentelemetry-instrumentation-httpx@0.65b0",
+      "licenses": [
+        {
+          "license": {
+            "name": "Apache-2.0"
+          }
+        }
+      ],
       "name": "opentelemetry-instrumentation-httpx",
       "properties": [
         {
           "name": "next-tutor:evidence",
-          "value": "declared;not-installed"
+          "value": "installed-distribution"
         },
         {
           "name": "next-tutor:scopes",
@@ -42238,7 +42859,7 @@
         },
         {
           "name": "next-tutor:license-files",
-          "value": ""
+          "value": "licenses/texts/c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4.txt"
         }
       ],
       "purl": "pkg:pypi/opentelemetry-instrumentation-httpx@0.65b0",
@@ -42247,19 +42868,26 @@
     },
     {
       "bom-ref": "pkg:pypi/opentelemetry-instrumentation@0.65b0",
+      "licenses": [
+        {
+          "license": {
+            "name": "Apache-2.0"
+          }
+        }
+      ],
       "name": "opentelemetry-instrumentation",
       "properties": [
         {
           "name": "next-tutor:evidence",
-          "value": "declared;not-installed"
+          "value": "installed-distribution"
         },
         {
           "name": "next-tutor:scopes",
-          "value": "services/api/constraints.txt:constraint-only"
+          "value": "services/api/constraints.txt:constraint-only,services/api/requirements-observability.txt:observed-transitive"
         },
         {
           "name": "next-tutor:license-files",
-          "value": ""
+          "value": "licenses/texts/c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4.txt"
         }
       ],
       "purl": "pkg:pypi/opentelemetry-instrumentation@0.65b0",
@@ -42268,19 +42896,26 @@
     },
     {
       "bom-ref": "pkg:pypi/opentelemetry-proto@1.44.0",
+      "licenses": [
+        {
+          "license": {
+            "name": "Apache-2.0"
+          }
+        }
+      ],
       "name": "opentelemetry-proto",
       "properties": [
         {
           "name": "next-tutor:evidence",
-          "value": "declared;not-installed"
+          "value": "installed-distribution"
         },
         {
           "name": "next-tutor:scopes",
-          "value": "services/api/constraints.txt:constraint-only"
+          "value": "services/api/constraints.txt:constraint-only,services/api/requirements-observability.txt:observed-transitive,services/api/requirements-vector.txt:observed-transitive"
         },
         {
           "name": "next-tutor:license-files",
-          "value": ""
+          "value": "licenses/texts/c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4.txt"
         }
       ],
       "purl": "pkg:pypi/opentelemetry-proto@1.44.0",
@@ -42289,19 +42924,26 @@
     },
     {
       "bom-ref": "pkg:pypi/opentelemetry-sdk@1.44.0",
+      "licenses": [
+        {
+          "license": {
+            "name": "Apache-2.0"
+          }
+        }
+      ],
       "name": "opentelemetry-sdk",
       "properties": [
         {
           "name": "next-tutor:evidence",
-          "value": "declared;not-installed"
+          "value": "installed-distribution"
         },
         {
           "name": "next-tutor:scopes",
-          "value": "services/api/constraints.txt:constraint-only,services/api/requirements-observability.txt"
+          "value": "services/api/constraints.txt:constraint-only,services/api/requirements-observability.txt,services/api/requirements-observability.txt:observed-transitive,services/api/requirements-vector.txt:observed-transitive"
         },
         {
           "name": "next-tutor:license-files",
-          "value": ""
+          "value": "licenses/texts/c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4.txt"
         }
       ],
       "purl": "pkg:pypi/opentelemetry-sdk@1.44.0",
@@ -42310,19 +42952,26 @@
     },
     {
       "bom-ref": "pkg:pypi/opentelemetry-semantic-conventions@0.65b0",
+      "licenses": [
+        {
+          "license": {
+            "name": "Apache-2.0"
+          }
+        }
+      ],
       "name": "opentelemetry-semantic-conventions",
       "properties": [
         {
           "name": "next-tutor:evidence",
-          "value": "declared;not-installed"
+          "value": "installed-distribution"
         },
         {
           "name": "next-tutor:scopes",
-          "value": "services/api/constraints.txt:constraint-only"
+          "value": "services/api/constraints.txt:constraint-only,services/api/requirements-observability.txt:observed-transitive,services/api/requirements-vector.txt:observed-transitive"
         },
         {
           "name": "next-tutor:license-files",
-          "value": ""
+          "value": "licenses/texts/c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4.txt"
         }
       ],
       "purl": "pkg:pypi/opentelemetry-semantic-conventions@0.65b0",
@@ -42348,11 +42997,11 @@
       "properties": [
         {
           "name": "next-tutor:evidence",
-          "value": "registry-artifact;not-installed"
+          "value": "installed-distribution"
         },
         {
           "name": "next-tutor:scopes",
-          "value": "services/api/constraints.txt:constraint-only"
+          "value": "services/api/constraints.txt:constraint-only,services/api/requirements-observability.txt:observed-transitive"
         },
         {
           "name": "next-tutor:license-files",
@@ -42392,6 +43041,34 @@
       "version": "3.11.9"
     },
     {
+      "bom-ref": "pkg:pypi/orjson@3.12.0",
+      "licenses": [
+        {
+          "license": {
+            "name": "MPL-2.0 AND (Apache-2.0 OR MIT)"
+          }
+        }
+      ],
+      "name": "orjson",
+      "properties": [
+        {
+          "name": "next-tutor:evidence",
+          "value": "installed-distribution"
+        },
+        {
+          "name": "next-tutor:scopes",
+          "value": "services/api/requirements-vector.txt:observed-transitive"
+        },
+        {
+          "name": "next-tutor:license-files",
+          "value": "licenses/texts/23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3.txt,licenses/texts/66a3107d5ad6a058aab753eaac2047ccb2ed0e39465dd0fe5844da3e300d5172.txt,licenses/texts/a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2.txt"
+        }
+      ],
+      "purl": "pkg:pypi/orjson@3.12.0",
+      "type": "library",
+      "version": "3.12.0"
+    },
+    {
       "bom-ref": "pkg:pypi/overrides@7.7.0",
       "externalReferences": [
         {
@@ -42410,11 +43087,11 @@
       "properties": [
         {
           "name": "next-tutor:evidence",
-          "value": "registry-artifact;not-installed"
+          "value": "installed-distribution"
         },
         {
           "name": "next-tutor:scopes",
-          "value": "services/api/constraints.txt:constraint-only"
+          "value": "services/api/constraints.txt:constraint-only,services/api/requirements-vector.txt:observed-transitive"
         },
         {
           "name": "next-tutor:license-files",
@@ -42426,7 +43103,7 @@
       "version": "7.7.0"
     },
     {
-      "bom-ref": "pkg:pypi/packaging@26.2",
+      "bom-ref": "pkg:pypi/packaging@26.0",
       "licenses": [
         {
           "license": {
@@ -42442,7 +43119,35 @@
         },
         {
           "name": "next-tutor:scopes",
-          "value": "services/api/constraints.txt:constraint-only,services/api/requirements.txt:observed-transitive"
+          "value": "services/api/requirements-observability.txt:observed-transitive,services/api/requirements-vector.txt:observed-transitive,services/api/requirements.txt:observed-transitive"
+        },
+        {
+          "name": "next-tutor:license-files",
+          "value": "licenses/texts/0d542e0c8804e39aa7f37eb00da5a762149dc682d7829451287e11b938e94594.txt,licenses/texts/4f05cb1d9097c1281d17044b3f15bad364fa99289eba74851cce9fa7ca605bbf.txt,licenses/texts/596ec35e2ca0ebcba9fd8343ff0a51625af548786257815f24b41f7e08613314.txt,licenses/texts/b70e7e9b742f1cc6f948b34c16aa39ffece94196364bc88ff0d2180f0028fac5.txt,licenses/texts/cad1ef5bd340d73e074ba614d26f7deaca5c7940c3d8c34852e65c4909686c48.txt"
+        }
+      ],
+      "purl": "pkg:pypi/packaging@26.0",
+      "type": "library",
+      "version": "26.0"
+    },
+    {
+      "bom-ref": "pkg:pypi/packaging@26.2",
+      "licenses": [
+        {
+          "license": {
+            "name": "Apache-2.0 OR BSD-2-Clause"
+          }
+        }
+      ],
+      "name": "packaging",
+      "properties": [
+        {
+          "name": "next-tutor:evidence",
+          "value": "registry-artifact;not-installed"
+        },
+        {
+          "name": "next-tutor:scopes",
+          "value": "services/api/constraints.txt:constraint-only"
         },
         {
           "name": "next-tutor:license-files",
@@ -42472,11 +43177,11 @@
       "properties": [
         {
           "name": "next-tutor:evidence",
-          "value": "installed-distribution"
+          "value": "registry-artifact;not-installed"
         },
         {
           "name": "next-tutor:scopes",
-          "value": "services/api/constraints.txt:constraint-only,services/api/requirements.txt:observed-transitive"
+          "value": "services/api/constraints.txt:constraint-only"
         },
         {
           "name": "next-tutor:license-files",
@@ -42506,7 +43211,7 @@
       "properties": [
         {
           "name": "next-tutor:evidence",
-          "value": "installed-distribution"
+          "value": "registry-artifact;not-installed"
         },
         {
           "name": "next-tutor:scopes",
@@ -42538,7 +43243,7 @@
         },
         {
           "name": "next-tutor:scopes",
-          "value": "services/api/constraints.txt:constraint-only,services/api/requirements-test.txt:observed-transitive,services/api/requirements.txt,services/api/requirements.txt:observed-transitive"
+          "value": "services/api/constraints.txt:constraint-only,services/api/requirements.txt,services/api/requirements.txt:observed-transitive"
         },
         {
           "name": "next-tutor:license-files",
@@ -42568,11 +43273,11 @@
       "properties": [
         {
           "name": "next-tutor:evidence",
-          "value": "registry-artifact;not-installed"
+          "value": "installed-distribution"
         },
         {
           "name": "next-tutor:scopes",
-          "value": "services/api/constraints.txt:constraint-only"
+          "value": "services/api/constraints.txt:constraint-only,services/api/requirements-vector.txt:observed-transitive"
         },
         {
           "name": "next-tutor:license-files",
@@ -42606,7 +43311,7 @@
         },
         {
           "name": "next-tutor:scopes",
-          "value": "services/api/constraints.txt:constraint-only,services/api/requirements.txt:observed-transitive"
+          "value": "services/api/constraints.txt:constraint-only,services/api/requirements-observability.txt:observed-transitive,services/api/requirements-vector.txt:observed-transitive,services/api/requirements.txt:observed-transitive"
         },
         {
           "name": "next-tutor:license-files",
@@ -42652,6 +43357,34 @@
       "version": "1.4.3"
     },
     {
+      "bom-ref": "pkg:pypi/pybase64@1.5.0",
+      "licenses": [
+        {
+          "license": {
+            "name": "BSD-2-Clause"
+          }
+        }
+      ],
+      "name": "pybase64",
+      "properties": [
+        {
+          "name": "next-tutor:evidence",
+          "value": "installed-distribution"
+        },
+        {
+          "name": "next-tutor:scopes",
+          "value": "services/api/requirements-vector.txt:observed-transitive"
+        },
+        {
+          "name": "next-tutor:license-files",
+          "value": "licenses/texts/42871ad9f4e5e9255a4ec80b6c5ec9989bab6964693cf5fee6bb33f3afe39220.txt,licenses/texts/848c5f17f9de60ca340a2cb89f97b97136eed6ab4cb919020cf2038646aa1c25.txt"
+        }
+      ],
+      "purl": "pkg:pypi/pybase64@1.5.0",
+      "type": "library",
+      "version": "1.5.0"
+    },
+    {
       "bom-ref": "pkg:pypi/pycparser@3.0",
       "licenses": [
         {
@@ -42668,7 +43401,7 @@
         },
         {
           "name": "next-tutor:scopes",
-          "value": "services/api/constraints.txt:constraint-only,services/api/requirements-test.txt:observed-transitive,services/api/requirements.txt:observed-transitive"
+          "value": "services/api/constraints.txt:constraint-only"
         },
         {
           "name": "next-tutor:license-files",
@@ -42680,7 +43413,7 @@
       "version": "3.0"
     },
     {
-      "bom-ref": "pkg:pypi/pydantic-core@2.46.5",
+      "bom-ref": "pkg:pypi/pydantic-core@2.46.4",
       "externalReferences": [
         {
           "type": "website",
@@ -42702,7 +43435,41 @@
         },
         {
           "name": "next-tutor:scopes",
-          "value": "services/api/constraints.txt:constraint-only,services/api/requirements.txt:observed-transitive,services/voice/requirements.txt:observed-transitive"
+          "value": "services/api/requirements-vector.txt:observed-transitive,services/api/requirements.txt:observed-transitive"
+        },
+        {
+          "name": "next-tutor:license-files",
+          "value": "licenses/texts/2afdd30d54b4d62b6f488a6bcc1546e84ec5061f13f4209c03d012348783795a.txt"
+        }
+      ],
+      "purl": "pkg:pypi/pydantic-core@2.46.4",
+      "type": "library",
+      "version": "2.46.4"
+    },
+    {
+      "bom-ref": "pkg:pypi/pydantic-core@2.46.5",
+      "externalReferences": [
+        {
+          "type": "website",
+          "url": "https://github.com/pydantic"
+        }
+      ],
+      "licenses": [
+        {
+          "license": {
+            "name": "MIT"
+          }
+        }
+      ],
+      "name": "pydantic-core",
+      "properties": [
+        {
+          "name": "next-tutor:evidence",
+          "value": "registry-artifact;not-installed"
+        },
+        {
+          "name": "next-tutor:scopes",
+          "value": "services/api/constraints.txt:constraint-only"
         },
         {
           "name": "next-tutor:license-files",
@@ -42748,6 +43515,62 @@
       "version": "2.14.2"
     },
     {
+      "bom-ref": "pkg:pypi/pydantic-settings@2.15.0",
+      "licenses": [
+        {
+          "license": {
+            "name": "MIT"
+          }
+        }
+      ],
+      "name": "pydantic-settings",
+      "properties": [
+        {
+          "name": "next-tutor:evidence",
+          "value": "installed-distribution"
+        },
+        {
+          "name": "next-tutor:scopes",
+          "value": "services/api/requirements-vector.txt:observed-transitive"
+        },
+        {
+          "name": "next-tutor:license-files",
+          "value": "licenses/texts/eb355a753e020346d33d83bf9769135b89fc610568ac531a01c295bcee7fd998.txt"
+        }
+      ],
+      "purl": "pkg:pypi/pydantic-settings@2.15.0",
+      "type": "library",
+      "version": "2.15.0"
+    },
+    {
+      "bom-ref": "pkg:pypi/pydantic@2.13.4",
+      "licenses": [
+        {
+          "license": {
+            "name": "MIT"
+          }
+        }
+      ],
+      "name": "pydantic",
+      "properties": [
+        {
+          "name": "next-tutor:evidence",
+          "value": "installed-distribution"
+        },
+        {
+          "name": "next-tutor:scopes",
+          "value": "services/api/requirements-vector.txt:observed-transitive,services/api/requirements.txt:observed-transitive"
+        },
+        {
+          "name": "next-tutor:license-files",
+          "value": "licenses/texts/a9e186f3ca16b5eef84318e7a701721351a00cb7b8ae3a4394b67b49e3529ef3.txt"
+        }
+      ],
+      "purl": "pkg:pypi/pydantic@2.13.4",
+      "type": "library",
+      "version": "2.13.4"
+    },
+    {
       "bom-ref": "pkg:pypi/pydantic@2.13.5",
       "externalReferences": [
         {
@@ -42766,11 +43589,11 @@
       "properties": [
         {
           "name": "next-tutor:evidence",
-          "value": "installed-distribution"
+          "value": "registry-artifact;not-installed"
         },
         {
           "name": "next-tutor:scopes",
-          "value": "services/api/constraints.txt:constraint-only,services/api/requirements.txt,services/api/requirements.txt:observed-transitive,services/voice/requirements.txt"
+          "value": "services/api/constraints.txt:constraint-only,services/api/requirements.txt,services/voice/requirements.txt"
         },
         {
           "name": "next-tutor:license-files",
@@ -42780,6 +43603,40 @@
       "purl": "pkg:pypi/pydantic@2.13.5",
       "type": "library",
       "version": "2.13.5"
+    },
+    {
+      "bom-ref": "pkg:pypi/pygments@2.19.2",
+      "externalReferences": [
+        {
+          "type": "website",
+          "url": "https://pygments.org"
+        }
+      ],
+      "licenses": [
+        {
+          "license": {
+            "name": "BSD-2-Clause"
+          }
+        }
+      ],
+      "name": "pygments",
+      "properties": [
+        {
+          "name": "next-tutor:evidence",
+          "value": "installed-distribution"
+        },
+        {
+          "name": "next-tutor:scopes",
+          "value": "services/api/requirements-vector.txt:observed-transitive"
+        },
+        {
+          "name": "next-tutor:license-files",
+          "value": "licenses/texts/0660e318a6f215802adc8731ab85d0c65ff27cfcca3f5d28597f306476195bd9.txt,licenses/texts/a9d66f1d526df02e29dce73436d34e56e8632f46c275bbdffc70569e882f9f17.txt"
+        }
+      ],
+      "purl": "pkg:pypi/pygments@2.19.2",
+      "type": "library",
+      "version": "2.19.2"
     },
     {
       "bom-ref": "pkg:pypi/pygments@2.20.0",
@@ -42834,7 +43691,7 @@
       "properties": [
         {
           "name": "next-tutor:evidence",
-          "value": "installed-distribution"
+          "value": "registry-artifact;not-installed"
         },
         {
           "name": "next-tutor:scopes",
@@ -42862,7 +43719,7 @@
       "properties": [
         {
           "name": "next-tutor:evidence",
-          "value": "installed-distribution"
+          "value": "registry-artifact;not-installed"
         },
         {
           "name": "next-tutor:scopes",
@@ -42896,15 +43753,15 @@
       "properties": [
         {
           "name": "next-tutor:evidence",
-          "value": "installed-distribution"
+          "value": "registry-artifact;not-installed"
         },
         {
           "name": "next-tutor:scopes",
-          "value": "services/api/constraints.txt:constraint-only,services/api/requirements.txt,services/api/requirements.txt:observed-transitive"
+          "value": "services/api/constraints.txt:constraint-only,services/api/requirements.txt"
         },
         {
           "name": "next-tutor:license-files",
-          "value": "licenses/texts/33fd641c9f3b0e0be64bc78fea9e94807674cdd70c48477599226cb8956565fe.txt,licenses/texts/419896aea50c15d6e40c5b4baf4bd346f78223b9a354c7357ad00262afdc08ec.txt,licenses/texts/66a3107d5ad6a058aab753eaac2047ccb2ed0e39465dd0fe5844da3e300d5172.txt,licenses/texts/7312b68c5b25e9bf2b828706fb4e29588f22705112f411fd42e1f7d84c3d139a.txt,licenses/texts/75815e3bf6484201a3c3d17a1bbf10f2e8e3237f84df10a2357ea896db2a81d6.txt,licenses/texts/961eacd9633fff6d051db7208b755e9210e30efac7adec3e6a6d52798f0ccf0e.txt,licenses/texts/96f5b328adbb78eeaaec6980d73fd558cb1e4d62560ed615646bc3cf5e532430.txt,licenses/texts/996af0513df21f7496288951c41428a03c174e9e4a9d63665c57d670f845ccb1.txt,licenses/texts/a6d11f0694c0137e9b02924b9d33a159f6c72f220fa4655bb2e1ea3654377d39.txt,licenses/texts/b05785f9f18e6716bab63424b11454513b9943a222595b70411009202fc592b5.txt,licenses/texts/ba26c1263131696b86c10496b5066b918a20b7161822a80c274d0080105f6c93.txt,licenses/texts/bdb0a645ea18c60507d0368379b1ac5474b92255fcc2d115e07486a7672ba526.txt,licenses/texts/c110d3ea2ad77467ce0dcff7d3337e6c8be8049a5103f4b9bd5fd911a77972e5.txt,licenses/texts/c5ab0890a737c2dfa7ba675036554f6d17741d98629b0c2a145354d00617e6b2.txt,licenses/texts/c79a7fea0e3cac04cd43f20e7b648e5a0ff8fa5344e644b0ee09ca1162b62747.txt,licenses/texts/cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30.txt,licenses/texts/e16f1596201850fd4a63680b27f603cb64e67176159be3d8ed78a4403fdb1700.txt,licenses/texts/e55522d81edc687a341a4411e0776e54ca654e90147f354a90458aaced4116af.txt,licenses/texts/e562f3f974ced7e69dd1db77b820b36bcf8f30377f1aa105723fba449c53c4e6.txt,licenses/texts/ebcd9bbf783a73d05c53ba4d586b8d5813dcdf3bbec50265860ccc885e606f47.txt,licenses/texts/f4b133e25df1f86ad3ffea453aa0e613f0474f34778dbbb3e437e7b2724937d8.txt,licenses/texts/fc8dbc04e03ad4efc08a647ffe7f995b811a95bc04c0e85a56d5277c6593fa5f.txt"
+          "value": "licenses/texts/419896aea50c15d6e40c5b4baf4bd346f78223b9a354c7357ad00262afdc08ec.txt,licenses/texts/66a3107d5ad6a058aab753eaac2047ccb2ed0e39465dd0fe5844da3e300d5172.txt,licenses/texts/996af0513df21f7496288951c41428a03c174e9e4a9d63665c57d670f845ccb1.txt,licenses/texts/a6d11f0694c0137e9b02924b9d33a159f6c72f220fa4655bb2e1ea3654377d39.txt,licenses/texts/b05785f9f18e6716bab63424b11454513b9943a222595b70411009202fc592b5.txt,licenses/texts/cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30.txt,licenses/texts/e16f1596201850fd4a63680b27f603cb64e67176159be3d8ed78a4403fdb1700.txt"
         }
       ],
       "purl": "pkg:pypi/pypdfium2@5.14.0",
@@ -42930,11 +43787,11 @@
       "properties": [
         {
           "name": "next-tutor:evidence",
-          "value": "registry-artifact;not-installed"
+          "value": "installed-distribution"
         },
         {
           "name": "next-tutor:scopes",
-          "value": "services/api/constraints.txt:constraint-only"
+          "value": "services/api/constraints.txt:constraint-only,services/api/requirements-vector.txt:observed-transitive"
         },
         {
           "name": "next-tutor:license-files",
@@ -42992,11 +43849,11 @@
       "properties": [
         {
           "name": "next-tutor:evidence",
-          "value": "registry-artifact;not-installed"
+          "value": "installed-distribution"
         },
         {
           "name": "next-tutor:scopes",
-          "value": "services/api/constraints.txt:constraint-only"
+          "value": "services/api/constraints.txt:constraint-only,services/api/requirements-vector.txt:observed-transitive"
         },
         {
           "name": "next-tutor:license-files",
@@ -43064,7 +43921,7 @@
         },
         {
           "name": "next-tutor:scopes",
-          "value": "services/api/constraints.txt:constraint-only,services/api/requirements-test.txt:observed-transitive,services/api/requirements.txt:observed-transitive"
+          "value": "services/api/constraints.txt:constraint-only,services/api/requirements-vector.txt:observed-transitive"
         },
         {
           "name": "next-tutor:license-files",
@@ -43120,7 +43977,7 @@
         },
         {
           "name": "next-tutor:scopes",
-          "value": "services/api/constraints.txt:constraint-only,services/api/requirements.txt,services/api/requirements.txt:observed-transitive"
+          "value": "services/api/constraints.txt:constraint-only,services/api/requirements-vector.txt:observed-transitive,services/api/requirements.txt,services/api/requirements.txt:observed-transitive"
         },
         {
           "name": "next-tutor:license-files",
@@ -43210,7 +44067,7 @@
         },
         {
           "name": "next-tutor:scopes",
-          "value": "services/api/constraints.txt:constraint-only,services/api/requirements-test.txt:observed-transitive,services/api/requirements.txt:observed-transitive"
+          "value": "services/api/constraints.txt:constraint-only,services/api/requirements-vector.txt:observed-transitive,services/api/requirements.txt:observed-transitive"
         },
         {
           "name": "next-tutor:license-files",
@@ -43248,6 +44105,40 @@
       "purl": "pkg:pypi/redis@8.1.0",
       "type": "library",
       "version": "8.1.0"
+    },
+    {
+      "bom-ref": "pkg:pypi/referencing@0.36.2",
+      "externalReferences": [
+        {
+          "type": "website",
+          "url": "https://github.com/python-jsonschema/referencing"
+        }
+      ],
+      "licenses": [
+        {
+          "license": {
+            "name": "MIT"
+          }
+        }
+      ],
+      "name": "referencing",
+      "properties": [
+        {
+          "name": "next-tutor:evidence",
+          "value": "installed-distribution"
+        },
+        {
+          "name": "next-tutor:scopes",
+          "value": "services/api/requirements-vector.txt:observed-transitive"
+        },
+        {
+          "name": "next-tutor:license-files",
+          "value": "licenses/texts/42dcd63495f87b4eb7c7757afa379bb55a53f94afd7a5f657d9adf57236e515c.txt"
+        }
+      ],
+      "purl": "pkg:pypi/referencing@0.36.2",
+      "type": "library",
+      "version": "0.36.2"
     },
     {
       "bom-ref": "pkg:pypi/referencing@0.37.0",
@@ -43302,7 +44193,7 @@
       "properties": [
         {
           "name": "next-tutor:evidence",
-          "value": "installed-distribution"
+          "value": "registry-artifact;not-installed"
         },
         {
           "name": "next-tutor:scopes",
@@ -43336,11 +44227,11 @@
       "properties": [
         {
           "name": "next-tutor:evidence",
-          "value": "registry-artifact;not-installed"
+          "value": "installed-distribution"
         },
         {
           "name": "next-tutor:scopes",
-          "value": "services/api/constraints.txt:constraint-only"
+          "value": "services/api/constraints.txt:constraint-only,services/api/requirements-vector.txt:observed-transitive"
         },
         {
           "name": "next-tutor:license-files",
@@ -43352,7 +44243,13 @@
       "version": "2.0.0"
     },
     {
-      "bom-ref": "pkg:pypi/requests@2.34.2",
+      "bom-ref": "pkg:pypi/requests@2.32.5",
+      "externalReferences": [
+        {
+          "type": "website",
+          "url": "https://requests.readthedocs.io"
+        }
+      ],
       "licenses": [
         {
           "license": {
@@ -43368,7 +44265,35 @@
         },
         {
           "name": "next-tutor:scopes",
-          "value": "services/api/constraints.txt:constraint-only,services/api/requirements-test.txt:observed-transitive"
+          "value": "services/api/requirements-vector.txt:observed-transitive"
+        },
+        {
+          "name": "next-tutor:license-files",
+          "value": "licenses/texts/09e8a9bcec8067104652c168685ab0931e7868f9c8284b66f5ae6edae5f1130b.txt"
+        }
+      ],
+      "purl": "pkg:pypi/requests@2.32.5",
+      "type": "library",
+      "version": "2.32.5"
+    },
+    {
+      "bom-ref": "pkg:pypi/requests@2.34.2",
+      "licenses": [
+        {
+          "license": {
+            "name": "Apache-2.0"
+          }
+        }
+      ],
+      "name": "requests",
+      "properties": [
+        {
+          "name": "next-tutor:evidence",
+          "value": "registry-artifact;not-installed"
+        },
+        {
+          "name": "next-tutor:scopes",
+          "value": "services/api/constraints.txt:constraint-only"
         },
         {
           "name": "next-tutor:license-files",
@@ -43380,21 +44305,21 @@
       "version": "2.34.2"
     },
     {
-      "bom-ref": "pkg:pypi/responses@0.26.3",
+      "bom-ref": "pkg:pypi/rich@13.9.4",
       "externalReferences": [
         {
           "type": "website",
-          "url": "https://github.com/getsentry/responses"
+          "url": "https://github.com/Textualize/rich"
         }
       ],
       "licenses": [
         {
           "license": {
-            "name": "Apache-2.0"
+            "name": "MIT"
           }
         }
       ],
-      "name": "responses",
+      "name": "rich",
       "properties": [
         {
           "name": "next-tutor:evidence",
@@ -43402,16 +44327,16 @@
         },
         {
           "name": "next-tutor:scopes",
-          "value": "services/api/requirements-test.txt:observed-transitive"
+          "value": "services/api/requirements-vector.txt:observed-transitive"
         },
         {
           "name": "next-tutor:license-files",
-          "value": "licenses/texts/489ecb70b4447c034a10978a4b08da015c9bd9fa95ca3aeaf219d9815416a67c.txt"
+          "value": "licenses/texts/deed7c17a4318158190a3ea239cc879a5a50271cebb98ae7025f48fbe58dca15.txt"
         }
       ],
-      "purl": "pkg:pypi/responses@0.26.3",
+      "purl": "pkg:pypi/rich@13.9.4",
       "type": "library",
-      "version": "0.26.3"
+      "version": "13.9.4"
     },
     {
       "bom-ref": "pkg:pypi/rich@15.0.0",
@@ -43446,6 +44371,40 @@
       "purl": "pkg:pypi/rich@15.0.0",
       "type": "library",
       "version": "15.0.0"
+    },
+    {
+      "bom-ref": "pkg:pypi/rpds-py@0.27.1",
+      "externalReferences": [
+        {
+          "type": "website",
+          "url": "https://github.com/crate-py/rpds"
+        }
+      ],
+      "licenses": [
+        {
+          "license": {
+            "name": "MIT"
+          }
+        }
+      ],
+      "name": "rpds-py",
+      "properties": [
+        {
+          "name": "next-tutor:evidence",
+          "value": "installed-distribution"
+        },
+        {
+          "name": "next-tutor:scopes",
+          "value": "services/api/requirements-vector.txt:observed-transitive"
+        },
+        {
+          "name": "next-tutor:license-files",
+          "value": "licenses/texts/314e4e91be3baa93c0fb4bccc9e4e97cd643eb839b065af921782c2175fe9909.txt"
+        }
+      ],
+      "purl": "pkg:pypi/rpds-py@0.27.1",
+      "type": "library",
+      "version": "0.27.1"
     },
     {
       "bom-ref": "pkg:pypi/rpds-py@2026.6.3",
@@ -43500,11 +44459,11 @@
       "properties": [
         {
           "name": "next-tutor:evidence",
-          "value": "installed-distribution"
+          "value": "registry-artifact;not-installed"
         },
         {
           "name": "next-tutor:scopes",
-          "value": "services/api/constraints.txt:constraint-only,services/api/requirements-test.txt:observed-transitive,services/api/requirements.txt:observed-transitive"
+          "value": "services/api/constraints.txt:constraint-only"
         },
         {
           "name": "next-tutor:license-files",
@@ -43562,11 +44521,11 @@
       "properties": [
         {
           "name": "next-tutor:evidence",
-          "value": "registry-artifact;not-installed"
+          "value": "installed-distribution"
         },
         {
           "name": "next-tutor:scopes",
-          "value": "services/api/constraints.txt:constraint-only"
+          "value": "services/api/constraints.txt:constraint-only,services/api/requirements-vector.txt:observed-transitive"
         },
         {
           "name": "next-tutor:license-files",
@@ -43600,7 +44559,7 @@
         },
         {
           "name": "next-tutor:scopes",
-          "value": "services/api/constraints.txt:constraint-only,services/api/requirements-test.txt:observed-transitive,services/api/requirements.txt:observed-transitive"
+          "value": "services/api/constraints.txt:constraint-only,services/api/requirements-vector.txt:observed-transitive"
         },
         {
           "name": "next-tutor:license-files",
@@ -43816,11 +44775,11 @@
       "properties": [
         {
           "name": "next-tutor:evidence",
-          "value": "registry-artifact;not-installed"
+          "value": "installed-distribution"
         },
         {
           "name": "next-tutor:scopes",
-          "value": "services/api/constraints.txt:constraint-only"
+          "value": "services/api/constraints.txt:constraint-only,services/api/requirements-vector.txt:observed-transitive"
         },
         {
           "name": "next-tutor:license-files",
@@ -43850,11 +44809,11 @@
       "properties": [
         {
           "name": "next-tutor:evidence",
-          "value": "registry-artifact;not-installed"
+          "value": "installed-distribution"
         },
         {
           "name": "next-tutor:scopes",
-          "value": "services/api/constraints.txt:constraint-only"
+          "value": "services/api/constraints.txt:constraint-only,services/api/requirements-vector.txt:observed-transitive"
         },
         {
           "name": "next-tutor:license-files",
@@ -43882,7 +44841,7 @@
         },
         {
           "name": "next-tutor:scopes",
-          "value": "services/api/constraints.txt:constraint-only,services/api/requirements.txt:observed-transitive"
+          "value": "services/api/constraints.txt:constraint-only,services/api/requirements-vector.txt:observed-transitive,services/api/requirements.txt:observed-transitive"
         },
         {
           "name": "next-tutor:license-files",
@@ -43968,11 +44927,11 @@
       "properties": [
         {
           "name": "next-tutor:evidence",
-          "value": "installed-distribution"
+          "value": "registry-artifact;not-installed"
         },
         {
           "name": "next-tutor:scopes",
-          "value": "services/api/constraints.txt:constraint-only,services/api/requirements-test.txt:observed-transitive"
+          "value": "services/api/constraints.txt:constraint-only"
         },
         {
           "name": "next-tutor:license-files",
@@ -44018,6 +44977,34 @@
       "version": "0.27.0"
     },
     {
+      "bom-ref": "pkg:pypi/typer@0.27.2",
+      "licenses": [
+        {
+          "license": {
+            "name": "MIT"
+          }
+        }
+      ],
+      "name": "typer",
+      "properties": [
+        {
+          "name": "next-tutor:evidence",
+          "value": "installed-distribution"
+        },
+        {
+          "name": "next-tutor:scopes",
+          "value": "services/api/requirements-vector.txt:observed-transitive"
+        },
+        {
+          "name": "next-tutor:license-files",
+          "value": "licenses/texts/58992cebcf8dfb6e40c4e2112ed12126c243666dca3912a3d78b7ecac4859d49.txt,licenses/texts/9a8ad106a394e853bfe21f42f4e72d592819a22805d991b5f3275029292b658d.txt"
+        }
+      ],
+      "purl": "pkg:pypi/typer@0.27.2",
+      "type": "library",
+      "version": "0.27.2"
+    },
+    {
       "bom-ref": "pkg:pypi/types-protobuf@7.35.1.20260906",
       "licenses": [
         {
@@ -44046,7 +45033,7 @@
       "version": "7.35.1.20260906"
     },
     {
-      "bom-ref": "pkg:pypi/typing-extensions@4.16.0",
+      "bom-ref": "pkg:pypi/typing-extensions@4.15.0",
       "licenses": [
         {
           "license": {
@@ -44062,7 +45049,35 @@
         },
         {
           "name": "next-tutor:scopes",
-          "value": "services/api/constraints.txt:constraint-only,services/api/requirements.txt:observed-transitive,services/voice/requirements.txt:observed-transitive"
+          "value": "services/api/requirements-observability.txt:observed-transitive,services/api/requirements-vector.txt:observed-transitive,services/api/requirements.txt:observed-transitive"
+        },
+        {
+          "name": "next-tutor:license-files",
+          "value": "licenses/texts/3b2f81fe21d181c499c59a256c8e1968455d6689d269aa85373bfb6af41da3bf.txt"
+        }
+      ],
+      "purl": "pkg:pypi/typing-extensions@4.15.0",
+      "type": "library",
+      "version": "4.15.0"
+    },
+    {
+      "bom-ref": "pkg:pypi/typing-extensions@4.16.0",
+      "licenses": [
+        {
+          "license": {
+            "name": "PSF-2.0"
+          }
+        }
+      ],
+      "name": "typing-extensions",
+      "properties": [
+        {
+          "name": "next-tutor:evidence",
+          "value": "registry-artifact;not-installed"
+        },
+        {
+          "name": "next-tutor:scopes",
+          "value": "services/api/constraints.txt:constraint-only"
         },
         {
           "name": "next-tutor:license-files",
@@ -44090,7 +45105,7 @@
         },
         {
           "name": "next-tutor:scopes",
-          "value": "services/api/constraints.txt:constraint-only,services/api/requirements.txt:observed-transitive,services/voice/requirements.txt:observed-transitive"
+          "value": "services/api/constraints.txt:constraint-only,services/api/requirements-vector.txt:observed-transitive,services/api/requirements.txt:observed-transitive"
         },
         {
           "name": "next-tutor:license-files",
@@ -44102,7 +45117,7 @@
       "version": "0.4.2"
     },
     {
-      "bom-ref": "pkg:pypi/urllib3@2.8.0",
+      "bom-ref": "pkg:pypi/urllib3@2.6.3",
       "licenses": [
         {
           "license": {
@@ -44118,7 +45133,35 @@
         },
         {
           "name": "next-tutor:scopes",
-          "value": "services/api/constraints.txt:constraint-only,services/api/requirements-test.txt:observed-transitive,services/api/requirements.txt:observed-transitive"
+          "value": "services/api/requirements-vector.txt:observed-transitive"
+        },
+        {
+          "name": "next-tutor:license-files",
+          "value": "licenses/texts/130e3a64d5fdd5d096a752694634a7d9df284469de86e5732100268041e3d686.txt"
+        }
+      ],
+      "purl": "pkg:pypi/urllib3@2.6.3",
+      "type": "library",
+      "version": "2.6.3"
+    },
+    {
+      "bom-ref": "pkg:pypi/urllib3@2.8.0",
+      "licenses": [
+        {
+          "license": {
+            "name": "MIT"
+          }
+        }
+      ],
+      "name": "urllib3",
+      "properties": [
+        {
+          "name": "next-tutor:evidence",
+          "value": "registry-artifact;not-installed"
+        },
+        {
+          "name": "next-tutor:scopes",
+          "value": "services/api/constraints.txt:constraint-only"
         },
         {
           "name": "next-tutor:license-files",
@@ -44146,7 +45189,7 @@
         },
         {
           "name": "next-tutor:scopes",
-          "value": "services/api/constraints.txt:constraint-only,services/api/requirements.txt"
+          "value": "services/api/constraints.txt:constraint-only,services/api/requirements-vector.txt:observed-transitive,services/api/requirements.txt"
         },
         {
           "name": "next-tutor:license-files",
@@ -44208,7 +45251,7 @@
         },
         {
           "name": "next-tutor:scopes",
-          "value": "services/api/constraints.txt:constraint-only,services/api/requirements.txt:observed-transitive"
+          "value": "services/api/constraints.txt:constraint-only,services/api/requirements-vector.txt:observed-transitive,services/api/requirements.txt:observed-transitive"
         },
         {
           "name": "next-tutor:license-files",
@@ -44242,7 +45285,7 @@
         },
         {
           "name": "next-tutor:scopes",
-          "value": "services/api/constraints.txt:constraint-only,services/api/requirements.txt:observed-transitive"
+          "value": "services/api/constraints.txt:constraint-only,services/api/requirements-vector.txt:observed-transitive,services/api/requirements.txt:observed-transitive"
         },
         {
           "name": "next-tutor:license-files",
@@ -44288,6 +45331,40 @@
       "version": "1.9.0"
     },
     {
+      "bom-ref": "pkg:pypi/websocket-client@1.9.1",
+      "externalReferences": [
+        {
+          "type": "website",
+          "url": "https://github.com/websocket-client/websocket-client"
+        }
+      ],
+      "licenses": [
+        {
+          "license": {
+            "name": "Apache-2.0"
+          }
+        }
+      ],
+      "name": "websocket-client",
+      "properties": [
+        {
+          "name": "next-tutor:evidence",
+          "value": "installed-distribution"
+        },
+        {
+          "name": "next-tutor:scopes",
+          "value": "services/api/requirements-vector.txt:observed-transitive"
+        },
+        {
+          "name": "next-tutor:license-files",
+          "value": "licenses/texts/14214b7bbb6952ada76afea206b6c393f2563d4e7678be0232e1a1d216716679.txt"
+        }
+      ],
+      "purl": "pkg:pypi/websocket-client@1.9.1",
+      "type": "library",
+      "version": "1.9.1"
+    },
+    {
       "bom-ref": "pkg:pypi/websockets@16.1.1",
       "licenses": [
         {
@@ -44304,7 +45381,7 @@
         },
         {
           "name": "next-tutor:scopes",
-          "value": "services/api/constraints.txt:constraint-only,services/api/requirements.txt:observed-transitive"
+          "value": "services/api/constraints.txt:constraint-only,services/api/requirements-vector.txt:observed-transitive,services/api/requirements.txt:observed-transitive"
         },
         {
           "name": "next-tutor:license-files",
@@ -44316,15 +45393,15 @@
       "version": "16.1.1"
     },
     {
-      "bom-ref": "pkg:pypi/werkzeug@3.1.9",
+      "bom-ref": "pkg:pypi/wrapt@2.5.0",
       "licenses": [
         {
           "license": {
-            "name": "BSD-3-Clause"
+            "name": "BSD-2-Clause"
           }
         }
       ],
-      "name": "werkzeug",
+      "name": "wrapt",
       "properties": [
         {
           "name": "next-tutor:evidence",
@@ -44332,32 +45409,11 @@
         },
         {
           "name": "next-tutor:scopes",
-          "value": "services/api/requirements-test.txt:observed-transitive"
+          "value": "services/api/constraints.txt:constraint-only,services/api/requirements-observability.txt:observed-transitive"
         },
         {
           "name": "next-tutor:license-files",
-          "value": "licenses/texts/3b49dcee4105eb37bac10faf1be260408fe85d252b8e9df2e0979fc1e094437b.txt"
-        }
-      ],
-      "purl": "pkg:pypi/werkzeug@3.1.9",
-      "type": "library",
-      "version": "3.1.9"
-    },
-    {
-      "bom-ref": "pkg:pypi/wrapt@2.5.0",
-      "name": "wrapt",
-      "properties": [
-        {
-          "name": "next-tutor:evidence",
-          "value": "declared;not-installed"
-        },
-        {
-          "name": "next-tutor:scopes",
-          "value": "services/api/constraints.txt:constraint-only"
-        },
-        {
-          "name": "next-tutor:license-files",
-          "value": ""
+          "value": "licenses/texts/d4f66854a24dda2f2a5282912aedebe6b18186b86284510a433d78fadcd88e5d.txt"
         }
       ],
       "purl": "pkg:pypi/wrapt@2.5.0",
@@ -44399,34 +45455,6 @@
       "version": "3.2.9"
     },
     {
-      "bom-ref": "pkg:pypi/xmltodict@1.0.4",
-      "licenses": [
-        {
-          "license": {
-            "name": "MIT"
-          }
-        }
-      ],
-      "name": "xmltodict",
-      "properties": [
-        {
-          "name": "next-tutor:evidence",
-          "value": "installed-distribution"
-        },
-        {
-          "name": "next-tutor:scopes",
-          "value": "services/api/requirements-test.txt:observed-transitive"
-        },
-        {
-          "name": "next-tutor:license-files",
-          "value": "licenses/texts/d66d5eb8f83a0ba21d3dd04318b8817588e8764daabea852d1035e3f07ffda55.txt"
-        }
-      ],
-      "purl": "pkg:pypi/xmltodict@1.0.4",
-      "type": "library",
-      "version": "1.0.4"
-    },
-    {
       "bom-ref": "pkg:pypi/yarl@1.24.5",
       "externalReferences": [
         {
@@ -44445,11 +45473,11 @@
       "properties": [
         {
           "name": "next-tutor:evidence",
-          "value": "registry-artifact;not-installed"
+          "value": "installed-distribution"
         },
         {
           "name": "next-tutor:scopes",
-          "value": "services/api/constraints.txt:constraint-only"
+          "value": "services/api/constraints.txt:constraint-only,services/api/requirements-vector.txt:observed-transitive"
         },
         {
           "name": "next-tutor:license-files",
@@ -53656,11 +54684,21 @@
       "ref": "pkg:pypi/aiohappyeyeballs@2.7.1"
     },
     {
-      "dependsOn": [],
+      "dependsOn": [
+        "pkg:pypi/aiohappyeyeballs@2.7.1",
+        "pkg:pypi/aiosignal@1.4.0",
+        "pkg:pypi/attrs@25.4.0",
+        "pkg:pypi/frozenlist@1.8.0",
+        "pkg:pypi/multidict@6.7.1",
+        "pkg:pypi/propcache@0.5.2",
+        "pkg:pypi/yarl@1.24.5"
+      ],
       "ref": "pkg:pypi/aiohttp@3.14.3"
     },
     {
-      "dependsOn": [],
+      "dependsOn": [
+        "pkg:pypi/frozenlist@1.8.0"
+      ],
       "ref": "pkg:pypi/aiosignal@1.4.0"
     },
     {
@@ -53671,7 +54709,7 @@
       "dependsOn": [
         "pkg:pypi/mako@1.4.3",
         "pkg:pypi/sqlalchemy@2.0.54",
-        "pkg:pypi/typing-extensions@4.16.0"
+        "pkg:pypi/typing-extensions@4.15.0"
       ],
       "ref": "pkg:pypi/alembic@1.20.0"
     },
@@ -53685,7 +54723,7 @@
     },
     {
       "dependsOn": [
-        "pkg:pypi/idna@3.18"
+        "pkg:pypi/idna@3.11"
       ],
       "ref": "pkg:pypi/anyio@4.14.2"
     },
@@ -53699,6 +54737,10 @@
     },
     {
       "dependsOn": [],
+      "ref": "pkg:pypi/attrs@25.4.0"
+    },
+    {
+      "dependsOn": [],
       "ref": "pkg:pypi/attrs@26.1.0"
     },
     {
@@ -53706,19 +54748,11 @@
       "ref": "pkg:pypi/bcrypt@5.0.0"
     },
     {
-      "dependsOn": [
-        "pkg:pypi/botocore@1.43.108",
-        "pkg:pypi/jmespath@1.1.0",
-        "pkg:pypi/s3transfer@0.19.2"
-      ],
+      "dependsOn": [],
       "ref": "pkg:pypi/boto3@1.43.108"
     },
     {
-      "dependsOn": [
-        "pkg:pypi/jmespath@1.1.0",
-        "pkg:pypi/python-dateutil@2.9.0.post0",
-        "pkg:pypi/urllib3@2.8.0"
-      ],
+      "dependsOn": [],
       "ref": "pkg:pypi/botocore@1.43.108"
     },
     {
@@ -53726,22 +54760,67 @@
       "ref": "pkg:pypi/build@1.5.0"
     },
     {
+      "dependsOn": [
+        "pkg:pypi/packaging@26.0",
+        "pkg:pypi/pyproject-hooks@1.2.0"
+      ],
+      "ref": "pkg:pypi/build@1.6.0"
+    },
+    {
+      "dependsOn": [],
+      "ref": "pkg:pypi/certifi@2026.1.4"
+    },
+    {
       "dependsOn": [],
       "ref": "pkg:pypi/certifi@2026.7.22"
     },
     {
-      "dependsOn": [
-        "pkg:pypi/pycparser@3.0"
-      ],
+      "dependsOn": [],
       "ref": "pkg:pypi/cffi@2.1.1"
+    },
+    {
+      "dependsOn": [],
+      "ref": "pkg:pypi/chardet@5.2.0"
     },
     {
       "dependsOn": [],
       "ref": "pkg:pypi/charset-normalizer@3.4.9"
     },
     {
-      "dependsOn": [],
+      "dependsOn": [
+        "pkg:pypi/bcrypt@5.0.0",
+        "pkg:pypi/build@1.6.0",
+        "pkg:pypi/grpcio@1.83.0",
+        "pkg:pypi/httpx@0.28.1",
+        "pkg:pypi/importlib-resources@7.1.0",
+        "pkg:pypi/jsonschema@4.19.2",
+        "pkg:pypi/kubernetes@36.0.3",
+        "pkg:pypi/mmh3@5.3.0",
+        "pkg:pypi/numpy@2.5.2",
+        "pkg:pypi/onnxruntime@1.29.0",
+        "pkg:pypi/opentelemetry-api@1.44.0",
+        "pkg:pypi/opentelemetry-exporter-otlp-proto-grpc@1.44.0",
+        "pkg:pypi/opentelemetry-sdk@1.44.0",
+        "pkg:pypi/orjson@3.12.0",
+        "pkg:pypi/overrides@7.7.0",
+        "pkg:pypi/pybase64@1.5.0",
+        "pkg:pypi/pydantic-settings@2.15.0",
+        "pkg:pypi/pydantic@2.13.4",
+        "pkg:pypi/pypika@0.51.1",
+        "pkg:pypi/pyyaml@6.0.3",
+        "pkg:pypi/rich@13.9.4",
+        "pkg:pypi/tenacity@9.1.4",
+        "pkg:pypi/tokenizers@0.23.1",
+        "pkg:pypi/tqdm@4.69.1",
+        "pkg:pypi/typer@0.27.2",
+        "pkg:pypi/typing-extensions@4.15.0",
+        "pkg:pypi/uvicorn@0.51.0"
+      ],
       "ref": "pkg:pypi/chromadb@1.5.9"
+    },
+    {
+      "dependsOn": [],
+      "ref": "pkg:pypi/click@8.1.8"
     },
     {
       "dependsOn": [],
@@ -53752,9 +54831,7 @@
       "ref": "pkg:pypi/cn2an@0.5.24"
     },
     {
-      "dependsOn": [
-        "pkg:pypi/cffi@2.1.1"
-      ],
+      "dependsOn": [],
       "ref": "pkg:pypi/cryptography@50.0.2"
     },
     {
@@ -53774,18 +54851,22 @@
       "ref": "pkg:pypi/durationpy@0.10"
     },
     {
+      "dependsOn": [],
+      "ref": "pkg:pypi/durationpy@0.11"
+    },
+    {
       "dependsOn": [
         "pkg:pypi/dnspython@2.8.0",
-        "pkg:pypi/idna@3.18"
+        "pkg:pypi/idna@3.11"
       ],
       "ref": "pkg:pypi/email-validator@2.3.0"
     },
     {
       "dependsOn": [
         "pkg:pypi/annotated-doc@0.0.4",
-        "pkg:pypi/pydantic@2.13.5",
+        "pkg:pypi/pydantic@2.13.4",
         "pkg:pypi/starlette@1.3.1",
-        "pkg:pypi/typing-extensions@4.16.0",
+        "pkg:pypi/typing-extensions@4.15.0",
         "pkg:pypi/typing-inspection@0.4.2"
       ],
       "ref": "pkg:pypi/fastapi@0.140.0"
@@ -53797,6 +54878,10 @@
     {
       "dependsOn": [],
       "ref": "pkg:pypi/filelock@3.32.0"
+    },
+    {
+      "dependsOn": [],
+      "ref": "pkg:pypi/filelock@3.32.4"
     },
     {
       "dependsOn": [],
@@ -53812,10 +54897,16 @@
     },
     {
       "dependsOn": [],
-      "ref": "pkg:pypi/g2p-en@2.1.0"
+      "ref": "pkg:pypi/fsspec@2026.7.0"
     },
     {
       "dependsOn": [],
+      "ref": "pkg:pypi/g2p-en@2.1.0"
+    },
+    {
+      "dependsOn": [
+        "pkg:pypi/protobuf@7.35.1"
+      ],
       "ref": "pkg:pypi/googleapis-common-protos@1.75.0"
     },
     {
@@ -53823,7 +54914,9 @@
       "ref": "pkg:pypi/greenlet@3.5.6"
     },
     {
-      "dependsOn": [],
+      "dependsOn": [
+        "pkg:pypi/typing-extensions@4.15.0"
+      ],
       "ref": "pkg:pypi/grpcio@1.83.0"
     },
     {
@@ -53835,15 +54928,16 @@
       "ref": "pkg:pypi/hf-xet@1.5.2"
     },
     {
-      "dependsOn": [
-        "pkg:pypi/h11@0.16.0",
-        "pkg:pypi/truststore@0.10.4"
-      ],
+      "dependsOn": [],
+      "ref": "pkg:pypi/hf-xet@1.6.0"
+    },
+    {
+      "dependsOn": [],
       "ref": "pkg:pypi/httpcore2@2.13.0"
     },
     {
       "dependsOn": [
-        "pkg:pypi/certifi@2026.7.22",
+        "pkg:pypi/certifi@2026.1.4",
         "pkg:pypi/h11@0.16.0"
       ],
       "ref": "pkg:pypi/httpcore@1.0.9"
@@ -53853,20 +54947,15 @@
       "ref": "pkg:pypi/httptools@0.8.0"
     },
     {
-      "dependsOn": [
-        "pkg:pypi/anyio@4.14.2",
-        "pkg:pypi/httpcore2@2.13.0",
-        "pkg:pypi/idna@3.18",
-        "pkg:pypi/truststore@0.10.4"
-      ],
+      "dependsOn": [],
       "ref": "pkg:pypi/httpx2@2.13.0"
     },
     {
       "dependsOn": [
         "pkg:pypi/anyio@4.14.2",
-        "pkg:pypi/certifi@2026.7.22",
+        "pkg:pypi/certifi@2026.1.4",
         "pkg:pypi/httpcore@1.0.9",
-        "pkg:pypi/idna@3.18"
+        "pkg:pypi/idna@3.11"
       ],
       "ref": "pkg:pypi/httpx@0.28.1"
     },
@@ -53877,6 +54966,23 @@
     {
       "dependsOn": [],
       "ref": "pkg:pypi/huggingface-hub@1.25.1"
+    },
+    {
+      "dependsOn": [
+        "pkg:pypi/filelock@3.32.4",
+        "pkg:pypi/fsspec@2026.7.0",
+        "pkg:pypi/hf-xet@1.6.0",
+        "pkg:pypi/httpx@0.28.1",
+        "pkg:pypi/packaging@26.0",
+        "pkg:pypi/pyyaml@6.0.3",
+        "pkg:pypi/tqdm@4.69.1",
+        "pkg:pypi/typing-extensions@4.15.0"
+      ],
+      "ref": "pkg:pypi/huggingface-hub@1.29.0"
+    },
+    {
+      "dependsOn": [],
+      "ref": "pkg:pypi/idna@3.11"
     },
     {
       "dependsOn": [],
@@ -53899,15 +55005,41 @@
       "ref": "pkg:pypi/jmespath@1.1.0"
     },
     {
+      "dependsOn": [
+        "pkg:pypi/referencing@0.36.2"
+      ],
+      "ref": "pkg:pypi/jsonschema-specifications@2023.12.1"
+    },
+    {
       "dependsOn": [],
       "ref": "pkg:pypi/jsonschema-specifications@2025.9.1"
+    },
+    {
+      "dependsOn": [
+        "pkg:pypi/attrs@25.4.0",
+        "pkg:pypi/jsonschema-specifications@2023.12.1",
+        "pkg:pypi/referencing@0.36.2",
+        "pkg:pypi/rpds-py@0.27.1"
+      ],
+      "ref": "pkg:pypi/jsonschema@4.19.2"
     },
     {
       "dependsOn": [],
       "ref": "pkg:pypi/jsonschema@4.26.0"
     },
     {
-      "dependsOn": [],
+      "dependsOn": [
+        "pkg:pypi/aiohttp@3.14.3",
+        "pkg:pypi/certifi@2026.1.4",
+        "pkg:pypi/durationpy@0.11",
+        "pkg:pypi/python-dateutil@2.9.0.post0",
+        "pkg:pypi/pyyaml@6.0.3",
+        "pkg:pypi/requests-oauthlib@2.0.0",
+        "pkg:pypi/requests@2.32.5",
+        "pkg:pypi/six@1.17.0",
+        "pkg:pypi/urllib3@2.6.3",
+        "pkg:pypi/websocket-client@1.9.1"
+      ],
       "ref": "pkg:pypi/kubernetes@36.0.3"
     },
     {
@@ -53920,13 +55052,23 @@
     },
     {
       "dependsOn": [
-        "pkg:pypi/markupsafe@3.0.4"
+        "pkg:pypi/markupsafe@3.0.3"
       ],
       "ref": "pkg:pypi/mako@1.4.3"
     },
     {
+      "dependsOn": [
+        "pkg:pypi/mdurl@0.1.2"
+      ],
+      "ref": "pkg:pypi/markdown-it-py@3.0.0"
+    },
+    {
       "dependsOn": [],
       "ref": "pkg:pypi/markdown-it-py@4.2.0"
+    },
+    {
+      "dependsOn": [],
+      "ref": "pkg:pypi/markupsafe@3.0.3"
     },
     {
       "dependsOn": [],
@@ -53941,15 +55083,11 @@
       "ref": "pkg:pypi/mmh3@5.2.1"
     },
     {
-      "dependsOn": [
-        "pkg:pypi/boto3@1.43.108",
-        "pkg:pypi/botocore@1.43.108",
-        "pkg:pypi/cryptography@50.0.2",
-        "pkg:pypi/requests@2.34.2",
-        "pkg:pypi/responses@0.26.3",
-        "pkg:pypi/werkzeug@3.1.9",
-        "pkg:pypi/xmltodict@1.0.4"
-      ],
+      "dependsOn": [],
+      "ref": "pkg:pypi/mmh3@5.3.0"
+    },
+    {
+      "dependsOn": [],
       "ref": "pkg:pypi/moto@5.2.3"
     },
     {
@@ -53958,7 +55096,7 @@
     },
     {
       "dependsOn": [
-        "pkg:pypi/typing-extensions@4.16.0"
+        "pkg:pypi/typing-extensions@4.15.0"
       ],
       "ref": "pkg:pypi/nexus-rpc@1.4.0"
     },
@@ -53976,6 +55114,10 @@
     },
     {
       "dependsOn": [],
+      "ref": "pkg:pypi/numpy@2.5.2"
+    },
+    {
+      "dependsOn": [],
       "ref": "pkg:pypi/oauthlib@3.3.1"
     },
     {
@@ -53984,55 +55126,108 @@
     },
     {
       "dependsOn": [
+        "pkg:pypi/flatbuffers@25.12.19",
+        "pkg:pypi/numpy@2.5.2",
+        "pkg:pypi/packaging@26.0",
+        "pkg:pypi/protobuf@7.35.1"
+      ],
+      "ref": "pkg:pypi/onnxruntime@1.29.0"
+    },
+    {
+      "dependsOn": [
         "pkg:pypi/anyio@4.14.2",
         "pkg:pypi/distro@1.9.0",
         "pkg:pypi/httpx@0.28.1",
         "pkg:pypi/jiter@0.16.0",
-        "pkg:pypi/pydantic@2.13.5",
+        "pkg:pypi/pydantic@2.13.4",
         "pkg:pypi/sniffio@1.3.1",
         "pkg:pypi/tqdm@4.69.1",
-        "pkg:pypi/typing-extensions@4.16.0"
+        "pkg:pypi/typing-extensions@4.15.0"
       ],
       "ref": "pkg:pypi/openai@2.48.0"
     },
     {
-      "dependsOn": [],
+      "dependsOn": [
+        "pkg:pypi/typing-extensions@4.15.0"
+      ],
       "ref": "pkg:pypi/opentelemetry-api@1.44.0"
     },
     {
-      "dependsOn": [],
+      "dependsOn": [
+        "pkg:pypi/opentelemetry-proto@1.44.0"
+      ],
       "ref": "pkg:pypi/opentelemetry-exporter-otlp-proto-common@1.44.0"
     },
     {
-      "dependsOn": [],
+      "dependsOn": [
+        "pkg:pypi/googleapis-common-protos@1.75.0",
+        "pkg:pypi/grpcio@1.83.0",
+        "pkg:pypi/opentelemetry-api@1.44.0",
+        "pkg:pypi/opentelemetry-exporter-otlp-proto-common@1.44.0",
+        "pkg:pypi/opentelemetry-proto@1.44.0",
+        "pkg:pypi/opentelemetry-sdk@1.44.0",
+        "pkg:pypi/typing-extensions@4.15.0"
+      ],
       "ref": "pkg:pypi/opentelemetry-exporter-otlp-proto-grpc@1.44.0"
     },
     {
-      "dependsOn": [],
+      "dependsOn": [
+        "pkg:pypi/asgiref@3.12.1",
+        "pkg:pypi/opentelemetry-api@1.44.0",
+        "pkg:pypi/opentelemetry-instrumentation@0.65b0",
+        "pkg:pypi/opentelemetry-semantic-conventions@0.65b0",
+        "pkg:pypi/opentelemetry-util-http@0.65b0"
+      ],
       "ref": "pkg:pypi/opentelemetry-instrumentation-asgi@0.65b0"
     },
     {
-      "dependsOn": [],
+      "dependsOn": [
+        "pkg:pypi/opentelemetry-api@1.44.0",
+        "pkg:pypi/opentelemetry-instrumentation-asgi@0.65b0",
+        "pkg:pypi/opentelemetry-instrumentation@0.65b0",
+        "pkg:pypi/opentelemetry-semantic-conventions@0.65b0",
+        "pkg:pypi/opentelemetry-util-http@0.65b0"
+      ],
       "ref": "pkg:pypi/opentelemetry-instrumentation-fastapi@0.65b0"
     },
     {
-      "dependsOn": [],
+      "dependsOn": [
+        "pkg:pypi/opentelemetry-api@1.44.0",
+        "pkg:pypi/opentelemetry-instrumentation@0.65b0",
+        "pkg:pypi/opentelemetry-semantic-conventions@0.65b0",
+        "pkg:pypi/opentelemetry-util-http@0.65b0",
+        "pkg:pypi/wrapt@2.5.0"
+      ],
       "ref": "pkg:pypi/opentelemetry-instrumentation-httpx@0.65b0"
     },
     {
-      "dependsOn": [],
+      "dependsOn": [
+        "pkg:pypi/opentelemetry-api@1.44.0",
+        "pkg:pypi/opentelemetry-semantic-conventions@0.65b0",
+        "pkg:pypi/packaging@26.0",
+        "pkg:pypi/wrapt@2.5.0"
+      ],
       "ref": "pkg:pypi/opentelemetry-instrumentation@0.65b0"
     },
     {
-      "dependsOn": [],
+      "dependsOn": [
+        "pkg:pypi/protobuf@7.35.1"
+      ],
       "ref": "pkg:pypi/opentelemetry-proto@1.44.0"
     },
     {
-      "dependsOn": [],
+      "dependsOn": [
+        "pkg:pypi/opentelemetry-api@1.44.0",
+        "pkg:pypi/opentelemetry-semantic-conventions@0.65b0",
+        "pkg:pypi/typing-extensions@4.15.0"
+      ],
       "ref": "pkg:pypi/opentelemetry-sdk@1.44.0"
     },
     {
-      "dependsOn": [],
+      "dependsOn": [
+        "pkg:pypi/opentelemetry-api@1.44.0",
+        "pkg:pypi/typing-extensions@4.15.0"
+      ],
       "ref": "pkg:pypi/opentelemetry-semantic-conventions@0.65b0"
     },
     {
@@ -54045,25 +55240,26 @@
     },
     {
       "dependsOn": [],
+      "ref": "pkg:pypi/orjson@3.12.0"
+    },
+    {
+      "dependsOn": [],
       "ref": "pkg:pypi/overrides@7.7.0"
+    },
+    {
+      "dependsOn": [],
+      "ref": "pkg:pypi/packaging@26.0"
     },
     {
       "dependsOn": [],
       "ref": "pkg:pypi/packaging@26.2"
     },
     {
-      "dependsOn": [
-        "pkg:pypi/charset-normalizer@3.4.9",
-        "pkg:pypi/cryptography@50.0.2"
-      ],
+      "dependsOn": [],
       "ref": "pkg:pypi/pdfminer-six@20260107"
     },
     {
-      "dependsOn": [
-        "pkg:pypi/pdfminer-six@20260107",
-        "pkg:pypi/pillow@12.3.0",
-        "pkg:pypi/pypdfium2@5.14.0"
-      ],
+      "dependsOn": [],
       "ref": "pkg:pypi/pdfplumber@0.11.10"
     },
     {
@@ -54084,12 +55280,20 @@
     },
     {
       "dependsOn": [],
+      "ref": "pkg:pypi/pybase64@1.5.0"
+    },
+    {
+      "dependsOn": [],
       "ref": "pkg:pypi/pycparser@3.0"
     },
     {
       "dependsOn": [
-        "pkg:pypi/typing-extensions@4.16.0"
+        "pkg:pypi/typing-extensions@4.15.0"
       ],
+      "ref": "pkg:pypi/pydantic-core@2.46.4"
+    },
+    {
+      "dependsOn": [],
       "ref": "pkg:pypi/pydantic-core@2.46.5"
     },
     {
@@ -54098,12 +55302,28 @@
     },
     {
       "dependsOn": [
-        "pkg:pypi/annotated-types@0.8.0",
-        "pkg:pypi/pydantic-core@2.46.5",
-        "pkg:pypi/typing-extensions@4.16.0",
+        "pkg:pypi/pydantic@2.13.4",
+        "pkg:pypi/python-dotenv@1.2.2",
         "pkg:pypi/typing-inspection@0.4.2"
       ],
+      "ref": "pkg:pypi/pydantic-settings@2.15.0"
+    },
+    {
+      "dependsOn": [
+        "pkg:pypi/annotated-types@0.8.0",
+        "pkg:pypi/pydantic-core@2.46.4",
+        "pkg:pypi/typing-extensions@4.15.0",
+        "pkg:pypi/typing-inspection@0.4.2"
+      ],
+      "ref": "pkg:pypi/pydantic@2.13.4"
+    },
+    {
+      "dependsOn": [],
       "ref": "pkg:pypi/pydantic@2.13.5"
+    },
+    {
+      "dependsOn": [],
+      "ref": "pkg:pypi/pygments@2.19.2"
     },
     {
       "dependsOn": [],
@@ -54135,7 +55355,7 @@
     },
     {
       "dependsOn": [
-        "pkg:pypi/packaging@26.2",
+        "pkg:pypi/packaging@26.0",
         "pkg:pypi/pillow@12.3.0"
       ],
       "ref": "pkg:pypi/pytesseract@0.3.13"
@@ -54149,7 +55369,7 @@
     {
       "dependsOn": [
         "pkg:pypi/lxml@6.1.1",
-        "pkg:pypi/typing-extensions@4.16.0"
+        "pkg:pypi/typing-extensions@4.15.0"
       ],
       "ref": "pkg:pypi/python-docx@1.2.0"
     },
@@ -54165,7 +55385,7 @@
       "dependsOn": [
         "pkg:pypi/lxml@6.1.1",
         "pkg:pypi/pillow@12.3.0",
-        "pkg:pypi/typing-extensions@4.16.0",
+        "pkg:pypi/typing-extensions@4.15.0",
         "pkg:pypi/xlsxwriter@3.2.9"
       ],
       "ref": "pkg:pypi/python-pptx@1.0.2"
@@ -54179,36 +55399,46 @@
       "ref": "pkg:pypi/redis@8.1.0"
     },
     {
+      "dependsOn": [
+        "pkg:pypi/attrs@25.4.0",
+        "pkg:pypi/rpds-py@0.27.1"
+      ],
+      "ref": "pkg:pypi/referencing@0.36.2"
+    },
+    {
       "dependsOn": [],
       "ref": "pkg:pypi/referencing@0.37.0"
     },
     {
-      "dependsOn": [
-        "pkg:pypi/charset-normalizer@3.4.9",
-        "pkg:pypi/pillow@12.3.0"
-      ],
+      "dependsOn": [],
       "ref": "pkg:pypi/reportlab@5.0.1"
     },
     {
-      "dependsOn": [],
+      "dependsOn": [
+        "pkg:pypi/oauthlib@3.3.1",
+        "pkg:pypi/requests@2.32.5"
+      ],
       "ref": "pkg:pypi/requests-oauthlib@2.0.0"
     },
     {
       "dependsOn": [
-        "pkg:pypi/certifi@2026.7.22",
-        "pkg:pypi/charset-normalizer@3.4.9",
-        "pkg:pypi/idna@3.18",
-        "pkg:pypi/urllib3@2.8.0"
+        "pkg:pypi/certifi@2026.1.4",
+        "pkg:pypi/chardet@5.2.0",
+        "pkg:pypi/idna@3.11",
+        "pkg:pypi/urllib3@2.6.3"
       ],
+      "ref": "pkg:pypi/requests@2.32.5"
+    },
+    {
+      "dependsOn": [],
       "ref": "pkg:pypi/requests@2.34.2"
     },
     {
       "dependsOn": [
-        "pkg:pypi/pyyaml@6.0.3",
-        "pkg:pypi/requests@2.34.2",
-        "pkg:pypi/urllib3@2.8.0"
+        "pkg:pypi/markdown-it-py@3.0.0",
+        "pkg:pypi/pygments@2.19.2"
       ],
-      "ref": "pkg:pypi/responses@0.26.3"
+      "ref": "pkg:pypi/rich@13.9.4"
     },
     {
       "dependsOn": [],
@@ -54216,12 +55446,14 @@
     },
     {
       "dependsOn": [],
+      "ref": "pkg:pypi/rpds-py@0.27.1"
+    },
+    {
+      "dependsOn": [],
       "ref": "pkg:pypi/rpds-py@2026.6.3"
     },
     {
-      "dependsOn": [
-        "pkg:pypi/botocore@1.43.108"
-      ],
+      "dependsOn": [],
       "ref": "pkg:pypi/s3transfer@0.19.2"
     },
     {
@@ -54251,7 +55483,7 @@
     {
       "dependsOn": [
         "pkg:pypi/greenlet@3.5.6",
-        "pkg:pypi/typing-extensions@4.16.0"
+        "pkg:pypi/typing-extensions@4.15.0"
       ],
       "ref": "pkg:pypi/sqlalchemy@2.0.54"
     },
@@ -54266,7 +55498,7 @@
         "pkg:pypi/nexus-rpc@1.4.0",
         "pkg:pypi/protobuf@7.35.1",
         "pkg:pypi/types-protobuf@7.35.1.20260906",
-        "pkg:pypi/typing-extensions@4.16.0"
+        "pkg:pypi/typing-extensions@4.15.0"
       ],
       "ref": "pkg:pypi/temporalio@1.33.0"
     },
@@ -54275,7 +55507,9 @@
       "ref": "pkg:pypi/tenacity@9.1.4"
     },
     {
-      "dependsOn": [],
+      "dependsOn": [
+        "pkg:pypi/huggingface-hub@1.29.0"
+      ],
       "ref": "pkg:pypi/tokenizers@0.23.1"
     },
     {
@@ -54299,8 +55533,20 @@
       "ref": "pkg:pypi/typer@0.27.0"
     },
     {
+      "dependsOn": [
+        "pkg:pypi/annotated-doc@0.0.4",
+        "pkg:pypi/rich@13.9.4",
+        "pkg:pypi/shellingham@1.5.4"
+      ],
+      "ref": "pkg:pypi/typer@0.27.2"
+    },
+    {
       "dependsOn": [],
       "ref": "pkg:pypi/types-protobuf@7.35.1.20260906"
+    },
+    {
+      "dependsOn": [],
+      "ref": "pkg:pypi/typing-extensions@4.15.0"
     },
     {
       "dependsOn": [],
@@ -54308,9 +55554,13 @@
     },
     {
       "dependsOn": [
-        "pkg:pypi/typing-extensions@4.16.0"
+        "pkg:pypi/typing-extensions@4.15.0"
       ],
       "ref": "pkg:pypi/typing-inspection@0.4.2"
+    },
+    {
+      "dependsOn": [],
+      "ref": "pkg:pypi/urllib3@2.6.3"
     },
     {
       "dependsOn": [],
@@ -54318,7 +55568,7 @@
     },
     {
       "dependsOn": [
-        "pkg:pypi/click@8.4.2",
+        "pkg:pypi/click@8.1.8",
         "pkg:pypi/h11@0.16.0",
         "pkg:pypi/httptools@0.8.0",
         "pkg:pypi/python-dotenv@1.2.2",
@@ -54349,13 +55599,11 @@
     },
     {
       "dependsOn": [],
-      "ref": "pkg:pypi/websockets@16.1.1"
+      "ref": "pkg:pypi/websocket-client@1.9.1"
     },
     {
-      "dependsOn": [
-        "pkg:pypi/markupsafe@3.0.4"
-      ],
-      "ref": "pkg:pypi/werkzeug@3.1.9"
+      "dependsOn": [],
+      "ref": "pkg:pypi/websockets@16.1.1"
     },
     {
       "dependsOn": [],
@@ -54366,11 +55614,11 @@
       "ref": "pkg:pypi/xlsxwriter@3.2.9"
     },
     {
-      "dependsOn": [],
-      "ref": "pkg:pypi/xmltodict@1.0.4"
-    },
-    {
-      "dependsOn": [],
+      "dependsOn": [
+        "pkg:pypi/idna@3.11",
+        "pkg:pypi/multidict@6.7.1",
+        "pkg:pypi/propcache@0.5.2"
+      ],
       "ref": "pkg:pypi/yarl@1.24.5"
     }
   ],

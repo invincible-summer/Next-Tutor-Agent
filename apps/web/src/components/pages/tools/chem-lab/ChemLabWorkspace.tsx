@@ -94,7 +94,7 @@ function OwnedChemLabWorkspace() {
   const atRevision = query.get("at");
   const language = lang === "en" ? "en" : "zh";
   // `&at=` must be an exact non-negative integer; empty/NaN/fractional values
-  // are ignored (no side effects, plan §6.3).
+  // are ignored (no side effects; see 历史只读 in docs/architecture/chem-lab.md).
   const atNumber = atRevision ? Number(atRevision) : null;
   const historyActive =
     sessionId !== "" && atNumber !== null && Number.isInteger(atNumber) && atNumber >= 0;
@@ -137,7 +137,7 @@ function OwnedChemLabWorkspace() {
   const sessionGeneration = useRef(0);
   const measureAnchor = useRef<HTMLElement | null>(null);
 
-  // Presentation-only one-shot motion (no chemistry, no commands; plan §7).
+  // Presentation-only one-shot motion (no chemistry, no commands; see 演出层).
   const motion = useLabPresentation({
     sessionId: snapshot?.session_id ?? null,
     packHash: enginePack?.pack_hash ?? null,
@@ -354,7 +354,7 @@ function OwnedChemLabWorkspace() {
   const modelScopeText = useMemo(() => l10n(pack?.model_scope, language), [pack, language]);
 
   // Historical mode renders a synthetic display from the revision view; the
-  // scene never mixes live events with a replayed frame (plan §6.3).
+  // scene never mixes live events with a replayed frame (历史只读不变式).
   const historyDisplay = useMemo<ChemLabDisplay | null>(() => {
     const view = historyView;
     if (!view) return null;

@@ -302,7 +302,7 @@ test("resolveDropIntent: slots, guards and failure reasons", () => {
 });
 
 // ---------------------------------------------------------------------------
-// Presentation motion model (plan §7)
+// Presentation motion model (演出层语义)
 // ---------------------------------------------------------------------------
 
 test("subjectIdsOf orders the visual actor first per command kind", () => {

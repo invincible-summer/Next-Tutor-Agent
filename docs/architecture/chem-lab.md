@@ -4,9 +4,9 @@
 
 ## Purpose / Scope
 
-- `/tools/lab` 是实验目录页，`/tools/lab/chemistry?session=<id>` 是化学工作台。顶栏按 `lib/nav.ts` 的 `NAV_SUBTITLES` 显示「工具助手 · 模拟实验室」；`?experiment=` 进入准备视图（目标、安全信息、预测问题），`&at=<revision>` 进入只读历史点横幅。
+- `/tools/lab` 是实验目录页，`/tools/lab/chemistry?session=<id>` 是化学工作台。顶栏按 `lib/nav.ts` 的 `NAV_SUBTITLES` 显示「工具助手 · 模拟实验室」；`?experiment=` 进入准备视图（目标、安全信息、预测问题），`&at=<revision>` 进入**只读历史重放**（真实拉取该版本投影，锁定全部写入口；见下文「历史只读」）。
 - 学生在 SVG 实验台上取放器材、倾倒、加热、加试剂、用仪器测量读数；引导栏给出目标与阶梯提示，观察记录、证据链、时间线与分支对比全部来自引擎事件流。
-- 两种模式：`guided`（按步骤目标推进，观察可见性受内容包 `observation_visibility` 限制）与 `explore`（自由探索，全量观察可见）。
+- 三种模式：`guided`（按步骤目标推进，观察可见性受内容包 `observation_visibility` 限制）、`explore`（自由探索，全量观察可见）与 `self_check`（先预测、再操作、后对照解释）。
 - 实验台是旁路工具：不经 `/chat/stream` 伪造学习事件，不写学生模型/知识图谱；首期不提供实验 AI 工具。
 
 ## Owned code
@@ -17,8 +17,9 @@
   - `service.py` 会话服务（每 owner 一把文件锁串行化读-改-写；幂等、base_revision 验收、ACK 存储与重放）；`persistence.py` 存储布局；`providers.py` AI 扩展点（见下）。
   - 路由 `app/api/v1/tool_chem_lab.py`，前缀 `/api/v1/tools/lab/chemistry`。
 - TS 镜像引擎 `packages/domain/src/chem-lab/`（与 Python 引擎同构：model/reducer/reaction/phase/safety/projection/guidance/replay/units），经 `packages/domain/src/index.ts` 导出。
-- 前端 `apps/web/src/components/pages/tools/chem-lab/`：`chem-lab-worker.ts` + `chem-lab-engine.ts`（Web Worker 内跑 TS 镜像做本地预测，Worker 失败回退主线程）；`useChemLabSession.ts`（有序命令队列与同步状态机）；`chem-lab-geometry.ts`/`chem-lab-renderer.ts`/`assets.tsx`（RenderFrame→原创 SVG 器材）；`LabStage.tsx` 等交互组件；`ChemLabWorkspace.tsx` 组合根。客户端封装 `apps/web/src/lib/api-chem-lab.ts` + `packages/api-client/src/tools/chem-lab.ts`；契约生成物 `packages/contracts/src/generated/chem_lab.ts`。
-- 内容包 `app/chem_lab/content/`：`experiments/`（6 个实验定义）、`packs/`（发布包）、`species/`、`rules/`、`equipment/`、`concepts/`、`vectors/`（回放向量）、`manifest.json`。全部为项目自研合成内容，受 [../compliance/content-policy.md](../compliance/content-policy.md) 约束。
+- 前端 `apps/web/src/components/pages/tools/chem-lab/`：`chem-lab-worker.ts` + `chem-lab-engine.ts`（Web Worker 内跑 TS 镜像做本地预测，Worker 失败回退主线程）；`useChemLabSession.ts`（有序命令队列、同步状态机与 ACK/预测双向对账）；`chem-lab-geometry.ts`/`chem-lab-renderer.ts`（slot/footprint/port 几何事实与 RenderFrame→视觉投影）；`interaction.ts`（闭集 UI 草稿→`LabCommand` 唯一工厂）；`LabStage.tsx` 薄 presenter；`ChemLabWorkspace.tsx` 组合根。客户端封装 `apps/web/src/lib/api-chem-lab.ts` + `packages/api-client/src/tools/chem-lab.ts`；契约生成物 `packages/contracts/src/generated/chem_lab.ts`。
+- 场景子树 `apps/web/src/components/pages/tools/chem-lab/scene/`（原创 SVG 资产登记见其 `ASSETS.md`）：`LabScene.tsx`（唯一 SVG world group + DOM 热区覆盖层，相机 transform）；`scene-model.ts`（pack+display→只读 SceneModel 派生与 `resolveDropIntent` 意图判定）；`scene-geometry.ts`/`scene-projection.ts`（纯数学 affine/相机/命中 + `getScreenCTM()` 逆矩阵 CSS px 投影，DOM 热区与 SVG 坐标同源）；`useLabInteraction.ts`（pressed/dragging 手势状态机：抓取偏移、rAF 合帧、capture 生命周期、统一取消）；`presentation-model.ts`/`useLabPresentation.ts`（预测=中性 pending、ACK.accepted 才播一次性动作，token=session:pack:revision:command）；`LabEnvironment.tsx`/`LabEquipment.tsx`/`LabPhenomena.tsx`（环境/12 kind 器材/帧驱动现象）；`lab-scene.css`（场景 token 与 reduced-motion）。
+- 内容包 `services/api/app/chem_lab/content/`：`experiments/`（6 个实验定义）、`packs/`（发布包）、`species/`、`rules/`、`equipment/`、`concepts/`、`vectors/`（回放向量）、`manifest.json`。全部为项目自研合成内容，受 [../compliance/content-policy.md](../compliance/content-policy.md) 约束。
 - 作者工具 `scripts/chem_lab/`：`validate_pack.py`（schema/引用/DSL/i18n/hash 校验 + manifest 刷新）、`replay_pack.py`（单包回放）、`render_preview.py`（预览渲染）。
 - 站内助手：`app/agents/site_assistant/product_catalog.json` 登记 `tools_lab`、`tools_lab_chemistry` 两个 route_id；前端 `lib/assistant/routes.ts`、`page-context.ts` 同步映射。
 
@@ -38,6 +39,7 @@
 | POST | `/sessions/{sid}/checkpoints` | 命名检查点 |
 | POST | `/sessions/{sid}/fork` `/reset` | 从检查点/任意 revision 分叉；重置回起始态 |
 | POST | `/sessions/{sid}/finish` | 结束并生成结果卡（目标达成、预测核对、观察与概念） |
+| GET | `/sessions/{sid}/revisions/{revision}` | **只读历史重放**：按存档 script 重演到该版本并投影（`ChemLabRevisionView`，`read_only:true`、最小 `scene_state`），不建分支、不追加事件、不动 `updated_at`；越界 404 `chem_lab_revision_out_of_range`，跨 owner 404；观察/事件沿用会话 mode 可见性。 |
 
 开关：`CHEM_LAB_ENABLED`（默认开）、`CHEM_LAB_MAX_SESSIONS_PER_OWNER`（默认 60）。
 
@@ -46,9 +48,23 @@
 - 服务端 Python 引擎是唯一权威，逐条重跑每个命令；TS 镜像在 Web Worker 中做**本地预测**以实现即时反馈与离线降级。
 - 客户端命令队列有序发送，第 i 条排队命令的 `base_revision = tip + i`——这成立是因为引擎语义保证**任何命令（含 rejected）revision +1**，该语义是公开契约，不得改动。
 - ACK 携带 `revision + state_hash`：与 Worker 预测 hash 相等即证明双引擎状态一致，免回拉快照；不等则标记 `diverged` 并整快照 resync；409（base_revision 冲突）丢弃本地预测重新对齐；断网进入 `offline_preview`（本地继续预测、恢复后重放队列）。
+- **ACK/预测乱序对账**：`useChemLabSession` 按 `command_id` 维护待对账记录（限 32 条滑窗），ACK 与 Worker 预测无论谁先到，另一侧到达即比对一次 hash 后释放；**迟到的预测只对账、绝不回滚已被 ACK 应用过的权威显示**。`reset/fork/attach/detach` 清空整个 generation 的记录。
+- **公开命令闭集为 16 种**：原 14 种 `pick_up/place/aspirate/dispense/pour/heat/stir/wait/measure/connect/filter/wash/dispose/checkpoint` + 兼容性增量 `move`（原子移动：一次写 slot 并在 held 匹配时清除）与 `release`（仅清 held，修复遗留 pick_up 持有）。旧命令语义永不改变——历史回放向量是双引擎一致性的事实锚。前端位置交互只产生单条 `move`；旧 `pick_up/place` 仅存于历史脚本。
 - 一致性由 CI 强制：`content/vectors/` 的回放向量同时被 Python（`tests.chem_lab.test_replay_vectors`）与 TS（`packages/domain` 回放测试）执行，state_hash、事件类型、关键读数必须一致。
 - 客户端时序铁律：`ChemLabWorkspace` 中 detail 与 live-session 两个加载 effect **不得共享 generation 计数器**——共用时后声明的 effect 在同一次挂载里立刻顶高计数，detail 请求返回即被守卫误判为"已被新运行取代"，`setLoading(false)` 被跳过，准备页永久停在"正在创建会话…"（`?experiment=` 深链必现，e2e `chem-lab.spec.ts` 钉死）。同理，任何"加载态 + 异步结果"配对都必须保证 finally 复位不被丢弃。
 - 所有 chem-lab API 调用在 `packages/api-client/src/tools/chem-lab.ts` 统一携带 30s 超时：服务端全是毫秒级确定性本地操作，永不返回的请求只能是传输层丢失，必须以可重试的 typed 错误呈现给 UI，绝不留永久转圈。
+
+## 舞台交互模型（scene/）
+
+- **一个坐标系**：SVG world group（含相机 transform）是唯一场景坐标系；DOM 对象热区由 `getScreenCTM()` 逆矩阵把世界矩形四角投到 CSS px 得到，热区与画面永不各算一套（禁用 `getBoundingClientRect`×viewBox 比例法）。相机（overview/focus，scale 夹取 1–2.5）只改 world group transform，reducer 不感知。
+- **唯一 pointer 入口**：器材绘制层全部 `pointer-events:none`；每个对象只有一个 DOM `ObjectHitTarget`（≥44 CSS px，保留 `chem-lab-object-<id>` 锚点与 button 键盘语义）。拖动把手 `touch-action:none`，capture 绑定在稳定 viewport 容器上，`pointercancel/lostpointercapture/Escape/blur/切会话` 统一 `cancelGesture`。
+- **手势状态机**（`useLabInteraction`）：`idle→pressed`（无 ghost、零 POST）→ 位移超过阈值（鼠标 6px/触摸 10px/笔 7px）才 `dragging`；ghost 保留抓取偏移无中心跳变；ref 是唯一事实、rAF 合帧；落点由释放点的 world 坐标做纯几何判定（capture 后 `event.target` 不可信）。
+- **单一意图解析**：`resolveDropIntent(source, worldPoint, scene, authority)` 为纯函数——vessel→空槽=原子 move；vessel→vessel=pour 草稿；空移液管/滴管→vessel=aspirate、载液=dispense；探针→vessel=measure；玻璃棒→stir；热板→heat；无规则的组合只选择并解释。指针、键盘（Tab/Enter）与点击→目标清单三种路径共用它；`OperationToolbar`+`buildLabCommand` 仍是唯一命令工厂，确认前零提交。
+- **演出层**（`useLabPresentation`）：预测 accepted 只显示中性 pending 脉冲；ACK accepted 才按命令类别播放一次性 CSS 动作（move 滑行+落位、pour 倾角、aspirate/dispense 液柱、heat/stir 光效、measure 聚焦）；拒绝只闪一次中性反馈。`prefers-reduced-motion` 与页面隐藏时直落终态。
+
+## 历史只读（`&at=<revision>`）
+
+URL `?session=<sid>&at=<rev>` 拉取 `GET /revisions/{rev}` 并以独立 AbortController/generation 渲染历史投影（返回 revision 必须等于 URL 才渲染）：舞台、观察、指导、目标全部来自历史视图，绝不出现"旧画面配当前事件"。只读期间对象禁用、`commandsLocked` 生效；横幅提供上一版/下一版导航、显式"从该版本创建分支"（走既有 `POST /fork`）与"回到最新"；时间轴也提供 revision 跳转。`at` 为空/NaN/负数/小数时安全忽略；越界显示错误态并可一键返回最新。
 
 ## 故障排查（./start.sh 后看不到实验）
 

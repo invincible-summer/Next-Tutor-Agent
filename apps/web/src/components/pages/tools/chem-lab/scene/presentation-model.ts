@@ -4,7 +4,7 @@
  * and issues no commands. All movement itself lives in CSS keyframes — the
  * scene only flips a class, so there are no per-frame React updates.
  *
- * Stage semantics (plan §7):
+ * Stage semantics (docs/architecture/chem-lab.md, 演出层):
  * - prediction + accepted → "pending": soft neutral pulse only — never a
  *   success effect, the server has not confirmed yet;
  * - ack + accepted        → "accepted": the per-command one-shot motion;
