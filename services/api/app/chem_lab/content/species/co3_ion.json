@@ -1,0 +1,14 @@
+{
+  "id": "co3_ion",
+  "kind": "species",
+  "schema_version": 1,
+  "name": {"zh": "碳酸根离子", "en": "Carbonate ion"},
+  "formula": "CO₃²⁻",
+  "state": "solute",
+  "role": "ion",
+  "color_token": "clear",
+  "teaching_note": {
+    "zh": "碳酸钠溶于水后给出的离子，与钙离子结合生成白色碳酸钙沉淀；模型不计其水解平衡。",
+    "en": "Released when sodium carbonate dissolves; binds calcium into white CaCO₃. Hydrolysis equilibria are out of model scope."
+  }
+}

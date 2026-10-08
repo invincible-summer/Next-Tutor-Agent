@@ -1,0 +1,1005 @@
+{
+  "_concepts": {
+    "concept.indicator": {
+      "body": {
+        "en": "Phenolphthalein is a dye that is colorless below about pH 8.2 and pink above. It only reports a pH range and does not enter the stoichiometry; the teaching model approximates the gradual transition with two bands.",
+        "zh": "酚酞本身是一种弱酸型染料，在 pH 约 8.2 以下无色，以上变为粉红。它只“报告”pH 区间，不参与中和计量；教学模型用两个色带近似真实的渐变。"
+      },
+      "equation": "",
+      "id": "concept.indicator",
+      "kind": "concept",
+      "misconception": null,
+      "prerequisites": [
+        "concept.ph_scale"
+      ],
+      "schema_version": 1,
+      "title": {
+        "en": "Indicator color change",
+        "zh": "指示剂变色"
+      }
+    },
+    "concept.neutralization": {
+      "body": {
+        "en": "H⁺ and OH⁻ combine 1:1 into water, releasing heat (≈57 kJ/mol teaching approximation). During titration added base is consumed and pH climbs slowly; near the equivalence point a small addition swings pH sharply — that is the endpoint.",
+        "zh": "H⁺ 与 OH⁻ 按 1:1 结合成水并放热（教学近似约 57 kJ/mol）。滴定时加入的碱先被酸“吃掉”，pH 缓慢爬升；接近等量点时少量碱就能让 pH 大幅跳动，这就是终点的由来。"
+      },
+      "equation": "H⁺ + OH⁻ → H₂O",
+      "id": "concept.neutralization",
+      "kind": "concept",
+      "misconception": {
+        "en": "Neutralization is not covering the acid up — H⁺ is actually consumed.",
+        "zh": "中和不是把酸“盖住”，而是 H⁺ 真的被消耗掉了。"
+      },
+      "prerequisites": [
+        "concept.ph_scale"
+      ],
+      "schema_version": 1,
+      "title": {
+        "en": "Neutralization",
+        "zh": "中和反应"
+      }
+    },
+    "concept.ph_scale": {
+      "body": {
+        "en": "pH is a logarithmic scale of hydrogen-ion concentration: one unit means a tenfold change. Near 7 is neutral; lower is acidic, higher basic. This lab uses the dilute strong-acid/strong-base approximation, no activity or weak-acid equilibria.",
+        "zh": "pH 用对数刻度表示氢离子浓度：每差 1，浓度差 10 倍。pH 7 附近为中性，越小越酸，越大越碱。本实验台用稀溶液浓度近似（强酸强碱模型），不讨论活度与弱酸平衡。"
+      },
+      "equation": "pH = −log₁₀[H⁺]",
+      "id": "concept.ph_scale",
+      "kind": "concept",
+      "misconception": null,
+      "prerequisites": [],
+      "schema_version": 1,
+      "title": {
+        "en": "pH, acids and bases",
+        "zh": "pH 与酸碱"
+      }
+    }
+  },
+  "_equipment_defs": {
+    "beaker.small": {
+      "capacity_uL": 250000,
+      "category": "vessel",
+      "footprint": [
+        120,
+        150
+      ],
+      "gas_tight": false,
+      "graduations_uL": [
+        50000,
+        100000,
+        150000,
+        200000
+      ],
+      "heat_compatible": true,
+      "id": "beaker.small",
+      "instrument_label": null,
+      "kind": "equipment",
+      "measures": [],
+      "name": {
+        "en": "Small beaker",
+        "zh": "小烧杯"
+      },
+      "ports": [
+        {
+          "id": "mouth",
+          "x": 60,
+          "y": 0
+        }
+      ],
+      "pourable": true,
+      "rated_micro_j_per_step": 0,
+      "schema_version": 1
+    },
+    "dropper": {
+      "capacity_uL": 3000,
+      "category": "instrument",
+      "footprint": [
+        26,
+        120
+      ],
+      "gas_tight": false,
+      "graduations_uL": [],
+      "heat_compatible": false,
+      "id": "dropper",
+      "instrument_label": {
+        "en": "3 mL",
+        "zh": "3 mL"
+      },
+      "kind": "equipment",
+      "measures": [],
+      "name": {
+        "en": "Dropper",
+        "zh": "胶头滴管"
+      },
+      "ports": [],
+      "pourable": false,
+      "rated_micro_j_per_step": 0,
+      "schema_version": 1
+    },
+    "ph_probe": {
+      "capacity_uL": 0,
+      "category": "instrument",
+      "footprint": [
+        36,
+        150
+      ],
+      "gas_tight": false,
+      "graduations_uL": [],
+      "heat_compatible": false,
+      "id": "ph_probe",
+      "instrument_label": {
+        "en": "pH",
+        "zh": "pH"
+      },
+      "kind": "equipment",
+      "measures": [
+        "ph",
+        "temperature"
+      ],
+      "name": {
+        "en": "pH probe",
+        "zh": "pH 计"
+      },
+      "ports": [],
+      "pourable": false,
+      "rated_micro_j_per_step": 0,
+      "schema_version": 1
+    },
+    "pipette": {
+      "capacity_uL": 10000,
+      "category": "instrument",
+      "footprint": [
+        30,
+        170
+      ],
+      "gas_tight": false,
+      "graduations_uL": [
+        2000,
+        4000,
+        6000,
+        8000
+      ],
+      "heat_compatible": false,
+      "id": "pipette",
+      "instrument_label": {
+        "en": "10 mL",
+        "zh": "10 mL"
+      },
+      "kind": "equipment",
+      "measures": [],
+      "name": {
+        "en": "Pipette",
+        "zh": "移液管"
+      },
+      "ports": [],
+      "pourable": false,
+      "rated_micro_j_per_step": 0,
+      "schema_version": 1
+    },
+    "reagent_bottle": {
+      "capacity_uL": 500000,
+      "category": "container",
+      "footprint": [
+        100,
+        160
+      ],
+      "gas_tight": false,
+      "graduations_uL": [],
+      "heat_compatible": false,
+      "id": "reagent_bottle",
+      "instrument_label": null,
+      "kind": "equipment",
+      "measures": [],
+      "name": {
+        "en": "Reagent bottle",
+        "zh": "试剂瓶"
+      },
+      "ports": [
+        {
+          "id": "mouth",
+          "x": 50,
+          "y": 0
+        }
+      ],
+      "pourable": true,
+      "rated_micro_j_per_step": 0,
+      "schema_version": 1
+    },
+    "stir_rod": {
+      "capacity_uL": 0,
+      "category": "tool",
+      "footprint": [
+        16,
+        140
+      ],
+      "gas_tight": false,
+      "graduations_uL": [],
+      "heat_compatible": false,
+      "id": "stir_rod",
+      "instrument_label": null,
+      "kind": "equipment",
+      "measures": [],
+      "name": {
+        "en": "Glass stirring rod",
+        "zh": "玻璃搅拌棒"
+      },
+      "ports": [],
+      "pourable": false,
+      "rated_micro_j_per_step": 0,
+      "schema_version": 1
+    }
+  },
+  "_rules": [
+    {
+      "id": "rule.neutralization.v1",
+      "kind": "rule",
+      "limits": {
+        "max_firings_per_evaluation": 8
+      },
+      "model_scope": "strong_acid_base_dilute_v1",
+      "priority": 100,
+      "public_note": {
+        "en": "Strong acid and base neutralize 1:1 into water, releasing heat (≈57 kJ/mol, teaching approximation).",
+        "zh": "强酸与强碱按 1:1 中和生成水并放热（约 57 kJ/mol，教学近似）。"
+      },
+      "schema_version": 1,
+      "then": [
+        {
+          "amount_umol": 0,
+          "cap_umol": 0,
+          "from_consumed": false,
+          "key": "",
+          "micro_j_per_umol": 0,
+          "op": "consume_min_ratio",
+          "pairs": [
+            [
+              "h_plus",
+              1
+            ],
+            [
+              "oh_minus",
+              1
+            ]
+          ],
+          "ratio_to_consumed": 1000,
+          "species": "",
+          "vessel": "$target"
+        },
+        {
+          "amount_umol": 0,
+          "cap_umol": 0,
+          "from_consumed": true,
+          "key": "",
+          "micro_j_per_umol": 0,
+          "op": "produce",
+          "pairs": [],
+          "ratio_to_consumed": 1000,
+          "species": "water",
+          "vessel": "$target"
+        },
+        {
+          "amount_umol": 0,
+          "cap_umol": 0,
+          "from_consumed": false,
+          "key": "",
+          "micro_j_per_umol": 57000,
+          "op": "emit_temperature",
+          "pairs": [],
+          "ratio_to_consumed": 1000,
+          "species": "",
+          "vessel": "$target"
+        }
+      ],
+      "triggers": [
+        "on_dispense",
+        "on_pour",
+        "on_stir",
+        "on_wait"
+      ],
+      "when": [
+        {
+          "amount_umol": 1,
+          "expected": "",
+          "max_value": 0,
+          "min_value": 0,
+          "op": "species_at_least",
+          "species": "h_plus",
+          "target": "",
+          "vessel": "$target"
+        },
+        {
+          "amount_umol": 1,
+          "expected": "",
+          "max_value": 0,
+          "min_value": 0,
+          "op": "species_at_least",
+          "species": "oh_minus",
+          "target": "",
+          "vessel": "$target"
+        }
+      ]
+    }
+  ],
+  "_species_defs": {
+    "cl_minus": {
+      "color_label": null,
+      "color_strength_permille": 0,
+      "color_token": "clear",
+      "formula": "Cl⁻",
+      "hazard": "none",
+      "id": "cl_minus",
+      "kind": "species",
+      "name": {
+        "en": "Chloride ion",
+        "zh": "氯离子"
+      },
+      "ph_bands": [],
+      "role": "spectator",
+      "schema_version": 1,
+      "solubility_table": [],
+      "source": "project_authored",
+      "source_url": "",
+      "spectator": true,
+      "state": "solute",
+      "teaching_note": {
+        "en": "Spectator anion from hydrochloric acid; takes no part in any v1 reaction.",
+        "zh": "盐酸给出的旁观阴离子，在首期模型中不参与任何反应。"
+      },
+      "visible_amount_umol": 0,
+      "visible_conc_umol_per_ul_milli": 0
+    },
+    "h_plus": {
+      "color_label": null,
+      "color_strength_permille": 0,
+      "color_token": "clear",
+      "formula": "H⁺",
+      "hazard": "none",
+      "id": "h_plus",
+      "kind": "species",
+      "name": {
+        "en": "Hydrogen ion (strong-acid model)",
+        "zh": "氢离子（强酸模型）"
+      },
+      "ph_bands": [],
+      "role": "acid",
+      "schema_version": 1,
+      "solubility_table": [],
+      "source": "project_authored",
+      "source_url": "",
+      "spectator": false,
+      "state": "solute",
+      "teaching_note": {
+        "en": "Stands in for H⁺ from a strong acid. The teaching model uses concentration instead of activity and only holds for dilute solutions.",
+        "zh": "以浓度近似代表强酸给出的 H⁺；教学模型用浓度代替活度计算 pH，仅适用于稀溶液。"
+      },
+      "visible_amount_umol": 0,
+      "visible_conc_umol_per_ul_milli": 0
+    },
+    "na_plus": {
+      "color_label": null,
+      "color_strength_permille": 0,
+      "color_token": "clear",
+      "formula": "Na⁺",
+      "hazard": "none",
+      "id": "na_plus",
+      "kind": "species",
+      "name": {
+        "en": "Sodium ion",
+        "zh": "钠离子"
+      },
+      "ph_bands": [],
+      "role": "spectator",
+      "schema_version": 1,
+      "solubility_table": [],
+      "source": "project_authored",
+      "source_url": "",
+      "spectator": true,
+      "state": "solute",
+      "teaching_note": {
+        "en": "A typical spectator ion: unchanged across acid-base and precipitation systems, useful for teaching conservation.",
+        "zh": "典型的旁观离子：在酸碱与沉淀体系中本身不参与变化，用来讲守恒。"
+      },
+      "visible_amount_umol": 0,
+      "visible_conc_umol_per_ul_milli": 0
+    },
+    "oh_minus": {
+      "color_label": null,
+      "color_strength_permille": 0,
+      "color_token": "clear",
+      "formula": "OH⁻",
+      "hazard": "none",
+      "id": "oh_minus",
+      "kind": "species",
+      "name": {
+        "en": "Hydroxide ion (strong-base model)",
+        "zh": "氢氧根离子（强碱模型）"
+      },
+      "ph_bands": [],
+      "role": "base",
+      "schema_version": 1,
+      "solubility_table": [],
+      "source": "project_authored",
+      "source_url": "",
+      "spectator": false,
+      "state": "solute",
+      "teaching_note": {
+        "en": "Stands in for OH⁻ from a strong base; neutralizes H⁺ 1:1.",
+        "zh": "以浓度近似代表强碱给出的 OH⁻，与 H⁺ 按 1:1 中和。"
+      },
+      "visible_amount_umol": 0,
+      "visible_conc_umol_per_ul_milli": 0
+    },
+    "phenolphthalein": {
+      "color_label": {
+        "en": "pink",
+        "zh": "粉红色"
+      },
+      "color_strength_permille": 900,
+      "color_token": "indicator.pink",
+      "formula": "C₂₀H₁₄O₄",
+      "hazard": "none",
+      "id": "phenolphthalein",
+      "kind": "species",
+      "name": {
+        "en": "Phenolphthalein",
+        "zh": "酚酞"
+      },
+      "ph_bands": [
+        [
+          8200,
+          "clear"
+        ],
+        [
+          14000,
+          "indicator.pink"
+        ]
+      ],
+      "role": "indicator",
+      "schema_version": 1,
+      "solubility_table": [],
+      "source": "project_authored",
+      "source_url": "https://en.wikipedia.org/wiki/Phenolphthalein",
+      "spectator": false,
+      "state": "indicator",
+      "teaching_note": {
+        "en": "Acid-base indicator: colorless below about pH 8.2, pink above. The teaching model approximates the real gradual range with two bands.",
+        "zh": "酸碱指示剂：pH 低于约 8.2 时无色，更高时呈粉红。教学模型用两个色带近似真实的渐变范围。"
+      },
+      "visible_amount_umol": 0,
+      "visible_conc_umol_per_ul_milli": 1
+    },
+    "water": {
+      "color_label": null,
+      "color_strength_permille": 0,
+      "color_token": "clear",
+      "formula": "H₂O",
+      "hazard": "none",
+      "id": "water",
+      "kind": "species",
+      "name": {
+        "en": "Water",
+        "zh": "水"
+      },
+      "ph_bands": [],
+      "role": "solvent",
+      "schema_version": 1,
+      "solubility_table": [],
+      "source": "project_authored",
+      "source_url": "",
+      "spectator": false,
+      "state": "liquid",
+      "teaching_note": {
+        "en": "Default solvent. Volumes use the water approximation: 1 µL ≈ 1 mg, heat capacity 4.18 J/(g·K).",
+        "zh": "本实验台的默认溶剂。液体体积按水近似：1 µL 约 1 mg，热容取 4.18 J/(g·K)。"
+      },
+      "visible_amount_umol": 0,
+      "visible_conc_umol_per_ul_milli": 0
+    }
+  },
+  "audience": [
+    "middle_school",
+    "high_school_intro"
+  ],
+  "concept_ids": [
+    "concept.ph_scale",
+    "concept.indicator",
+    "concept.neutralization"
+  ],
+  "equipment": [
+    "reagent_bottle",
+    "beaker.small",
+    "dropper",
+    "pipette",
+    "ph_probe",
+    "stir_rod"
+  ],
+  "goals": [
+    {
+      "id": "goal.reach_endpoint",
+      "requires_observations": [
+        "color_changed"
+      ],
+      "title": {
+        "en": "Observe the indicator change",
+        "zh": "观察到指示剂变色"
+      }
+    },
+    {
+      "id": "goal.track_ph",
+      "requires_observations": [
+        "measured_ph"
+      ],
+      "title": {
+        "en": "Track the pH",
+        "zh": "跟踪 pH 变化"
+      }
+    }
+  ],
+  "id": "chem.acid_base_indicator",
+  "kind": "experiment",
+  "model_fidelity": "teaching_semi_quantitative",
+  "model_scope": {
+    "en": "Dilute strong-acid/strong-base model: pH from concentration (not activity); weak acids, bases and buffers are out of scope; the indicator uses two color bands.",
+    "zh": "稀溶液强酸强碱模型：pH 用浓度近似（非活度），不覆盖弱酸弱碱与缓冲体系；指示剂用两个色带近似。"
+  },
+  "modes": [
+    "guided",
+    "explore",
+    "self_check"
+  ],
+  "observation_visibility": {
+    "explore": [
+      "indicator_present",
+      "measured_ph",
+      "color_visible",
+      "color_changed"
+    ],
+    "guided": [
+      "indicator_present",
+      "measured_ph",
+      "color_visible",
+      "color_changed"
+    ],
+    "self_check": [
+      "indicator_present",
+      "color_visible"
+    ]
+  },
+  "pack_hash": "85843fd17741e8cf939e7183653cc6b12385130d3f7ca8bf4b9ad25031054be5",
+  "pack_version": "1.0.0",
+  "ph_model": "strong_binary_v1",
+  "predictions": [
+    {
+      "id": "pred.initial_ph",
+      "options": [
+        {
+          "correct": true,
+          "id": "a",
+          "label": {
+            "en": "1",
+            "zh": "1"
+          }
+        },
+        {
+          "correct": false,
+          "id": "b",
+          "label": {
+            "en": "5",
+            "zh": "5"
+          }
+        },
+        {
+          "correct": false,
+          "id": "c",
+          "label": {
+            "en": "7",
+            "zh": "7"
+          }
+        },
+        {
+          "correct": false,
+          "id": "d",
+          "label": {
+            "en": "13",
+            "zh": "13"
+          }
+        }
+      ],
+      "question": {
+        "en": "The starting pH of 0.1 mol/L HCl is closest to…",
+        "zh": "0.1 mol/L 盐酸的初始 pH 最接近多少？"
+      },
+      "step_id": "step.measure_start"
+    },
+    {
+      "id": "pred.endpoint_look",
+      "options": [
+        {
+          "correct": true,
+          "id": "a",
+          "label": {
+            "en": "Turn pink with a sharp pH rise",
+            "zh": "溶液变粉红，pH 大幅上升"
+          }
+        },
+        {
+          "correct": false,
+          "id": "b",
+          "label": {
+            "en": "Barely change pH or color",
+            "zh": "pH 几乎不变，颜色也不变"
+          }
+        },
+        {
+          "correct": false,
+          "id": "c",
+          "label": {
+            "en": "Form a white precipitate",
+            "zh": "生成白色沉淀"
+          }
+        },
+        {
+          "correct": false,
+          "id": "d",
+          "label": {
+            "en": "Release lots of gas",
+            "zh": "放出大量气体"
+          }
+        }
+      ],
+      "question": {
+        "en": "Near equivalence, one more small addition of NaOH will most likely…",
+        "zh": "在等量点附近再滴入少量 NaOH，最可能发生什么？"
+      },
+      "step_id": "step.endpoint"
+    }
+  ],
+  "procedure": [
+    {
+      "accepted_commands": [
+        "aspirate",
+        "dispense"
+      ],
+      "concept_ids": [
+        "concept.indicator"
+      ],
+      "expected_observations": [
+        "indicator_present"
+      ],
+      "hint_ladder": [
+        {
+          "en": "Pick the dropper and aspirate from the phenolphthalein bottle.",
+          "zh": "选滴管，在酚酞试液瓶中吸取。"
+        },
+        {
+          "en": "2 mL is 2000 µL — dispense into the beaker.",
+          "zh": "2 mL 即 2000 µL，滴入烧杯即可。"
+        }
+      ],
+      "id": "step.indicator",
+      "objective": {
+        "en": "Add about 2 mL of phenolphthalein to the acid with the dropper.",
+        "zh": "用滴管向盐酸中滴加约 2 mL 酚酞试液。"
+      },
+      "title": {
+        "en": "Add the indicator",
+        "zh": "加入指示剂"
+      }
+    },
+    {
+      "accepted_commands": [
+        "measure"
+      ],
+      "concept_ids": [
+        "concept.ph_scale"
+      ],
+      "expected_observations": [
+        "measured_ph"
+      ],
+      "hint_ladder": [
+        {
+          "en": "Select the pH probe and take a pH reading of the beaker.",
+          "zh": "选中 pH 计，对烧杯做一次 pH 测量。"
+        }
+      ],
+      "id": "step.measure_start",
+      "objective": {
+        "en": "Measure the starting pH of the beaker with the pH probe.",
+        "zh": "用 pH 计测量烧杯中溶液的初始 pH 并读数。"
+      },
+      "title": {
+        "en": "Measure the starting pH",
+        "zh": "测初始 pH"
+      }
+    },
+    {
+      "accepted_commands": [
+        "aspirate",
+        "dispense",
+        "pour",
+        "stir",
+        "measure"
+      ],
+      "concept_ids": [
+        "concept.neutralization"
+      ],
+      "expected_observations": [
+        "measured_ph"
+      ],
+      "hint_ladder": [
+        {
+          "en": "Stir after each addition so the reaction completes.",
+          "zh": "每次加入后搅拌，让反应充分进行。"
+        },
+        {
+          "en": "Measure pH after each batch and compare with the last reading.",
+          "zh": "加完一批再测 pH，对比上一次的读数。"
+        },
+        {
+          "en": "Near 25 mL, add smaller portions — the jump is close.",
+          "zh": "接近 25 mL 时每次少加一些——突变就在眼前。"
+        }
+      ],
+      "id": "step.titrate",
+      "objective": {
+        "en": "Add NaOH in portions of a few mL, stir, then take another pH reading to watch it climb.",
+        "zh": "用移液管分次加入 NaOH（每次几毫升），搅拌后再测一次 pH，观察 pH 如何爬升。"
+      },
+      "title": {
+        "en": "Titrate in portions",
+        "zh": "分次滴定"
+      }
+    },
+    {
+      "accepted_commands": [
+        "aspirate",
+        "dispense",
+        "pour",
+        "stir",
+        "wait"
+      ],
+      "concept_ids": [
+        "concept.neutralization",
+        "concept.indicator"
+      ],
+      "expected_observations": [
+        "color_changed"
+      ],
+      "hint_ladder": [
+        {
+          "en": "Switch to the dropper and add less than 1 mL at a time.",
+          "zh": "改用滴管每次加 1 mL 以内。"
+        },
+        {
+          "en": "Equivalence is near 25 mL; a slight excess turns it pink.",
+          "zh": "理论等量点在 25 mL 左右，超过一点就会变粉。"
+        }
+      ],
+      "id": "step.endpoint",
+      "objective": {
+        "en": "Titrate carefully until the solution just turns pink.",
+        "zh": "继续小心滴定，直到溶液刚好由无色变为粉红。"
+      },
+      "title": {
+        "en": "Reach the endpoint",
+        "zh": "到达终点"
+      }
+    }
+  ],
+  "reagents": [
+    {
+      "concentration_label": {
+        "en": "0.1 mol/L",
+        "zh": "0.1 mol/L"
+      },
+      "description": {
+        "en": "Strong-base titrant.",
+        "zh": "强碱滴定液。"
+      },
+      "id": "reagent.naoh",
+      "species": [
+        "oh_minus",
+        "na_plus"
+      ],
+      "vessel_id": "naoh-stock"
+    },
+    {
+      "concentration_label": {
+        "en": "0.05 mol/L",
+        "zh": "0.05 mol/L"
+      },
+      "description": {
+        "en": "Indicator: colorless below ~pH 8.2, pink above.",
+        "zh": "酸碱指示剂，pH 约 8.2 以下无色、以上粉红。"
+      },
+      "id": "reagent.indicator",
+      "species": [
+        "phenolphthalein"
+      ],
+      "vessel_id": "indicator-stock"
+    }
+  ],
+  "rule_ids": [
+    "rule.neutralization.v1"
+  ],
+  "safety_profile": {
+    "id": "teaching_virtual_irritant_v1",
+    "lock_temperature_milli_c": 95000,
+    "notes": {
+      "en": "Treat virtual acid/base as irritants: add in small portions and wash contaminated tools.",
+      "zh": "虚拟酸碱按刺激性液体对待：少量多次滴加，沾污器材及时清洗。"
+    },
+    "warn_temperature_milli_c": 60000
+  },
+  "schema_version": 1,
+  "source": "project_authored",
+  "species": [
+    "water",
+    "h_plus",
+    "oh_minus",
+    "na_plus",
+    "cl_minus",
+    "phenolphthalein"
+  ],
+  "starting_state": {
+    "equipment": [
+      {
+        "id": "dropper-1",
+        "kind": "dropper",
+        "slot": "b3"
+      },
+      {
+        "id": "pipette-1",
+        "kind": "pipette",
+        "slot": "b4"
+      },
+      {
+        "id": "ph-1",
+        "kind": "ph_probe",
+        "slot": "b5"
+      },
+      {
+        "id": "rod-1",
+        "kind": "stir_rod",
+        "slot": "b6"
+      }
+    ],
+    "room_temperature_milli_c": 25000,
+    "slots": [
+      {
+        "h": 190,
+        "id": "b1",
+        "w": 130,
+        "x": 30,
+        "y": 90
+      },
+      {
+        "h": 190,
+        "id": "b2",
+        "w": 130,
+        "x": 185,
+        "y": 90
+      },
+      {
+        "h": 190,
+        "id": "b3",
+        "w": 130,
+        "x": 340,
+        "y": 90
+      },
+      {
+        "h": 190,
+        "id": "b4",
+        "w": 130,
+        "x": 495,
+        "y": 90
+      },
+      {
+        "h": 190,
+        "id": "b5",
+        "w": 130,
+        "x": 650,
+        "y": 90
+      },
+      {
+        "h": 190,
+        "id": "b6",
+        "w": 130,
+        "x": 805,
+        "y": 90
+      },
+      {
+        "h": 260,
+        "id": "f1",
+        "w": 170,
+        "x": 30,
+        "y": 400
+      }
+    ],
+    "vessels": [
+      {
+        "capacity_uL": 250000,
+        "collects_gas": false,
+        "contents": {
+          "cl_minus": 2500,
+          "h_plus": 2500
+        },
+        "gases": {},
+        "id": "acid-beaker",
+        "kind": "beaker.small",
+        "label": {
+          "en": "25 mL of 0.1 mol/L HCl",
+          "zh": "0.1 mol/L 盐酸 25 mL"
+        },
+        "slot": "f1",
+        "solids": {},
+        "temperature_milli_c": null,
+        "volume_uL": 25000
+      },
+      {
+        "capacity_uL": 500000,
+        "collects_gas": false,
+        "contents": {
+          "na_plus": 10000,
+          "oh_minus": 10000
+        },
+        "gases": {},
+        "id": "naoh-stock",
+        "kind": "reagent_bottle",
+        "label": {
+          "en": "0.1 mol/L NaOH",
+          "zh": "0.1 mol/L 氢氧化钠"
+        },
+        "slot": "b1",
+        "solids": {},
+        "temperature_milli_c": null,
+        "volume_uL": 100000
+      },
+      {
+        "capacity_uL": 500000,
+        "collects_gas": false,
+        "contents": {
+          "phenolphthalein": 2500
+        },
+        "gases": {},
+        "id": "indicator-stock",
+        "kind": "reagent_bottle",
+        "label": {
+          "en": "Phenolphthalein solution",
+          "zh": "酚酞试液"
+        },
+        "slot": "b2",
+        "solids": {},
+        "temperature_milli_c": null,
+        "volume_uL": 50000
+      }
+    ]
+  },
+  "summary": {
+    "en": "Add phenolphthalein to hydrochloric acid, titrate with sodium hydroxide while tracking pH, and watch the sharp pH jump and the colorless-to-pink endpoint.",
+    "zh": "在盐酸中加入酚酞，逐次滴入氢氧化钠并跟踪 pH，观察等量点附近 pH 的突变与指示剂由无色转粉红的瞬间。"
+  },
+  "title": {
+    "en": "Acid-base indicator and titration",
+    "zh": "酸碱指示与中和滴定"
+  },
+  "visual_theme": {
+    "color_hex": {
+      "clear": "#dceaf4",
+      "indicator.pink": "#f472b6"
+    },
+    "color_tokens": {
+      "clear": {
+        "en": "colorless",
+        "zh": "无色透明"
+      },
+      "indicator.pink": {
+        "en": "pink",
+        "zh": "粉红色"
+      }
+    },
+    "id": "paper_lab_v1",
+    "textures": {}
+  }
+}

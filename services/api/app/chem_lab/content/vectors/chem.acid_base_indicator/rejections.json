@@ -1,0 +1,59 @@
+{
+  "name": "rejections",
+  "description": "测量质量（未建模）、空管排出、量程超限、未知器材等拒绝路径。",
+  "mode": "guided",
+  "session_seed": 0,
+  "script": [
+    {
+      "kind": "measure",
+      "instrument_id": "ph-1",
+      "vessel_id": "acid-beaker",
+      "quantity": "mass"
+    },
+    {
+      "kind": "dispense",
+      "instrument_id": "pipette-1",
+      "target_id": "acid-beaker",
+      "amount_uL": 2000
+    },
+    {
+      "kind": "aspirate",
+      "source_id": "naoh-stock",
+      "instrument_id": "pipette-1",
+      "amount_uL": 12000
+    },
+    {
+      "kind": "measure",
+      "instrument_id": "dropper-1",
+      "vessel_id": "acid-beaker",
+      "quantity": "ph"
+    },
+    {
+      "kind": "measure",
+      "instrument_id": "ph-1",
+      "vessel_id": "acid-beaker",
+      "quantity": "ph"
+    }
+  ],
+  "expect_event_kinds": [
+    "command_rejected",
+    "measurement_taken"
+  ],
+  "expect_final_phase": "running",
+  "state_hashes": [
+    "f806e5cbdfb21072",
+    "3e414712864d3914",
+    "e1a3f35736703b9e",
+    "7bdf8a224f64c094",
+    "e81f1ee2d765f08a",
+    "1712d6ac327f651d"
+  ],
+  "final_hash": "1712d6ac327f651d",
+  "accepted": [
+    false,
+    false,
+    false,
+    false,
+    true
+  ]
+}

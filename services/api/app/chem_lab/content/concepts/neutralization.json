@@ -1,0 +1,16 @@
+{
+  "id": "concept.neutralization",
+  "kind": "concept",
+  "schema_version": 1,
+  "title": {"zh": "中和反应", "en": "Neutralization"},
+  "body": {
+    "zh": "H⁺ 与 OH⁻ 按 1:1 结合成水并放热（教学近似约 57 kJ/mol）。滴定时加入的碱先被酸“吃掉”，pH 缓慢爬升；接近等量点时少量碱就能让 pH 大幅跳动，这就是终点的由来。",
+    "en": "H⁺ and OH⁻ combine 1:1 into water, releasing heat (≈57 kJ/mol teaching approximation). During titration added base is consumed and pH climbs slowly; near the equivalence point a small addition swings pH sharply — that is the endpoint."
+  },
+  "equation": "H⁺ + OH⁻ → H₂O",
+  "prerequisites": ["concept.ph_scale"],
+  "misconception": {
+    "zh": "中和不是把酸“盖住”，而是 H⁺ 真的被消耗掉了。",
+    "en": "Neutralization is not covering the acid up — H⁺ is actually consumed."
+  }
+}

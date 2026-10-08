@@ -1,0 +1,44 @@
+{
+  "name": "safety_lock_overshoot",
+  "description": "满功率长时间加热冲过 95 °C：固体还没溶完就触发安全锁定。",
+  "mode": "guided",
+  "session_seed": 0,
+  "script": [
+    {
+      "kind": "heat",
+      "device_id": "plate-1",
+      "vessel_id": "beaker",
+      "power_permille": 1000,
+      "duration_ms": 240000
+    },
+    {
+      "kind": "measure",
+      "instrument_id": "thermo-1",
+      "vessel_id": "beaker",
+      "quantity": "temperature"
+    },
+    {
+      "kind": "checkpoint",
+      "label": "锁定后"
+    }
+  ],
+  "expect_event_kinds": [
+    "safety_warning",
+    "safety_locked",
+    "command_rejected",
+    "checkpoint_created"
+  ],
+  "expect_final_phase": "safety_locked",
+  "state_hashes": [
+    "87a16e4fcac46afa",
+    "10d321661e3ee342",
+    "d64b0fd3f58f1b46",
+    "eff395f7d5784b96"
+  ],
+  "final_hash": "eff395f7d5784b96",
+  "accepted": [
+    true,
+    false,
+    true
+  ]
+}

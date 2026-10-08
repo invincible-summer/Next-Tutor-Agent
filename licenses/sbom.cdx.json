@@ -37659,7 +37659,7 @@
         },
         {
           "name": "next-tutor:scopes",
-          "value": "apps/web:devDependencies"
+          "value": "apps/web:devDependencies,packages/api-client:devDependencies,packages/contracts:devDependencies,packages/design-tokens:devDependencies,packages/domain:devDependencies,packages/i18n:devDependencies"
         },
         {
           "name": "next-tutor:license-files",
@@ -40178,32 +40178,19 @@
     },
     {
       "bom-ref": "pkg:pypi/asgiref@3.12.1",
-      "externalReferences": [
-        {
-          "type": "website",
-          "url": "https://github.com/django/asgiref/"
-        }
-      ],
-      "licenses": [
-        {
-          "license": {
-            "name": "BSD-3-Clause"
-          }
-        }
-      ],
       "name": "asgiref",
       "properties": [
         {
           "name": "next-tutor:evidence",
-          "value": "installed-distribution"
+          "value": "declared;not-installed"
         },
         {
           "name": "next-tutor:scopes",
-          "value": "services/api/constraints.txt:constraint-only,services/api/requirements-observability.txt:observed-transitive"
+          "value": "services/api/constraints.txt:constraint-only"
         },
         {
           "name": "next-tutor:license-files",
-          "value": "licenses/texts/b846415d1b514e9c1dff14a22deb906d794bc546ca6129f950a18cd091e2a669.txt"
+          "value": ""
         }
       ],
       "purl": "pkg:pypi/asgiref@3.12.1",
@@ -40251,7 +40238,7 @@
       "properties": [
         {
           "name": "next-tutor:evidence",
-          "value": "installed-distribution"
+          "value": "registry-artifact;not-installed"
         },
         {
           "name": "next-tutor:scopes",
@@ -41002,26 +40989,19 @@
     },
     {
       "bom-ref": "pkg:pypi/googleapis-common-protos@1.75.0",
-      "licenses": [
-        {
-          "license": {
-            "name": "Apache 2.0"
-          }
-        }
-      ],
       "name": "googleapis-common-protos",
       "properties": [
         {
           "name": "next-tutor:evidence",
-          "value": "installed-distribution"
+          "value": "declared;not-installed"
         },
         {
           "name": "next-tutor:scopes",
-          "value": "services/api/constraints.txt:constraint-only,services/api/requirements-observability.txt:observed-transitive"
+          "value": "services/api/constraints.txt:constraint-only"
         },
         {
           "name": "next-tutor:license-files",
-          "value": "licenses/texts/cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30.txt"
+          "value": ""
         }
       ],
       "purl": "pkg:pypi/googleapis-common-protos@1.75.0",
@@ -41058,26 +41038,19 @@
     },
     {
       "bom-ref": "pkg:pypi/grpcio@1.83.0",
-      "licenses": [
-        {
-          "license": {
-            "name": "Apache-2.0"
-          }
-        }
-      ],
       "name": "grpcio",
       "properties": [
         {
           "name": "next-tutor:evidence",
-          "value": "installed-distribution"
+          "value": "declared;not-installed"
         },
         {
           "name": "next-tutor:scopes",
-          "value": "services/api/constraints.txt:constraint-only,services/api/requirements-observability.txt:observed-transitive"
+          "value": "services/api/constraints.txt:constraint-only"
         },
         {
           "name": "next-tutor:license-files",
-          "value": "licenses/texts/58c86a3f2b5cca0ebdf9ed3e7f4e6dc38e3b38796d8c3dc92064c62a4e39d0dd.txt"
+          "value": ""
         }
       ],
       "purl": "pkg:pypi/grpcio@1.83.0",
@@ -41549,7 +41522,7 @@
       "properties": [
         {
           "name": "next-tutor:evidence",
-          "value": "installed-distribution"
+          "value": "registry-artifact;not-installed"
         },
         {
           "name": "next-tutor:scopes",
@@ -41583,7 +41556,7 @@
       "properties": [
         {
           "name": "next-tutor:evidence",
-          "value": "installed-distribution"
+          "value": "registry-artifact;not-installed"
         },
         {
           "name": "next-tutor:scopes",
@@ -41747,7 +41720,7 @@
       "properties": [
         {
           "name": "next-tutor:evidence",
-          "value": "installed-distribution"
+          "value": "registry-artifact;not-installed"
         },
         {
           "name": "next-tutor:scopes",
@@ -41809,7 +41782,7 @@
       "properties": [
         {
           "name": "next-tutor:evidence",
-          "value": "installed-distribution"
+          "value": "registry-artifact;not-installed"
         },
         {
           "name": "next-tutor:scopes",
@@ -42148,26 +42121,19 @@
     },
     {
       "bom-ref": "pkg:pypi/opentelemetry-api@1.44.0",
-      "licenses": [
-        {
-          "license": {
-            "name": "Apache-2.0"
-          }
-        }
-      ],
       "name": "opentelemetry-api",
       "properties": [
         {
           "name": "next-tutor:evidence",
-          "value": "installed-distribution"
+          "value": "declared;not-installed"
         },
         {
           "name": "next-tutor:scopes",
-          "value": "services/api/constraints.txt:constraint-only,services/api/requirements-observability.txt,services/api/requirements-observability.txt:observed-transitive"
+          "value": "services/api/constraints.txt:constraint-only,services/api/requirements-observability.txt"
         },
         {
           "name": "next-tutor:license-files",
-          "value": "licenses/texts/c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4.txt"
+          "value": ""
         }
       ],
       "purl": "pkg:pypi/opentelemetry-api@1.44.0",
@@ -42176,26 +42142,19 @@
     },
     {
       "bom-ref": "pkg:pypi/opentelemetry-exporter-otlp-proto-common@1.44.0",
-      "licenses": [
-        {
-          "license": {
-            "name": "Apache-2.0"
-          }
-        }
-      ],
       "name": "opentelemetry-exporter-otlp-proto-common",
       "properties": [
         {
           "name": "next-tutor:evidence",
-          "value": "installed-distribution"
+          "value": "declared;not-installed"
         },
         {
           "name": "next-tutor:scopes",
-          "value": "services/api/constraints.txt:constraint-only,services/api/requirements-observability.txt:observed-transitive"
+          "value": "services/api/constraints.txt:constraint-only"
         },
         {
           "name": "next-tutor:license-files",
-          "value": "licenses/texts/c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4.txt"
+          "value": ""
         }
       ],
       "purl": "pkg:pypi/opentelemetry-exporter-otlp-proto-common@1.44.0",
@@ -42204,18 +42163,11 @@
     },
     {
       "bom-ref": "pkg:pypi/opentelemetry-exporter-otlp-proto-grpc@1.44.0",
-      "licenses": [
-        {
-          "license": {
-            "name": "Apache-2.0"
-          }
-        }
-      ],
       "name": "opentelemetry-exporter-otlp-proto-grpc",
       "properties": [
         {
           "name": "next-tutor:evidence",
-          "value": "installed-distribution"
+          "value": "declared;not-installed"
         },
         {
           "name": "next-tutor:scopes",
@@ -42223,7 +42175,7 @@
         },
         {
           "name": "next-tutor:license-files",
-          "value": "licenses/texts/c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4.txt"
+          "value": ""
         }
       ],
       "purl": "pkg:pypi/opentelemetry-exporter-otlp-proto-grpc@1.44.0",
@@ -42232,26 +42184,19 @@
     },
     {
       "bom-ref": "pkg:pypi/opentelemetry-instrumentation-asgi@0.65b0",
-      "licenses": [
-        {
-          "license": {
-            "name": "Apache-2.0"
-          }
-        }
-      ],
       "name": "opentelemetry-instrumentation-asgi",
       "properties": [
         {
           "name": "next-tutor:evidence",
-          "value": "installed-distribution"
+          "value": "declared;not-installed"
         },
         {
           "name": "next-tutor:scopes",
-          "value": "services/api/constraints.txt:constraint-only,services/api/requirements-observability.txt:observed-transitive"
+          "value": "services/api/constraints.txt:constraint-only"
         },
         {
           "name": "next-tutor:license-files",
-          "value": "licenses/texts/c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4.txt"
+          "value": ""
         }
       ],
       "purl": "pkg:pypi/opentelemetry-instrumentation-asgi@0.65b0",
@@ -42260,18 +42205,11 @@
     },
     {
       "bom-ref": "pkg:pypi/opentelemetry-instrumentation-fastapi@0.65b0",
-      "licenses": [
-        {
-          "license": {
-            "name": "Apache-2.0"
-          }
-        }
-      ],
       "name": "opentelemetry-instrumentation-fastapi",
       "properties": [
         {
           "name": "next-tutor:evidence",
-          "value": "installed-distribution"
+          "value": "declared;not-installed"
         },
         {
           "name": "next-tutor:scopes",
@@ -42279,7 +42217,7 @@
         },
         {
           "name": "next-tutor:license-files",
-          "value": "licenses/texts/c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4.txt"
+          "value": ""
         }
       ],
       "purl": "pkg:pypi/opentelemetry-instrumentation-fastapi@0.65b0",
@@ -42288,18 +42226,11 @@
     },
     {
       "bom-ref": "pkg:pypi/opentelemetry-instrumentation-httpx@0.65b0",
-      "licenses": [
-        {
-          "license": {
-            "name": "Apache-2.0"
-          }
-        }
-      ],
       "name": "opentelemetry-instrumentation-httpx",
       "properties": [
         {
           "name": "next-tutor:evidence",
-          "value": "installed-distribution"
+          "value": "declared;not-installed"
         },
         {
           "name": "next-tutor:scopes",
@@ -42307,7 +42238,7 @@
         },
         {
           "name": "next-tutor:license-files",
-          "value": "licenses/texts/c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4.txt"
+          "value": ""
         }
       ],
       "purl": "pkg:pypi/opentelemetry-instrumentation-httpx@0.65b0",
@@ -42316,26 +42247,19 @@
     },
     {
       "bom-ref": "pkg:pypi/opentelemetry-instrumentation@0.65b0",
-      "licenses": [
-        {
-          "license": {
-            "name": "Apache-2.0"
-          }
-        }
-      ],
       "name": "opentelemetry-instrumentation",
       "properties": [
         {
           "name": "next-tutor:evidence",
-          "value": "installed-distribution"
+          "value": "declared;not-installed"
         },
         {
           "name": "next-tutor:scopes",
-          "value": "services/api/constraints.txt:constraint-only,services/api/requirements-observability.txt:observed-transitive"
+          "value": "services/api/constraints.txt:constraint-only"
         },
         {
           "name": "next-tutor:license-files",
-          "value": "licenses/texts/c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4.txt"
+          "value": ""
         }
       ],
       "purl": "pkg:pypi/opentelemetry-instrumentation@0.65b0",
@@ -42344,26 +42268,19 @@
     },
     {
       "bom-ref": "pkg:pypi/opentelemetry-proto@1.44.0",
-      "licenses": [
-        {
-          "license": {
-            "name": "Apache-2.0"
-          }
-        }
-      ],
       "name": "opentelemetry-proto",
       "properties": [
         {
           "name": "next-tutor:evidence",
-          "value": "installed-distribution"
+          "value": "declared;not-installed"
         },
         {
           "name": "next-tutor:scopes",
-          "value": "services/api/constraints.txt:constraint-only,services/api/requirements-observability.txt:observed-transitive"
+          "value": "services/api/constraints.txt:constraint-only"
         },
         {
           "name": "next-tutor:license-files",
-          "value": "licenses/texts/c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4.txt"
+          "value": ""
         }
       ],
       "purl": "pkg:pypi/opentelemetry-proto@1.44.0",
@@ -42372,26 +42289,19 @@
     },
     {
       "bom-ref": "pkg:pypi/opentelemetry-sdk@1.44.0",
-      "licenses": [
-        {
-          "license": {
-            "name": "Apache-2.0"
-          }
-        }
-      ],
       "name": "opentelemetry-sdk",
       "properties": [
         {
           "name": "next-tutor:evidence",
-          "value": "installed-distribution"
+          "value": "declared;not-installed"
         },
         {
           "name": "next-tutor:scopes",
-          "value": "services/api/constraints.txt:constraint-only,services/api/requirements-observability.txt,services/api/requirements-observability.txt:observed-transitive"
+          "value": "services/api/constraints.txt:constraint-only,services/api/requirements-observability.txt"
         },
         {
           "name": "next-tutor:license-files",
-          "value": "licenses/texts/c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4.txt"
+          "value": ""
         }
       ],
       "purl": "pkg:pypi/opentelemetry-sdk@1.44.0",
@@ -42400,26 +42310,19 @@
     },
     {
       "bom-ref": "pkg:pypi/opentelemetry-semantic-conventions@0.65b0",
-      "licenses": [
-        {
-          "license": {
-            "name": "Apache-2.0"
-          }
-        }
-      ],
       "name": "opentelemetry-semantic-conventions",
       "properties": [
         {
           "name": "next-tutor:evidence",
-          "value": "installed-distribution"
+          "value": "declared;not-installed"
         },
         {
           "name": "next-tutor:scopes",
-          "value": "services/api/constraints.txt:constraint-only,services/api/requirements-observability.txt:observed-transitive"
+          "value": "services/api/constraints.txt:constraint-only"
         },
         {
           "name": "next-tutor:license-files",
-          "value": "licenses/texts/c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4.txt"
+          "value": ""
         }
       ],
       "purl": "pkg:pypi/opentelemetry-semantic-conventions@0.65b0",
@@ -42445,11 +42348,11 @@
       "properties": [
         {
           "name": "next-tutor:evidence",
-          "value": "installed-distribution"
+          "value": "registry-artifact;not-installed"
         },
         {
           "name": "next-tutor:scopes",
-          "value": "services/api/constraints.txt:constraint-only,services/api/requirements-observability.txt:observed-transitive"
+          "value": "services/api/constraints.txt:constraint-only"
         },
         {
           "name": "next-tutor:license-files",
@@ -42539,7 +42442,7 @@
         },
         {
           "name": "next-tutor:scopes",
-          "value": "services/api/constraints.txt:constraint-only,services/api/requirements-observability.txt:observed-transitive,services/api/requirements.txt:observed-transitive"
+          "value": "services/api/constraints.txt:constraint-only,services/api/requirements.txt:observed-transitive"
         },
         {
           "name": "next-tutor:license-files",
@@ -42703,7 +42606,7 @@
         },
         {
           "name": "next-tutor:scopes",
-          "value": "services/api/constraints.txt:constraint-only,services/api/requirements-observability.txt:observed-transitive,services/api/requirements.txt:observed-transitive"
+          "value": "services/api/constraints.txt:constraint-only,services/api/requirements.txt:observed-transitive"
         },
         {
           "name": "next-tutor:license-files",
@@ -43365,7 +43268,7 @@
       "properties": [
         {
           "name": "next-tutor:evidence",
-          "value": "installed-distribution"
+          "value": "registry-artifact;not-installed"
         },
         {
           "name": "next-tutor:scopes",
@@ -43529,7 +43432,7 @@
       "properties": [
         {
           "name": "next-tutor:evidence",
-          "value": "installed-distribution"
+          "value": "registry-artifact;not-installed"
         },
         {
           "name": "next-tutor:scopes",
@@ -44159,7 +44062,7 @@
         },
         {
           "name": "next-tutor:scopes",
-          "value": "services/api/constraints.txt:constraint-only,services/api/requirements-observability.txt:observed-transitive,services/api/requirements.txt:observed-transitive,services/voice/requirements.txt:observed-transitive"
+          "value": "services/api/constraints.txt:constraint-only,services/api/requirements.txt:observed-transitive,services/voice/requirements.txt:observed-transitive"
         },
         {
           "name": "next-tutor:license-files",
@@ -44442,26 +44345,19 @@
     },
     {
       "bom-ref": "pkg:pypi/wrapt@2.5.0",
-      "licenses": [
-        {
-          "license": {
-            "name": "BSD-2-Clause"
-          }
-        }
-      ],
       "name": "wrapt",
       "properties": [
         {
           "name": "next-tutor:evidence",
-          "value": "installed-distribution"
+          "value": "declared;not-installed"
         },
         {
           "name": "next-tutor:scopes",
-          "value": "services/api/constraints.txt:constraint-only,services/api/requirements-observability.txt:observed-transitive"
+          "value": "services/api/constraints.txt:constraint-only"
         },
         {
           "name": "next-tutor:license-files",
-          "value": "licenses/texts/d4f66854a24dda2f2a5282912aedebe6b18186b86284510a433d78fadcd88e5d.txt"
+          "value": ""
         }
       ],
       "purl": "pkg:pypi/wrapt@2.5.0",
@@ -53919,9 +53815,7 @@
       "ref": "pkg:pypi/g2p-en@2.1.0"
     },
     {
-      "dependsOn": [
-        "pkg:pypi/protobuf@7.35.1"
-      ],
+      "dependsOn": [],
       "ref": "pkg:pypi/googleapis-common-protos@1.75.0"
     },
     {
@@ -53929,9 +53823,7 @@
       "ref": "pkg:pypi/greenlet@3.5.6"
     },
     {
-      "dependsOn": [
-        "pkg:pypi/typing-extensions@4.16.0"
-      ],
+      "dependsOn": [],
       "ref": "pkg:pypi/grpcio@1.83.0"
     },
     {
@@ -54104,87 +53996,43 @@
       "ref": "pkg:pypi/openai@2.48.0"
     },
     {
-      "dependsOn": [
-        "pkg:pypi/typing-extensions@4.16.0"
-      ],
+      "dependsOn": [],
       "ref": "pkg:pypi/opentelemetry-api@1.44.0"
     },
     {
-      "dependsOn": [
-        "pkg:pypi/opentelemetry-proto@1.44.0"
-      ],
+      "dependsOn": [],
       "ref": "pkg:pypi/opentelemetry-exporter-otlp-proto-common@1.44.0"
     },
     {
-      "dependsOn": [
-        "pkg:pypi/googleapis-common-protos@1.75.0",
-        "pkg:pypi/grpcio@1.83.0",
-        "pkg:pypi/opentelemetry-api@1.44.0",
-        "pkg:pypi/opentelemetry-exporter-otlp-proto-common@1.44.0",
-        "pkg:pypi/opentelemetry-proto@1.44.0",
-        "pkg:pypi/opentelemetry-sdk@1.44.0",
-        "pkg:pypi/typing-extensions@4.16.0"
-      ],
+      "dependsOn": [],
       "ref": "pkg:pypi/opentelemetry-exporter-otlp-proto-grpc@1.44.0"
     },
     {
-      "dependsOn": [
-        "pkg:pypi/asgiref@3.12.1",
-        "pkg:pypi/opentelemetry-api@1.44.0",
-        "pkg:pypi/opentelemetry-instrumentation@0.65b0",
-        "pkg:pypi/opentelemetry-semantic-conventions@0.65b0",
-        "pkg:pypi/opentelemetry-util-http@0.65b0"
-      ],
+      "dependsOn": [],
       "ref": "pkg:pypi/opentelemetry-instrumentation-asgi@0.65b0"
     },
     {
-      "dependsOn": [
-        "pkg:pypi/opentelemetry-api@1.44.0",
-        "pkg:pypi/opentelemetry-instrumentation-asgi@0.65b0",
-        "pkg:pypi/opentelemetry-instrumentation@0.65b0",
-        "pkg:pypi/opentelemetry-semantic-conventions@0.65b0",
-        "pkg:pypi/opentelemetry-util-http@0.65b0"
-      ],
+      "dependsOn": [],
       "ref": "pkg:pypi/opentelemetry-instrumentation-fastapi@0.65b0"
     },
     {
-      "dependsOn": [
-        "pkg:pypi/opentelemetry-api@1.44.0",
-        "pkg:pypi/opentelemetry-instrumentation@0.65b0",
-        "pkg:pypi/opentelemetry-semantic-conventions@0.65b0",
-        "pkg:pypi/opentelemetry-util-http@0.65b0",
-        "pkg:pypi/wrapt@2.5.0"
-      ],
+      "dependsOn": [],
       "ref": "pkg:pypi/opentelemetry-instrumentation-httpx@0.65b0"
     },
     {
-      "dependsOn": [
-        "pkg:pypi/opentelemetry-api@1.44.0",
-        "pkg:pypi/opentelemetry-semantic-conventions@0.65b0",
-        "pkg:pypi/packaging@26.2",
-        "pkg:pypi/wrapt@2.5.0"
-      ],
+      "dependsOn": [],
       "ref": "pkg:pypi/opentelemetry-instrumentation@0.65b0"
     },
     {
-      "dependsOn": [
-        "pkg:pypi/protobuf@7.35.1"
-      ],
+      "dependsOn": [],
       "ref": "pkg:pypi/opentelemetry-proto@1.44.0"
     },
     {
-      "dependsOn": [
-        "pkg:pypi/opentelemetry-api@1.44.0",
-        "pkg:pypi/opentelemetry-semantic-conventions@0.65b0",
-        "pkg:pypi/typing-extensions@4.16.0"
-      ],
+      "dependsOn": [],
       "ref": "pkg:pypi/opentelemetry-sdk@1.44.0"
     },
     {
-      "dependsOn": [
-        "pkg:pypi/opentelemetry-api@1.44.0",
-        "pkg:pypi/typing-extensions@4.16.0"
-      ],
+      "dependsOn": [],
       "ref": "pkg:pypi/opentelemetry-semantic-conventions@0.65b0"
     },
     {

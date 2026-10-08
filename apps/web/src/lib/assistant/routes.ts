@@ -15,6 +15,8 @@ const MODULE_PATHS: Record<string, string> = {
   assessment: "/assessment",
   tools: "/tools",
   tools_illustration: "/tools/illustration",
+  tools_lab: "/tools/lab",
+  tools_lab_chemistry: "/tools/lab/chemistry",
   memory: "/memory",
   resources_files: "/resources/files",
   resources_textbooks: "/resources/textbooks",

@@ -31,7 +31,7 @@ export interface UploadablePageContext {
 
 export interface AdapterClientState {
   dirty: boolean;
-  blocking_activity: "none" | "assessment" | "voice_call" | "unsaved_editor";
+  blocking_activity: "none" | "assessment" | "voice_call" | "unsaved_editor" | "lab_pending_sync";
   activity_label?: string;
   safe_bottom_px: number;
 }
@@ -114,6 +114,8 @@ export function routeIdFromPathname(pathname: string): AssistantRouteId {
     ["/orchestration", "orchestration"],
     ["/assessment", "assessment"],
     ["/tools/illustration", "tools_illustration"],
+    ["/tools/lab/chemistry", "tools_lab_chemistry"],
+    ["/tools/lab", "tools_lab"],
     ["/tools", "tools"],
     ["/memory", "memory"],
     ["/resources/files", "resources_files"],

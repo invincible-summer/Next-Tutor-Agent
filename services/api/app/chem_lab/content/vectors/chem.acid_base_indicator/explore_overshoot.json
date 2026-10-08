@@ -1,0 +1,73 @@
+{
+  "name": "explore_overshoot",
+  "description": "探索模式一次性倒入过量 NaOH：越过等量点直接强碱性粉红。",
+  "mode": "explore",
+  "session_seed": 3,
+  "script": [
+    {
+      "kind": "aspirate",
+      "source_id": "indicator-stock",
+      "instrument_id": "dropper-1",
+      "amount_uL": 2000
+    },
+    {
+      "kind": "dispense",
+      "instrument_id": "dropper-1",
+      "target_id": "acid-beaker",
+      "amount_uL": 2000
+    },
+    {
+      "kind": "pour",
+      "source_id": "naoh-stock",
+      "target_id": "acid-beaker",
+      "amount_uL": 30000,
+      "rate": "normal"
+    },
+    {
+      "kind": "stir",
+      "vessel_id": "acid-beaker",
+      "speed_permille": 600,
+      "duration_ms": 4000
+    },
+    {
+      "kind": "measure",
+      "instrument_id": "ph-1",
+      "vessel_id": "acid-beaker",
+      "quantity": "ph"
+    },
+    {
+      "kind": "measure",
+      "instrument_id": "ph-1",
+      "vessel_id": "acid-beaker",
+      "quantity": "temperature"
+    }
+  ],
+  "expect_event_kinds": [
+    "observation_emitted",
+    "species_consumed",
+    "measurement_taken",
+    "temperature_changed"
+  ],
+  "expect_final_phase": "completed",
+  "state_hashes": [
+    "a8960748e5390a38",
+    "3ba24b26b4a1d15a",
+    "5d8b64ff3d4f3bce",
+    "2c6b99531562b8c8",
+    "88ff876c756dd4f3",
+    "59368b115060d2d4",
+    "9758a5b5697fd18c"
+  ],
+  "final_hash": "9758a5b5697fd18c",
+  "accepted": [
+    true,
+    true,
+    true,
+    true,
+    true,
+    true
+  ],
+  "expect_observation_keys": [
+    "color_changed"
+  ]
+}

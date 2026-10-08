@@ -14,7 +14,8 @@
     "test": "node --experimental-strip-types --test tests/*.test.ts"
   },
   "devDependencies": {
-    "@types/node": "^20"
+    "@types/node": "^20",
+    "typescript": "^5.9.2"
   },
   "dependencies": {
     "@next-tutor/contracts": "workspace:*"

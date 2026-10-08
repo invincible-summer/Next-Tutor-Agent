@@ -53,6 +53,22 @@ export function PaperCompilerMark(props: MarkProps) {
   );
 }
 
+export function ChemLabMark(props: MarkProps) {
+  return (
+    <Mark title={props.title} {...props}>
+      <path d="M27 9h10" />
+      <path d="M29 9v14L15.5 49.5A4 4 0 0 0 19 56h26a4 4 0 0 0 3.5-6.5L35 23V9" />
+      <path d="M22.5 40h19" />
+      <circle cx="28" cy="28" r="1.3" opacity=".55" />
+      <circle cx="32" cy="33.5" r="1.5" opacity=".55" />
+      <circle cx="27" cy="46" r="1.8" fill="currentColor" stroke="none" />
+      <circle cx="35" cy="44" r="1.5" fill="currentColor" stroke="none" />
+      <circle cx="30.5" cy="50.5" r="1.6" fill="currentColor" stroke="none" />
+      <path d="M10 60h44" opacity=".38" />
+    </Mark>
+  );
+}
+
 export function MaterialAtlasMark(props: MarkProps) {
   return (
     <Mark title={props.title} {...props}>

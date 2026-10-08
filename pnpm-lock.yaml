@@ -262,30 +262,45 @@ importers:
       '@types/node':
         specifier: ^20
         version: 20.19.43
+      typescript:
+        specifier: ^5.9.2
+        version: 5.9.3
 
   packages/contracts:
     devDependencies:
       '@types/node':
         specifier: ^20
         version: 20.19.43
+      typescript:
+        specifier: ^5.9.2
+        version: 5.9.3
 
   packages/design-tokens:
     devDependencies:
       '@types/node':
         specifier: ^20
         version: 20.19.43
+      typescript:
+        specifier: ^5.9.2
+        version: 5.9.3
 
   packages/domain:
     devDependencies:
       '@types/node':
         specifier: ^20
         version: 20.19.43
+      typescript:
+        specifier: ^5.9.2
+        version: 5.9.3
 
   packages/i18n:
     devDependencies:
       '@types/node':
         specifier: ^20
         version: 20.19.43
+      typescript:
+        specifier: ^5.9.2
+        version: 5.9.3
 
 packages:
 

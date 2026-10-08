@@ -1,0 +1,709 @@
+{
+  "_concepts": {
+    "concept.dilution": {
+      "body": {
+        "en": "Dilution adds solvent only; the amount of solute is conserved, so color fades but the quantity stays. Below the visibility threshold the color 'disappears' — the solute is still there, just too dilute to see.",
+        "zh": "稀释只加入溶剂，溶质的总量不变，所以颜色会变浅但物质的量不变。当浓度低于可见阈值时颜色“消失”——溶质还在，只是稀到看不见了。"
+      },
+      "equation": "c₁V₁ = c₂V₂",
+      "id": "concept.dilution",
+      "kind": "concept",
+      "misconception": {
+        "en": "Color vanishing is not solute vanishing.",
+        "zh": "颜色消失不等于溶质消失。"
+      },
+      "prerequisites": [
+        "concept.molarity"
+      ],
+      "schema_version": 1,
+      "title": {
+        "en": "Conservation in dilution",
+        "zh": "稀释守恒"
+      }
+    },
+    "concept.molarity": {
+      "body": {
+        "en": "Concentration is the amount of solute per unit volume. In this lab 1 µmol/µL equals 1 mol/L, so 10 mL of 0.1 mol/L carries 1000 µmol. A pipette measures by volume; solute moves in proportion.",
+        "zh": "浓度表示单位体积溶液中溶质的量。实验台里 1 µmol/µL 恰好等于 1 mol/L，所以量取 10 mL 0.1 mol/L 的溶液就是取走 1000 µmol 溶质。移液管按体积量取，溶质的量随体积等比例转移。"
+      },
+      "equation": "n = c × V",
+      "id": "concept.molarity",
+      "kind": "concept",
+      "misconception": {
+        "en": "How much you draw and how concentrated it is are different things: equal volumes at different concentrations carry different amounts.",
+        "zh": "“吸多少”和“吸多浓”是两回事：同样的体积，浓度不同，取走的物质的量就不同。"
+      },
+      "prerequisites": [],
+      "schema_version": 1,
+      "title": {
+        "en": "Molar concentration",
+        "zh": "物质的量浓度"
+      }
+    }
+  },
+  "_equipment_defs": {
+    "beaker.small": {
+      "capacity_uL": 250000,
+      "category": "vessel",
+      "footprint": [
+        120,
+        150
+      ],
+      "gas_tight": false,
+      "graduations_uL": [
+        50000,
+        100000,
+        150000,
+        200000
+      ],
+      "heat_compatible": true,
+      "id": "beaker.small",
+      "instrument_label": null,
+      "kind": "equipment",
+      "measures": [],
+      "name": {
+        "en": "Small beaker",
+        "zh": "小烧杯"
+      },
+      "ports": [
+        {
+          "id": "mouth",
+          "x": 60,
+          "y": 0
+        }
+      ],
+      "pourable": true,
+      "rated_micro_j_per_step": 0,
+      "schema_version": 1
+    },
+    "dropper": {
+      "capacity_uL": 3000,
+      "category": "instrument",
+      "footprint": [
+        26,
+        120
+      ],
+      "gas_tight": false,
+      "graduations_uL": [],
+      "heat_compatible": false,
+      "id": "dropper",
+      "instrument_label": {
+        "en": "3 mL",
+        "zh": "3 mL"
+      },
+      "kind": "equipment",
+      "measures": [],
+      "name": {
+        "en": "Dropper",
+        "zh": "胶头滴管"
+      },
+      "ports": [],
+      "pourable": false,
+      "rated_micro_j_per_step": 0,
+      "schema_version": 1
+    },
+    "graduated_cylinder": {
+      "capacity_uL": 100000,
+      "category": "vessel",
+      "footprint": [
+        70,
+        180
+      ],
+      "gas_tight": false,
+      "graduations_uL": [
+        10000,
+        20000,
+        30000,
+        40000,
+        50000,
+        60000,
+        70000,
+        80000,
+        90000
+      ],
+      "heat_compatible": false,
+      "id": "graduated_cylinder",
+      "instrument_label": null,
+      "kind": "equipment",
+      "measures": [
+        "volume"
+      ],
+      "name": {
+        "en": "Graduated cylinder",
+        "zh": "量筒"
+      },
+      "ports": [
+        {
+          "id": "mouth",
+          "x": 35,
+          "y": 0
+        }
+      ],
+      "pourable": true,
+      "rated_micro_j_per_step": 0,
+      "schema_version": 1
+    },
+    "pipette": {
+      "capacity_uL": 10000,
+      "category": "instrument",
+      "footprint": [
+        30,
+        170
+      ],
+      "gas_tight": false,
+      "graduations_uL": [
+        2000,
+        4000,
+        6000,
+        8000
+      ],
+      "heat_compatible": false,
+      "id": "pipette",
+      "instrument_label": {
+        "en": "10 mL",
+        "zh": "10 mL"
+      },
+      "kind": "equipment",
+      "measures": [],
+      "name": {
+        "en": "Pipette",
+        "zh": "移液管"
+      },
+      "ports": [],
+      "pourable": false,
+      "rated_micro_j_per_step": 0,
+      "schema_version": 1
+    },
+    "reagent_bottle": {
+      "capacity_uL": 500000,
+      "category": "container",
+      "footprint": [
+        100,
+        160
+      ],
+      "gas_tight": false,
+      "graduations_uL": [],
+      "heat_compatible": false,
+      "id": "reagent_bottle",
+      "instrument_label": null,
+      "kind": "equipment",
+      "measures": [],
+      "name": {
+        "en": "Reagent bottle",
+        "zh": "试剂瓶"
+      },
+      "ports": [
+        {
+          "id": "mouth",
+          "x": 50,
+          "y": 0
+        }
+      ],
+      "pourable": true,
+      "rated_micro_j_per_step": 0,
+      "schema_version": 1
+    }
+  },
+  "_rules": [],
+  "_species_defs": {
+    "tracer_pink": {
+      "color_label": {
+        "en": "pink",
+        "zh": "桃红色"
+      },
+      "color_strength_permille": 700,
+      "color_token": "tracer.pink",
+      "formula": "",
+      "hazard": "none",
+      "id": "tracer_pink",
+      "kind": "species",
+      "name": {
+        "en": "Pink tracer (virtual)",
+        "zh": "桃红示踪剂（虚拟）"
+      },
+      "ph_bands": [],
+      "role": "tracer",
+      "schema_version": 1,
+      "solubility_table": [],
+      "source": "project_authored",
+      "source_url": "",
+      "spectator": false,
+      "state": "solute",
+      "teaching_note": {
+        "en": "A project-authored virtual dye: non-reactive, visibly pink above ≈0.5 mol/L, made for safely observing measuring and dilution.",
+        "zh": "项目自写的虚拟色素：不与任何体系反应，浓度高于约 0.5 mol/L 时呈现桃红色，用来安全地观察量取与稀释。"
+      },
+      "visible_amount_umol": 0,
+      "visible_conc_umol_per_ul_milli": 500
+    },
+    "water": {
+      "color_label": null,
+      "color_strength_permille": 0,
+      "color_token": "clear",
+      "formula": "H₂O",
+      "hazard": "none",
+      "id": "water",
+      "kind": "species",
+      "name": {
+        "en": "Water",
+        "zh": "水"
+      },
+      "ph_bands": [],
+      "role": "solvent",
+      "schema_version": 1,
+      "solubility_table": [],
+      "source": "project_authored",
+      "source_url": "",
+      "spectator": false,
+      "state": "liquid",
+      "teaching_note": {
+        "en": "Default solvent. Volumes use the water approximation: 1 µL ≈ 1 mg, heat capacity 4.18 J/(g·K).",
+        "zh": "本实验台的默认溶剂。液体体积按水近似：1 µL 约 1 mg，热容取 4.18 J/(g·K)。"
+      },
+      "visible_amount_umol": 0,
+      "visible_conc_umol_per_ul_milli": 0
+    }
+  },
+  "audience": [
+    "middle_school",
+    "high_school_intro"
+  ],
+  "concept_ids": [
+    "concept.molarity",
+    "concept.dilution"
+  ],
+  "equipment": [
+    "reagent_bottle",
+    "beaker.small",
+    "graduated_cylinder",
+    "pipette",
+    "dropper"
+  ],
+  "goals": [
+    {
+      "id": "goal.watch_dilution",
+      "requires_observations": [
+        "color_visible",
+        "color_faded"
+      ],
+      "title": {
+        "en": "Watch dilution fade the color",
+        "zh": "观察稀释褪色"
+      }
+    },
+    {
+      "id": "goal.read_volume",
+      "requires_observations": [
+        "measured_volume"
+      ],
+      "title": {
+        "en": "Take one volume reading",
+        "zh": "完成一次体积读数"
+      }
+    }
+  ],
+  "id": "chem.dilution",
+  "kind": "experiment",
+  "model_fidelity": "teaching_semi_quantitative",
+  "model_scope": {
+    "en": "Models only volume transfer and a concentration visibility threshold; no reactions. The tracer is virtual and its threshold is a teaching choice.",
+    "zh": "仅建模体积转移与浓度阈值显色；不涉及任何反应。示踪剂为虚拟物质，显色阈值是教学设定。"
+  },
+  "modes": [
+    "guided",
+    "explore",
+    "self_check"
+  ],
+  "observation_visibility": {
+    "explore": [
+      "color_visible",
+      "color_faded",
+      "measured_volume"
+    ],
+    "guided": [
+      "color_visible",
+      "color_faded",
+      "measured_volume"
+    ],
+    "self_check": [
+      "measured_volume"
+    ]
+  },
+  "pack_hash": "fc6b82532bb1d9de776334b7231b7e333a201bf75e87507c1ea7b83e8fd51b3e",
+  "pack_version": "1.0.0",
+  "ph_model": "none",
+  "predictions": [
+    {
+      "id": "pred.dilution_outcome",
+      "options": [
+        {
+          "correct": true,
+          "id": "a",
+          "label": {
+            "en": "The color fades toward invisible",
+            "zh": "颜色变浅，直至接近看不见"
+          }
+        },
+        {
+          "correct": false,
+          "id": "b",
+          "label": {
+            "en": "The color deepens",
+            "zh": "颜色变得更深"
+          }
+        },
+        {
+          "correct": false,
+          "id": "c",
+          "label": {
+            "en": "A solid precipitates",
+            "zh": "析出固体"
+          }
+        },
+        {
+          "correct": false,
+          "id": "d",
+          "label": {
+            "en": "Nothing changes",
+            "zh": "毫无变化"
+          }
+        }
+      ],
+      "question": {
+        "en": "Diluting 10 mL of stock to about 100 mL will most likely…",
+        "zh": "把 10 mL 原液加水稀释到约 100 mL，最可能看到什么？"
+      },
+      "step_id": "step.dilute"
+    }
+  ],
+  "procedure": [
+    {
+      "accepted_commands": [
+        "aspirate",
+        "dispense"
+      ],
+      "concept_ids": [
+        "concept.molarity"
+      ],
+      "expected_observations": [
+        "color_visible"
+      ],
+      "hint_ladder": [
+        {
+          "en": "Select the pipette, then the stock bottle, to aspirate.",
+          "zh": "先选中移液管，再点原液瓶吸取。"
+        },
+        {
+          "en": "Set the amount to 10000 µL (10 mL).",
+          "zh": "吸取量设为 10000 µL（即 10 mL）。"
+        },
+        {
+          "en": "Dispense into beaker A; it turns pink when done.",
+          "zh": "排出目标选烧杯 A；看到烧杯变粉即完成。"
+        }
+      ],
+      "id": "step.measure",
+      "objective": {
+        "en": "Draw 10 mL of tracer stock with the pipette and deliver it into beaker A.",
+        "zh": "用移液管从原液瓶吸取 10 mL 桃红示踪原液，放入烧杯 A。"
+      },
+      "title": {
+        "en": "Measure the stock",
+        "zh": "量取原液"
+      }
+    },
+    {
+      "accepted_commands": [
+        "pour",
+        "stir",
+        "wait"
+      ],
+      "concept_ids": [
+        "concept.dilution"
+      ],
+      "expected_observations": [
+        "color_faded"
+      ],
+      "hint_ladder": [
+        {
+          "en": "Pour directly from the water bottle into beaker A.",
+          "zh": "从蒸馏水瓶直接向烧杯 A 倾倒。"
+        },
+        {
+          "en": "Around 100 mL total the color clearly fades.",
+          "zh": "总量到 100 mL 左右时颜色会明显变浅。"
+        },
+        {
+          "en": "The color 'disappearing' is not the solute disappearing — think c₁V₁ = c₂V₂.",
+          "zh": "颜色“消失”不是溶质消失——想想 c₁V₁ = c₂V₂。"
+        }
+      ],
+      "id": "step.dilute",
+      "objective": {
+        "en": "Pour about 90 mL of water into beaker A, mix, and watch the color.",
+        "zh": "向烧杯 A 倒入约 90 mL 水，搅拌均匀，观察颜色变化。"
+      },
+      "title": {
+        "en": "Dilute with water",
+        "zh": "加水稀释"
+      }
+    },
+    {
+      "accepted_commands": [
+        "pour",
+        "aspirate",
+        "dispense",
+        "measure"
+      ],
+      "concept_ids": [
+        "concept.molarity"
+      ],
+      "expected_observations": [
+        "measured_volume"
+      ],
+      "hint_ladder": [
+        {
+          "en": "Move some water into the cylinder first.",
+          "zh": "先把水转移进量筒。"
+        },
+        {
+          "en": "Use the cylinder's built-in volume measurement.",
+          "zh": "选中量筒自带的体积测量功能读数。"
+        }
+      ],
+      "id": "step.read",
+      "objective": {
+        "en": "Measure about 50 mL of water in the graduated cylinder and take a volume reading.",
+        "zh": "用量筒量取约 50 mL 水，并对量筒做一次体积读数。"
+      },
+      "title": {
+        "en": "Read the cylinder",
+        "zh": "量筒读数"
+      }
+    }
+  ],
+  "reagents": [
+    {
+      "concentration_label": {
+        "en": "4 mol/L",
+        "zh": "4 mol/L"
+      },
+      "description": {
+        "en": "Virtual tracer dye stock; reacts with nothing.",
+        "zh": "虚拟示踪色素原液，不与任何物质反应。"
+      },
+      "id": "reagent.stock",
+      "species": [
+        "tracer_pink"
+      ],
+      "vessel_id": "stock"
+    },
+    {
+      "concentration_label": {
+        "en": "Pure water",
+        "zh": "纯水"
+      },
+      "description": {
+        "en": "Solvent.",
+        "zh": "溶剂。"
+      },
+      "id": "reagent.water",
+      "species": [
+        "water"
+      ],
+      "vessel_id": "water-bottle"
+    }
+  ],
+  "rule_ids": [],
+  "safety_profile": {
+    "id": "teaching_virtual_irritant_v1",
+    "lock_temperature_milli_c": 95000,
+    "notes": {
+      "en": "Treat virtual reagents as irritants: avoid overflow and wash contaminated glassware.",
+      "zh": "虚拟试剂按刺激性液体对待：避免满溢，沾污的器材先清洗再用。"
+    },
+    "warn_temperature_milli_c": 60000
+  },
+  "schema_version": 1,
+  "source": "project_authored",
+  "species": [
+    "water",
+    "tracer_pink"
+  ],
+  "starting_state": {
+    "equipment": [
+      {
+        "id": "pipette-1",
+        "kind": "pipette",
+        "slot": "b3"
+      },
+      {
+        "id": "dropper-1",
+        "kind": "dropper",
+        "slot": "b4"
+      }
+    ],
+    "room_temperature_milli_c": 25000,
+    "slots": [
+      {
+        "h": 190,
+        "id": "b1",
+        "w": 130,
+        "x": 30,
+        "y": 90
+      },
+      {
+        "h": 190,
+        "id": "b2",
+        "w": 130,
+        "x": 185,
+        "y": 90
+      },
+      {
+        "h": 190,
+        "id": "b3",
+        "w": 130,
+        "x": 340,
+        "y": 90
+      },
+      {
+        "h": 190,
+        "id": "b4",
+        "w": 130,
+        "x": 495,
+        "y": 90
+      },
+      {
+        "h": 260,
+        "id": "f1",
+        "w": 170,
+        "x": 30,
+        "y": 400
+      },
+      {
+        "h": 260,
+        "id": "f2",
+        "w": 170,
+        "x": 230,
+        "y": 400
+      },
+      {
+        "h": 260,
+        "id": "f3",
+        "w": 170,
+        "x": 430,
+        "y": 400
+      }
+    ],
+    "vessels": [
+      {
+        "capacity_uL": 500000,
+        "collects_gas": false,
+        "contents": {
+          "tracer_pink": 800000
+        },
+        "gases": {},
+        "id": "stock",
+        "kind": "reagent_bottle",
+        "label": {
+          "en": "Pink tracer stock",
+          "zh": "桃红示踪原液"
+        },
+        "slot": "b1",
+        "solids": {},
+        "temperature_milli_c": null,
+        "volume_uL": 200000
+      },
+      {
+        "capacity_uL": 500000,
+        "collects_gas": false,
+        "contents": {},
+        "gases": {},
+        "id": "water-bottle",
+        "kind": "reagent_bottle",
+        "label": {
+          "en": "Distilled water",
+          "zh": "蒸馏水"
+        },
+        "slot": "b2",
+        "solids": {},
+        "temperature_milli_c": null,
+        "volume_uL": 300000
+      },
+      {
+        "capacity_uL": 250000,
+        "collects_gas": false,
+        "contents": {},
+        "gases": {},
+        "id": "beaker-a",
+        "kind": "beaker.small",
+        "label": {
+          "en": "Beaker A",
+          "zh": "烧杯 A"
+        },
+        "slot": "f1",
+        "solids": {},
+        "temperature_milli_c": null,
+        "volume_uL": 0
+      },
+      {
+        "capacity_uL": 250000,
+        "collects_gas": false,
+        "contents": {},
+        "gases": {},
+        "id": "beaker-b",
+        "kind": "beaker.small",
+        "label": {
+          "en": "Beaker B",
+          "zh": "烧杯 B"
+        },
+        "slot": "f2",
+        "solids": {},
+        "temperature_milli_c": null,
+        "volume_uL": 0
+      },
+      {
+        "capacity_uL": 100000,
+        "collects_gas": false,
+        "contents": {},
+        "gases": {},
+        "id": "cylinder",
+        "kind": "graduated_cylinder",
+        "label": {
+          "en": "Cylinder",
+          "zh": "量筒"
+        },
+        "slot": "f3",
+        "solids": {},
+        "temperature_milli_c": null,
+        "volume_uL": 0
+      }
+    ]
+  },
+  "summary": {
+    "en": "Measure the pink tracer stock precisely with a pipette, dilute with water, watch the color fade below visibility, and learn that solute amount is conserved.",
+    "zh": "用移液管精确量取桃红示踪原液，加水稀释，观察颜色随浓度下降而消失，理解稀释过程中溶质的量守恒。"
+  },
+  "title": {
+    "en": "Measuring and dilution",
+    "zh": "量取与稀释"
+  },
+  "visual_theme": {
+    "color_hex": {
+      "clear": "#dceaf4",
+      "tracer.pink": "#fb7185"
+    },
+    "color_tokens": {
+      "clear": {
+        "en": "colorless",
+        "zh": "无色透明"
+      },
+      "tracer.pink": {
+        "en": "pink",
+        "zh": "桃红色"
+      }
+    },
+    "id": "paper_lab_v1",
+    "textures": {}
+  }
+}

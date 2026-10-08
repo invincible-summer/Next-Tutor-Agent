@@ -1,0 +1,185 @@
+{
+  "name": "guided_happy",
+  "description": "引导模式滴定全流程：加指示剂→测初始 pH→分次滴定跟踪→到达粉红终点。",
+  "mode": "guided",
+  "session_seed": 0,
+  "script": [
+    {
+      "kind": "aspirate",
+      "source_id": "indicator-stock",
+      "instrument_id": "dropper-1",
+      "amount_uL": 2000
+    },
+    {
+      "kind": "dispense",
+      "instrument_id": "dropper-1",
+      "target_id": "acid-beaker",
+      "amount_uL": 2000
+    },
+    {
+      "kind": "measure",
+      "instrument_id": "ph-1",
+      "vessel_id": "acid-beaker",
+      "quantity": "ph"
+    },
+    {
+      "kind": "aspirate",
+      "source_id": "naoh-stock",
+      "instrument_id": "pipette-1",
+      "amount_uL": 10000
+    },
+    {
+      "kind": "dispense",
+      "instrument_id": "pipette-1",
+      "target_id": "acid-beaker",
+      "amount_uL": 10000
+    },
+    {
+      "kind": "stir",
+      "vessel_id": "acid-beaker",
+      "speed_permille": 600,
+      "duration_ms": 4000
+    },
+    {
+      "kind": "measure",
+      "instrument_id": "ph-1",
+      "vessel_id": "acid-beaker",
+      "quantity": "ph"
+    },
+    {
+      "kind": "aspirate",
+      "source_id": "naoh-stock",
+      "instrument_id": "pipette-1",
+      "amount_uL": 10000
+    },
+    {
+      "kind": "dispense",
+      "instrument_id": "pipette-1",
+      "target_id": "acid-beaker",
+      "amount_uL": 10000
+    },
+    {
+      "kind": "stir",
+      "vessel_id": "acid-beaker",
+      "speed_permille": 600,
+      "duration_ms": 4000
+    },
+    {
+      "kind": "measure",
+      "instrument_id": "ph-1",
+      "vessel_id": "acid-beaker",
+      "quantity": "ph"
+    },
+    {
+      "kind": "aspirate",
+      "source_id": "naoh-stock",
+      "instrument_id": "pipette-1",
+      "amount_uL": 5000
+    },
+    {
+      "kind": "dispense",
+      "instrument_id": "pipette-1",
+      "target_id": "acid-beaker",
+      "amount_uL": 5000
+    },
+    {
+      "kind": "stir",
+      "vessel_id": "acid-beaker",
+      "speed_permille": 600,
+      "duration_ms": 4000
+    },
+    {
+      "kind": "measure",
+      "instrument_id": "ph-1",
+      "vessel_id": "acid-beaker",
+      "quantity": "ph"
+    },
+    {
+      "kind": "aspirate",
+      "source_id": "naoh-stock",
+      "instrument_id": "dropper-1",
+      "amount_uL": 1000
+    },
+    {
+      "kind": "dispense",
+      "instrument_id": "dropper-1",
+      "target_id": "acid-beaker",
+      "amount_uL": 1000
+    },
+    {
+      "kind": "stir",
+      "vessel_id": "acid-beaker",
+      "speed_permille": 600,
+      "duration_ms": 4000
+    },
+    {
+      "kind": "measure",
+      "instrument_id": "ph-1",
+      "vessel_id": "acid-beaker",
+      "quantity": "ph"
+    },
+    {
+      "kind": "checkpoint",
+      "label": "滴定终点"
+    }
+  ],
+  "expect_event_kinds": [
+    "observation_emitted",
+    "measurement_taken",
+    "species_consumed",
+    "procedure_step_completed",
+    "checkpoint_created"
+  ],
+  "expect_final_phase": "completed",
+  "state_hashes": [
+    "f806e5cbdfb21072",
+    "592f670a9a7b8018",
+    "9e60ee9b7e7930ec",
+    "fbb27ef73232be2b",
+    "7de89befbe72bf2d",
+    "370931d39cd85b30",
+    "51717a27ca1c4ac5",
+    "abe505cb2f16a4b8",
+    "9c80dab076735d6e",
+    "07475ee4e495906a",
+    "253ee0fd489a1c97",
+    "a82f738ed85456d1",
+    "3fa1163d7b107aa8",
+    "e69e44228064f254",
+    "cf43106808cc052b",
+    "e5b6da37065bd673",
+    "3622f4c989cd1f95",
+    "448e1d8fc6d6d587",
+    "b4fbbcc695d08297",
+    "dd54a2d3065c33c4",
+    "170a9cb24b4d0013"
+  ],
+  "final_hash": "170a9cb24b4d0013",
+  "accepted": [
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true
+  ],
+  "expect_observation_keys": [
+    "indicator_present",
+    "measured_ph",
+    "color_changed"
+  ]
+}

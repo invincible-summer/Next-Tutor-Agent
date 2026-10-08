@@ -1,0 +1,12 @@
+{
+  "id": "dropper",
+  "kind": "equipment",
+  "schema_version": 1,
+  "name": {"zh": "胶头滴管", "en": "Dropper"},
+  "category": "instrument",
+  "capacity_uL": 3000,
+  "heat_compatible": false,
+  "pourable": false,
+  "footprint": [26, 120],
+  "instrument_label": {"zh": "3 mL", "en": "3 mL"}
+}

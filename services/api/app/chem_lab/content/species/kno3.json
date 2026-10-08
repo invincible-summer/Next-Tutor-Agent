@@ -1,0 +1,24 @@
+{
+  "id": "kno3",
+  "kind": "species",
+  "schema_version": 1,
+  "name": {"zh": "硝酸钾", "en": "Potassium nitrate"},
+  "formula": "KNO₃",
+  "state": "solid",
+  "role": "salt",
+  "color_token": "crystal.white",
+  "color_label": {"zh": "白色晶体", "en": "white crystals"},
+  "visible_amount_umol": 200,
+  "solubility_table": [
+    {"temperature_milli_c": 20000, "solubility_umol_per_ul_milli": 3130},
+    {"temperature_milli_c": 40000, "solubility_umol_per_ul_milli": 6320},
+    {"temperature_milli_c": 60000, "solubility_umol_per_ul_milli": 10870},
+    {"temperature_milli_c": 80000, "solubility_umol_per_ul_milli": 16710},
+    {"temperature_milli_c": 100000, "solubility_umol_per_ul_milli": 24430}
+  ],
+  "teaching_note": {
+    "zh": "溶解度随温度升高显著增大：约 20 °C 时 3.1 mol/L，80 °C 时约 16.7 mol/L（按 100 g 水近似）。降温即可析出晶体。",
+    "en": "Solubility rises steeply with temperature: ≈3.1 mol/L at 20 °C vs ≈16.7 mol/L at 80 °C (per 100 g water). Cooling crystallizes it."
+  },
+  "source_url": "https://en.wikipedia.org/wiki/Solubility_table"
+}

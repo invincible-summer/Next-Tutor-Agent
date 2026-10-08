@@ -1,0 +1,551 @@
+{
+  "_concepts": {
+    "concept.solubility_temperature": {
+      "body": {
+        "en": "Most solids dissolve better when hot. KNO₃ is dramatic: at 80 °C about five times as much dissolves as at 20 °C. Cooling a hot saturated solution forces the excess out as crystals. The lab interpolates a solubility table — a teaching approximation.",
+        "zh": "大多数固体的溶解度随温度升高而增大。硝酸钾尤其明显：80 °C 时能溶解的量约为 20 °C 时的五倍。热饱和溶液降温后，装不下的溶质就会析出晶体。实验台用溶解度表逐温度插值，属教学近似。"
+      },
+      "equation": "",
+      "id": "concept.solubility_temperature",
+      "kind": "concept",
+      "misconception": null,
+      "prerequisites": [
+        "concept.molarity"
+      ],
+      "schema_version": 1,
+      "title": {
+        "en": "Solubility and temperature",
+        "zh": "溶解度与温度"
+      }
+    },
+    "concept.thermal_safety": {
+      "body": {
+        "en": "Liquids warm as they absorb heat and cool toward room temperature off the heat (faster when hotter). This lab warns at 60 °C and safety-locks at 95 °C — after a lock you inspect the reason and restart from a checkpoint, a fuse only a virtual lab can offer.",
+        "zh": "液体吸热升温、离火后向环境散热（温度越高降得越快）。本实验台在 60 °C 给出过热提示、95 °C 触发安全锁定——锁定后只能查看原因并从检查点重来，这是虚拟实验特有的“保险丝”。"
+      },
+      "equation": "Q = c × m × ΔT",
+      "id": "concept.thermal_safety",
+      "kind": "concept",
+      "misconception": null,
+      "prerequisites": [],
+      "schema_version": 1,
+      "title": {
+        "en": "Heating and thermal safety",
+        "zh": "加热与热安全"
+      }
+    }
+  },
+  "_equipment_defs": {
+    "beaker.small": {
+      "capacity_uL": 250000,
+      "category": "vessel",
+      "footprint": [
+        120,
+        150
+      ],
+      "gas_tight": false,
+      "graduations_uL": [
+        50000,
+        100000,
+        150000,
+        200000
+      ],
+      "heat_compatible": true,
+      "id": "beaker.small",
+      "instrument_label": null,
+      "kind": "equipment",
+      "measures": [],
+      "name": {
+        "en": "Small beaker",
+        "zh": "小烧杯"
+      },
+      "ports": [
+        {
+          "id": "mouth",
+          "x": 60,
+          "y": 0
+        }
+      ],
+      "pourable": true,
+      "rated_micro_j_per_step": 0,
+      "schema_version": 1
+    },
+    "hotplate": {
+      "capacity_uL": 0,
+      "category": "device",
+      "footprint": [
+        160,
+        60
+      ],
+      "gas_tight": false,
+      "graduations_uL": [],
+      "heat_compatible": false,
+      "id": "hotplate",
+      "instrument_label": {
+        "en": "≈400 W",
+        "zh": "约 400 W"
+      },
+      "kind": "equipment",
+      "measures": [],
+      "name": {
+        "en": "Hotplate",
+        "zh": "电热板"
+      },
+      "ports": [],
+      "pourable": false,
+      "rated_micro_j_per_step": 200000000,
+      "schema_version": 1
+    },
+    "stir_rod": {
+      "capacity_uL": 0,
+      "category": "tool",
+      "footprint": [
+        16,
+        140
+      ],
+      "gas_tight": false,
+      "graduations_uL": [],
+      "heat_compatible": false,
+      "id": "stir_rod",
+      "instrument_label": null,
+      "kind": "equipment",
+      "measures": [],
+      "name": {
+        "en": "Glass stirring rod",
+        "zh": "玻璃搅拌棒"
+      },
+      "ports": [],
+      "pourable": false,
+      "rated_micro_j_per_step": 0,
+      "schema_version": 1
+    },
+    "thermometer": {
+      "capacity_uL": 0,
+      "category": "instrument",
+      "footprint": [
+        20,
+        170
+      ],
+      "gas_tight": false,
+      "graduations_uL": [],
+      "heat_compatible": false,
+      "id": "thermometer",
+      "instrument_label": {
+        "en": "°C",
+        "zh": "°C"
+      },
+      "kind": "equipment",
+      "measures": [
+        "temperature"
+      ],
+      "name": {
+        "en": "Thermometer",
+        "zh": "温度计"
+      },
+      "ports": [],
+      "pourable": false,
+      "rated_micro_j_per_step": 0,
+      "schema_version": 1
+    }
+  },
+  "_rules": [],
+  "_species_defs": {
+    "kno3": {
+      "color_label": {
+        "en": "white crystals",
+        "zh": "白色晶体"
+      },
+      "color_strength_permille": 0,
+      "color_token": "crystal.white",
+      "formula": "KNO₃",
+      "hazard": "none",
+      "id": "kno3",
+      "kind": "species",
+      "name": {
+        "en": "Potassium nitrate",
+        "zh": "硝酸钾"
+      },
+      "ph_bands": [],
+      "role": "salt",
+      "schema_version": 1,
+      "solubility_table": [
+        {
+          "solubility_umol_per_ul_milli": 3130,
+          "temperature_milli_c": 20000
+        },
+        {
+          "solubility_umol_per_ul_milli": 6320,
+          "temperature_milli_c": 40000
+        },
+        {
+          "solubility_umol_per_ul_milli": 10870,
+          "temperature_milli_c": 60000
+        },
+        {
+          "solubility_umol_per_ul_milli": 16710,
+          "temperature_milli_c": 80000
+        },
+        {
+          "solubility_umol_per_ul_milli": 24430,
+          "temperature_milli_c": 100000
+        }
+      ],
+      "source": "project_authored",
+      "source_url": "https://en.wikipedia.org/wiki/Solubility_table",
+      "spectator": false,
+      "state": "solid",
+      "teaching_note": {
+        "en": "Solubility rises steeply with temperature: ≈3.1 mol/L at 20 °C vs ≈16.7 mol/L at 80 °C (per 100 g water). Cooling crystallizes it.",
+        "zh": "溶解度随温度升高显著增大：约 20 °C 时 3.1 mol/L，80 °C 时约 16.7 mol/L（按 100 g 水近似）。降温即可析出晶体。"
+      },
+      "visible_amount_umol": 200,
+      "visible_conc_umol_per_ul_milli": 0
+    },
+    "water": {
+      "color_label": null,
+      "color_strength_permille": 0,
+      "color_token": "clear",
+      "formula": "H₂O",
+      "hazard": "none",
+      "id": "water",
+      "kind": "species",
+      "name": {
+        "en": "Water",
+        "zh": "水"
+      },
+      "ph_bands": [],
+      "role": "solvent",
+      "schema_version": 1,
+      "solubility_table": [],
+      "source": "project_authored",
+      "source_url": "",
+      "spectator": false,
+      "state": "liquid",
+      "teaching_note": {
+        "en": "Default solvent. Volumes use the water approximation: 1 µL ≈ 1 mg, heat capacity 4.18 J/(g·K).",
+        "zh": "本实验台的默认溶剂。液体体积按水近似：1 µL 约 1 mg，热容取 4.18 J/(g·K)。"
+      },
+      "visible_amount_umol": 0,
+      "visible_conc_umol_per_ul_milli": 0
+    }
+  },
+  "audience": [
+    "middle_school",
+    "high_school_intro"
+  ],
+  "concept_ids": [
+    "concept.solubility_temperature",
+    "concept.thermal_safety"
+  ],
+  "equipment": [
+    "beaker.small",
+    "thermometer",
+    "hotplate",
+    "stir_rod"
+  ],
+  "goals": [
+    {
+      "id": "goal.recrystallize",
+      "requires_observations": [
+        "precipitate_dissolved",
+        "precipitate_visible"
+      ],
+      "title": {
+        "en": "Complete a dissolve-crystallize cycle",
+        "zh": "完成一次溶解-结晶循环"
+      }
+    }
+  ],
+  "id": "chem.crystallization",
+  "kind": "experiment",
+  "model_fidelity": "teaching_semi_quantitative",
+  "model_scope": {
+    "en": "A solubility table interpolated over temperature (teaching approximation per 100 g water); dissolving and crystallizing are finite-rate processes; nucleation details are out of scope.",
+    "zh": "用溶解度表按温度插值（教学近似，按 100 g 水折算），溶解与结晶都是有限速率过程；不模拟晶核形成细节。"
+  },
+  "modes": [
+    "guided",
+    "explore",
+    "self_check"
+  ],
+  "observation_visibility": {
+    "explore": [
+      "precipitate_visible",
+      "precipitate_dissolved",
+      "measured_temperature",
+      "steam_visible"
+    ],
+    "guided": [
+      "precipitate_visible",
+      "precipitate_dissolved",
+      "measured_temperature",
+      "steam_visible"
+    ],
+    "self_check": [
+      "precipitate_visible"
+    ]
+  },
+  "pack_hash": "8278423597410734f9b5c4c54e27fcac8356429fa6f0c6edef87e8cd32d1f13e",
+  "pack_version": "1.0.0",
+  "ph_model": "none",
+  "predictions": [
+    {
+      "id": "pred.cooling_result",
+      "options": [
+        {
+          "correct": true,
+          "id": "a",
+          "label": {
+            "en": "White crystals forming",
+            "zh": "析出白色晶体"
+          }
+        },
+        {
+          "correct": false,
+          "id": "b",
+          "label": {
+            "en": "The solution turning pink",
+            "zh": "溶液变成粉红色"
+          }
+        },
+        {
+          "correct": false,
+          "id": "c",
+          "label": {
+            "en": "Lots of bubbles",
+            "zh": "产生大量气泡"
+          }
+        },
+        {
+          "correct": false,
+          "id": "d",
+          "label": {
+            "en": "No change at all",
+            "zh": "无任何变化"
+          }
+        }
+      ],
+      "question": {
+        "en": "Cooling a hot saturated KNO₃ solution will most likely show…",
+        "zh": "热的硝酸钾饱和溶液降温后，最可能看到什么？"
+      },
+      "step_id": "step.crystallize"
+    }
+  ],
+  "procedure": [
+    {
+      "accepted_commands": [
+        "heat",
+        "stir",
+        "wait",
+        "measure"
+      ],
+      "concept_ids": [
+        "concept.solubility_temperature",
+        "concept.thermal_safety"
+      ],
+      "expected_observations": [
+        "precipitate_dissolved"
+      ],
+      "hint_ladder": [
+        {
+          "en": "Stirring while heating speeds dissolving a lot.",
+          "zh": "边加热边搅拌，溶解会快很多。"
+        },
+        {
+          "en": "Solubility rises with temperature — progress is clear above 60 °C.",
+          "zh": "溶解度随温度升高而增大，60 °C 以上进步明显。"
+        },
+        {
+          "en": "Do not push to 95 °C — that triggers the safety lock.",
+          "zh": "别把温度推到 95 °C，会触发安全锁定。"
+        }
+      ],
+      "id": "step.dissolve",
+      "objective": {
+        "en": "Heat and stir until all the KNO₃ at the bottom dissolves (around 70 °C).",
+        "zh": "加热并搅拌，让烧杯底部的硝酸钾固体全部溶解（约需 70 °C）。"
+      },
+      "title": {
+        "en": "Heat to dissolve",
+        "zh": "加热溶解"
+      }
+    },
+    {
+      "accepted_commands": [
+        "wait",
+        "stir",
+        "measure"
+      ],
+      "concept_ids": [
+        "concept.solubility_temperature"
+      ],
+      "expected_observations": [
+        "precipitate_visible"
+      ],
+      "hint_ladder": [
+        {
+          "en": "Be patient while it cools — the colder, the less can stay dissolved.",
+          "zh": "耐心等待降温——温度越低，能溶解的越少。"
+        },
+        {
+          "en": "The crystals are not new stuff — still the same KNO₃.",
+          "zh": "析出的不是“新物质”，还是原来的硝酸钾。"
+        }
+      ],
+      "id": "step.crystallize",
+      "objective": {
+        "en": "Stop heating and let the solution cool slowly; watch white crystals come back.",
+        "zh": "停止加热，让溶液慢慢冷却，观察白色晶体重新析出。"
+      },
+      "title": {
+        "en": "Cool to crystallize",
+        "zh": "冷却析晶"
+      }
+    },
+    {
+      "accepted_commands": [
+        "measure"
+      ],
+      "concept_ids": [
+        "concept.solubility_temperature"
+      ],
+      "expected_observations": [
+        "measured_temperature"
+      ],
+      "hint_ladder": [
+        {
+          "en": "Take one last reading with the thermometer.",
+          "zh": "用温度计做最后一次测量。"
+        }
+      ],
+      "id": "step.final_measure",
+      "objective": {
+        "en": "Read the final temperature after crystallization and compare with the dissolving temperature.",
+        "zh": "读取结晶完成后的最终温度，和溶解时的高温做对比。"
+      },
+      "title": {
+        "en": "Record the final temperature",
+        "zh": "记录末温"
+      }
+    }
+  ],
+  "reagents": [],
+  "rule_ids": [],
+  "safety_profile": {
+    "id": "teaching_virtual_irritant_v1",
+    "lock_temperature_milli_c": 95000,
+    "notes": {
+      "en": "Dissolving needs about 70 °C, but 95 °C locks the session; heat in stages and measure often.",
+      "zh": "溶解需要约 70 °C，但 95 °C 会触发安全锁定；建议分段加热并随时测温。"
+    },
+    "warn_temperature_milli_c": 60000
+  },
+  "schema_version": 1,
+  "source": "project_authored",
+  "species": [
+    "water",
+    "kno3"
+  ],
+  "starting_state": {
+    "equipment": [
+      {
+        "id": "thermo-1",
+        "kind": "thermometer",
+        "slot": "b3"
+      },
+      {
+        "id": "rod-1",
+        "kind": "stir_rod",
+        "slot": "b4"
+      },
+      {
+        "id": "plate-1",
+        "kind": "hotplate",
+        "slot": "f3"
+      }
+    ],
+    "room_temperature_milli_c": 25000,
+    "slots": [
+      {
+        "h": 190,
+        "id": "b3",
+        "w": 130,
+        "x": 340,
+        "y": 90
+      },
+      {
+        "h": 190,
+        "id": "b4",
+        "w": 130,
+        "x": 495,
+        "y": 90
+      },
+      {
+        "h": 260,
+        "id": "f1",
+        "w": 170,
+        "x": 30,
+        "y": 400
+      },
+      {
+        "h": 140,
+        "id": "f3",
+        "w": 170,
+        "x": 430,
+        "y": 460
+      }
+    ],
+    "vessels": [
+      {
+        "capacity_uL": 250000,
+        "collects_gas": false,
+        "contents": {},
+        "gases": {},
+        "id": "beaker",
+        "kind": "beaker.small",
+        "label": {
+          "en": "30 mL water + KNO₃",
+          "zh": "30 mL 水 + 硝酸钾"
+        },
+        "slot": "f1",
+        "solids": {
+          "kno3": 400000
+        },
+        "temperature_milli_c": null,
+        "volume_uL": 30000
+      }
+    ]
+  },
+  "summary": {
+    "en": "Heat and stir to dissolve all the potassium nitrate, then let the hot saturated solution cool slowly and watch white crystals grow back — solubility depends on temperature.",
+    "zh": "加热并搅拌让硝酸钾全部溶解，再让热饱和溶液缓慢冷却，观察白色晶体重新析出，理解溶解度随温度变化。"
+  },
+  "title": {
+    "en": "Dissolving and crystallization",
+    "zh": "溶解与结晶"
+  },
+  "visual_theme": {
+    "color_hex": {
+      "clear": "#dceaf4",
+      "crystal.white": "#eef2f7"
+    },
+    "color_tokens": {
+      "clear": {
+        "en": "colorless",
+        "zh": "无色透明"
+      },
+      "crystal.white": {
+        "en": "white crystals",
+        "zh": "白色晶体"
+      }
+    },
+    "id": "paper_lab_v1",
+    "textures": {
+      "flakes": {
+        "en": "crystalline flakes",
+        "zh": "片状结晶"
+      }
+    }
+  }
+}

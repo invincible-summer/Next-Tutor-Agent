@@ -1,0 +1,19 @@
+{
+  "id": "phenolphthalein",
+  "kind": "species",
+  "schema_version": 1,
+  "name": {"zh": "酚酞", "en": "Phenolphthalein"},
+  "formula": "C₂₀H₁₄O₄",
+  "state": "indicator",
+  "role": "indicator",
+  "color_token": "indicator.pink",
+  "color_label": {"zh": "粉红色", "en": "pink"},
+  "visible_conc_umol_per_ul_milli": 1,
+  "color_strength_permille": 900,
+  "ph_bands": [[8200, "clear"], [14000, "indicator.pink"]],
+  "teaching_note": {
+    "zh": "酸碱指示剂：pH 低于约 8.2 时无色，更高时呈粉红。教学模型用两个色带近似真实的渐变范围。",
+    "en": "Acid-base indicator: colorless below about pH 8.2, pink above. The teaching model approximates the real gradual range with two bands."
+  },
+  "source_url": "https://en.wikipedia.org/wiki/Phenolphthalein"
+}

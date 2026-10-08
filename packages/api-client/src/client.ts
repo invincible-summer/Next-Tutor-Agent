@@ -30,6 +30,10 @@ import {
   createToolIllustrationClient,
   type ToolIllustrationClient,
 } from "./tools/illustration.ts";
+import {
+  createToolChemLabClient,
+  type ToolChemLabClient,
+} from "./tools/chem-lab.ts";
 import { createImageClient, type ImageClient } from "./tools/image.ts";
 import { createWorksheetClient, type WorksheetClient } from "./tools/worksheet.ts";
 
@@ -56,7 +60,7 @@ export interface ApiClient {
   readonly memory: MemoryClient;
   readonly archive: ArchiveClient;
   readonly assistant: AssistantClient;
-  readonly tools: { illustration: ToolIllustrationClient; image: ImageClient; worksheet: WorksheetClient };
+  readonly tools: { illustration: ToolIllustrationClient; image: ImageClient; worksheet: WorksheetClient; chemLab: ToolChemLabClient };
 }
 
 export function createApiClient(config: ApiClientConfig): ApiClient {
@@ -88,6 +92,7 @@ export function createApiClient(config: ApiClientConfig): ApiClient {
       illustration: createToolIllustrationClient(transport),
       image: createImageClient(transport),
       worksheet: createWorksheetClient(transport),
+      chemLab: createToolChemLabClient(transport),
     },
   };
 }

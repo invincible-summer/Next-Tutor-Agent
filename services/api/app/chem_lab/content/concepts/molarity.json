@@ -1,0 +1,15 @@
+{
+  "id": "concept.molarity",
+  "kind": "concept",
+  "schema_version": 1,
+  "title": {"zh": "物质的量浓度", "en": "Molar concentration"},
+  "body": {
+    "zh": "浓度表示单位体积溶液中溶质的量。实验台里 1 µmol/µL 恰好等于 1 mol/L，所以量取 10 mL 0.1 mol/L 的溶液就是取走 1000 µmol 溶质。移液管按体积量取，溶质的量随体积等比例转移。",
+    "en": "Concentration is the amount of solute per unit volume. In this lab 1 µmol/µL equals 1 mol/L, so 10 mL of 0.1 mol/L carries 1000 µmol. A pipette measures by volume; solute moves in proportion."
+  },
+  "equation": "n = c × V",
+  "misconception": {
+    "zh": "“吸多少”和“吸多浓”是两回事：同样的体积，浓度不同，取走的物质的量就不同。",
+    "en": "How much you draw and how concentrated it is are different things: equal volumes at different concentrations carry different amounts."
+  }
+}

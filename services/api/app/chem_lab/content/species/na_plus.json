@@ -1,0 +1,15 @@
+{
+  "id": "na_plus",
+  "kind": "species",
+  "schema_version": 1,
+  "name": {"zh": "钠离子", "en": "Sodium ion"},
+  "formula": "Na⁺",
+  "state": "solute",
+  "role": "spectator",
+  "color_token": "clear",
+  "spectator": true,
+  "teaching_note": {
+    "zh": "典型的旁观离子：在酸碱与沉淀体系中本身不参与变化，用来讲守恒。",
+    "en": "A typical spectator ion: unchanged across acid-base and precipitation systems, useful for teaching conservation."
+  }
+}

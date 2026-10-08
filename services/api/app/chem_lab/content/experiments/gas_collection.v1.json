@@ -1,0 +1,131 @@
+{
+  "id": "chem.gas_collection",
+  "kind": "experiment",
+  "schema_version": 1,
+  "pack_version": "1.0.0",
+  "title": {"zh": "气体的发生与收集", "en": "Generating and collecting gas"},
+  "summary": {
+    "zh": "让盐酸与碳酸氢钠反应持续放出二氧化碳，连接导管把气体导入倒置的集气瓶，对比“接导管”与“不接导管”的结局。",
+    "en": "React hydrochloric acid with sodium bicarbonate for a sustained CO₂ stream, pipe it into an inverted collection cylinder, and compare outcomes with and without the tubing."
+  },
+  "audience": ["middle_school", "high_school_intro"],
+  "model_scope": {
+    "zh": "仅限酸-碳酸氢钠限定体系；二氧化碳按不溶于水、不参与碳酸平衡处理；收集速率是教学近似。",
+    "en": "Limited to the acid–bicarbonate system; CO₂ is treated as insoluble with no carbonate equilibria; collection rate is a teaching approximation."
+  },
+  "modes": ["guided", "explore", "self_check"],
+  "equipment": ["reagent_bottle", "conical_flask", "gas_cylinder", "delivery_tube", "pipette"],
+  "species": ["water", "h_plus", "cl_minus", "na_plus", "nahco3", "co2"],
+  "rule_ids": ["rule.bicarbonate_acid.v1"],
+  "concept_ids": ["concept.gas_collection"],
+  "starting_state": {
+    "room_temperature_milli_c": 25000,
+    "slots": [
+      {"id": "b1", "x": 30, "y": 90, "w": 130, "h": 190},
+      {"id": "b3", "x": 340, "y": 90, "w": 130, "h": 190},
+      {"id": "b4", "x": 495, "y": 90, "w": 130, "h": 190},
+      {"id": "f1", "x": 30, "y": 400, "w": 170, "h": 260},
+      {"id": "f2", "x": 230, "y": 400, "w": 170, "h": 260}
+    ],
+    "vessels": [
+      {"id": "generator", "kind": "conical_flask", "slot": "f1", "capacity_uL": 250000,
+       "solids": {"nahco3": 6000},
+       "label": {"zh": "发生瓶（碳酸氢钠）", "en": "Generator (NaHCO₃)"}},
+      {"id": "hcl-stock", "kind": "reagent_bottle", "slot": "b1", "capacity_uL": 500000,
+       "volume_uL": 100000, "contents": {"h_plus": 50000, "cl_minus": 50000},
+       "label": {"zh": "0.5 mol/L 盐酸", "en": "0.5 mol/L HCl"}},
+      {"id": "collector", "kind": "gas_cylinder", "slot": "f2", "capacity_uL": 250000,
+       "volume_uL": 150000, "collects_gas": true,
+       "label": {"zh": "集气瓶（倒置）", "en": "Collection cylinder (inverted)"}}
+    ],
+    "equipment": [
+      {"id": "tube-1", "kind": "delivery_tube", "slot": "b3"},
+      {"id": "pipette-1", "kind": "pipette", "slot": "b4"}
+    ]
+  },
+  "reagents": [
+    {"id": "reagent.hcl", "vessel_id": "hcl-stock", "species": ["h_plus", "cl_minus"],
+     "description": {"zh": "强酸，与碳酸氢钠 1:1 放出二氧化碳。", "en": "Strong acid; releases CO₂ 1:1 with bicarbonate."},
+     "concentration_label": {"zh": "0.5 mol/L", "en": "0.5 mol/L"}}
+  ],
+  "procedure": [
+    {
+      "id": "step.assemble",
+      "title": {"zh": "连接导管", "en": "Connect the tubing"},
+      "objective": {"zh": "用导管把发生瓶和倒置的集气瓶连接起来。", "en": "Connect the generator to the inverted cylinder with the delivery tube."},
+      "accepted_commands": ["connect"],
+      "expected_observations": ["tubing_connected"],
+      "hint_ladder": [
+        {"zh": "连接操作：选导管，起点是发生瓶，终点是集气瓶。", "en": "Connect: pick the tube, source is the generator, target the cylinder."}
+      ],
+      "concept_ids": ["concept.gas_collection"]
+    },
+    {
+      "id": "step.react",
+      "title": {"zh": "加入盐酸", "en": "Add the acid"},
+      "objective": {"zh": "量取约 15 mL 盐酸加入发生瓶，观察持续冒泡。", "en": "Add about 15 mL of hydrochloric acid to the generator and watch the sustained bubbling."},
+      "accepted_commands": ["aspirate", "dispense", "pour"],
+      "expected_observations": ["bubbles_visible"],
+      "hint_ladder": [
+        {"zh": "用移液管从盐酸瓶取 15 mL。", "en": "Pipette 15 mL from the acid bottle."},
+        {"zh": "气泡来自二氧化碳；反应会持续到一方耗尽。", "en": "Bubbles are CO₂; the reaction runs until a reactant is exhausted."}
+      ],
+      "concept_ids": ["concept.gas_collection"]
+    },
+    {
+      "id": "step.collect",
+      "title": {"zh": "收集气体", "en": "Collect the gas"},
+      "objective": {"zh": "等待反应继续，观察气体经导管在集气瓶中不断累积。", "en": "Let the reaction continue and watch gas accumulate in the cylinder via the tube."},
+      "accepted_commands": ["wait", "stir"],
+      "expected_observations": ["gas_collected"],
+      "hint_ladder": [
+        {"zh": "用“等待”观察集气瓶内的气体越来越多。", "en": "Use “wait” and watch the gas build up in the cylinder."},
+        {"zh": "搅拌发生瓶可以让反应跟得上。", "en": "Stirring the generator keeps the reaction going."}
+      ],
+      "concept_ids": ["concept.gas_collection"]
+    }
+  ],
+  "goals": [
+    {"id": "goal.collect", "title": {"zh": "成功收集二氧化碳", "en": "Collect carbon dioxide"},
+     "requires_observations": ["tubing_connected", "bubbles_visible", "gas_collected"]}
+  ],
+  "predictions": [
+    {
+      "id": "pred.no_tube",
+      "step_id": "step.assemble",
+      "question": {"zh": "如果不连接导管就加入盐酸，生成的二氧化碳会怎样？", "en": "If the acid is added without connecting the tubing, the CO₂ will…"},
+      "options": [
+        {"id": "a", "label": {"zh": "直接逸散到空气中，收集不到", "en": "Escape to the air and be uncollectable"}, "correct": true},
+        {"id": "b", "label": {"zh": "自动进入集气瓶", "en": "Enter the cylinder on its own"}},
+        {"id": "c", "label": {"zh": "溶解回液体里不再出来", "en": "Dissolve back and stay in solution"}},
+        {"id": "d", "label": {"zh": "变成白色固体", "en": "Turn into a white solid"}}
+      ]
+    }
+  ],
+  "safety_profile": {
+    "id": "teaching_virtual_irritant_v1",
+    "warn_temperature_milli_c": 60000,
+    "lock_temperature_milli_c": 95000,
+    "notes": {"zh": "虚拟酸液按刺激性液体对待；气体无毒，但请勿让液体倒吸入导管。", "en": "Treat the virtual acid as an irritant; the gas is harmless, but avoid suck-back into the tube."}
+  },
+  "visual_theme": {
+    "id": "paper_lab_v1",
+    "color_tokens": {
+      "clear": {"zh": "无色透明", "en": "colorless"},
+      "powder.white": {"zh": "白色粉末", "en": "white powder"}
+    },
+    "color_hex": {
+      "clear": "#dceaf4",
+      "powder.white": "#f1f5f9"
+    },
+    "textures": {
+      "powder": {"zh": "细腻粉末", "en": "fine powder"}
+    }
+  },
+  "ph_model": "strong_binary_v1",
+  "observation_visibility": {
+    "guided": ["tubing_connected", "bubbles_visible", "gas_collected"],
+    "explore": ["tubing_connected", "bubbles_visible", "gas_collected"],
+    "self_check": ["bubbles_visible"]
+  }
+}

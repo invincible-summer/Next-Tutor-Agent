@@ -59,6 +59,12 @@ Web 与 Expo/React Native 移动端不复制 API 代码：传输、契约、设�
   `edu-auth-expired`/`edu-access-changed` 事件；
 - 409：透传为 `ConflictError`；仅当调用方声明 `waitForConflict`（如
   `evaluation_pending`）时有界重轮询；
+- 超时：默认读超时（`defaultReadTimeoutMs`，Web 30s）**只覆盖不带 signal 的
+  GET/HEAD**——带 AbortSignal 的读与一切 POST 默认无限等待。因此对"服务端
+  承诺毫秒级确定性返回"的域客户端必须逐调用声明 `timeoutMs`（先例：
+  `tools/chem-lab.ts` 全部调用统一 30s），把丢失的传输变成可重试的
+  `NetworkError` 而不是 UI 里的永久转圈；长耗时端点（出题、配图）则保持
+  不设超时或按端点声明更长时限；
 - 响应体解析支持 `json`/`text`/`bytes`/`none`——`bytes` 走
   `response.arrayBuffer()`（语音 WAV、课件音频剪辑、导出 zip、PDF 页快照、
   原件下载），平台层再把字节变成 Blob URL/文件。

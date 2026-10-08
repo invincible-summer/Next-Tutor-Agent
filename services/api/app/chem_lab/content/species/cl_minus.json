@@ -1,0 +1,15 @@
+{
+  "id": "cl_minus",
+  "kind": "species",
+  "schema_version": 1,
+  "name": {"zh": "氯离子", "en": "Chloride ion"},
+  "formula": "Cl⁻",
+  "state": "solute",
+  "role": "spectator",
+  "color_token": "clear",
+  "spectator": true,
+  "teaching_note": {
+    "zh": "盐酸给出的旁观阴离子，在首期模型中不参与任何反应。",
+    "en": "Spectator anion from hydrochloric acid; takes no part in any v1 reaction."
+  }
+}

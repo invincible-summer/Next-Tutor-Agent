@@ -1,0 +1,10 @@
+{
+  "id": "stir_rod",
+  "kind": "equipment",
+  "schema_version": 1,
+  "name": {"zh": "玻璃搅拌棒", "en": "Glass stirring rod"},
+  "category": "tool",
+  "heat_compatible": false,
+  "pourable": false,
+  "footprint": [16, 140]
+}

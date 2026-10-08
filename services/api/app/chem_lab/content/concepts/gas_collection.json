@@ -1,0 +1,15 @@
+{
+  "id": "concept.gas_collection",
+  "kind": "concept",
+  "schema_version": 1,
+  "title": {"zh": "气体的发生与收集", "en": "Generating and collecting gas"},
+  "body": {
+    "zh": "酸与碳酸氢盐反应持续放出二氧化碳。不连接导管时气体直接逸散到空气中；接上导管通入倒置的集气瓶，气体在瓶内累积、把水排开——这就是排水集气法。",
+    "en": "Acid plus bicarbonate releases CO₂ continuously. Without tubing the gas escapes; with a delivery tube into an inverted cylinder, gas accumulates and displaces the water — collection over water."
+  },
+  "equation": "H⁺ + NaHCO₃ → Na⁺ + H₂O + CO₂↑",
+  "misconception": {
+    "zh": "冒泡停止不一定是装置“坏了”，更可能是反应物之一已经耗尽。",
+    "en": "When bubbling stops the apparatus is rarely 'broken' — more often one reactant is simply exhausted."
+  }
+}

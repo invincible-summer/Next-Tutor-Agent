@@ -1,0 +1,12 @@
+{
+  "id": "hotplate",
+  "kind": "equipment",
+  "schema_version": 1,
+  "name": {"zh": "电热板", "en": "Hotplate"},
+  "category": "device",
+  "heat_compatible": false,
+  "pourable": false,
+  "rated_micro_j_per_step": 200000000,
+  "footprint": [160, 60],
+  "instrument_label": {"zh": "约 400 W", "en": "≈400 W"}
+}

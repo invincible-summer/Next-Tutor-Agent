@@ -35143,7 +35143,12 @@
     {
       "dependencies": [],
       "direct_in": [
-        "apps/web:devDependencies"
+        "apps/web:devDependencies",
+        "packages/api-client:devDependencies",
+        "packages/contracts:devDependencies",
+        "packages/design-tokens:devDependencies",
+        "packages/domain:devDependencies",
+        "packages/i18n:devDependencies"
       ],
       "ecosystem": "npm",
       "evidence": "installed-package",
@@ -35163,7 +35168,12 @@
       "optional": false,
       "purl": "pkg:npm/typescript@5.9.3",
       "scopes": [
-        "apps/web:devDependencies"
+        "apps/web:devDependencies",
+        "packages/api-client:devDependencies",
+        "packages/contracts:devDependencies",
+        "packages/design-tokens:devDependencies",
+        "packages/domain:devDependencies",
+        "packages/i18n:devDependencies"
       ],
       "version": "5.9.3"
     },
@@ -37471,23 +37481,14 @@
       "dependencies": [],
       "direct_in": [],
       "ecosystem": "pypi",
-      "evidence": "installed-distribution",
-      "homepage": "https://github.com/django/asgiref/",
-      "license_declared": "BSD-3-Clause",
-      "license_expression": "BSD-3-Clause",
-      "license_files": [
-        {
-          "bytes": 1552,
-          "origin": "pypi:asgiref@3.12.1/asgiref-3.12.1.dist-info/licenses/LICENSE",
-          "path": "licenses/texts/b846415d1b514e9c1dff14a22deb906d794bc546ca6129f950a18cd091e2a669.txt",
-          "sha256": "b846415d1b514e9c1dff14a22deb906d794bc546ca6129f950a18cd091e2a669"
-        }
-      ],
+      "evidence": "declared;not-installed",
+      "license_declared": null,
+      "license_expression": null,
+      "license_files": [],
       "name": "asgiref",
       "purl": "pkg:pypi/asgiref@3.12.1",
       "scopes": [
-        "services/api/constraints.txt:constraint-only",
-        "services/api/requirements-observability.txt:observed-transitive"
+        "services/api/constraints.txt:constraint-only"
       ],
       "version": "3.12.1"
     },
@@ -37521,17 +37522,11 @@
       "dependencies": [],
       "direct_in": [],
       "ecosystem": "pypi",
-      "evidence": "installed-distribution",
+      "evidence": "registry-artifact;not-installed",
       "homepage": null,
       "license_declared": null,
       "license_expression": "MIT",
       "license_files": [
-        {
-          "bytes": 1109,
-          "origin": "pypi:attrs@26.1.0/attrs-26.1.0.dist-info/licenses/LICENSE",
-          "path": "licenses/texts/882115c95dfc2af1eeb6714f8ec6d5cbcabf667caff8729f42420da63f714e9f.txt",
-          "sha256": "882115c95dfc2af1eeb6714f8ec6d5cbcabf667caff8729f42420da63f714e9f"
-        },
         {
           "bytes": 1109,
           "origin": "https://files.pythonhosted.org/packages/64/b4/17d4b0b2a2dc85a6df63d1157e028ed19f90d4cd97c36717afef2bc2f395/attrs-26.1.0-py3-none-any.whl#attrs-26.1.0.dist-info/licenses/LICENSE",
@@ -38246,28 +38241,17 @@
       "version": "2.1.0"
     },
     {
-      "dependencies": [
-        "pkg:pypi/protobuf@7.35.1"
-      ],
+      "dependencies": [],
       "direct_in": [],
       "ecosystem": "pypi",
-      "evidence": "installed-distribution",
-      "homepage": null,
-      "license_declared": "Apache 2.0",
-      "license_expression": "Apache 2.0",
-      "license_files": [
-        {
-          "bytes": 11358,
-          "origin": "pypi:googleapis-common-protos@1.75.0/googleapis_common_protos-1.75.0.dist-info/licenses/LICENSE",
-          "path": "licenses/texts/cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30.txt",
-          "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
-        }
-      ],
+      "evidence": "declared;not-installed",
+      "license_declared": null,
+      "license_expression": null,
+      "license_files": [],
       "name": "googleapis-common-protos",
       "purl": "pkg:pypi/googleapis-common-protos@1.75.0",
       "scopes": [
-        "services/api/constraints.txt:constraint-only",
-        "services/api/requirements-observability.txt:observed-transitive"
+        "services/api/constraints.txt:constraint-only"
       ],
       "version": "1.75.0"
     },
@@ -38305,28 +38289,17 @@
       "version": "3.5.6"
     },
     {
-      "dependencies": [
-        "pkg:pypi/typing-extensions@4.16.0"
-      ],
+      "dependencies": [],
       "direct_in": [],
       "ecosystem": "pypi",
-      "evidence": "installed-distribution",
-      "homepage": null,
+      "evidence": "declared;not-installed",
       "license_declared": null,
-      "license_expression": "Apache-2.0",
-      "license_files": [
-        {
-          "bytes": 30191,
-          "origin": "pypi:grpcio@1.83.0/grpcio-1.83.0.dist-info/licenses/LICENSE",
-          "path": "licenses/texts/58c86a3f2b5cca0ebdf9ed3e7f4e6dc38e3b38796d8c3dc92064c62a4e39d0dd.txt",
-          "sha256": "58c86a3f2b5cca0ebdf9ed3e7f4e6dc38e3b38796d8c3dc92064c62a4e39d0dd"
-        }
-      ],
+      "license_expression": null,
+      "license_files": [],
       "name": "grpcio",
       "purl": "pkg:pypi/grpcio@1.83.0",
       "scopes": [
-        "services/api/constraints.txt:constraint-only",
-        "services/api/requirements-observability.txt:observed-transitive"
+        "services/api/constraints.txt:constraint-only"
       ],
       "version": "1.83.0"
     },
@@ -38737,17 +38710,11 @@
       "dependencies": [],
       "direct_in": [],
       "ecosystem": "pypi",
-      "evidence": "installed-distribution",
+      "evidence": "registry-artifact;not-installed",
       "homepage": "https://github.com/python-jsonschema/jsonschema-specifications",
       "license_declared": null,
       "license_expression": "MIT",
       "license_files": [
-        {
-          "bytes": 1057,
-          "origin": "pypi:jsonschema-specifications@2025.9.1/jsonschema_specifications-2025.9.1.dist-info/licenses/COPYING",
-          "path": "licenses/texts/42dcd63495f87b4eb7c7757afa379bb55a53f94afd7a5f657d9adf57236e515c.txt",
-          "sha256": "42dcd63495f87b4eb7c7757afa379bb55a53f94afd7a5f657d9adf57236e515c"
-        },
         {
           "bytes": 1057,
           "origin": "https://files.pythonhosted.org/packages/41/45/1a4ed80516f02155c51f51e8cedb3c1902296743db0bbc66608a0db2814f/jsonschema_specifications-2025.9.1-py3-none-any.whl#jsonschema_specifications-2025.9.1.dist-info/licenses/COPYING",
@@ -38767,17 +38734,11 @@
       "dependencies": [],
       "direct_in": [],
       "ecosystem": "pypi",
-      "evidence": "installed-distribution",
+      "evidence": "registry-artifact;not-installed",
       "homepage": "https://github.com/python-jsonschema/jsonschema",
       "license_declared": null,
       "license_expression": "MIT",
       "license_files": [
-        {
-          "bytes": 1057,
-          "origin": "pypi:jsonschema@4.26.0/jsonschema-4.26.0.dist-info/licenses/COPYING",
-          "path": "licenses/texts/4f92a015a13c4d1a040bef018aa13430b4f1bc73b41b16bb846c346766de7439.txt",
-          "sha256": "4f92a015a13c4d1a040bef018aa13430b4f1bc73b41b16bb846c346766de7439"
-        },
         {
           "bytes": 1057,
           "origin": "https://files.pythonhosted.org/packages/69/90/f63fb5873511e014207a475e2bb4e8b2e570d655b00ac19a9a0ca0a385ee/jsonschema-4.26.0-py3-none-any.whl#jsonschema-4.26.0.dist-info/licenses/COPYING",
@@ -38903,23 +38864,11 @@
       "dependencies": [],
       "direct_in": [],
       "ecosystem": "pypi",
-      "evidence": "installed-distribution",
+      "evidence": "registry-artifact;not-installed",
       "homepage": "https://github.com/executablebooks/markdown-it-py",
       "license_declared": null,
       "license_expression": "MIT",
       "license_files": [
-        {
-          "bytes": 1078,
-          "origin": "pypi:markdown-it-py@4.2.0/markdown_it_py-4.2.0.dist-info/licenses/LICENSE",
-          "path": "licenses/texts/4a2260d6e2cd0f5a151a1e86dbfe7d3ed552b1e2beabf9941c1ba5c49cbce484.txt",
-          "sha256": "4a2260d6e2cd0f5a151a1e86dbfe7d3ed552b1e2beabf9941c1ba5c49cbce484"
-        },
-        {
-          "bytes": 1073,
-          "origin": "pypi:markdown-it-py@4.2.0/markdown_it_py-4.2.0.dist-info/licenses/LICENSE.markdown-it",
-          "path": "licenses/texts/792c48c5a849a15fdf9e37e8bcf9e6d1dd13b32b46c642a748a0a46a9919d473.txt",
-          "sha256": "792c48c5a849a15fdf9e37e8bcf9e6d1dd13b32b46c642a748a0a46a9919d473"
-        },
         {
           "bytes": 1078,
           "origin": "https://files.pythonhosted.org/packages/b3/81/4da04ced5a082363ecfa159c010d200ecbd959ae410c10c0264a38cac0f5/markdown_it_py-4.2.0-py3-none-any.whl#markdown_it_py-4.2.0.dist-info/licenses/LICENSE",
@@ -38983,17 +38932,11 @@
       "dependencies": [],
       "direct_in": [],
       "ecosystem": "pypi",
-      "evidence": "installed-distribution",
+      "evidence": "registry-artifact;not-installed",
       "homepage": "https://github.com/executablebooks/mdurl",
       "license_declared": null,
       "license_expression": "MIT",
       "license_files": [
-        {
-          "bytes": 2338,
-          "origin": "pypi:mdurl@0.1.2/mdurl-0.1.2.dist-info/LICENSE",
-          "path": "licenses/texts/7c605df6e28667a9603118e98274f64a49ce3eed0d26fccce9534a345e0ef955.txt",
-          "sha256": "7c605df6e28667a9603118e98274f64a49ce3eed0d26fccce9534a345e0ef955"
-        },
         {
           "bytes": 2338,
           "origin": "https://files.pythonhosted.org/packages/b3/38/89ba8ad64ae25be8de66a6d463314cf1eb366222074cfda9ee839c56a4b4/mdurl-0.1.2-py3-none-any.whl#mdurl-0.1.2.dist-info/LICENSE",
@@ -39581,86 +39524,48 @@
       "version": "2.48.0"
     },
     {
-      "dependencies": [
-        "pkg:pypi/typing-extensions@4.16.0"
-      ],
+      "dependencies": [],
       "direct_in": [
         "services/api/requirements-observability.txt"
       ],
       "ecosystem": "pypi",
-      "evidence": "installed-distribution",
-      "homepage": null,
+      "evidence": "declared;not-installed",
       "license_declared": null,
-      "license_expression": "Apache-2.0",
-      "license_files": [
-        {
-          "bytes": 11357,
-          "origin": "pypi:opentelemetry-api@1.44.0/opentelemetry_api-1.44.0.dist-info/licenses/LICENSE",
-          "path": "licenses/texts/c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4.txt",
-          "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4"
-        }
-      ],
+      "license_expression": null,
+      "license_files": [],
       "name": "opentelemetry-api",
       "purl": "pkg:pypi/opentelemetry-api@1.44.0",
       "scopes": [
         "services/api/constraints.txt:constraint-only",
-        "services/api/requirements-observability.txt",
-        "services/api/requirements-observability.txt:observed-transitive"
+        "services/api/requirements-observability.txt"
       ],
       "version": "1.44.0"
     },
     {
-      "dependencies": [
-        "pkg:pypi/opentelemetry-proto@1.44.0"
-      ],
+      "dependencies": [],
       "direct_in": [],
       "ecosystem": "pypi",
-      "evidence": "installed-distribution",
-      "homepage": null,
+      "evidence": "declared;not-installed",
       "license_declared": null,
-      "license_expression": "Apache-2.0",
-      "license_files": [
-        {
-          "bytes": 11357,
-          "origin": "pypi:opentelemetry-exporter-otlp-proto-common@1.44.0/opentelemetry_exporter_otlp_proto_common-1.44.0.dist-info/licenses/LICENSE",
-          "path": "licenses/texts/c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4.txt",
-          "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4"
-        }
-      ],
+      "license_expression": null,
+      "license_files": [],
       "name": "opentelemetry-exporter-otlp-proto-common",
       "purl": "pkg:pypi/opentelemetry-exporter-otlp-proto-common@1.44.0",
       "scopes": [
-        "services/api/constraints.txt:constraint-only",
-        "services/api/requirements-observability.txt:observed-transitive"
+        "services/api/constraints.txt:constraint-only"
       ],
       "version": "1.44.0"
     },
     {
-      "dependencies": [
-        "pkg:pypi/googleapis-common-protos@1.75.0",
-        "pkg:pypi/grpcio@1.83.0",
-        "pkg:pypi/opentelemetry-api@1.44.0",
-        "pkg:pypi/opentelemetry-exporter-otlp-proto-common@1.44.0",
-        "pkg:pypi/opentelemetry-proto@1.44.0",
-        "pkg:pypi/opentelemetry-sdk@1.44.0",
-        "pkg:pypi/typing-extensions@4.16.0"
-      ],
+      "dependencies": [],
       "direct_in": [
         "services/api/requirements-observability.txt"
       ],
       "ecosystem": "pypi",
-      "evidence": "installed-distribution",
-      "homepage": null,
+      "evidence": "declared;not-installed",
       "license_declared": null,
-      "license_expression": "Apache-2.0",
-      "license_files": [
-        {
-          "bytes": 11357,
-          "origin": "pypi:opentelemetry-exporter-otlp-proto-grpc@1.44.0/opentelemetry_exporter_otlp_proto_grpc-1.44.0.dist-info/licenses/LICENSE",
-          "path": "licenses/texts/c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4.txt",
-          "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4"
-        }
-      ],
+      "license_expression": null,
+      "license_files": [],
       "name": "opentelemetry-exporter-otlp-proto-grpc",
       "purl": "pkg:pypi/opentelemetry-exporter-otlp-proto-grpc@1.44.0",
       "scopes": [
@@ -39670,59 +39575,30 @@
       "version": "1.44.0"
     },
     {
-      "dependencies": [
-        "pkg:pypi/asgiref@3.12.1",
-        "pkg:pypi/opentelemetry-api@1.44.0",
-        "pkg:pypi/opentelemetry-instrumentation@0.65b0",
-        "pkg:pypi/opentelemetry-semantic-conventions@0.65b0",
-        "pkg:pypi/opentelemetry-util-http@0.65b0"
-      ],
+      "dependencies": [],
       "direct_in": [],
       "ecosystem": "pypi",
-      "evidence": "installed-distribution",
-      "homepage": null,
+      "evidence": "declared;not-installed",
       "license_declared": null,
-      "license_expression": "Apache-2.0",
-      "license_files": [
-        {
-          "bytes": 11357,
-          "origin": "pypi:opentelemetry-instrumentation-asgi@0.65b0/opentelemetry_instrumentation_asgi-0.65b0.dist-info/licenses/LICENSE",
-          "path": "licenses/texts/c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4.txt",
-          "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4"
-        }
-      ],
+      "license_expression": null,
+      "license_files": [],
       "name": "opentelemetry-instrumentation-asgi",
       "purl": "pkg:pypi/opentelemetry-instrumentation-asgi@0.65b0",
       "scopes": [
-        "services/api/constraints.txt:constraint-only",
-        "services/api/requirements-observability.txt:observed-transitive"
+        "services/api/constraints.txt:constraint-only"
       ],
       "version": "0.65b0"
     },
     {
-      "dependencies": [
-        "pkg:pypi/opentelemetry-api@1.44.0",
-        "pkg:pypi/opentelemetry-instrumentation-asgi@0.65b0",
-        "pkg:pypi/opentelemetry-instrumentation@0.65b0",
-        "pkg:pypi/opentelemetry-semantic-conventions@0.65b0",
-        "pkg:pypi/opentelemetry-util-http@0.65b0"
-      ],
+      "dependencies": [],
       "direct_in": [
         "services/api/requirements-observability.txt"
       ],
       "ecosystem": "pypi",
-      "evidence": "installed-distribution",
-      "homepage": null,
+      "evidence": "declared;not-installed",
       "license_declared": null,
-      "license_expression": "Apache-2.0",
-      "license_files": [
-        {
-          "bytes": 11357,
-          "origin": "pypi:opentelemetry-instrumentation-fastapi@0.65b0/opentelemetry_instrumentation_fastapi-0.65b0.dist-info/licenses/LICENSE",
-          "path": "licenses/texts/c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4.txt",
-          "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4"
-        }
-      ],
+      "license_expression": null,
+      "license_files": [],
       "name": "opentelemetry-instrumentation-fastapi",
       "purl": "pkg:pypi/opentelemetry-instrumentation-fastapi@0.65b0",
       "scopes": [
@@ -39732,29 +39608,15 @@
       "version": "0.65b0"
     },
     {
-      "dependencies": [
-        "pkg:pypi/opentelemetry-api@1.44.0",
-        "pkg:pypi/opentelemetry-instrumentation@0.65b0",
-        "pkg:pypi/opentelemetry-semantic-conventions@0.65b0",
-        "pkg:pypi/opentelemetry-util-http@0.65b0",
-        "pkg:pypi/wrapt@2.5.0"
-      ],
+      "dependencies": [],
       "direct_in": [
         "services/api/requirements-observability.txt"
       ],
       "ecosystem": "pypi",
-      "evidence": "installed-distribution",
-      "homepage": null,
+      "evidence": "declared;not-installed",
       "license_declared": null,
-      "license_expression": "Apache-2.0",
-      "license_files": [
-        {
-          "bytes": 11357,
-          "origin": "pypi:opentelemetry-instrumentation-httpx@0.65b0/opentelemetry_instrumentation_httpx-0.65b0.dist-info/licenses/LICENSE",
-          "path": "licenses/texts/c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4.txt",
-          "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4"
-        }
-      ],
+      "license_expression": null,
+      "license_files": [],
       "name": "opentelemetry-instrumentation-httpx",
       "purl": "pkg:pypi/opentelemetry-instrumentation-httpx@0.65b0",
       "scopes": [
@@ -39764,115 +39626,17 @@
       "version": "0.65b0"
     },
     {
-      "dependencies": [
-        "pkg:pypi/opentelemetry-api@1.44.0",
-        "pkg:pypi/opentelemetry-semantic-conventions@0.65b0",
-        "pkg:pypi/packaging@26.2",
-        "pkg:pypi/wrapt@2.5.0"
-      ],
+      "dependencies": [],
       "direct_in": [],
       "ecosystem": "pypi",
-      "evidence": "installed-distribution",
-      "homepage": null,
+      "evidence": "declared;not-installed",
       "license_declared": null,
-      "license_expression": "Apache-2.0",
-      "license_files": [
-        {
-          "bytes": 11357,
-          "origin": "pypi:opentelemetry-instrumentation@0.65b0/opentelemetry_instrumentation-0.65b0.dist-info/licenses/LICENSE",
-          "path": "licenses/texts/c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4.txt",
-          "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4"
-        }
-      ],
+      "license_expression": null,
+      "license_files": [],
       "name": "opentelemetry-instrumentation",
       "purl": "pkg:pypi/opentelemetry-instrumentation@0.65b0",
       "scopes": [
-        "services/api/constraints.txt:constraint-only",
-        "services/api/requirements-observability.txt:observed-transitive"
-      ],
-      "version": "0.65b0"
-    },
-    {
-      "dependencies": [
-        "pkg:pypi/protobuf@7.35.1"
-      ],
-      "direct_in": [],
-      "ecosystem": "pypi",
-      "evidence": "installed-distribution",
-      "homepage": null,
-      "license_declared": null,
-      "license_expression": "Apache-2.0",
-      "license_files": [
-        {
-          "bytes": 11357,
-          "origin": "pypi:opentelemetry-proto@1.44.0/opentelemetry_proto-1.44.0.dist-info/licenses/LICENSE",
-          "path": "licenses/texts/c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4.txt",
-          "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4"
-        }
-      ],
-      "name": "opentelemetry-proto",
-      "purl": "pkg:pypi/opentelemetry-proto@1.44.0",
-      "scopes": [
-        "services/api/constraints.txt:constraint-only",
-        "services/api/requirements-observability.txt:observed-transitive"
-      ],
-      "version": "1.44.0"
-    },
-    {
-      "dependencies": [
-        "pkg:pypi/opentelemetry-api@1.44.0",
-        "pkg:pypi/opentelemetry-semantic-conventions@0.65b0",
-        "pkg:pypi/typing-extensions@4.16.0"
-      ],
-      "direct_in": [
-        "services/api/requirements-observability.txt"
-      ],
-      "ecosystem": "pypi",
-      "evidence": "installed-distribution",
-      "homepage": null,
-      "license_declared": null,
-      "license_expression": "Apache-2.0",
-      "license_files": [
-        {
-          "bytes": 11357,
-          "origin": "pypi:opentelemetry-sdk@1.44.0/opentelemetry_sdk-1.44.0.dist-info/licenses/LICENSE",
-          "path": "licenses/texts/c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4.txt",
-          "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4"
-        }
-      ],
-      "name": "opentelemetry-sdk",
-      "purl": "pkg:pypi/opentelemetry-sdk@1.44.0",
-      "scopes": [
-        "services/api/constraints.txt:constraint-only",
-        "services/api/requirements-observability.txt",
-        "services/api/requirements-observability.txt:observed-transitive"
-      ],
-      "version": "1.44.0"
-    },
-    {
-      "dependencies": [
-        "pkg:pypi/opentelemetry-api@1.44.0",
-        "pkg:pypi/typing-extensions@4.16.0"
-      ],
-      "direct_in": [],
-      "ecosystem": "pypi",
-      "evidence": "installed-distribution",
-      "homepage": null,
-      "license_declared": null,
-      "license_expression": "Apache-2.0",
-      "license_files": [
-        {
-          "bytes": 11357,
-          "origin": "pypi:opentelemetry-semantic-conventions@0.65b0/opentelemetry_semantic_conventions-0.65b0.dist-info/licenses/LICENSE",
-          "path": "licenses/texts/c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4.txt",
-          "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4"
-        }
-      ],
-      "name": "opentelemetry-semantic-conventions",
-      "purl": "pkg:pypi/opentelemetry-semantic-conventions@0.65b0",
-      "scopes": [
-        "services/api/constraints.txt:constraint-only",
-        "services/api/requirements-observability.txt:observed-transitive"
+        "services/api/constraints.txt:constraint-only"
       ],
       "version": "0.65b0"
     },
@@ -39880,7 +39644,55 @@
       "dependencies": [],
       "direct_in": [],
       "ecosystem": "pypi",
-      "evidence": "installed-distribution",
+      "evidence": "declared;not-installed",
+      "license_declared": null,
+      "license_expression": null,
+      "license_files": [],
+      "name": "opentelemetry-proto",
+      "purl": "pkg:pypi/opentelemetry-proto@1.44.0",
+      "scopes": [
+        "services/api/constraints.txt:constraint-only"
+      ],
+      "version": "1.44.0"
+    },
+    {
+      "dependencies": [],
+      "direct_in": [
+        "services/api/requirements-observability.txt"
+      ],
+      "ecosystem": "pypi",
+      "evidence": "declared;not-installed",
+      "license_declared": null,
+      "license_expression": null,
+      "license_files": [],
+      "name": "opentelemetry-sdk",
+      "purl": "pkg:pypi/opentelemetry-sdk@1.44.0",
+      "scopes": [
+        "services/api/constraints.txt:constraint-only",
+        "services/api/requirements-observability.txt"
+      ],
+      "version": "1.44.0"
+    },
+    {
+      "dependencies": [],
+      "direct_in": [],
+      "ecosystem": "pypi",
+      "evidence": "declared;not-installed",
+      "license_declared": null,
+      "license_expression": null,
+      "license_files": [],
+      "name": "opentelemetry-semantic-conventions",
+      "purl": "pkg:pypi/opentelemetry-semantic-conventions@0.65b0",
+      "scopes": [
+        "services/api/constraints.txt:constraint-only"
+      ],
+      "version": "0.65b0"
+    },
+    {
+      "dependencies": [],
+      "direct_in": [],
+      "ecosystem": "pypi",
+      "evidence": "registry-artifact;not-installed",
       "homepage": "https://github.com/open-telemetry/opentelemetry-python-contrib/tree/main/util/opentelemetry-util-http",
       "license_declared": null,
       "license_expression": "Apache-2.0",
@@ -39889,8 +39701,7 @@
       "purl": "pkg:pypi/opentelemetry-util-http@0.65b0",
       "registry_source": "https://pypi.org/pypi/opentelemetry-util-http/0.65b0/json",
       "scopes": [
-        "services/api/constraints.txt:constraint-only",
-        "services/api/requirements-observability.txt:observed-transitive"
+        "services/api/constraints.txt:constraint-only"
       ],
       "version": "0.65b0"
     },
@@ -40425,7 +40236,6 @@
       "registry_source": "https://pypi.org/pypi/packaging/26.2/json",
       "scopes": [
         "services/api/constraints.txt:constraint-only",
-        "services/api/requirements-observability.txt:observed-transitive",
         "services/api/requirements.txt:observed-transitive"
       ],
       "version": "26.2"
@@ -40579,7 +40389,6 @@
       "purl": "pkg:pypi/protobuf@7.35.1",
       "scopes": [
         "services/api/constraints.txt:constraint-only",
-        "services/api/requirements-observability.txt:observed-transitive",
         "services/api/requirements.txt:observed-transitive"
       ],
       "version": "7.35.1"
@@ -41336,17 +41145,11 @@
       "dependencies": [],
       "direct_in": [],
       "ecosystem": "pypi",
-      "evidence": "installed-distribution",
+      "evidence": "registry-artifact;not-installed",
       "homepage": "https://github.com/python-jsonschema/referencing",
       "license_declared": null,
       "license_expression": "MIT",
       "license_files": [
-        {
-          "bytes": 1057,
-          "origin": "pypi:referencing@0.37.0/referencing-0.37.0.dist-info/licenses/COPYING",
-          "path": "licenses/texts/42dcd63495f87b4eb7c7757afa379bb55a53f94afd7a5f657d9adf57236e515c.txt",
-          "sha256": "42dcd63495f87b4eb7c7757afa379bb55a53f94afd7a5f657d9adf57236e515c"
-        },
         {
           "bytes": 1057,
           "origin": "https://files.pythonhosted.org/packages/2c/58/ca301544e1fa93ed4f80d724bf5b194f6e4b945841c5bfd555878eea9fcb/referencing-0.37.0-py3-none-any.whl#referencing-0.37.0.dist-info/licenses/COPYING",
@@ -41507,17 +41310,11 @@
       "dependencies": [],
       "direct_in": [],
       "ecosystem": "pypi",
-      "evidence": "installed-distribution",
+      "evidence": "registry-artifact;not-installed",
       "homepage": "https://github.com/Textualize/rich",
       "license_declared": "MIT",
       "license_expression": "MIT",
       "license_files": [
-        {
-          "bytes": 1056,
-          "origin": "pypi:rich@15.0.0/rich-15.0.0.dist-info/licenses/LICENSE",
-          "path": "licenses/texts/deed7c17a4318158190a3ea239cc879a5a50271cebb98ae7025f48fbe58dca15.txt",
-          "sha256": "deed7c17a4318158190a3ea239cc879a5a50271cebb98ae7025f48fbe58dca15"
-        },
         {
           "bytes": 1056,
           "origin": "https://files.pythonhosted.org/packages/82/3b/64d4899d73f91ba49a8c18a8ff3f0ea8f1c1d75481760df8c68ef5235bf5/rich-15.0.0-py3-none-any.whl#rich-15.0.0.dist-info/licenses/LICENSE",
@@ -42348,7 +42145,6 @@
       "registry_source": "https://pypi.org/pypi/typing-extensions/4.16.0/json",
       "scopes": [
         "services/api/constraints.txt:constraint-only",
-        "services/api/requirements-observability.txt:observed-transitive",
         "services/api/requirements.txt:observed-transitive",
         "services/voice/requirements.txt:observed-transitive"
       ],
@@ -42607,23 +42403,14 @@
       "dependencies": [],
       "direct_in": [],
       "ecosystem": "pypi",
-      "evidence": "installed-distribution",
-      "homepage": null,
+      "evidence": "declared;not-installed",
       "license_declared": null,
-      "license_expression": "BSD-2-Clause",
-      "license_files": [
-        {
-          "bytes": 1304,
-          "origin": "pypi:wrapt@2.5.0/wrapt-2.5.0.dist-info/licenses/LICENSE",
-          "path": "licenses/texts/d4f66854a24dda2f2a5282912aedebe6b18186b86284510a433d78fadcd88e5d.txt",
-          "sha256": "d4f66854a24dda2f2a5282912aedebe6b18186b86284510a433d78fadcd88e5d"
-        }
-      ],
+      "license_expression": null,
+      "license_files": [],
       "name": "wrapt",
       "purl": "pkg:pypi/wrapt@2.5.0",
       "scopes": [
-        "services/api/constraints.txt:constraint-only",
-        "services/api/requirements-observability.txt:observed-transitive"
+        "services/api/constraints.txt:constraint-only"
       ],
       "version": "2.5.0"
     },
@@ -43327,9 +43114,24 @@
       "purl": "pkg:npm/unrs-resolver@1.12.2"
     },
     {
+      "license_expression_missing": true,
+      "original_text_missing": true,
+      "purl": "pkg:pypi/asgiref@3.12.1"
+    },
+    {
       "license_expression_missing": false,
       "original_text_missing": true,
       "purl": "pkg:pypi/flatbuffers@25.12.19"
+    },
+    {
+      "license_expression_missing": true,
+      "original_text_missing": true,
+      "purl": "pkg:pypi/googleapis-common-protos@1.75.0"
+    },
+    {
+      "license_expression_missing": true,
+      "original_text_missing": true,
+      "purl": "pkg:pypi/grpcio@1.83.0"
     },
     {
       "license_expression_missing": false,
@@ -43337,24 +43139,79 @@
       "purl": "pkg:pypi/jieba@0.42.1"
     },
     {
+      "license_expression_missing": true,
+      "original_text_missing": true,
+      "purl": "pkg:pypi/opentelemetry-api@1.44.0"
+    },
+    {
+      "license_expression_missing": true,
+      "original_text_missing": true,
+      "purl": "pkg:pypi/opentelemetry-exporter-otlp-proto-common@1.44.0"
+    },
+    {
+      "license_expression_missing": true,
+      "original_text_missing": true,
+      "purl": "pkg:pypi/opentelemetry-exporter-otlp-proto-grpc@1.44.0"
+    },
+    {
+      "license_expression_missing": true,
+      "original_text_missing": true,
+      "purl": "pkg:pypi/opentelemetry-instrumentation@0.65b0"
+    },
+    {
+      "license_expression_missing": true,
+      "original_text_missing": true,
+      "purl": "pkg:pypi/opentelemetry-instrumentation-asgi@0.65b0"
+    },
+    {
+      "license_expression_missing": true,
+      "original_text_missing": true,
+      "purl": "pkg:pypi/opentelemetry-instrumentation-fastapi@0.65b0"
+    },
+    {
+      "license_expression_missing": true,
+      "original_text_missing": true,
+      "purl": "pkg:pypi/opentelemetry-instrumentation-httpx@0.65b0"
+    },
+    {
+      "license_expression_missing": true,
+      "original_text_missing": true,
+      "purl": "pkg:pypi/opentelemetry-proto@1.44.0"
+    },
+    {
+      "license_expression_missing": true,
+      "original_text_missing": true,
+      "purl": "pkg:pypi/opentelemetry-sdk@1.44.0"
+    },
+    {
+      "license_expression_missing": true,
+      "original_text_missing": true,
+      "purl": "pkg:pypi/opentelemetry-semantic-conventions@0.65b0"
+    },
+    {
       "license_expression_missing": false,
       "original_text_missing": true,
       "purl": "pkg:pypi/opentelemetry-util-http@0.65b0"
+    },
+    {
+      "license_expression_missing": true,
+      "original_text_missing": true,
+      "purl": "pkg:pypi/wrapt@2.5.0"
     }
   ],
   "inputs": {
     "apps/mobile/package.json": "62c347de1b8bd4f66faba6fd5d959d476938322cfd0db401731e37142551dcb1",
-    "apps/web/package.json": "e13ab379a7ad39d05808a6a2c1ab48eaa5c773d3d95b0c499817cdb1caea5f83",
+    "apps/web/package.json": "b727a8b7cad466486e2e75c787063bce664290423a0bec221a09bdf9bbbb3fa5",
     "deploy/local/docker-compose.yml": "5fce70d80e194f468eb32aa980cda1522bd634158a80c539f6937c04209166e4",
-    "deploy/self-hosted/install_voice.sh": "1cff453657b3d6e6880910f00419be775b541bddbd01f90ad070a7bc0ab58cef",
+    "deploy/self-hosted/install_voice.sh": "637ffeb563130e322ca643019079c7784570216f748e4a8f1ba0dc1783078a3f",
     "licenses/external-components.json": "95664170776f494f0bdabe75e8a965cc3b515530126022ca2e31b7e10d3f0f26",
     "package.json": "169e86f59f6094b38ee91480c628057b39f3375f741691ea2d2cae9dbc51d998",
-    "packages/api-client/package.json": "bd9d6f439f3a10a6f341f7c8793eaf289c739268fd31541306ab1abb8eb9665f",
-    "packages/contracts/package.json": "1c6c7a2f3b0754a7f9231b420b276f21f93fba60a27c6198b553c1e73ceeb0a2",
-    "packages/design-tokens/package.json": "45734e5465376ce355def1e7c02e4e82c28d5d91ee6dd9bafd64caa40561fba7",
-    "packages/domain/package.json": "24adda98849d4983191c37db9efc1e41bb8d7f4dec0f665b1e33d5fa79ba7e4d",
-    "packages/i18n/package.json": "af8ff9690e072f50ec43d297197b06b2848b79ea6f07a1188c4b8be25463db32",
-    "pnpm-lock.yaml": "0d1c626cb5cb5996512f483965c914c487382ca329d832ef5aaf2ad4999572d0",
+    "packages/api-client/package.json": "befd973ebaf9ca87db53d1f141f6cf648a681b6f8be8bb31a4b3c4abd6c94999",
+    "packages/contracts/package.json": "f45f7abbae14a78a01e9e7af8e1f0add9864b97a3cb135af3a78ccd1cb084433",
+    "packages/design-tokens/package.json": "596f9a833711781177a2d39e501747abf0bebac0554f82cbe158935298f189c6",
+    "packages/domain/package.json": "920c82314b48c436a393528c30d5e81495f0d7e5160b84eccf07b576e5033a42",
+    "packages/i18n/package.json": "083352089840c679af58f02ea3cb59d64741fbc728e37dfa2a524a6f00eb3f9a",
+    "pnpm-lock.yaml": "4618e54c975123e205f7178f4762673f4a6806d6e3b72858de7a3a33b89203f5",
     "pnpm-workspace.yaml": "a75b798dcab6be5a1af6331998790f193595d169bc19af888cd8671c527c7e8b",
     "services/api/constraints.txt": "aa696a017e68f5cbd2e9a2c41e031aece307ed625a1ebb2f19729fc7ad60d1d0",
     "services/api/requirements-observability.txt": "a6deaa638de34c7f065027613357fa345a7abc3ad37bd4e4cb532dec479fe061",

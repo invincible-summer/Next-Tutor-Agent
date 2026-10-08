@@ -1,0 +1,56 @@
+{
+  "name": "explore_stir_resuspend",
+  "description": "探索模式：沉降后搅拌重新悬浮，再静置重新分层，验证沉降-悬浮动态。",
+  "mode": "explore",
+  "session_seed": 11,
+  "script": [
+    {
+      "kind": "pour",
+      "source_id": "na2co3-stock",
+      "target_id": "cacl2-beaker",
+      "amount_uL": 20000,
+      "rate": "normal"
+    },
+    {
+      "kind": "wait",
+      "duration_ms": 15000
+    },
+    {
+      "kind": "stir",
+      "vessel_id": "cacl2-beaker",
+      "speed_permille": 800,
+      "duration_ms": 6000
+    },
+    {
+      "kind": "wait",
+      "duration_ms": 20000
+    },
+    {
+      "kind": "filter",
+      "vessel_id": "cacl2-beaker",
+      "apparatus_id": "receiver"
+    }
+  ],
+  "expect_event_kinds": [
+    "precipitate_formed",
+    "mixing_changed",
+    "phase_changed"
+  ],
+  "expect_final_phase": "completed",
+  "state_hashes": [
+    "754a01b557c5eb52",
+    "6499e9e9870d21f7",
+    "afd8add28d679f63",
+    "f325149f0c68e09c",
+    "2b47e01f84977b08",
+    "50f885390c4c85d9"
+  ],
+  "final_hash": "50f885390c4c85d9",
+  "accepted": [
+    true,
+    true,
+    true,
+    true,
+    true
+  ]
+}

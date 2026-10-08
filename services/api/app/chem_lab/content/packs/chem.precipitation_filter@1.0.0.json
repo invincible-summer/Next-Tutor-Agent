@@ -1,0 +1,830 @@
+{
+  "_concepts": {
+    "concept.filtration": {
+      "body": {
+        "en": "Filtration separates by particle size: the filtrate carries dissolved ions through while the residue is retained. Letting the precipitate settle first makes pouring cleaner and filtering faster.",
+        "zh": "过滤利用颗粒大小差异分离固液：液体（滤液）带着溶解的离子通过，固体（滤渣）被截留。先让沉淀静置沉降再过滤，可以倒得更清、滤得更快。"
+      },
+      "equation": "",
+      "id": "concept.filtration",
+      "kind": "concept",
+      "misconception": {
+        "en": "Filtration cannot remove dissolved ions — they are far smaller than the pores.",
+        "zh": "过滤不能把溶解的离子“滤掉”——它们比滤孔小得多。"
+      },
+      "prerequisites": [
+        "concept.precipitation"
+      ],
+      "schema_version": 1,
+      "title": {
+        "en": "Filtration",
+        "zh": "过滤分离"
+      }
+    },
+    "concept.precipitation": {
+      "body": {
+        "en": "Mixing two soluble salts can precipitate an insoluble ion pair. CaCl₂ + Na₂CO₃ yields white CaCO₃ while Na⁺ and Cl⁻ spectate. Turbidity comes from suspended fine particles that settle into a layer on standing.",
+        "zh": "两种可溶盐混合时，若某种离子组合难溶，就会析出固体沉淀。氯化钙与碳酸钠混合生成白色碳酸钙，钠离子和氯离子留在溶液中旁观。浑浊来自悬浮的细小颗粒，静置后会沉降分层。"
+      },
+      "equation": "Ca²⁺ + CO₃²⁻ → CaCO₃↓",
+      "id": "concept.precipitation",
+      "kind": "concept",
+      "misconception": {
+        "en": "Cloudiness is not 'fog' — it is suspended solid particles forming.",
+        "zh": "变浑浊不是“起了雾”，而是生成了悬浮的固体微粒。"
+      },
+      "prerequisites": [],
+      "schema_version": 1,
+      "title": {
+        "en": "Precipitation",
+        "zh": "沉淀反应"
+      }
+    }
+  },
+  "_equipment_defs": {
+    "beaker.small": {
+      "capacity_uL": 250000,
+      "category": "vessel",
+      "footprint": [
+        120,
+        150
+      ],
+      "gas_tight": false,
+      "graduations_uL": [
+        50000,
+        100000,
+        150000,
+        200000
+      ],
+      "heat_compatible": true,
+      "id": "beaker.small",
+      "instrument_label": null,
+      "kind": "equipment",
+      "measures": [],
+      "name": {
+        "en": "Small beaker",
+        "zh": "小烧杯"
+      },
+      "ports": [
+        {
+          "id": "mouth",
+          "x": 60,
+          "y": 0
+        }
+      ],
+      "pourable": true,
+      "rated_micro_j_per_step": 0,
+      "schema_version": 1
+    },
+    "conical_flask": {
+      "capacity_uL": 250000,
+      "category": "vessel",
+      "footprint": [
+        130,
+        160
+      ],
+      "gas_tight": false,
+      "graduations_uL": [
+        50000,
+        100000,
+        150000,
+        200000
+      ],
+      "heat_compatible": true,
+      "id": "conical_flask",
+      "instrument_label": null,
+      "kind": "equipment",
+      "measures": [],
+      "name": {
+        "en": "Conical flask",
+        "zh": "锥形瓶"
+      },
+      "ports": [
+        {
+          "id": "mouth",
+          "x": 65,
+          "y": 0
+        },
+        {
+          "id": "side",
+          "x": 100,
+          "y": 60
+        }
+      ],
+      "pourable": true,
+      "rated_micro_j_per_step": 0,
+      "schema_version": 1
+    },
+    "pipette": {
+      "capacity_uL": 10000,
+      "category": "instrument",
+      "footprint": [
+        30,
+        170
+      ],
+      "gas_tight": false,
+      "graduations_uL": [
+        2000,
+        4000,
+        6000,
+        8000
+      ],
+      "heat_compatible": false,
+      "id": "pipette",
+      "instrument_label": {
+        "en": "10 mL",
+        "zh": "10 mL"
+      },
+      "kind": "equipment",
+      "measures": [],
+      "name": {
+        "en": "Pipette",
+        "zh": "移液管"
+      },
+      "ports": [],
+      "pourable": false,
+      "rated_micro_j_per_step": 0,
+      "schema_version": 1
+    },
+    "reagent_bottle": {
+      "capacity_uL": 500000,
+      "category": "container",
+      "footprint": [
+        100,
+        160
+      ],
+      "gas_tight": false,
+      "graduations_uL": [],
+      "heat_compatible": false,
+      "id": "reagent_bottle",
+      "instrument_label": null,
+      "kind": "equipment",
+      "measures": [],
+      "name": {
+        "en": "Reagent bottle",
+        "zh": "试剂瓶"
+      },
+      "ports": [
+        {
+          "id": "mouth",
+          "x": 50,
+          "y": 0
+        }
+      ],
+      "pourable": true,
+      "rated_micro_j_per_step": 0,
+      "schema_version": 1
+    },
+    "stir_rod": {
+      "capacity_uL": 0,
+      "category": "tool",
+      "footprint": [
+        16,
+        140
+      ],
+      "gas_tight": false,
+      "graduations_uL": [],
+      "heat_compatible": false,
+      "id": "stir_rod",
+      "instrument_label": null,
+      "kind": "equipment",
+      "measures": [],
+      "name": {
+        "en": "Glass stirring rod",
+        "zh": "玻璃搅拌棒"
+      },
+      "ports": [],
+      "pourable": false,
+      "rated_micro_j_per_step": 0,
+      "schema_version": 1
+    }
+  },
+  "_rules": [
+    {
+      "id": "rule.precipitation_caco3.v1",
+      "kind": "rule",
+      "limits": {
+        "max_firings_per_evaluation": 8
+      },
+      "model_scope": "cacl2_na2co3_dilute_v1",
+      "priority": 90,
+      "public_note": {
+        "en": "Calcium and carbonate ions combine 1:1 into white CaCO₃ precipitate; limited to the CaCl₂–Na₂CO₃ system.",
+        "zh": "钙离子与碳酸根按 1:1 结合生成白色碳酸钙沉淀；仅限氯化钙-碳酸钠限定体系。"
+      },
+      "schema_version": 1,
+      "then": [
+        {
+          "amount_umol": 0,
+          "cap_umol": 0,
+          "from_consumed": false,
+          "key": "",
+          "micro_j_per_umol": 0,
+          "op": "consume_min_ratio",
+          "pairs": [
+            [
+              "ca_plus",
+              1
+            ],
+            [
+              "co3_ion",
+              1
+            ]
+          ],
+          "ratio_to_consumed": 1000,
+          "species": "",
+          "vessel": "$target"
+        },
+        {
+          "amount_umol": 0,
+          "cap_umol": 0,
+          "from_consumed": true,
+          "key": "",
+          "micro_j_per_umol": 0,
+          "op": "transfer_to_solid",
+          "pairs": [],
+          "ratio_to_consumed": 1000,
+          "species": "caco3",
+          "vessel": "$target"
+        }
+      ],
+      "triggers": [
+        "on_dispense",
+        "on_pour",
+        "on_stir",
+        "on_wait"
+      ],
+      "when": [
+        {
+          "amount_umol": 1,
+          "expected": "",
+          "max_value": 0,
+          "min_value": 0,
+          "op": "species_at_least",
+          "species": "ca_plus",
+          "target": "",
+          "vessel": "$target"
+        },
+        {
+          "amount_umol": 1,
+          "expected": "",
+          "max_value": 0,
+          "min_value": 0,
+          "op": "species_at_least",
+          "species": "co3_ion",
+          "target": "",
+          "vessel": "$target"
+        }
+      ]
+    }
+  ],
+  "_species_defs": {
+    "ca_plus": {
+      "color_label": null,
+      "color_strength_permille": 0,
+      "color_token": "clear",
+      "formula": "Ca²⁺",
+      "hazard": "none",
+      "id": "ca_plus",
+      "kind": "species",
+      "name": {
+        "en": "Calcium ion",
+        "zh": "钙离子"
+      },
+      "ph_bands": [],
+      "role": "ion",
+      "schema_version": 1,
+      "solubility_table": [],
+      "source": "project_authored",
+      "source_url": "",
+      "spectator": false,
+      "state": "solute",
+      "teaching_note": {
+        "en": "Precipitates with carbonate 1:1 as CaCO₃; the model counts Ca²⁺ as one stoichiometric unit.",
+        "zh": "与碳酸根按 1:1 生成碳酸钙沉淀；模型把 Ca²⁺ 记作一个计量单位粒子。"
+      },
+      "visible_amount_umol": 0,
+      "visible_conc_umol_per_ul_milli": 0
+    },
+    "caco3": {
+      "color_label": {
+        "en": "white precipitate",
+        "zh": "白色沉淀"
+      },
+      "color_strength_permille": 0,
+      "color_token": "precipitate.white",
+      "formula": "CaCO₃",
+      "hazard": "none",
+      "id": "caco3",
+      "kind": "species",
+      "name": {
+        "en": "Calcium carbonate",
+        "zh": "碳酸钙"
+      },
+      "ph_bands": [],
+      "role": "precipitate",
+      "schema_version": 1,
+      "solubility_table": [],
+      "source": "project_authored",
+      "source_url": "",
+      "spectator": false,
+      "state": "solid",
+      "teaching_note": {
+        "en": "White powdery precipitate that settles on standing and can be separated by filtration.",
+        "zh": "白色粉末状沉淀，静置后会沉降到底部，可用过滤分离。"
+      },
+      "visible_amount_umol": 50,
+      "visible_conc_umol_per_ul_milli": 0
+    },
+    "cl_minus": {
+      "color_label": null,
+      "color_strength_permille": 0,
+      "color_token": "clear",
+      "formula": "Cl⁻",
+      "hazard": "none",
+      "id": "cl_minus",
+      "kind": "species",
+      "name": {
+        "en": "Chloride ion",
+        "zh": "氯离子"
+      },
+      "ph_bands": [],
+      "role": "spectator",
+      "schema_version": 1,
+      "solubility_table": [],
+      "source": "project_authored",
+      "source_url": "",
+      "spectator": true,
+      "state": "solute",
+      "teaching_note": {
+        "en": "Spectator anion from hydrochloric acid; takes no part in any v1 reaction.",
+        "zh": "盐酸给出的旁观阴离子，在首期模型中不参与任何反应。"
+      },
+      "visible_amount_umol": 0,
+      "visible_conc_umol_per_ul_milli": 0
+    },
+    "co3_ion": {
+      "color_label": null,
+      "color_strength_permille": 0,
+      "color_token": "clear",
+      "formula": "CO₃²⁻",
+      "hazard": "none",
+      "id": "co3_ion",
+      "kind": "species",
+      "name": {
+        "en": "Carbonate ion",
+        "zh": "碳酸根离子"
+      },
+      "ph_bands": [],
+      "role": "ion",
+      "schema_version": 1,
+      "solubility_table": [],
+      "source": "project_authored",
+      "source_url": "",
+      "spectator": false,
+      "state": "solute",
+      "teaching_note": {
+        "en": "Released when sodium carbonate dissolves; binds calcium into white CaCO₃. Hydrolysis equilibria are out of model scope.",
+        "zh": "碳酸钠溶于水后给出的离子，与钙离子结合生成白色碳酸钙沉淀；模型不计其水解平衡。"
+      },
+      "visible_amount_umol": 0,
+      "visible_conc_umol_per_ul_milli": 0
+    },
+    "na_plus": {
+      "color_label": null,
+      "color_strength_permille": 0,
+      "color_token": "clear",
+      "formula": "Na⁺",
+      "hazard": "none",
+      "id": "na_plus",
+      "kind": "species",
+      "name": {
+        "en": "Sodium ion",
+        "zh": "钠离子"
+      },
+      "ph_bands": [],
+      "role": "spectator",
+      "schema_version": 1,
+      "solubility_table": [],
+      "source": "project_authored",
+      "source_url": "",
+      "spectator": true,
+      "state": "solute",
+      "teaching_note": {
+        "en": "A typical spectator ion: unchanged across acid-base and precipitation systems, useful for teaching conservation.",
+        "zh": "典型的旁观离子：在酸碱与沉淀体系中本身不参与变化，用来讲守恒。"
+      },
+      "visible_amount_umol": 0,
+      "visible_conc_umol_per_ul_milli": 0
+    },
+    "water": {
+      "color_label": null,
+      "color_strength_permille": 0,
+      "color_token": "clear",
+      "formula": "H₂O",
+      "hazard": "none",
+      "id": "water",
+      "kind": "species",
+      "name": {
+        "en": "Water",
+        "zh": "水"
+      },
+      "ph_bands": [],
+      "role": "solvent",
+      "schema_version": 1,
+      "solubility_table": [],
+      "source": "project_authored",
+      "source_url": "",
+      "spectator": false,
+      "state": "liquid",
+      "teaching_note": {
+        "en": "Default solvent. Volumes use the water approximation: 1 µL ≈ 1 mg, heat capacity 4.18 J/(g·K).",
+        "zh": "本实验台的默认溶剂。液体体积按水近似：1 µL 约 1 mg，热容取 4.18 J/(g·K)。"
+      },
+      "visible_amount_umol": 0,
+      "visible_conc_umol_per_ul_milli": 0
+    }
+  },
+  "audience": [
+    "middle_school",
+    "high_school_intro"
+  ],
+  "concept_ids": [
+    "concept.precipitation",
+    "concept.filtration"
+  ],
+  "equipment": [
+    "reagent_bottle",
+    "beaker.small",
+    "conical_flask",
+    "pipette",
+    "stir_rod"
+  ],
+  "goals": [
+    {
+      "id": "goal.separate",
+      "requires_observations": [
+        "precipitate_visible",
+        "filtered"
+      ],
+      "title": {
+        "en": "Form and separate the precipitate",
+        "zh": "生成并分离沉淀"
+      }
+    }
+  ],
+  "id": "chem.precipitation_filter",
+  "kind": "experiment",
+  "model_fidelity": "teaching_semi_quantitative",
+  "model_scope": {
+    "en": "Limited to the CaCl₂–Na₂CO₃ system with 1:1 stoichiometry; other salt combinations and solubility equilibria are out of scope.",
+    "zh": "仅限氯化钙-碳酸钠限定体系，按 1:1 计量生成沉淀；不模拟其他盐类组合与沉淀溶解平衡。"
+  },
+  "modes": [
+    "guided",
+    "explore",
+    "self_check"
+  ],
+  "observation_visibility": {
+    "explore": [
+      "precipitate_visible",
+      "turbid_visible",
+      "sediment_layer",
+      "filtered"
+    ],
+    "guided": [
+      "precipitate_visible",
+      "turbid_visible",
+      "sediment_layer",
+      "filtered"
+    ],
+    "self_check": [
+      "precipitate_visible",
+      "filtered"
+    ]
+  },
+  "pack_hash": "58643abdc16dab533ec00915397973750e150a636207325240236b470da5ed73",
+  "pack_version": "1.0.0",
+  "ph_model": "none",
+  "predictions": [
+    {
+      "id": "pred.filtrate",
+      "options": [
+        {
+          "correct": true,
+          "id": "a",
+          "label": {
+            "en": "Sodium and chloride ions",
+            "zh": "钠离子和氯离子"
+          }
+        },
+        {
+          "correct": false,
+          "id": "b",
+          "label": {
+            "en": "Calcium and carbonate ions",
+            "zh": "钙离子和碳酸根"
+          }
+        },
+        {
+          "correct": false,
+          "id": "c",
+          "label": {
+            "en": "Calcium carbonate",
+            "zh": "碳酸钙"
+          }
+        },
+        {
+          "correct": false,
+          "id": "d",
+          "label": {
+            "en": "Nothing at all",
+            "zh": "什么都不剩"
+          }
+        }
+      ],
+      "question": {
+        "en": "What mainly remains in the filtrate?",
+        "zh": "过滤后的滤液中主要剩下什么？"
+      },
+      "step_id": "step.filter"
+    }
+  ],
+  "procedure": [
+    {
+      "accepted_commands": [
+        "aspirate",
+        "dispense",
+        "pour"
+      ],
+      "concept_ids": [
+        "concept.precipitation"
+      ],
+      "expected_observations": [
+        "precipitate_visible"
+      ],
+      "hint_ladder": [
+        {
+          "en": "Use the pipette for 20 mL of Na₂CO₃.",
+          "zh": "用移液管取 20 mL 碳酸钠溶液。"
+        },
+        {
+          "en": "Watch right after adding: the white solid is CaCO₃.",
+          "zh": "加入烧杯后立刻观察：白色固体就是碳酸钙。"
+        }
+      ],
+      "id": "step.mix",
+      "objective": {
+        "en": "Measure about 20 mL of sodium carbonate and add it to the calcium chloride; watch the precipitate form.",
+        "zh": "量取约 20 mL 碳酸钠溶液，加入氯化钙溶液中，观察沉淀生成。"
+      },
+      "title": {
+        "en": "Mix the solutions",
+        "zh": "混合两种溶液"
+      }
+    },
+    {
+      "accepted_commands": [
+        "wait"
+      ],
+      "concept_ids": [
+        "concept.precipitation"
+      ],
+      "expected_observations": [
+        "sediment_layer"
+      ],
+      "hint_ladder": [
+        {
+          "en": "Use “wait” to let time pass.",
+          "zh": "使用“等待”让时间流逝。"
+        },
+        {
+          "en": "Stirring resuspends the bed — hold off for this step.",
+          "zh": "搅拌会把沉淀重新搅起来——这一步先别搅。"
+        }
+      ],
+      "id": "step.settle",
+      "objective": {
+        "en": "Wait about 15 s without stirring; watch the suspension settle into a bottom layer.",
+        "zh": "静置约 15 秒不要搅拌，观察浑浊液逐渐沉降、底部出现沉淀层。"
+      },
+      "title": {
+        "en": "Let it settle",
+        "zh": "静置分层"
+      }
+    },
+    {
+      "accepted_commands": [
+        "filter"
+      ],
+      "concept_ids": [
+        "concept.filtration"
+      ],
+      "expected_observations": [
+        "filtered"
+      ],
+      "hint_ladder": [
+        {
+          "en": "Filter: source is the beaker, apparatus is the flask.",
+          "zh": "过滤操作：来源选烧杯，接收选锥形瓶。"
+        },
+        {
+          "en": "The filtrate is clear — dissolved ions passed through.",
+          "zh": "注意滤液是澄清的——溶解的离子穿过了滤纸。"
+        }
+      ],
+      "id": "step.filter",
+      "objective": {
+        "en": "Filter the mixture into the receiving flask and compare the filtrate with the residue.",
+        "zh": "把混合液过滤到接收瓶中，比较滤液与留在原烧杯中的固体。"
+      },
+      "title": {
+        "en": "Filter",
+        "zh": "过滤分离"
+      }
+    }
+  ],
+  "reagents": [
+    {
+      "concentration_label": {
+        "en": "0.5 mol/L",
+        "zh": "0.5 mol/L"
+      },
+      "description": {
+        "en": "Soluble salt supplying carbonate.",
+        "zh": "提供碳酸根的可溶盐溶液。"
+      },
+      "id": "reagent.na2co3",
+      "species": [
+        "co3_ion",
+        "na_plus"
+      ],
+      "vessel_id": "na2co3-stock"
+    }
+  ],
+  "rule_ids": [
+    "rule.precipitation_caco3.v1"
+  ],
+  "safety_profile": {
+    "id": "teaching_virtual_irritant_v1",
+    "lock_temperature_milli_c": 95000,
+    "notes": {
+      "en": "Treat virtual salt solutions as irritants: pour carefully and do not overfill.",
+      "zh": "虚拟盐溶液按刺激性液体对待：倾倒时对准容器，避免洒出容量上限。"
+    },
+    "warn_temperature_milli_c": 60000
+  },
+  "schema_version": 1,
+  "source": "project_authored",
+  "species": [
+    "water",
+    "ca_plus",
+    "co3_ion",
+    "caco3",
+    "na_plus",
+    "cl_minus"
+  ],
+  "starting_state": {
+    "equipment": [
+      {
+        "id": "pipette-1",
+        "kind": "pipette",
+        "slot": "b3"
+      },
+      {
+        "id": "rod-1",
+        "kind": "stir_rod",
+        "slot": "b4"
+      }
+    ],
+    "room_temperature_milli_c": 25000,
+    "slots": [
+      {
+        "h": 190,
+        "id": "b1",
+        "w": 130,
+        "x": 30,
+        "y": 90
+      },
+      {
+        "h": 190,
+        "id": "b3",
+        "w": 130,
+        "x": 340,
+        "y": 90
+      },
+      {
+        "h": 190,
+        "id": "b4",
+        "w": 130,
+        "x": 495,
+        "y": 90
+      },
+      {
+        "h": 260,
+        "id": "f1",
+        "w": 170,
+        "x": 30,
+        "y": 400
+      },
+      {
+        "h": 260,
+        "id": "f2",
+        "w": 170,
+        "x": 230,
+        "y": 400
+      }
+    ],
+    "vessels": [
+      {
+        "capacity_uL": 250000,
+        "collects_gas": false,
+        "contents": {
+          "ca_plus": 10000,
+          "cl_minus": 20000
+        },
+        "gases": {},
+        "id": "cacl2-beaker",
+        "kind": "beaker.small",
+        "label": {
+          "en": "20 mL of 0.5 mol/L CaCl₂",
+          "zh": "0.5 mol/L 氯化钙 20 mL"
+        },
+        "slot": "f1",
+        "solids": {},
+        "temperature_milli_c": null,
+        "volume_uL": 20000
+      },
+      {
+        "capacity_uL": 500000,
+        "collects_gas": false,
+        "contents": {
+          "co3_ion": 50000,
+          "na_plus": 100000
+        },
+        "gases": {},
+        "id": "na2co3-stock",
+        "kind": "reagent_bottle",
+        "label": {
+          "en": "0.5 mol/L Na₂CO₃",
+          "zh": "0.5 mol/L 碳酸钠"
+        },
+        "slot": "b1",
+        "solids": {},
+        "temperature_milli_c": null,
+        "volume_uL": 100000
+      },
+      {
+        "capacity_uL": 250000,
+        "collects_gas": false,
+        "contents": {},
+        "gases": {},
+        "id": "receiver",
+        "kind": "conical_flask",
+        "label": {
+          "en": "Receiving flask",
+          "zh": "接收瓶"
+        },
+        "slot": "f2",
+        "solids": {},
+        "temperature_milli_c": null,
+        "volume_uL": 0
+      }
+    ]
+  },
+  "summary": {
+    "en": "Add sodium carbonate to calcium chloride, watch white CaCO₃ precipitate and the cloudy mixture settle into layers, then filter to separate solid from filtrate.",
+    "zh": "把碳酸钠溶液加入氯化钙溶液，观察白色碳酸钙沉淀生成、浑浊液静置分层，再过滤分离固体与滤液。"
+  },
+  "title": {
+    "en": "Precipitation and filtration",
+    "zh": "沉淀反应与过滤"
+  },
+  "visual_theme": {
+    "color_hex": {
+      "clear": "#dceaf4",
+      "precipitate.white": "#f8fafc"
+    },
+    "color_tokens": {
+      "clear": {
+        "en": "colorless",
+        "zh": "无色透明"
+      },
+      "precipitate.white": {
+        "en": "white precipitate",
+        "zh": "白色沉淀"
+      }
+    },
+    "id": "paper_lab_v1",
+    "textures": {
+      "layer": {
+        "en": "settled layer",
+        "zh": "沉降分层"
+      },
+      "powder": {
+        "en": "fine powder",
+        "zh": "细腻粉末"
+      }
+    }
+  }
+}

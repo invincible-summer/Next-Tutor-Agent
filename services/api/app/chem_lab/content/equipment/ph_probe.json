@@ -1,0 +1,12 @@
+{
+  "id": "ph_probe",
+  "kind": "equipment",
+  "schema_version": 1,
+  "name": {"zh": "pH 计", "en": "pH probe"},
+  "category": "instrument",
+  "heat_compatible": false,
+  "pourable": false,
+  "measures": ["ph", "temperature"],
+  "footprint": [36, 150],
+  "instrument_label": {"zh": "pH", "en": "pH"}
+}

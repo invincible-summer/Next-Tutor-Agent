@@ -1,0 +1,14 @@
+{
+  "id": "h_plus",
+  "kind": "species",
+  "schema_version": 1,
+  "name": {"zh": "氢离子（强酸模型）", "en": "Hydrogen ion (strong-acid model)"},
+  "formula": "H⁺",
+  "state": "solute",
+  "role": "acid",
+  "color_token": "clear",
+  "teaching_note": {
+    "zh": "以浓度近似代表强酸给出的 H⁺；教学模型用浓度代替活度计算 pH，仅适用于稀溶液。",
+    "en": "Stands in for H⁺ from a strong acid. The teaching model uses concentration instead of activity and only holds for dilute solutions."
+  }
+}

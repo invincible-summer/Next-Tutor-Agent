@@ -1,0 +1,11 @@
+{
+  "id": "reagent_bottle",
+  "kind": "equipment",
+  "schema_version": 1,
+  "name": {"zh": "试剂瓶", "en": "Reagent bottle"},
+  "category": "container",
+  "capacity_uL": 500000,
+  "heat_compatible": false,
+  "footprint": [100, 160],
+  "ports": [{"id": "mouth", "x": 50, "y": 0}]
+}

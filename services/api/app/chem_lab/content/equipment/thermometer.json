@@ -1,0 +1,12 @@
+{
+  "id": "thermometer",
+  "kind": "equipment",
+  "schema_version": 1,
+  "name": {"zh": "温度计", "en": "Thermometer"},
+  "category": "instrument",
+  "heat_compatible": false,
+  "pourable": false,
+  "measures": ["temperature"],
+  "footprint": [20, 170],
+  "instrument_label": {"zh": "°C", "en": "°C"}
+}

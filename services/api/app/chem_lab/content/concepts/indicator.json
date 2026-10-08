@@ -1,0 +1,11 @@
+{
+  "id": "concept.indicator",
+  "kind": "concept",
+  "schema_version": 1,
+  "title": {"zh": "指示剂变色", "en": "Indicator color change"},
+  "body": {
+    "zh": "酚酞本身是一种弱酸型染料，在 pH 约 8.2 以下无色，以上变为粉红。它只“报告”pH 区间，不参与中和计量；教学模型用两个色带近似真实的渐变。",
+    "en": "Phenolphthalein is a dye that is colorless below about pH 8.2 and pink above. It only reports a pH range and does not enter the stoichiometry; the teaching model approximates the gradual transition with two bands."
+  },
+  "prerequisites": ["concept.ph_scale"]
+}

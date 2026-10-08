@@ -1,0 +1,161 @@
+{
+  "id": "chem.acid_base_indicator",
+  "kind": "experiment",
+  "schema_version": 1,
+  "pack_version": "1.0.0",
+  "title": {"zh": "酸碱指示与中和滴定", "en": "Acid-base indicator and titration"},
+  "summary": {
+    "zh": "在盐酸中加入酚酞，逐次滴入氢氧化钠并跟踪 pH，观察等量点附近 pH 的突变与指示剂由无色转粉红的瞬间。",
+    "en": "Add phenolphthalein to hydrochloric acid, titrate with sodium hydroxide while tracking pH, and watch the sharp pH jump and the colorless-to-pink endpoint."
+  },
+  "audience": ["middle_school", "high_school_intro"],
+  "model_scope": {
+    "zh": "稀溶液强酸强碱模型：pH 用浓度近似（非活度），不覆盖弱酸弱碱与缓冲体系；指示剂用两个色带近似。",
+    "en": "Dilute strong-acid/strong-base model: pH from concentration (not activity); weak acids, bases and buffers are out of scope; the indicator uses two color bands."
+  },
+  "modes": ["guided", "explore", "self_check"],
+  "equipment": ["reagent_bottle", "beaker.small", "dropper", "pipette", "ph_probe", "stir_rod"],
+  "species": ["water", "h_plus", "oh_minus", "na_plus", "cl_minus", "phenolphthalein"],
+  "rule_ids": ["rule.neutralization.v1"],
+  "concept_ids": ["concept.ph_scale", "concept.indicator", "concept.neutralization"],
+  "starting_state": {
+    "room_temperature_milli_c": 25000,
+    "slots": [
+      {"id": "b1", "x": 30, "y": 90, "w": 130, "h": 190},
+      {"id": "b2", "x": 185, "y": 90, "w": 130, "h": 190},
+      {"id": "b3", "x": 340, "y": 90, "w": 130, "h": 190},
+      {"id": "b4", "x": 495, "y": 90, "w": 130, "h": 190},
+      {"id": "b5", "x": 650, "y": 90, "w": 130, "h": 190},
+      {"id": "b6", "x": 805, "y": 90, "w": 130, "h": 190},
+      {"id": "f1", "x": 30, "y": 400, "w": 170, "h": 260}
+    ],
+    "vessels": [
+      {"id": "acid-beaker", "kind": "beaker.small", "slot": "f1", "capacity_uL": 250000,
+       "volume_uL": 25000, "contents": {"h_plus": 2500, "cl_minus": 2500},
+       "label": {"zh": "0.1 mol/L 盐酸 25 mL", "en": "25 mL of 0.1 mol/L HCl"}},
+      {"id": "naoh-stock", "kind": "reagent_bottle", "slot": "b1", "capacity_uL": 500000,
+       "volume_uL": 100000, "contents": {"oh_minus": 10000, "na_plus": 10000},
+       "label": {"zh": "0.1 mol/L 氢氧化钠", "en": "0.1 mol/L NaOH"}},
+      {"id": "indicator-stock", "kind": "reagent_bottle", "slot": "b2", "capacity_uL": 500000,
+       "volume_uL": 50000, "contents": {"phenolphthalein": 2500},
+       "label": {"zh": "酚酞试液", "en": "Phenolphthalein solution"}}
+    ],
+    "equipment": [
+      {"id": "dropper-1", "kind": "dropper", "slot": "b3"},
+      {"id": "pipette-1", "kind": "pipette", "slot": "b4"},
+      {"id": "ph-1", "kind": "ph_probe", "slot": "b5"},
+      {"id": "rod-1", "kind": "stir_rod", "slot": "b6"}
+    ]
+  },
+  "reagents": [
+    {"id": "reagent.naoh", "vessel_id": "naoh-stock", "species": ["oh_minus", "na_plus"],
+     "description": {"zh": "强碱滴定液。", "en": "Strong-base titrant."},
+     "concentration_label": {"zh": "0.1 mol/L", "en": "0.1 mol/L"}},
+    {"id": "reagent.indicator", "vessel_id": "indicator-stock", "species": ["phenolphthalein"],
+     "description": {"zh": "酸碱指示剂，pH 约 8.2 以下无色、以上粉红。", "en": "Indicator: colorless below ~pH 8.2, pink above."},
+     "concentration_label": {"zh": "0.05 mol/L", "en": "0.05 mol/L"}}
+  ],
+  "procedure": [
+    {
+      "id": "step.indicator",
+      "title": {"zh": "加入指示剂", "en": "Add the indicator"},
+      "objective": {"zh": "用滴管向盐酸中滴加约 2 mL 酚酞试液。", "en": "Add about 2 mL of phenolphthalein to the acid with the dropper."},
+      "accepted_commands": ["aspirate", "dispense"],
+      "expected_observations": ["indicator_present"],
+      "hint_ladder": [
+        {"zh": "选滴管，在酚酞试液瓶中吸取。", "en": "Pick the dropper and aspirate from the phenolphthalein bottle."},
+        {"zh": "2 mL 即 2000 µL，滴入烧杯即可。", "en": "2 mL is 2000 µL — dispense into the beaker."}
+      ],
+      "concept_ids": ["concept.indicator"]
+    },
+    {
+      "id": "step.measure_start",
+      "title": {"zh": "测初始 pH", "en": "Measure the starting pH"},
+      "objective": {"zh": "用 pH 计测量烧杯中溶液的初始 pH 并读数。", "en": "Measure the starting pH of the beaker with the pH probe."},
+      "accepted_commands": ["measure"],
+      "expected_observations": ["measured_ph"],
+      "hint_ladder": [
+        {"zh": "选中 pH 计，对烧杯做一次 pH 测量。", "en": "Select the pH probe and take a pH reading of the beaker."}
+      ],
+      "concept_ids": ["concept.ph_scale"]
+    },
+    {
+      "id": "step.titrate",
+      "title": {"zh": "分次滴定", "en": "Titrate in portions"},
+      "objective": {"zh": "用移液管分次加入 NaOH（每次几毫升），搅拌后再测一次 pH，观察 pH 如何爬升。", "en": "Add NaOH in portions of a few mL, stir, then take another pH reading to watch it climb."},
+      "accepted_commands": ["aspirate", "dispense", "pour", "stir", "measure"],
+      "expected_observations": ["measured_ph"],
+      "hint_ladder": [
+        {"zh": "每次加入后搅拌，让反应充分进行。", "en": "Stir after each addition so the reaction completes."},
+        {"zh": "加完一批再测 pH，对比上一次的读数。", "en": "Measure pH after each batch and compare with the last reading."},
+        {"zh": "接近 25 mL 时每次少加一些——突变就在眼前。", "en": "Near 25 mL, add smaller portions — the jump is close."}
+      ],
+      "concept_ids": ["concept.neutralization"]
+    },
+    {
+      "id": "step.endpoint",
+      "title": {"zh": "到达终点", "en": "Reach the endpoint"},
+      "objective": {"zh": "继续小心滴定，直到溶液刚好由无色变为粉红。", "en": "Titrate carefully until the solution just turns pink."},
+      "accepted_commands": ["aspirate", "dispense", "pour", "stir", "wait"],
+      "expected_observations": ["color_changed"],
+      "hint_ladder": [
+        {"zh": "改用滴管每次加 1 mL 以内。", "en": "Switch to the dropper and add less than 1 mL at a time."},
+        {"zh": "理论等量点在 25 mL 左右，超过一点就会变粉。", "en": "Equivalence is near 25 mL; a slight excess turns it pink."}
+      ],
+      "concept_ids": ["concept.neutralization", "concept.indicator"]
+    }
+  ],
+  "goals": [
+    {"id": "goal.reach_endpoint", "title": {"zh": "观察到指示剂变色", "en": "Observe the indicator change"},
+     "requires_observations": ["color_changed"]},
+    {"id": "goal.track_ph", "title": {"zh": "跟踪 pH 变化", "en": "Track the pH"},
+     "requires_observations": ["measured_ph"]}
+  ],
+  "predictions": [
+    {
+      "id": "pred.initial_ph",
+      "step_id": "step.measure_start",
+      "question": {"zh": "0.1 mol/L 盐酸的初始 pH 最接近多少？", "en": "The starting pH of 0.1 mol/L HCl is closest to…"},
+      "options": [
+        {"id": "a", "label": {"zh": "1", "en": "1"}, "correct": true},
+        {"id": "b", "label": {"zh": "5", "en": "5"}},
+        {"id": "c", "label": {"zh": "7", "en": "7"}},
+        {"id": "d", "label": {"zh": "13", "en": "13"}}
+      ]
+    },
+    {
+      "id": "pred.endpoint_look",
+      "step_id": "step.endpoint",
+      "question": {"zh": "在等量点附近再滴入少量 NaOH，最可能发生什么？", "en": "Near equivalence, one more small addition of NaOH will most likely…"},
+      "options": [
+        {"id": "a", "label": {"zh": "溶液变粉红，pH 大幅上升", "en": "Turn pink with a sharp pH rise"}, "correct": true},
+        {"id": "b", "label": {"zh": "pH 几乎不变，颜色也不变", "en": "Barely change pH or color"}},
+        {"id": "c", "label": {"zh": "生成白色沉淀", "en": "Form a white precipitate"}},
+        {"id": "d", "label": {"zh": "放出大量气体", "en": "Release lots of gas"}}
+      ]
+    }
+  ],
+  "safety_profile": {
+    "id": "teaching_virtual_irritant_v1",
+    "warn_temperature_milli_c": 60000,
+    "lock_temperature_milli_c": 95000,
+    "notes": {"zh": "虚拟酸碱按刺激性液体对待：少量多次滴加，沾污器材及时清洗。", "en": "Treat virtual acid/base as irritants: add in small portions and wash contaminated tools."}
+  },
+  "visual_theme": {
+    "id": "paper_lab_v1",
+    "color_tokens": {
+      "clear": {"zh": "无色透明", "en": "colorless"},
+      "indicator.pink": {"zh": "粉红色", "en": "pink"}
+    },
+    "color_hex": {
+      "clear": "#dceaf4",
+      "indicator.pink": "#f472b6"
+    }
+  },
+  "ph_model": "strong_binary_v1",
+  "observation_visibility": {
+    "guided": ["indicator_present", "measured_ph", "color_visible", "color_changed"],
+    "explore": ["indicator_present", "measured_ph", "color_visible", "color_changed"],
+    "self_check": ["indicator_present", "color_visible"]
+  }
+}

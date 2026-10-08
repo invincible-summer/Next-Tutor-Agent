@@ -111,7 +111,7 @@ chat 页右上角电话按钮为唯一入口（`GET /voice/status` 决定显隐�
 
 ### 加载性能
 
-`start.sh` 默认 `FRONTEND_MODE=prod`（按需 `next build --webpack` + `next start`，源码/后端端口变化自动重建，`REBUILD=1` 强制；`./start.sh dev` 回热重载）。路由级分包：重页面 `next/dynamic` 懒加载 + `(workspace)/loading.tsx` 统一骨架；`GET /sidebar` 组合快照（ETag/304）替代侧栏 N+1；`GET /chat/sessions/{id}?tail=N` 渐进加载（首屏最近 40 条 + `.msg-cv` content-visibility）。
+`start.sh` 默认 `FRONTEND_MODE=prod`（按需 `next build --webpack` + `next start`，源码/后端端口变化自动重建，`REBUILD=1` 强制；`./start.sh dev` 回热重载）。**dev 与 prod 统一 webpack 通道**（`next dev --webpack`，与 `build`/e2e 一致）：Next 16 的 `next dev` 默认 Turbopack，与钉死 webpack 的生产构建形成双 bundler 分叉，曾导致 dev 下 `(workspace)` 路由整页空白（客户端应用未启动，0 次 RSC 导航）而 prod 正常；`next.config.ts` 的 `allowedDevOrigins` 放行 127.0.0.1/localhost 的常用 dev 端口，避免 Next 16 跨源防护 403 掉 HMR 与错误覆盖层（WSL2 下用 127.0.0.1 访问时的白屏不可见问题）。路由级分包：重页面 `next/dynamic` 懒加载 + `(workspace)/loading.tsx` 统一骨架；`GET /sidebar` 组合快照（ETag/304）替代侧栏 N+1；`GET /chat/sessions/{id}?tail=N` 渐进加载（首屏最近 40 条 + `.msg-cv` content-visibility）。
 
 ## Dependencies（依赖与被依赖）
 

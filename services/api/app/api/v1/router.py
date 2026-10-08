@@ -14,6 +14,7 @@ from app.api.v1 import assessment_illustration
 from app.api.v1 import diagram_library
 from app.api.v1 import diagram_materials
 from app.api.v1 import illustration_jobs
+from app.api.v1 import tool_chem_lab
 from app.api.v1 import tool_illustration
 from app.api.v1 import learner_evaluation
 from app.api.v1 import evaluation
@@ -52,6 +53,7 @@ api_router.include_router(assessment_illustration.router)
 api_router.include_router(diagram_library.router)
 api_router.include_router(diagram_materials.router)
 api_router.include_router(illustration_jobs.router)
+api_router.include_router(tool_chem_lab.router)
 api_router.include_router(tool_illustration.router)
 api_router.include_router(learner_evaluation.router)
 api_router.include_router(evaluation.router)

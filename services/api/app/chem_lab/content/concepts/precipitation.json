@@ -1,0 +1,15 @@
+{
+  "id": "concept.precipitation",
+  "kind": "concept",
+  "schema_version": 1,
+  "title": {"zh": "沉淀反应", "en": "Precipitation"},
+  "body": {
+    "zh": "两种可溶盐混合时，若某种离子组合难溶，就会析出固体沉淀。氯化钙与碳酸钠混合生成白色碳酸钙，钠离子和氯离子留在溶液中旁观。浑浊来自悬浮的细小颗粒，静置后会沉降分层。",
+    "en": "Mixing two soluble salts can precipitate an insoluble ion pair. CaCl₂ + Na₂CO₃ yields white CaCO₃ while Na⁺ and Cl⁻ spectate. Turbidity comes from suspended fine particles that settle into a layer on standing."
+  },
+  "equation": "Ca²⁺ + CO₃²⁻ → CaCO₃↓",
+  "misconception": {
+    "zh": "变浑浊不是“起了雾”，而是生成了悬浮的固体微粒。",
+    "en": "Cloudiness is not 'fog' — it is suspended solid particles forming."
+  }
+}

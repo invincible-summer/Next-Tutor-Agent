@@ -19,6 +19,15 @@ const nextConfig: NextConfig = {
   } : {}),
   // Hide the Next.js dev/build floating indicator.
   devIndicators: false,
+  // WSL2 常见访问形态是用 127.0.0.1 打开绑定在 localhost 的 dev server；Next 16
+  // 的跨源防护默认会 403 掉这种 HMR/错误覆盖层请求（页面白屏且无任何报错可
+  // 见）。显式放行本机两个回环主机上的常用 dev 端口。
+  allowedDevOrigins: [
+    "http://localhost:3000",
+    "http://localhost:3001",
+    "http://127.0.0.1:3000",
+    "http://127.0.0.1:3001",
+  ],
   // Ordinary quiz requests can spend 90 seconds on text and 120 seconds on
   // diagrams. Leave 30 seconds for transport and cleanup through this proxy.
   experimental: { proxyTimeout: 240_000 },

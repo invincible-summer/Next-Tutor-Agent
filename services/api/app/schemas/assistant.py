@@ -75,6 +75,8 @@ class AssistantRouteId(str, Enum):
     ASSESSMENT = "assessment"
     TOOLS = "tools"
     TOOLS_ILLUSTRATION = "tools_illustration"
+    TOOLS_LAB = "tools_lab"
+    TOOLS_LAB_CHEMISTRY = "tools_lab_chemistry"
     MEMORY = "memory"
     RESOURCES_FILES = "resources_files"
     RESOURCES_TEXTBOOKS = "resources_textbooks"

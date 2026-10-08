@@ -1,0 +1,15 @@
+{
+  "id": "concept.filtration",
+  "kind": "concept",
+  "schema_version": 1,
+  "title": {"zh": "过滤分离", "en": "Filtration"},
+  "body": {
+    "zh": "过滤利用颗粒大小差异分离固液：液体（滤液）带着溶解的离子通过，固体（滤渣）被截留。先让沉淀静置沉降再过滤，可以倒得更清、滤得更快。",
+    "en": "Filtration separates by particle size: the filtrate carries dissolved ions through while the residue is retained. Letting the precipitate settle first makes pouring cleaner and filtering faster."
+  },
+  "prerequisites": ["concept.precipitation"],
+  "misconception": {
+    "zh": "过滤不能把溶解的离子“滤掉”——它们比滤孔小得多。",
+    "en": "Filtration cannot remove dissolved ions — they are far smaller than the pores."
+  }
+}

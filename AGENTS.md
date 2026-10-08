@@ -36,6 +36,7 @@ For anything beyond mechanical edits, open the module README plus its canonical 
 | Notes | `app/notes` + `agents/notes_agent.py` | `notes.md` |
 | Diagrams / illustration | `app/diagrams` + `app/illustration` | `diagrams-illustration.md` |
 | Tool assistant / scenario illustration | `app/illustration` + frontend `/tools` | `tool-assistant.md` |
+| Chem lab (simulation bench) | `app/chem_lab` + `packages/domain/src/chem-lab` + frontend `/tools/lab` | `chem-lab.md` |
 | Voice | `app/voice` + `services/voice` | `voice.md` |
 | Backend runtime / core | `app/core` + `app/main.py` | `backend-runtime.md` |
 

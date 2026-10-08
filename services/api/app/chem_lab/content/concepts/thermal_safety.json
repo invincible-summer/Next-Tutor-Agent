@@ -1,0 +1,11 @@
+{
+  "id": "concept.thermal_safety",
+  "kind": "concept",
+  "schema_version": 1,
+  "title": {"zh": "加热与热安全", "en": "Heating and thermal safety"},
+  "body": {
+    "zh": "液体吸热升温、离火后向环境散热（温度越高降得越快）。本实验台在 60 °C 给出过热提示、95 °C 触发安全锁定——锁定后只能查看原因并从检查点重来，这是虚拟实验特有的“保险丝”。",
+    "en": "Liquids warm as they absorb heat and cool toward room temperature off the heat (faster when hotter). This lab warns at 60 °C and safety-locks at 95 °C — after a lock you inspect the reason and restart from a checkpoint, a fuse only a virtual lab can offer."
+  },
+  "equation": "Q = c × m × ΔT"
+}

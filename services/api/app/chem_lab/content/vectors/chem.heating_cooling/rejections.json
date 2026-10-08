@@ -1,0 +1,53 @@
+{
+  "name": "rejections",
+  "description": "用温度计当加热设备、用温度计测 pH、未知容器加热等拒绝路径。",
+  "mode": "guided",
+  "session_seed": 0,
+  "script": [
+    {
+      "kind": "heat",
+      "device_id": "thermo-1",
+      "vessel_id": "beaker",
+      "power_permille": 500,
+      "duration_ms": 5000
+    },
+    {
+      "kind": "measure",
+      "instrument_id": "thermo-1",
+      "vessel_id": "beaker",
+      "quantity": "ph"
+    },
+    {
+      "kind": "heat",
+      "device_id": "plate-1",
+      "vessel_id": "ghost",
+      "power_permille": 500,
+      "duration_ms": 5000
+    },
+    {
+      "kind": "measure",
+      "instrument_id": "thermo-1",
+      "vessel_id": "beaker",
+      "quantity": "temperature"
+    }
+  ],
+  "expect_event_kinds": [
+    "command_rejected",
+    "measurement_taken"
+  ],
+  "expect_final_phase": "running",
+  "state_hashes": [
+    "15f70f08087bb498",
+    "18b7e5595b78fcae",
+    "a937ba3536aa99c0",
+    "d5b5583992806bf2",
+    "7e258c1dcfde2960"
+  ],
+  "final_hash": "7e258c1dcfde2960",
+  "accepted": [
+    false,
+    false,
+    false,
+    true
+  ]
+}

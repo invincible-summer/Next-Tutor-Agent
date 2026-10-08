@@ -10,6 +10,7 @@
   - Pages 演示唯一内容源 `fixtures/demo/`（虚构书名、`fx_*` 合成 id，README 声明 synthetic 来源）；
   - E2E 用的合成教材文本 fixture（如 `apps/web/tests/e2e/fixtures/` 下的 `synthetic-zx17-grounding.txt`，fixtures README 声明 project-authored synthetic）；
 - 项目原创/程序化生成的 SVG 及其 provenance（`services/api/assets/diagram_library/`，含逐素材 `material.json`/`usage_guide.json` 与审核台账）；
+- 项目自研的模拟实验内容包（`services/api/app/chem_lab/content/`：实验定义、物质/规则/器材/概念、回放向量，全部为 project-authored synthetic，不含真实教材内容；改动须经 `scripts/chem_lab/validate_pack.py` 重锚 manifest）；
 - 可确定性重建的生成型 catalog/reference（如 [../reference/diagram-assets.md](../reference/diagram-assets.md)，由 `scripts/diagrams/build_catalog.py` 生成，`--check` 保证与源一致）；
 - 第三方许可证文本（`licenses/`、`THIRD-PARTY-NOTICES.md`）。
 

@@ -19,6 +19,10 @@
     "./illustration": {
       "types": "./src/generated/illustration.ts",
       "default": "./src/generated/illustration.ts"
+    },
+    "./chem_lab": {
+      "types": "./src/generated/chem_lab.ts",
+      "default": "./src/generated/chem_lab.ts"
     }
   },
   "scripts": {
@@ -26,6 +30,7 @@
     "test": "node --experimental-strip-types --test tests/*.test.ts"
   },
   "devDependencies": {
-    "@types/node": "^20"
+    "@types/node": "^20",
+    "typescript": "^5.9.2"
   }
 }

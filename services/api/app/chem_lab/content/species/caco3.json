@@ -1,0 +1,16 @@
+{
+  "id": "caco3",
+  "kind": "species",
+  "schema_version": 1,
+  "name": {"zh": "碳酸钙", "en": "Calcium carbonate"},
+  "formula": "CaCO₃",
+  "state": "solid",
+  "role": "precipitate",
+  "color_token": "precipitate.white",
+  "color_label": {"zh": "白色沉淀", "en": "white precipitate"},
+  "visible_amount_umol": 50,
+  "teaching_note": {
+    "zh": "白色粉末状沉淀，静置后会沉降到底部，可用过滤分离。",
+    "en": "White powdery precipitate that settles on standing and can be separated by filtration."
+  }
+}

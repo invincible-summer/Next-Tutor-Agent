@@ -1,0 +1,14 @@
+{
+  "id": "ca_plus",
+  "kind": "species",
+  "schema_version": 1,
+  "name": {"zh": "钙离子", "en": "Calcium ion"},
+  "formula": "Ca²⁺",
+  "state": "solute",
+  "role": "ion",
+  "color_token": "clear",
+  "teaching_note": {
+    "zh": "与碳酸根按 1:1 生成碳酸钙沉淀；模型把 Ca²⁺ 记作一个计量单位粒子。",
+    "en": "Precipitates with carbonate 1:1 as CaCO₃; the model counts Ca²⁺ as one stoichiometric unit."
+  }
+}
