@@ -259,6 +259,83 @@ def get_session(owner: str, session_id: str) -> dict:
     return _snapshot(owner, doc)
 
 
+def _scene_vessel(row: dict) -> dict:
+    return {
+        "kind": row["kind"],
+        "slot": row["slot"],
+        "volume_uL": row.get("volume_uL", 0),
+        "capacity_uL": row.get("capacity_uL", 0),
+        "temperature_milli_c": row.get("temperature_milli_c", 0),
+        "mix_permille": row.get("mix_permille", 0),
+        "heat": copy.deepcopy(row["heat"]) if row.get("heat") else None,
+    }
+
+
+def _scene_equipment(row: dict) -> dict:
+    load = row.get("load") or {}
+    return {
+        "kind": row["kind"],
+        "slot": row["slot"],
+        "load_volume_uL": load.get("volume_uL", 0),
+        "connected": copy.deepcopy(row["connected"]) if row.get("connected") else None,
+        "reading": copy.deepcopy(row["reading"]) if row.get("reading") else None,
+    }
+
+
+def get_revision(owner: str, session_id: str, revision: int) -> dict:
+    """Read-only historical view at ``revision``: replays the stored script,
+    writes nothing (no branch/checkpoint/event/updated_at), and applies the
+    session mode's observation/event visibility exactly like the live
+    snapshot."""
+    _ensure_enabled()
+    doc = _load_live_doc(owner, session_id)
+    script = doc["script"]
+    if revision < 0 or revision > len(script):
+        raise ChemLabError("revision_out_of_range",
+                           f"revision 需在 0..{len(script)} 之间", status=404)
+    pack = _runtime_pack(doc)
+    if revision == len(script):
+        state = doc["state"]
+        events = state.get("_recent_events", [])
+    else:
+        state, events = replay_to_revision(
+            pack, script, mode=doc["mode"],
+            session_seed=doc["session_seed"], revision=revision)
+        if not state.get("state_hash"):
+            # replay stops before any apply_command, so the initial hash was
+            # never computed — derive it exactly like create_session does.
+            state["state_hash"] = state_hash(state)
+    mode = doc["mode"]
+    return {
+        "session_id": doc["session_id"],
+        "experiment_id": doc["experiment_id"],
+        "pack_version": doc["pack_version"],
+        "pack_hash": doc["pack_hash"],
+        "mode": mode,
+        "language": doc["language"],
+        "read_only": True,
+        "revision": revision,
+        "tip_revision": doc["state"]["revision"],
+        "sim_time_ms": state["sim_time_ms"],
+        "state_hash": state["state_hash"],
+        "phase": state["phase"],
+        "render_frame": render_frame(state, pack["_species_defs"]),
+        "scene_state": {
+            "vessels": {vid: _scene_vessel(row)
+                        for vid, row in state["vessels"].items()},
+            "equipment": {eid: _scene_equipment(row)
+                          for eid, row in state["equipment"].items()},
+            "held": state.get("held"),
+        },
+        "goals": goals_status(pack, state),
+        "completed_steps": list(state["completed_steps"]),
+        "observations": _public_observations(pack, mode, state["observations"]),
+        "recent_events": _public_events(pack, mode, events[-8:]),
+        "guidance": _guidance(pack, {"state": state, "language": doc["language"]},
+                              events[-8:]),
+    }
+
+
 def delete_session(owner: str, session_id: str) -> dict:
     _ensure_enabled()
     with persistence.lock(owner):

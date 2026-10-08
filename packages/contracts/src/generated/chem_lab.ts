@@ -252,3 +252,49 @@ export interface ChemLabResultCard {
 export interface ChemLabDeletedAck {
   deleted: boolean;
 }
+
+export interface ChemLabSceneVessel {
+  kind: string;
+  slot: string;
+  volume_uL?: number;
+  capacity_uL?: number;
+  temperature_milli_c?: number;
+  mix_permille?: number;
+  heat?: Record<string, unknown> | null;
+}
+
+export interface ChemLabSceneEquipment {
+  kind: string;
+  slot: string;
+  load_volume_uL?: number;
+  connected?: Record<string, unknown> | null;
+  reading?: Record<string, unknown> | null;
+}
+
+export interface ChemLabSceneState {
+  vessels?: Record<string, ChemLabSceneVessel>;
+  equipment?: Record<string, ChemLabSceneEquipment>;
+  held?: string | null;
+}
+
+export interface ChemLabRevisionView {
+  session_id: string;
+  experiment_id: string;
+  pack_version: string;
+  pack_hash: string;
+  mode: "guided" | "explore" | "self_check";
+  language: string;
+  read_only?: true;
+  revision: number;
+  tip_revision: number;
+  sim_time_ms: number;
+  state_hash: string;
+  phase: "setup" | "ready" | "running" | "safety_locked" | "completed";
+  render_frame: ChemLabRenderFrame;
+  scene_state: ChemLabSceneState;
+  goals?: Array<ChemLabGoalStatus>;
+  completed_steps?: Array<string>;
+  observations?: Array<ChemLabObservation>;
+  recent_events?: Array<ChemLabEvent>;
+  guidance?: ChemLabGuidance | null;
+}

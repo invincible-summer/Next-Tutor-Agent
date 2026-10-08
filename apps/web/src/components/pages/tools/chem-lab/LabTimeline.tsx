@@ -35,6 +35,8 @@ export interface LabTimelineProps {
   onReset: () => void;
   onFinish: () => void;
   onCompare: () => void;
+  /** Provided when revision browsing is available: jumps into history mode. */
+  onJumpRevision?: (revision: number) => void;
 }
 
 export function LabTimeline({
@@ -54,6 +56,7 @@ export function LabTimeline({
   onReset,
   onFinish,
   onCompare,
+  onJumpRevision,
 }: LabTimelineProps) {
   const [naming, setNaming] = useState(false);
   const [label, setLabel] = useState("");
@@ -103,6 +106,28 @@ export function LabTimeline({
           {tr("revisionLabel").replace("%n", String(revision))}
           {revision !== serverRevision ? ` · ${tr("serverRevision").replace("%n", String(serverRevision))}` : ""}
         </span>
+        {onJumpRevision && (
+          <span className="flex items-center gap-0.5" data-testid="chem-lab-revision-jump">
+            <button
+              type="button"
+              aria-label={tr("historyPrev")}
+              disabled={busy || revision <= 0}
+              onClick={() => onJumpRevision(revision - 1)}
+              className="flex h-5 w-5 items-center justify-center rounded-[6px] border border-border-light text-[10px] text-muted transition-colors hover:bg-surface-hover hover:text-fg disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline-2 focus-visible:outline-accent"
+            >
+              ‹
+            </button>
+            <button
+              type="button"
+              aria-label={tr("historyNext")}
+              disabled={busy || revision >= serverRevision}
+              onClick={() => onJumpRevision(revision + 1)}
+              className="flex h-5 w-5 items-center justify-center rounded-[6px] border border-border-light text-[10px] text-muted transition-colors hover:bg-surface-hover hover:text-fg disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline-2 focus-visible:outline-accent"
+            >
+              ›
+            </button>
+          </span>
+        )}
         <span
           role="status"
           data-testid="chem-lab-sync-status"

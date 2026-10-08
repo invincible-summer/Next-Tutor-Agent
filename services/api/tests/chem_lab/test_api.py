@@ -363,6 +363,111 @@ class ChemLabApiTest(StorageSandboxTestCase):
         self.assertFalse(persistence.owner_dir(OWNER).exists())
         self.assertGreaterEqual(persistence.epoch(OWNER), 1)
 
+    # -- historical revision views -------------------------------------------
+
+    def _run_commands(self, snap: dict, commands: list[dict]) -> list[dict]:
+        acks = []
+        revision = snap["revision"]
+        for index, command in enumerate(commands):
+            resp = self.client.post(
+                f"{BASE}/sessions/{snap['session_id']}/commands",
+                json=_command_body(command, revision=revision,
+                                   pack_hash=snap["pack_hash"],
+                                   command_id=f"hist-{index}", client_seq=index + 1))
+            self.assertEqual(resp.status_code, 200, resp.text)
+            ack = resp.json()
+            self.assertTrue(ack["accepted"], ack.get("error_code"))
+            revision = ack["revision"]
+            acks.append(ack)
+        return acks
+
+    def _get_revision(self, session_id: str, revision: int):
+        return self.client.get(f"{BASE}/sessions/{session_id}/revisions/{revision}")
+
+    def test_revision_view_replays_history(self) -> None:
+        snap = self._create_session()
+        initial_hash = snap["state_hash"]
+        self._run_commands(snap, [
+            {"kind": "aspirate", "source_id": "stock", "instrument_id": "pipette-1",
+             "amount_uL": 10000},
+            {"kind": "dispense", "instrument_id": "pipette-1", "target_id": "beaker-a",
+             "amount_uL": 5000},
+        ])
+        tip = self.client.get(f"{BASE}/sessions/{snap['session_id']}").json()
+
+        # revision 0 is the untouched initial state
+        resp = self._get_revision(snap["session_id"], 0)
+        self.assertEqual(resp.status_code, 200, resp.text)
+        view0 = resp.json()
+        self.assertTrue(view0["read_only"])
+        self.assertEqual(view0["revision"], 0)
+        self.assertEqual(view0["tip_revision"], 2)
+        self.assertEqual(view0["state_hash"], initial_hash)
+        self.assertEqual(view0["phase"], "ready")
+        self.assertIn("stock", view0["scene_state"]["vessels"])
+        self.assertIn("pipette-1", view0["scene_state"]["equipment"])
+        self.assertIsNone(view0["scene_state"]["held"])
+        self.assertEqual(view0["scene_state"]["vessels"]["beaker-a"]["kind"],
+                         "beaker.small")
+        self.assertEqual(view0["scene_state"]["vessels"]["beaker-a"]["volume_uL"], 0)
+
+        # mid revision reflects the replayed command effects
+        view1 = self._get_revision(snap["session_id"], 1).json()
+        self.assertEqual(view1["revision"], 1)
+        self.assertTrue(view1["state_hash"])
+        self.assertEqual(view1["scene_state"]["equipment"]["pipette-1"]["load_volume_uL"],
+                         10000)
+        self.assertEqual(view1["scene_state"]["vessels"]["beaker-a"]["volume_uL"], 0)
+
+        # tip equals the live snapshot (same state, same visibility filter)
+        view2 = self._get_revision(snap["session_id"], 2).json()
+        self.assertEqual(view2["state_hash"], tip["state_hash"])
+        self.assertEqual(view2["scene_state"]["vessels"]["beaker-a"]["volume_uL"], 5000)
+        self.assertEqual(view2["observations"], tip["observations"])
+
+        # deterministic: repeated requests return the identical projection
+        again = self._get_revision(snap["session_id"], 1).json()
+        self.assertEqual(again, view1)
+
+    def test_revision_view_does_not_mutate_session(self) -> None:
+        snap = self._create_session()
+        self._run_commands(snap, [
+            {"kind": "aspirate", "source_id": "stock", "instrument_id": "pipette-1",
+             "amount_uL": 10000},
+        ])
+        session_id = snap["session_id"]
+        before = self.client.get(f"{BASE}/sessions/{session_id}").json()
+        events_before = self.client.get(f"{BASE}/sessions/{session_id}/events").json()
+        total_before = self.client.get(f"{BASE}/sessions").json()["total"]
+
+        for revision in (0, 1):
+            self.assertEqual(self._get_revision(session_id, revision).status_code, 200)
+
+        after = self.client.get(f"{BASE}/sessions/{session_id}").json()
+        events_after = self.client.get(f"{BASE}/sessions/{session_id}/events").json()
+        total_after = self.client.get(f"{BASE}/sessions").json()["total"]
+        for key in ("revision", "seq", "state_hash", "updated_at", "phase"):
+            self.assertEqual(after[key], before[key], key)
+        self.assertEqual(events_after["next_after_seq"], events_before["next_after_seq"])
+        self.assertEqual(len(events_after["items"]), len(events_before["items"]))
+        self.assertEqual(total_after, total_before)
+
+    def test_revision_view_out_of_range_and_missing(self) -> None:
+        snap = self._create_session()
+        resp = self._get_revision(snap["session_id"], 99)
+        self.assertEqual(resp.status_code, 404)
+        self.assertEqual(resp.json()["detail"]["code"], "chem_lab_revision_out_of_range")
+        self.assertEqual(self._get_revision(snap["session_id"], -1).status_code, 404)
+        missing = self.client.get(f"{BASE}/sessions/clab_nope/revisions/0")
+        self.assertEqual(missing.status_code, 404)
+        self.assertEqual(missing.json()["detail"]["code"], "chem_lab_session_missing")
+
+    def test_revision_view_cross_owner_is_404(self) -> None:
+        snap = self._create_session()
+        other = authenticated_client(self.app, "chem_other")
+        resp = other.get(f"{BASE}/sessions/{snap['session_id']}/revisions/0")
+        self.assertEqual(resp.status_code, 404)
+
     def test_owner_isolation(self) -> None:
         snap = self._create_session()
         other = authenticated_client(self.app, "chem_other")

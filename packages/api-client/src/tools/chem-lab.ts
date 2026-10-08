@@ -29,6 +29,7 @@ import type {
   ChemLabForkResult,
   ChemLabResetRequest,
   ChemLabResultCard,
+  ChemLabRevisionView,
   ChemLabSessionList,
   ChemLabSessionSnapshot,
 } from "@next-tutor/contracts";
@@ -59,6 +60,12 @@ export interface ToolChemLabClient {
     signal?: AbortSignalLike | null,
   ): Promise<ChemLabSessionSnapshot>;
   getSession(sessionId: string, signal?: AbortSignalLike | null): Promise<ChemLabSessionSnapshot>;
+  /** Read-only historical view at one revision (replay-based, no side effects). */
+  getRevision(
+    sessionId: string,
+    revision: number,
+    signal?: AbortSignalLike | null,
+  ): Promise<ChemLabRevisionView>;
   deleteSession(sessionId: string, signal?: AbortSignalLike | null): Promise<ChemLabDeletedAck>;
   postCommand(
     sessionId: string,
@@ -157,6 +164,11 @@ export function createToolChemLabClient(transport: Transport): ToolChemLabClient
       }),
     getSession: (sessionId, signal) =>
       call<ChemLabSessionSnapshot>(sessionPath(sessionId), { signal }),
+    getRevision: (sessionId, revision, signal) =>
+      call<ChemLabRevisionView>(
+        `${sessionPath(sessionId)}/revisions/${Math.max(0, Math.floor(revision))}`,
+        { signal },
+      ),
     deleteSession: (sessionId, signal) =>
       call<ChemLabDeletedAck>(sessionPath(sessionId), { method: "DELETE", signal }),
     postCommand: (sessionId, payload, signal) =>

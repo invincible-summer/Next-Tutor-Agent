@@ -18,6 +18,7 @@ from app.schemas.chem_lab import (
     ChemLabForkResult,
     ChemLabResetRequest,
     ChemLabResultCard,
+    ChemLabRevisionView,
     ChemLabSessionList,
     ChemLabSessionSnapshot,
 )
@@ -70,6 +71,14 @@ def create_session(body: ChemLabCreateSession, owner: str = Depends(resolve_stud
 @router.get("/sessions/{session_id}", response_model=ChemLabSessionSnapshot)
 def get_session(session_id: str, owner: str = Depends(resolve_student_id)):
     return _call(service.get_session, owner, session_id)
+
+
+@router.get("/sessions/{session_id}/revisions/{revision}", response_model=ChemLabRevisionView)
+def get_revision(session_id: str, revision: int,
+                 owner: str = Depends(resolve_student_id)):
+    """Read-only historical view: replays the stored script to ``revision``
+    and writes nothing (branch creation stays on POST /fork)."""
+    return _call(service.get_revision, owner, session_id, revision)
 
 
 @router.delete("/sessions/{session_id}", response_model=ChemLabDeletedAck)

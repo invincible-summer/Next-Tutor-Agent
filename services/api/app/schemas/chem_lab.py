@@ -317,6 +317,60 @@ class ChemLabDeletedAck(BaseModel):
     deleted: bool
 
 
+# --- Historical revision view (read-only) ----------------------------------------
+
+
+class ChemLabSceneVessel(BaseModel):
+    """Minimal vessel facts the scene needs to place and animate objects."""
+    kind: str
+    slot: str
+    volume_uL: int = Field(default=0, ge=0)
+    capacity_uL: int = Field(default=0, ge=0)
+    temperature_milli_c: int = 0
+    mix_permille: int = Field(default=0, ge=0, le=1000)
+    heat: dict[str, Any] | None = None
+
+
+class ChemLabSceneEquipment(BaseModel):
+    kind: str
+    slot: str
+    load_volume_uL: int = Field(default=0, ge=0)
+    connected: dict[str, Any] | None = None
+    reading: dict[str, Any] | None = None
+
+
+class ChemLabSceneState(BaseModel):
+    vessels: dict[str, ChemLabSceneVessel] = Field(default_factory=dict)
+    equipment: dict[str, ChemLabSceneEquipment] = Field(default_factory=dict)
+    held: str | None = None
+
+
+class ChemLabRevisionView(BaseModel):
+    """Read-only projection of one historical revision: replayed from the
+    stored script without touching the session (no writes, no branch, no
+    updated_at bump), filtered with the session mode's visibility rules —
+    exactly what the live snapshot would hide stays hidden here."""
+    session_id: str
+    experiment_id: str
+    pack_version: str
+    pack_hash: str
+    mode: ChemLabMode
+    language: str
+    read_only: Literal[True] = True
+    revision: int = Field(ge=0)
+    tip_revision: int = Field(ge=0)
+    sim_time_ms: int = Field(ge=0)
+    state_hash: str
+    phase: ChemLabPhase
+    render_frame: ChemLabRenderFrame
+    scene_state: ChemLabSceneState
+    goals: list[ChemLabGoalStatus] = Field(default_factory=list)
+    completed_steps: list[str] = Field(default_factory=list)
+    observations: list[ChemLabObservation] = Field(default_factory=list)
+    recent_events: list[ChemLabEvent] = Field(default_factory=list)
+    guidance: ChemLabGuidance | None = None
+
+
 PUBLIC_TYPE_MODELS: list[str] = [
     # catalog
     "ChemLabExperimentSummary",
@@ -347,6 +401,11 @@ PUBLIC_TYPE_MODELS: list[str] = [
     "ChemLabResetRequest",
     "ChemLabResultCard",
     "ChemLabDeletedAck",
+    # historical revision view
+    "ChemLabSceneVessel",
+    "ChemLabSceneEquipment",
+    "ChemLabSceneState",
+    "ChemLabRevisionView",
 ]
 
 PUBLIC_TYPE_UNIONS: dict[str, tuple[str, ...]] = {}
