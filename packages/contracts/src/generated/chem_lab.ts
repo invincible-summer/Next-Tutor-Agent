@@ -50,7 +50,7 @@ export interface ChemLabEnginePack {
 }
 
 export interface LabCommand {
-  kind: "pick_up" | "place" | "aspirate" | "dispense" | "pour" | "heat" | "stir" | "wait" | "measure" | "connect" | "filter" | "wash" | "dispose" | "checkpoint";
+  kind: "pick_up" | "place" | "aspirate" | "dispense" | "pour" | "heat" | "stir" | "wait" | "measure" | "connect" | "filter" | "wash" | "dispose" | "checkpoint" | "move" | "release";
   object_id?: string | null;
   slot_id?: string | null;
   source_id?: string | null;

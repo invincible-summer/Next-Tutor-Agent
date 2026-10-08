@@ -25,6 +25,7 @@ import { evaluateSafety, heatCompatible } from "./safety.ts";
 export const COMMAND_KINDS = new Set([
   "pick_up", "place", "aspirate", "dispense", "pour", "heat", "stir",
   "wait", "measure", "connect", "filter", "wash", "dispose", "checkpoint",
+  "move", "release",
 ]);
 const TRANSFER_TRIGGERS: Record<string, string> = {
   aspirate: "on_aspirate",
@@ -112,6 +113,56 @@ function _doPlace(state: AnyDict, command: AnyDict, events: AnyDict[], commandId
   }
   state.held = null;
   events.push(makeEvent(state, "object_placed", commandId, {
+    data: { object_id: objectId, slot_id: slotId },
+  }));
+  return 0;
+}
+
+function _doMove(state: AnyDict, command: AnyDict, events: AnyDict[], commandId: string): number {
+  // Atomic position command: one object to one slot in a single step.
+  // Unlike the legacy pick_up/place pair, `move` needs no prior hold; it
+  // validates target occupancy (only the moved object itself may sit on the
+  // target slot) and clears `held` when it matches the moved object.
+  const objectId = String(command.object_id ?? "");
+  const slotId = String(command.slot_id ?? "");
+  if (!(objectId in state.vessels) && !(objectId in state.equipment)) {
+    throw new _Reject("unknown_object");
+  }
+  if (!(state.slots as AnyDict[]).some((slot) => slot.id === slotId)) {
+    throw new _Reject("unknown_object");
+  }
+  if (state.held !== null && state.held !== objectId) throw new _Reject("invalid_params");
+  for (const vessel of Object.values(state.vessels) as AnyDict[]) {
+    if (vessel.id !== objectId && vessel.slot === slotId) throw new _Reject("invalid_params");
+  }
+  for (const equipment of Object.values(state.equipment) as AnyDict[]) {
+    if (equipment.id !== objectId && equipment.slot === slotId) throw new _Reject("invalid_params");
+  }
+  let fromSlot: string;
+  if (objectId in state.vessels) {
+    fromSlot = state.vessels[objectId].slot;
+    state.vessels[objectId].slot = slotId;
+  } else {
+    fromSlot = state.equipment[objectId].slot;
+    state.equipment[objectId].slot = slotId;
+  }
+  state.held = null;
+  events.push(makeEvent(state, "object_moved", commandId, {
+    data: { object_id: objectId, from_slot_id: fromSlot, to_slot_id: slotId },
+  }));
+  return 0;
+}
+
+function _doRelease(state: AnyDict, command: AnyDict, events: AnyDict[], commandId: string): number {
+  // Drop the current hold: clears `held` without touching slot or contents —
+  // the escape hatch for legacy pick_up sessions.
+  const objectId = String(command.object_id ?? "");
+  if (state.held !== objectId) throw new _Reject("invalid_params");
+  const slotId = objectId in state.vessels
+    ? state.vessels[objectId].slot
+    : state.equipment[objectId].slot;
+  state.held = null;
+  events.push(makeEvent(state, "object_released", commandId, {
     data: { object_id: objectId, slot_id: slotId },
   }));
   return 0;
@@ -639,7 +690,7 @@ export function applyCommand(
   if (["setup", "completed"].includes(state.phase)
     && !["checkpoint", "measure", "wait"].includes(kind)) {
     if (state.phase === "completed"
-      && ["pick_up", "place", "measure", "wait", "checkpoint"].includes(kind)) {
+      && ["pick_up", "place", "measure", "wait", "checkpoint", "move", "release"].includes(kind)) {
       // read-only inspection stays possible after completion
     } else if (state.phase === "setup") {
       return _rejectCmd(state, events, commandId, "phase", kind);
@@ -656,6 +707,8 @@ export function applyCommand(
   try {
     if (kind === "pick_up") duration = _doPickUp(state, command, events, commandId);
     else if (kind === "place") duration = _doPlace(state, command, events, commandId);
+    else if (kind === "move") duration = _doMove(state, command, events, commandId);
+    else if (kind === "release") duration = _doRelease(state, command, events, commandId);
     else if (kind === "aspirate") duration = _doAspirate(state, command, events, commandId, pack);
     else if (kind === "dispense") duration = _doDispense(state, command, events, commandId);
     else if (kind === "pour") duration = _doPour(state, command, events, commandId);

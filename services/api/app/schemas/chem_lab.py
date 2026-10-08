@@ -19,6 +19,7 @@ ChemLabPhase = Literal["setup", "ready", "running", "safety_locked", "completed"
 ChemLabCommandKind = Literal[
     "pick_up", "place", "aspirate", "dispense", "pour", "heat", "stir",
     "wait", "measure", "connect", "filter", "wash", "dispose", "checkpoint",
+    "move", "release",
 ]
 ChemLabGuidanceLevel = Literal[
     "on_track", "try_again", "hint", "explain", "safety", "complete",

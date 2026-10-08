@@ -179,6 +179,61 @@ class ChemLabApiTest(StorageSandboxTestCase):
         kinds = {event["kind"] for event in ack["events"]}
         self.assertIn("command_rejected", kinds)
 
+    def test_move_command_updates_slot_atomically(self) -> None:
+        snap = self._create_session()
+        sid = snap["session_id"]
+        # Same-slot move of a free object: accepted, one object_moved event.
+        body = _command_body({"kind": "move", "object_id": "beaker-a", "slot_id": "f1"},
+                             revision=snap["revision"], pack_hash=snap["pack_hash"])
+        resp = self.client.post(f"{BASE}/sessions/{sid}/commands", json=body)
+        self.assertEqual(resp.status_code, 200, resp.text)
+        ack = resp.json()
+        self.assertTrue(ack["accepted"], ack)
+        self.assertEqual(ack["revision"], 1)
+        kinds = [event["kind"] for event in ack["events"]]
+        self.assertIn("object_moved", kinds)
+        # GET session reflects slot/held through engine_state.
+        detail = self.client.get(f"{BASE}/sessions/{sid}").json()
+        self.assertEqual(detail["engine_state"]["vessels"]["beaker-a"]["slot"], "f1")
+        self.assertIsNone(detail["engine_state"]["held"])
+        # Duplicate command_id replays the original ack.
+        again = self.client.post(f"{BASE}/sessions/{sid}/commands", json=body).json()
+        self.assertEqual(again, ack)
+
+    def test_move_onto_occupied_slot_rejected_with_200(self) -> None:
+        snap = self._create_session()
+        sid = snap["session_id"]
+        body = _command_body({"kind": "move", "object_id": "beaker-a", "slot_id": "f2"},
+                             revision=snap["revision"], pack_hash=snap["pack_hash"])
+        resp = self.client.post(f"{BASE}/sessions/{sid}/commands", json=body)
+        self.assertEqual(resp.status_code, 200)
+        ack = resp.json()
+        self.assertFalse(ack["accepted"])
+        self.assertEqual(ack["error_code"], "chem_lab_invalid_params")
+        self.assertEqual(ack["revision"], 1)
+        detail = self.client.get(f"{BASE}/sessions/{sid}").json()
+        self.assertEqual(detail["engine_state"]["vessels"]["beaker-a"]["slot"], "f1")
+
+    def test_release_repairs_legacy_held_state(self) -> None:
+        snap = self._create_session()
+        sid = snap["session_id"]
+        pick = _command_body({"kind": "pick_up", "object_id": "pipette-1"},
+                             revision=snap["revision"], pack_hash=snap["pack_hash"],
+                             command_id="cmd-pick")
+        ack = self.client.post(f"{BASE}/sessions/{sid}/commands", json=pick).json()
+        self.assertTrue(ack["accepted"])
+        detail = self.client.get(f"{BASE}/sessions/{sid}").json()
+        self.assertEqual(detail["engine_state"]["held"], "pipette-1")
+        release = _command_body({"kind": "release", "object_id": "pipette-1"},
+                                revision=ack["revision"], pack_hash=snap["pack_hash"],
+                                command_id="cmd-rel", client_seq=2)
+        resp = self.client.post(f"{BASE}/sessions/{sid}/commands", json=release)
+        self.assertEqual(resp.status_code, 200, resp.text)
+        self.assertTrue(resp.json()["accepted"])
+        detail = self.client.get(f"{BASE}/sessions/{sid}").json()
+        self.assertIsNone(detail["engine_state"]["held"])
+        self.assertEqual(detail["engine_state"]["equipment"]["pipette-1"]["slot"], "b3")
+
     def test_events_endpoint_pages_after_seq(self) -> None:
         snap = self._create_session()
         self.client.post(f"{BASE}/sessions/{snap['session_id']}/commands",
