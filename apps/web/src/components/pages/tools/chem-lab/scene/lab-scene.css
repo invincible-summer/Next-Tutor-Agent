@@ -20,7 +20,8 @@
   --lab-bench-top-back: #d8d1c1;
   --lab-bench-front: #cabfab;
   --lab-bench-edge: #b3a891;
-  --lab-shadow: rgba(70, 62, 50, 0.20);
+  --lab-shadow: rgba(70, 62, 50, 0.34);
+  --lab-shadow-soft: rgba(70, 62, 50, 0.14);
   --lab-glass-rim: rgba(94, 124, 150, 0.85);
   --lab-glass-body: rgba(148, 178, 210, 0.10);
   --lab-glass-shine: rgba(255, 255, 255, 0.45);
@@ -44,7 +45,8 @@
   --lab-bench-top-back: #2c322e;
   --lab-bench-front: #272c29;
   --lab-bench-edge: #1f2421;
-  --lab-shadow: rgba(0, 0, 0, 0.45);
+  --lab-shadow: rgba(0, 0, 0, 0.55);
+  --lab-shadow-soft: rgba(0, 0, 0, 0.25);
   --lab-glass-rim: rgba(151, 186, 214, 0.75);
   --lab-glass-body: rgba(120, 158, 192, 0.13);
   --lab-glass-shine: rgba(226, 240, 250, 0.30);

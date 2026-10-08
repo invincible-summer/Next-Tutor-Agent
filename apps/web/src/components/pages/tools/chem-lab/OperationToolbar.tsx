@@ -66,6 +66,29 @@ function amountPresets(instrumentCapacityUL: number | null): number[] {
   return [5000, 10000, 25000, 50000];
 }
 
+/** Prefill a sensible starting amount so the panel opens one-confirm ready. */
+function initialAmountMl(
+  action: OperationDraft["action"],
+  lookups: BenchLookups,
+  draft: OperationDraft,
+): string {
+  if (action === "aspirate") {
+    const kind = lookups.equipmentKind.get(draft.instrumentId ?? "") ?? "";
+    const capacity = Number((lookups.equipmentDefs[kind] as AnyRecord | undefined)?.capacity_uL ?? 0);
+    if (capacity > 0) {
+      const mid = capacity <= 2000 ? 1000 : capacity <= 12000 ? 5000 : 10000;
+      return String(Math.min(capacity, mid) / 1000);
+    }
+    return "10";
+  }
+  if (action === "dispense") {
+    const load = lookups.equipmentLoad.get(draft.instrumentId ?? "") ?? 0;
+    return load > 0 ? String(load / 1000) : "5";
+  }
+  if (action === "pour" || action === "dispose") return "10";
+  return "";
+}
+
 interface BenchLookups {
   vesselOptions: ObjectOption[];
   equipmentOptions: ObjectOption[];
@@ -242,7 +265,7 @@ function OperationForm({
   onSubmit: (command: LabCommand) => void;
   onBack: () => void;
 }) {
-  const [amountMl, setAmountMl] = useState("");
+  const [amountMl, setAmountMl] = useState(() => initialAmountMl(draft.action, lookups, draft));
   const [rate, setRate] = useState("normal");
   const [power, setPower] = useState(500);
   const [speed, setSpeed] = useState(500);

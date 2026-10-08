@@ -160,12 +160,16 @@ export function LabPhenomena({ kind, w, h, visual, seed }: LabPhenomenaProps) {
   if (!profile || !visual) return null;
   const box = cavityRect(profile, w, h);
   const fill = clamp01(visual.fillRatio);
-  const liquid = liquidPath(profile, w, h, fill);
+  // Legibility floor: a real-but-tiny fraction (e.g. 4 mL in a 250 mL beaker)
+  // still draws a visible base pool — never a hairline. Amounts stay truthful
+  // via the volume labels/readouts; only the minimal *visible* height clamps.
+  const fillShape = fill > 0.015 ? Math.max(fill, 0.05) : fill;
+  const liquid = liquidPath(profile, w, h, fillShape);
   const color = visual.liquidColor ?? "var(--lab-liquid-default)";
-  const liquidOpacity = 0.3 + visual.opacity * 0.6;
-  const surfaceY = box.y + box.h * (1 - fill);
+  const liquidOpacity = 0.38 + visual.opacity * 0.55;
+  const surfaceY = box.y + box.h * (1 - fillShape);
   const cx = box.x + box.w / 2;
-  const surfaceHalf = profile.halfAt(clamp01(fill)) * box.w;
+  const surfaceHalf = profile.halfAt(clamp01(fillShape)) * box.w;
 
   const bubbleCount = visual.bubbles ? Math.min(MAX_BUBBLES, 2 + Math.round(visual.bubbles.rate * 10)) : 0;
   const bubbleRadius = (visual.bubbles?.size ?? 0) * Math.min(box.w, box.h) * 0.05
@@ -178,15 +182,28 @@ export function LabPhenomena({ kind, w, h, visual, seed }: LabPhenomenaProps) {
 
   return (
     <g>
-      <path d={liquid} fill={color} opacity={liquidOpacity} />
+      {fill > 0.005 && (
+        <path d={liquid} fill={color} opacity={liquidOpacity} />
+      )}
       {fill > 0.01 && (
-        <path
-          d={`M${cx - surfaceHalf} ${surfaceY} Q${cx} ${surfaceY - box.h * 0.03} ${cx + surfaceHalf} ${surfaceY}`}
-          fill="none"
-          stroke={color}
-          strokeOpacity={Math.min(1, liquidOpacity + 0.3)}
-          strokeWidth={Math.max(1.2, box.w * 0.05)}
-        />
+        <>
+          <path
+            d={`M${cx - surfaceHalf} ${surfaceY} Q${cx} ${surfaceY - box.h * 0.03} ${cx + surfaceHalf} ${surfaceY}`}
+            fill="none"
+            stroke={color}
+            strokeOpacity={Math.min(1, liquidOpacity + 0.3)}
+            strokeWidth={Math.max(1.2, box.w * 0.05)}
+          />
+          {/* thin light reflection just above the meniscus */}
+          <path
+            d={`M${cx - surfaceHalf * 0.72} ${surfaceY - 1.4} Q${cx} ${surfaceY - 1.4 - box.h * 0.016} ${cx + surfaceHalf * 0.72} ${surfaceY - 1.4}`}
+            fill="none"
+            stroke="var(--lab-glass-shine)"
+            strokeOpacity={0.6}
+            strokeWidth={Math.max(0.8, box.w * 0.028)}
+            strokeLinecap="round"
+          />
+        </>
       )}
       {visual.turbidity > 0.03 && fill > 0.02 && (
         <path d={liquid} fill="#e8e4da" opacity={visual.turbidity * 0.55} />

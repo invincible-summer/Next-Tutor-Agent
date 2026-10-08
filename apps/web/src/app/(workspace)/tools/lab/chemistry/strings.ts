@@ -204,6 +204,7 @@ export const STRINGS: PageStrings = {
     revisionLabel: "版本 %n",
     serverRevision: "服务器 %n",
     timelineTrack: "操作时间轴",
+    timelineHint: "开始操作后，事件轨迹会出现在这里",
     checkpointHint: "点击菱形标记，从该检查点创建分支继续探索。",
     forkFromHere: "从此处分支",
 
@@ -469,6 +470,7 @@ export const STRINGS: PageStrings = {
     revisionLabel: "Revision %n",
     serverRevision: "server %n",
     timelineTrack: "Operation timeline",
+    timelineHint: "Event marks will appear here once you operate",
     checkpointHint: "Click a diamond marker to branch from that checkpoint.",
     forkFromHere: "Branch from here",
 

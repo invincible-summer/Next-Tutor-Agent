@@ -226,9 +226,12 @@ export function LabTimeline({
           ))}
         </div>
       </div>
-      {checkpoints.length > 0 && (
-        <p className="text-[10px] leading-4 text-muted">{tr("checkpointHint")}</p>
-      )}
+          {ticks.length === 0 && checkpoints.length === 0 && (
+            <p className="text-[10px] leading-4 text-muted/80">{tr("timelineHint")}</p>
+          )}
+          {checkpoints.length > 0 && (
+            <p className="text-[10px] leading-4 text-muted">{tr("checkpointHint")}</p>
+          )}
     </div>
   );
 }

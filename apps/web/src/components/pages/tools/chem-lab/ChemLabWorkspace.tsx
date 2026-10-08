@@ -787,8 +787,8 @@ function OwnedChemLabWorkspace() {
       {error && (
         <p role="alert" className="border-b border-danger/30 bg-danger/8 px-4 py-1.5 text-[11px] text-danger">{error}</p>
       )}
-      <div className="grid min-h-0 min-w-0 flex-1 grid-cols-1 lg:grid-cols-[248px_minmax(0,1fr)_320px]">
-        <aside className="order-3 hidden min-h-0 flex-col overflow-y-auto border-t border-border-light bg-surface px-4 py-4 lg:order-1 lg:flex lg:border-r lg:border-t-0"
+      <div className="grid min-h-0 min-w-0 flex-1 grid-cols-1 xl:grid-cols-[232px_minmax(0,1fr)_292px]">
+        <aside className="order-3 hidden min-h-0 flex-col overflow-y-auto border-t border-border-light bg-surface px-4 py-4 xl:order-1 xl:flex xl:border-r xl:border-t-0"
           aria-label={tr("equipmentTab")}>
           <Link href="/tools/lab" data-testid="chem-lab-back"
             className="mb-3 flex min-h-[36px] items-center gap-1.5 rounded-[8px] px-2 text-xs text-muted transition-colors hover:bg-surface-hover hover:text-fg">
@@ -800,7 +800,7 @@ function OwnedChemLabWorkspace() {
           </div>
         </aside>
 
-        <main className="order-1 flex min-h-0 min-w-0 flex-col lg:order-2" aria-label={tr("labTitle")}>
+        <main className="order-1 flex min-h-0 min-w-0 flex-col xl:order-2" aria-label={tr("labTitle")}>
           <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border-light bg-surface px-4 py-2">
             <div className="min-w-0">
               <p className="truncate text-xs font-semibold text-fg">
@@ -879,7 +879,7 @@ function OwnedChemLabWorkspace() {
           </div>
         </main>
 
-        <aside className="order-2 hidden min-h-0 flex-col overflow-y-auto border-t border-border-light bg-surface px-4 py-4 lg:order-3 lg:flex lg:border-l lg:border-t-0"
+        <aside className="order-2 hidden min-h-0 flex-col overflow-y-auto border-t border-border-light bg-surface px-4 py-4 xl:order-3 xl:flex xl:border-l xl:border-t-0"
           aria-label={tr("guidanceTab")}>
           <Tabs
             items={[
@@ -895,7 +895,7 @@ function OwnedChemLabWorkspace() {
       </div>
 
       {/* mobile panel bar */}
-      <nav className="flex shrink-0 items-stretch gap-1 border-t border-border-light bg-surface px-2 py-1.5 lg:hidden"
+      <nav className="flex shrink-0 items-stretch gap-1 border-t border-border-light bg-surface px-2 py-1.5 xl:hidden"
         aria-label={tr("equipmentTab")}>
         {(["equipment", "guidance", "observations"] as const).map((panel) => (
           <Button key={panel} size="sm" variant="ghost" selected={mobilePanel === panel}

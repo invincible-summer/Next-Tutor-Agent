@@ -57,12 +57,19 @@ export function LabEquipment({
 
   return (
     <g opacity={opacity}>
-      {/* contact shadow on the bench/shelf */}
+      {/* two-layer contact shadow: soft spread + dark core under the base */}
+      <ellipse
+        cx={w / 2}
+        cy={h - 1}
+        rx={w * 0.46}
+        ry={Math.max(4, h * 0.045)}
+        fill="var(--lab-shadow-soft)"
+      />
       <ellipse
         cx={w / 2}
         cy={h - 2}
-        rx={w * 0.38}
-        ry={Math.max(3, h * 0.03)}
+        rx={w * 0.34}
+        ry={Math.max(2.5, h * 0.028)}
         fill="var(--lab-shadow)"
       />
       {node.known && node.vessel
@@ -135,16 +142,27 @@ function vesselBody(node: SceneNode, uid: string, heating: boolean, seed: string
           <path d={cavityPath(profile, w, h)} />
         </clipPath>
         <linearGradient id={`lab-shine-${uid}`} x1="0" y1="0" x2="1" y2="0">
-          <stop offset="0%" stopColor="var(--lab-glass-shine)" stopOpacity="0.5" />
-          <stop offset="35%" stopColor="var(--lab-glass-shine)" stopOpacity="0.06" />
-          <stop offset="100%" stopColor="var(--lab-glass-shine)" stopOpacity="0" />
+          <stop offset="0%" stopColor="var(--lab-glass-shine)" stopOpacity="0.55" />
+          <stop offset="28%" stopColor="var(--lab-glass-shine)" stopOpacity="0.10" />
+          <stop offset="72%" stopColor="var(--lab-glass-shine)" stopOpacity="0" />
+          <stop offset="100%" stopColor="var(--lab-glass-shine)" stopOpacity="0.22" />
+        </linearGradient>
+        {/* liquid body reads deeper at the bottom of the cavity */}
+        <linearGradient id={`lab-liquid-depth-${uid}`} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#ffffff" stopOpacity="0.10" />
+          <stop offset="45%" stopColor="#000000" stopOpacity="0" />
+          <stop offset="100%" stopColor="#000000" stopOpacity="0.14" />
         </linearGradient>
       </defs>
-      {/* shell back */}
+      {/* shell back — faint side shading gives the glass roundness */}
       <path d={cavityPath(profile, w, h)} fill="var(--lab-glass-body)" />
       {/* fluid + particulate + bubbles, strictly inside the real cavity */}
       <g clipPath={`url(#${clipId})`}>
         <LabPhenomena kind={node.kind} w={w} h={h} visual={node.vessel} seed={seed} />
+        {node.vessel.fillRatio > 0.01 && (
+          <rect x={box.x} y={box.y} width={box.w} height={box.h}
+            fill={`url(#lab-liquid-depth-${uid})`} />
+        )}
       </g>
       {/* graduations from the pack def (readable at focus zoom) */}
       {node.vessel.graduations.length > 0 && (
@@ -164,29 +182,60 @@ function vesselBody(node: SceneNode, uid: string, heating: boolean, seed: string
           })}
         </g>
       )}
-      {/* glass front + wall */}
+      {/* glass front + wall: outer thickness pass then crisp wall line */}
       <g clipPath={`url(#${clipId})`}>
         <rect x={box.x} y={box.y} width={box.w} height={box.h} fill={`url(#lab-shine-${uid})`} />
+        {/* crisp specular streak on the left inner wall */}
+        <rect
+          x={box.x + box.w * 0.1}
+          y={box.y + box.h * 0.12}
+          width={Math.max(1.6, box.w * 0.07)}
+          height={box.h * 0.62}
+          rx={Math.max(1, box.w * 0.035)}
+          fill="var(--lab-glass-shine)"
+          opacity={0.4}
+        />
       </g>
       <path
         d={wallPath}
         fill="none"
         stroke={GLASS_STROKE}
-        strokeWidth={1.7}
+        strokeWidth={3}
+        strokeOpacity={0.16}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d={wallPath}
+        fill="none"
+        stroke={GLASS_STROKE}
+        strokeWidth={1.6}
         strokeLinecap="round"
         strokeLinejoin="round"
       />
       {profile.rim && (
-        <ellipse
-          cx={profile.rim.cx * w}
-          cy={profile.rim.cy * h}
-          rx={profile.rim.rx * w}
-          ry={profile.rim.ry * h}
-          fill="none"
-          stroke={GLASS_STROKE}
-          strokeWidth={1.4}
-          opacity={0.85}
-        />
+        <g>
+          <ellipse
+            cx={profile.rim.cx * w}
+            cy={profile.rim.cy * h}
+            rx={profile.rim.rx * w}
+            ry={profile.rim.ry * h}
+            fill="none"
+            stroke={GLASS_STROKE}
+            strokeWidth={1.5}
+            opacity={0.9}
+          />
+          <ellipse
+            cx={profile.rim.cx * w}
+            cy={profile.rim.cy * h}
+            rx={profile.rim.rx * w * 0.82}
+            ry={profile.rim.ry * h * 0.72}
+            fill="none"
+            stroke={GLASS_STROKE}
+            strokeWidth={0.9}
+            opacity={0.4}
+          />
+        </g>
       )}
       {profile.spout && (
         <path

@@ -42,6 +42,10 @@ export function LabEnvironment({ frame, rearBand, frontBand, bounds }: LabEnviro
   return (
     <g aria-hidden="true" pointerEvents="none">
       <defs>
+        <linearGradient id="lab-env-wall" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="var(--lab-wall)" />
+          <stop offset="100%" stopColor="var(--lab-wall-low)" />
+        </linearGradient>
         <linearGradient id="lab-env-window" x1="0" y1="0" x2="0" y2="1">
           <stop offset="0%" stopColor="var(--lab-window)" />
           <stop offset="100%" stopColor="var(--lab-window-bar)" stopOpacity="0.55" />
@@ -62,7 +66,7 @@ export function LabEnvironment({ frame, rearBand, frontBand, bounds }: LabEnviro
 
       {/* Back wall */}
       <rect x={frame.x} y={frame.y} width={frame.width} height={wallBottomY - frame.y}
-        fill="var(--lab-wall)" />
+        fill="url(#lab-env-wall)" />
       <rect x={frame.x} y={wallBottomY - 140} width={frame.width} height="140"
         fill="url(#lab-env-tiles)" />
       <rect x={frame.x} y={wallBottomY - 142} width={frame.width} height="3"
@@ -71,6 +75,8 @@ export function LabEnvironment({ frame, rearBand, frontBand, bounds }: LabEnviro
       {/* Windows (upper third only) */}
       {[windowGap, window2X].map((wx) => (
         <g key={wx}>
+          <rect x={wx - 4} y={windowTop + windowHeight - 3} width={windowWidth + 8} height="6" rx="3"
+            fill="var(--lab-shelf-edge)" opacity="0.7" />
           <rect x={wx} y={windowTop} width={windowWidth} height={windowHeight} rx="8"
             fill="url(#lab-env-window)" stroke="var(--lab-window-bar)" strokeWidth="3" />
           <line x1={wx + windowWidth / 2} y1={windowTop + 2} x2={wx + windowWidth / 2}
@@ -78,7 +84,10 @@ export function LabEnvironment({ frame, rearBand, frontBand, bounds }: LabEnviro
           <line x1={wx + 4} y1={windowTop + windowHeight * 0.42} x2={wx + windowWidth - 4}
             y2={windowTop + windowHeight * 0.42} stroke="var(--lab-window-bar)" strokeWidth="2" />
           <rect x={wx + 8} y={windowTop + 8} width={windowWidth * 0.3} height={windowHeight * 0.18}
-            rx="4" fill="#ffffff" opacity="0.18" />
+            rx="4" fill="#ffffff" opacity="0.22" />
+          <rect x={wx + windowWidth * 0.58} y={windowTop + windowHeight * 0.5}
+            width={windowWidth * 0.22} height={windowHeight * 0.14} rx="3"
+            fill="#ffffff" opacity="0.12" />
         </g>
       ))}
 
@@ -93,15 +102,15 @@ export function LabEnvironment({ frame, rearBand, frontBand, bounds }: LabEnviro
 
       {/* Metal shelf rack behind the rear band */}
       <g>
+        {/* uprights stay quiet so they never read as lab equipment */}
+        {[0.08, 0.5, 0.92].map((fx) => (
+          <rect key={fx} x={frame.x + 10 + (frame.width - 20) * fx - 2} y={frame.y + 24}
+            width="4" height={rear.top - frame.y - 22} fill="var(--lab-steel)" opacity="0.32" rx="2" />
+        ))}
         <rect x={frame.x + 10} y={rear.top - 22} width={frame.width - 20} height="10" rx="3"
           fill="var(--lab-shelf)" />
         <rect x={frame.x + 10} y={rear.top - 12} width={frame.width - 20} height="4"
           fill="var(--lab-shelf-edge)" />
-        {/* uprights */}
-        {[0.08, 0.5, 0.92].map((fx) => (
-          <rect key={fx} x={frame.x + 10 + (frame.width - 20) * fx - 3} y={frame.y + 24}
-            width="6" height={rear.top - frame.y - 22} fill="var(--lab-steel)" opacity="0.75" rx="2" />
-        ))}
         {/* shelf board under the rear objects */}
         <rect x={frame.x + 6} y={rear.bottom} width={frame.width - 12} height="14" rx="4"
           fill="var(--lab-shelf)" />
@@ -112,6 +121,10 @@ export function LabEnvironment({ frame, rearBand, frontBand, bounds }: LabEnviro
       {/* Bench: back ridge, work surface, front face and lip */}
       <rect x={frame.x} y={benchTopY} width={frame.width} height={benchBottomY - benchTopY}
         fill="url(#lab-env-bench)" />
+      {/* specular strip where light lands on the work surface */}
+      <rect x={frame.x} y={benchTopY + 4} width={frame.width}
+        height={Math.min(18, (benchBottomY - benchTopY) * 0.12)}
+        fill="var(--lab-glass-shine)" opacity="0.10" />
       <rect x={frame.x} y={benchTopY} width={frame.width} height="6" rx="3"
         fill="var(--lab-bench-edge)" opacity="0.5" />
       {/* backsplash ridge */}

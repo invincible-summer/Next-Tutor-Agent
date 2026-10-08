@@ -310,7 +310,7 @@ export function LabScene({
         >
           <LabEnvironment frame={frame} rearBand={rearBand} frontBand={frontBand} bounds={scene.bounds} />
 
-          {/* slot placement mats — visual anchors, never interactive */}
+          {/* slot placement mats — quiet visual anchors, never interactive */}
           {scene.slots.map((slot) => (
             <rect
               key={slot.id}
@@ -319,10 +319,10 @@ export function LabScene({
               width={slot.rect.w}
               height={slot.rect.h}
               rx={12}
-              fill="rgba(120, 130, 120, 0.05)"
-              stroke="rgba(120, 130, 120, 0.16)"
+              fill="rgba(120, 130, 120, 0.04)"
+              stroke="rgba(120, 130, 120, 0.12)"
               strokeWidth={1}
-              strokeDasharray="3 6"
+              strokeDasharray="2 6"
             />
           ))}
 
@@ -551,7 +551,7 @@ export function LabScene({
               disabled={disabled}
               aria-pressed={selectedId === node.ref.id}
               aria-label={summary ? `${node.label}，${summary}` : node.label}
-              className="lab-scene__hit pointer-events-auto absolute flex cursor-grab flex-col items-center justify-end rounded-[10px] p-0.5 focus-visible:outline-2 focus-visible:outline-accent active:cursor-grabbing"
+              className="lab-scene__hit pointer-events-auto absolute cursor-grab rounded-[10px] p-0.5 focus-visible:outline-2 focus-visible:outline-accent active:cursor-grabbing"
               style={{
                 left: `${box.left}px`,
                 top: `${box.top}px`,
@@ -576,19 +576,20 @@ export function LabScene({
                 }
               }}
             >
-              <span className="pointer-events-none max-w-[120px] truncate rounded-full bg-surface/90 px-2 py-0.5 text-[10px] font-medium text-fg-secondary shadow-sm">
+              {/* name tag hugs the object's top edge; readings/chips the base */}
+              <span className="pointer-events-none absolute left-1/2 top-0 max-w-[124px] -translate-x-1/2 -translate-y-1/2 truncate rounded-full border border-border-light/60 bg-surface/95 px-2 py-0.5 text-[10px] font-medium text-fg-secondary shadow-sm">
                 {node.label}
               </span>
               {node.instrument?.reading && (
-                <span className="tnum pointer-events-none mt-0.5 rounded-full bg-accent-soft px-2 py-0.5 text-[10px] font-semibold text-accent-strong">
+                <span className="tnum pointer-events-none absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2 rounded-full bg-accent-soft px-2 py-0.5 text-[10px] font-semibold text-accent-strong shadow-sm">
                   {node.instrument.reading} {node.instrument.unit}
                 </span>
               )}
               {chip && (
                 <span
-                  className={`pointer-events-none mt-0.5 rounded-full px-2 py-0.5 text-[10px] font-medium ${
-                    chip.danger ? "bg-danger/10 text-danger" : "bg-accent-soft/80 text-accent-strong"
-                  }`}
+                  className={`pointer-events-none absolute left-1/2 -translate-x-1/2 rounded-full px-2 py-0.5 text-[10px] font-medium shadow-sm ${
+                    node.instrument?.reading ? "bottom-4" : "bottom-0 translate-y-1/2"
+                  } ${chip.danger ? "bg-danger/10 text-danger" : "bg-accent-soft/80 text-accent-strong"}`}
                 >
                   {chip.text}
                 </span>
