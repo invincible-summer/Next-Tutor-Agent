@@ -17,7 +17,7 @@
  * - switching session/account/experiment bumps `generation`; late worker or
  *   network callbacks from an older generation are discarded.
  */
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { AnyDict } from "@next-tutor/domain";
 import type {
   ChemLabCommandAck,
@@ -71,8 +71,34 @@ export interface ChemLabDisplay {
   serverRevision: number;
 }
 
+/** Read-only transition metadata for presentation/animation layers. */
+export interface LabDisplayTransition {
+  commandId: string;
+  commandKind: LabCommand["kind"];
+  revision: number;
+  accepted: boolean;
+  authority: "prediction" | "ack";
+}
+
 const EVENT_CAP = 240;
 const OBSERVATION_CAP = 240;
+/** Reconciliation window: late predictions older than this are dropped. */
+const MAX_PENDING_CHECKS = 32;
+
+/**
+ * Per-command reconciliation record. Whichever of {ACK, prediction} arrives
+ * first is stored; when both exist the state hashes are compared exactly
+ * once, the record is released, and a late prediction can never overwrite
+ * the authoritative display that the ACK already applied.
+ */
+interface PendingCheck {
+  generation: number;
+  commandId: string;
+  commandKind: LabCommand["kind"];
+  expectedRevision: number;
+  ack?: { stateHash: string; revision: number };
+  prediction?: ChemLabPrediction;
+}
 
 function asEvents(value: unknown): ChemLabEvent[] {
   return Array.isArray(value) ? (value as ChemLabEvent[]) : [];
@@ -96,6 +122,19 @@ export function useChemLabSession() {
   const generationRef = useRef(0);
   const clientSeqRef = useRef(0);
   const packRef = useRef<ChemLabEnginePack | null>(null);
+  const checksRef = useRef(new Map<string, PendingCheck>());
+  const [lastTransition, setLastTransition] = useState<LabDisplayTransition | null>(null);
+  /** Forward declaration: applyPrediction may trigger a diverged re-sync. */
+  const resyncRef = useRef<() => void>(() => undefined);
+
+  const clearChecks = useCallback(() => {
+    checksRef.current.clear();
+  }, []);
+
+  const enterConflict = useCallback((reason: ChemLabConflict["reason"]) => {
+    setConflict({ reason, commands: [...queueRef.current] });
+    setSyncStatus("conflict");
+  }, []);
 
   const worker = useCallback(() => {
     const handle = getWorker();
@@ -111,6 +150,8 @@ export function useChemLabSession() {
       drainingRef.current = false;
       clientSeqRef.current = 0;
       packRef.current = pack;
+      clearChecks();
+      setLastTransition(null);
       setPendingCount(0);
       setPrediction(null);
       setConflict(null);
@@ -125,7 +166,7 @@ export function useChemLabSession() {
         setDegraded(worker().degraded);
       }
     },
-    [worker],
+    [worker, clearChecks],
   );
 
   const detach = useCallback(() => {
@@ -133,6 +174,8 @@ export function useChemLabSession() {
     queueRef.current = [];
     drainingRef.current = false;
     packRef.current = null;
+    clearChecks();
+    setLastTransition(null);
     setSnapshot(null);
     setPrediction(null);
     setPendingCount(0);
@@ -142,7 +185,7 @@ export function useChemLabSession() {
     setObservations([]);
     setSyncStatus("idle");
     setNotice("");
-  }, []);
+  }, [clearChecks]);
 
   const tipRevision = useCallback((): number => {
     const queue = queueRef.current;
@@ -156,9 +199,33 @@ export function useChemLabSession() {
   const applyPrediction = useCallback(
     (result: ChemLabPrediction, token: number) => {
       if (generationRef.current !== token) return;
+      const check = checksRef.current.get(result.commandId);
+      if (!check || check.generation !== token) {
+        // Stale prediction: the command was already reconciled (or belongs to
+        // an older generation). Never let it roll the display back.
+        return;
+      }
+      if (check.ack) {
+        // ACK already applied the authoritative result: reconcile only.
+        if (check.ack.stateHash !== result.stateHash) {
+          enterConflict("diverged");
+          setNotice("syncedFromServer");
+          resyncRef.current();
+        }
+        checksRef.current.delete(result.commandId);
+        return;
+      }
+      check.prediction = result;
       const queued = queueRef.current.find((item) => item.commandId === result.commandId);
       if (queued) queued.predictedHash = result.stateHash;
       setPrediction(result);
+      setLastTransition({
+        commandId: result.commandId,
+        commandKind: check.commandKind,
+        revision: result.revision,
+        accepted: result.accepted,
+        authority: "prediction",
+      });
       setEvents((prev) => [...prev, ...(result.events as ChemLabEvent[])].slice(-EVENT_CAP));
       setObservations(
         (prev) =>
@@ -173,13 +240,9 @@ export function useChemLabSession() {
             : "predicting",
       );
     },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [],
   );
-
-  const enterConflict = useCallback((reason: ChemLabConflict["reason"]) => {
-    setConflict({ reason, commands: [...queueRef.current] });
-    setSyncStatus("conflict");
-  }, []);
 
   /** Serial drain: one POST in flight; the queue order is the server order. */
   const drain = useCallback(
@@ -216,8 +279,10 @@ export function useChemLabSession() {
             return;
           }
           if (generationRef.current !== token) return;
-          if (head.predictedHash && ack.state_hash !== head.predictedHash) {
+          const check = checksRef.current.get(ack.command_id);
+          if (check && check.prediction && check.prediction.stateHash !== ack.state_hash) {
             // Engines diverged: adopt the server, keep commands for diagnosis.
+            checksRef.current.delete(ack.command_id);
             enterConflict("diverged");
             setNotice("syncedFromServer");
             try {
@@ -235,11 +300,24 @@ export function useChemLabSession() {
             } catch { /* conflict panel offers a manual re-sync */ }
             return;
           }
+          if (check) {
+            // ACK side of the reconciliation record: kept only while the
+            // prediction is still in flight (it reconciles on arrival).
+            check.ack = { stateHash: ack.state_hash, revision: ack.revision };
+            if (check.prediction) checksRef.current.delete(ack.command_id);
+          }
           queueRef.current.shift();
           setPendingCount(queueRef.current.length);
           if (!ack.accepted) {
             setLastRejection({ commandId: ack.command_id, errorCode: ack.error_code ?? "" });
           }
+          setLastTransition({
+            commandId: ack.command_id,
+            commandKind: head.command.kind,
+            revision: ack.revision,
+            accepted: ack.accepted,
+            authority: "ack",
+          });
           setSnapshot((prev) => {
             if (!prev) return prev;
             return {
@@ -252,6 +330,10 @@ export function useChemLabSession() {
               recent_events: ack.events ?? prev.recent_events,
             };
           });
+          // Authority at revision R supersedes any prediction at ≤ R; a
+          // prediction beyond R is a forward preview of still-queued commands
+          // and stays visible until its own ACK lands.
+          setPrediction((prev) => (prev && prev.revision > ack.revision ? prev : null));
         }
         if (generationRef.current !== token) return;
         setSyncStatus((prev) => (prev === "safety_locked" ? prev : "synced"));
@@ -261,6 +343,22 @@ export function useChemLabSession() {
     },
     [enterConflict, worker],
   );
+
+  // Kept in a ref (updated post-render) so applyPrediction can trigger the
+  // diverged recovery without an effect-dependency cycle.
+  useEffect(() => {
+    resyncRef.current = () => {
+      const id = snapshot?.session_id;
+      const pack = packRef.current;
+      if (!id || !pack) return;
+      void (async () => {
+        try {
+          const fresh = await getChemLabSession(id);
+          await attach(fresh, pack);
+        } catch { /* conflict panel offers a manual re-sync */ }
+      })();
+    };
+  }, [snapshot, attach]);
 
   /** Enqueue one closed command: worker predicts first, then the queue drains. */
   const send = useCallback(
@@ -277,6 +375,18 @@ export function useChemLabSession() {
         baseRevision: tipRevision(),
         command,
       };
+      // Reconciliation window for this command: whichever of ACK/prediction
+      // arrives second is compared against the first and never displayed.
+      checksRef.current.set(queued.commandId, {
+        generation: token,
+        commandId: queued.commandId,
+        commandKind: command.kind,
+        expectedRevision: queued.baseRevision + 1,
+      });
+      if (checksRef.current.size > MAX_PENDING_CHECKS) {
+        const oldest = checksRef.current.keys().next().value;
+        if (oldest !== undefined) checksRef.current.delete(oldest);
+      }
       queueRef.current.push(queued);
       setPendingCount(queueRef.current.length);
       setLastRejection(null);
@@ -340,6 +450,7 @@ export function useChemLabSession() {
     lastRejection,
     notice,
     degraded,
+    lastTransition,
     attach,
     detach,
     send,

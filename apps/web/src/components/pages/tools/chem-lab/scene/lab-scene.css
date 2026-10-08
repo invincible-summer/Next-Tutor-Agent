@@ -1,0 +1,121 @@
+/*
+ * Scoped tokens + motion for the 2.5D lab scene. All colors derive from the
+ * project paper/ink design tokens (rgb(--*)) where possible; scene-local
+ * material vars (glass, steel, bench) are defined here for light and dark.
+ * Motion respects prefers-reduced-motion: transitions collapse to none and
+ * looping keyframes stop, but no information is removed (states stay visible).
+ */
+
+.lab-scene {
+  --lab-wall: #ece9e2;
+  --lab-wall-low: #e3ded4;
+  --lab-window: #d7e6ee;
+  --lab-window-bar: #b9c6cc;
+  --lab-tile-line: rgba(93, 84, 70, 0.10);
+  --lab-shelf: #cfc9bd;
+  --lab-shelf-edge: #a89f8e;
+  --lab-steel: #b9bec4;
+  --lab-steel-dark: #8d939a;
+  --lab-bench-top: #e6e0d3;
+  --lab-bench-top-back: #d8d1c1;
+  --lab-bench-front: #cabfab;
+  --lab-bench-edge: #b3a891;
+  --lab-shadow: rgba(70, 62, 50, 0.20);
+  --lab-glass-rim: rgba(94, 124, 150, 0.85);
+  --lab-glass-body: rgba(148, 178, 210, 0.10);
+  --lab-glass-shine: rgba(255, 255, 255, 0.45);
+  --lab-liquid-default: #b9d4e8;
+  --lab-drop-ok: #3f8f6b;
+  --lab-drop-warn: #c98a2e;
+  --lab-drop-bad: #c05b48;
+}
+
+.dark .lab-scene {
+  --lab-wall: #232830;
+  --lab-wall-low: #1e232a;
+  --lab-window: #2c3a45;
+  --lab-window-bar: #3d4c58;
+  --lab-tile-line: rgba(180, 190, 200, 0.07);
+  --lab-shelf: #3a4049;
+  --lab-shelf-edge: #4a515b;
+  --lab-steel: #6e747c;
+  --lab-steel-dark: #565c64;
+  --lab-bench-top: #343a36;
+  --lab-bench-top-back: #2c322e;
+  --lab-bench-front: #272c29;
+  --lab-bench-edge: #1f2421;
+  --lab-shadow: rgba(0, 0, 0, 0.45);
+  --lab-glass-rim: rgba(151, 186, 214, 0.75);
+  --lab-glass-body: rgba(120, 158, 192, 0.13);
+  --lab-glass-shine: rgba(226, 240, 250, 0.30);
+}
+
+.lab-scene__world {
+  transition: transform 380ms cubic-bezier(0.22, 0.61, 0.36, 1);
+  will-change: transform;
+}
+.lab-scene__world--frozen {
+  transition: none;
+}
+
+.lab-scene__hit {
+  transition: box-shadow 140ms ease, background-color 140ms ease;
+}
+
+/* Continuous phenomena — gentle loops only, capped counts in JSX. */
+.lab-scene__bubble {
+  animation: lab-scene-bubble-rise 2.4s linear infinite;
+}
+@keyframes lab-scene-bubble-rise {
+  0% { transform: translateY(0); opacity: 0; }
+  12% { opacity: 0.85; }
+  100% { transform: translateY(calc(-1px * var(--lab-rise, 30))); opacity: 0; }
+}
+
+.lab-scene__steam {
+  animation: lab-scene-steam-wisp 3s ease-in-out infinite;
+}
+@keyframes lab-scene-steam-wisp {
+  0%, 100% { opacity: 0.12; transform: translateY(0); }
+  50% { opacity: 0.6; transform: translateY(-3px); }
+}
+
+.lab-scene__heat {
+  animation: lab-scene-heat-pulse 2.2s ease-in-out infinite;
+}
+@keyframes lab-scene-heat-pulse {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 0.85; }
+}
+
+.lab-scene__highlight {
+  animation: lab-scene-highlight-pulse 1.9s ease-in-out infinite;
+}
+@keyframes lab-scene-highlight-pulse {
+  0%, 100% { opacity: 0.35; }
+  50% { opacity: 0.9; }
+}
+
+.lab-scene__gasdot {
+  animation: lab-scene-gas-flow 1.7s linear infinite;
+}
+@keyframes lab-scene-gas-flow {
+  0% { stroke-dashoffset: 22; opacity: 0; }
+  25% { opacity: 0.9; }
+  100% { stroke-dashoffset: 0; opacity: 0; }
+}
+
+.lab-scene__ghost {
+  filter: drop-shadow(0 6px 10px var(--lab-shadow));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lab-scene__world { transition: none; }
+  .lab-scene__bubble,
+  .lab-scene__steam,
+  .lab-scene__heat,
+  .lab-scene__highlight,
+  .lab-scene__gasdot { animation: none !important; }
+  .lab-scene__bubble { opacity: 0.7; }
+  .lab-scene__steam { opacity: 0.4; }
+}

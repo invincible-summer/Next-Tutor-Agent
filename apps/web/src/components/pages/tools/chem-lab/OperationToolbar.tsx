@@ -49,8 +49,8 @@ export interface OperationToolbarProps {
   tr: (key: string, fallback?: string) => string;
   onDraft: (draft: OperationDraft | null) => void;
   onSubmit: (command: LabCommand) => void;
-  onPickUp: (objectId: string) => void;
-  onPlaceBack: () => void;
+  /** Drop a server-side hold via the atomic `release` command. */
+  onReleaseHeld: () => void;
   onClearSelection: () => void;
 }
 
@@ -141,7 +141,7 @@ function useBenchLookups(
 export function OperationToolbar(props: OperationToolbarProps) {
   const {
     pack, display, language, selected, draft, heldId, busy, tr,
-    onDraft, onSubmit, onPickUp, onPlaceBack, onClearSelection,
+    onDraft, onSubmit, onReleaseHeld, onClearSelection,
   } = props;
   const lookups = useBenchLookups(pack, display, language);
 
@@ -150,7 +150,7 @@ export function OperationToolbar(props: OperationToolbarProps) {
       <div className="flex flex-wrap items-center gap-2 rounded-[12px] border border-accent/30 bg-accent-soft/60 px-3 py-2"
         role="status" data-testid="chem-lab-held-hint">
         <span className="text-xs text-fg-secondary">{tr("heldHint")}</span>
-        <Button size="sm" variant="ghost" onClick={onPlaceBack}>{tr("placeBack")}</Button>
+        <Button size="sm" variant="ghost" onClick={onReleaseHeld}>{tr("releaseHold")}</Button>
       </div>
     );
   }
@@ -208,10 +208,6 @@ export function OperationToolbar(props: OperationToolbarProps) {
         <Button size="sm" variant="outline" disabled={busy}
           onClick={() => onDraft({ action: "wait" })} data-testid="chem-lab-action-wait">
           {tr("wait")}
-        </Button>
-        <Button size="sm" variant="ghost" disabled={busy} onClick={() => onPickUp(selected.id)}
-          data-testid="chem-lab-action-pick-up">
-          {tr("pickUp")}
         </Button>
         <Button size="sm" variant="ghost" onClick={onClearSelection}>{tr("deselect")}</Button>
       </div>

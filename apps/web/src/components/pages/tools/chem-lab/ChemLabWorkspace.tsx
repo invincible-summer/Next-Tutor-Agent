@@ -317,36 +317,29 @@ function OwnedChemLabWorkspace() {
 
   const heldId = String(display.engineState?.held ?? "") || null;
 
+  /** Atomic move: one `move` command — the engine validates occupancy. */
   const moveObject = useCallback(
     (objectId: string, slotId: string) => {
       if (commandsLocked) return;
-      if (heldId !== objectId) {
-        send({ kind: "pick_up", object_id: objectId });
-      }
-      send({ kind: "place", object_id: objectId, slot_id: slotId });
+      if (heldId && heldId !== objectId) return;
+      const state = (display.engineState ?? {}) as AnyRecord;
+      const vessels = (state.vessels ?? {}) as AnyRecord;
+      const equipment = (state.equipment ?? {}) as AnyRecord;
+      const current = String(
+        (vessels[objectId] as AnyRecord)?.slot ?? (equipment[objectId] as AnyRecord)?.slot ?? "",
+      );
+      if (!current || current === slotId) return; // same slot: no-op, no request
+      send({ kind: "move", object_id: objectId, slot_id: slotId });
       setDraft(null);
     },
-    [commandsLocked, heldId, send],
+    [commandsLocked, display.engineState, heldId, send],
   );
 
-  const pickUp = useCallback(
-    (objectId: string) => {
-      if (commandsLocked) return;
-      send({ kind: "pick_up", object_id: objectId });
-    },
-    [commandsLocked, send],
-  );
-
-  const placeBack = useCallback(() => {
+  /** Drop a legacy hold without moving: the `release` compatibility command. */
+  const releaseHeld = useCallback(() => {
     if (!heldId || commandsLocked) return;
-    const state = display.engineState ?? {};
-    const vessels = (state.vessels ?? {}) as AnyRecord;
-    const equipment = (state.equipment ?? {}) as AnyRecord;
-    const slot = String(
-      (vessels[heldId] as AnyRecord)?.slot ?? (equipment[heldId] as AnyRecord)?.slot ?? "",
-    );
-    if (slot) send({ kind: "place", object_id: heldId, slot_id: slot });
-  }, [commandsLocked, display.engineState, heldId, send]);
+    send({ kind: "release", object_id: heldId });
+  }, [commandsLocked, heldId, send]);
 
   const sessionAction = useCallback(
     async (fn: () => Promise<void>) => {
@@ -706,10 +699,11 @@ function OwnedChemLabWorkspace() {
             ) : (
               <LabStage pack={pack} display={display} language={language} selected={selected}
                 busy={busy || commandsLocked}
+                sessionId={snapshot?.session_id ?? null}
                 onSelect={setSelected}
+                onDeselect={() => setSelected(null)}
                 onMoveObject={moveObject}
                 onDragOperation={(next) => setDraft(next)}
-                onSlotTarget={(slotId) => heldId && moveObject(heldId, slotId)}
                 onInstrumentTap={(id, el) => { measureAnchor.current = el; setMeasureId(id); }} />
             )}
           </div>
@@ -717,7 +711,7 @@ function OwnedChemLabWorkspace() {
           <div className="shrink-0 space-y-2 border-t border-border-light bg-surface px-3 py-2.5 sm:px-4">
             <OperationToolbar pack={pack} display={display} language={language} selected={selected}
               draft={draft} heldId={heldId} busy={busy || commandsLocked} tr={tr}
-              onDraft={setDraft} onSubmit={submitCommand} onPickUp={pickUp} onPlaceBack={placeBack}
+              onDraft={setDraft} onSubmit={submitCommand} onReleaseHeld={releaseHeld}
               onClearSelection={() => setSelected(null)} />
             <LabTimeline simTimeMs={display.simTimeMs} revision={display.revision}
               serverRevision={display.serverRevision} syncStatus={syncStatus} pendingCount={pendingCount}
