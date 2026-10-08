@@ -31,12 +31,14 @@ import {
   getChemLabEnginePack,
   getChemLabExperiment,
   getChemLabEvents,
+  getChemLabRevision,
   getChemLabSession,
   getChemLabCatalog,
   listChemLabSessions,
   resetChemLabSession,
   type ChemLabEnginePack,
   type ChemLabEvent,
+  type ChemLabRevisionView,
   type ChemLabExperimentDetail,
   type ChemLabExperimentSummary,
   type ChemLabObservation,
@@ -46,8 +48,9 @@ import {
 } from "@/lib/api-chem-lab";
 import { BackMark, BusyMark } from "../ToolMarks";
 import { STRINGS } from "@/app/(workspace)/tools/lab/chemistry/strings";
-import { useChemLabSession } from "./useChemLabSession";
+import { useChemLabSession, type ChemLabDisplay } from "./useChemLabSession";
 import { LabStage } from "./LabStage";
+import { useLabPresentation } from "./scene/useLabPresentation";
 import { EquipmentTray } from "./EquipmentTray";
 import { ReagentPalette } from "./ReagentPalette";
 import { OperationToolbar } from "./OperationToolbar";
@@ -90,11 +93,17 @@ function OwnedChemLabWorkspace() {
   const sessionId = query.get("session") ?? "";
   const atRevision = query.get("at");
   const language = lang === "en" ? "en" : "zh";
+  // `&at=` must be an exact non-negative integer; empty/NaN/fractional values
+  // are ignored (no side effects; see 历史只读 in docs/architecture/chem-lab.md).
+  const atNumber = atRevision ? Number(atRevision) : null;
+  const historyActive =
+    sessionId !== "" && atNumber !== null && Number.isInteger(atNumber) && atNumber >= 0;
 
   const controller = useChemLabSession();
   const {
     snapshot, display, syncStatus, pendingCount, conflict, lastRejection, notice,
     attach, detach, send, resync, retryPending, dismissConflict, clearNotice,
+    lastTransition,
   } = controller;
 
   const [experiments, setExperiments] = useState<ChemLabExperimentSummary[]>([]);
@@ -118,11 +127,23 @@ function OwnedChemLabWorkspace() {
   const [compareSides, setCompareSides] = useState<{ base: BranchSide; branch: BranchSide } | null>(null);
   const [mobilePanel, setMobilePanel] = useState<"" | "equipment" | "guidance" | "observations">("");
   const [railTab, setRailTab] = useState("guidance");
-  const [atDismissed, setAtDismissed] = useState(false);
   const [enginePack, setEnginePack] = useState<ChemLabEnginePack | null>(null);
+  // Historical read-only view (&at=): independent source, generation and
+  // abort lifecycle — never shares tokens with the live session effects.
+  const [historyView, setHistoryView] = useState<ChemLabRevisionView | null>(null);
+  const [historyError, setHistoryError] = useState("");
+  const historyGeneration = useRef(0);
   const detailGeneration = useRef(0);
   const sessionGeneration = useRef(0);
   const measureAnchor = useRef<HTMLElement | null>(null);
+
+  // Presentation-only one-shot motion (no chemistry, no commands; see 演出层).
+  const motion = useLabPresentation({
+    sessionId: snapshot?.session_id ?? null,
+    packHash: enginePack?.pack_hash ?? null,
+    transition: lastTransition,
+    conflict: syncStatus === "conflict" || syncStatus === "offline_preview",
+  });
 
   useAssistantPage({
     context: () => ({ schema_version: 1, route_id: "tools_lab_chemistry", route_epoch: currentRouteEpoch() }),
@@ -235,7 +256,6 @@ function OwnedChemLabWorkspace() {
         setEnginePack(pack);
         await attach(snap, pack);
         if (sessionGeneration.current !== token) return;
-        setAtDismissed(false);
       } catch (exc) {
         if (!ctl.signal.aborted && sessionGeneration.current === token) {
           detach();
@@ -248,6 +268,36 @@ function OwnedChemLabWorkspace() {
     return () => ctl.abort();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessionId]);
+
+  // Historical read-only source (&at=N): its own generation counter and
+  // AbortController so it can never race the live detail/session effects.
+  // The fetched revision must equal the URL or the view is discarded.
+  useEffect(() => {
+    const revision = atRevision ? Number(atRevision) : null;
+    const token = ++historyGeneration.current;
+    const ctl = new AbortController();
+    void Promise.resolve().then(async () => {
+      if (ctl.signal.aborted) return;
+      if (!sessionId || revision === null || !Number.isInteger(revision) || revision < 0) {
+        setHistoryView(null);
+        setHistoryError("");
+        return;
+      }
+      setHistoryError("");
+      try {
+        const view = await getChemLabRevision(sessionId, revision, ctl.signal);
+        if (ctl.signal.aborted || historyGeneration.current !== token) return;
+        if (view.revision !== revision) return;
+        setHistoryView(view);
+      } catch (exc) {
+        if (ctl.signal.aborted || historyGeneration.current !== token) return;
+        setHistoryView(null);
+        setHistoryError(requestError(exc));
+      }
+    });
+    return () => ctl.abort();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sessionId, atRevision]);
 
   // Escape cancels draft / selection (overlays handle their own Escape).
   useEffect(() => {
@@ -303,50 +353,91 @@ function OwnedChemLabWorkspace() {
 
   const modelScopeText = useMemo(() => l10n(pack?.model_scope, language), [pack, language]);
 
+  // Historical mode renders a synthetic display from the revision view; the
+  // scene never mixes live events with a replayed frame (历史只读不变式).
+  const historyDisplay = useMemo<ChemLabDisplay | null>(() => {
+    const view = historyView;
+    if (!view) return null;
+    return {
+      renderFrame: view.render_frame,
+      guidance: view.guidance ?? null,
+      phase: view.phase,
+      revision: view.revision,
+      simTimeMs: view.sim_time_ms,
+      engineState: {
+        vessels: Object.fromEntries(
+          Object.entries(view.scene_state.vessels ?? {}).map(([id, vessel]) => [
+            id,
+            {
+              kind: vessel.kind,
+              slot: vessel.slot,
+              volume_uL: vessel.volume_uL,
+              capacity_uL: vessel.capacity_uL,
+              temperature_milli_c: vessel.temperature_milli_c,
+              mix_permille: vessel.mix_permille,
+              heat: vessel.heat,
+            },
+          ]),
+        ),
+        equipment: Object.fromEntries(
+          Object.entries(view.scene_state.equipment ?? {}).map(([id, item]) => [
+            id,
+            {
+              kind: item.kind,
+              slot: item.slot,
+              load: { volume_uL: item.load_volume_uL },
+              connected: item.connected,
+              reading: item.reading,
+            },
+          ]),
+        ),
+        held: view.scene_state.held ?? null,
+      },
+      events: view.recent_events ?? [],
+      observations: view.observations ?? [],
+      serverRevision: view.tip_revision,
+    };
+  }, [historyView]);
+  const effectiveDisplay = historyActive && historyDisplay ? historyDisplay : display;
+
   // ---- command handlers ----------------------------------------------------------
   const busy = acting || loading;
-  const commandsLocked = syncStatus === "conflict" || syncStatus === "offline_preview";
+  const commandsLocked = syncStatus === "conflict" || syncStatus === "offline_preview" || historyActive;
 
   const submitCommand = useCallback(
     (command: LabCommand) => {
+      if (historyActive) return;
       send(command);
       setDraft(null);
     },
-    [send],
+    [historyActive, send],
   );
 
   const heldId = String(display.engineState?.held ?? "") || null;
 
+  /** Atomic move: one `move` command — the engine validates occupancy. */
   const moveObject = useCallback(
     (objectId: string, slotId: string) => {
       if (commandsLocked) return;
-      if (heldId !== objectId) {
-        send({ kind: "pick_up", object_id: objectId });
-      }
-      send({ kind: "place", object_id: objectId, slot_id: slotId });
+      if (heldId && heldId !== objectId) return;
+      const state = (display.engineState ?? {}) as AnyRecord;
+      const vessels = (state.vessels ?? {}) as AnyRecord;
+      const equipment = (state.equipment ?? {}) as AnyRecord;
+      const current = String(
+        (vessels[objectId] as AnyRecord)?.slot ?? (equipment[objectId] as AnyRecord)?.slot ?? "",
+      );
+      if (!current || current === slotId) return; // same slot: no-op, no request
+      send({ kind: "move", object_id: objectId, slot_id: slotId });
       setDraft(null);
     },
-    [commandsLocked, heldId, send],
+    [commandsLocked, display.engineState, heldId, send],
   );
 
-  const pickUp = useCallback(
-    (objectId: string) => {
-      if (commandsLocked) return;
-      send({ kind: "pick_up", object_id: objectId });
-    },
-    [commandsLocked, send],
-  );
-
-  const placeBack = useCallback(() => {
+  /** Drop a legacy hold without moving: the `release` compatibility command. */
+  const releaseHeld = useCallback(() => {
     if (!heldId || commandsLocked) return;
-    const state = display.engineState ?? {};
-    const vessels = (state.vessels ?? {}) as AnyRecord;
-    const equipment = (state.equipment ?? {}) as AnyRecord;
-    const slot = String(
-      (vessels[heldId] as AnyRecord)?.slot ?? (equipment[heldId] as AnyRecord)?.slot ?? "",
-    );
-    if (slot) send({ kind: "place", object_id: heldId, slot_id: slot });
-  }, [commandsLocked, display.engineState, heldId, send]);
+    send({ kind: "release", object_id: heldId });
+  }, [commandsLocked, heldId, send]);
 
   const sessionAction = useCallback(
     async (fn: () => Promise<void>) => {
@@ -387,6 +478,24 @@ function OwnedChemLabWorkspace() {
       });
     },
     [snapshot, sessionAction, attach, router, refreshLists, enginePack],
+  );
+
+  /** Leave history mode: drop `at`, stay on the same session. */
+  const backToLatest = useCallback(() => {
+    const params = new URLSearchParams(query.toString());
+    params.delete("at");
+    router.replace(`/tools/lab/chemistry?${params.toString()}`);
+  }, [query, router]);
+
+  /** Enter / move history mode at one revision (banner + timeline jumps). */
+  const jumpRevision = useCallback(
+    (revision: number) => {
+      const params = new URLSearchParams(query.toString());
+      if (sessionId) params.set("session", sessionId);
+      params.set("at", String(revision));
+      router.replace(`/tools/lab/chemistry?${params.toString()}`);
+    },
+    [query, router, sessionId],
   );
 
   const resetSession = useCallback(() => {
@@ -489,10 +598,6 @@ function OwnedChemLabWorkspace() {
   }, [snapshot, sessions, sessionAction, language, tr]);
 
   // ---- banners ---------------------------------------------------------------------
-  const atNumber = atRevision ? Number(atRevision) : null;
-  const showAtBanner =
-    atNumber !== null && Number.isFinite(atNumber) && snapshot !== null && atNumber !== display.revision && !atDismissed;
-
   const banner = (() => {
     if (display.phase === "safety_locked" || syncStatus === "safety_locked") {
       return (
@@ -620,7 +725,7 @@ function OwnedChemLabWorkspace() {
 
   // ---- live bench ----------------------------------------------------------------------
   const equipmentTray = (
-    <EquipmentTray pack={pack} display={display} language={language} selected={selected} busy={busy}
+    <EquipmentTray pack={pack} display={effectiveDisplay} language={language} selected={selected} busy={busy || commandsLocked}
       onSelect={setSelected}
       onOperate={(next) => setDraft(next)}
       strings={{
@@ -629,7 +734,7 @@ function OwnedChemLabWorkspace() {
       }} />
   );
   const reagentPalette = (
-    <ReagentPalette pack={pack} display={display} language={language} selected={selected} busy={busy}
+    <ReagentPalette pack={pack} display={effectiveDisplay} language={language} selected={selected} busy={busy || commandsLocked}
       onSelect={setSelected}
       onOperate={(next) => setDraft(next)}
       strings={{
@@ -638,32 +743,52 @@ function OwnedChemLabWorkspace() {
       }} />
   );
   const guidanceRail = (
-    <GuidanceRail goals={snapshot?.goals ?? []} goalTitles={goalTitles} guidance={display.guidance}
+    <GuidanceRail goals={historyActive && historyView ? (historyView.goals ?? []) : snapshot?.goals ?? []}
+      goalTitles={goalTitles} guidance={effectiveDisplay.guidance}
       concepts={concepts} modelScopeText={modelScopeText} rejected={Boolean(lastRejection)} tr={tr} />
   );
   const observationLog = (
-    <ObservationLog observations={display.observations} events={display.events} vesselName={vesselName}
+    <ObservationLog observations={effectiveDisplay.observations} events={effectiveDisplay.events} vesselName={vesselName}
       tr={tr} onOpenEvidence={setEvidenceObs} />
   );
 
   return (
     <div className="flex h-full min-w-0 flex-col overflow-hidden bg-bg" data-testid="chem-lab-workspace">
       {banner}
-      {showAtBanner && atNumber !== null && (
-        <div role="status" className="flex flex-wrap items-center gap-2 border-b border-accent/25 bg-accent-soft/50 px-4 py-2">
-          <span className="text-[11px] text-fg-secondary">{tr("atBanner").replace("%n", String(atNumber))}</span>
-          <Button size="sm" variant="outline" disabled={acting}
-            onClick={() => forkSession({ at_revision: atNumber })}>
-            {tr("atBranch").replace("%n", String(atNumber))}
-          </Button>
-          <Button size="sm" variant="ghost" onClick={() => setAtDismissed(true)}>{tr("dismiss")}</Button>
+      {historyActive && atNumber !== null && (
+        <div role="status" data-testid="chem-lab-readonly-banner"
+          className="flex flex-wrap items-center gap-2 border-b border-accent/25 bg-accent-soft/50 px-4 py-2">
+          <span className="text-[11px] font-medium text-accent-strong"
+            data-testid="chem-lab-history-revision">
+            {tr("atBanner").replace("%n", String(atNumber))}
+          </span>
+          {historyView && (
+            <span className="text-[11px] text-fg-secondary">
+              {tr("historyTip").replace("%n", String(historyView.tip_revision))}
+            </span>
+          )}
+          <div className="ml-auto flex flex-wrap items-center gap-1.5">
+            <Button size="sm" variant="ghost" aria-label={tr("historyPrev")}
+              disabled={atNumber <= 0 || acting} onClick={() => jumpRevision(atNumber - 1)}
+              data-testid="chem-lab-history-prev">‹</Button>
+            <Button size="sm" variant="ghost" aria-label={tr("historyNext")}
+              disabled={!historyView || atNumber >= historyView.tip_revision || acting}
+              onClick={() => jumpRevision(atNumber + 1)}
+              data-testid="chem-lab-history-next">›</Button>
+            <Button size="sm" variant="outline" disabled={acting}
+              onClick={() => forkSession({ at_revision: atNumber })}>
+              {tr("atBranch").replace("%n", String(atNumber))}
+            </Button>
+            <Button size="sm" variant="outline" onClick={backToLatest}
+              data-testid="chem-lab-back-to-latest">{tr("backToLatest")}</Button>
+          </div>
         </div>
       )}
       {error && (
         <p role="alert" className="border-b border-danger/30 bg-danger/8 px-4 py-1.5 text-[11px] text-danger">{error}</p>
       )}
-      <div className="grid min-h-0 min-w-0 flex-1 grid-cols-1 lg:grid-cols-[248px_minmax(0,1fr)_320px]">
-        <aside className="order-3 hidden min-h-0 flex-col overflow-y-auto border-t border-border-light bg-surface px-4 py-4 lg:order-1 lg:flex lg:border-r lg:border-t-0"
+      <div className="grid min-h-0 min-w-0 flex-1 grid-cols-1 xl:grid-cols-[232px_minmax(0,1fr)_292px]">
+        <aside className="order-3 hidden min-h-0 flex-col overflow-y-auto border-t border-border-light bg-surface px-4 py-4 xl:order-1 xl:flex xl:border-r xl:border-t-0"
           aria-label={tr("equipmentTab")}>
           <Link href="/tools/lab" data-testid="chem-lab-back"
             className="mb-3 flex min-h-[36px] items-center gap-1.5 rounded-[8px] px-2 text-xs text-muted transition-colors hover:bg-surface-hover hover:text-fg">
@@ -675,7 +800,7 @@ function OwnedChemLabWorkspace() {
           </div>
         </aside>
 
-        <main className="order-1 flex min-h-0 min-w-0 flex-col lg:order-2" aria-label={tr("labTitle")}>
+        <main className="order-1 flex min-h-0 min-w-0 flex-col xl:order-2" aria-label={tr("labTitle")}>
           <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border-light bg-surface px-4 py-2">
             <div className="min-w-0">
               <p className="truncate text-xs font-semibold text-fg">
@@ -703,35 +828,58 @@ function OwnedChemLabWorkspace() {
               <p role="status" className="flex h-full items-center justify-center text-sm text-muted">
                 <BusyMark className="mr-2 h-4 w-4 animate-spin" />{tr("starting")}
               </p>
+            ) : historyActive ? (
+              historyError ? (
+                <div role="alert"
+                  className="flex h-full flex-col items-center justify-center gap-3 px-6 text-center">
+                  <p className="max-w-md text-sm text-danger">{historyError}</p>
+                  <Button size="sm" variant="outline" onClick={backToLatest}>{tr("backToLatest")}</Button>
+                </div>
+              ) : historyDisplay ? (
+                <LabStage pack={pack} display={historyDisplay} language={language} selected={selected}
+                  busy readOnly sessionId={snapshot?.session_id ?? null}
+                  onSelect={setSelected}
+                  onDeselect={() => setSelected(null)}
+                  onMoveObject={moveObject}
+                  onDragOperation={(next) => setDraft(next)}
+                  onInstrumentTap={(id, el) => { measureAnchor.current = el; setMeasureId(id); }} />
+              ) : (
+                <p role="status" className="flex h-full items-center justify-center text-sm text-muted">
+                  <BusyMark className="mr-2 h-4 w-4 animate-spin" />{tr("historyLoading")}
+                </p>
+              )
             ) : (
               <LabStage pack={pack} display={display} language={language} selected={selected}
                 busy={busy || commandsLocked}
+                sessionId={snapshot?.session_id ?? null}
+                motion={motion}
                 onSelect={setSelected}
+                onDeselect={() => setSelected(null)}
                 onMoveObject={moveObject}
                 onDragOperation={(next) => setDraft(next)}
-                onSlotTarget={(slotId) => heldId && moveObject(heldId, slotId)}
                 onInstrumentTap={(id, el) => { measureAnchor.current = el; setMeasureId(id); }} />
             )}
           </div>
 
           <div className="shrink-0 space-y-2 border-t border-border-light bg-surface px-3 py-2.5 sm:px-4">
-            <OperationToolbar pack={pack} display={display} language={language} selected={selected}
+            <OperationToolbar pack={pack} display={effectiveDisplay} language={language} selected={selected}
               draft={draft} heldId={heldId} busy={busy || commandsLocked} tr={tr}
-              onDraft={setDraft} onSubmit={submitCommand} onPickUp={pickUp} onPlaceBack={placeBack}
+              onDraft={setDraft} onSubmit={submitCommand} onReleaseHeld={releaseHeld}
               onClearSelection={() => setSelected(null)} />
-            <LabTimeline simTimeMs={display.simTimeMs} revision={display.revision}
-              serverRevision={display.serverRevision} syncStatus={syncStatus} pendingCount={pendingCount}
-              checkpoints={snapshot?.checkpoints ?? []} events={display.events}
-              finished={Boolean(snapshot?.finished)} phase={display.phase} busy={busy} tr={tr}
+            <LabTimeline simTimeMs={effectiveDisplay.simTimeMs} revision={effectiveDisplay.revision}
+              serverRevision={effectiveDisplay.serverRevision} syncStatus={syncStatus} pendingCount={pendingCount}
+              checkpoints={snapshot?.checkpoints ?? []} events={effectiveDisplay.events}
+              finished={Boolean(snapshot?.finished)} phase={effectiveDisplay.phase} busy={busy || commandsLocked} tr={tr}
               onCheckpoint={makeCheckpoint}
               onFork={(checkpointId) => forkSession({ checkpoint_id: checkpointId })}
               onReset={() => setResetOpen(true)}
               onFinish={finishSession}
-              onCompare={openCompare} />
+              onCompare={openCompare}
+              onJumpRevision={jumpRevision} />
           </div>
         </main>
 
-        <aside className="order-2 hidden min-h-0 flex-col overflow-y-auto border-t border-border-light bg-surface px-4 py-4 lg:order-3 lg:flex lg:border-l lg:border-t-0"
+        <aside className="order-2 hidden min-h-0 flex-col overflow-y-auto border-t border-border-light bg-surface px-4 py-4 xl:order-3 xl:flex xl:border-l xl:border-t-0"
           aria-label={tr("guidanceTab")}>
           <Tabs
             items={[
@@ -747,7 +895,7 @@ function OwnedChemLabWorkspace() {
       </div>
 
       {/* mobile panel bar */}
-      <nav className="flex shrink-0 items-stretch gap-1 border-t border-border-light bg-surface px-2 py-1.5 lg:hidden"
+      <nav className="flex shrink-0 items-stretch gap-1 border-t border-border-light bg-surface px-2 py-1.5 xl:hidden"
         aria-label={tr("equipmentTab")}>
         {(["equipment", "guidance", "observations"] as const).map((panel) => (
           <Button key={panel} size="sm" variant="ghost" selected={mobilePanel === panel}
@@ -765,7 +913,7 @@ function OwnedChemLabWorkspace() {
         {mobilePanel === "observations" && observationLog}
       </Drawer>
 
-      <MeasurementPopover pack={pack} display={display} language={language} equipmentId={measureId}
+      <MeasurementPopover pack={pack} display={effectiveDisplay} language={language} equipmentId={measureId}
         anchorRef={measureAnchor} open={measureId !== null} busy={busy} tr={tr}
         onClose={() => setMeasureId(null)} onOperate={(next) => setDraft(next)} />
 

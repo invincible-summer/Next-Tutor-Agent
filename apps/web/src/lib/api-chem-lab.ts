@@ -28,6 +28,7 @@ export type {
   ChemLabRenderFrame,
   ChemLabResetRequest,
   ChemLabResultCard,
+  ChemLabRevisionView,
   ChemLabCheckpoint,
   ChemLabSessionList,
   ChemLabSessionSnapshot,
@@ -66,6 +67,8 @@ export const createChemLabSession = (body: ChemLabCreateSession, signal?: AbortS
   lab().createSession(body, signal).catch(adapt);
 export const getChemLabSession = (id: string, signal?: AbortSignal) =>
   lab().getSession(id, signal).catch(adapt);
+export const getChemLabRevision = (id: string, revision: number, signal?: AbortSignal) =>
+  lab().getRevision(id, revision, signal).catch(adapt);
 export const deleteChemLabSession = (id: string, signal?: AbortSignal) =>
   lab().deleteSession(id, signal).catch(adapt);
 export const postChemLabCommand = (id: string, body: ChemLabCommandRequest, signal?: AbortSignal) =>

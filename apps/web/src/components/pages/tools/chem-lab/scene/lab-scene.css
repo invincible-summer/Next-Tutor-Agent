@@ -1,0 +1,235 @@
+/*
+ * Scoped tokens + motion for the 2.5D lab scene. All colors derive from the
+ * project paper/ink design tokens (rgb(--*)) where possible; scene-local
+ * material vars (glass, steel, bench) are defined here for light and dark.
+ * Motion respects prefers-reduced-motion: transitions collapse to none and
+ * looping keyframes stop, but no information is removed (states stay visible).
+ */
+
+.lab-scene {
+  --lab-wall: #ece9e2;
+  --lab-wall-low: #e3ded4;
+  --lab-window: #d7e6ee;
+  --lab-window-bar: #b9c6cc;
+  --lab-tile-line: rgba(93, 84, 70, 0.10);
+  --lab-shelf: #cfc9bd;
+  --lab-shelf-edge: #a89f8e;
+  --lab-steel: #b9bec4;
+  --lab-steel-dark: #8d939a;
+  --lab-bench-top: #e6e0d3;
+  --lab-bench-top-back: #d8d1c1;
+  --lab-bench-front: #cabfab;
+  --lab-bench-edge: #b3a891;
+  --lab-shadow: rgba(70, 62, 50, 0.34);
+  --lab-shadow-soft: rgba(70, 62, 50, 0.14);
+  --lab-glass-rim: rgba(94, 124, 150, 0.85);
+  --lab-glass-body: rgba(148, 178, 210, 0.10);
+  --lab-glass-shine: rgba(255, 255, 255, 0.45);
+  --lab-liquid-default: #b9d4e8;
+  --lab-drop-ok: #3f8f6b;
+  --lab-drop-warn: #c98a2e;
+  --lab-drop-bad: #c05b48;
+}
+
+.dark .lab-scene {
+  --lab-wall: #232830;
+  --lab-wall-low: #1e232a;
+  --lab-window: #2c3a45;
+  --lab-window-bar: #3d4c58;
+  --lab-tile-line: rgba(180, 190, 200, 0.07);
+  --lab-shelf: #3a4049;
+  --lab-shelf-edge: #4a515b;
+  --lab-steel: #6e747c;
+  --lab-steel-dark: #565c64;
+  --lab-bench-top: #343a36;
+  --lab-bench-top-back: #2c322e;
+  --lab-bench-front: #272c29;
+  --lab-bench-edge: #1f2421;
+  --lab-shadow: rgba(0, 0, 0, 0.55);
+  --lab-shadow-soft: rgba(0, 0, 0, 0.25);
+  --lab-glass-rim: rgba(151, 186, 214, 0.75);
+  --lab-glass-body: rgba(120, 158, 192, 0.13);
+  --lab-glass-shine: rgba(226, 240, 250, 0.30);
+}
+
+.lab-scene__world {
+  transition: transform 380ms cubic-bezier(0.22, 0.61, 0.36, 1);
+  will-change: transform;
+}
+.lab-scene__world--frozen {
+  transition: none;
+}
+
+/* Positioned via CSS transform so a confirmed move slides to its new slot
+ * instead of teleporting; DOM hit boxes reproject on the revision bump. */
+.lab-scene__node {
+  transition: transform 340ms cubic-bezier(0.25, 0.8, 0.35, 1);
+}
+
+.lab-scene__hit {
+  transition: box-shadow 140ms ease, background-color 140ms ease;
+}
+
+/* Continuous phenomena — gentle loops only, capped counts in JSX. */
+.lab-scene__bubble {
+  animation: lab-scene-bubble-rise 2.4s linear infinite;
+}
+@keyframes lab-scene-bubble-rise {
+  0% { transform: translateY(0); opacity: 0; }
+  12% { opacity: 0.85; }
+  100% { transform: translateY(calc(-1px * var(--lab-rise, 30))); opacity: 0; }
+}
+
+.lab-scene__steam {
+  animation: lab-scene-steam-wisp 3s ease-in-out infinite;
+}
+@keyframes lab-scene-steam-wisp {
+  0%, 100% { opacity: 0.12; transform: translateY(0); }
+  50% { opacity: 0.6; transform: translateY(-3px); }
+}
+
+.lab-scene__heat {
+  animation: lab-scene-heat-pulse 2.2s ease-in-out infinite;
+}
+@keyframes lab-scene-heat-pulse {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 0.85; }
+}
+
+.lab-scene__highlight {
+  animation: lab-scene-highlight-pulse 1.9s ease-in-out infinite;
+}
+@keyframes lab-scene-highlight-pulse {
+  0%, 100% { opacity: 0.35; }
+  50% { opacity: 0.9; }
+}
+
+.lab-scene__gasdot {
+  animation: lab-scene-gas-flow 1.7s linear infinite;
+}
+@keyframes lab-scene-gas-flow {
+  0% { stroke-dashoffset: 22; opacity: 0; }
+  25% { opacity: 0.9; }
+  100% { stroke-dashoffset: 0; opacity: 0; }
+}
+
+.lab-scene__ghost {
+  filter: drop-shadow(0 6px 10px var(--lab-shadow));
+}
+
+/*
+ * One-shot command motions (useLabPresentation). Classes land on *inner*
+ * wrapper groups: the outer node <g> carries its translate attribute, which a
+ * CSS transform would override — so transform keyframes run one level below.
+ */
+.lab-motion-pending--actor {
+  animation: lab-motion-soft-pulse 1.15s ease-in-out infinite;
+}
+.lab-motion-rejected--actor,
+.lab-motion-rejected--target {
+  animation: lab-motion-flash 320ms ease-out;
+}
+
+.lab-motion-move--actor {
+  transform-box: fill-box;
+  transform-origin: 50% 90%;
+  animation: lab-motion-settle 420ms cubic-bezier(0.3, 0.9, 0.35, 1);
+}
+.lab-motion-release--actor,
+.lab-motion-pick_up--actor {
+  transform-box: fill-box;
+  transform-origin: 50% 90%;
+  animation: lab-motion-lift 280ms ease-out;
+}
+.lab-motion-place--actor {
+  transform-box: fill-box;
+  transform-origin: 50% 90%;
+  animation: lab-motion-settle 380ms cubic-bezier(0.3, 0.9, 0.35, 1);
+}
+.lab-motion-pour--actor {
+  transform-box: fill-box;
+  transform-origin: 50% 8%;
+  animation: lab-motion-tilt 650ms ease-in-out;
+}
+.lab-motion-pour--target,
+.lab-motion-aspirate--target,
+.lab-motion-dispense--target,
+.lab-motion-measure--target,
+.lab-motion-filter--actor,
+.lab-motion-filter--target {
+  animation: lab-motion-ripple 640ms ease-out;
+}
+.lab-motion-aspirate--actor {
+  transform-box: fill-box;
+  animation: lab-motion-dip 460ms ease-in-out;
+}
+.lab-motion-dispense--actor {
+  transform-box: fill-box;
+  animation: lab-motion-dip 520ms ease-in-out;
+}
+.lab-motion-heat--actor,
+.lab-motion-stir--actor,
+.lab-motion-wait--actor {
+  animation: lab-motion-glow 900ms ease-in-out;
+}
+.lab-motion-measure--actor {
+  animation: lab-motion-glow 520ms ease-out;
+}
+.lab-motion-connect--actor,
+.lab-motion-connect--target,
+.lab-motion-wash--actor,
+.lab-motion-wash--target {
+  animation: lab-motion-flash 480ms ease-out;
+}
+.lab-motion-dispose--actor {
+  animation: lab-motion-flash 380ms ease-out;
+}
+
+@keyframes lab-motion-soft-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.55; }
+}
+@keyframes lab-motion-flash {
+  0% { opacity: 0.35; }
+  30% { opacity: 1; }
+  100% { opacity: 1; }
+}
+@keyframes lab-motion-settle {
+  0% { transform: translateY(10px) scale(0.97); opacity: 0.8; }
+  45% { transform: translateY(-8px) scale(1.02); opacity: 1; }
+  100% { transform: none; opacity: 1; }
+}
+@keyframes lab-motion-lift {
+  0% { transform: translateY(-6px) scale(1.01); }
+  100% { transform: none; }
+}
+@keyframes lab-motion-tilt {
+  0%, 100% { transform: rotate(0deg); }
+  35%, 65% { transform: rotate(-14deg); }
+}
+@keyframes lab-motion-dip {
+  0%, 100% { transform: none; }
+  50% { transform: translateY(7px); }
+}
+@keyframes lab-motion-ripple {
+  0% { opacity: 0.45; }
+  40% { opacity: 1; }
+  100% { opacity: 1; }
+}
+@keyframes lab-motion-glow {
+  0%, 100% { filter: none; }
+  40% { filter: brightness(1.16); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lab-scene__world { transition: none; }
+  .lab-scene__node { transition: none; }
+  .lab-scene__bubble,
+  .lab-scene__steam,
+  .lab-scene__heat,
+  .lab-scene__highlight,
+  .lab-scene__gasdot { animation: none !important; }
+  .lab-scene__bubble { opacity: 0.7; }
+  .lab-scene__steam { opacity: 0.4; }
+  [class*="lab-motion-"] { animation: none !important; }
+}

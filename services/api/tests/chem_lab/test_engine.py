@@ -122,5 +122,131 @@ class ReducerDeterminismTest(unittest.TestCase):
         self.assertEqual(accepted, [False])
 
 
+class MoveReleaseTest(unittest.TestCase):
+    """Atomic move / release: the two compatibility additions to the closed
+    command set. Legacy pick_up/place behaviour is pinned by replay vectors
+    and must stay untouched."""
+
+    @staticmethod
+    def _pack_with_open_slot() -> dict:
+        pack = build_test_pack()
+        # The stock layout has no open slot; add one for cross-slot moves.
+        pack["starting_state"]["slots"].append({"id": "s4", "x": 300, "y": 0, "w": 100, "h": 100})
+        return pack
+
+    def test_move_to_open_slot_is_atomic(self) -> None:
+        pack = self._pack_with_open_slot()
+        state, events, _h, accepted = replay.run_script(pack, [
+            {"kind": "move", "object_id": "acid", "slot_id": "s4"},
+        ])
+        self.assertEqual(accepted, [True])
+        self.assertEqual(state["vessels"]["acid"]["slot"], "s4")
+        self.assertEqual(state["held"], None)
+        kinds = [event["kind"] for event in events]
+        self.assertIn("object_moved", kinds)
+        moved = events[0]
+        self.assertEqual(moved["data"], {"object_id": "acid", "from_slot_id": "s1", "to_slot_id": "s4"})
+        self.assertEqual(state["revision"], 1)
+
+    def test_move_same_slot_clears_held_and_is_idempotent(self) -> None:
+        pack = self._pack_with_open_slot()
+        state, events, _h, accepted = replay.run_script(pack, [
+            {"kind": "pick_up", "object_id": "acid"},
+            {"kind": "move", "object_id": "acid", "slot_id": "s1"},
+            {"kind": "move", "object_id": "acid", "slot_id": "s1"},
+        ])
+        self.assertEqual(accepted, [True, True, True])
+        self.assertEqual(state["held"], None)
+        self.assertEqual(state["vessels"]["acid"]["slot"], "s1")
+        moved = [e for e in events if e["kind"] == "object_moved"]
+        self.assertEqual(len(moved), 2)
+        self.assertEqual(moved[0]["data"]["from_slot_id"], "s1")
+        self.assertEqual(moved[0]["data"]["to_slot_id"], "s1")
+
+    def test_move_rejections(self) -> None:
+        pack = self._pack_with_open_slot()
+        # Occupied by another vessel.
+        _s, events, _h, accepted = replay.run_script(pack, [
+            {"kind": "move", "object_id": "acid", "slot_id": "s2"},
+        ])
+        self.assertEqual(accepted, [False])
+        self.assertEqual(events[0]["data"]["reason"], "invalid_params")
+        # Occupied by another piece of equipment (probe-1 shares s3 with pip-1).
+        _s, events, _h, accepted = replay.run_script(pack, [
+            {"kind": "move", "object_id": "acid", "slot_id": "s3"},
+        ])
+        self.assertEqual(accepted, [False])
+        # Unknown object / unknown slot.
+        _s, events, _h, accepted = replay.run_script(pack, [
+            {"kind": "move", "object_id": "ghost", "slot_id": "s4"},
+            {"kind": "move", "object_id": "acid", "slot_id": "void"},
+        ])
+        self.assertEqual(accepted, [False, False])
+        self.assertEqual(events[0]["data"]["reason"], "unknown_object")
+        self.assertEqual(events[1]["data"]["reason"], "unknown_object")
+        # Slot occupied by a held different object still rejects the mover.
+        _s, events, _h, accepted = replay.run_script(pack, [
+            {"kind": "pick_up", "object_id": "base"},
+            {"kind": "move", "object_id": "acid", "slot_id": "s2"},
+        ])
+        self.assertEqual(accepted, [True, False])
+
+    def test_move_blocked_while_another_object_held(self) -> None:
+        pack = self._pack_with_open_slot()
+        state, events, _h, accepted = replay.run_script(pack, [
+            {"kind": "pick_up", "object_id": "base"},
+            {"kind": "move", "object_id": "acid", "slot_id": "s4"},
+        ])
+        self.assertEqual(accepted, [True, False])
+        self.assertEqual(events[1]["data"]["reason"], "invalid_params")
+        self.assertEqual(state["held"], "base")
+        self.assertEqual(state["vessels"]["acid"]["slot"], "s1")
+        # …but moving the held object itself is allowed and clears the hold.
+        state, _e, _h, accepted = replay.run_script(pack, [
+            {"kind": "pick_up", "object_id": "base"},
+            {"kind": "move", "object_id": "base", "slot_id": "s2"},
+        ])
+        self.assertEqual(accepted, [True, True])
+        self.assertEqual(state["held"], None)
+        self.assertEqual(state["vessels"]["base"]["slot"], "s2")
+
+    def test_release_only_for_held_object(self) -> None:
+        pack = self._pack_with_open_slot()
+        # No hold at all → reject.
+        _s, events, _h, accepted = replay.run_script(pack, [
+            {"kind": "release", "object_id": "acid"},
+        ])
+        self.assertEqual(accepted, [False])
+        self.assertEqual(events[0]["data"]["reason"], "invalid_params")
+        # Holding base, releasing acid → reject.
+        _s, events, _h, accepted = replay.run_script(pack, [
+            {"kind": "pick_up", "object_id": "base"},
+            {"kind": "release", "object_id": "acid"},
+        ])
+        self.assertEqual(accepted, [True, False])
+        # Releasing the held object clears the hold, keeps slot and contents.
+        state, events, _h, accepted = replay.run_script(pack, [
+            {"kind": "pick_up", "object_id": "base"},
+            {"kind": "release", "object_id": "base"},
+        ])
+        self.assertEqual(accepted, [True, True])
+        self.assertEqual(state["held"], None)
+        self.assertEqual(state["vessels"]["base"]["slot"], "s2")
+        self.assertEqual(state["vessels"]["base"]["volume_uL"], 20000)
+        released = [e for e in events if e["kind"] == "object_released"]
+        self.assertEqual(len(released), 1)
+        self.assertEqual(released[0]["data"], {"object_id": "base", "slot_id": "s2"})
+
+    def test_legacy_pickup_then_place_same_slot_still_rejected(self) -> None:
+        # The old commands must keep their exact historical semantics.
+        pack = build_test_pack()
+        _s, _e, _h, accepted = replay.run_script(pack, [
+            {"kind": "pick_up", "object_id": "acid"},
+            {"kind": "place", "object_id": "acid", "slot_id": "s1"},
+        ])
+        self.assertEqual(accepted, [True, False])
+
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -18,6 +18,7 @@ from . import safety
 COMMAND_KINDS = {
     "pick_up", "place", "aspirate", "dispense", "pour", "heat", "stir",
     "wait", "measure", "connect", "filter", "wash", "dispose", "checkpoint",
+    "move", "release",
 }
 TRANSFER_TRIGGERS = {
     "aspirate": "on_aspirate", "dispense": "on_dispense", "pour": "on_pour",
@@ -101,6 +102,58 @@ def _do_place(state: dict[str, Any], command: dict[str, Any], events, command_id
         state["equipment"][object_id]["slot"] = slot_id
     state["held"] = None
     events.append(m.make_event(state, "object_placed", command_id,
+                               data={"object_id": object_id, "slot_id": slot_id}))
+    return 0
+
+
+def _do_move(state: dict[str, Any], command: dict[str, Any], events, command_id: str) -> int:
+    """Atomic position command: one object to one slot in a single step.
+
+    Unlike the legacy pick_up/place pair, ``move`` needs no prior hold; it
+    validates target occupancy (only the moved object itself may sit on the
+    target slot) and clears ``held`` when it matches the moved object — the
+    repair path for sessions left holding an object with nowhere to place it.
+    """
+    object_id = str(command.get("object_id", ""))
+    slot_id = str(command.get("slot_id", ""))
+    if object_id not in state["vessels"] and object_id not in state["equipment"]:
+        raise _Reject("unknown_object")
+    if not any(slot["id"] == slot_id for slot in state["slots"]):
+        raise _Reject("unknown_object")
+    if state["held"] is not None and state["held"] != object_id:
+        raise _Reject("invalid_params")
+    for vessel in state["vessels"].values():
+        if vessel["id"] != object_id and vessel["slot"] == slot_id:
+            raise _Reject("invalid_params")
+    for equipment in state["equipment"].values():
+        if equipment["id"] != object_id and equipment["slot"] == slot_id:
+            raise _Reject("invalid_params")
+    from_slot = ""
+    if object_id in state["vessels"]:
+        from_slot = state["vessels"][object_id]["slot"]
+        state["vessels"][object_id]["slot"] = slot_id
+    else:
+        from_slot = state["equipment"][object_id]["slot"]
+        state["equipment"][object_id]["slot"] = slot_id
+    state["held"] = None
+    events.append(m.make_event(state, "object_moved", command_id,
+                               data={"object_id": object_id, "from_slot_id": from_slot,
+                                     "to_slot_id": slot_id}))
+    return 0
+
+
+def _do_release(state: dict[str, Any], command: dict[str, Any], events, command_id: str) -> int:
+    """Drop the current hold: clears ``held`` without touching slot or
+    contents — the escape hatch for legacy pick_up sessions."""
+    object_id = str(command.get("object_id", ""))
+    if state["held"] != object_id:
+        raise _Reject("invalid_params")
+    if object_id in state["vessels"]:
+        slot_id = state["vessels"][object_id]["slot"]
+    else:
+        slot_id = state["equipment"][object_id]["slot"]
+    state["held"] = None
+    events.append(m.make_event(state, "object_released", command_id,
                                data={"object_id": object_id, "slot_id": slot_id}))
     return 0
 
@@ -547,7 +600,8 @@ def apply_command(state: dict[str, Any], pack: dict[str, Any],
     if state["phase"] == "safety_locked" and kind not in {"checkpoint"}:
         return _reject(state, events, command_id, "safety_locked", kind)
     if state["phase"] in {"setup", "completed"} and kind not in {"checkpoint", "measure", "wait"}:
-        if state["phase"] == "completed" and kind in {"pick_up", "place", "measure", "wait", "checkpoint"}:
+        if state["phase"] == "completed" and kind in {"pick_up", "place", "measure", "wait",
+                                                      "checkpoint", "move", "release"}:
             pass  # read-only inspection stays possible after completion
         elif state["phase"] == "setup":
             return _reject(state, events, command_id, "phase", kind)
@@ -563,6 +617,10 @@ def apply_command(state: dict[str, Any], pack: dict[str, Any],
             duration = _do_pick_up(state, command, events, command_id)
         elif kind == "place":
             duration = _do_place(state, command, events, command_id)
+        elif kind == "move":
+            duration = _do_move(state, command, events, command_id)
+        elif kind == "release":
+            duration = _do_release(state, command, events, command_id)
         elif kind == "aspirate":
             duration = _do_aspirate(state, command, events, command_id, pack)
         elif kind == "dispense":

@@ -179,6 +179,61 @@ class ChemLabApiTest(StorageSandboxTestCase):
         kinds = {event["kind"] for event in ack["events"]}
         self.assertIn("command_rejected", kinds)
 
+    def test_move_command_updates_slot_atomically(self) -> None:
+        snap = self._create_session()
+        sid = snap["session_id"]
+        # Same-slot move of a free object: accepted, one object_moved event.
+        body = _command_body({"kind": "move", "object_id": "beaker-a", "slot_id": "f1"},
+                             revision=snap["revision"], pack_hash=snap["pack_hash"])
+        resp = self.client.post(f"{BASE}/sessions/{sid}/commands", json=body)
+        self.assertEqual(resp.status_code, 200, resp.text)
+        ack = resp.json()
+        self.assertTrue(ack["accepted"], ack)
+        self.assertEqual(ack["revision"], 1)
+        kinds = [event["kind"] for event in ack["events"]]
+        self.assertIn("object_moved", kinds)
+        # GET session reflects slot/held through engine_state.
+        detail = self.client.get(f"{BASE}/sessions/{sid}").json()
+        self.assertEqual(detail["engine_state"]["vessels"]["beaker-a"]["slot"], "f1")
+        self.assertIsNone(detail["engine_state"]["held"])
+        # Duplicate command_id replays the original ack.
+        again = self.client.post(f"{BASE}/sessions/{sid}/commands", json=body).json()
+        self.assertEqual(again, ack)
+
+    def test_move_onto_occupied_slot_rejected_with_200(self) -> None:
+        snap = self._create_session()
+        sid = snap["session_id"]
+        body = _command_body({"kind": "move", "object_id": "beaker-a", "slot_id": "f2"},
+                             revision=snap["revision"], pack_hash=snap["pack_hash"])
+        resp = self.client.post(f"{BASE}/sessions/{sid}/commands", json=body)
+        self.assertEqual(resp.status_code, 200)
+        ack = resp.json()
+        self.assertFalse(ack["accepted"])
+        self.assertEqual(ack["error_code"], "chem_lab_invalid_params")
+        self.assertEqual(ack["revision"], 1)
+        detail = self.client.get(f"{BASE}/sessions/{sid}").json()
+        self.assertEqual(detail["engine_state"]["vessels"]["beaker-a"]["slot"], "f1")
+
+    def test_release_repairs_legacy_held_state(self) -> None:
+        snap = self._create_session()
+        sid = snap["session_id"]
+        pick = _command_body({"kind": "pick_up", "object_id": "pipette-1"},
+                             revision=snap["revision"], pack_hash=snap["pack_hash"],
+                             command_id="cmd-pick")
+        ack = self.client.post(f"{BASE}/sessions/{sid}/commands", json=pick).json()
+        self.assertTrue(ack["accepted"])
+        detail = self.client.get(f"{BASE}/sessions/{sid}").json()
+        self.assertEqual(detail["engine_state"]["held"], "pipette-1")
+        release = _command_body({"kind": "release", "object_id": "pipette-1"},
+                                revision=ack["revision"], pack_hash=snap["pack_hash"],
+                                command_id="cmd-rel", client_seq=2)
+        resp = self.client.post(f"{BASE}/sessions/{sid}/commands", json=release)
+        self.assertEqual(resp.status_code, 200, resp.text)
+        self.assertTrue(resp.json()["accepted"])
+        detail = self.client.get(f"{BASE}/sessions/{sid}").json()
+        self.assertIsNone(detail["engine_state"]["held"])
+        self.assertEqual(detail["engine_state"]["equipment"]["pipette-1"]["slot"], "b3")
+
     def test_events_endpoint_pages_after_seq(self) -> None:
         snap = self._create_session()
         self.client.post(f"{BASE}/sessions/{snap['session_id']}/commands",
@@ -307,6 +362,111 @@ class ChemLabApiTest(StorageSandboxTestCase):
         # owner 目录已清除，epoch 墓碑仍在（fail-closed）。
         self.assertFalse(persistence.owner_dir(OWNER).exists())
         self.assertGreaterEqual(persistence.epoch(OWNER), 1)
+
+    # -- historical revision views -------------------------------------------
+
+    def _run_commands(self, snap: dict, commands: list[dict]) -> list[dict]:
+        acks = []
+        revision = snap["revision"]
+        for index, command in enumerate(commands):
+            resp = self.client.post(
+                f"{BASE}/sessions/{snap['session_id']}/commands",
+                json=_command_body(command, revision=revision,
+                                   pack_hash=snap["pack_hash"],
+                                   command_id=f"hist-{index}", client_seq=index + 1))
+            self.assertEqual(resp.status_code, 200, resp.text)
+            ack = resp.json()
+            self.assertTrue(ack["accepted"], ack.get("error_code"))
+            revision = ack["revision"]
+            acks.append(ack)
+        return acks
+
+    def _get_revision(self, session_id: str, revision: int):
+        return self.client.get(f"{BASE}/sessions/{session_id}/revisions/{revision}")
+
+    def test_revision_view_replays_history(self) -> None:
+        snap = self._create_session()
+        initial_hash = snap["state_hash"]
+        self._run_commands(snap, [
+            {"kind": "aspirate", "source_id": "stock", "instrument_id": "pipette-1",
+             "amount_uL": 10000},
+            {"kind": "dispense", "instrument_id": "pipette-1", "target_id": "beaker-a",
+             "amount_uL": 5000},
+        ])
+        tip = self.client.get(f"{BASE}/sessions/{snap['session_id']}").json()
+
+        # revision 0 is the untouched initial state
+        resp = self._get_revision(snap["session_id"], 0)
+        self.assertEqual(resp.status_code, 200, resp.text)
+        view0 = resp.json()
+        self.assertTrue(view0["read_only"])
+        self.assertEqual(view0["revision"], 0)
+        self.assertEqual(view0["tip_revision"], 2)
+        self.assertEqual(view0["state_hash"], initial_hash)
+        self.assertEqual(view0["phase"], "ready")
+        self.assertIn("stock", view0["scene_state"]["vessels"])
+        self.assertIn("pipette-1", view0["scene_state"]["equipment"])
+        self.assertIsNone(view0["scene_state"]["held"])
+        self.assertEqual(view0["scene_state"]["vessels"]["beaker-a"]["kind"],
+                         "beaker.small")
+        self.assertEqual(view0["scene_state"]["vessels"]["beaker-a"]["volume_uL"], 0)
+
+        # mid revision reflects the replayed command effects
+        view1 = self._get_revision(snap["session_id"], 1).json()
+        self.assertEqual(view1["revision"], 1)
+        self.assertTrue(view1["state_hash"])
+        self.assertEqual(view1["scene_state"]["equipment"]["pipette-1"]["load_volume_uL"],
+                         10000)
+        self.assertEqual(view1["scene_state"]["vessels"]["beaker-a"]["volume_uL"], 0)
+
+        # tip equals the live snapshot (same state, same visibility filter)
+        view2 = self._get_revision(snap["session_id"], 2).json()
+        self.assertEqual(view2["state_hash"], tip["state_hash"])
+        self.assertEqual(view2["scene_state"]["vessels"]["beaker-a"]["volume_uL"], 5000)
+        self.assertEqual(view2["observations"], tip["observations"])
+
+        # deterministic: repeated requests return the identical projection
+        again = self._get_revision(snap["session_id"], 1).json()
+        self.assertEqual(again, view1)
+
+    def test_revision_view_does_not_mutate_session(self) -> None:
+        snap = self._create_session()
+        self._run_commands(snap, [
+            {"kind": "aspirate", "source_id": "stock", "instrument_id": "pipette-1",
+             "amount_uL": 10000},
+        ])
+        session_id = snap["session_id"]
+        before = self.client.get(f"{BASE}/sessions/{session_id}").json()
+        events_before = self.client.get(f"{BASE}/sessions/{session_id}/events").json()
+        total_before = self.client.get(f"{BASE}/sessions").json()["total"]
+
+        for revision in (0, 1):
+            self.assertEqual(self._get_revision(session_id, revision).status_code, 200)
+
+        after = self.client.get(f"{BASE}/sessions/{session_id}").json()
+        events_after = self.client.get(f"{BASE}/sessions/{session_id}/events").json()
+        total_after = self.client.get(f"{BASE}/sessions").json()["total"]
+        for key in ("revision", "seq", "state_hash", "updated_at", "phase"):
+            self.assertEqual(after[key], before[key], key)
+        self.assertEqual(events_after["next_after_seq"], events_before["next_after_seq"])
+        self.assertEqual(len(events_after["items"]), len(events_before["items"]))
+        self.assertEqual(total_after, total_before)
+
+    def test_revision_view_out_of_range_and_missing(self) -> None:
+        snap = self._create_session()
+        resp = self._get_revision(snap["session_id"], 99)
+        self.assertEqual(resp.status_code, 404)
+        self.assertEqual(resp.json()["detail"]["code"], "chem_lab_revision_out_of_range")
+        self.assertEqual(self._get_revision(snap["session_id"], -1).status_code, 404)
+        missing = self.client.get(f"{BASE}/sessions/clab_nope/revisions/0")
+        self.assertEqual(missing.status_code, 404)
+        self.assertEqual(missing.json()["detail"]["code"], "chem_lab_session_missing")
+
+    def test_revision_view_cross_owner_is_404(self) -> None:
+        snap = self._create_session()
+        other = authenticated_client(self.app, "chem_other")
+        resp = other.get(f"{BASE}/sessions/{snap['session_id']}/revisions/0")
+        self.assertEqual(resp.status_code, 404)
 
     def test_owner_isolation(self) -> None:
         snap = self._create_session()

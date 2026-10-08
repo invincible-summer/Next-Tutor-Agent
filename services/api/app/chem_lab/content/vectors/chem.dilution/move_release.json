@@ -1,0 +1,100 @@
+{
+  "name": "move_release",
+  "description": "原子 move/release 兼容性命令：同槽幂等移动、占用槽拒绝、未知对象/槽、他物 held 阻断、错误对象 release 拒绝、held 自物移动清持、连续移动。",
+  "mode": "guided",
+  "session_seed": 0,
+  "script": [
+    {
+      "kind": "move",
+      "object_id": "beaker-a",
+      "slot_id": "f1"
+    },
+    {
+      "kind": "move",
+      "object_id": "beaker-a",
+      "slot_id": "f2"
+    },
+    {
+      "kind": "move",
+      "object_id": "ghost",
+      "slot_id": "f1"
+    },
+    {
+      "kind": "move",
+      "object_id": "beaker-a",
+      "slot_id": "void"
+    },
+    {
+      "kind": "pick_up",
+      "object_id": "beaker-b"
+    },
+    {
+      "kind": "move",
+      "object_id": "beaker-a",
+      "slot_id": "f1"
+    },
+    {
+      "kind": "release",
+      "object_id": "beaker-a"
+    },
+    {
+      "kind": "release",
+      "object_id": "beaker-b"
+    },
+    {
+      "kind": "pick_up",
+      "object_id": "pipette-1"
+    },
+    {
+      "kind": "move",
+      "object_id": "pipette-1",
+      "slot_id": "b3"
+    },
+    {
+      "kind": "move",
+      "object_id": "dropper-1",
+      "slot_id": "b4"
+    },
+    {
+      "kind": "move",
+      "object_id": "dropper-1",
+      "slot_id": "b4"
+    }
+  ],
+  "expect_event_kinds": [
+    "object_moved",
+    "object_released",
+    "command_rejected"
+  ],
+  "expect_final_phase": "running",
+  "state_hashes": [
+    "27dd4d4d5ed78441",
+    "e3bf723e0a2c8b64",
+    "efe450a7eb8488da",
+    "0fb98d9b3af68344",
+    "c7fcecf3336d2bb6",
+    "a88532f4c5242f94",
+    "8f9eabef44b783ba",
+    "0429b583c82db734",
+    "5884727f51a8b45e",
+    "e2e7c2b64f2dd334",
+    "a82fcdb41971d272",
+    "12b0830c9002f372",
+    "6ca202248fe0080e"
+  ],
+  "final_hash": "6ca202248fe0080e",
+  "accepted": [
+    true,
+    false,
+    false,
+    false,
+    true,
+    false,
+    false,
+    true,
+    true,
+    true,
+    true,
+    true
+  ]
+}

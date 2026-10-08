@@ -123,6 +123,18 @@ test("hung call surfaces via the baked-in timeout, not an eternal spinner", asyn
   await expects;
 });
 
+test("getRevision hits the read-only revisions route", async () => {
+  const { fetch, calls } = scriptedFetch([
+    jsonResponse(200, { session_id: "clab_1", revision: 3, read_only: true }),
+  ]);
+  const client = createApiClient({ baseUrl: BASE, fetchImpl: fetch, sleepImpl: noSleep });
+  const view = await client.tools.chemLab.getRevision("clab_1", 3);
+  assert.equal(view.revision, 3);
+  assert.equal((view as { read_only?: boolean }).read_only, true);
+  assert.equal(calls[0]!.init?.method, "GET");
+  assert.match(calls[0]!.url, /\/sessions\/clab_1\/revisions\/3$/);
+});
+
 test("getEvents encodes after_seq/limit query", async () => {
   const { fetch, calls } = scriptedFetch([
     jsonResponse(200, { items: [], next_after_seq: 41, truncated: false }),

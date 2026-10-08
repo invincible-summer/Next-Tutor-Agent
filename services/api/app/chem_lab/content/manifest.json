@@ -62,6 +62,7 @@
     "vectors/chem.dilution/contamination_wash.json": "0f28f2ec1879ab878b9b35ad7780a0386f529cc518b3c231d636148665b21a66",
     "vectors/chem.dilution/explore_serial_dilution.json": "5d76e73f51a9f1011258a6e5b700395cc82fce4c08b847cc16c0b379d9bb0ff3",
     "vectors/chem.dilution/guided_happy.json": "b942d6686a44d49807fe77ea6f3c24a0b561497213320876ddfc2e73c2a48935",
+    "vectors/chem.dilution/move_release.json": "e7c209ba2a85bd607b56b34f4d73a8961e4ff2c20f86c4d40e3597d90d659b2d",
     "vectors/chem.dilution/rejections.json": "f2ee8ec083f611683fd49d542aaa91703ded529ed0c3974b73d4731a14a802dd",
     "vectors/chem.gas_collection/explore_no_tube_escape.json": "d166a26010bf4d878731e8ed30faf4be873ee2012a932532b86f7ff91c1a5873",
     "vectors/chem.gas_collection/guided_happy.json": "18ce04ce5f0b60c8e28b14ef9e857cccea607488d510a513a2ccd373d17a2ce0",

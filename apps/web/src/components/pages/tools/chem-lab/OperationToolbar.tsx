@@ -49,8 +49,8 @@ export interface OperationToolbarProps {
   tr: (key: string, fallback?: string) => string;
   onDraft: (draft: OperationDraft | null) => void;
   onSubmit: (command: LabCommand) => void;
-  onPickUp: (objectId: string) => void;
-  onPlaceBack: () => void;
+  /** Drop a server-side hold via the atomic `release` command. */
+  onReleaseHeld: () => void;
   onClearSelection: () => void;
 }
 
@@ -64,6 +64,29 @@ function amountPresets(instrumentCapacityUL: number | null): number[] {
     return [1000, 5000, 10000];
   }
   return [5000, 10000, 25000, 50000];
+}
+
+/** Prefill a sensible starting amount so the panel opens one-confirm ready. */
+function initialAmountMl(
+  action: OperationDraft["action"],
+  lookups: BenchLookups,
+  draft: OperationDraft,
+): string {
+  if (action === "aspirate") {
+    const kind = lookups.equipmentKind.get(draft.instrumentId ?? "") ?? "";
+    const capacity = Number((lookups.equipmentDefs[kind] as AnyRecord | undefined)?.capacity_uL ?? 0);
+    if (capacity > 0) {
+      const mid = capacity <= 2000 ? 1000 : capacity <= 12000 ? 5000 : 10000;
+      return String(Math.min(capacity, mid) / 1000);
+    }
+    return "10";
+  }
+  if (action === "dispense") {
+    const load = lookups.equipmentLoad.get(draft.instrumentId ?? "") ?? 0;
+    return load > 0 ? String(load / 1000) : "5";
+  }
+  if (action === "pour" || action === "dispose") return "10";
+  return "";
 }
 
 interface BenchLookups {
@@ -141,7 +164,7 @@ function useBenchLookups(
 export function OperationToolbar(props: OperationToolbarProps) {
   const {
     pack, display, language, selected, draft, heldId, busy, tr,
-    onDraft, onSubmit, onPickUp, onPlaceBack, onClearSelection,
+    onDraft, onSubmit, onReleaseHeld, onClearSelection,
   } = props;
   const lookups = useBenchLookups(pack, display, language);
 
@@ -150,7 +173,7 @@ export function OperationToolbar(props: OperationToolbarProps) {
       <div className="flex flex-wrap items-center gap-2 rounded-[12px] border border-accent/30 bg-accent-soft/60 px-3 py-2"
         role="status" data-testid="chem-lab-held-hint">
         <span className="text-xs text-fg-secondary">{tr("heldHint")}</span>
-        <Button size="sm" variant="ghost" onClick={onPlaceBack}>{tr("placeBack")}</Button>
+        <Button size="sm" variant="ghost" onClick={onReleaseHeld}>{tr("releaseHold")}</Button>
       </div>
     );
   }
@@ -209,10 +232,6 @@ export function OperationToolbar(props: OperationToolbarProps) {
           onClick={() => onDraft({ action: "wait" })} data-testid="chem-lab-action-wait">
           {tr("wait")}
         </Button>
-        <Button size="sm" variant="ghost" disabled={busy} onClick={() => onPickUp(selected.id)}
-          data-testid="chem-lab-action-pick-up">
-          {tr("pickUp")}
-        </Button>
         <Button size="sm" variant="ghost" onClick={onClearSelection}>{tr("deselect")}</Button>
       </div>
     );
@@ -246,7 +265,7 @@ function OperationForm({
   onSubmit: (command: LabCommand) => void;
   onBack: () => void;
 }) {
-  const [amountMl, setAmountMl] = useState("");
+  const [amountMl, setAmountMl] = useState(() => initialAmountMl(draft.action, lookups, draft));
   const [rate, setRate] = useState("normal");
   const [power, setPower] = useState(500);
   const [speed, setSpeed] = useState(500);

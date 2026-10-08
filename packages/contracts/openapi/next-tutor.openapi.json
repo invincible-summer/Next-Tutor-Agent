@@ -2989,6 +2989,271 @@
         "title": "ChemLabResultCard",
         "type": "object"
       },
+      "ChemLabRevisionView": {
+        "description": "Read-only projection of one historical revision: replayed from the\nstored script without touching the session (no writes, no branch, no\nupdated_at bump), filtered with the session mode's visibility rules —\nexactly what the live snapshot would hide stays hidden here.",
+        "properties": {
+          "completed_steps": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Completed Steps",
+            "type": "array"
+          },
+          "experiment_id": {
+            "title": "Experiment Id",
+            "type": "string"
+          },
+          "goals": {
+            "items": {
+              "$ref": "#/components/schemas/ChemLabGoalStatus"
+            },
+            "title": "Goals",
+            "type": "array"
+          },
+          "guidance": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ChemLabGuidance"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "language": {
+            "title": "Language",
+            "type": "string"
+          },
+          "mode": {
+            "enum": [
+              "guided",
+              "explore",
+              "self_check"
+            ],
+            "title": "Mode",
+            "type": "string"
+          },
+          "observations": {
+            "items": {
+              "$ref": "#/components/schemas/ChemLabObservation"
+            },
+            "title": "Observations",
+            "type": "array"
+          },
+          "pack_hash": {
+            "title": "Pack Hash",
+            "type": "string"
+          },
+          "pack_version": {
+            "title": "Pack Version",
+            "type": "string"
+          },
+          "phase": {
+            "enum": [
+              "setup",
+              "ready",
+              "running",
+              "safety_locked",
+              "completed"
+            ],
+            "title": "Phase",
+            "type": "string"
+          },
+          "read_only": {
+            "const": true,
+            "default": true,
+            "title": "Read Only",
+            "type": "boolean"
+          },
+          "recent_events": {
+            "items": {
+              "$ref": "#/components/schemas/ChemLabEvent"
+            },
+            "title": "Recent Events",
+            "type": "array"
+          },
+          "render_frame": {
+            "$ref": "#/components/schemas/ChemLabRenderFrame"
+          },
+          "revision": {
+            "minimum": 0.0,
+            "title": "Revision",
+            "type": "integer"
+          },
+          "scene_state": {
+            "$ref": "#/components/schemas/ChemLabSceneState"
+          },
+          "session_id": {
+            "title": "Session Id",
+            "type": "string"
+          },
+          "sim_time_ms": {
+            "minimum": 0.0,
+            "title": "Sim Time Ms",
+            "type": "integer"
+          },
+          "state_hash": {
+            "title": "State Hash",
+            "type": "string"
+          },
+          "tip_revision": {
+            "minimum": 0.0,
+            "title": "Tip Revision",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "session_id",
+          "experiment_id",
+          "pack_version",
+          "pack_hash",
+          "mode",
+          "language",
+          "revision",
+          "tip_revision",
+          "sim_time_ms",
+          "state_hash",
+          "phase",
+          "render_frame",
+          "scene_state"
+        ],
+        "title": "ChemLabRevisionView",
+        "type": "object"
+      },
+      "ChemLabSceneEquipment": {
+        "properties": {
+          "connected": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Connected"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "load_volume_uL": {
+            "default": 0,
+            "minimum": 0.0,
+            "title": "Load Volume Ul",
+            "type": "integer"
+          },
+          "reading": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reading"
+          },
+          "slot": {
+            "title": "Slot",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "slot"
+        ],
+        "title": "ChemLabSceneEquipment",
+        "type": "object"
+      },
+      "ChemLabSceneState": {
+        "properties": {
+          "equipment": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/ChemLabSceneEquipment"
+            },
+            "title": "Equipment",
+            "type": "object"
+          },
+          "held": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Held"
+          },
+          "vessels": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/ChemLabSceneVessel"
+            },
+            "title": "Vessels",
+            "type": "object"
+          }
+        },
+        "title": "ChemLabSceneState",
+        "type": "object"
+      },
+      "ChemLabSceneVessel": {
+        "description": "Minimal vessel facts the scene needs to place and animate objects.",
+        "properties": {
+          "capacity_uL": {
+            "default": 0,
+            "minimum": 0.0,
+            "title": "Capacity Ul",
+            "type": "integer"
+          },
+          "heat": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Heat"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "mix_permille": {
+            "default": 0,
+            "maximum": 1000.0,
+            "minimum": 0.0,
+            "title": "Mix Permille",
+            "type": "integer"
+          },
+          "slot": {
+            "title": "Slot",
+            "type": "string"
+          },
+          "temperature_milli_c": {
+            "default": 0,
+            "title": "Temperature Milli C",
+            "type": "integer"
+          },
+          "volume_uL": {
+            "default": 0,
+            "minimum": 0.0,
+            "title": "Volume Ul",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "kind",
+          "slot"
+        ],
+        "title": "ChemLabSceneVessel",
+        "type": "object"
+      },
       "ChemLabSessionList": {
         "properties": {
           "items": {
@@ -5635,7 +5900,9 @@
               "filter",
               "wash",
               "dispose",
-              "checkpoint"
+              "checkpoint",
+              "move",
+              "release"
             ],
             "title": "Kind",
             "type": "string"
@@ -39951,6 +40218,106 @@
           }
         },
         "summary": "Reset Session",
+        "tags": [
+          "tool-chem-lab"
+        ]
+      }
+    },
+    "/api/v1/tools/lab/chemistry/sessions/{session_id}/revisions/{revision}": {
+      "get": {
+        "description": "Read-only historical view: replays the stored script to ``revision``\nand writes nothing (branch creation stays on POST /fork).",
+        "operationId": "get_revision_api_v1_tools_lab_chemistry_sessions__session_id__revisions__revision__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "session_id",
+            "required": true,
+            "schema": {
+              "title": "Session Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "revision",
+            "required": true,
+            "schema": {
+              "title": "Revision",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-guest-token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Guest-Token"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChemLabRevisionView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Revision",
         "tags": [
           "tool-chem-lab"
         ]

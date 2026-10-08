@@ -43,8 +43,8 @@ function collectVectors(): { experiment: string; file: string; vector: AnyDict }
 
 const VECTORS = collectVectors();
 
-test("content tree ships 24 replay vectors across 6 experiments", () => {
-  assert.equal(VECTORS.length, 24);
+test("content tree ships 25 replay vectors across 6 experiments", () => {
+  assert.equal(VECTORS.length, 25);
   assert.equal(new Set(VECTORS.map((v) => v.experiment)).size, 6);
   assert.equal(PACKS.size, 6);
 });
