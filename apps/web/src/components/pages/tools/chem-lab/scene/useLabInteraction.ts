@@ -8,9 +8,10 @@
  * - `pressed → dragging` after a per-pointer-type CSS-px threshold;
  * - during a drag the only work is ref updates + rAF-batched visual state
  *   (ghost transform + drop-candidate highlight) — zero server writes;
- * - `pointerup` resolves ONE DropCandidate from the latest world point and
- *   calls the same onMoveObject / onDragOperation the click and keyboard
- *   paths use;
+ * - `pointerup` from `dragging` resolves ONE DropCandidate from the latest
+ *   world point and calls the same onMoveObject / onDragOperation the click
+ *   and keyboard paths use; `pointerup` from `pressed` is a short press and
+ *   commits selection directly (captured clicks never reach the hit button);
  * - pointercancel / lostpointercapture / Escape / blur / hidden tab /
  *   session switch / unmount all funnel into one cancel path that clears
  *   ghost + capture without any implicit placement.
@@ -48,6 +49,10 @@ interface ActiveGesture {
   pointerId: number;
   pointerType: LabPointerType;
   objectId: string;
+  /** The hit button the press started on — capture retargets every later
+   * pointer event to the viewport, so the original element is kept for the
+   * short-press select / instrument-tap commit. */
+  hitElement: HTMLElement | null;
   sourceSessionId: string;
   startClient: { x: number; y: number };
   startWorld: { x: number; y: number };
@@ -85,6 +90,8 @@ export interface UseLabInteractionParams {
   onSelect: (ref: ChemLabObjectRef) => void;
   onMoveObject: (objectId: string, slotId: string) => void;
   onDragOperation: (draft: OperationDraft) => void;
+  /** Instrument menu anchor — same contract as the LabScene prop. */
+  onInstrumentTap: (equipmentId: string, anchor: HTMLElement) => void;
 }
 
 export function useLabInteraction(params: UseLabInteractionParams) {
@@ -245,6 +252,7 @@ export function useLabInteraction(params: UseLabInteractionParams) {
         pointerId: event.pointerId,
         pointerType: event.pointerType as LabPointerType,
         objectId: ref.id,
+        hitElement: event.currentTarget,
         sourceSessionId: currentSession,
         startClient: { x: event.clientX, y: event.clientY },
         startWorld: world,
@@ -321,7 +329,24 @@ export function useLabInteraction(params: UseLabInteractionParams) {
       const phase = gesture.phase;
       gestureRef.current = { phase: "idle" };
       setGestureView(null);
-      if (phase === "pressed") return; // short press → click handler selects
+      if (phase === "pressed") {
+        // Short press commits selection HERE: viewport pointer capture
+        // retargets the trailing click to a common ancestor, so the hit
+        // button's onClick never fires for pointer-originated taps. The
+        // suppression flag swallows that click wherever it lands; onClick
+        // stays only as the fallback for gestures that never started
+        // (busy/locked/no CTM), which set no flag.
+        const currentScene = callbacksRef.current.scene;
+        const node = currentScene?.nodes.find((item) => item.ref.id === gesture.objectId);
+        if (node) {
+          suppressClickUntilRef.current = performance.now() + 500;
+          callbacksRef.current.onSelect(node.ref);
+          if (node.ref.type === "equipment" && gesture.hitElement) {
+            callbacksRef.current.onInstrumentTap(gesture.objectId, gesture.hitElement);
+          }
+        }
+        return;
+      }
       const world = clientToWorld(event.clientX, event.clientY, sceneGroupRef.current);
       if (!world) return; // invalid matrix at release → snap back, no command
       commitCandidate(
@@ -385,7 +410,8 @@ export function useLabInteraction(params: UseLabInteractionParams) {
   }, []);
 
   /** ObjectHitTarget onClick helper — true when this click must be swallowed
-   * because it is the tail of a finished drag. */
+   * because it is the tail of a gesture already settled in pointerUp (drag
+   * or short press). */
   const shouldSuppressClick = useCallback(() => {
     if (suppressClickUntilRef.current === 0) return false;
     const suppressed = performance.now() < suppressClickUntilRef.current;

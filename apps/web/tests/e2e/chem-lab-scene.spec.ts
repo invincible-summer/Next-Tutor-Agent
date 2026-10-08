@@ -13,6 +13,7 @@ test("场景锚点并存且对象热区不重叠、名称贴对象上缘", async
   const account = await registerAndLogin(request);
   await loginViaStorage(page, account.token);
   const created = await request.post(`${BACKEND}/api/v1/tools/lab/chemistry/sessions`, {
+    headers: { Authorization: `Bearer ${account.token}` },
     data: { experiment_id: "chem.dilution", mode: "guided", language: "zh", session_seed: 0 },
   });
   const snap = await created.json();
@@ -52,11 +53,14 @@ test("液体真值：原液瓶为桃红液柱，空烧杯不画液体", async ({
   const account = await registerAndLogin(request);
   await loginViaStorage(page, account.token);
   const created = await request.post(`${BACKEND}/api/v1/tools/lab/chemistry/sessions`, {
+    headers: { Authorization: `Bearer ${account.token}` },
     data: { experiment_id: "chem.dilution", mode: "guided", language: "zh", session_seed: 0 },
   });
   const snap = await created.json();
   await page.goto(`/tools/lab/chemistry?session=${snap.session_id}`);
   await expect(page.locator("[data-testid=chem-lab-sync-status]")).toBeVisible({ timeout: 20000 });
+  // 场景与被测对象挂载后再取真值（sync-status 先于场景渲染就绪）
+  await expect(page.locator('[data-testid="chem-lab-object-stock"]')).toBeVisible();
 
   const liquids = await page.evaluate(() => {
     const read = (id: string) => {
@@ -65,7 +69,8 @@ test("液体真值：原液瓶为桃红液柱，空烧杯不画液体", async ({
       const paths = [...g.querySelectorAll("path")];
       const liquid = paths.find((p) => {
         const fill = p.getAttribute("fill") ?? "none";
-        return fill !== "none" && fill.includes("#") && parseFloat(p.getAttribute("opacity") ?? "1") > 0.3;
+        // 严格十六进制：排除 url(#gradient) / rgba() / var() 装饰层
+        return /^#[0-9a-f]{3,8}$/i.test(fill) && parseFloat(p.getAttribute("opacity") ?? "1") > 0.3;
       });
       if (!liquid) return null;
       const box = g.getBoundingClientRect();
@@ -85,6 +90,7 @@ test("响应式：390px 舞台高度≥320 且底部面板可达；1024px 单列
   const account = await registerAndLogin(request);
   await loginViaStorage(page, account.token);
   const created = await request.post(`${BACKEND}/api/v1/tools/lab/chemistry/sessions`, {
+    headers: { Authorization: `Bearer ${account.token}` },
     data: { experiment_id: "chem.dilution", mode: "guided", language: "zh", session_seed: 0 },
   });
   const snap = await created.json();
@@ -111,17 +117,21 @@ test("暗色主题：场景背景切换且对象仍可读", async ({ page, reque
   const account = await registerAndLogin(request);
   await loginViaStorage(page, account.token);
   const created = await request.post(`${BACKEND}/api/v1/tools/lab/chemistry/sessions`, {
+    headers: { Authorization: `Bearer ${account.token}` },
     data: { experiment_id: "chem.dilution", mode: "guided", language: "zh", session_seed: 0 },
   });
   const snap = await created.json();
   await page.goto(`/tools/lab/chemistry?session=${snap.session_id}`);
   await expect(page.locator("[data-testid=chem-lab-sync-status]")).toBeVisible({ timeout: 20000 });
-  const lightBg = await page.evaluate(() =>
-    getComputedStyle(document.querySelector('[data-testid="chem-lab-scene"]')!).backgroundColor);
+  await expect(page.locator("[data-testid=chem-lab-scene]")).toBeVisible();
+  // 场景墙面材质由 --lab-wall 驱动（浅/深两套定义），比 backgroundColor 更接近真值
+  const wallOf = () => page.evaluate(() =>
+    getComputedStyle(document.querySelector<HTMLElement>('[data-testid="chem-lab-scene"]')!).getPropertyValue("--lab-wall").trim());
+  const lightWall = await wallOf();
   await page.evaluate(() => document.documentElement.classList.add("dark"));
   await page.waitForTimeout(200);
-  const darkBg = await page.evaluate(() =>
-    getComputedStyle(document.querySelector('[data-testid="chem-lab-scene"]')!).backgroundColor);
-  expect(lightBg).not.toBe(darkBg);
+  const darkWall = await wallOf();
+  expect(lightWall).not.toBe(darkWall);
+  expect(darkWall.length).toBeGreaterThan(3);
   await expect(page.locator('[data-testid="chem-lab-object-stock"]')).toBeVisible();
 });

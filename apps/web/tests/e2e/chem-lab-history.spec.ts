@@ -16,8 +16,12 @@ interface Setup {
 }
 
 /** 建会话并执行两条已接受命令（吸取→排出），得到 rev0/1/2 三段历史。 */
-async function setupHistory(request: import("@playwright/test").APIRequestContext): Promise<Setup> {
+async function setupHistory(
+  request: import("@playwright/test").APIRequestContext,
+  token: string,
+): Promise<Setup> {
   const created = await request.post(`${BACKEND}/api/v1/tools/lab/chemistry/sessions`, {
+    headers: { Authorization: `Bearer ${token}` },
     data: { experiment_id: "chem.dilution", mode: "guided", language: "zh", session_seed: 0 },
   });
   expect(created.status()).toBe(200);
@@ -31,6 +35,7 @@ async function setupHistory(request: import("@playwright/test").APIRequestContex
     const ack = await request.post(
       `${BACKEND}/api/v1/tools/lab/chemistry/sessions/${snap.session_id}/commands`,
       {
+        headers: { Authorization: `Bearer ${token}` },
         data: {
           command_id: `hist-e2e-${seq}`, client_seq: seq, base_revision: revision,
           pack_hash: snap.pack_hash, command,
@@ -49,7 +54,7 @@ async function setupHistory(request: import("@playwright/test").APIRequestContex
 test("历史模式：只读横幅、对象禁用、回到最新", async ({ page, request }) => {
   const account = await registerAndLogin(request);
   await loginViaStorage(page, account.token);
-  const { sessionId } = await setupHistory(request);
+  const { sessionId } = await setupHistory(request, account.token);
 
   const writes: string[] = [];
   page.on("request", (req) => {
@@ -77,7 +82,7 @@ test("历史模式：只读横幅、对象禁用、回到最新", async ({ page,
 test("上一版/下一版导航与 URL 同步，rev0 上一版禁用", async ({ page, request }) => {
   const account = await registerAndLogin(request);
   await loginViaStorage(page, account.token);
-  const { sessionId } = await setupHistory(request);
+  const { sessionId } = await setupHistory(request, account.token);
 
   await page.goto(`/tools/lab/chemistry?session=${sessionId}&at=1`);
   await expect(page.locator("[data-testid=chem-lab-readonly-banner]")).toBeVisible({ timeout: 20000 });
@@ -99,7 +104,7 @@ test("上一版/下一版导航与 URL 同步，rev0 上一版禁用", async ({ 
 test("越界 revision 显示明确错误态并提供回到最新", async ({ page, request }) => {
   const account = await registerAndLogin(request);
   await loginViaStorage(page, account.token);
-  const { sessionId } = await setupHistory(request);
+  const { sessionId } = await setupHistory(request, account.token);
   await page.goto(`/tools/lab/chemistry?session=${sessionId}&at=99`);
   await page.waitForTimeout(800);
   await expect(page.locator("main [role=alert]").first()).toBeVisible({ timeout: 10000 });
@@ -112,7 +117,7 @@ test("越界 revision 显示明确错误态并提供回到最新", async ({ page
 test("时间轴 revision 跳转进入历史模式", async ({ page, request }) => {
   const account = await registerAndLogin(request);
   await loginViaStorage(page, account.token);
-  const { sessionId } = await setupHistory(request);
+  const { sessionId } = await setupHistory(request, account.token);
   await page.goto(`/tools/lab/chemistry?session=${sessionId}`);
   await expect(page.locator("[data-testid=chem-lab-sync-status]")).toBeVisible({ timeout: 20000 });
   await page.locator('[data-testid="chem-lab-revision-jump"] button').first().click();

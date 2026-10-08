@@ -174,6 +174,7 @@ export function LabScene({
     onSelect,
     onMoveObject,
     onDragOperation,
+    onInstrumentTap,
   });
   const {
     gestureView, targetSelectionFor, startObjectPointer, pointerMove, pointerUp,

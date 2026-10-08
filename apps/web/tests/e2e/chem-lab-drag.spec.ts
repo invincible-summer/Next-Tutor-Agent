@@ -18,11 +18,16 @@ interface Bench {
   dispose: () => Promise<void>;
 }
 
+function center(box: { x: number; y: number; width: number; height: number }) {
+  return { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+}
+
 /** API 建会话 + UI 直达实验台（目录/准备页链路由 chem-lab.spec.ts 覆盖）。 */
 async function openBench(page: Page, api: APIRequestContext): Promise<Bench> {
   const account = await registerAndLogin(api);
   await loginViaStorage(page, account.token);
   const created = await api.post(`${BACKEND}/api/v1/tools/lab/chemistry/sessions`, {
+    headers: { Authorization: `Bearer ${account.token}` },
     data: { experiment_id: "chem.dilution", mode: "guided", language: "zh", session_seed: 0 },
   });
   expect(created.status()).toBe(200);
@@ -51,19 +56,22 @@ test("拖拽期间零提交，松手仅打开操作草稿（不执行化学命�
   const stock = page.locator('[data-testid="chem-lab-object-stock"]');
   const beakerA = page.locator('[data-testid="chem-lab-object-beaker-a"]');
   await expect(stock).toBeVisible();
-  const from = await stock.boundingBox();
-  const to = await beakerA.boundingBox();
+  const fromBox = await stock.boundingBox();
+  const toBox = await beakerA.boundingBox();
+  if (!fromBox || !toBox) throw new Error("hit targets not measurable");
+  const from = center(fromBox);
+  const to = center(toBox);
 
-  await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2);
+  await page.mouse.move(from.x, from.y);
   await page.mouse.down();
-  await page.mouse.move(from.x + from.width / 2 + 24, from.y + from.height / 2 + 24, { steps: 5 });
+  await page.mouse.move(from.x + 24, from.y + 24, { steps: 5 });
   await page.waitForTimeout(160);
 
   // 拖动中：ghost 存在，命令提交为 0
-  await expect(page.locator('[data-testid="chem-lab-drag-ghost]')).toHaveCount(1);
+  await expect(page.locator('[data-testid="chem-lab-drag-ghost"]')).toHaveCount(1);
   expect(commandPosts).toHaveLength(0);
 
-  await page.mouse.move(to.x + to.width / 2, to.y + to.height / 2, { steps: 8 });
+  await page.mouse.move(to.x, to.y, { steps: 8 });
   await page.mouse.up();
   await page.waitForTimeout(300);
 
@@ -98,10 +106,12 @@ test("Escape 中断拖拽：ghost 消失且零提交", async ({ page, request })
     if (req.method() === "POST" && req.url().includes("/commands")) posts.push(req.url());
   });
   const stock = page.locator('[data-testid="chem-lab-object-stock"]');
-  const box = await stock.boundingBox();
-  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  const stockBox = await stock.boundingBox();
+  if (!stockBox) throw new Error("stock hit target not measurable");
+  const origin = center(stockBox);
+  await page.mouse.move(origin.x, origin.y);
   await page.mouse.down();
-  await page.mouse.move(box.x + box.width / 2 + 40, box.y + box.height / 2 + 40, { steps: 5 });
+  await page.mouse.move(origin.x + 40, origin.y + 40, { steps: 5 });
   await expect(page.locator("[data-testid=chem-lab-drag-ghost]")).toHaveCount(1);
   await page.keyboard.press("Escape");
   await page.mouse.up();
@@ -124,7 +134,8 @@ test("键盘等价路径：选择 → 移动 → 目标清单（与指针共用�
   // dilution 初始 7 槽全占用：除自身槽外全部禁用，键盘路径不提供非法目标
   const count = await targets.count();
   expect(count).toBeGreaterThanOrEqual(5);
-  const disabled = await targets.evaluateAll((els) => els.filter((el) => el.disabled).length);
+  const disabled = await targets.evaluateAll(
+    (els) => els.filter((el) => (el as HTMLButtonElement).disabled).length);
   expect(disabled).toBe(count - 1);
   await page.keyboard.press("Escape");
   await expect(targets).toHaveCount(0);
