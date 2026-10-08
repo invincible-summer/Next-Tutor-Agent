@@ -27,6 +27,7 @@ import {
   type CameraPose,
 } from "./scene-geometry.ts";
 import type { DropCandidate, SceneModel, SceneNode } from "./scene-model";
+import type { LabMotion } from "./presentation-model";
 import { useProjectionVersion, worldRectToCssRect, type CssRect } from "./scene-projection.ts";
 import { useLabInteraction } from "./useLabInteraction.ts";
 import { LabEnvironment } from "./LabEnvironment";
@@ -44,6 +45,8 @@ export interface LabSceneProps {
   seedBase: string;
   heatingVessels: ReadonlySet<string>;
   hotplateDevices: ReadonlySet<string>;
+  /** Presentation-only one-shot motion from useLabPresentation (may be null). */
+  motion?: LabMotion | null;
   onSelect: (ref: ChemLabObjectRef) => void;
   onMoveObject: (objectId: string, slotId: string) => void;
   onDragOperation: (draft: OperationDraft) => void;
@@ -110,9 +113,21 @@ function highlightChip(node: SceneNode, tr: PageTranslator): { text: string; dan
   return { text: highlight, danger: false };
 }
 
+/** CSS class for the inner motion wrapper; undefined when not a subject. */
+function motionClassName(motion: LabMotion | null | undefined, id: string): string | undefined {
+  if (!motion) return undefined;
+  const index = motion.subjects.indexOf(id);
+  if (index < 0) return undefined;
+  const role = index === 0 ? "actor" : "target";
+  if (motion.stage === "pending") {
+    return role === "actor" ? "lab-motion-pending--actor" : undefined;
+  }
+  return `lab-motion-${motion.stage === "rejected" ? "rejected" : motion.kind}--${role}`;
+}
+
 export function LabScene({
   scene, language, selectedId, locked, readOnly, sessionId, seedBase,
-  heatingVessels, hotplateDevices,
+  heatingVessels, hotplateDevices, motion,
   onSelect, onMoveObject, onDragOperation, onInstrumentTap, onBackgroundClick,
 }: LabSceneProps) {
   const tr = useMemo(
@@ -353,17 +368,21 @@ export function LabScene({
             <g
               key={node.ref.id}
               data-object-id={node.ref.id}
-              transform={`translate(${node.world.x} ${node.world.y})`}
+              className="lab-scene__node"
+              style={{ transform: `translate(${node.world.x}px, ${node.world.y}px)` }}
             >
-              <LabEquipment
-                node={node}
-                selected={selectedId === node.ref.id}
-                held={scene.heldId === node.ref.id}
-                dimmed={gestureView?.objectId === node.ref.id}
-                heating={heatingVessels.has(node.ref.id)}
-                hotplateActive={hotplateDevices.has(node.ref.id)}
-                seed={`${seedBase}:${node.ref.id}`}
-              />
+              {/* inner wrapper: one-shot motion transforms must not override the positioning style */}
+              <g className={motionClassName(motion, node.ref.id)}>
+                <LabEquipment
+                  node={node}
+                  selected={selectedId === node.ref.id}
+                  held={scene.heldId === node.ref.id}
+                  dimmed={gestureView?.objectId === node.ref.id}
+                  heating={heatingVessels.has(node.ref.id)}
+                  hotplateActive={hotplateDevices.has(node.ref.id)}
+                  seed={`${seedBase}:${node.ref.id}`}
+                />
+              </g>
               {!node.known && (
                 <text
                   x={node.world.width / 2}

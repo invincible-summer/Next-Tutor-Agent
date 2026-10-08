@@ -26,6 +26,13 @@ import {
   KNOWN_EQUIPMENT_KINDS,
   resolveDropIntent,
 } from "../../src/components/pages/tools/chem-lab/scene/scene-model.ts";
+import {
+  deriveMotion,
+  MOTION_MS,
+  presentationToken,
+  REJECTED_FLASH_MS,
+  subjectIdsOf,
+} from "../../src/components/pages/tools/chem-lab/scene/presentation-model.ts";
 
 // ---------------------------------------------------------------------------
 // Geometry
@@ -292,4 +299,94 @@ test("resolveDropIntent: slots, guards and failure reasons", () => {
   const measure = resolveDropIntent({ type: "equipment", id: "probe-1" }, center(scene3, "beaker-a"), scene3, free);
   assert.equal(measure.type, "operation");
   assert.equal(measure.draft.action, "measure");
+});
+
+// ---------------------------------------------------------------------------
+// Presentation motion model (plan §7)
+// ---------------------------------------------------------------------------
+
+test("subjectIdsOf orders the visual actor first per command kind", () => {
+  assert.deepEqual(subjectIdsOf({ kind: "move", object_id: "beaker-a", slot_id: "f2" }), ["beaker-a"]);
+  assert.deepEqual(
+    subjectIdsOf({ kind: "pour", source_id: "stock", target_id: "beaker-a", amount_uL: 1000 }),
+    ["stock", "beaker-a"],
+  );
+  // pipette dips into the source vessel — instrument is the actor
+  assert.deepEqual(
+    subjectIdsOf({ kind: "aspirate", source_id: "stock", instrument_id: "pipette-1" }),
+    ["pipette-1", "stock"],
+  );
+  assert.deepEqual(
+    subjectIdsOf({ kind: "heat", device_id: "plate-1", vessel_id: "beaker-b" }),
+    ["beaker-b", "plate-1"],
+  );
+  // no-actor commands stay empty; null fields never leak in
+  assert.deepEqual(subjectIdsOf({ kind: "checkpoint" }), []);
+  assert.deepEqual(subjectIdsOf({ kind: "wait", duration_ms: 1000 }), []);
+  assert.deepEqual(subjectIdsOf({ kind: "stir", vessel_id: null }), []);
+});
+
+test("deriveMotion stages: prediction pulses, ack plays, rejection flashes", () => {
+  const env = { sessionId: "s1", packHash: "h1", conflict: false, reducedMotion: false };
+  const token = presentationToken("s1", "h1", 7, "c1");
+  assert.equal(token, "s1:h1:7:c1");
+
+  // prediction accepted → neutral pending only, never a success effect
+  const pending = deriveMotion(env, {
+    commandId: "c1", commandKind: "pour", revision: 7, accepted: true,
+    authority: "prediction", subjectIds: ["stock", "beaker-a"],
+  });
+  assert.deepEqual(
+    { ...pending },
+    { token, kind: "pour", subjects: ["stock", "beaker-a"], stage: "pending", durationMs: MOTION_MS.pour },
+  );
+
+  // prediction rejected → nothing yet (the ack still carries the text)
+  assert.equal(deriveMotion(env, {
+    commandId: "c1", commandKind: "pour", revision: 7, accepted: false,
+    authority: "prediction", subjectIds: [],
+  }), null);
+
+  // ack accepted → the one-shot motion
+  const accepted = deriveMotion(env, {
+    commandId: "c1", commandKind: "pour", revision: 7, accepted: true,
+    authority: "ack", subjectIds: ["stock", "beaker-a"],
+  });
+  assert.equal(accepted.stage, "accepted");
+  assert.equal(accepted.durationMs, MOTION_MS.pour);
+
+  // ack rejected → one brief neutral flash
+  const rejected = deriveMotion(env, {
+    commandId: "c1", commandKind: "pour", revision: 7, accepted: false,
+    authority: "ack", subjectIds: ["stock"],
+  });
+  assert.deepEqual(
+    { ...rejected },
+    { token, kind: "pour", subjects: ["stock"], stage: "rejected", durationMs: REJECTED_FLASH_MS },
+  );
+
+  // checkpoint has no visual; conflict / reduced motion / missing identity cancel
+  assert.equal(deriveMotion(env, {
+    commandId: "c1", commandKind: "checkpoint", revision: 7, accepted: true,
+    authority: "ack", subjectIds: [],
+  }), null);
+  assert.equal(deriveMotion({ ...env, conflict: true }, pending ? {
+    commandId: "c1", commandKind: "pour", revision: 7, accepted: true,
+    authority: "ack", subjectIds: [],
+  } : null), null);
+  assert.equal(deriveMotion({ ...env, reducedMotion: true }, {
+    commandId: "c1", commandKind: "pour", revision: 7, accepted: true,
+    authority: "ack", subjectIds: [],
+  }), null);
+  assert.equal(deriveMotion({ ...env, sessionId: null }, {
+    commandId: "c1", commandKind: "pour", revision: 7, accepted: true,
+    authority: "ack", subjectIds: [],
+  }), null);
+  assert.equal(deriveMotion(env, null), null);
+
+  // every non-checkpoint kind has a positive duration
+  for (const [kind, ms] of Object.entries(MOTION_MS)) {
+    if (kind === "checkpoint") assert.equal(ms, 0);
+    else assert.ok(ms > 0 && ms <= 1200, `${kind} duration out of display budget`);
+  }
 });

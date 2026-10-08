@@ -13,6 +13,7 @@ import { useMemo } from "react";
 import type { ChemLabDisplay } from "./useChemLabSession";
 import type { ChemLabObjectRef, OperationDraft } from "./interaction";
 import { deriveSceneModel } from "./scene/scene-model";
+import type { LabMotion } from "./scene/presentation-model";
 import { LabScene } from "./scene/LabScene";
 import "./scene/lab-scene.css";
 
@@ -38,6 +39,8 @@ export interface LabStageProps {
    * `onMoveObject` for every input path. */
   onSlotTarget?: (slotId: string) => void;
   onInstrumentTap: (equipmentId: string, anchor: HTMLElement) => void;
+  /** Presentation-only one-shot motion (from useLabPresentation). */
+  motion?: LabMotion | null;
 }
 
 export function LabStage({
@@ -53,6 +56,7 @@ export function LabStage({
   onMoveObject,
   onDragOperation,
   onInstrumentTap,
+  motion = null,
 }: LabStageProps) {
   const scene = useMemo(
     () => deriveSceneModel(pack, display, language),
@@ -88,6 +92,7 @@ export function LabStage({
         seedBase={seedBase}
         heatingVessels={heating.vesselIds}
         hotplateDevices={heating.deviceIds}
+        motion={motion}
         onSelect={onSelect}
         onMoveObject={onMoveObject}
         onDragOperation={onDragOperation}

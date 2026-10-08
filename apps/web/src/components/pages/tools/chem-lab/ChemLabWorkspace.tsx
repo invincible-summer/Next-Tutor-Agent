@@ -48,6 +48,7 @@ import { BackMark, BusyMark } from "../ToolMarks";
 import { STRINGS } from "@/app/(workspace)/tools/lab/chemistry/strings";
 import { useChemLabSession } from "./useChemLabSession";
 import { LabStage } from "./LabStage";
+import { useLabPresentation } from "./scene/useLabPresentation";
 import { EquipmentTray } from "./EquipmentTray";
 import { ReagentPalette } from "./ReagentPalette";
 import { OperationToolbar } from "./OperationToolbar";
@@ -95,6 +96,7 @@ function OwnedChemLabWorkspace() {
   const {
     snapshot, display, syncStatus, pendingCount, conflict, lastRejection, notice,
     attach, detach, send, resync, retryPending, dismissConflict, clearNotice,
+    lastTransition,
   } = controller;
 
   const [experiments, setExperiments] = useState<ChemLabExperimentSummary[]>([]);
@@ -123,6 +125,14 @@ function OwnedChemLabWorkspace() {
   const detailGeneration = useRef(0);
   const sessionGeneration = useRef(0);
   const measureAnchor = useRef<HTMLElement | null>(null);
+
+  // Presentation-only one-shot motion (no chemistry, no commands; plan §7).
+  const motion = useLabPresentation({
+    sessionId: snapshot?.session_id ?? null,
+    packHash: enginePack?.pack_hash ?? null,
+    transition: lastTransition,
+    conflict: syncStatus === "conflict" || syncStatus === "offline_preview",
+  });
 
   useAssistantPage({
     context: () => ({ schema_version: 1, route_id: "tools_lab_chemistry", route_epoch: currentRouteEpoch() }),
@@ -700,6 +710,7 @@ function OwnedChemLabWorkspace() {
               <LabStage pack={pack} display={display} language={language} selected={selected}
                 busy={busy || commandsLocked}
                 sessionId={snapshot?.session_id ?? null}
+                motion={motion}
                 onSelect={setSelected}
                 onDeselect={() => setSelected(null)}
                 onMoveObject={moveObject}

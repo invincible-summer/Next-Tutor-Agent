@@ -36,6 +36,7 @@ import {
 } from "@/lib/api-chem-lab";
 import { useChemLabWorker } from "./useChemLabWorker";
 import type { ChemLabPrediction } from "./chem-lab-worker";
+import { subjectIdsOf } from "./scene/presentation-model";
 
 export type ChemLabSyncStatus =
   | "idle"
@@ -78,6 +79,8 @@ export interface LabDisplayTransition {
   revision: number;
   accepted: boolean;
   authority: "prediction" | "ack";
+  /** Object ids the command visually touches, actor first (presentation only). */
+  subjectIds: readonly string[];
 }
 
 const EVENT_CAP = 240;
@@ -96,6 +99,7 @@ interface PendingCheck {
   commandId: string;
   commandKind: LabCommand["kind"];
   expectedRevision: number;
+  subjectIds: readonly string[];
   ack?: { stateHash: string; revision: number };
   prediction?: ChemLabPrediction;
 }
@@ -225,6 +229,7 @@ export function useChemLabSession() {
         revision: result.revision,
         accepted: result.accepted,
         authority: "prediction",
+        subjectIds: check.subjectIds,
       });
       setEvents((prev) => [...prev, ...(result.events as ChemLabEvent[])].slice(-EVENT_CAP));
       setObservations(
@@ -317,6 +322,7 @@ export function useChemLabSession() {
             revision: ack.revision,
             accepted: ack.accepted,
             authority: "ack",
+            subjectIds: subjectIdsOf(head.command),
           });
           setSnapshot((prev) => {
             if (!prev) return prev;
@@ -382,6 +388,7 @@ export function useChemLabSession() {
         commandId: queued.commandId,
         commandKind: command.kind,
         expectedRevision: queued.baseRevision + 1,
+        subjectIds: subjectIdsOf(command),
       });
       if (checksRef.current.size > MAX_PENDING_CHECKS) {
         const oldest = checksRef.current.keys().next().value;
