@@ -4,6 +4,7 @@
 // children 保持在原位置；助手经 Host 的 Portal 渲染，不改变主页面宽度。
 // 语言跟随站点 i18n；身份切换清理在 Host 内订阅 auth store 完成。
 import { useEffect } from "react";
+import { usePathname } from "next/navigation";
 import { useUIStore } from "@/lib/store";
 import { useAssistantStore } from "@/lib/assistant/store";
 import { AssistantHost } from "./AssistantHost";
@@ -13,6 +14,7 @@ export function AssistantProvider({ children }: {
   children: React.ReactNode;
 }) {
   const lang = useUIStore((s) => s.lang);
+  const pathname = usePathname();
   const setLang = useAssistantStore((s) => s.setLang);
 
   useEffect(() => {
@@ -22,7 +24,7 @@ export function AssistantProvider({ children }: {
   return (
     <>
       {children}
-      {!DEMO_MODE && <AssistantHost />}
+      {!DEMO_MODE && !pathname.startsWith("/tools/lab/electronics") && <AssistantHost />}
     </>
   );
 }

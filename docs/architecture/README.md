@@ -6,7 +6,7 @@
 
 Next Tutor Agent 是面向小学/初中/高中/本科学生的**长期陪伴式私人学习智能体**：不是问答机器人，而是构建「学习目标 → 知识理解 → 练习训练 → 能力评估 → 调整」完整学习闭环。产品形态是**学生学习空间（Learning Workspace）**：以对话为核心，辅以总览、知识图谱、学习计划、测评、记忆、资料、画像、课堂等模块页。
 
-工具助手与测评、资料等模块平行，首个工具「情景配图」提供 V1–V3 聊天生成与多轮优化，第二个工具「模拟实验室」提供确定性双引擎驱动的化学实验台。共享配图引擎由测评和工具助手消费，完整产品边界见 [tool-assistant.md](./tool-assistant.md) 与 [chem-lab.md](./chem-lab.md)。
+工具助手与测评、资料等模块平行，工具栏目包含情景配图、化学实验室和独立电路实验室。配图和化学实验室的边界见 [tool-assistant.md](./tool-assistant.md) 与 [chem-lab.md](./chem-lab.md)，电路实验室见 [electrical-lab.md](./electrical-lab.md)。
 
 系统边界之外的事实：
 
@@ -66,6 +66,7 @@ SSE 为前端直连后端的流式通道（`POST /chat/stream` 等），生产�
 | 笔记 | 笔记仓库 + 笔记智能体 | `app/notes/` + `app/agents/notes_agent.py` | [notes.md](./notes.md) |
 | 工具助手 | 情景配图会话、手选素材及多轮图片版本 | `app/illustration/` + 前端 `/tools` | [tool-assistant.md](./tool-assistant.md) |
 | 模拟实验室 | 确定性双引擎化学实验台：器材操作、观察记录、回放分叉与结果卡 | `app/chem_lab/` + `packages/domain/src/chem-lab/` + 前端 `/tools/lab` | [chem-lab.md](./chem-lab.md) |
+| 电路实验室 | 本地确定性电路求解、仪器读数、示波器与 JSON 实验交换 | `packages/domain/src/electrical-lab/` + 前端 `/tools/lab/electronics` | [electrical-lab.md](./electrical-lab.md) |
 | 图库与配图引擎 | 教学 SVG 素材库、共享 V1–V3 绘图与测评适配 | `app/diagrams/` + `app/illustration/` | [diagrams-illustration.md](./diagrams-illustration.md) |
 | 语音 | 电话式语音对话（WS）+ TTS | `app/voice/` + `services/voice/` | [voice.md](./voice.md) |
 | 前端 | 学生学习空间 UI | `apps/web/` | [frontend.md](./frontend.md) |
