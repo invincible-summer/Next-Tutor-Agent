@@ -12,7 +12,8 @@ import { WorkspaceSettingsModal } from "@/components/workspace/WorkspaceSettings
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const owner = useAuthStore((s) => s.user?.id ?? "guest");
-  const immersive = /\/classroom\/[^/]+\/learn\/[^/]+\/?$/.test(pathname);
+  const electricalImmersive = pathname === "/tools/lab/electronics" || pathname.startsWith("/tools/lab/electronics/");
+  const immersive = /\/classroom\/[^/]+\/learn\/[^/]+\/?$/.test(pathname) || electricalImmersive;
   useEffect(() => {
     // The chat session rail is useful by default on desktop, but at phone
     // widths its 16rem flex width leaves only a sliver for the learning card.
@@ -39,8 +40,9 @@ export function AppShell({ children }: { children: ReactNode }) {
         {!immersive && <div className="print:hidden"><TopBar key={`topbar:${owner}`} /></div>}
         <main key={`content:${owner}`} className="min-h-0 flex-1 overflow-hidden print:h-auto print:overflow-visible">{children}</main>
       </div>
-      {/* 全局唯一的工作区设置弹窗（边栏/资料中心等入口经 useWsSettings 唤起） */}
-      <WorkspaceSettingsModal />
+      {/* 全局唯一的工作区设置弹窗（边栏/资料中心等入口经 useWsSettings 唤起）。
+          电路实验室是独立场景，不把全局弹层带进实验台。 */}
+      {!electricalImmersive && <WorkspaceSettingsModal />}
     </div>
   );
 }

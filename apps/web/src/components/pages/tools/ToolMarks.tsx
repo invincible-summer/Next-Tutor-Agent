@@ -69,6 +69,21 @@ export function ChemLabMark(props: MarkProps) {
   );
 }
 
+export function CircuitLabMark(props: MarkProps) {
+  return (
+    <Mark title={props.title} {...props}>
+      <path d="M10 24h12l6-10h12l6 10h8" />
+      <path d="M10 42h14l6 10h12l6-10h6" />
+      <circle cx="10" cy="24" r="3.5" fill="currentColor" />
+      <circle cx="54" cy="24" r="3.5" fill="currentColor" />
+      <circle cx="10" cy="42" r="3.5" fill="currentColor" />
+      <circle cx="54" cy="42" r="3.5" fill="currentColor" />
+      <path d="M30 23v19M24 32h12" opacity=".6" />
+      <path d="M17 58h30" opacity=".38" />
+    </Mark>
+  );
+}
+
 export function MaterialAtlasMark(props: MarkProps) {
   return (
     <Mark title={props.title} {...props}>

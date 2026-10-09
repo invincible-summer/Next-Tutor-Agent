@@ -1,0 +1,276 @@
+.electrical-lab {
+  --el-bg: #0b1519; --el-panel: #12232a; --el-panel-2: #172c34; --el-panel-3: #203b44;
+  --el-line: #31535d; --el-text: #e7f1f1; --el-muted: #90adb5; --el-teal: #57c9c0;
+  --el-yellow: #f4d06f; --el-red: #ed735a; --el-blue: #78aee8; --el-grid: #9ab4bd;
+  display: flex; flex-direction: column; height: 100%; min-height: 0; overflow: hidden;
+  background: var(--el-bg); color: var(--el-text); font-family: var(--font-sans); font-size: 13px;
+  color-scheme: dark; scrollbar-color: var(--el-line) transparent; scrollbar-width: thin;
+}
+.electrical-lab.light {
+  --el-bg: #e6eef0; --el-panel: #f6fbfa; --el-panel-2: #e4efee; --el-panel-3: #d2e4e4;
+  --el-line: #9bb9b8; --el-text: #122b32; --el-muted: #527178; --el-teal: #1f8d84;
+  --el-yellow: #a57016; --el-red: #c94d39; --el-blue: #3972ad; --el-grid: #558b8d;
+  color-scheme: light;
+}
+.electrical-lab *, .electrical-lab *::before, .electrical-lab *::after { box-sizing: border-box; }
+.electrical-lab ::selection { background: var(--el-panel-3); color: var(--el-text); }
+.electrical-lab button, .electrical-lab input, .electrical-lab select { font: inherit; }
+.electrical-lab button { border: 0; color: inherit; cursor: pointer; }
+.electrical-lab button, .electrical-lab a { -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
+.electrical-lab button:disabled { cursor: default; opacity: .4; }
+.electrical-lab button:focus-visible, .electrical-lab a:focus-visible, .electrical-lab input:focus-visible, .electrical-lab select:focus-visible, .electrical-lab summary:focus-visible, .electrical-stage-svg [role="button"]:focus-visible { outline: 2px solid var(--el-yellow); outline-offset: 3px; }
+.electrical-lab input { caret-color: var(--el-teal); }
+.electrical-lab input::placeholder { color: var(--el-muted); }
+.electrical-topbar { display: flex; flex: 0 0 64px; align-items: center; gap: 8px; min-width: 0; padding: 10px 16px; border-bottom: 1px solid var(--el-line); background: var(--el-panel); }
+.electrical-brand-mark { flex: none; color: var(--el-yellow); margin-inline: 4px; }
+.electrical-title-block { min-width: 0; max-width: 310px; }
+.electrical-title-button { max-width: 100%; padding: 0 8px; text-align: left; background: transparent; }
+.electrical-title-button:hover h1 { color: var(--el-teal); }
+.electrical-topbar h1 { margin: 0; overflow: hidden; font-size: 15px; font-weight: 650; text-overflow: ellipsis; white-space: nowrap; }
+.electrical-topbar .lab-caption { display: block; margin-top: 3px; color: var(--el-muted); font-size: 11px; }
+.electrical-top-spacer { flex: 1; }
+.electrical-icon-btn { display: inline-flex; flex: none; align-items: center; justify-content: center; gap: 7px; min-width: 36px; min-height: 36px; padding: 0 11px; border-radius: 7px; background: transparent; color: var(--el-muted); text-decoration: none; transition: background .15s ease, color .15s ease; }
+.electrical-icon-btn:hover, .electrical-icon-btn.active { background: var(--el-panel-3); color: var(--el-text); }
+.electrical-icon-btn.primary { background: var(--el-panel-3); color: var(--el-teal); }
+.electrical-save-dot { display: flex; align-items: center; gap: 6px; margin-right: 10px; color: var(--el-muted); font-size: 11px; white-space: nowrap; }
+.electrical-save-dot::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--el-teal); }
+.electrical-save-dot.unsaved::before { background: var(--el-yellow); }
+.electrical-inline-rename { display: flex; align-items: center; gap: 3px; }
+.electrical-inline-rename input { width: min(190px, 100%); min-width: 0; height: 34px; padding: 4px 6px; border: 1px solid var(--el-teal); border-radius: 5px; background: var(--el-bg); color: var(--el-text); }
+.electrical-inline-rename button { display: flex; align-items: center; justify-content: center; width: 30px; height: 32px; border-radius: 5px; background: var(--el-panel-3); }
+.electrical-workbench { display: flex; flex: 1; min-width: 0; min-height: 0; }
+.electrical-rail, .electrical-instrument-dock { display: flex; flex-direction: column; flex: 0 0 258px; min-height: 0; margin: 12px 0 12px 12px; overflow: hidden; border: 1px solid var(--el-line); border-radius: 12px; background: var(--el-panel); }
+.electrical-rail.collapsed { flex-basis: 46px; }
+.electrical-rail-header { display: flex; flex: none; align-items: center; gap: 10px; height: 46px; padding: 0 12px; background: transparent; border-bottom: 1px solid var(--el-line); color: var(--el-teal); text-align: left; }
+.electrical-rail-header > svg:last-child { margin-left: auto; }
+.electrical-rail-header:hover { background: var(--el-panel-2); }
+.electrical-rail.collapsed .electrical-rail-header { justify-content: center; padding: 0; }
+.electrical-rail.collapsed .electrical-rail-header > span, .electrical-rail.collapsed .electrical-rail-header > svg:last-child { display: none; }
+.electrical-rail-body { min-height: 0; overflow: auto; padding: 14px 12px; overscroll-behavior: contain; }
+.electrical-rail-section + .electrical-rail-section { margin-top: 24px; }
+.electrical-rail-section h2 { display: flex; align-items: center; justify-content: space-between; margin: 0 0 10px; font-size: 12px; font-weight: 650; }
+.electrical-rail-section h2 span { color: var(--el-muted); font-size: 11px; font-weight: 400; }
+.electrical-part-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+.electrical-part-button { display: grid; grid-template-columns: 30px 1fr; align-items: center; gap: 0 6px; min-height: 50px; padding: 7px; border-radius: 7px; background: var(--el-panel-2); text-align: left; }
+.electrical-part-button svg { grid-row: span 2; width: 30px; color: var(--el-teal); }
+.electrical-part-button strong { font-size: 11px; font-weight: 550; }
+.electrical-part-button small { color: var(--el-muted); font-family: var(--font-mono); font-size: 10px; }
+.electrical-part-button:hover { background: var(--el-panel-3); }
+.electrical-part-button:active { cursor: grabbing; }
+.electrical-experiment-button { display: block; width: 100%; padding: 10px 4px; border-bottom: 1px solid var(--el-line); background: transparent; text-align: left; }
+.electrical-experiment-button:last-of-type { border-bottom: 0; }
+.electrical-experiment-button:hover { color: var(--el-teal); }
+.electrical-experiment-button strong, .electrical-saved-row strong { display: block; font-size: 12px; font-weight: 550; }
+.electrical-experiment-button small, .electrical-saved-row small { display: block; margin-top: 4px; color: var(--el-muted); font-size: 11px; line-height: 1.5; }
+.electrical-library-actions { display: flex; gap: 5px; margin-bottom: 10px; }
+.electrical-library-actions button { display: inline-flex; align-items: center; justify-content: center; gap: 4px; flex: 1; min-height: 32px; padding: 0 5px; border: 1px solid var(--el-line); border-radius: 5px; background: transparent; font-size: 11px; }
+.electrical-library-actions button:hover { color: var(--el-teal); border-color: var(--el-teal); }
+.electrical-saved-row { display: flex; padding-block: 8px; border-bottom: 1px solid var(--el-line); }
+.electrical-saved-row button { min-width: 0; padding: 3px; background: transparent; text-align: left; }
+.electrical-saved-row button:first-child { flex: 1; }
+.electrical-saved-row button:last-child { flex: none; padding: 7px; color: var(--el-muted); }
+.electrical-saved-row strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.electrical-rail-note { margin: 12px 0 0; color: var(--el-muted); font-size: 11px; line-height: 1.6; }
+.electrical-import-input { display: none; }
+.electrical-replace-confirm { padding: 10px; margin-top: 8px; border: 1px solid var(--el-yellow); border-radius: 7px; }
+.electrical-replace-confirm p { margin: 0 0 8px; color: var(--el-yellow); font-size: 12px; line-height: 1.5; }
+.electrical-replace-confirm button { margin-right: 6px; padding: 6px 8px; background: var(--el-panel-3); border-radius: 4px; font-size: 11px; }
+.electrical-stage-wrap { display: flex; flex: 1; flex-direction: column; gap: 0; min-width: 0; min-height: 0; padding: 12px; overflow: hidden; }
+.electrical-quick-tray { display: flex; flex: none; align-items: center; gap: 2px; height: 54px; margin-bottom: 6px; overflow: auto hidden; scrollbar-width: none; }
+.electrical-quick-tray button { display: flex; flex: none; align-items: center; justify-content: center; gap: 7px; min-height: 40px; padding: 5px 12px; border-radius: 7px; background: transparent; color: var(--el-text); white-space: nowrap; font-size: 12px; }
+.electrical-quick-tray button svg { width: 29px; flex: none; color: var(--el-teal); }
+.electrical-quick-tray button:hover { background: var(--el-panel-3); }
+.electrical-quick-tray .electrical-all-parts { margin-left: 6px; padding-left: 14px; border-left: 1px solid var(--el-line); border-radius: 0 7px 7px 0; color: var(--el-muted); }
+.electrical-quick-tray .electrical-all-parts svg { width: 16px; }
+.electrical-selection-bar { display: flex; align-items: center; gap: 8px; flex: 0 0 44px; min-width: 0; margin-bottom: 8px; padding: 3px 8px; border-radius: 7px; background: var(--el-panel); overflow: auto hidden; color: var(--el-muted); }
+.electrical-selection-bar > svg { flex: none; }
+.electrical-mode-bar { display: flex; flex: none; align-items: center; gap: 2px; }
+.electrical-mode-bar button { display: inline-flex; flex: none; align-items: center; justify-content: center; gap: 5px; min-height: 31px; padding: 0 8px; border-radius: 5px; background: transparent; color: var(--el-muted); font-size: 11px; }
+.electrical-mode-bar button:hover, .electrical-mode-bar button.active { background: var(--el-panel-3); color: var(--el-teal); }
+.electrical-mode-divider { flex: none; width: 1px; height: 24px; margin-inline: 2px; background: var(--el-line); }
+.electrical-selection-hint { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; }
+.electrical-selection-bar button, .electrical-selection-actions button { display: inline-flex; flex: none; align-items: center; justify-content: center; gap: 5px; min-width: 32px; min-height: 32px; padding: 0 7px; border-radius: 5px; background: transparent; color: var(--el-muted); font-size: 12px; }
+.electrical-selection-bar button:hover, .electrical-selection-actions button.active { background: var(--el-panel-3); color: var(--el-teal); }
+.electrical-selection-symbol { display: inline-flex; flex: none; color: var(--el-teal); }
+.electrical-selection-symbol svg { width: 28px; }
+.electrical-selection-bar input:not([type="range"]) { min-width: 0; border: 1px solid transparent; border-radius: 4px; background: transparent; color: var(--el-text); font-size: 12px; height: 30px; padding: 0 5px; }
+.electrical-selection-bar input:not([type="range"]):hover { border-color: var(--el-line); }
+.electrical-part-name { width: 65px; flex: 0 0 65px; font-family: var(--font-mono) !important; }
+.electrical-value-field { display: flex; flex: none; align-items: center; gap: 4px; font-size: 11px; }
+.electrical-value-field input { width: 95px; font-family: var(--font-mono) !important; }
+.electrical-selection-actions { display: flex; gap: 2px; margin-left: auto; }
+.electrical-position-control { display: flex; align-items: center; gap: 6px; flex: none; font-size: 11px; }
+.electrical-position-control input { width: 85px; accent-color: var(--el-teal); }
+.electrical-position-control output { min-width: 30px; font-family: var(--font-mono); }
+.electrical-wiring-dot { flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--el-yellow); }
+.electrical-stage { position: relative; flex: 1; min-width: 0; min-height: 160px; overflow: hidden; border: 1px solid var(--el-line); border-radius: 12px; background: linear-gradient(145deg, #162b32, #0a1519); }
+.light .electrical-stage { background: linear-gradient(145deg, #f1f8f7, #d5e5e4); }
+.electrical-stage-svg { display: block; position: absolute; inset: 0; width: 100%; height: 100%; touch-action: none; cursor: grab; }
+.electrical-stage-svg.is-dragging { cursor: grabbing; }
+.electrical-stage-svg.is-wiring { cursor: crosshair; }
+.electrical-component { cursor: grab; }
+.electrical-stage-svg.tool-wire, .electrical-stage-svg.tool-wire .electrical-component, .electrical-stage-svg.tool-wire .electrical-wire { cursor: crosshair; }
+.electrical-stage-svg.tool-delete, .electrical-stage-svg.tool-delete .electrical-component, .electrical-stage-svg.tool-delete .electrical-wire, .electrical-stage-svg.tool-delete .electrical-terminal { cursor: cell; }
+.electrical-part-hit { pointer-events: all; }
+.electrical-part-outline { opacity: 0; transition: opacity .12s ease; pointer-events: none; }
+.electrical-component:hover .electrical-part-outline, .electrical-component-symbol.is-selected .electrical-part-outline { opacity: 1; }
+.electrical-symbol-text { fill: #f4d06f; font-size: 19px; font-weight: 700; }
+.electrical-component-label { fill: var(--el-text); font-size: 11px; font-weight: 650; }
+.electrical-component-value { fill: var(--el-muted); font-size: 9px; }
+.electrical-junction-label { fill: var(--el-muted); font-size: 9px; }
+.electrical-terminal { cursor: crosshair; }
+.electrical-terminal .terminal-hit { fill: transparent; }
+.electrical-terminal .terminal-ring { fill: #16333a; stroke: var(--el-yellow); stroke-width: 1.7; transition: r .12s ease, fill .12s ease; }
+.electrical-terminal .terminal-core { fill: #f4d06f; pointer-events: none; }
+.electrical-terminal:hover .terminal-ring, .electrical-terminal.is-start .terminal-ring, .electrical-terminal.is-target .terminal-ring { fill: var(--el-teal); r: 9; }
+.electrical-terminal.is-target .terminal-ring { stroke: var(--el-teal); }
+.electrical-terminal.is-junction .terminal-ring { r: 4; fill: var(--el-teal); stroke: var(--el-panel); stroke-width: 1; }
+.electrical-terminal.is-junction .terminal-core { r: 1.5; fill: var(--el-teal); }
+.electrical-terminal.is-junction:hover .terminal-ring, .electrical-terminal.is-junction.is-start .terminal-ring { r: 6; stroke: var(--el-yellow); }
+.electrical-terminal-label { fill: var(--el-muted); font-family: var(--font-mono); font-size: 10px; }
+.electrical-port-title { fill: var(--el-text); font-size: 12px; font-weight: 600; }
+.electrical-wire { cursor: pointer; }
+.electrical-wire-preview { pointer-events: none; animation: electrical-wire-preview-flow .55s linear infinite; }
+@keyframes electrical-wire-preview-flow { to { stroke-dashoffset: -14; } }
+.electrical-wire.active path:last-child { stroke-dasharray: 10 8; animation: electrical-current-flow .7s linear infinite; }
+@keyframes electrical-current-flow { to { stroke-dashoffset: -18; } }
+.electrical-statusbar { display: flex; flex: none; align-items: center; gap: 10px; min-width: 0; height: 42px; padding-top: 6px; color: var(--el-muted); }
+.electrical-status-message { flex: 1; overflow: hidden; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+.electrical-undo-bar, .electrical-view-controls { display: flex; flex: none; align-items: center; gap: 2px; }
+.electrical-statusbar button { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 5px; background: transparent; color: var(--el-muted); }
+.electrical-statusbar button:hover:not(:disabled) { background: var(--el-panel-3); color: var(--el-text); }
+.electrical-view-controls output { min-width: 43px; color: var(--el-muted); font-family: var(--font-mono); font-size: 11px; text-align: center; }
+.electrical-instrument-dock { flex-basis: 360px; width: 360px; margin: 12px 12px 12px 0; }
+.electrical-instrument-dock.collapsed { flex-basis: 46px; width: 46px; }
+.electrical-dock-shortcuts { display: flex; align-items: center; flex-direction: column; gap: 8px; padding: 6px 0; }
+.electrical-dock-shortcuts button { display: flex; align-items: center; justify-content: center; width: 38px; height: 42px; border-radius: 6px; background: transparent; color: var(--el-muted); }
+.electrical-dock-shortcuts button:hover { color: var(--el-teal); background: var(--el-panel-3); }
+.electrical-dock-shortcuts > span { margin-top: 10px; color: var(--el-muted); writing-mode: vertical-rl; font-size: 11px; letter-spacing: 3px; }
+.electrical-dock-header { display: flex; align-items: center; gap: 8px; height: 50px; flex: none; padding: 0 14px; border-bottom: 1px solid var(--el-line); color: var(--el-teal); }
+.electrical-dock-header h2 { flex: 1; margin: 0; font-size: 13px; font-weight: 600; }
+.electrical-dock-header button { display: flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 5px; background: transparent; color: var(--el-muted); }
+.electrical-dock-header button:hover { background: var(--el-panel-3); }
+.electrical-dock-tabs { display: flex; flex: none; gap: 5px; padding: 10px 12px; }
+.electrical-dock-tabs button { display: flex; flex: 1; align-items: center; justify-content: center; gap: 6px; min-height: 35px; padding: 0 7px; border-radius: 6px; background: transparent; color: var(--el-muted); font-size: 12px; }
+.electrical-dock-tabs button[aria-selected="true"] { background: var(--el-panel-3); color: var(--el-teal); }
+.electrical-dock-tabs button:hover { color: var(--el-text); }
+.electrical-dock-body { flex: 1; min-width: 0; min-height: 0; overflow: auto; padding: 4px 12px 16px; overscroll-behavior: contain; }
+.electrical-instruments { display: flex; flex-direction: column; gap: 12px; }
+.electrical-instrument { position: relative; min-width: 0; padding: 16px; border: 1px solid var(--el-line); border-radius: 15px; background: linear-gradient(145deg, var(--el-panel-2), var(--el-panel)); box-shadow: 0 9px 24px rgba(3, 15, 18, .12); overflow: hidden; }
+.electrical-instrument::before { content: ""; position: absolute; top: 0; left: 18px; right: 18px; height: 2px; border-radius: 0 0 3px 3px; background: var(--el-teal); opacity: .72; }
+.electrical-instrument header { display: flex; align-items: center; gap: 8px; min-height: 24px; color: var(--el-teal); }
+.electrical-instrument h3 { margin: 0; font-size: 13px; font-weight: 680; letter-spacing: -.01em; }
+.instrument-led { width: 7px; height: 7px; flex: none; margin-left: auto; border-radius: 50%; background: #536a6f; }
+.instrument-led.on { background: var(--el-teal); }
+.instrument-display { display: flex; flex-direction: column; gap: 5px; min-height: 82px; margin: 14px 0; padding: 13px; border: 1px solid #5b837e66; border-radius: 10px; background: linear-gradient(150deg, #0b1b1e, #061012); color: #57c9c0; font-family: var(--font-mono); font-variant-numeric: tabular-nums; box-shadow: inset 0 1px 0 #9bd6c522, inset 0 -12px 24px #00000022; }
+.instrument-display > span { color: #90adb5; font-size: 10px; letter-spacing: .08em; }
+.instrument-display > strong { align-self: flex-end; font-size: 27px; font-weight: 520; letter-spacing: -.04em; }
+.instrument-controls { display: grid; gap: 10px; margin-block: 14px; }
+.instrument-controls label { display: grid; grid-template-columns: 34px 1fr 57px; align-items: center; gap: 5px; color: var(--el-muted); font-size: 11px; }
+.instrument-controls input[type="range"] { width: 100%; accent-color: var(--el-teal); }
+.instrument-controls output { font-family: var(--font-mono); color: var(--el-text); text-align: right; font-size: 11px; }
+.instrument-connectors { display: flex; align-items: center; gap: 8px; margin-top: 16px; padding: 10px 8px 7px; border: 1px solid var(--el-line); border-radius: 9px; background: var(--el-bg); }
+.instrument-ports { display: flex; gap: 7px; }
+.instrument-ports button { display: flex; flex-direction: column; align-items: center; gap: 5px; min-width: 34px; min-height: 43px; padding: 4px 5px; border-radius: 5px; background: transparent; color: var(--el-muted); font-family: var(--font-mono); font-size: 10px; }
+.instrument-port-ring { display: block; width: 17px; height: 17px; border: 2.5px solid #f4d06f; border-radius: 50%; background: #16333a; box-shadow: inset 0 0 0 2px #061419; }
+.instrument-port-ring.port-p { border-color: #e96951; }
+.instrument-port-ring.port-n, .instrument-port-ring.port-g { border-color: #8996a8; }
+.instrument-port-ring.port-b { border-color: #57c9c0; }
+.instrument-ports button:hover, .instrument-ports button.active { background: var(--el-panel-3); color: var(--el-teal); }
+.instrument-ports button.active .instrument-port-ring { border-color: var(--el-teal); }
+.instrument-toggle { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 32px; min-width: 66px; margin-left: auto; padding: 0 9px; border: 1px solid var(--el-line) !important; border-radius: 5px; background: transparent; color: var(--el-muted); font-size: 12px; }
+.instrument-toggle.active { border-color: var(--el-teal) !important; background: var(--el-panel-3); color: var(--el-teal); }
+.instrument-port-caption { margin-left: auto; color: var(--el-muted); font-family: var(--font-mono); font-size: 10px; }
+.generator-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.generator-fields label, .scope-options label { display: block; min-width: 0; color: var(--el-muted); font-size: 11px; }
+.generator-fields input, .generator-fields select, .meter-mode select, .scope-options input:not([type="checkbox"]), .scope-options select { display: block; width: 100%; min-width: 0; height: 32px; margin-top: 5px; padding: 4px 6px; border: 1px solid var(--el-line); border-radius: 5px; background: var(--el-bg); color: var(--el-text); font-family: var(--font-mono); font-size: 11px; }
+.meter-status { flex: none; max-width: 57%; margin-left: auto; padding: 3px 7px; border: 1px solid var(--el-line); border-radius: 6px; text-align: right; color: var(--el-muted); font-size: 10px; }
+.meter-status.ready { color: var(--el-teal); }
+.meter-status.overload, .meter-status.powered { color: var(--el-red); }
+.meter-mode { display: flex; align-items: center; gap: 14px; color: var(--el-muted); font-size: 12px; }
+.meter-mode select { flex: 1; margin-top: 0; font-family: var(--font-sans); font-size: 12px; }
+.meter-modes { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 7px; }
+.meter-modes button { display: flex; min-width: 0; min-height: 53px; flex-direction: column; align-items: center; justify-content: center; gap: 4px; padding: 6px 4px; border: 1px solid var(--el-line) !important; border-radius: 8px; background: var(--el-bg); color: var(--el-muted); }
+.meter-modes button:hover, .meter-modes button[aria-pressed="true"] { background: var(--el-panel-3); border-color: var(--el-teal) !important; color: var(--el-teal); }
+.meter-modes button > span { display: flex; align-items: center; justify-content: center; height: 20px; font-family: var(--font-mono); font-size: 17px; }
+.meter-modes button svg { width: 21px; height: 18px; }
+.meter-modes button small { font-size: 10px; line-height: 1.3; text-align: center; }
+.scope-actions { display: flex; gap: 6px; margin-top: 12px; }
+.scope-actions button { display: flex; align-items: center; justify-content: center; gap: 6px; min-height: 33px; padding: 0 10px; border: 1px solid var(--el-line) !important; border-radius: 5px; background: transparent; color: var(--el-muted); font-size: 12px; }
+.scope-actions button.active, .scope-actions button:hover { border-color: var(--el-teal) !important; color: var(--el-teal); }
+.scope-actions button:last-child { margin-left: auto; padding: 0 8px; }
+.electrical-scope-screen { margin-top: 15px; overflow: hidden; border: 1px solid #426d6b; border-radius: 10px; background: #0a171a; box-shadow: inset 0 1px 0 #b2e6d622; }
+.electrical-scope-screen svg { display: block; width: 100%; height: auto; aspect-ratio: 1.6; }
+.scope-grid { stroke: #71a59b33; stroke-width: .7; }
+.scope-trigger { stroke: #f4d06f; stroke-width: 1; stroke-dasharray: 4 4; }
+.scope-trace { stroke-width: 2; vector-effect: non-scaling-stroke; }
+.scope-trace-a { stroke: #57c9c0; }
+.scope-trace-b { stroke: #ed9a68; }
+.scope-cursor { stroke: #f4d06f; stroke-width: 1; stroke-dasharray: 3 3; }
+.scope-empty { fill: #90adb5; font-size: 12px; }
+.scope-readout { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px; padding: 7px; color: #90adb5; font-family: var(--font-mono); font-size: 10px; }
+.scope-a-label { color: #57c9c0; }
+.scope-b-label { color: #ed9a68; }
+.scope-options { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-top: 16px; }
+.scope-check { display: flex !important; align-items: center; gap: 5px; grid-column: span 2; padding-top: 8px; }
+.scope-check input { accent-color: var(--el-teal); }
+.instrument-advanced { margin-top: 18px; color: var(--el-muted); font-size: 12px; }
+.instrument-advanced summary { padding: 4px 0; cursor: pointer; }
+.instrument-advanced .scope-options { margin-top: 10px; }
+.electrical-analysis { display: grid; gap: 12px; margin-top: 18px; }
+.electrical-analysis-card { margin: 0; padding: 14px; border: 1px solid var(--el-line); border-radius: 14px; background: var(--el-panel); box-shadow: 0 7px 18px rgba(3, 15, 18, .08); }
+.electrical-analysis-card h2 { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 0 0 12px; font-size: 12px; font-weight: 600; }
+.electrical-analysis-card h2 span { color: var(--el-muted); font-family: var(--font-mono); font-size: 11px; font-weight: 400; }
+.electrical-readings { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 0; }
+.electrical-readings dt { color: var(--el-muted); font-size: 11px; }
+.electrical-readings dd { margin: 4px 0 0; color: var(--el-teal); font-family: var(--font-mono); font-size: 18px; }
+.electrical-analysis-formula { margin: 14px 0 0; padding-top: 12px; border-top: 1px solid var(--el-line); color: var(--el-muted); font-size: 12px; line-height: 1.6; }
+.electrical-diagnostic { display: flex; align-items: center; gap: 7px; margin: 8px 0; color: var(--el-yellow); font-size: 12px; line-height: 1.5; }
+.electrical-diagnostic::before { content: ""; flex: none; width: 5px; height: 5px; border-radius: 50%; background: currentColor; }
+.electrical-diagnostic.error { color: var(--el-red); }
+.electrical-diagnostic.good { color: var(--el-teal); }
+.electrical-probe-hint { margin: 22px 2px 0; color: var(--el-muted); font-size: 11px; line-height: 1.6; }
+@media (max-width: 1100px) {
+  .electrical-instrument-dock { flex-basis: 324px; width: 324px; }
+  .electrical-topbar .electrical-button-label { display: none; }
+  .electrical-title-block { max-width: 240px; }
+  .electrical-quick-tray button { padding-inline: 9px; }
+}
+@media (max-width: 700px) {
+  .electrical-topbar { flex-basis: 56px; gap: 4px; padding: 8px; }
+  .electrical-brand-mark, .electrical-save-dot, .electrical-secondary-action { display: none; }
+  .electrical-title-block { flex: 1; max-width: none; }
+  .electrical-topbar h1 { font-size: 13px; }
+  .electrical-topbar .lab-caption { font-size: 10px; }
+  .electrical-top-spacer { display: none; }
+  .electrical-icon-btn { min-width: 34px; min-height: 36px; padding: 0 8px; }
+  .electrical-inline-rename input { width: 100%; }
+  .electrical-inline-rename { width: 100%; }
+  .electrical-inline-rename button { flex: 0 0 25px; }
+  .electrical-rail.collapsed, .electrical-instrument-dock.collapsed { display: none; }
+  .electrical-stage-wrap { padding: 6px 8px; }
+  .electrical-quick-tray { height: 50px; margin-bottom: 4px; }
+  .electrical-quick-tray button { min-width: 72px; gap: 6px; padding-inline: 9px; }
+  .electrical-selection-bar { margin-bottom: 6px; padding-inline: 6px; }
+  .electrical-selection-hint { font-size: 11px; }
+  .electrical-statusbar { height: 40px; gap: 5px; }
+  .electrical-statusbar button { width: 32px; }
+  .electrical-status-message { font-size: 10px; }
+  .electrical-view-controls output { min-width: 35px; font-size: 10px; }
+  .electrical-lab.has-parts .electrical-stage-wrap, .electrical-lab.has-parts .electrical-instrument-dock { display: none; }
+  .electrical-lab.has-parts .electrical-rail { flex: 1; margin: 8px; }
+  .electrical-lab.has-parts .electrical-part-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .electrical-lab.has-measurement .electrical-stage-wrap, .electrical-lab.has-measurement .electrical-rail { display: none; }
+  .electrical-lab.has-measurement .electrical-instrument-dock { flex: 1; width: auto; margin: 8px; }
+  .electrical-part-name { width: 52px; flex-basis: 52px; }
+  .electrical-selection-bar .electrical-selection-symbol { display: none; }
+  .electrical-value-field input { width: 85px; }
+}
+@media (max-height: 600px) and (min-width: 701px) {
+  .electrical-topbar { flex-basis: 52px; }
+  .electrical-quick-tray { height: 43px; }
+  .electrical-selection-bar { flex-basis: 38px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .electrical-lab *, .electrical-lab *::before, .electrical-lab *::after { transition: none !important; animation: none !important; }
+}

@@ -1,6 +1,6 @@
 # Tool Assistant（工具助手与情景配图）
 
-工具助手是与测评中心、资料中心平行的教学工具栏目。首个子工具「情景配图」支持自然语言生成、素材选择和多轮优化，V1/V2/V3/V4 共用教学配图底层能力；V4 直接在情景配图工作台中运行。架构边界见 [ADR-0007](../adr/0007-shared-illustration-tools.md)，绘图协议和素材能力归 [diagrams-illustration.md](./diagrams-illustration.md)。第二个子工具「模拟实验室」（确定性双引擎化学实验台）独立成文，见 [chem-lab.md](./chem-lab.md) 与 [ADR-0019](../adr/0019-deterministic-dual-engine-lab.md)。
+工具助手是与测评中心、资料中心平行的教学工具栏目。首个子工具「情景配图」支持自然语言生成、素材选择和多轮优化，V1/V2/V3/V4 共用教学配图底层能力；V4 直接在情景配图工作台中运行。架构边界见 [ADR-0007](../adr/0007-shared-illustration-tools.md)，绘图协议和素材能力归 [diagrams-illustration.md](./diagrams-illustration.md)。模拟实验室包含独立成文的化学实验台（见 [chem-lab.md](./chem-lab.md)）和本地电路实验台（见 [electrical-lab.md](./electrical-lab.md) 与 [ADR-0020](../adr/0020-independent-electrical-lab.md)）。
 
 ## Purpose / Scope
 

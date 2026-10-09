@@ -15,7 +15,7 @@ Web 与 Expo/React Native 移动端不复制 API 代码：传输、契约、设�
 ├── packages/
 │   ├── contracts/             # 服务端 Pydantic → TS 契约（生成物 + 协议类型）
 │   ├── api-client/            # 平台无关 REST/SSE 客户端
-│   ├── domain/                # 跨端纯逻辑（图谱布局、语义映射）
+│   ├── domain/                # 跨端纯逻辑（图谱布局、语义映射、电路求解）
 │   ├── design-tokens/         # 设计令牌事实源（tokens.json）
 │   └── i18n/                  # 跨端文案协议（骨架）
 ├── scripts/contracts/         # 契约生成与 lint（见该目录 README）
@@ -127,7 +127,7 @@ radius、motion 时长、窗口断点类）；`scripts/dev/generate_design_token
 
 ## packages/domain 与 packages/i18n
 
-- `domain` 只放跨端纯逻辑：知识图谱 DAG 布局算法、学习状态语义映射；不含
+- `domain` 只放跨端纯逻辑：知识图谱 DAG 布局算法、学习状态语义映射和电路实验室确定性求解；不含
   数据库业务、prompt、导航或平台 UI state；
 - `i18n` 首版是 `Lang`/`Translator` 协议骨架；页面级 `strings.ts` 不整体搬迁，
   功能进入移动端时才把真正跨端的 key 迁入。

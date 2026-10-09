@@ -101,6 +101,10 @@ chat 页右上角电话按钮为唯一入口（`GET /voice/status` 决定显隐�
 
 一级导航「工具助手」与测评、资料并列，教学素材库保持独立一级入口。工具助手首页提供情景配图和组卷编译器两个等权入口；情景配图工作台包含会话列表、聊天轮次和成果预览；V1/V2/V3/V4 每轮选择，V2/V3/V4 可打开素材 Modal 搜索、筛选及多选，内置素材与公有自建素材在同一公有目录中展示。V4 成果以 raster artifact 展示，并可从题目编辑器生成配图后保存到组卷。未选时由模型提出需求、服务端检索。会话和素材列表使用共享 Pager，任务通过共享客户端观察，切会话/换账户防止迟到响应覆盖；成功图沿用规范化 SVG 或 owner-scoped raster 展示，支持历史版本作为修改基础和下载。演示模式只显示只读入口，不生成图片。组卷编译器 `/tools/worksheet` 使用服务端草稿和 ETag，设置阶段强制选择学习区，并提供知识图谱点、教材检索开关和出卷目标。工作台按「题目导航—出题对话与编辑—单题预览」三栏组织，单题追加是默认动作，批量生成和整卷预览通过按钮打开；预览、打印和 HTML 导出均保留 KaTeX 公式。服务端合同由 [tool-assistant.md](./tool-assistant.md) 拥有。
 
+### 电路实验室
+
+`/tools/lab/electronics` 是不经过全局工作区壳的沉浸式本地电路工作台。页面隐藏全局导航和站内助手，以中央 SVG 电路桌为主，左侧器材架可收起，右侧仪器/计算测量栏默认收起；电路桌支持拖线预览、平移和缩放，仪器展开时也不覆盖画布。电路状态由 `@next-tutor/domain` 的 `electrical-lab` 纯逻辑计算，保存于按 owner 隔离的浏览器 `localStorage`，不经过 API、contracts 或聊天路径。实现边界见 [electrical-lab.md](./electrical-lab.md)。
+
 ### i18n 与主题
 
 双层 i18n：`lib/i18n.ts` 全局词典（zh/en）+ 页面目录 `strings.ts` 经 `makePageT` 合并（WeakMap 缓存翻译函数引用）。`UIProvider` 恢复偏好、同步 `<html lang>`、监听 `storage` 事件实现跨标签页语言切换；学段等枚举只翻译显示标签，API token 保持原值。主题偏好 light/dark/system 持久化并跟随 `prefers-color-scheme`；预水合脚本避免闪白。

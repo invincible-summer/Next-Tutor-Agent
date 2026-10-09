@@ -7,3 +7,4 @@ export const DOMAIN_PACKAGE_VERSION = "0.2.0";
 export * from "./graph-layout.ts";
 export * from "./labels.ts";
 export * from "./chem-lab/index.ts";
+export * from "./electrical-lab/index.ts";
