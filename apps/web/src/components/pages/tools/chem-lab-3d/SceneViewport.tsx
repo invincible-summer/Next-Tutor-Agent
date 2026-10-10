@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * 统一 canvas 容器（plan §2/§7.1）：client-only 生命周期持有者。
+ * 统一 canvas 容器（chem-lab architecture）：client-only 生命周期持有者。
  * host 节点只包含 WebGL canvas——交互层在 host 上挂捕获监听并独占对象手势，
  * HUD/气泡/提示等 DOM 覆盖层必须是 host 的兄弟节点，避免把 UI 点击当成
  * 场景指针事件。WebGL2 不可用→降级说明+返回目录；contextlost 短提示。

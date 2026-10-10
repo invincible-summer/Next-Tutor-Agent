@@ -1,5 +1,7 @@
 # ADR-0019: 确定性双引擎模拟实验台（Python 权威 + TS 镜像）
 
+> Superseded by [ADR-0024](./0024-chemistry-freeform-threejs-bench.md) for the current chemistry workbench. This record remains immutable historical context for the retired session engine.
+
 - 状态：accepted
 - 日期：2026-10-08
 - 关联：ADR-0001（源码仓库，内容包为项目自研合成内容入库）、ADR-0002（会话数据落运行时数据根）、ADR-0005（synthetic 内容原则）。

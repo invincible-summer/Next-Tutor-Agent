@@ -16,6 +16,8 @@ export function AssistantProvider({ children }: {
   const lang = useUIStore((s) => s.lang);
   const pathname = usePathname();
   const setLang = useAssistantStore((s) => s.setLang);
+  const immersiveLab = pathname.startsWith("/tools/lab/electronics")
+    || pathname.startsWith("/tools/lab/chemistry");
 
   useEffect(() => {
     setLang(lang);
@@ -24,7 +26,7 @@ export function AssistantProvider({ children }: {
   return (
     <>
       {children}
-      {!DEMO_MODE && !pathname.startsWith("/tools/lab/electronics") && <AssistantHost />}
+      {!DEMO_MODE && !immersiveLab && <AssistantHost />}
     </>
   );
 }

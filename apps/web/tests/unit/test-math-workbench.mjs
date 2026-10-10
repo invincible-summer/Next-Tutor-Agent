@@ -3,7 +3,8 @@ import assert from "node:assert/strict";
 
 // Pure-logic unit tests for the math workbench web layer (no DOM needed:
 // localStorage is shimmed; React modules are only imported for their pure
-// helpers). Run through node --experimental-strip-types like the chem-lab unit.
+// helpers). The package test script registers the repository TypeScript loader,
+// so this stays runnable on Node builds without native type stripping.
 
 const { freshWorkbenchState, computeDirty, isHistoryCommand } = await import("../../src/components/pages/tools/math-workbench/document-state.ts");
 const {

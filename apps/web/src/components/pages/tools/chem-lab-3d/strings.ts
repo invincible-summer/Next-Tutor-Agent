@@ -62,6 +62,7 @@ export const STRINGS: PageStrings = {
     "chem3d.act.duplicate": "复制一件",
     "chem3d.act.remove": "移除",
     "chem3d.act.disconnect": "拆开",
+    "chem3d.act.pulse": "脉冲",
   },
   en: {
     "chem3d.back": "Back",
@@ -121,5 +122,6 @@ export const STRINGS: PageStrings = {
     "chem3d.act.duplicate": "Duplicate",
     "chem3d.act.remove": "Remove",
     "chem3d.act.disconnect": "Disconnect",
+    "chem3d.act.pulse": "Pulse",
   },
 };

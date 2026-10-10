@@ -19,15 +19,11 @@
     "./illustration": {
       "types": "./src/generated/illustration.ts",
       "default": "./src/generated/illustration.ts"
-    },
-    "./chem_lab": {
-      "types": "./src/generated/chem_lab.ts",
-      "default": "./src/generated/chem_lab.ts"
     }
   },
   "scripts": {
     "check": "tsc --noEmit",
-    "test": "node --experimental-strip-types --test tests/*.test.ts"
+    "test": "node --import ../../scripts/test/register-typescript-loader.mjs --test tests/*.test.ts"
   },
   "devDependencies": {
     "@types/node": "^20",

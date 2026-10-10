@@ -1,27 +1,27 @@
 "use client";
 
 /**
- * 文档 → 场景同步（plan §7.4）：LabDocument 的器材实例映射为 EquipmentFactory
+ * 文档 → 场景同步（chem-lab architecture）：LabDocument 的器材实例映射为 EquipmentFactory
  * 模型，按 domain 递归 world pose 摆放；端口 world anchor 供软管与交互使用；
  * 铁架夹具高度随挂载器材联动。渲染层不回写文档——显示层预览由交互层提交。
  *
- * 命中体系（plan §4.1）：每件模型额外挂三种“隐形放大命中壳”（材质
+ * 命中体系（chem-lab architecture）：每件模型额外挂三种“隐形放大命中壳”（材质
  * visible:false，Raycaster 不受 mesh 可见性影响）：端口壳（磁吸目标）、
  * 控件壳（旋钮/开关/灯芯直点区）、夹爪壳（沿杆高度拖动），与设备整体
  * pick 代理一起交给交互层按固定优先级取用。
  */
 import * as THREE from "three";
 import {
-  getEquipmentSpec, instanceWorldPose, type EquipmentInstance, type LabDocument,
+  equipmentTopY, getEquipmentSpec, instanceWorldPose, type EquipmentInstance, type LabDocument,
 } from "@next-tutor/domain";
 import { createEquipmentModel, type EquipmentModelHandle } from "./EquipmentFactory.ts";
-import { MAT, sharedMaterial } from "./EquipmentModels.ts";
+import { MAT, releaseMaterial, sharedMaterial } from "./EquipmentModels.ts";
 import type { QualityTier } from "./SceneController.ts";
 import { TubeSystem, type TubePortAnchor } from "./TubeSystem.ts";
 
 const UP = new THREE.Vector3(0, 1, 0);
 
-export type PickKind = "equipment" | "tube" | "port" | "control" | "claw";
+export type PickKind = "equipment" | "tube" | "port" | "control" | "claw" | "rack";
 
 export interface PickRef {
   kind: PickKind;
@@ -30,6 +30,9 @@ export interface PickRef {
   portId?: string;
   controlId?: string;
   connectionId?: string;
+  /** 器材架上的取用槽，不属于 LabDocument，点击后才生成真实实例。 */
+  rackKind?: string;
+  rackSlot?: string;
 }
 
 /** 直点控件壳的局部位置/半径（dial 只给主开关壳，档位经气泡“转动”）。 */
@@ -56,17 +59,35 @@ export interface SyncedItem {
   clawShell: THREE.Mesh | null;
 }
 
+interface RackItem {
+  kind: string;
+  slot: string;
+  handle: EquipmentModelHandle;
+}
+
+interface RackPreviewState {
+  slot: string;
+  position: THREE.Vector3;
+  quaternion: THREE.Quaternion;
+  scale: THREE.Vector3;
+}
+
 export class SceneSync {
   readonly root = new THREE.Group();
   readonly tubes = new TubeSystem();
   private readonly items = new Map<string, SyncedItem>();
+  private readonly rackItems = new Map<string, RackItem>();
   private readonly tier: QualityTier;
   private readonly hitSphereGeo: THREE.SphereGeometry;
+  private readonly pickMaterial: THREE.Material;
+  private rackPreviewState: RackPreviewState | null = null;
 
-  constructor(tier: QualityTier) {
+  constructor(tier: QualityTier, inventoryKinds: readonly string[] = []) {
     this.tier = tier;
     this.root.name = "equipment";
     this.hitSphereGeo = new THREE.SphereGeometry(1, 10, 8);
+    this.pickMaterial = sharedMaterial(MAT.pickProxy);
+    this.buildRackInventory(inventoryKinds);
   }
 
   /** 差量同步：新增/移除/姿态与视觉状态更新，随后刷新管线锚点。 */
@@ -119,7 +140,7 @@ export class SceneSync {
     this.rebuildTubes(doc);
   }
 
-  /** 拖动期显示层预览（plan §4.2.3：不写文档，松手一次性提交）。 */
+  /** 拖动期显示层预览（chem-lab architecture：不写文档，松手一次性提交）。 */
   applyPreviewWorldPose(id: string, position: THREE.Vector3, quaternion?: THREE.Quaternion): void {
     const item = this.items.get(id);
     if (!item) return;
@@ -167,6 +188,53 @@ export class SceneSync {
     return meshes;
   }
 
+  rackPickMeshes(): THREE.Mesh[] {
+    const meshes: THREE.Mesh[] = [];
+    for (const item of this.rackItems.values()) meshes.push(...item.handle.pickParts);
+    return meshes;
+  }
+
+  /** 暂时把器材架上的小模型带到台面，形成“拿起后拖放”的空间反馈。 */
+  beginRackPreview(slot: string): boolean {
+    const item = this.rackItems.get(slot);
+    if (!item || this.rackPreviewState) return false;
+    this.rackPreviewState = {
+      slot,
+      position: item.handle.group.position.clone(),
+      quaternion: item.handle.group.quaternion.clone(),
+      scale: item.handle.group.scale.clone(),
+    };
+    item.handle.group.scale.setScalar(0.78);
+    item.handle.group.renderOrder = 8;
+    item.handle.group.userData.rackPreview = true;
+    return true;
+  }
+
+  updateRackPreview(slot: string, position: THREE.Vector3): void {
+    if (this.rackPreviewState?.slot !== slot) return;
+    const item = this.rackItems.get(slot);
+    if (!item) return;
+    item.handle.group.position.copy(position);
+    item.handle.group.position.y = 0;
+    item.handle.group.updateMatrixWorld(true);
+  }
+
+  /** 还原架上模型；调用 AUTO/场景重建前也可安全调用。 */
+  endRackPreview(): void {
+    const state = this.rackPreviewState;
+    if (!state) return;
+    const item = this.rackItems.get(state.slot);
+    if (item) {
+      item.handle.group.position.copy(state.position);
+      item.handle.group.quaternion.copy(state.quaternion);
+      item.handle.group.scale.copy(state.scale);
+      item.handle.group.renderOrder = 0;
+      delete item.handle.group.userData.rackPreview;
+      item.handle.group.updateMatrixWorld(true);
+    }
+    this.rackPreviewState = null;
+  }
+
   portShells(): THREE.Mesh[] {
     const meshes: THREE.Mesh[] = [];
     for (const item of this.items.values()) meshes.push(...item.portShells);
@@ -206,14 +274,13 @@ export class SceneSync {
     }
     const item = this.items.get(selection.id);
     if (!item) return null;
-    const bounds = getEquipmentSpec(item.kind)?.bounds;
-    const h = bounds?.height ?? 1;
-    return item.handle.group.localToWorld(new THREE.Vector3(0, h + 0.3, 0));
+    const spec = getEquipmentSpec(item.kind);
+    return item.handle.group.localToWorld(new THREE.Vector3(0, spec ? equipmentTopY(spec) + 0.3 : 1.3, 0));
   }
 
   private attachPortShells(handle: EquipmentModelHandle, instanceId: string): THREE.Mesh[] {
     const shells: THREE.Mesh[] = [];
-    const material = sharedMaterial(MAT.pickProxy);
+    const material = this.pickMaterial;
     for (const [portId, node] of handle.portNodes) {
       const spec = getEquipmentSpec(handle.kind)?.ports.find(p => p.id === portId);
       if (!spec) continue;
@@ -229,7 +296,7 @@ export class SceneSync {
   private attachControlShells(handle: EquipmentModelHandle, instanceId: string): THREE.Mesh[] {
     const zone = CONTROL_ZONES[handle.kind];
     if (!zone) return [];
-    const material = sharedMaterial(MAT.pickProxy);
+    const material = this.pickMaterial;
     const shell = new THREE.Mesh(this.hitSphereGeo, material);
     shell.position.copy(zone.at);
     shell.scale.setScalar(zone.r);
@@ -239,7 +306,7 @@ export class SceneSync {
   }
 
   private attachClawShell(handle: EquipmentModelHandle, instanceId: string): THREE.Mesh {
-    const material = sharedMaterial(MAT.pickProxy);
+    const material = this.pickMaterial;
     const shell = new THREE.Mesh(this.hitSphereGeo, material);
     const grip = standGripLocal(handle.kind);
     shell.position.copy(grip);
@@ -301,9 +368,39 @@ export class SceneSync {
   }
 
   dispose(): void {
+    this.endRackPreview();
     for (const id of [...this.items.keys()]) this.removeItem(id);
+    for (const item of this.rackItems.values()) item.handle.dispose();
+    this.rackItems.clear();
     this.tubes.dispose();
     this.hitSphereGeo.dispose();
+    releaseMaterial(MAT.pickProxy);
     this.root.removeFromParent();
+  }
+
+  private buildRackInventory(kinds: readonly string[]): void {
+    // 器材架是“取用来源”，不是第二份文档。小比例模型保留真实轮廓，
+    // 点击槽位后才通过 add action 生成可移动的工作台实例。
+    const unique = [...new Set(kinds)].filter(kind => Boolean(getEquipmentSpec(kind))).slice(0, 18);
+    const columns = 9;
+    unique.forEach((kind, index) => {
+      const handle = createEquipmentModel(kind, { tier: this.tier, hero: false });
+      if (!handle) return;
+      const row = Math.floor(index / columns);
+      const column = index % columns;
+      const slot = `rack-${index}`;
+      handle.group.name = `rack:${slot}:${kind}`;
+      handle.group.scale.setScalar(0.34);
+      // The interactive rack models sit on the two reachable middle shelves.
+      // Keeping them below the upper light band makes them visible in the
+      // default workbench framing instead of leaving the hit targets above
+      // the viewport.
+      handle.group.position.set(-6.9 + column * 1.72, 1.30 + row * 0.68, -4.95 + row * 0.7);
+      for (const part of handle.pickParts) {
+        part.userData.pickRef = { kind: "rack", rackKind: kind, rackSlot: slot } satisfies PickRef;
+      }
+      this.root.add(handle.group);
+      this.rackItems.set(slot, { kind, slot, handle });
+    });
   }
 }

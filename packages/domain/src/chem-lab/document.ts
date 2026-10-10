@@ -78,7 +78,10 @@ export function normalizeInstance(raw: Omit<EquipmentInstance, "controls"> & { c
   const instance: EquipmentInstance = { id: raw.id, kind: raw.kind, pose: raw.pose, controls };
   if (raw.parentMountId !== undefined) instance.parentMountId = raw.parentMountId;
   if (raw.localPose !== undefined) instance.localPose = raw.localPose;
-  if (raw.visualContents !== undefined) instance.visualContents = raw.visualContents;
+  if (raw.visualContents !== undefined) {
+    const contents = sanitizeVisualContents(raw.visualContents);
+    if (contents) instance.visualContents = contents;
+  }
   return instance;
 }
 
@@ -94,6 +97,23 @@ function* idsIn(doc: LabDocument): Generator<string> {
 }
 
 function clone<T>(value: T): T { return JSON.parse(JSON.stringify(value)) as T; }
+
+function finite(value: unknown): value is number {
+  return typeof value === "number" && Number.isFinite(value);
+}
+
+function clamp01(value: unknown, fallback = 0): number {
+  return finite(value) ? Math.min(1, Math.max(0, value)) : fallback;
+}
+
+function sanitizeVisualContents(value: EquipmentInstance["visualContents"] | undefined): EquipmentInstance["visualContents"] | undefined {
+  if (!value) return undefined;
+  const next: NonNullable<EquipmentInstance["visualContents"]> = { fill: clamp01(value.fill) };
+  if (typeof value.colorId === "string" && value.colorId.length <= 32) next.colorId = value.colorId;
+  if (value.cloudiness !== undefined) next.cloudiness = clamp01(value.cloudiness);
+  if (value.sediment !== undefined) next.sediment = clamp01(value.sediment);
+  return next;
+}
 
 // ── 文档创建 ───────────────────────────────────────────────────────────────
 export function createStageDocument(stage: StageDefinition, name?: string): LabDocument {
@@ -214,7 +234,8 @@ function applyActionInner(doc: LabDocument, action: LabAction, stage: StageDefin
     case "setVisualContents": {
       const eq = findEquipment(doc, action.id);
       if (!eq) return null;
-      const merged: EquipmentInstance["visualContents"] = { ...(eq.visualContents ?? { fill: 0 }), ...action.contents };
+      const merged = sanitizeVisualContents({ ...(eq.visualContents ?? { fill: 0 }), ...action.contents });
+      if (!merged) return null;
       return { ...bumped(), equipment: doc.equipment.map(e => e.id === action.id ? { ...e, visualContents: merged } : e) };
     }
     case "replaceAuto": return applyAuto(doc, stage);
@@ -237,21 +258,37 @@ function hintFor(action: LabAction): string | undefined {
 // ── AUTO：一次性原子载入预组装模板 ─────────────────────────────────────────
 /** 模板技术性完整性校验：引用/端点/坐标有效、初始全静止（不校验化学正确性）。 */
 export function validateStageScene(scene: StageScene, opts: { requireIdle?: boolean } = {}): string | null {
+  if (scene.equipment.length > LIMITS.maxEquipment) return "too_many_equipment";
+  if (scene.connections.length > LIMITS.maxConnections) return "too_many_connections";
   const ids = new Set<string>();
   for (const eq of scene.equipment) {
     if (ids.has(eq.id)) return `duplicate_id:${eq.id}`;
     ids.add(eq.id);
     if (!getEquipmentSpec(eq.kind)) return `unknown_kind:${eq.kind}`;
     const spec = getEquipmentSpec(eq.kind)!;
+    const poseValues = [...Object.values(eq.pose.position), ...eq.pose.rotation];
+    if (poseValues.some(value => !finite(value))) return `bad_pose:${eq.id}`;
     for (const port of spec.ports) {
-      if (Number.isFinite(port.localPosition.x)) continue;
-      return `bad_port:${eq.id}`;
+      const values = [...Object.values(port.localPosition), ...Object.values(port.localDirection), port.visualRadius, port.maxLinks];
+      if (values.some(value => !finite(value))) return `bad_port:${eq.id}:${port.id}`;
+    }
+    if (eq.localPose) {
+      const localValues = [...Object.values(eq.localPose.position), ...eq.localPose.rotation];
+      if (localValues.some(value => !finite(value))) return `bad_local_pose:${eq.id}`;
     }
     if (eq.parentMountId) {
       if (!ids.has(eq.parentMountId) && !scene.equipment.some(e => e.id === eq.parentMountId)) return `missing_parent:${eq.id}`;
       const parent = scene.equipment.find(e => e.id === eq.parentMountId);
       if (parent && getEquipmentSpec(parent.kind)?.family !== "stand") return `parent_not_stand:${eq.id}`;
       if (eq.parentMountId === eq.id) return `self_parent:${eq.id}`;
+      // A malformed imported template must not create a recursive world-pose walk.
+      let ancestor = eq.parentMountId;
+      const chain = new Set<string>([eq.id]);
+      while (ancestor) {
+        if (chain.has(ancestor)) return `mount_cycle:${eq.id}`;
+        chain.add(ancestor);
+        ancestor = scene.equipment.find(e => e.id === ancestor)?.parentMountId ?? "";
+      }
     }
     if (opts.requireIdle) {
       for (const control of spec.controls) {
@@ -260,12 +297,28 @@ export function validateStageScene(scene: StageScene, opts: { requireIdle?: bool
       if ((eq.visualContents?.fill ?? 0) > 0.001 && eq.kind !== "reagent-bottle") return `not_empty:${eq.id}`;
     }
   }
+  const probe: LabDocument = {
+    schemaVersion: 1,
+    stageId: "template",
+    name: "template",
+    equipment: scene.equipment.map(e => normalizeInstance(clone(e))),
+    connections: [],
+    revision: 0,
+    lastEditedAt: 0,
+  };
+  const connectionIds = new Set<string>();
   for (const conn of scene.connections) {
+    if (connectionIds.has(conn.id) || ids.has(conn.id)) return `duplicate_connection_id:${conn.id}`;
+    connectionIds.add(conn.id);
+    if (conn.slack !== undefined && (!finite(conn.slack) || conn.slack < 0 || conn.slack > 1)) return `bad_slack:${conn.id}`;
     if (!ids.has(conn.a.equipmentId) || !ids.has(conn.b.equipmentId)) return `ghost_endpoint:${conn.id}`;
     const specA = getEquipmentSpec(scene.equipment.find(e => e.id === conn.a.equipmentId)!.kind);
     const specB = getEquipmentSpec(scene.equipment.find(e => e.id === conn.b.equipmentId)!.kind);
     if (!specA?.ports.some(p => p.id === conn.a.portId)) return `ghost_port:${conn.id}:a`;
     if (!specB?.ports.some(p => p.id === conn.b.portId)) return `ghost_port:${conn.id}:b`;
+    const block = connectionBlockReason(probe, conn.a, conn.b);
+    if (block) return `connection_${block}:${conn.id}`;
+    probe.connections.push(clone(conn));
   }
   return null;
 }

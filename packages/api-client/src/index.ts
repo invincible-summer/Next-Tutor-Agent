@@ -45,7 +45,6 @@ export type {
   ImageGenerationResult,
   ImageReferenceMode,
 } from "./tools/image.ts";
-export type { ToolChemLabClient } from "./tools/chem-lab.ts";
 export type { WorksheetClient } from "./tools/worksheet.ts";
 export type {
   AssessmentClient,

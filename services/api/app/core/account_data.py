@@ -577,8 +577,6 @@ def _purge_account(user_id: str) -> dict[str, Any]:
     before = scan_storage([uid]).get(uid, _empty_buckets())
     from app.illustration.persistence import purge as purge_illustrations
     purge_illustrations(uid)
-    from app.chem_lab.persistence import purge as purge_chem_lab
-    purge_chem_lab(uid)
     from app.diagrams.materials import purge as purge_materials
     purge_materials(uid)
     from app.core.paths import runtime_paths

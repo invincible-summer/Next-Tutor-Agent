@@ -3,7 +3,7 @@
  * 几何制造者（web EquipmentFactory）与交互命中体都从这张表生成，避免模型与端口图不同步。
  * 局部坐标约定：原点在底面中心，Y 向上；1 unit ≈ 10cm。
  */
-import type { ControlSpec, ControlValue, EquipmentSpec, InternalEdge, PortSpec, Vec3 } from "./types.ts";
+import type { ControlSpec, ControlValue, EquipmentCapabilities, EquipmentInteraction, EquipmentSpec, InternalEdge, PortSpec, Vec3 } from "./types.ts";
 
 const v = (x: number, y: number, z: number): Vec3 => ({ x, y, z });
 
@@ -83,6 +83,7 @@ const SPECS: EquipmentSpec[] = [
   {
     kind: "condenser-coil", family: "glassware", label: { zh: "蛇形冷凝器", en: "Coil condenser" },
     bounds: { width: 4.1, depth: 1.1, height: 1.0 },
+    boundsOrigin: "center",
     ports: [
       port("vaporIn", v(-2.0, 0, 0), v(-1, 0, 0), "glassJoint", 0.11),
       port("condensateOut", v(2.0, 0, 0), v(1, 0, 0), "glassJoint", 0.11),
@@ -97,6 +98,7 @@ const SPECS: EquipmentSpec[] = [
   {
     kind: "condenser-straight", family: "glassware", label: { zh: "直形冷凝管", en: "Straight condenser" },
     bounds: { width: 3.4, depth: 1.0, height: 0.95 },
+    boundsOrigin: "center",
     ports: [
       port("vaporIn", v(-1.65, 0, 0), v(-1, 0, 0), "glassJoint", 0.1),
       port("condensateOut", v(1.65, 0, 0), v(1, 0, 0), "glassJoint", 0.1),
@@ -149,7 +151,7 @@ const SPECS: EquipmentSpec[] = [
       port("out", v(0.95, 1.15, 0), v(1, 0, 0), "tube", 0.1),
     ],
     anchors: { core: v(0, 1.15, 0), burstZone: v(0, 1.15, 0), clampPoint: v(0, 0.45, 0) },
-    clampable: true, controls: [],
+    clampable: true, controls: [], interactions: ["pulse", "rotate"],
     internalEdges: [{ from: "in", to: "out" }],
     visualTuning: { sphereR: 0.8 },
   },
@@ -284,9 +286,34 @@ export const EQUIPMENT_KINDS: readonly string[] = SPECS.map(s => s.kind);
 
 export function getEquipmentSpec(kind: string): EquipmentSpec | null { return EQUIPMENT_SPECS.get(kind) ?? null; }
 
+/** 包围盒中心的局部 Y：供模型、选择框与命中代理使用同一坐标口径。 */
+export function equipmentCenterY(spec: EquipmentSpec): number {
+  return spec.boundsOrigin === "center" ? 0 : spec.bounds.height / 2;
+}
+
+/** 包围盒上沿的局部 Y：供气泡锚点与聚焦镜头使用。 */
+export function equipmentTopY(spec: EquipmentSpec): number {
+  return spec.boundsOrigin === "center" ? spec.bounds.height / 2 : spec.bounds.height;
+}
+
 export function equipmentLabel(kind: string, lang: "zh" | "en"): string {
   const spec = getEquipmentSpec(kind);
   return spec ? spec.label[lang] : kind;
+}
+
+/**
+ * 气泡、无障碍入口和未来移动端都从这里读取能力，避免 UI 按 kind 散落判断。
+ * 对旧器材，几何锚点仍能安全推导“可倒液/可旋转”。
+ */
+export function equipmentCapabilities(kind: string): EquipmentCapabilities {
+  const spec = getEquipmentSpec(kind);
+  if (!spec) return { canPour: false, canPulse: false, canRotate: false };
+  const explicit = new Set<EquipmentInteraction>(spec.interactions ?? []);
+  return {
+    canPour: explicit.has("pour") || (spec.anchors.pourLip !== undefined && spec.family !== "reagent"),
+    canPulse: explicit.has("pulse"),
+    canRotate: explicit.has("rotate") || spec.family === "glassware" || spec.family === "connector",
+  };
 }
 
 export function defaultControls(kind: string): Record<string, ControlValue> {

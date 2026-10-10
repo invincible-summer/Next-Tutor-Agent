@@ -8,7 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
-    "test:unit": "node --experimental-strip-types tests/unit/test-chem-lab-scene.mjs && node tests/unit/test-classroom-player.mjs && node tests/unit/test-i18n.mjs && node tests/unit/test-assistant-navigation.mjs && node tests/unit/test-demo-fetch.mjs && node tests/unit/test-illustration-enrichment.mjs && node --experimental-strip-types tests/unit/test-math-workbench.mjs && node --experimental-strip-types tests/unit/test-math-workbench-file-state.mjs && node --test tests/unit/test-e2e-runtime.mjs",
+    "test:unit": "node tests/unit/test-classroom-player.mjs && node tests/unit/test-i18n.mjs && node tests/unit/test-assistant-navigation.mjs && node tests/unit/test-demo-fetch.mjs && node tests/unit/test-illustration-enrichment.mjs && node --import ../../scripts/test/register-typescript-loader.mjs tests/unit/test-math-workbench.mjs && node --import ../../scripts/test/register-typescript-loader.mjs tests/unit/test-math-workbench-file-state.mjs && node --test tests/unit/test-e2e-runtime.mjs",
     "check": "pnpm typecheck && pnpm lint && pnpm test:unit",
     "test:e2e": "node tests/e2e/support/run-e2e.mjs",
     "test:player": "node tests/unit/test-classroom-player.mjs",

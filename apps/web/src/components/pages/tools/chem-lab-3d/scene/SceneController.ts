@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * 化学实验台 3D 场景唯一生命周期持有者（plan §3.1/§7.5）：单例 WebGLRenderer /
+ * 化学实验台 3D 场景唯一生命周期持有者（chem-lab architecture）：单例 WebGLRenderer /
  * Scene / PerspectiveCamera / OrbitControls / rAF。渲染调度采用“按需 invalidate +
  * 活跃源连续帧”：静止且无相机阻尼时不再渲染；拖动、演出效果、相机活动期间自动
  * 追加下一帧。内容（器材/管线/特效）由各自模块挂到 root 并自行释放，
@@ -55,6 +55,15 @@ export interface SceneControllerHooks {
   onContextRestored?: () => void;
 }
 
+interface CameraTween {
+  fromPosition: THREE.Vector3;
+  fromTarget: THREE.Vector3;
+  toPosition: THREE.Vector3;
+  toTarget: THREE.Vector3;
+  startedAt: number;
+  duration: number;
+}
+
 const ACTIVITY = { drag: "drag", camera: "camera", effects: "effects", tween: "tween" } as const;
 export type ActivityName = (typeof ACTIVITY)[keyof typeof ACTIVITY];
 
@@ -72,11 +81,13 @@ export class ChemSceneController {
   private readonly resizeObserver: ResizeObserver;
   private readonly frame = { requested: false };
   private readonly activities = new Set<ActivityName>();
+  private readonly frameListeners = new Set<(ctx: FrameContext) => void>();
   private readonly envTexture: THREE.Texture;
   private lastFrameTime = 0;
   private elapsed = 0;
   private slowFrameWindow: number[] = [];
   private tierDowngraded = false;
+  private cameraTween: CameraTween | null = null;
   private disposed = false;
 
   static webgl2Available(): boolean {
@@ -99,7 +110,9 @@ export class ChemSceneController {
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = 1.05;
     this.renderer.shadowMap.enabled = this.tier !== "low";
-    this.renderer.shadowMap.type = this.tier === "high" ? THREE.PCFSoftShadowMap : THREE.PCFShadowMap;
+    // Three 0.186 removed PCFSoftShadowMap; PCFShadowMap is the supported
+    // filtered path and keeps the same stable shadow behavior across tiers.
+    this.renderer.shadowMap.type = THREE.PCFShadowMap;
     const canvas = this.renderer.domElement;
     canvas.classList.add("chem-scene-canvas");
     canvas.style.touchAction = "none"; // PointerEvents 手势由交互层接管
@@ -165,9 +178,13 @@ export class ChemSceneController {
       const dt = Math.min((now - (this.lastFrameTime || now)) / 1000, 0.05);
       this.lastFrameTime = now;
       this.elapsed += dt;
+      this.updateCameraTween(now);
       // 阻尼未收敛时 controls.update() 触发 change → 自续帧直至静止。
       if (this.controls.enableDamping) this.controls.update();
-      this.hooks.onFrame?.({ dt, elapsed: this.elapsed });
+      const ctx = { dt, elapsed: this.elapsed };
+      this.hooks.onFrame?.(ctx);
+      // 后挂模块（特效等）共享同一 rAF：controller 仍是唯一帧调度者。
+      for (const listener of this.frameListeners) listener(ctx);
       this.renderer.render(this.scene, this.camera);
       if (this.activities.size > 0) this.invalidate();
       this.noteFrameTime(dt);
@@ -186,6 +203,15 @@ export class ChemSceneController {
   }
 
   get activeActivities(): readonly ActivityName[] { return [...this.activities]; }
+
+  /** 后挂模块订阅每帧回调（同一 rAF 内、controls.update 之后、render 之前）。 */
+  addFrameListener(listener: (ctx: FrameContext) => void): void {
+    this.frameListeners.add(listener);
+  }
+
+  removeFrameListener(listener: (ctx: FrameContext) => void): void {
+    this.frameListeners.delete(listener);
+  }
 
   /** 供 PNG 导出等显式渲染（无 preserveDrawingBuffer）。 */
   renderOnce(): void {
@@ -224,6 +250,40 @@ export class ChemSceneController {
   /** 视角恢复默认（不重置实验、不计 dirty）：带一个短促的活动期让阻尼平滑落位。 */
   resetCamera(pose: CameraPose): void {
     this.applyCameraPose(pose);
+  }
+
+  /** 双击器材后的轻量聚焦：只移动相机和目标，不改变文档或选择状态。 */
+  focusOn(world: THREE.Vector3, distance = 8): void {
+    const currentOffset = this.camera.position.clone().sub(this.controls.target);
+    const direction = currentOffset.lengthSq() > 0.001
+      ? currentOffset.normalize()
+      : new THREE.Vector3(0.35, 0.55, 0.75).normalize();
+    const toTarget = world.clone();
+    const toPosition = world.clone().add(direction.multiplyScalar(THREE.MathUtils.clamp(distance, 4.5, 18)));
+    this.cameraTween = {
+      fromPosition: this.camera.position.clone(),
+      fromTarget: this.controls.target.clone(),
+      toPosition,
+      toTarget,
+      startedAt: performance.now(),
+      duration: 280,
+    };
+    this.beginActivity(ACTIVITY.tween);
+    this.invalidate();
+  }
+
+  private updateCameraTween(now: number): void {
+    const tween = this.cameraTween;
+    if (!tween) return;
+    const raw = Math.min(1, Math.max(0, (now - tween.startedAt) / tween.duration));
+    const eased = raw < 0.5 ? 2 * raw * raw : 1 - ((-2 * raw + 2) ** 2) / 2;
+    this.camera.position.lerpVectors(tween.fromPosition, tween.toPosition, eased);
+    this.controls.target.lerpVectors(tween.fromTarget, tween.toTarget, eased);
+    this.camera.lookAt(this.controls.target);
+    if (raw >= 1) {
+      this.cameraTween = null;
+      this.endActivity(ACTIVITY.tween);
+    }
   }
 
   // ── 尺寸 / 性能 ─────────────────────────────────────────────────────────
@@ -269,6 +329,7 @@ export class ChemSceneController {
     // 内容资源（共享几何/材质/管线/粒子）由各自 owner 释放；这里只回收
     // WebGL 上下文与 DOM。renderer.dispose 会释放其分配的 GL 资源。
     this.scene.environment = null;
+    this.cameraTween = null;
     this.envTexture.dispose();
     this.renderer.dispose();
     this.renderer.domElement.remove();

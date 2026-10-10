@@ -1,8 +1,8 @@
 "use client";
 
 /**
- * 56px 沉浸顶栏（plan §0/§2）：返回+关卡名 / AUTO / 保存/打开/重置 / ⌖视角。
- * 窄屏（≤640px）把次要操作收进 ⋯ 菜单，AUTO 与返回始终可见（plan §2 竖屏）。
+ * 56px 沉浸顶栏（chem-lab architecture）：返回+关卡名 / AUTO / 保存/打开/重置 / ⌖视角。
+ * 窄屏（≤640px）把次要操作收进 ⋯ 菜单，AUTO 与返回始终可见（chem-lab architecture）。
  * 顶栏不随拖动重排：纯静态按钮，无逐帧状态。
  */
 import { useEffect, useRef, useState } from "react";

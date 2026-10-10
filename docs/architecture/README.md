@@ -65,7 +65,7 @@ SSE 为前端直连后端的流式通道（`POST /chat/stream` 等），生产�
 | 站内学习助手 | 站内导航、领域动作与实体深链 | `app/agents/site_assistant/` | [site-assistant.md](./site-assistant.md) |
 | 笔记 | 笔记仓库 + 笔记智能体 | `app/notes/` + `app/agents/notes_agent.py` | [notes.md](./notes.md) |
 | 工具助手 | 情景配图会话、手选素材及多轮图片版本 | `app/illustration/` + 前端 `/tools` | [tool-assistant.md](./tool-assistant.md) |
-| 模拟实验室 | 确定性双引擎化学实验台：器材操作、观察记录、回放分叉与结果卡 | `app/chem_lab/` + `packages/domain/src/chem-lab/` + 前端 `/tools/lab` | [chem-lab.md](./chem-lab.md) |
+| 模拟实验室 | 本地 Three.js 化学模拟台：程序化器材、自由拼装、局部气泡操作与视觉现象 | `packages/domain/src/chem-lab/` + 前端 `/tools/lab` | [chem-lab.md](./chem-lab.md) |
 | 电路实验室 | 本地确定性电路求解、仪器读数、示波器与 JSON 实验交换 | `packages/domain/src/electrical-lab/` + 前端 `/tools/lab/electronics` | [electrical-lab.md](./electrical-lab.md) |
 | 几何作图器 | 纯 TS 数学内核 + 2D SVG/Three 3D 的本地绘图、微积与方程工作台 | `packages/domain/src/math-workbench/` + 前端 `/tools/geometry` | [math-workbench.md](./math-workbench.md) |
 | 图库与配图引擎 | 教学 SVG 素材库、共享 V1–V3 绘图与测评适配 | `app/diagrams/` + `app/illustration/` | [diagrams-illustration.md](./diagrams-illustration.md) |

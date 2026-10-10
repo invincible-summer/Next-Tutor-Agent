@@ -1,5 +1,5 @@
 /**
- * 五个多阶演示关卡。关卡 = 场景主题 + 器材组合 + AUTO 预组装模板；
+ * 五个多阶演示关卡加一个开放器材架。关卡 = 场景主题 + 器材组合 + AUTO 预组装模板；
  * 没有目标、评分、步骤或正确性判定。所有模板初始状态：热源熄灭、泵停、容器为空。
  * 布局遵守统一世界尺度（台面 Y=0，X∈[-8,8]，Z∈[-4,4]，后方为 -Z），按关卡构图
  * 前后错落、不同高度，避免把设备排成一条直线。
@@ -66,9 +66,9 @@ const bubbleRelay: StageDefinition = {
       cn("cn-4", "valve-1", "b", "u-1", "in"),
       cn("cn-5", "u-1", "out", "collect-1", "in"),
     ],
-    camera: { yaw: 0.55, pitch: 0.66, distance: 15.5, target: v(-0.4, 1.0, -0.3) },
+    camera: { yaw: 0.18, pitch: 0.78, distance: 13.5, target: v(-0.2, 1.05, -0.8) },
   },
-  camera: { yaw: 0.55, pitch: 0.66, distance: 16.5, target: v(-0.4, 1.0, -0.3) },
+  camera: { yaw: 0.18, pitch: 0.78, distance: 13.5, target: v(-0.2, 1.05, -0.8) },
   cueMap: { liquidColors: ["teal", "sky"], flowColor: "sky" },
 };
 
@@ -112,9 +112,9 @@ const silverCondenser: StageDefinition = {
       cn("cn-6", "pump-1", "out", "cond-1", "waterIn"),
       cn("cn-7", "cond-1", "waterOut", "beaker-c", "rim"),
     ],
-    camera: { yaw: 0.62, pitch: 0.62, distance: 15.0, target: v(-1.2, 1.2, 0.0) },
+    camera: { yaw: 0.18, pitch: 0.82, distance: 12.5, target: v(-1.1, 1.0, -1.0) },
   },
-  camera: { yaw: 0.62, pitch: 0.62, distance: 16.0, target: v(-1.2, 1.2, 0.0) },
+  camera: { yaw: 0.18, pitch: 0.82, distance: 12.5, target: v(-1.1, 1.0, -1.0) },
   cueMap: { liquidColors: ["amber", "teal"], flowColor: "pale" },
 };
 
@@ -159,9 +159,9 @@ const chromaticLoop: StageDefinition = {
       cn("cn-9", "cross-1", "c", "flask-1", "neck"),
       cn("cn-10", "cross-1", "d", "res-1", "return"),
     ],
-    camera: { yaw: 0.5, pitch: 0.7, distance: 15.5, target: v(0.2, 0.9, 0.2) },
+    camera: { yaw: 0.16, pitch: 0.80, distance: 13.5, target: v(0.0, 1.0, -0.8) },
   },
-  camera: { yaw: 0.5, pitch: 0.7, distance: 16.5, target: v(0.2, 0.9, 0.2) },
+  camera: { yaw: 0.16, pitch: 0.80, distance: 13.5, target: v(0.0, 1.0, -0.8) },
   cueMap: { liquidColors: ["violet", "teal", "amber"], flowColor: "violet" },
 };
 
@@ -204,9 +204,9 @@ const crystalRain: StageDefinition = {
       cn("cn-6", "settle-1", "topOut", "cup-top", "rim"),
       cn("cn-7", "settle-1", "bottomOut", "tray-low", "rim"),
     ],
-    camera: { yaw: 0.42, pitch: 0.64, distance: 15.0, target: v(0.2, 1.3, -0.2) },
+    camera: { yaw: 0.16, pitch: 0.80, distance: 11.5, target: v(0.0, 1.0, -1.0) },
   },
-  camera: { yaw: 0.42, pitch: 0.64, distance: 16.0, target: v(0.2, 1.3, -0.2) },
+  camera: { yaw: 0.16, pitch: 0.80, distance: 11.5, target: v(0.0, 1.0, -1.0) },
   cueMap: { liquidColors: ["sky", "amber"], flowColor: "pale" },
 };
 
@@ -250,13 +250,69 @@ const pulseTheatre: StageDefinition = {
       cn("cn-8", "valve-t", "b", "u-1", "in"),
       cn("cn-9", "u-1", "out", "collect-1", "vent"),
     ],
-    camera: { yaw: 0.48, pitch: 0.62, distance: 15.5, target: v(0.1, 1.1, -0.3) },
+    camera: { yaw: 0.16, pitch: 0.80, distance: 13.5, target: v(0.0, 1.0, -1.0) },
   },
-  camera: { yaw: 0.48, pitch: 0.62, distance: 16.5, target: v(0.1, 1.1, -0.3) },
+  camera: { yaw: 0.16, pitch: 0.80, distance: 13.5, target: v(0.0, 1.0, -1.0) },
   cueMap: { liquidColors: ["violet", "teal"], flowColor: "violet", burstColor: "magenta" },
 };
 
-export const STAGES: readonly StageDefinition[] = [bubbleRelay, silverCondenser, chromaticLoop, crystalRain, pulseTheatre];
+// ── 06 自由探索台 · 开放器材架 ─────────────────────────────────────────────
+// 这不是另一种实验模式，而是一个没有预设主题的场景主题：初始台面只放几件
+// 基础器材，AUTO 也只是摆出一套可拆改的展示装置。所有器材仍走同一套端口、
+// 挂载、软管和气泡交互，因此用户可以从空台开始搭自己的组合。
+const freeExplore: StageDefinition = {
+  id: "free-explore",
+  title: { zh: "自由探索台 · 开放器材架", en: "Open Bench · Free Explore" },
+  description: {
+    zh: "从器材架随手取用玻璃器皿、支架和软管，拆开或重新拼出属于自己的小舞台。",
+    en: "Take glassware, stands and tubes from the rack, then build and remix your own little stage.",
+  },
+  thumbnail: { hue: 158, seed: 89, motif: "free" },
+  availableEquipmentKinds: [
+    "beaker", "graduated-cylinder", "flask-round", "flask-three-neck", "washing-bottle",
+    "condenser-straight", "settling-bottle", "u-tube", "observation-sphere", "reservoir",
+    "stand", "valve", "tee", "y-mixer", "pump", "reagent-bottle", "alcohol-lamp", "hot-plate",
+  ],
+  starterScene: {
+    equipment: [
+      eq("beaker-1", "beaker", -4.5, 1.35),
+      eq("reagent-1", "reagent-bottle", -3.15, 1.1),
+      eq("stand-1", "stand", 0.5, -0.55),
+    ],
+    connections: [],
+  },
+  assembledTemplate: {
+    equipment: [
+      eq("stand-1", "stand", -5.1, 0.25),
+      mounted("flask-1", "flask-round", "stand-1", 0.23, 1.48, -0.3),
+      eq("lamp-1", "alcohol-lamp", -5.15, -0.1),
+      eq("stand-2", "stand", -0.6, -1.8),
+      mounted("cond-1", "condenser-straight", "stand-2", 0.23, 2.0, -0.3, -0.24),
+      eq("valve-1", "valve", 1.5, 0.05),
+      eq("tee-1", "tee", 2.8, 0.15),
+      eq("beaker-1", "beaker", 4.8, 0.85),
+      eq("reservoir-1", "reservoir", -2.8, -3.0),
+      eq("pump-1", "pump", -0.9, -3.0),
+      eq("reagent-1", "reagent-bottle", 5.5, -1.55),
+      eq("sphere-1", "observation-sphere", 3.9, -2.15),
+    ],
+    connections: [
+      cn("cn-1", "flask-1", "neck", "cond-1", "vaporIn", "glass"),
+      cn("cn-2", "cond-1", "condensateOut", "valve-1", "a"),
+      cn("cn-3", "valve-1", "b", "tee-1", "a"),
+      cn("cn-4", "tee-1", "b", "beaker-1", "rim"),
+      cn("cn-5", "pump-1", "out", "cond-1", "waterIn"),
+      cn("cn-6", "cond-1", "waterOut", "reservoir-1", "return"),
+      cn("cn-7", "reservoir-1", "drain", "pump-1", "in"),
+      cn("cn-8", "tee-1", "c", "sphere-1", "in"),
+    ],
+    camera: { yaw: 0.16, pitch: 0.78, distance: 13.0, target: v(-0.2, 1.0, -0.9) },
+  },
+  camera: { yaw: 0.16, pitch: 0.78, distance: 13.0, target: v(-0.2, 1.0, -0.9) },
+  cueMap: { liquidColors: ["teal", "amber", "violet", "sky"], flowColor: "teal", burstColor: "magenta" },
+};
+
+export const STAGES: readonly StageDefinition[] = [bubbleRelay, silverCondenser, chromaticLoop, crystalRain, pulseTheatre, freeExplore];
 
 const STAGE_INDEX = new Map(STAGES.map(s => [s.id, s]));
 

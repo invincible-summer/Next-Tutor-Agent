@@ -25,7 +25,7 @@ Web 与 Expo/React Native 移动端不复制 API 代码：传输、契约、设�
 - 唯一 lockfile 在仓库根（pnpm 11，`allowBuilds` 显式决策）。
 - 共享包 TS 全开 `noUncheckedIndexedAccess` / `exactOptionalPropertyTypes`；
   `apps/web` 按包暂缓（tsconfig 内有注释标注），后续统一。
-- Node `>=22.13 <23`；共享包测试用 Node 内置 `node --test`，不引入 Vitest。
+- Node `>=22.13 <23`；共享包测试用 Node 内置 `node --test` 配合仓库 TypeScript loader，不引入 Vitest。
 
 ## packages/contracts
 
@@ -61,9 +61,8 @@ Web 与 Expo/React Native 移动端不复制 API 代码：传输、契约、设�
   `evaluation_pending`）时有界重轮询；
 - 超时：默认读超时（`defaultReadTimeoutMs`，Web 30s）**只覆盖不带 signal 的
   GET/HEAD**——带 AbortSignal 的读与一切 POST 默认无限等待。因此对"服务端
-  承诺毫秒级确定性返回"的域客户端必须逐调用声明 `timeoutMs`（先例：
-  `tools/chem-lab.ts` 全部调用统一 30s），把丢失的传输变成可重试的
-  `NetworkError` 而不是 UI 里的永久转圈；长耗时端点（出题、配图）则保持
+  承诺毫秒级确定性返回"的域客户端必须逐调用声明 `timeoutMs`；超时会转为可重试的
+  `NetworkError` 而不是 UI 里的永久转圈。长耗时端点（出题、配图）保持
   不设超时或按端点声明更长时限；
 - 响应体解析支持 `json`/`text`/`bytes`/`none`——`bytes` 走
   `response.arrayBuffer()`（语音 WAV、课件音频剪辑、导出 zip、PDF 页快照、
@@ -92,7 +91,8 @@ lease/进度/音频 + checkpoint；类型 type-only 引
 计划/任务/复习）/ `diagrams`（自有 SVG 素材 + 只读公共图示目录）/
 `voice`（ADR-0012 服务端语音：能力/转写/合成）。契约类型一律 type-only 引入
 `@next-tutor/contracts`（未生成的域用包内结构化类型 + `<T = 默认形状>` 泛型
-逃生口），Node type-stripping 运行时不解析该包。
+逃生口）。共享包的 Node 测试通过仓库内 TypeScript loader 转译 `.ts`，不依赖
+具体 Node 构建是否带原生 type-stripping。
 
 multipart 约定：平台负责构造 FormData 实例并 append 文件部件（浏览器
 `File`/RN `{uri,name,type}`），wire 字段名归共享层注入——`voice.transcribe`

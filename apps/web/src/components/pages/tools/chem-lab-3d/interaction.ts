@@ -1,14 +1,14 @@
 "use client";
 
 /**
- * 交互层（plan §4）：整个工作台唯一的 PointerEvents + Raycaster 状态机。
+ * 交互层（chem-lab architecture）：整个工作台唯一的 PointerEvents + Raycaster 状态机。
  *
- * - 命中优先级（plan §4.1，固定）：DOM 气泡 > 仪器端口 > 控件/夹爪 > 软管 >
+ * - 命中优先级（chem-lab architecture，固定）：DOM 气泡 > 仪器端口 > 控件/夹爪 > 软管 >
  *   选中仪器 > 其他仪器 > 台面/空场景相机。
  * - 相机互斥：对象手势在 host 捕获阶段先于 OrbitControls（其监听在 canvas
  *   冒泡阶段）识别，stopPropagation 并临时 controls.enabled=false，松开/取消
  *   后恢复；第二指到达时取消单指对象拖动，交给双指相机。
- * - 几何细则（plan §4.2）：NDC 经 getBoundingClientRect 正确换算；ray-plane +
+ * - 几何细则（chem-lab architecture）：NDC 经 getBoundingClientRect 正确换算；ray-plane +
  *   grabOffset 保证抓取点不瞬移；挂载件沿杆（mountAxis）约束；抓铁架时挂载
  *   件随动；磁吸/倾倒阈值以 CSS 像素衡量；pointermove 只更新轻量预览，
  *   松手一次性提交领域动作（每次释放最多一次提交）。
@@ -17,7 +17,7 @@
  */
 import * as THREE from "three";
 import {
-  connectionBlockReason, getEquipmentSpec, type ControlSpec, type CueTrigger,
+  connectionBlockReason, equipmentCenterY, getEquipmentSpec, type ControlSpec, type CueTrigger,
   type LabAction, type LabDocument, type PortRef,
 } from "@next-tutor/domain";
 import type { ChemSceneController } from "./scene/SceneController.ts";
@@ -30,8 +30,8 @@ export interface InteractionHooks {
   getDocument: () => LabDocument;
   getSelection: () => LabSelection | null;
   setSelection: (selection: LabSelection | null) => void;
-  /** 每次释放最多一次领域提交（plan §4.2.3）。 */
-  commit: (action: LabAction) => void;
+  /** 每次释放最多一次领域提交（chem-lab architecture）。 */
+  commit: (action: LabAction) => boolean;
   /** 瞬时 UI 提示（“这个口已占用”等原因，不评价实验对错）。 */
   hint: (key: string) => void;
   /** 拖动态起落（气泡/端口环随拖动隐藏与恢复）。 */
@@ -95,6 +95,23 @@ interface PressedPort {
   fromDir: THREE.Vector3;
 }
 
+interface RackGestureBase {
+  pointerId: number;
+  startX: number;
+  startY: number;
+  threshold: number;
+  rackKind: string;
+  rackSlot: string;
+}
+
+interface PressedRack extends RackGestureBase {
+  kind: "pressed-rack";
+}
+
+interface DragRack extends RackGestureBase {
+  kind: "drag-rack";
+}
+
 interface DragTube {
   kind: "drag-tube";
   pointerId: number;
@@ -130,6 +147,8 @@ type Gesture =
   | PressedObject
   | DragObject
   | PressedPort
+  | PressedRack
+  | DragRack
   | DragTube
   | OperateControl
   | PortPending
@@ -156,7 +175,11 @@ function mountLocalPose(clamp: { x: number; y: number; z: number }, grip: THREE.
 }
 
 function pickRefKey(ref: PickRef): string {
-  return [ref.kind, ref.instanceId ?? ref.equipmentId ?? ref.connectionId ?? "", ref.portId ?? ref.controlId ?? ""].join(":");
+  return [
+    ref.kind,
+    ref.instanceId ?? ref.equipmentId ?? ref.connectionId ?? ref.rackSlot ?? "",
+    ref.portId ?? ref.controlId ?? ref.rackKind ?? "",
+  ].join(":");
 }
 
 export class InteractionController {
@@ -222,6 +245,7 @@ export class InteractionController {
 
     this.host.addEventListener("pointerdown", this.onPointerDown, { capture: true });
     this.host.addEventListener("pointermove", this.onHoverProbe, { capture: true, passive: true });
+    this.host.addEventListener("dblclick", this.onDoubleClick, { capture: true });
     window.addEventListener("pointermove", this.onPointerMove, { capture: true });
     window.addEventListener("pointerup", this.onPointerUp, { capture: true });
     window.addEventListener("pointercancel", this.onPointerCancel, { capture: true });
@@ -240,8 +264,10 @@ export class InteractionController {
       return;
     }
     const group = item.handle.group;
-    const { width, depth, height } = getEquipmentSpec(item.kind)?.bounds ?? { width: 1, depth: 1, height: 1 };
-    this.tmpV.set(0, height / 2, 0).applyQuaternion(group.quaternion).add(group.position);
+    const spec = getEquipmentSpec(item.kind);
+    const { width, depth, height } = spec?.bounds ?? { width: 1, depth: 1, height: 1 };
+    this.tmpV.set(0, spec ? equipmentCenterY(spec) : height / 2, 0)
+      .applyQuaternion(group.quaternion).add(group.position);
     this.selectionBox.position.copy(this.tmpV);
     this.selectionBox.quaternion.copy(group.quaternion);
     this.selectionBox.scale.set(width + 0.14, height + 0.14, depth + 0.14);
@@ -252,6 +278,7 @@ export class InteractionController {
   /** 一切手势与等待态归零（Esc/blur/contextlost/unmount/切关）。 */
   cancelAll(): void {
     if (this.gesture.kind === "drag-object") this.restoreFromDrag(this.gesture);
+    if (this.gesture.kind === "drag-rack") this.sync.endRackPreview();
     this.resetGesture();
   }
 
@@ -260,6 +287,7 @@ export class InteractionController {
     this.cancelAll();
     this.host.removeEventListener("pointerdown", this.onPointerDown, { capture: true } as EventListenerOptions);
     this.host.removeEventListener("pointermove", this.onHoverProbe, { capture: true } as EventListenerOptions);
+    this.host.removeEventListener("dblclick", this.onDoubleClick, { capture: true } as EventListenerOptions);
     window.removeEventListener("pointermove", this.onPointerMove, { capture: true } as EventListenerOptions);
     window.removeEventListener("pointerup", this.onPointerUp, { capture: true } as EventListenerOptions);
     window.removeEventListener("pointercancel", this.onPointerCancel, { capture: true } as EventListenerOptions);
@@ -278,9 +306,21 @@ export class InteractionController {
 
   // ── 事件处理 ─────────────────────────────────────────────────────────────
 
+  private onDoubleClick = (event: MouseEvent): void => {
+    if (this.disposed || this.gesture.kind !== "none") return;
+    const hit = this.pickAt(event as PointerEvent, ["equipment"]);
+    if (!hit?.instanceId) return;
+    const group = this.sync.equipmentGroup(hit.instanceId);
+    if (!group) return;
+    const spec = getEquipmentSpec(hit.instanceId ? this.sync.item(hit.instanceId)?.kind ?? "" : "");
+    const center = group.localToWorld(new THREE.Vector3(0, spec ? equipmentCenterY(spec) : 0.5, 0));
+    this.controller.focusOn(center, Math.max(5.5, Math.max(spec?.bounds.width ?? 1, spec?.bounds.height ?? 1) * 3.2));
+    event.stopPropagation();
+  };
+
   private onPointerDown = (event: PointerEvent): void => {
     if (this.disposed || event.button !== 0) return;
-    // 点接第二击（plan §4.3）：pending 口存在时优先消费端口命中。
+    // 点接第二击（chem-lab architecture）：pending 口存在时优先消费端口命中。
     if (this.gesture.kind === "port-pending") {
       const hit = this.pickAt(event, ["port"]);
       if (hit?.kind === "port" && hit.equipmentId && hit.portId) {
@@ -299,6 +339,7 @@ export class InteractionController {
     if (this.gesture.kind !== "none") {
       // 已有单指对象手势时第二指到达：取消对象拖动，交给双指相机。
       if (this.gesture.kind === "drag-object") this.restoreFromDrag(this.gesture);
+      if (this.gesture.kind === "drag-rack") this.sync.endRackPreview();
       this.gesture = { kind: "two-finger", pointers: new Set([this.gesturePointer(), event.pointerId]) };
       this.controller.controls.enabled = true;
       this.hooks.onDragStateChange?.(false);
@@ -306,7 +347,7 @@ export class InteractionController {
       return;
     }
 
-    const hit = this.pickAt(event, ["port", "control", "claw", "tube", "equipment"]);
+    const hit = this.pickAt(event, ["port", "control", "claw", "tube", "rack", "equipment"]);
     if (!hit) return; // 空台面/空场景：放行给 OrbitControls
 
     event.stopPropagation();
@@ -319,7 +360,7 @@ export class InteractionController {
     const doc = this.hooks.getDocument();
     if (hit.kind === "port" && hit.equipmentId && hit.portId) {
       const anchor = this.sync.worldPortAnchor(hit.equipmentId, hit.portId);
-      if (!anchor) return;
+      if (!anchor) { this.finishGesture(); return; }
       this.gesture = {
         kind: "pressed-port",
         pointerId: event.pointerId,
@@ -335,7 +376,7 @@ export class InteractionController {
     if (hit.kind === "control" && hit.equipmentId && hit.controlId) {
       const eq = doc.equipment.find(e => e.id === hit.equipmentId);
       const control = getEquipmentSpec(eq?.kind ?? "")?.controls.find(c => c.id === hit.controlId);
-      if (!eq || !control) return;
+      if (!eq || !control) { this.finishGesture(); return; }
       const value = eq.controls[control.id];
       const steps = control.kind === "dial" ? control.steps ?? [1] : null;
       const startIndex = steps ? Math.max(0, steps.findIndex(s => s === value)) : -1;
@@ -372,6 +413,8 @@ export class InteractionController {
         };
         return;
       }
+      this.finishGesture();
+      return;
     }
     if (hit.kind === "tube" && hit.connectionId) {
       // 点软管中段：只选中该管（气泡提供“拆开”），不误触背后玻璃瓶/相机。
@@ -381,9 +424,21 @@ export class InteractionController {
       this.updateSelectionVisual();
       return;
     }
+    if (hit.kind === "rack" && hit.rackKind && hit.rackSlot) {
+      this.gesture = {
+        kind: "pressed-rack",
+        pointerId: event.pointerId,
+        startX: event.clientX,
+        startY: event.clientY,
+        threshold,
+        rackKind: hit.rackKind,
+        rackSlot: hit.rackSlot,
+      };
+      return;
+    }
     if (hit.kind === "equipment" && hit.instanceId) {
       const group = this.sync.equipmentGroup(hit.instanceId);
-      if (!group) return;
+      if (!group) { this.finishGesture(); return; }
       const hitWorld = this.rayHitBench(event);
       const grabOffset = hitWorld ? hitWorld.clone().sub(group.position) : new THREE.Vector3();
       this.gesture = {
@@ -399,7 +454,11 @@ export class InteractionController {
         axis: "free",
         baseClawHeight: null,
       };
+      return;
     }
+    // A stale/unknown pick must never leave OrbitControls disabled or a pointer
+    // capture held by the canvas.
+    this.finishGesture();
   };
 
   private onPointerMove = (event: PointerEvent): void => {
@@ -412,8 +471,13 @@ export class InteractionController {
       && Math.hypot(event.clientX - gesture.startX, event.clientY - gesture.startY) >= gesture.threshold) {
       this.promoteToDrag(gesture);
     }
+    if (gesture.kind === "pressed-rack"
+      && Math.hypot(event.clientX - gesture.startX, event.clientY - gesture.startY) >= gesture.threshold) {
+      this.promoteRackToDrag(gesture);
+    }
     if (this.gesture.kind === "drag-object") this.moveDrag(this.gesture, event);
     else if (this.gesture.kind === "pressed-port") this.promoteToTubeDrag(this.gesture);
+    if (this.gesture.kind === "drag-rack") this.moveRack(this.gesture, event);
     if (this.gesture.kind === "drag-tube") this.moveTubeDrag(this.gesture, event);
     if (this.gesture.kind === "operate-control") this.moveOperateControl(this.gesture, event);
   };
@@ -434,6 +498,15 @@ export class InteractionController {
         // 短按 = 选中（<100ms 轮廓出现；不动相机、不提交移动）。
         this.hooks.setSelection({ type: "equipment", id: gesture.instanceId });
         this.updateSelectionVisual();
+        this.finishGesture();
+        break;
+      case "pressed-rack": {
+        this.placeRack(gesture, event);
+        this.finishGesture();
+        break;
+      }
+      case "drag-rack":
+        this.placeRack(gesture, event);
         this.finishGesture();
         break;
       case "drag-object":
@@ -478,6 +551,7 @@ export class InteractionController {
     if (gesture.kind === "none" || gesture.kind === "port-pending") return;
     if ("pointerId" in gesture && gesture.pointerId !== event.pointerId) return;
     if (gesture.kind === "drag-object") this.restoreFromDrag(gesture);
+    if (gesture.kind === "drag-rack") this.sync.endRackPreview();
     this.finishGesture();
   };
 
@@ -491,6 +565,7 @@ export class InteractionController {
   private onKeyDown = (event: KeyboardEvent): void => {
     if (event.key !== "Escape" || this.gesture.kind === "none") return;
     if (this.gesture.kind === "drag-object") this.restoreFromDrag(this.gesture);
+    if (this.gesture.kind === "drag-rack") this.sync.endRackPreview();
     this.resetGesture();
     event.stopPropagation();
   };
@@ -510,13 +585,13 @@ export class InteractionController {
   };
 
   private runHover(event: PointerEvent): void {
-    const hit = this.pickAt(event, ["port", "control", "claw", "tube", "equipment"]);
+    const hit = this.pickAt(event, ["port", "control", "claw", "tube", "rack", "equipment"]);
     const ref = hit ? pickRefKey(hit) : null;
     if (ref === this.lastHoverRef) return;
     this.lastHoverRef = ref;
     this.canvas.style.cursor = hit?.kind === "port" || hit?.kind === "control" || hit?.kind === "claw"
       ? "pointer"
-      : hit?.kind === "tube" || hit?.kind === "equipment" ? "grab" : "";
+      : hit?.kind === "tube" || hit?.kind === "equipment" || hit?.kind === "rack" ? "grab" : "";
     if (hit?.kind === "port" && hit.equipmentId && hit.portId) {
       const anchor = this.sync.worldPortAnchor(hit.equipmentId, hit.portId);
       if (anchor) this.showRings([{ position: anchor.position, radius: 0.2 }]);
@@ -563,6 +638,49 @@ export class InteractionController {
     this.previewLine.visible = false;
   }
 
+  private promoteRackToDrag(gesture: PressedRack): void {
+    if (!this.sync.beginRackPreview(gesture.rackSlot)) {
+      this.finishGesture();
+      return;
+    }
+    this.gesture = { ...gesture, kind: "drag-rack" };
+    this.controller.beginActivity("drag");
+    this.hooks.onDragStateChange?.(true);
+    this.hooks.setSelection(null);
+    this.selectionBox.visible = false;
+    this.showRings([]);
+  }
+
+  private moveRack(gesture: DragRack, event: PointerEvent): void {
+    const hit = this.rayHitBench(event);
+    if (!hit) return;
+    hit.x = THREE.MathUtils.clamp(hit.x, -BENCH_X, BENCH_X);
+    hit.z = THREE.MathUtils.clamp(hit.z, -BENCH_Z, BENCH_Z);
+    this.sync.updateRackPreview(gesture.rackSlot, hit);
+    this.showRings([{ position: hit, radius: 0.42 }]);
+    this.controller.invalidate();
+  }
+
+  private placeRack(gesture: PressedRack | DragRack, event: PointerEvent): void {
+    const hit = this.rayHitBench(event);
+    const position = hit ?? new THREE.Vector3(0, 0, 0);
+    position.x = THREE.MathUtils.clamp(position.x, -BENCH_X, BENCH_X);
+    position.z = THREE.MathUtils.clamp(position.z, -BENCH_Z, BENCH_Z);
+    this.sync.endRackPreview();
+    const doc = this.hooks.getDocument();
+    const stem = `rack-${gesture.rackKind}`;
+    let id = `${stem}-${Date.now().toString(36)}`;
+    let suffix = 1;
+    while (doc.equipment.some(eq => eq.id === id)) id = `${stem}-${Date.now().toString(36)}-${suffix++}`;
+    const accepted = this.hooks.commit({
+      type: "add",
+      id,
+      kind: gesture.rackKind,
+      pose: { position: { x: position.x, y: 0, z: position.z }, rotation: [0, 0, 0, 1] },
+    });
+    if (accepted) this.hooks.setSelection({ type: "equipment", id });
+  }
+
   private moveDrag(gesture: DragObject, event: PointerEvent): void {
     const doc = this.hooks.getDocument();
     const eq = doc.equipment.find(e => e.id === gesture.instanceId);
@@ -590,7 +708,11 @@ export class InteractionController {
     this.tmpV.x = THREE.MathUtils.clamp(this.tmpV.x, -BENCH_X, BENCH_X);
     this.tmpV.z = THREE.MathUtils.clamp(this.tmpV.z, -BENCH_Z, BENCH_Z);
     const targetY = eq.parentMountId ? this.detachDropY(gesture, event) : 0;
-    gesture.dropY += (targetY - gesture.dropY) * 0.25;
+    // Once the pointer clears the clamp, make the detach intent explicit so a
+    // quick release cannot leave a half-detached object in an invalid pose.
+    gesture.dropY = eq.parentMountId && targetY <= 0.001
+      ? 0
+      : gesture.dropY + (targetY - gesture.dropY) * 0.25;
     this.tmpV.y = gesture.dropY;
 
     // 磁吸（不强迫）：可夹器材靠近任一铁架夹持点 → 半透明贴合预览。
@@ -725,6 +847,11 @@ export class InteractionController {
     }
 
     if (eq.parentMountId) {
+      // 仍在夹具附近：把预览还原到挂载姿态。只有明确拖离夹具才脱挂。
+      if (gesture.dropY > 0.05) {
+        this.restoreFromDrag(gesture);
+        return;
+      }
       // 已挂架件被拖离支架：脱挂落台（保留朝向）。
       const group = this.sync.equipmentGroup(eq.id);
       if (group) {
@@ -885,7 +1012,7 @@ export class InteractionController {
     this.hooks.commit({ type: "setControl", id: gesture.equipmentId, controlId: gesture.control.id, value });
   }
 
-  // ── 拾取与坐标换算（NDC 经 getBoundingClientRect，plan §4.2.1） ───────────
+  // ── 拾取与坐标换算（NDC 经 getBoundingClientRect，chem-lab architecture） ───────────
 
   private pickAt(event: PointerEvent, kinds: PickKind[]): PickRef | null {
     this.updateNdc(event);
@@ -895,6 +1022,7 @@ export class InteractionController {
     if (kinds.includes("control")) groups.push(this.sync.controlShells());
     if (kinds.includes("claw")) groups.push(this.sync.clawShells());
     if (kinds.includes("tube")) groups.push(this.sync.tubes.tubeMeshes());
+    if (kinds.includes("rack")) groups.push(this.sync.rackPickMeshes());
     if (kinds.includes("equipment")) groups.push(this.sync.pickMeshes());
     for (const group of groups) {
       if (group.length === 0) continue;

@@ -11,7 +11,7 @@
   },
   "scripts": {
     "check": "tsc --noEmit",
-    "test": "node --experimental-strip-types --test tests/*.test.ts"
+    "test": "node --import ../../scripts/test/register-typescript-loader.mjs --test tests/*.test.ts"
   },
   "devDependencies": {
     "@types/node": "^20",

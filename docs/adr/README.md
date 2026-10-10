@@ -30,8 +30,9 @@
 | [ADR-0017](./0017-domain-document-repositories.md) | 域文档仓储 JSONB cutover | 九域同构 `<domain>_documents` 表 + DocumentRepository 协议与逐域路由，epoch CAS，字节走 ObjectStore，派生索引留文件态 |
 | [ADR-0016](./0016-valkey-cache-and-minio-removal.md) | Valkey 缓存与 MinIO 移除 | 缓存服务端换 Valkey 9.1.2（BSD-3）+ CACHE_URL，删 AGPL MinIO 占位，缓存即弃态不迁移 |
 | [ADR-0018](./0018-s3-object-store-adapter.md) | S3 兼容 ObjectStore 适配器 | boto3（Apache-2.0）S3 兼容字节层：sha256 元数据完整性、SSE-S3、multipart、standard retry；local 保持默认，误配 loud 失败 |
-| [ADR-0019](./0019-deterministic-dual-engine-lab.md) | 确定性双引擎模拟实验台 | Python 权威引擎 + TS 镜像同构双实现，manifest 锚定内容包，命令队列 base_revision=tip+i，ACK state_hash 对账；AI 仅经 providers Protocol 预留 |
+| [ADR-0019](./0019-deterministic-dual-engine-lab.md) | 确定性双引擎模拟实验台（历史） | 已由 ADR-0024 取代；旧会话引擎和内容包仅保留历史兼容范围 |
 | [ADR-0020](./0020-independent-electrical-lab.md) | 独立的本地电路实验室 | 浏览器端确定性电路求解器、本地版本化实验和沉浸式工作台，不接入 AI、聊天或化学实验室同步体系 |
 | [ADR-0021](./0021-threejs-math-workbench.md) | Three.js 数学作图工作台 | 2D SVG + 固定版本 Three WebGLRenderer 3D，domain 纯 TS 数学内核 + Worker，本地文档无 AI/后端 |
 | [ADR-0022](./0022-math-workbench-three-modes.md) | 作图器三模式独立画布与独立存档 | 移除立体几何构造模式；三模式各持独立文档/撤销栈/存档槽位（storage v2），视图命令不进撤销 |
 | [ADR-0023](./0023-math-workbench-mode-switch-prompt.md) | 作图器模式切换保存提示与右栏按模式分域 | switch-mode 意图经 dirty 三选一（直接切换不销毁数据）；右栏页签/数学工具/几何构造与属性面板按模式分域升级 |
+| [ADR-0024](./0024-chemistry-freeform-threejs-bench.md) | 化学自由探索 Three.js 实验台 | 用一个纯 TS 文档内核、程序化 Three.js 模型、器材架气泡交互和本地存档承载自由探索；不再在新界面运行步骤、评分或双引擎化学求解 |

@@ -125,8 +125,7 @@ class StorageSandboxTestCase(unittest.TestCase):
                     "chat_history/library/data", "chat_history/trash",
                     "chat_history/trash/items", "chat_history/workspaces",
                     "chat_history/classroom", "notes", "knowledge",
-                    "knowledge/custom", "traces", "uploads", "illustrations", "diagram_assets",
-                    "chem_lab"):
+                    "knowledge/custom", "traces", "uploads", "illustrations", "diagram_assets"):
             (root / sub).mkdir(parents=True, exist_ok=True)
 
         from app.identity import config as id_config

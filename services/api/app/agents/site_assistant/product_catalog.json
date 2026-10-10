@@ -156,30 +156,15 @@
       "public": false,
       "name": { "zh": "模拟实验室", "en": "Simulation Lab" },
       "summary": {
-        "zh": "工具助手下的动手实验入口：选择实验主题，进入可交互的虚拟实验台，用器材、试剂和可回溯的规则理解科学现象。",
-        "en": "Hands-on experiments under Tool Assistant: pick a topic, enter an interactive virtual bench, and understand science through equipment, reagents and replayable rules."
+        "zh": "进入原创的 3D 化学实验台，拖动器材、连接软管、加入演示液并观察轻量视觉演出。",
+        "en": "Enter an original 3D chemistry bench: move equipment, connect tubes, add demo liquids and explore lightweight visual effects."
       },
       "aliases": ["模拟实验室", "虚拟实验", "实验台", "做实验", "simulation lab", "virtual lab"],
       "steps": {
-        "zh": ["进入工具助手并选择模拟实验室", "浏览实验目录并阅读准备信息", "开始实验进入虚拟实验台", "拖放器材、添加试剂并观察现象"],
-        "en": ["Open Tool Assistant and choose Simulation Lab", "Browse the experiment catalog and read the preparation", "Start an experiment to enter the virtual bench", "Drag equipment, add reagents and observe"]
+        "zh": ["打开模拟实验室目录", "选择一个场景主题", "自由移动器材或按 AUTO 拼装", "连接、倾倒、开关并观察"],
+        "en": ["Open the simulation lab catalog", "Choose a scene theme", "Move equipment freely or press AUTO", "Connect, pour, toggle and observe"]
       },
-      "prerequisites": { "zh": "需要登录；实验进度保存在个人会话中。", "en": "Login required; progress is kept in your own sessions." }
-    },
-    {
-      "route_id": "tools_lab_chemistry",
-      "public": false,
-      "name": { "zh": "模拟实验室 · 化学", "en": "Simulation Lab · Chemistry" },
-      "summary": {
-        "zh": "化学虚拟实验台：真实器材与试剂操作、测量仪器读数、安全规则与观察记录，支持预测检验、回放分叉和实验报告。",
-        "en": "Chemistry virtual bench: real equipment and reagent operations, instrument readings, safety rules and observation logs, with prediction checks, replay forks and lab reports."
-      },
-      "aliases": ["化学实验", "化学实验台", "酸碱滴定", "chemistry lab", "chem lab"],
-      "steps": {
-        "zh": ["在实验目录选择化学实验", "阅读目标、安全信息与预测问题", "在实验台上取放器材、倾倒加热、测量读数", "完成后查看报告，可回放或分叉重做"],
-        "en": ["Pick a chemistry experiment in the catalog", "Read goals, safety notes and prediction questions", "Pick up and place equipment, pour, heat and measure on the bench", "Finish to see the report; replay or fork to retry"]
-      },
-      "prerequisites": { "zh": "需要登录；现象由确定性模拟引擎生成，结论以模型适用范围说明为准。", "en": "Login required; phenomena come from a deterministic simulation engine — see the model scope notes for limits." }
+      "prerequisites": { "zh": "工作台在浏览器本地运行；登录不是进入实验台的前置条件。", "en": "The bench runs locally in the browser; login is not required to enter it." }
     },
     {
       "route_id": "memory",

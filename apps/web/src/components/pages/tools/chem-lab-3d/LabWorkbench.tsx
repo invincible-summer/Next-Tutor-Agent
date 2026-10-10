@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * 工作台组合根（plan §2/§7.1）：stage / document / selection / dirty / undo 的
+ * 工作台组合根（chem-lab architecture）：stage / document / selection / dirty / undo 的
  * 唯一装配点。文档是权威（domain applyLabAction），显示层经 SceneSync 同步、
  * InteractionController 手势预览在松手时一次性提交。AUTO 一键原子载入
  * assembledTemplate（空瓶/熄灭/泵停）；dirty 时先确认。纯前端娱乐玩具：
@@ -18,9 +18,9 @@ import { useUIStore } from "@/lib/store";
 import { useAuthStore } from "@/lib/auth-store";
 import { makePageT } from "@/lib/i18n-page";
 import {
-  applyAuto, applyLabAction, createHistory, createStageDocument, equipmentLabel,
+  applyAuto, applyLabAction, createHistory, createStageDocument, equipmentCapabilities, equipmentLabel,
   getEquipmentSpec, getStage, pushHistory, undoHistory,
-  type CameraPose, type ControlSpec, type EquipmentInstance, type LabAction,
+  type CameraPose, type ControlSpec, type CueTrigger, type EquipmentInstance, type LabAction,
   type LabDocument, type StageDefinition,
 } from "@next-tutor/domain";
 import { Button } from "@/components/ui/Button";
@@ -28,6 +28,7 @@ import { ConfirmModal, Modal } from "@/components/ui/Modal";
 import { STRINGS } from "./strings.ts";
 import { SceneViewport, type SceneBundle } from "./SceneViewport.tsx";
 import { SceneSync } from "./scene/SceneSync.ts";
+import { CueRuntime } from "./scene/Effects.ts";
 import { InteractionController, type LabSelection } from "./interaction.ts";
 import { ObjectPopover, type PopoverAction } from "./ObjectPopover.tsx";
 import { WorkbenchHUD } from "./WorkbenchHUD.tsx";
@@ -51,6 +52,8 @@ interface PopoverCommand {
   danger?: boolean;
   dotColor?: string;
   action?: LabAction;
+  /** 附带的演出触发（与 action 同帧发出；纯数据，事件期才读取）。 */
+  cue?: CueTrigger;
   closeAfter?: boolean;
 }
 
@@ -63,12 +66,14 @@ function quatFromYaw(angle: number): Quat4 {
 function multiplyQuat(a: Quat4, b: Quat4): Quat4 {
   const [ax, ay, az, aw] = a;
   const [bx, by, bz, bw] = b;
-  return [
+  const q: Quat4 = [
     aw * bx + ax * bw + ay * bz - az * by,
     aw * by - ax * bz + ay * bw + az * bx,
     aw * bz + ax * by - ay * bx + az * bw,
     aw * bw - ax * bx - ay * by - az * bz,
   ];
+  const length = Math.hypot(q[0], q[1], q[2], q[3]) || 1;
+  return [q[0] / length, q[1] / length, q[2] / length, q[3] / length];
 }
 
 export function LabWorkbench(props: { stageId: string }) {
@@ -91,6 +96,7 @@ export function LabWorkbench(props: { stageId: string }) {
   const [pendingLoadId, setPendingLoadId] = useState<string | null>(null);
 
   const syncRef = useRef<SceneSync | null>(null);
+  const effectsRef = useRef<CueRuntime | null>(null);
   const interactionRef = useRef<InteractionController | null>(null);
   const historyRef = useRef(createHistory());
   const docRef = useRef<LabDocument | null>(null);
@@ -99,7 +105,7 @@ export function LabWorkbench(props: { stageId: string }) {
   const saveSlotRef = useRef<string | undefined>(undefined);
   const toastTimer = useRef(0);
   const selectionRef = useRef<LabSelection | null>(selection);
-  const dispatchRef = useRef<(action: LabAction) => void>(() => {});
+  const dispatchRef = useRef<(action: LabAction) => boolean>(() => false);
   const hintRef = useRef<(key: string) => void>(() => {});
   const cancelGestureRef = useRef(() => {});
 
@@ -116,23 +122,25 @@ export function LabWorkbench(props: { stageId: string }) {
   useEffect(() => { hintRef.current = (key) => showToast(tr(key)); }, [showToast, tr]);
 
   // ── 领域提交：一次动作 → 新文档（失败保留旧场景并刷新显示层） ───────────
-  const commit = useCallback((action: LabAction) => {
+  const commit = useCallback((action: LabAction): boolean => {
     const current = docRef.current;
     const currentStage = stageRef.current;
-    if (!current || !currentStage) return;
+    if (!current || !currentStage) return false;
     const result = applyLabAction(current, action, currentStage);
     if (!result.ok) {
       syncRef.current?.refreshWorld(current);
       if (result.hint) showToast(hintText(action, result.hint, tr));
-      return;
+      return false;
     }
     historyRef.current = pushHistory(historyRef.current, current);
     docRef.current = result.document;
     setDoc(result.document);
     setDirty(true);
     syncRef.current?.syncDocument(result.document);
+    effectsRef.current?.observe(result.document);
     interactionRef.current?.updateSelectionVisual();
     if (action.type === "remove" && selectionRef.current?.id === action.id) setSelection(null);
+    return true;
   }, [showToast, tr]);
   useEffect(() => { dispatchRef.current = commit; }, [commit]);
   useEffect(() => { cancelGestureRef.current = () => interactionRef.current?.cancelAll(); }, []);
@@ -140,13 +148,19 @@ export function LabWorkbench(props: { stageId: string }) {
   // ── 场景装配：sync + interaction + 初始起步场景（非 AUTO） ───────────────
   useEffect(() => {
     if (!bundle || !stage) return;
-    const sync = new SceneSync(bundle.controller.tier);
+    const sync = new SceneSync(bundle.controller.tier, stage.availableEquipmentKinds);
     syncRef.current = sync;
     bundle.controller.root.add(sync.root, sync.tubes.group);
     const initial = createStageDocument(stage);
     docRef.current = initial;
     historyRef.current = createHistory();
     sync.syncDocument(initial);
+    const effects = new CueRuntime(bundle.controller, sync, {
+      getDocument: () => docRef.current ?? initial,
+      stage,
+    });
+    effects.observe(initial);
+    effectsRef.current = effects;
     cameraRef.current = stage.camera;
     bundle.controller.applyCameraPose(stage.camera);
     const interaction = new InteractionController(bundle.controller, sync, {
@@ -156,6 +170,7 @@ export function LabWorkbench(props: { stageId: string }) {
       commit: (action) => dispatchRef.current(action),
       hint: (key) => hintRef.current(key),
       onDragStateChange: (active) => setDragging(active),
+      onCue: (trigger) => effects.cue(trigger),
     });
     interactionRef.current = interaction;
     bundle.controller.invalidate();
@@ -165,6 +180,7 @@ export function LabWorkbench(props: { stageId: string }) {
       ...(debugWindow.__chemLabDebug ?? {}),
       sync,
       interaction,
+      effects: () => effectsRef.current,
       doc: () => docRef.current,
       commit: (action: LabAction) => dispatchRef.current(action),
     };
@@ -177,15 +193,17 @@ export function LabWorkbench(props: { stageId: string }) {
     return () => {
       window.clearTimeout(readyTimer);
       const debug = (window as unknown as { __chemLabDebug?: Record<string, unknown> }).__chemLabDebug;
-      if (debug) { delete debug.sync; delete debug.interaction; delete debug.doc; delete debug.commit; }
+      if (debug) { delete debug.sync; delete debug.interaction; delete debug.effects; delete debug.doc; delete debug.commit; }
       interaction.dispose();
       interactionRef.current = null;
+      effects.dispose();
+      effectsRef.current = null;
       sync.dispose();
       syncRef.current = null;
     };
   }, [bundle, stage]);
 
-  // ── AUTO：一次性原子载入预组装模板（plan §4.5） ─────────────────────────
+  // ── AUTO：一次性原子载入预组装模板（chem-lab architecture） ─────────────────────────
   const runAuto = useCallback(() => {
     const current = docRef.current;
     const currentStage = stageRef.current;
@@ -197,6 +215,7 @@ export function LabWorkbench(props: { stageId: string }) {
       setDoc(next);
       setSelection(null);
       syncRef.current?.syncDocument(next);
+      effectsRef.current?.observe(next);
       const camera = currentStage.assembledTemplate.camera ?? currentStage.camera;
       cameraRef.current = camera;
       bundle.controller.applyCameraPose(camera);
@@ -225,6 +244,7 @@ export function LabWorkbench(props: { stageId: string }) {
     setDoc(result.document);
     setSelection(null);
     syncRef.current?.syncDocument(result.document);
+    effectsRef.current?.observe(result.document);
     cameraRef.current = currentStage.camera;
     bundle.controller.applyCameraPose(currentStage.camera);
     bundle.controller.invalidate();
@@ -264,6 +284,7 @@ export function LabWorkbench(props: { stageId: string }) {
       setDoc(loaded);
       setSelection(null);
       syncRef.current?.syncDocument(loaded);
+      effectsRef.current?.observe(loaded);
       bundle?.controller.invalidate();
       setDirty(false);
       saveSlotRef.current = saveId;
@@ -279,7 +300,7 @@ export function LabWorkbench(props: { stageId: string }) {
     setSavesOpen(true);
   }, [owner]);
 
-  // ── 快捷键：Delete/Esc/Ctrl+Z/Ctrl+S（plan §4.6） ───────────────────────
+  // ── 快捷键：Delete/Esc/Ctrl+Z/Ctrl+S（chem-lab architecture） ───────────────────────
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       if (!doc) return;
@@ -295,6 +316,7 @@ export function LabWorkbench(props: { stageId: string }) {
         setDoc(undo.document);
         setDirty(true);
         syncRef.current?.syncDocument(undo.document);
+        effectsRef.current?.observe(undo.document);
         interactionRef.current?.updateSelectionVisual();
         return;
       }
@@ -357,7 +379,8 @@ export function LabWorkbench(props: { stageId: string }) {
     danger: command.danger,
     dotColor: command.dotColor,
     onClick: () => {
-      if (command.action) dispatchRef.current(command.action);
+      const accepted = command.action ? dispatchRef.current(command.action) : true;
+      if (accepted && command.cue) effectsRef.current?.cue(command.cue);
       if (command.closeAfter) setSelection(null);
     },
   }));
@@ -559,7 +582,7 @@ function buildPopoverCommands(
   const spec = getEquipmentSpec(selectedEq.kind);
   if (!spec) return [];
 
-  if (isLiquidContainer(selectedEq)) {
+  if (isLiquidContainer(selectedEq) && selectedEq.kind !== "reagent-bottle") {
     for (const colorId of stage.cueMap.liquidColors.slice(0, 3)) {
       const fill = Math.min(1, (selectedEq.visualContents?.fill ?? 0) + POUR_STEP);
       commands.push({
@@ -567,6 +590,7 @@ function buildPopoverCommands(
         label: tr("chem3d.act.addLiquid"),
         dotColor: LIQUID_DOTS[colorId] ?? LIQUID_DOTS.teal,
         action: { type: "setVisualContents", id: selectedEq.id, contents: { fill, colorId } },
+        cue: { kind: "liquid-added", equipmentId: selectedEq.id, colorId },
       });
     }
     if ((selectedEq.visualContents?.fill ?? 0) > 0) {
@@ -576,6 +600,15 @@ function buildPopoverCommands(
         action: { type: "setVisualContents", id: selectedEq.id, contents: { fill: 0 } },
       });
     }
+  }
+
+  if (equipmentCapabilities(selectedEq.kind).canPulse) {
+    // 脉冲剧场专属演出按钮（纯视觉，无文档语义）。
+    commands.push({
+      id: "pulse",
+      label: tr("chem3d.act.pulse"),
+      cue: { kind: "pulse-activated", equipmentId: selectedEq.id },
+    });
   }
 
   for (const control of spec.controls) {
@@ -597,7 +630,7 @@ function buildPopoverCommands(
     }
   }
 
-  if (spec.family === "glassware" || spec.family === "connector") {
+  if (equipmentCapabilities(selectedEq.kind).canRotate) {
     const current = selectedEq.parentMountId
       ? selectedEq.localPose?.rotation ?? selectedEq.pose.rotation
       : selectedEq.pose.rotation;

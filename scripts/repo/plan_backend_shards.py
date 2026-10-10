@@ -59,9 +59,6 @@ SHARDS: dict[str, tuple[str, list[str]]] = {
     "persistence": ("python", ["persistence"]),
     # Observability hooks (request-id middleware, redaction, lazy tracing).
     "observability": ("python", ["observability"]),
-    # Chem lab simulation bench: engine, DSL, replay vectors and session API
-    # (self-contained storage sandbox, no renderer or model calls).
-    "chem_lab": ("python", ["chem_lab"]),
     # Durable workflow lane (ADR-0013): config gate + worker entrypoint +
     # deterministic workflow tests (temporalio bundles its test server).
     # Real-server coverage in integration.py runs only in the Temporal CI

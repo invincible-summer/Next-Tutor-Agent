@@ -1,91 +1,56 @@
-# Chem Lab（模拟实验室 · 化学实验台）
+# Chemistry simulation bench
 
-模拟实验室是工具助手下的第二个子工具：一个可交互、可回溯的虚拟实验台。首个主题为化学，实验现象由**确定性模拟引擎**生成而非模型即兴输出，因此每个会话都可以回放、分叉、生成结果卡。工程决策见 [ADR-0019](../adr/0019-deterministic-dual-engine-lab.md)，工具栏目整体边界见 [tool-assistant.md](./tool-assistant.md)。
+The chemistry tool is a client-side 3D exploration toy. It is intentionally separate from the teaching, assessment, and chat pipelines: a scene is a collection of visual equipment, connections, contents, and transient effects. A user can move, duplicate, remove, connect, disconnect, pour, heat, pump, pulse, save, and reset without completing a procedure or receiving a score.
 
-## Purpose / Scope
+## Surface and routes
 
-- `/tools/lab` 是实验目录页，`/tools/lab/chemistry?session=<id>` 是化学工作台。顶栏按 `lib/nav.ts` 的 `NAV_SUBTITLES` 显示「工具助手 · 模拟实验室」；`?experiment=` 进入准备视图（目标、安全信息、预测问题），`&at=<revision>` 进入**只读历史重放**（真实拉取该版本投影，锁定全部写入口；见下文「历史只读」）。
-- 学生在 SVG 实验台上取放器材、倾倒、加热、加试剂、用仪器测量读数；引导栏给出目标与阶梯提示，观察记录、证据链、时间线与分支对比全部来自引擎事件流。
-- 三种模式：`guided`（按步骤目标推进，观察可见性受内容包 `observation_visibility` 限制）、`explore`（自由探索，全量观察可见）与 `self_check`（先预测、再操作、后对照解释）。
-- 实验台是旁路工具：不经 `/chat/stream` 伪造学习事件，不写学生模型/知识图谱；首期不提供实验 AI 工具。
+- `/tools/lab` renders the stage catalogue.
+- `/tools/lab/chemistry?stage=<stage-id>` opens the immersive Three.js workbench.
+- The workbench has no experiment mode selector, step rail, prediction form, result report, or correctness state. `AUTO` loads an authored arrangement as a starting point; it does not run the scene.
 
-## Owned code
+The retired server session API, former SVG session UI, and mirrored chemistry solver have been removed. New work must target the 3D surface and must not add a compatibility path back to a guided/evaluation flow.
 
-- 后端域模块 `services/api/app/chem_lab/`：
-  - `catalog.py` 内容目录（manifest sha256 锚定每个内容文件，改动必须重跑 `scripts/chem_lab/validate_pack.py` 刷新 manifest）；`pack_schema.py` Pydantic 内容模式；`dsl.py` 规则 DSL 静态检查（闭集、上限、无循环）。
-  - `engine/` 确定性引擎：`reducer.py`（命令→状态迁移，**任何命令含被拒绝者 revision 均 +1**）、`model.py`（状态与 `state_hash`）、`reaction.py`/`phase.py`/`safety.py`（反应、相态、安全边界）、`projection.py`（RenderFrame 投影）、`guidance.py`（阶梯指导与目标状态）、`replay.py`（回放/分叉）。
-  - `service.py` 会话服务（每 owner 一把文件锁串行化读-改-写；幂等、base_revision 验收、ACK 存储与重放）；`persistence.py` 存储布局；`providers.py` AI 扩展点（见下）。
-  - 路由 `app/api/v1/tool_chem_lab.py`，前缀 `/api/v1/tools/lab/chemistry`。
-- TS 镜像引擎 `packages/domain/src/chem-lab/`（与 Python 引擎同构：model/reducer/reaction/phase/safety/projection/guidance/replay/units），经 `packages/domain/src/index.ts` 导出。
-- 前端 `apps/web/src/components/pages/tools/chem-lab/`：`chem-lab-worker.ts` + `chem-lab-engine.ts`（Web Worker 内跑 TS 镜像做本地预测，Worker 失败回退主线程）；`useChemLabSession.ts`（有序命令队列、同步状态机与 ACK/预测双向对账）；`chem-lab-geometry.ts`/`chem-lab-renderer.ts`（slot/footprint/port 几何事实与 RenderFrame→视觉投影）；`interaction.ts`（闭集 UI 草稿→`LabCommand` 唯一工厂）；`LabStage.tsx` 薄 presenter；`ChemLabWorkspace.tsx` 组合根。客户端封装 `apps/web/src/lib/api-chem-lab.ts` + `packages/api-client/src/tools/chem-lab.ts`；契约生成物 `packages/contracts/src/generated/chem_lab.ts`。
-- 场景子树 `apps/web/src/components/pages/tools/chem-lab/scene/`（原创 SVG 资产登记见其 `ASSETS.md`）：`LabScene.tsx`（唯一 SVG world group + DOM 热区覆盖层，相机 transform）；`scene-model.ts`（pack+display→只读 SceneModel 派生与 `resolveDropIntent` 意图判定）；`scene-geometry.ts`/`scene-projection.ts`（纯数学 affine/相机/命中 + `getScreenCTM()` 逆矩阵 CSS px 投影，DOM 热区与 SVG 坐标同源）；`useLabInteraction.ts`（pressed/dragging 手势状态机：抓取偏移、rAF 合帧、capture 生命周期、统一取消）；`presentation-model.ts`/`useLabPresentation.ts`（预测=中性 pending、ACK.accepted 才播一次性动作，token=session:pack:revision:command）；`LabEnvironment.tsx`/`LabEquipment.tsx`/`LabPhenomena.tsx`（环境/12 kind 器材/帧驱动现象）；`lab-scene.css`（场景 token 与 reduced-motion）。
-- 内容包 `services/api/app/chem_lab/content/`：`experiments/`（6 个实验定义）、`packs/`（发布包）、`species/`、`rules/`、`equipment/`、`concepts/`、`vectors/`（回放向量）、`manifest.json`。全部为项目自研合成内容，受 [../compliance/content-policy.md](../compliance/content-policy.md) 约束。
-- 作者工具 `scripts/chem_lab/`：`validate_pack.py`（schema/引用/DSL/i18n/hash 校验 + manifest 刷新）、`replay_pack.py`（单包回放）、`render_preview.py`（预览渲染）。
-- 站内助手：`app/agents/site_assistant/product_catalog.json` 登记 `tools_lab`、`tools_lab_chemistry` 两个 route_id；前端 `lib/assistant/routes.ts`、`page-context.ts` 同步映射。
+## One document kernel
 
-## Public contracts
+`packages/domain/src/chem-lab/` is the platform-neutral source of truth:
 
-全部端点需登录，身份由 `resolve_student_id()` 解析，前缀 `/api/v1/tools/lab/chemistry`：
+- `types.ts` defines poses, sockets, anchors, controls, contents, connections, cues, and limits.
+- `equipment.ts` is the single equipment registry. Bounds (including whether a horizontal vessel is centered or rests on its base), ports, anchor points, controls, visual contents, and interaction capabilities live here. Three.js models, hit targets, bubbles, and future clients read this registry.
+- `stages.ts` contains five authored scene themes plus a sixth open-bench stage. Each stage has a starter scene, an optional `assembledTemplate`, camera framing, available rack inventory, and visual cue colors. A stage has no objectives, requirements, answer, safety lock, grade, or completion flag.
+- `document.ts` applies local actions immutably. It owns add/move/rotate/attach/detach/remove/connect/disconnect/control/content/auto/reset, bounded undo snapshots, finite-coordinate validation, and visual-content clamping. Failures are technical affordance hints only (missing, occupied, or incompatible ports).
+- `graph.ts` traverses external tubes plus declared internal edges to decide where visual flow dots may travel. The graph is not a chemistry solver and does not judge a connection.
+- `storage-schema.ts` validates the small local-save envelope. Runtime state stays in the browser and is never committed.
 
-| 方法 | 路径 | 含义 |
-| --- | --- | --- |
-| GET | `/catalog` | 实验目录摘要 + 能力声明 |
-| GET | `/experiments/{id}` | 实验公开投影（准备视图；预测选项**剥离 correct 标记**） |
-| GET | `/experiments/{id}/engine-pack` | TS 镜像运行时包（与 Python 引擎输入一致，同样剥离答案） |
-| GET / POST | `/sessions` | 本人会话列表 / 创建会话（experiment_id + pack_version + mode + language） |
-| GET / DELETE | `/sessions/{sid}` | 会话快照（含 render_frame、engine_state、guidance、同步元数据）/ 删除（墓碑化） |
-| POST | `/sessions/{sid}/commands` | 提交命令（command_id 幂等 + base_revision 验收）→ ACK |
-| GET | `/sessions/{sid}/events` | 事件流分页（after_seq 增量拉取） |
-| POST | `/sessions/{sid}/checkpoints` | 命名检查点 |
-| POST | `/sessions/{sid}/fork` `/reset` | 从检查点/任意 revision 分叉；重置回起始态 |
-| POST | `/sessions/{sid}/finish` | 结束并生成结果卡（目标达成、预测核对、观察与概念） |
-| GET | `/sessions/{sid}/revisions/{revision}` | **只读历史重放**：按存档 script 重演到该版本并投影（`ChemLabRevisionView`，`read_only:true`、最小 `scene_state`），不建分支、不追加事件、不动 `updated_at`；越界 404 `chem_lab_revision_out_of_range`，跨 owner 404；观察/事件沿用会话 mode 可见性。 |
+The domain layer does not import React, Three.js, the network, or Python. It is the shared kernel for web now and other clients later.
 
-开关：`CHEM_LAB_ENABLED`（默认开）、`CHEM_LAB_MAX_SESSIONS_PER_OWNER`（默认 60）。
+## Three.js scene
 
-## 同步协议（双引擎一致性）
+`apps/web/src/components/pages/tools/chem-lab-3d/` owns presentation only:
 
-- 服务端 Python 引擎是唯一权威，逐条重跑每个命令；TS 镜像在 Web Worker 中做**本地预测**以实现即时反馈与离线降级。
-- 客户端命令队列有序发送，第 i 条排队命令的 `base_revision = tip + i`——这成立是因为引擎语义保证**任何命令（含 rejected）revision +1**，该语义是公开契约，不得改动。
-- ACK 携带 `revision + state_hash`：与 Worker 预测 hash 相等即证明双引擎状态一致，免回拉快照；不等则标记 `diverged` 并整快照 resync；409（base_revision 冲突）丢弃本地预测重新对齐；断网进入 `offline_preview`（本地继续预测、恢复后重放队列）。
-- **ACK/预测乱序对账**：`useChemLabSession` 按 `command_id` 维护待对账记录（限 32 条滑窗），ACK 与 Worker 预测无论谁先到，另一侧到达即比对一次 hash 后释放；**迟到的预测只对账、绝不回滚已被 ACK 应用过的权威显示**。`reset/fork/attach/detach` 清空整个 generation 的记录。
-- **公开命令闭集为 16 种**：原 14 种 `pick_up/place/aspirate/dispense/pour/heat/stir/wait/measure/connect/filter/wash/dispose/checkpoint` + 兼容性增量 `move`（原子移动：一次写 slot 并在 held 匹配时清除）与 `release`（仅清 held，修复遗留 pick_up 持有）。旧命令语义永不改变——历史回放向量是双引擎一致性的事实锚。前端位置交互只产生单条 `move`；旧 `pick_up/place` 仅存于历史脚本。
-- 一致性由 CI 强制：`content/vectors/` 的回放向量同时被 Python（`tests.chem_lab.test_replay_vectors`）与 TS（`packages/domain` 回放测试）执行，state_hash、事件类型、关键读数必须一致。
-- 客户端时序铁律：`ChemLabWorkspace` 中 detail 与 live-session 两个加载 effect **不得共享 generation 计数器**——共用时后声明的 effect 在同一次挂载里立刻顶高计数，detail 请求返回即被守卫误判为"已被新运行取代"，`setLoading(false)` 被跳过，准备页永久停在"正在创建会话…"（`?experiment=` 深链必现，e2e `chem-lab.spec.ts` 钉死）。同理，任何"加载态 + 异步结果"配对都必须保证 finally 复位不被丢弃。
-- 所有 chem-lab API 调用在 `packages/api-client/src/tools/chem-lab.ts` 统一携带 30s 超时：服务端全是毫秒级确定性本地操作，永不返回的请求只能是传输层丢失，必须以可重试的 typed 错误呈现给 UI，绝不留永久转圈。
+- `SceneController` owns one renderer, camera, OrbitControls, resize handling, context recovery, and an invalidate/activity frame loop.
+- `Environment` creates the bright ceramic bench, rear equipment rack, cabinet, room lighting, and soft shadows. Theme changes adjust only local scene lighting and materials.
+- `EquipmentFactory` builds original procedural glass, metal, rubber, hose, lamp, pump, condenser, and vessel meshes. `EquipmentModels` provides shared ref-counted geometry/material/texture caches. A model and its hit proxy use the same domain bounds and local anchors.
+- `SceneSync` maps each document instance to one model group, resolves mounted world poses, builds tube geometry from world port anchors, and creates enlarged invisible hit shells for ports, controls, clamps, and equipment. The rear rack contains small real models; selecting a slot dispatches one `add` action into the document.
+- `InteractionController` is the only pointer state machine. It handles short press versus drag, ray-plane movement with grab offset, rack take-out, port-to-port tube drag or two-click connection, clamp rail movement, pour targets, dial gestures, pointer capture, two-finger cancellation, Escape, blur, and context-loss cleanup. It never calls an API.
+- `ObjectPopover` is a projected, object-local bubble. Its actions are derived from `equipmentCapabilities`, controls, and current document state. It follows its anchor while the camera or object moves and disappears when the anchor is behind the camera.
+- `Effects` is a transient presentation runtime. Document diffs and explicit cues drive flame layers, bubbles, vapor, condensate drops, flow dots, sediment, liquid streams, and the short pulse burst. Effects never write to the document or history.
 
-## 舞台交互模型（scene/）
+## Interaction contract
 
-- **一个坐标系**：SVG world group（含相机 transform）是唯一场景坐标系；DOM 对象热区由 `getScreenCTM()` 逆矩阵把世界矩形四角投到 CSS px 得到，热区与画面永不各算一套（禁用 `getBoundingClientRect`×viewBox 比例法）。相机（overview/focus，scale 夹取 1–2.5）只改 world group transform，reducer 不感知。
-- **唯一 pointer 入口**：器材绘制层全部 `pointer-events:none`；每个对象只有一个 DOM `ObjectHitTarget`（≥44 CSS px，保留 `chem-lab-object-<id>` 锚点与 button 键盘语义）。拖动把手 `touch-action:none`，capture 绑定在稳定 viewport 容器上，`pointercancel/lostpointercapture/Escape/blur/切会话` 统一 `cancelGesture`。
-- **手势状态机**（`useLabInteraction`）：`idle→pressed`（无 ghost、零 POST）→ 位移超过阈值（鼠标 6px/触摸 10px/笔 7px）才 `dragging`；ghost 保留抓取偏移无中心跳变；ref 是唯一事实、rAF 合帧；落点由释放点的 world 坐标做纯几何判定（capture 后 `event.target` 不可信）。
-- **单一意图解析**：`resolveDropIntent(source, worldPoint, scene, authority)` 为纯函数——vessel→空槽=原子 move；vessel→vessel=pour 草稿；空移液管/滴管→vessel=aspirate、载液=dispense；探针→vessel=measure；玻璃棒→stir；热板→heat；无规则的组合只选择并解释。指针、键盘（Tab/Enter）与点击→目标清单三种路径共用它；`OperationToolbar`+`buildLabCommand` 仍是唯一命令工厂，确认前零提交。
-- **演出层**（`useLabPresentation`）：预测 accepted 只显示中性 pending 脉冲；ACK accepted 才按命令类别播放一次性 CSS 动作（move 滑行+落位、pour 倾角、aspirate/dispense 液柱、heat/stir 光效、measure 聚焦）；拒绝只闪一次中性反馈。`prefers-reduced-motion` 与页面隐藏时直落终态。
+1. A short press selects an object and opens its nearby bubble. There is no permanent instrument sidebar.
+2. Dragging a bench object moves it on a soft bounded plane. Dragging a rack slot places a fresh instance on the bench.
+3. Dragging from a port previews a tube; release near a compatible free port commits one connection. Clicking two ports provides the touch-friendly equivalent.
+4. Moving a clamped object along the retort stand changes its local pose. Dragging it away detaches it to the bench. Moving a stand carries its mounted children and tubes visually.
+5. Adding a demo liquid, toggling a lamp/pump/valve, or pressing pulse updates document state or a transient cue. These actions are entertainment feedback, not experimental instructions.
 
-## 历史只读（`&at=<revision>`）
+The only persistent interface controls are Back, `AUTO`, Save/Open, Reset, and Reset camera. Save data is local to the current owner key and bounded by the domain limits. No request is sent for scene actions.
 
-URL `?session=<sid>&at=<rev>` 拉取 `GET /revisions/{rev}` 并以独立 AbortController/generation 渲染历史投影（返回 revision 必须等于 URL 才渲染）：舞台、观察、指导、目标全部来自历史视图，绝不出现"旧画面配当前事件"。只读期间对象禁用、`commandsLocked` 生效；横幅提供上一版/下一版导航、显式"从该版本创建分支"（走既有 `POST /fork`）与"回到最新"；时间轴也提供 revision 跳转。`at` 为空/NaN/负数/小数时安全忽略；越界显示错误态并可一键返回最新。
+## Validation
 
-## 故障排查（./start.sh 后看不到实验）
+Run the web type check after model or interaction changes:
 
-- 目录为空且有"加载失败"提示：浏览器 devtools Network 看 `/api/v1/tools/lab/chemistry/catalog`——401=登录态失效（重新登录即可）；网络错误=后端地址与启动日志 `backend on :<port>` 不一致（prod 构建把端口烘焙进产物，端口变化应由 start.sh 自动重建，必要时 `REBUILD=1 ./start.sh`）。
-- 点进实验后整页停在"正在创建会话…"：上方"客户端时序铁律"的加载态竞争（已修复）；若再次出现，优先核对两个 effect 的守卫与复位路径。
-- "我的会话"区为空但目录正常：会话接口独立失败不再连坐清空实验目录（列表加载已解耦）。
+```bash
+pnpm --filter @next-tutor/web typecheck
+```
 
-## 存储布局
-
-`<NEXT_TUTOR_DATA_DIR>/chem_lab/<owner>/`：会话文档 + `events/<sid>.jsonl`（追加事件流）+ `checkpoints/<sid>.json`。经 `core/paths.py::bind_storage_path` 绑定、注册进 `core/orphan_cleanup.py` 扫描类目；账号删除经 `core/account_data.purge_account` 清除。内容目录是源码（入库），会话数据永不入库。
-
-## 安全与指导模型
-
-- 虚拟安全边界：危险组合/操作触发 `safety_locked` 相——先阻止操作再解释恢复方式（解锁命令）；被拒绝命令携带 reason 并照常推进 revision/事件流。
-- 指导等级 `on_track / try_again / hint / explain / safety / complete`，全部来自 `engine/guidance.py` 的确定性规则；每条提示带 `evidence_event_seq`、`concept_ids`、`model_scope`，页面据此前端显示"根据你的第 N 步操作"。
-- 内容包携带 `safety_profile`、`model_scope`（模型适用范围说明），结论边界对学生可见。
-
-## AI 扩展点（默认关闭）
-
-`providers.py` 定义三个 Protocol：`ScenarioProvider`（解析实验包）、`GuidanceProvider`（证据→指导卡）、`ScenarioDraftProvider`（起草新实验包）。默认实现 `CatalogScenarioProvider`、`DeterministicGuidanceProvider` 均无模型调用且已被 service 实际使用；`ScenarioDraftProvider` 无默认实现。任何未来 AI 实现不得写 LabState/执行命令、不得输出可执行代码或 DSL、不得读取其他用户会话或 raw chain-of-thought、不得绕过校验/安全/预览/确认/幂等；AI 草稿必须经 schema 校验 → DSL 静态检查 → 多路径回放 → 双引擎 hash 对齐 → 内容审查 → 人工确认后才能入目录并生成新 pack_hash（已有会话不自动切换）。
-
-## 新增实验
-
-已有能力覆盖的新实验只改内容（复制 `content/experiments/` 模板 → 填写 → `validate_pack.py` → 为新路径补回放向量 → 双引擎回放对齐 → 更新 manifest）。新操作/新规则原语/新现象投影才改引擎：先扩 command/event/render union 与双实现、公开合同、回放向量，再写实验包；禁止在 React 组件中按 experiment_id 特判。
+The domain tests cover stage templates, port graph behavior, attach/detach, AUTO atomicity, and local storage. Run them with `pnpm --filter @next-tutor/domain test`; the repository registers `scripts/test/typescript-loader.mjs`, so the check does not depend on whether the local Node binary was built with native type stripping.

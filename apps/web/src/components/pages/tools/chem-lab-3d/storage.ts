@@ -1,5 +1,5 @@
 /**
- * 本地存档（plan §7.2）：localStorage `next-tutor.chem-lab.v1:<owner>`，
+ * 本地存档（chem-lab architecture）：localStorage `next-tutor.chem-lab.v1:<owner>`，
  * owner 按登录用户分区（匿名用 guest 命名空间）。12 存档上限、单文档 150KB；
  * 写入前经 domain 严格序列化，读取经 parseDocument 校验；失败明确抛出，
  * 不假装成功。不引入 IndexedDB / 服务端同步。

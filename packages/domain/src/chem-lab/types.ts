@@ -58,13 +58,17 @@ export type EquipmentFamily =
   | "machine"      // 泵等小机械
   | "reagent";     // 虚拟试剂瓶
 
+/** 器材在近物体气泡中可玩的动作标签。它不表达步骤、目标或评分。 */
+export type EquipmentInteraction = "pour" | "pulse" | "rotate";
+
 export interface EquipmentSpec {
   kind: string;
   family: EquipmentFamily;
   /** 中英短名（气泡/端口提示用），不含操作指导文案。 */
   label: { zh: string; en: string };
-  /** 近似放置包围盒（局部坐标，底面中心为原点）。 */
+  /** 近似放置包围盒（局部坐标）。默认底面中心为原点；横放冷凝管等器材可声明以几何中心为原点。 */
   bounds: { width: number; depth: number; height: number };
+  boundsOrigin?: "base" | "center";
   ports: PortSpec[];
   /** 交互/特效锚点（局部坐标）：rim、pourLip、heatZone、wick、flame、liquidSurface、clampPoint 等。 */
   anchors: Record<string, Vec3>;
@@ -74,6 +78,8 @@ export interface EquipmentSpec {
   internalEdges: InternalEdge[];
   /** 初始演示内容（一般为空；试剂瓶按色液预置）。 */
   defaultContents?: VisualContents;
+  /** 气泡与键盘入口读取的能力声明；controls/anchors 提供具体参数。 */
+  interactions?: readonly EquipmentInteraction[];
   /** 视觉微调参数（渲染层消费；如蛇形螺距、火焰高度）。 */
   visualTuning?: Record<string, number>;
 }
@@ -184,6 +190,13 @@ export interface WorldAnchor {
   portId: string;
   position: Vec3;
   direction: Vec3;
+}
+
+/** 所有客户端共用的最小器材能力投影。 */
+export interface EquipmentCapabilities {
+  canPour: boolean;
+  canPulse: boolean;
+  canRotate: boolean;
 }
 
 /** 演出触发事件（Effects 消费；不进入文档、不进入撤销历史）。 */

@@ -403,14 +403,6 @@ class Settings:
         str(paths.repo_root() / "apps" / "web" / "scripts" / "check-classroom-render.mjs")).strip()
     classroom_api_daily_tts_chars: int = max(1000, int(os.getenv("CLASSROOM_API_DAILY_TTS_CHARS", "100000")))
 
-    # ------------------------------------------------------------------
-    # 模拟实验台（化学；默认开启，发布灰度可显式关闭）
-    # ------------------------------------------------------------------
-    chem_lab_enabled: bool = _env_bool("CHEM_LAB_ENABLED", True)
-    # 单会话事件上限之外的额外闸门：每 owner 会话数与每会话分支数。
-    chem_lab_max_sessions_per_owner: int = max(1, int(os.getenv("CHEM_LAB_MAX_SESSIONS_PER_OWNER", "60")))
-
-
 settings = Settings()
 
 # Runtime storage roots are owned by app.core.paths; re-bind the two Settings

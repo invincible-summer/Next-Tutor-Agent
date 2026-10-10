@@ -1,5 +1,5 @@
 /**
- * AUTO 预组装测试：五套模板原子载入、失败保原文、重复 AUTO 不叠加。
+ * AUTO 预组装测试：六套模板原子载入、失败保原文、重复 AUTO 不叠加。
  */
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -9,11 +9,11 @@ import {
 } from "../src/chem-lab/index.ts";
 import type { LabDocument, StageDefinition } from "../src/chem-lab/index.ts";
 
-const STAGE_IDS = ["bubble-relay", "silver-condenser", "chromatic-loop", "crystal-rain", "pulse-theatre"];
+const STAGE_IDS = ["bubble-relay", "silver-condenser", "chromatic-loop", "crystal-rain", "pulse-theatre", "free-explore"];
 
-test("listStages 恰好五关且无教学字段", () => {
+test("listStages 含五个主题关卡和一个开放台且无教学字段", () => {
   const stages = listStages();
-  assert.equal(stages.length, 5);
+  assert.equal(stages.length, 6);
   for (const s of stages) {
     assert.ok(s.id && s.title.zh && s.title.en && s.description.zh);
     const raw = JSON.stringify(s);
@@ -21,7 +21,7 @@ test("listStages 恰好五关且无教学字段", () => {
   }
 });
 
-test("五套 assembledTemplate 均通过技术性完整性校验且初始静止", () => {
+test("六套 assembledTemplate 均通过技术性完整性校验且初始静止", () => {
   for (const id of STAGE_IDS) {
     const stage = getStage(id)!;
     const problem = validateStageScene(stage.assembledTemplate, { requireIdle: true });
@@ -38,7 +38,7 @@ test("五套 assembledTemplate 均通过技术性完整性校验且初始静止"
   }
 });
 
-test("五关模板器材在可见工作区内且不排成一条直线", () => {
+test("六关模板器材在可见工作区内且不排成一条直线", () => {
   for (const id of STAGE_IDS) {
     const t = getStage(id)!.assembledTemplate;
     const xs = new Set<number>(), zs = new Set<number>();

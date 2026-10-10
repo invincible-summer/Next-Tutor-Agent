@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * 化学实验台共享模型资源层（plan §3.1/§3.4）：ref-count 几何/材质/程序贴图缓存、
+ * 化学实验台共享模型资源层（chem-lab architecture）：ref-count 几何/材质/程序贴图缓存、
  * 统一玻璃/金属/液体材质库、旋转体与接管等通用构件。全部资源程序化生成（原创），
  * 不加载任何外部模型/贴图/HDR；尺寸事实源是 domain equipment.ts 的规格表。
  */
@@ -226,7 +226,10 @@ export function roundedBoxOf(key: string, width: number, depth: number, height: 
     shape.quadraticCurveTo(-w - radius, -d, -w, -d);
     const geo = new THREE.ExtrudeGeometry(shape, { depth: height, bevelEnabled: true, bevelThickness: height * 0.18, bevelSize: radius * 0.35, bevelSegments: 2, curveSegments: 6 });
     geo.rotateX(-Math.PI / 2);
-    geo.translate(0, height / 2, 0); // Extrude 沿 +Z 深度 → 旋转后居中于原点
+    // Extrude 沿 +Z 深度，旋转后 Y 范围是 [0, height]。模型局部原点
+    // 约定为底面中心，所以要向下半个高度；此前向上平移会把台面/柜体
+    // 抬到工作区上方，遮住玻璃器材并让拾取射线命中错误的实体。
+    geo.translate(0, -height / 2, 0);
     return geo;
   });
 }

@@ -19,6 +19,10 @@ python3 -m tests tests.diagrams.test_diagram_adapters tests.diagrams.test_diagra
 
 前端改动继续执行 `pnpm check`、自动生产构建和 `pnpm test:e2e tests/e2e/diagram-library.spec.ts tests/e2e/quiz-illustration.spec.ts`。
 
+共享包和前端数学工作台的 Node 单元测试统一经 `scripts/test/register-typescript-loader.mjs`
+加载 TypeScript。这样即使 Node 二进制没有内置 `--experimental-strip-types`，
+`pnpm check` 与各包的 `test` 脚本仍使用同一条可复现的转译路径。
+
 E2E 只保留一个运行机制：`cd apps/web && pnpm test:e2e`。
 
 - 固定生产构建、单 worker、零重试。本地和 CI 使用同一配置；选择 spec、`--grep` 或 `--headed` 只改变测试范围/显示方式。移除独立 CI/i18n/live 配置与 DEV/PRODUCTION/FRESH/WORKERS 切换。静态 Pages 产物通过 `pnpm test:pages` 单独验收；真实模型管线使用下文的 Python 验收脚本。

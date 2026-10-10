@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * 软管系统（plan §3.3/§4.3）：以端口 world anchor 为事实源生成确定性曲线——
+ * 软管系统（chem-lab architecture/§4.3）：以端口 world anchor 为事实源生成确定性曲线——
  * 端点 + 沿端口法线的控制点 + 重力垂弧中点；静态期一次 TubeGeometry 精修。
  * 拖动期的低段数动态更新在交互层（Phase C）扩展，本层负责几何所有权与随动。
  */
@@ -97,7 +97,7 @@ export class TubeSystem {
   }
 
   /** 端点随动（器材拖动/挂载调整）：只重建该管几何并释放旧独有几何。
-   *  拖动期 preview=true 用 16 段低成本更新，松手后以 36 段精修（plan §4.3）。 */
+   *  拖动期 preview=true 用 16 段低成本更新，松手后以 36 段精修（chem-lab architecture）。 */
   updateTube(id: string, a: TubePortAnchor, b: TubePortAnchor, slack: number, preview = false): void {
     const entry = this.tubes.get(id);
     if (!entry) return;

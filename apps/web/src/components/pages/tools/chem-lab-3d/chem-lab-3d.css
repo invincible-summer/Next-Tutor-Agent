@@ -102,7 +102,7 @@
   color: var(--color-fg-secondary, #5b5850);
 }
 
-/* ── 56px 沉浸顶栏（plan §0/§2）：静态按钮，不随拖动重排 ────────────────── */
+/* ── 56px 沉浸顶栏（chem-lab architecture）：静态按钮，不随拖动重排 ────────────────── */
 .chem-hud {
   position: absolute;
   top: 0;
@@ -271,7 +271,7 @@
   height: 15px;
 }
 
-/* 窄屏（plan §2 竖屏 360–430px）：次要操作收进 ⋯，AUTO/返回常驻 */
+/* 窄屏（chem-lab architecture）：次要操作收进 ⋯，AUTO/返回常驻 */
 @media (max-width: 640px) {
   .chem-hud-actions {
     display: none;
@@ -433,4 +433,264 @@
   margin: 8px 4px;
   font-size: 13px;
   color: var(--color-fg-secondary, #5b5850);
+}
+
+/* ── 3D 实验台目录：关卡是氛围与器材组合，不是步骤卡片 ──────────────── */
+.chem-catalog {
+  min-height: 100%;
+  overflow-y: auto;
+  background:
+    radial-gradient(circle at 80% 0%, rgb(37 109 102 / 0.08), transparent 34rem),
+    var(--color-bg, #f6f5f1);
+  color: var(--color-fg, #26241f);
+}
+
+.chem-catalog-inner {
+  width: min(1180px, calc(100% - 40px));
+  margin: 0 auto;
+  padding: 56px 0 48px;
+}
+
+.chem-catalog-hero {
+  display: grid;
+  grid-template-columns: auto minmax(0, 680px);
+  gap: 22px;
+  align-items: start;
+}
+
+.chem-catalog-mark {
+  display: grid;
+  place-items: center;
+  width: 58px;
+  height: 58px;
+  border-radius: 18px;
+  color: var(--color-accent-strong, #1d5650);
+  background: var(--color-accent-soft, #ddeae6);
+}
+
+.chem-catalog-mark svg { width: 30px; height: 30px; }
+
+.chem-catalog-eyebrow {
+  margin: 2px 0 10px;
+  color: var(--color-accent-strong, #1d5650);
+  font-size: 11px;
+  font-weight: 750;
+  letter-spacing: 0.14em;
+}
+
+.chem-catalog-hero h1 {
+  margin: 0;
+  font-family: var(--font-serif, Georgia, serif);
+  font-size: clamp(1.8rem, 3.5vw, 2.65rem);
+  line-height: 1.12;
+  letter-spacing: -0.025em;
+}
+
+.chem-catalog-intro {
+  max-width: 65ch;
+  margin: 14px 0 0;
+  color: var(--color-fg-secondary, #5b5850);
+  font-size: 14px;
+  line-height: 1.8;
+}
+
+.chem-catalog-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 30px 0 22px 80px;
+}
+
+.chem-catalog-pills span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 30px;
+  padding: 0 11px;
+  border: 1px solid var(--color-border-light, #e3dfd5);
+  border-radius: 999px;
+  background: var(--color-surface, #fffefa);
+  color: var(--color-fg-secondary, #5b5850);
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.chem-catalog-pills svg { width: 14px; height: 14px; color: var(--color-accent, #256d66); }
+
+.chem-catalog-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.chem-catalog-card {
+  display: grid;
+  grid-template-columns: minmax(150px, 0.85fr) minmax(0, 1.15fr);
+  min-height: 238px;
+  overflow: hidden;
+  border: 1px solid var(--color-border-light, #e3dfd5);
+  border-radius: 16px;
+  background: var(--color-surface, #fffefa);
+  box-shadow: 0 8px 24px rgb(30 30 36 / 0.04);
+  text-decoration: none;
+  transition: border-color 180ms ease, box-shadow 180ms ease, transform 180ms ease;
+}
+
+.chem-catalog-card:hover {
+  border-color: var(--color-accent, #256d66);
+  box-shadow: 0 14px 32px rgb(30 30 36 / 0.1);
+  transform: translateY(-2px);
+}
+
+.chem-catalog-card:focus-visible {
+  outline: 2px solid var(--color-accent, #256d66);
+  outline-offset: 3px;
+}
+
+.chem-catalog-thumbnail {
+  position: relative;
+  min-height: 238px;
+  overflow: hidden;
+  isolation: isolate;
+  background:
+    linear-gradient(145deg, hsl(var(--stage-hue) 28% 84%), hsl(calc(var(--stage-hue) + 28) 30% 68%));
+}
+
+.chem-catalog-thumbnail::before,
+.chem-catalog-thumbnail::after {
+  position: absolute;
+  content: "";
+  border-radius: 999px;
+  filter: blur(1px);
+}
+
+.chem-catalog-thumbnail::before {
+  inset: auto -20% -13% -20%;
+  height: 46%;
+  background: rgb(255 254 250 / 0.42);
+  transform: rotate(-8deg);
+}
+
+.chem-catalog-thumbnail::after {
+  inset: 16% -20% auto 16%;
+  height: 18%;
+  background: rgb(255 255 255 / 0.3);
+  transform: rotate(-22deg);
+}
+
+.chem-catalog-glow {
+  position: absolute;
+  width: 115px;
+  height: 115px;
+  top: 32px;
+  left: 33px;
+  border-radius: 50%;
+  background: hsl(var(--stage-hue) 62% 52% / 0.24);
+  filter: blur(18px);
+}
+
+.chem-catalog-vessel,
+.chem-catalog-tube,
+.chem-catalog-spark { position: absolute; display: block; }
+
+.chem-catalog-vessel {
+  bottom: 34px;
+  width: 48px;
+  height: 96px;
+  border: 3px solid rgb(255 255 255 / 0.65);
+  border-top-width: 5px;
+  border-radius: 11px 11px 17px 17px;
+  background: linear-gradient(to top, hsl(var(--stage-hue) 58% 49% / 0.55) 42%, rgb(255 255 255 / 0.08) 43%);
+  box-shadow: inset 9px 0 12px rgb(255 255 255 / 0.23), 10px 13px 20px rgb(43 58 64 / 0.12);
+  transform: perspective(100px) rotateY(-10deg);
+}
+
+.vessel-a { left: 28%; transform: perspective(100px) rotateY(-12deg) rotate(-2deg); }
+.vessel-b { left: 56%; width: 35px; height: 71px; bottom: 38px; opacity: 0.86; }
+
+.chem-catalog-tube {
+  height: 3px;
+  border-radius: 99px;
+  background: rgb(255 255 255 / 0.74);
+  box-shadow: 0 0 6px hsl(var(--stage-hue) 75% 55% / 0.55);
+  transform-origin: left center;
+}
+
+.tube-a { left: 36%; bottom: 120px; width: 86px; transform: rotate(-16deg); }
+.tube-b { left: 48%; bottom: 92px; width: 65px; transform: rotate(28deg); opacity: 0.75; }
+
+.chem-catalog-spark {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 0 10px 3px hsl(var(--stage-hue) 80% 60% / 0.7);
+}
+
+.spark-a { left: 72%; top: 32%; }
+.spark-b { left: 22%; top: 26%; width: 4px; height: 4px; opacity: 0.7; }
+
+.chem-catalog-motif-free {
+  background:
+    linear-gradient(160deg, hsl(var(--stage-hue) 30% 89%), hsl(calc(var(--stage-hue) + 24) 26% 72%));
+}
+
+.chem-catalog-motif-free .chem-catalog-vessel {
+  border-color: rgb(255 255 255 / 0.8);
+  box-shadow: inset 12px 0 14px rgb(255 255 255 / 0.28), 0 10px 22px rgb(43 58 64 / 0.14);
+}
+
+.chem-catalog-motif-free .tube-a { transform: rotate(18deg); }
+.chem-catalog-motif-free .tube-b { transform: rotate(-20deg); }
+
+.chem-catalog-card-body {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  padding: 24px 22px 20px;
+}
+
+.chem-catalog-card-heading { display: flex; align-items: start; justify-content: space-between; gap: 10px; }
+.chem-catalog-card-heading h2 {
+  margin: 0;
+  font-family: var(--font-serif, Georgia, serif);
+  font-size: 1.23rem;
+  line-height: 1.25;
+}
+.chem-catalog-card-heading span { color: var(--color-accent, #256d66); font-size: 19px; }
+.chem-catalog-card-body p {
+  margin: 13px 0 0;
+  color: var(--color-fg-secondary, #5b5850);
+  font-size: 13px;
+  line-height: 1.65;
+}
+.chem-catalog-card-action {
+  margin-top: auto;
+  padding-top: 18px;
+  color: var(--color-accent-strong, #1d5650);
+  font-size: 12px;
+  font-weight: 750;
+}
+.chem-catalog-hint {
+  margin: 20px 0 0 80px;
+  color: var(--color-muted, #77736b);
+  font-size: 12px;
+  line-height: 1.7;
+}
+
+@media (max-width: 820px) {
+  .chem-catalog-inner { width: min(100% - 28px, 620px); padding-top: 34px; }
+  .chem-catalog-hero { grid-template-columns: 1fr; gap: 14px; }
+  .chem-catalog-mark { width: 48px; height: 48px; border-radius: 14px; }
+  .chem-catalog-pills, .chem-catalog-hint { margin-left: 0; }
+  .chem-catalog-grid { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 480px) {
+  .chem-catalog-card { grid-template-columns: 112px minmax(0, 1fr); min-height: 214px; }
+  .chem-catalog-thumbnail { min-height: 214px; }
+  .chem-catalog-vessel { transform: scale(0.82); transform-origin: bottom left; left: 14%; }
+  .chem-catalog-vessel.vessel-b { left: 54%; }
+  .chem-catalog-card-body { padding: 18px 15px 16px; }
+  .chem-catalog-card-heading h2 { font-size: 1.05rem; }
 }

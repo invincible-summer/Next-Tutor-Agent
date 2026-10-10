@@ -1,18 +1,18 @@
 "use client";
 
 /**
- * 器材工厂（plan §3.3/§3.6）：domain equipment.ts 规格表 → 参数化 Three 模型。
+ * 器材工厂（chem-lab architecture）：domain equipment.ts 规格表 → 参数化 Three 模型。
  * 每个模型返回 {group, portNodes, anchorNodes, pickParts, update, dispose}；
  * 几何/材质尽量共享（EquipmentModels ref-count 缓存），液体层等实例独有资源
  * 由 handle.dispose 释放。原点是底面中心、Y 向上，与端口/锚点局部坐标一致。
  */
 import * as THREE from "three";
-import { getEquipmentSpec, type EquipmentInstance } from "@next-tutor/domain";
+import { equipmentCenterY, getEquipmentSpec, type EquipmentInstance } from "@next-tutor/domain";
 import type { QualityTier } from "./SceneController.ts";
 import {
   acquireGeometry, acquireMaterial, buildLiquidLathe, graduatedScaleTexture, liquidMaterial,
-  MAT, portRingMesh, reagentLabelTexture, releaseGeometry, releaseMaterial, roundedBoxOf,
-  sharedMaterial, type ProfilePoint,
+  MAT, portRingMesh, reagentLabelTexture, releaseGeometry, releaseMaterial, releaseTexture,
+  roundedBoxOf, sharedMaterial, type ProfilePoint,
 } from "./EquipmentModels.ts";
 
 const UP = new THREE.Vector3(0, 1, 0);
@@ -43,13 +43,23 @@ export interface CreateModelOptions {
 class ResourceNotes {
   readonly geos = new Map<string, number>();
   readonly mats = new Map<string, number>();
+  readonly textures = new Map<string, number>();
   noteGeo(key: string): void { this.geos.set(key, (this.geos.get(key) ?? 0) + 1); }
   noteMat(key: string): void { this.mats.set(key, (this.mats.get(key) ?? 0) + 1); }
+  dropMat(key: string): void {
+    const count = this.mats.get(key) ?? 0;
+    if (count <= 1) this.mats.delete(key);
+    else this.mats.set(key, count - 1);
+    releaseMaterial(key);
+  }
+  noteTexture(key: string): void { this.textures.set(key, (this.textures.get(key) ?? 0) + 1); }
   releaseAll(): void {
     for (const [key, n] of this.geos) for (let i = 0; i < n; i++) releaseGeometry(key);
     for (const [key, n] of this.mats) for (let i = 0; i < n; i++) releaseMaterial(key);
+    for (const [key, n] of this.textures) for (let i = 0; i < n; i++) releaseTexture(key);
     this.geos.clear();
     this.mats.clear();
+    this.textures.clear();
   }
 }
 
@@ -60,6 +70,8 @@ interface Ctx {
   ownedLiquid?: THREE.Mesh;
   liquidSpec?: { bottom: number; liquidTop: number; innerR: (y: number) => number };
   specialLiquid?: (fill: number, colorId?: string, cloudy?: number) => void;
+  liquidMaterialKey?: string;
+  currentLiquidMaterial?: THREE.Material;
   valveHandle?: THREE.Object3D;
   ledMesh?: THREE.Object3D;
   clawGroup?: THREE.Group;
@@ -105,7 +117,6 @@ function glassPart(ctx: Ctx, geoKey: string, build: () => THREE.BufferGeometry):
 function solidPart(ctx: Ctx, geoKey: string, build: () => THREE.BufferGeometry, matKey: string): THREE.Mesh {
   const geo = acquireGeometry(geoKey, build);
   ctx.notes.noteGeo(geoKey);
-  sharedMaterial(matKey);
   ctx.notes.noteMat(matKey);
   const mesh = new THREE.Mesh(geo, sharedMaterial(matKey));
   mesh.castShadow = true;
@@ -118,6 +129,22 @@ function basicTextureMaterial(ctx: Ctx, matKey: string): THREE.MeshBasicMaterial
   return acquireMaterial(matKey, () => new THREE.MeshBasicMaterial({ transparent: true })) as THREE.MeshBasicMaterial;
 }
 
+function liquidMaterialKey(colorId?: string, cloudy = false): string {
+  return `chem:liquid:${colorId ?? "pale"}:${cloudy ? "c" : "n"}`;
+}
+
+/** 每个模型只持有当前液体材质的一份缓存引用，颜色切换时立即归还旧引用。 */
+function acquireLiquidMaterial(ctx: Ctx, colorId?: string, cloudy = false): THREE.Material {
+  const key = liquidMaterialKey(colorId, cloudy);
+  if (ctx.liquidMaterialKey === key && ctx.currentLiquidMaterial) return ctx.currentLiquidMaterial;
+  if (ctx.liquidMaterialKey) ctx.notes.dropMat(ctx.liquidMaterialKey);
+  const material = liquidMaterial(colorId, cloudy);
+  ctx.notes.noteMat(key);
+  ctx.liquidMaterialKey = key;
+  ctx.currentLiquidMaterial = material;
+  return material;
+}
+
 /** 容器液体层的公共更新路径（离散操作触发，非每帧）。 */
 function updateLiquidMesh(ctx: Ctx, fill: number, colorId?: string, cloudy?: number): void {
   if (!ctx.liquidSpec) return;
@@ -127,12 +154,16 @@ function updateLiquidMesh(ctx: Ctx, fill: number, colorId?: string, cloudy?: num
       ctx.ownedLiquid.geometry.dispose();
       ctx.ownedLiquid = undefined;
     }
+    if (ctx.liquidMaterialKey) {
+      ctx.notes.dropMat(ctx.liquidMaterialKey);
+      ctx.liquidMaterialKey = undefined;
+      ctx.currentLiquidMaterial = undefined;
+    }
     return;
   }
   const cloudyOn = (cloudy ?? 0) > 0.4;
   const geo = buildLiquidLathe(ctx.liquidSpec, fill);
-  const mat = liquidMaterial(colorId, cloudyOn);
-  ctx.notes.noteMat(`chem:liquid:${colorId ?? "pale"}:${cloudyOn ? "c" : "n"}`);
+  const mat = acquireLiquidMaterial(ctx, colorId, cloudyOn);
   if (ctx.ownedLiquid) {
     ctx.group.remove(ctx.ownedLiquid);
     ctx.ownedLiquid.geometry.dispose();
@@ -179,10 +210,11 @@ function buildGraduatedCylinder(ctx: Ctx): void {
   addMesh(ctx, glassPart(ctx, "chem:geo:cylinder", () => latheGeo(profile, 48)));
   // 前侧程序刻度条（演示刻度，非精确量具）。
   const stripMat = basicTextureMaterial(ctx, "chem:mat:cyl-scale");
-  if (!stripMat.map) {
-    stripMat.map = graduatedScaleTexture();
-    stripMat.needsUpdate = true;
-  }
+  stripMat.map = graduatedScaleTexture();
+  stripMat.needsUpdate = true;
+  // The texture is shared through the material cache. Retain one reference per
+  // model handle so removing the first cylinder cannot invalidate another map.
+  ctx.notes.noteTexture("chem:tex:graduated");
   const strip = new THREE.Mesh(
     acquireGeometry("chem:geo:cyl-scale", () => new THREE.CylinderGeometry(0.213, 0.213, 2.2, 24, 1, true, -0.55, 1.1)),
     stripMat,
@@ -363,7 +395,7 @@ function buildUTube(ctx: Ctx): void {
   for (const side of [-1, 1] as const) {
     const arm = new THREE.Mesh(
       acquireGeometry("chem:geo:utube-liquid", () => new THREE.CylinderGeometry(0.085, 0.085, 1, 18, 1)),
-      liquidMaterial(),
+      acquireLiquidMaterial(ctx),
     );
     ctx.notes.noteGeo("chem:geo:utube-liquid");
     arm.position.set(side * 0.42, 0.62, 0);
@@ -375,8 +407,7 @@ function buildUTube(ctx: Ctx): void {
     arms.push(arm);
   }
   ctx.specialLiquid = (fill, colorId, cloudy) => {
-    const mat = liquidMaterial(colorId, (cloudy ?? 0) > 0.4);
-    ctx.notes.noteMat(`chem:liquid:${colorId ?? "pale"}:${(cloudy ?? 0) > 0.4 ? "c" : "n"}`);
+    const mat = acquireLiquidMaterial(ctx, colorId, (cloudy ?? 0) > 0.4);
     for (const arm of arms) {
       arm.material = mat;
       if (fill > 0.02) {
@@ -462,7 +493,7 @@ function buildReservoir(ctx: Ctx): void {
   // 液体：内腔盒随 fill 缩放。
   const liquid = new THREE.Mesh(
     acquireGeometry("chem:geo:res-liquid", () => new THREE.BoxGeometry(1.28, 1, 0.86)),
-    liquidMaterial(),
+    acquireLiquidMaterial(ctx),
   );
   ctx.notes.noteGeo("chem:geo:res-liquid");
   liquid.renderOrder = 1;
@@ -470,8 +501,7 @@ function buildReservoir(ctx: Ctx): void {
   liquid.name = "liquid";
   ctx.group.add(liquid);
   ctx.specialLiquid = (fill, colorId, cloudy) => {
-    liquid.material = liquidMaterial(colorId, (cloudy ?? 0) > 0.4);
-    ctx.notes.noteMat(`chem:liquid:${colorId ?? "pale"}:${(cloudy ?? 0) > 0.4 ? "c" : "n"}`);
+    liquid.material = acquireLiquidMaterial(ctx, colorId, (cloudy ?? 0) > 0.4);
     if (fill > 0.02) {
       const h = 0.08 + 0.95 * Math.min(1, fill);
       liquid.scale.y = h;
@@ -708,11 +738,10 @@ function buildReagentBottle(ctx: Ctx): void {
   // 自创标签：色带 + 虚构演示短名（颜色即物料标识）。
   const colorId = getEquipmentSpec("reagent-bottle")?.defaultContents?.colorId ?? "teal";
   const labelMat = basicTextureMaterial(ctx, "chem:mat:reagent-label");
-  if (!labelMat.map) {
-    const names = REAGENT_NAMES[colorId] ?? REAGENT_NAMES.teal!;
-    labelMat.map = reagentLabelTexture(colorId, names[0], names[1]);
-    labelMat.needsUpdate = true;
-  }
+  const names = REAGENT_NAMES[colorId] ?? REAGENT_NAMES.teal!;
+  labelMat.map = reagentLabelTexture(colorId, names[0], names[1]);
+  labelMat.needsUpdate = true;
+  ctx.notes.noteTexture(`chem:tex:reagent:${colorId}`);
   const label = new THREE.Mesh(
     acquireGeometry("chem:geo:reagent-label", () => new THREE.CylinderGeometry(0.308, 0.308, 0.5, 24, 1, true, -0.7, 1.4)),
     labelMat,
@@ -773,7 +802,12 @@ export function createEquipmentModel(kind: string, opts: CreateModelOptions): Eq
     node.name = `port:${p.id}`;
     node.position.copy(v3(p.localPosition));
     node.quaternion.setFromUnitVectors(UP, v3(p.localDirection).normalize());
-    if (p.socketClass !== "liquid") node.add(portRingMesh(p.id, p.visualRadius));
+    if (p.socketClass !== "liquid") {
+      node.add(portRingMesh(p.id, p.visualRadius));
+      // portRingMesh uses the same ref-count registry as the rest of the model.
+      ctx.notes.noteGeo(`chem:port-ring:${p.visualRadius.toFixed(2)}`);
+      ctx.notes.noteMat(MAT.portRing);
+    }
     ctx.group.add(node);
     portNodes.set(p.id, node);
   }
@@ -786,26 +820,56 @@ export function createEquipmentModel(kind: string, opts: CreateModelOptions): Eq
     anchorNodes.set(id, node);
   }
 
-  // 拾取代理：按规格包围盒生成隐形命中体（与可视本体分离）。
-  const pickGeoKey = `chem:geo:pick:${kind}`;
-  const { width, depth, height } = spec.bounds;
-  const pick = new THREE.Mesh(
-    acquireGeometry(pickGeoKey, () => new THREE.BoxGeometry(width * 0.92, height * 0.94, depth * 0.92)),
-    sharedMaterial(MAT.pickProxy),
-  );
-  notes.noteGeo(pickGeoKey);
+  // 拾取代理：按规格生成隐形命中体（与可视本体分离）。普通器材用
+  // 紧缩包围盒；铁架台拆成底座 + 立杆，避免一整块空心盒子盖住后方的
+  // 烧瓶/冷凝管。Raycaster 只看到这些代理，不会把透明玻璃当成遮挡层。
+  const pickParts: THREE.Mesh[] = [];
+  const pickMaterial = sharedMaterial(MAT.pickProxy);
   notes.noteMat(MAT.pickProxy);
-  pick.position.y = height / 2;
-  pick.name = "pick-body";
-  pick.userData.pickRef = { kind: "equipment" };
-  ctx.group.add(pick);
+  const addPick = (mesh: THREE.Mesh, name: string): void => {
+    mesh.name = name;
+    mesh.userData.pickRef = { kind: "equipment" };
+    ctx.group.add(mesh);
+    pickParts.push(mesh);
+  };
+  if (kind === "stand") {
+    const baseH = spec.visualTuning?.baseH ?? 0.16;
+    const rail = spec.anchors.railBase ?? { x: -0.52, y: 0.22, z: -0.3 };
+    const baseKey = "chem:geo:pick:stand-base";
+    const base = new THREE.Mesh(
+      acquireGeometry(baseKey, () => new THREE.BoxGeometry(spec.bounds.width * 0.94, Math.max(0.22, baseH * 1.7), spec.bounds.depth * 0.94)),
+      pickMaterial,
+    );
+    notes.noteGeo(baseKey);
+    base.position.y = baseH * 0.85;
+    addPick(base, "pick-base");
+    const poleKey = "chem:geo:pick:stand-pole";
+    const poleHeight = Math.max(0.8, (spec.anchors.railTop?.y ?? 4.4) - rail.y);
+    const pole = new THREE.Mesh(
+      acquireGeometry(poleKey, () => new THREE.CylinderGeometry(0.16, 0.16, poleHeight, 12)),
+      pickMaterial,
+    );
+    notes.noteGeo(poleKey);
+    pole.position.set(rail.x, rail.y + poleHeight / 2, rail.z);
+    addPick(pole, "pick-pole");
+  } else {
+    const pickGeoKey = `chem:geo:pick:${kind}`;
+    const { width, depth, height } = spec.bounds;
+    const pick = new THREE.Mesh(
+      acquireGeometry(pickGeoKey, () => new THREE.BoxGeometry(width * 0.86, height * 0.9, depth * 0.86)),
+      pickMaterial,
+    );
+    notes.noteGeo(pickGeoKey);
+    pick.position.y = equipmentCenterY(spec);
+    addPick(pick, "pick-body");
+  }
 
   const handle: EquipmentModelHandle = {
     kind,
     group: ctx.group,
     portNodes,
     anchorNodes,
-    pickParts: [pick],
+    pickParts,
     update: (instance) => {
       const contents = instance.visualContents;
       if (ctx.specialLiquid) {

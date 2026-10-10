@@ -32,7 +32,6 @@ TARGETS: dict[str, str] = {
     "assistant": "app.schemas.assistant",
     "illustration": "app.schemas.illustration",
     "worksheet": "app.schemas.worksheet",
-    "chem_lab": "app.schemas.chem_lab",
 }
 
 _REF_RE = re.compile(r"^#/(?:definitions|\$defs)/(.+)$")

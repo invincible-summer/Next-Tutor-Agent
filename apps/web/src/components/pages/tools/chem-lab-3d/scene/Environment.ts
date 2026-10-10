@@ -1,12 +1,12 @@
 "use client";
 
 /**
- * 实验室舞台（plan §3.2）：有厚度的暖灰陶瓷台面 + 柜体、后方三层器材架（真实
+ * 实验室舞台（chem-lab architecture）：有厚度的暖灰陶瓷台面 + 柜体、后方三层器材架（真实
  * 3D 小物件）、浅雾灰墙面/地面、暖主光 + 冷边光 + 环境光。亮/暗主题只调整
  * 灯光基准与背景色，不改 design token。静态资源在实例内创建并随 dispose 释放。
  */
 import * as THREE from "three";
-import { sharedMaterial, MAT, releaseGeometry, roundedBoxOf } from "./EquipmentModels.ts";
+import { sharedMaterial, MAT, releaseGeometry, releaseMaterial, roundedBoxOf } from "./EquipmentModels.ts";
 import type { QualityTier } from "./SceneController.ts";
 
 interface ThemeConfig {
@@ -33,7 +33,7 @@ const THEMES: Record<"light" | "dark", ThemeConfig> = {
     hemiIntensity: 0.55, hemiSky: 0xfff6ea, hemiGround: 0x8b8578,
     rimIntensity: 0.5, rimColor: 0xcfe4ea,
     ledIntensity: 0.7,
-    wallColor: 0xd3d7d5, floorColor: 0x8f8a80, benchColor: 0xada69a,
+    wallColor: 0xd3d7d5, floorColor: 0x8f8a80, benchColor: 0xc4beb4,
   },
   dark: {
     background: 0x141a20, fogNear: 18, fogFar: 60,
@@ -69,7 +69,11 @@ export class LabEnvironment {
   private scene: THREE.Scene | null = null;
   private pendingBackground: THREE.Color | null = null;
   private pendingFog: THREE.Fog | null = null;
-  private readonly notes: string[] = [];
+  private readonly geometryKeys: string[] = [];
+  private readonly materialKeys: string[] = [];
+
+  private noteGeometry(key: string): void { this.geometryKeys.push(key); }
+  private noteMaterial(key: string): void { this.materialKeys.push(key); }
 
   constructor(tier: QualityTier) {
     this.tier = tier;
@@ -87,21 +91,24 @@ export class LabEnvironment {
     };
 
     // ── 台面（0.45 厚、圆角、金属包边、防滑条）───────────────────────────
-    this.benchMaterial = mkMat({ color: 0xb9b3a8, roughness: 0.5, metalness: 0.04 });
-    const benchTop = new THREE.Mesh(roundedBoxOf("env:bench-top", 17, 9, 0.45, 0.24), this.benchMaterial);
-    this.notes.push("env:bench-top");
+    this.benchMaterial = mkMat({ color: 0xc4beb4, roughness: 0.5, metalness: 0.04 });
+    // 纵深收至 7.8：前沿仍能看见柜体和金属包边，同时给工作器材留出完整
+    // 的上方视野；关卡器材最前 z=3.4 仍在台面安全范围内。
+    const benchDepth = 7.8;
+    const benchTop = new THREE.Mesh(roundedBoxOf("env:bench-top", 17, benchDepth, 0.45, 0.24), this.benchMaterial);
+    this.noteGeometry("env:bench-top");
     benchTop.position.y = -0.225;
     benchTop.receiveShadow = true;
     this.group.add(benchTop);
     // 前沿金属包边
     const trimMat = sharedMaterial(MAT.steel);
-    this.notes.push(MAT.steel);
+    this.noteMaterial(MAT.steel);
     const trim = new THREE.Mesh(mkGeo(new THREE.BoxGeometry(17, 0.07, 0.08)), trimMat);
-    trim.position.set(0, -0.1, 4.5);
+    trim.position.set(0, -0.1, benchDepth / 2);
     this.group.add(trim);
     // 墨绿金属防滑条（台前区，克制的两条）
     const stripMat = mkMat({ color: 0x2f4a44, roughness: 0.7, metalness: 0.35 });
-    for (const z of [3.15, 3.55]) {
+    for (const z of [2.75, 3.15]) {
       const strip = new THREE.Mesh(mkGeo(new THREE.BoxGeometry(15.6, 0.018, 0.1)), stripMat);
       strip.position.set(0, 0.012, z);
       strip.receiveShadow = true;
@@ -110,8 +117,8 @@ export class LabEnvironment {
 
     // ── 柜体（台面下方：门板、把手、脚轮的局部可见）──────────────────────
     const cabinetMat = mkMat({ color: 0x77716a, roughness: 0.62, metalness: 0.06 });
-    const cabinet = new THREE.Mesh(roundedBoxOf("env:cabinet", 16.2, 8.2, 2.3, 0.08), cabinetMat);
-    this.notes.push("env:cabinet");
+    const cabinet = new THREE.Mesh(roundedBoxOf("env:cabinet", 16.2, 7.2, 2.3, 0.08), cabinetMat);
+    this.noteGeometry("env:cabinet");
     cabinet.position.y = -0.45 - 1.15;
     cabinet.receiveShadow = true;
     cabinet.castShadow = true;
@@ -121,15 +128,15 @@ export class LabEnvironment {
     handleGeo.rotateZ(Math.PI / 2);
     for (let i = 0; i < 4; i++) {
       const door = new THREE.Mesh(mkGeo(new THREE.BoxGeometry(3.7, 1.9, 0.05)), doorMat);
-      door.position.set(-6.05 + i * 4.03, -1.6, 4.14);
+      door.position.set(-6.05 + i * 4.03, -1.6, 3.6);
       this.group.add(door);
       const handle = new THREE.Mesh(handleGeo, trimMat);
-      handle.position.set(-6.05 + i * 4.03 + (i < 2 ? 1.5 : -1.5), -1.35, 4.2);
+      handle.position.set(-6.05 + i * 4.03 + (i < 2 ? 1.5 : -1.5), -1.35, 3.66);
       this.group.add(handle);
     }
     const casterGeo = mkGeo(new THREE.CylinderGeometry(0.09, 0.09, 0.12, 12));
     for (const x of [-7.6, -2.6, 2.6, 7.6]) {
-      for (const z of [-3.4, 3.4]) {
+      for (const z of [-2.8, 2.8]) {
         const caster = new THREE.Mesh(casterGeo, trimMat);
         caster.position.set(x, -2.9, z);
         this.group.add(caster);
@@ -205,7 +212,7 @@ export class LabEnvironment {
   ): void {
     const rackZ = -5.7;
     const columnMat = sharedMaterial(MAT.steel);
-    this.notes.push(MAT.steel);
+    this.noteMaterial(MAT.steel);
     const columnGeo = mkGeo(new THREE.CylinderGeometry(0.06, 0.06, 6.4, 12));
     for (const x of [-7.1, -2.5, 2.5, 7.1]) {
       for (const dz of [-0.5, 0.5]) {
@@ -243,7 +250,7 @@ export class LabEnvironment {
     shelfYs: number[],
   ): void {
     const glassMat = sharedMaterial(MAT.glassPlain);
-    this.notes.push(MAT.glassPlain);
+    this.noteMaterial(MAT.glassPlain);
     const rand = seeded(20261010);
     const top = (y: number) => y + 0.045;
 
@@ -259,6 +266,7 @@ export class LabEnvironment {
         bottle.position.set(x, top(shelfYs[level]!) + 0.46, rackZ - 0.12);
         bottle.renderOrder = 2;
         this.group.add(bottle);
+        this.noteMaterial(MAT.plasticDark);
         const cap = new THREE.Mesh(capGeo, sharedMaterial(MAT.plasticDark));
         cap.position.set(x, top(shelfYs[level]!) + 0.97, rackZ - 0.12);
         this.group.add(cap);
@@ -269,7 +277,7 @@ export class LabEnvironment {
     }
     // 试管格栅（一层右段）。
     const rackBox = new THREE.Mesh(mkGeo(new THREE.BoxGeometry(1.5, 0.12, 0.55)), sharedMaterial(MAT.oak));
-    this.notes.push(MAT.oak);
+    this.noteMaterial(MAT.oak);
     rackBox.position.set(4.6, top(shelfYs[0]!) + 0.05, rackZ + 0.05);
     this.group.add(rackBox);
     const tubeGeo = mkGeo(new THREE.CylinderGeometry(0.055, 0.055, 1.1, 10));
@@ -281,7 +289,7 @@ export class LabEnvironment {
     }
     // 软管卷（二层右段）：三圈堆叠的半透明卷。
     const hoseMat = sharedMaterial(MAT.hose);
-    this.notes.push(MAT.hose);
+    this.noteMaterial(MAT.hose);
     const coilGeo = mkGeo(new THREE.TorusGeometry(0.42, 0.085, 10, 30));
     for (let i = 0; i < 3; i++) {
       const coil = new THREE.Mesh(coilGeo, hoseMat);
@@ -292,13 +300,13 @@ export class LabEnvironment {
     }
     // 接头盒（三层左段）+ 备用圆底烧瓶（三层中段）。
     const tray = new THREE.Mesh(mkGeo(new THREE.BoxGeometry(1.3, 0.07, 0.7)), sharedMaterial(MAT.plastic));
-    this.notes.push(MAT.plastic);
+    this.noteMaterial(MAT.plastic);
     tray.position.set(-6.2, top(shelfYs[2]!) + 0.035, rackZ + 0.05);
     this.group.add(tray);
     const stubGeo = mkGeo(new THREE.CylinderGeometry(0.05, 0.05, 0.16, 10));
     for (let i = 0; i < 5; i++) {
       const stub = new THREE.Mesh(stubGeo, sharedMaterial(MAT.brass));
-      this.notes.push(MAT.brass);
+      this.noteMaterial(MAT.brass);
       stub.position.set(-6.6 + i * 0.22, top(shelfYs[2]!) + 0.15, rackZ + (i % 2 === 0 ? -0.1 : 0.12));
       this.group.add(stub);
     }
@@ -355,7 +363,8 @@ export class LabEnvironment {
 
   dispose(): void {
     this.group.removeFromParent();
-    for (const key of this.notes) releaseGeometry(key);
+    for (const key of this.geometryKeys) releaseGeometry(key);
+    for (const key of this.materialKeys) releaseMaterial(key);
     for (const geo of this.ownedGeometries) geo.dispose();
     for (const mat of this.ownedMaterials) mat.dispose();
   }
