@@ -1,3 +1,4 @@
+// 过渡期：旧引擎导出与新的 3D 实验台文档层并存；旧实现在集成收尾时整树移除。
 export * from "./units.ts";
 export * from "./model.ts";
 export * from "./reaction.ts";
@@ -7,3 +8,10 @@ export * from "./projection.ts";
 export * from "./reducer.ts";
 export * from "./guidance.ts";
 export * from "./replay.ts";
+// 新 3D 化学实验台（纯前端娱乐玩具）公开面。
+export * from "./types.ts";
+export * from "./equipment.ts";
+export * from "./graph.ts";
+export * from "./document.ts";
+export * from "./stages.ts";
+export * from "./storage-schema.ts";
