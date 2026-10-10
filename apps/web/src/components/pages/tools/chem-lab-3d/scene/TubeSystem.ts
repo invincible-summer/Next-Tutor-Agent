@@ -96,12 +96,13 @@ export class TubeSystem {
     this.tubes.set(spec.id, { mesh, sleeveA, sleeveB, curve, radius });
   }
 
-  /** 端点随动（器材拖动/挂载调整）：只重建该管几何并释放旧独有几何。 */
-  updateTube(id: string, a: TubePortAnchor, b: TubePortAnchor, slack: number): void {
+  /** 端点随动（器材拖动/挂载调整）：只重建该管几何并释放旧独有几何。
+   *  拖动期 preview=true 用 16 段低成本更新，松手后以 36 段精修（plan §4.3）。 */
+  updateTube(id: string, a: TubePortAnchor, b: TubePortAnchor, slack: number, preview = false): void {
     const entry = this.tubes.get(id);
     if (!entry) return;
     const curve = tubeCurveFor(a, b, slack);
-    const geometry = new THREE.TubeGeometry(curve, 36, entry.radius, 10, false);
+    const geometry = new THREE.TubeGeometry(curve, preview ? 16 : 36, entry.radius, 10, false);
     entry.mesh.geometry.dispose();
     entry.mesh.geometry = geometry;
     entry.curve = curve;

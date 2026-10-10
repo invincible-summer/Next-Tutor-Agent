@@ -14,7 +14,12 @@ const qTiltZ = (a: number): Quat => [0, 0, Math.sin(a / 2), Math.cos(a / 2)];
 function eq(id: string, kind: string, x: number, z: number, yaw = 0): EquipmentInstance {
   return { id, kind, pose: { position: v(x, 0, z), rotation: qYaw(yaw) }, controls: {} };
 }
-/** 挂载到铁架台的器材：localPose 相对支架原点（支架原点在其底面中心）。 */
+/**
+ * 挂载到铁架台的器材：localPose 相对支架原点（支架底面中心）。
+ * 铁架立杆在支架局部 (-0.52, ·, -0.3)，夹爪朝 +X 伸出 0.75 让玻璃体让开立杆，夹持点即 (+0.23, ·, -0.3)；
+ * 因此 localPose.position = (0.23, 夹持高度 h − clampPoint.y, -0.3 − clampPoint.z …)，
+ * 即夹持点对齐器材的 clampPoint 锚点，瓶体悬在杆前方而不是与立杆相交。
+ */
 function mounted(id: string, kind: string, parent: string, x: number, y: number, z: number, tiltZ = 0): EquipmentInstance {
   const rotation = qTiltZ(tiltZ);
   const localPose = { position: v(x, y, z), rotation };
@@ -45,10 +50,10 @@ const bubbleRelay: StageDefinition = {
   assembledTemplate: {
     equipment: [
       eq("stand-1", "stand", -6.0, 0.9),
-      mounted("flask-1", "flask-round", "stand-1", -0.52, 1.42, -0.18),
+      mounted("flask-1", "flask-round", "stand-1", 0.23, 1.43, -0.3),
       eq("wash-1", "washing-bottle", -2.9, -1.5),
       eq("stand-2", "stand", -0.5, -2.3),
-      mounted("wash-2", "washing-bottle", "stand-2", 0.3, 0, 0.05),
+      mounted("wash-2", "washing-bottle", "stand-2", 0.23, 1.05, -0.3),
       eq("valve-1", "valve", 1.3, 0.1),
       eq("u-1", "u-tube", 2.7, 1.2),
       eq("collect-1", "gas-collecting-bottle", 4.7, -0.5),
@@ -87,16 +92,16 @@ const silverCondenser: StageDefinition = {
   assembledTemplate: {
     equipment: [
       eq("stand-1", "stand", -5.7, 0.5),
-      mounted("flask-1", "flask-round", "stand-1", -0.52, 1.5, -0.3),
-      eq("lamp-1", "alcohol-lamp", -6.22, 0.2),
+      mounted("flask-1", "flask-round", "stand-1", 0.23, 1.48, -0.3),
+      eq("lamp-1", "alcohol-lamp", -5.8, 0.2),
       eq("stand-2", "stand", -2.1, -1.5),
-      mounted("cond-1", "condenser-coil", "stand-2", -0.52, 2.1, 0.15, -0.32),
+      mounted("cond-1", "condenser-coil", "stand-2", 0.23, 2.1, -0.3, -0.32),
       eq("valve-1", "valve", 1.0, -0.35, 0.2),
       eq("tee-1", "tee", 2.3, -0.3),
       eq("beaker-a", "beaker", 3.2, 0.55),
       eq("beaker-b", "beaker", 3.4, -1.95),
-      eq("pump-1", "pump", 1.3, 2.7, Math.PI),
-      eq("beaker-c", "beaker", 3.3, 2.5),
+      eq("pump-1", "pump", -4.8, -3.2, 0.9),
+      eq("beaker-c", "beaker", -2.6, -3.4),
     ],
     connections: [
       cn("cn-1", "flask-1", "neck", "cond-1", "vaporIn", "glass"),
@@ -136,7 +141,7 @@ const chromaticLoop: StageDefinition = {
       eq("tee-1", "tee", -1.5, 1.1),
       eq("valve-a", "valve", -0.3, 2.2),
       eq("stand-1", "stand", 1.6, 3.3),
-      mounted("sphere-1", "observation-sphere", "stand-1", -0.35, 1.05, 0.25),
+      mounted("sphere-1", "observation-sphere", "stand-1", 0.23, 1.9, -0.3),
       eq("valve-b", "valve", 0.1, -0.7),
       eq("coil-1", "condenser-straight", 2.1, -1.9, 1.57),
       eq("cross-1", "cross", 4.1, 0.2),
@@ -179,13 +184,13 @@ const crystalRain: StageDefinition = {
   assembledTemplate: {
     equipment: [
       eq("stand-a", "stand", -3.6, -1.9),
-      mounted("res-a", "reservoir", "stand-a", -0.5, 2.95, 0.12),
+      mounted("res-a", "reservoir", "stand-a", 0.23, 2.95, 0.12),
       eq("stand-b", "stand", 3.1, -1.9),
-      mounted("res-b", "reservoir", "stand-b", -0.5, 2.95, 0.12),
+      mounted("res-b", "reservoir", "stand-b", 0.23, 2.95, 0.12),
       eq("valve-a", "valve", -2.0, 0.4),
       eq("valve-b", "valve", 1.7, 0.4),
       eq("stand-c", "stand", 0, -0.9),
-      mounted("mix-1", "y-mixer", "stand-c", -0.45, 2.85, 0.1),
+      mounted("mix-1", "y-mixer", "stand-c", 0.23, 2.95, -0.3),
       eq("settle-1", "settling-bottle", 0.7, 1.6),
       eq("cup-top", "beaker", 3.2, 1.7),
       eq("tray-low", "beaker", -1.5, 1.8),
@@ -228,7 +233,7 @@ const pulseTheatre: StageDefinition = {
       eq("tee-1", "tee", -2.5, -0.1),
       eq("valve-m", "valve", -1.3, 1.0),
       eq("stand-1", "stand", 0.7, 2.2),
-      mounted("sphere-1", "observation-sphere", "stand-1", -0.4, 1.15, 0.3),
+      mounted("sphere-1", "observation-sphere", "stand-1", 0.23, 1.9, -0.3),
       eq("expand-1", "expansion-ball", 3.1, -1.3),
       eq("collect-1", "gas-collecting-bottle", 5.2, 0.3),
       eq("valve-t", "valve", -1.7, -1.9),

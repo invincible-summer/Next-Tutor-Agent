@@ -1,18 +1,20 @@
 "use client";
 
 /**
- * 3D 视口容器（plan §2.1）：client-only 生命周期，持有唯一的
- * ChemSceneController + LabEnvironment；WebGL2 不可用或上下文丢失时给出
- * 明确降级说明与返回目录入口，绝不黑屏。
+ * 统一 canvas 容器（plan §2/§7.1）：client-only 生命周期持有者。
+ * host 节点只包含 WebGL canvas——交互层在 host 上挂捕获监听并独占对象手势，
+ * HUD/气泡/提示等 DOM 覆盖层必须是 host 的兄弟节点，避免把 UI 点击当成
+ * 场景指针事件。WebGL2 不可用→降级说明+返回目录；contextlost 短提示。
  */
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { ChemSceneController } from "./scene/SceneController.ts";
+import { ChemSceneController, type QualityTier } from "./scene/SceneController.ts";
 import { LabEnvironment } from "./scene/Environment.ts";
 
 export interface SceneBundle {
   controller: ChemSceneController;
   environment: LabEnvironment;
+  tier: QualityTier;
 }
 
 export function SceneViewport(props: {
@@ -20,14 +22,14 @@ export function SceneViewport(props: {
   onScene?: (bundle: SceneBundle | null) => void;
   onContextLost?: () => void;
   onContextRestored?: () => void;
-  strings: { webglFailed: string; webglFailedHint: string; backToCatalog: string; contextLost: string };
-  children?: ReactNode;
+  strings: { webglFailed: string; webglFailedHint: string; backToCatalog: string; contextLost: string; loading: string };
+  children?: React.ReactNode;
 }) {
-  const hostRef = useRef<HTMLDivElement>(null);
+  const hostRef = useRef<HTMLDivElement | null>(null);
+  const bundleRef = useRef<SceneBundle | null>(null);
   const [bundle, setBundle] = useState<SceneBundle | null>(null);
   const [failed, setFailed] = useState(false);
   const [lost, setLost] = useState(false);
-  const bundleRef = useRef<SceneBundle | null>(null);
   const { onScene, onContextLost, onContextRestored } = props;
 
   useEffect(() => {
@@ -50,8 +52,7 @@ export function SceneViewport(props: {
     });
     const environment = new LabEnvironment(controller.tier);
     environment.attach(controller.scene);
-    const next: SceneBundle = { controller, environment };
-    bundleRef.current = next;
+    const next: SceneBundle = { controller, environment, tier: controller.tier };
     // 调试/e2e 探针（只读）：质量档、阴影、相机与场景统计。
     (window as unknown as { __chemLabDebug?: unknown }).__chemLabDebug = {
       controller,
@@ -59,6 +60,7 @@ export function SceneViewport(props: {
       tier: controller.tier,
     };
     const readyTimer = window.setTimeout(() => {
+      bundleRef.current = next;
       setBundle(next);
       onScene?.(next);
     }, 0);
@@ -81,6 +83,7 @@ export function SceneViewport(props: {
     current.environment.applyTheme(props.dark);
     // 玻璃/金属的环境反射基准随主题收放：暗色下保持轮廓可辨。
     current.controller.scene.environmentIntensity = props.dark ? 0.32 : 0.55;
+    current.controller.invalidate();
   }, [bundle, props.dark]);
 
   if (failed) {
@@ -96,11 +99,14 @@ export function SceneViewport(props: {
   }
 
   return (
-    <div ref={hostRef} className="chem-scene-viewport">
+    <div className="chem-scene-viewport">
+      <div ref={hostRef} className="chem-scene-host" />
       {lost && (
         <div className="chem-scene-lost" role="status">{props.strings.contextLost}</div>
       )}
-      {props.children}
+      {bundle ? props.children : (
+        <div className="chem-workbench-loading" aria-busy="true">{props.strings.loading}</div>
+      )}
     </div>
   );
 }

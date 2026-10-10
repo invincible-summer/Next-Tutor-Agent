@@ -217,8 +217,8 @@ const SPECS: EquipmentSpec[] = [
       port("b", v(0.28, 0.65, 0), v(0, 1, 0), "tube", 0.085),
       port("c", v(0, 0.12, 0.26), v(0, -0.45, 1), "tube", 0.085),
     ],
-    anchors: { mixZone: v(0, 0.3, 0) },
-    clampable: false, controls: [],
+    anchors: { mixZone: v(0, 0.3, 0), clampPoint: v(0, 0.35, 0) },
+    clampable: true, controls: [],
     internalEdges: [{ from: "a", to: "c" }, { from: "b", to: "c" }, { from: "a", to: "b" }, { from: "b", to: "a" }],
   },
   {

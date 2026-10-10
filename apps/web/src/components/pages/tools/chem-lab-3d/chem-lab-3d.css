@@ -8,12 +8,20 @@
   background: var(--color-bg, #f6f5f1);
 }
 
+/* host 只包含 canvas：交互层在 host 上挂捕获监听并独占对象手势，
+   一切 DOM 覆盖层（HUD/气泡/提示）必须是 host 的兄弟节点。 */
+.chem-scene-host {
+  position: absolute;
+  inset: 0;
+}
+
 .chem-scene-canvas {
   position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
   display: block;
+  touch-action: none;
 }
 
 /* WebGL 不可用降级页（内容层级清晰，不黑屏） */
@@ -94,24 +102,335 @@
   color: var(--color-fg-secondary, #5b5850);
 }
 
-/* Phase B 极简返回入口（Phase C 替换为完整 HUD） */
-.chem-workbench-back {
+/* ── 56px 沉浸顶栏（plan §0/§2）：静态按钮，不随拖动重排 ────────────────── */
+.chem-hud {
   position: absolute;
-  left: 14px;
-  top: 14px;
-  z-index: 4;
-  padding: 6px 14px;
-  border-radius: 999px;
-  font-size: 13px;
-  font-weight: 600;
-  text-decoration: none;
-  color: var(--color-fg, #26241f);
-  background: var(--color-surface, #fffefa);
-  border: 1px solid var(--color-border, #d8d4c8);
-  box-shadow: 0 2px 10px rgb(0 0 0 / 0.06);
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 12px;
+  z-index: 5;
+  pointer-events: none;
+  background: linear-gradient(to bottom, rgb(246 245 241 / 0.92), rgb(246 245 241 / 0));
 }
 
-.chem-workbench-back:hover {
+.dark .chem-hud {
+  background: linear-gradient(to bottom, rgb(20 26 32 / 0.92), rgb(20 26 32 / 0));
+}
+
+.chem-hud > * {
+  pointer-events: auto;
+}
+
+.chem-hud-back {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  border: 1px solid var(--color-border, #d8d4c8);
+  background: var(--color-surface, #fffefa);
+  color: var(--color-fg, #26241f);
+  box-shadow: 0 2px 8px rgb(0 0 0 / 0.05);
+}
+
+.chem-hud-back:hover {
   color: var(--color-accent, #256d66);
   border-color: var(--color-accent, #256d66);
+}
+
+.chem-hud-title {
+  margin: 0 8px 0 4px;
+  font-size: 14px;
+  font-weight: 650;
+  color: var(--color-fg, #26241f);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 30vw;
+}
+
+.chem-hud-dirty {
+  margin-left: 5px;
+  color: var(--color-accent, #256d66);
+  font-size: 16px;
+  line-height: 1;
+}
+
+.chem-hud-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+}
+
+.chem-hud-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 36px;
+  min-width: 36px;
+  padding: 0 12px;
+  border-radius: 10px;
+  border: 1px solid var(--color-border, #d8d4c8);
+  background: var(--color-surface, #fffefa);
+  color: var(--color-fg, #26241f);
+  font-size: 12.5px;
+  font-weight: 600;
+  box-shadow: 0 2px 8px rgb(0 0 0 / 0.05);
+  cursor: pointer;
+}
+
+.chem-hud-btn svg {
+  width: 15px;
+  height: 15px;
+}
+
+.chem-hud-btn:hover {
+  color: var(--color-accent, #256d66);
+  border-color: var(--color-accent, #256d66);
+}
+
+.chem-hud-btn.icon-only {
+  padding: 0;
+  justify-content: center;
+}
+
+.chem-hud-auto {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 36px;
+  padding: 0 16px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  background: var(--color-accent, #256d66);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  box-shadow: 0 3px 12px rgb(37 109 102 / 0.35);
+  cursor: pointer;
+}
+
+.chem-hud-auto svg {
+  width: 15px;
+  height: 15px;
+}
+
+.chem-hud-auto:hover {
+  filter: brightness(1.08);
+}
+
+.chem-hud-more {
+  position: relative;
+}
+
+.chem-hud-menu {
+  position: absolute;
+  top: 44px;
+  right: 0;
+  min-width: 168px;
+  display: flex;
+  flex-direction: column;
+  padding: 6px;
+  border-radius: 12px;
+  border: 1px solid var(--color-border, #d8d4c8);
+  background: var(--color-surface, #fffefa);
+  box-shadow: 0 8px 28px rgb(0 0 0 / 0.14);
+}
+
+.chem-hud-menu button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 38px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--color-fg, #26241f);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: left;
+}
+
+.chem-hud-menu button:hover {
+  background: rgb(37 109 102 / 0.08);
+  color: var(--color-accent, #256d66);
+}
+
+.chem-hud-menu svg {
+  width: 15px;
+  height: 15px;
+}
+
+/* 窄屏（plan §2 竖屏 360–430px）：次要操作收进 ⋯，AUTO/返回常驻 */
+@media (max-width: 640px) {
+  .chem-hud-actions {
+    display: none;
+  }
+  .chem-hud-title {
+    max-width: 38vw;
+  }
+}
+
+@media (min-width: 641px) {
+  .chem-hud-more {
+    display: none;
+  }
+}
+
+/* ── 器材气泡（world→screen 投影跟随；靠近边缘换边） ───────────────────── */
+.chem-popover {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 6;
+  min-width: 178px;
+  max-width: 210px;
+  padding: 8px;
+  border-radius: 12px;
+  border: 1px solid var(--color-border, #d8d4c8);
+  background: var(--color-surface, #fffefa);
+  box-shadow: 0 10px 32px rgb(0 0 0 / 0.16);
+  will-change: transform;
+}
+
+.chem-popover-title {
+  margin: 2px 6px 6px;
+  font-size: 13px;
+  font-weight: 650;
+  color: var(--color-fg, #26241f);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.chem-popover-subtitle {
+  margin: -4px 6px 6px;
+  font-size: 11.5px;
+  color: var(--color-fg-secondary, #5b5850);
+}
+
+.chem-popover-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.chem-popover-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 34px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--color-fg, #26241f);
+  font-size: 12.5px;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+
+.chem-popover-btn:hover {
+  background: rgb(37 109 102 / 0.08);
+  color: var(--color-accent, #256d66);
+}
+
+.chem-popover-btn.danger {
+  color: #a24040;
+}
+
+.chem-popover-btn.danger:hover {
+  background: rgb(162 64 64 / 0.08);
+  color: #8c3131;
+}
+
+.chem-popover-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  flex: none;
+  box-shadow: inset 0 0 0 1px rgb(0 0 0 / 0.12);
+}
+
+/* ── 底部瞬时提示（自动消失，最多一行） ─────────────────────────────────── */
+.chem-toast {
+  position: absolute;
+  left: 50%;
+  bottom: 26px;
+  transform: translateX(-50%);
+  z-index: 6;
+  max-width: min(84vw, 460px);
+  padding: 9px 18px;
+  border-radius: 999px;
+  border: 1px solid var(--color-border, #d8d4c8);
+  background: var(--color-surface, #fffefa);
+  color: var(--color-fg, #26241f);
+  font-size: 12.5px;
+  box-shadow: 0 6px 20px rgb(0 0 0 / 0.12);
+  pointer-events: none;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ── 本机存档列表（长表单走 Modal，不放页面卡片） ──────────────────────── */
+.chem-saves-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 52vh;
+  overflow-y: auto;
+}
+
+.chem-saves-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid var(--color-border, #d8d4c8);
+}
+
+.chem-saves-info {
+  min-width: 0;
+}
+
+.chem-saves-name {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-fg, #26241f);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.chem-saves-meta {
+  margin: 2px 0 0;
+  font-size: 11.5px;
+  color: var(--color-fg-secondary, #5b5850);
+}
+
+.chem-saves-ops {
+  display: flex;
+  gap: 4px;
+  flex: none;
+}
+
+.chem-saves-empty {
+  margin: 8px 4px;
+  font-size: 13px;
+  color: var(--color-fg-secondary, #5b5850);
 }

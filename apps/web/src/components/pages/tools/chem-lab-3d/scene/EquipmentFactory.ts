@@ -29,6 +29,7 @@ export interface EquipmentModelHandle {
   /** 由文档实例同步视觉状态（液量/颜色/阀门/指示灯）。 */
   update: (instance: EquipmentInstance) => void;
   setClawHeight?: (height: number) => void;
+  getClawHeight?: () => number;
   dispose: () => void;
 }
 
@@ -829,6 +830,7 @@ export function createEquipmentModel(kind: string, opts: CreateModelOptions): Eq
     handle.setClawHeight = (h: number) => {
       claw.position.y = Math.min(4.25, Math.max(0.5, h));
     };
+    handle.getClawHeight = () => claw.position.y;
   }
   return handle;
 }
