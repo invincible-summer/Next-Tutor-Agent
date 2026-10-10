@@ -8,7 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
-    "test:unit": "node --experimental-strip-types tests/unit/test-chem-lab-scene.mjs && node tests/unit/test-classroom-player.mjs && node tests/unit/test-i18n.mjs && node tests/unit/test-assistant-navigation.mjs && node tests/unit/test-demo-fetch.mjs && node tests/unit/test-illustration-enrichment.mjs && node --test tests/unit/test-e2e-runtime.mjs",
+    "test:unit": "node --experimental-strip-types tests/unit/test-chem-lab-scene.mjs && node tests/unit/test-classroom-player.mjs && node tests/unit/test-i18n.mjs && node tests/unit/test-assistant-navigation.mjs && node tests/unit/test-demo-fetch.mjs && node tests/unit/test-illustration-enrichment.mjs && node --experimental-strip-types tests/unit/test-math-workbench.mjs && node --experimental-strip-types tests/unit/test-math-workbench-file-state.mjs && node --test tests/unit/test-e2e-runtime.mjs",
     "check": "pnpm typecheck && pnpm lint && pnpm test:unit",
     "test:e2e": "node tests/e2e/support/run-e2e.mjs",
     "test:player": "node tests/unit/test-classroom-player.mjs",
@@ -36,6 +36,7 @@
     "rehype-katex": "^7.0.1",
     "remark-gfm": "^4.0.1",
     "remark-math": "^6.0.0",
+    "three": "0.186.1",
     "zustand": "^5.0.14"
   },
   "devDependencies": {
@@ -44,6 +45,7 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19.2.7",
+    "@types/three": "0.186.0",
     "eslint": "^9",
     "eslint-config-next": "16.3.8",
     "playwright": "1.63.0",

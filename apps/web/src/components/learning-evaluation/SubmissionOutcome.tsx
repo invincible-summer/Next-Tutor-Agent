@@ -6,6 +6,7 @@
 // 供 assessment（反馈阶段/总结行内）与 chat QuizCard 复用；状态文案统一
 // 走 evaluation-labels。
 import { Badge } from "@/components/ui/Badge";
+import { MiniMarkdown } from "@/components/chat/markdown";
 import { et, type Lang } from "@/lib/evaluation-labels";
 import { verdictTone } from "@/lib/labels";
 
@@ -68,24 +69,25 @@ export function SubmissionOutcome({
         ))}
       </div>
       {(fb?.improvement || data.taskResult?.first_error?.description) && (
-        <p className="mt-1.5 text-xs leading-relaxed text-fg-secondary">
+        <div className="mt-1.5 text-xs leading-relaxed text-fg-secondary">
           {data.taskResult?.first_error?.description && (
             <>
               <span className="font-medium text-danger">{t("首个错误：", "First error: ")}</span>
-              {data.taskResult.first_error.description}
+              <MiniMarkdown className="mini-md">{data.taskResult.first_error.description}</MiniMarkdown>
             </>
           )}
           {fb?.improvement && (
             <span className={data.taskResult?.first_error?.description ? "block" : ""}>
-              {fb.improvement}
+              <MiniMarkdown className="mini-md">{fb.improvement}</MiniMarkdown>
             </span>
           )}
-        </p>
+        </div>
       )}
       {fb?.next_step && (
-        <p className="mt-1 text-xs leading-relaxed text-accent-strong">
-          {t("下一步：", "Next step: ")}{fb.next_step}
-        </p>
+        <div className="mt-1 text-xs leading-relaxed text-accent-strong">
+          {t("下一步：", "Next step: ")}
+          <MiniMarkdown className="mini-md">{fb.next_step}</MiniMarkdown>
+        </div>
       )}
       {data.taskResult?.hypotheses?.length ? (
         <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
@@ -102,7 +104,7 @@ export function SubmissionOutcome({
           {taskOnly ? t("本题反馈", "Task feedback") : t("学习反馈", "Learning feedback")}
         </p>
         {learnerFb ? (
-          <p className="text-xs leading-relaxed text-fg">{learnerFb}</p>
+          <MiniMarkdown className="mini-md text-xs leading-relaxed text-fg">{learnerFb}</MiniMarkdown>
         ) : taskOnly ? (
           <p className="text-xs text-muted">{t("临时练习不计入学习评价。", "Temporary practice does not update your learning evaluation.")}</p>
         ) : evalStatus === "pending" ? (

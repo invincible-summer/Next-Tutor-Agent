@@ -84,6 +84,22 @@ export function CircuitLabMark(props: MarkProps) {
   );
 }
 
+/** 几何作图器：坐标纸上的点、切线与曲面等值线的原创笔画组合。 */
+export function GeometryWorkbenchMark(props: MarkProps) {
+  return (
+    <Mark title={props.title} {...props}>
+      <path d="M12 52h40M12 52V12" />
+      <path d="M16 44c6-18 14-28 24-30" />
+      <path d="M28 33c4-3 9-4 13-2" />
+      <circle cx="28" cy="33" r="2.6" fill="currentColor" stroke="none" />
+      <circle cx="41" cy="31" r="2.6" fill="currentColor" stroke="none" />
+      <path d="M24 18c8-2 16 2 20 10" opacity=".5" />
+      <circle cx="44" cy="44" r="5" opacity=".7" />
+      <path d="M10 58h44" opacity=".38" />
+    </Mark>
+  );
+}
+
 export function MaterialAtlasMark(props: MarkProps) {
   return (
     <Mark title={props.title} {...props}>

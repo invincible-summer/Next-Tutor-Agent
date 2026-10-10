@@ -8,3 +8,4 @@ export * from "./graph-layout.ts";
 export * from "./labels.ts";
 export * from "./chem-lab/index.ts";
 export * from "./electrical-lab/index.ts";
+export * from "./math-workbench/index.ts";

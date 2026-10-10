@@ -39,7 +39,7 @@ test("complete example showcase works with only a static file server", async ({ 
   await page.getByRole("button", { name: "收起导航", exact: true }).click();
   await expect(rail).toHaveCSS("width", "60px");
 
-  const paths = ["/", "/account/", "/admin/", "/archive/", "/assessment/", "/chat/", "/course/", "/dashboard/", "/docs/", "/insights/", "/knowledge/", "/memory/", "/notes/", "/orchestration/", "/plan/", "/profile/", "/resources/files/", "/resources/textbooks/", "/settings/",
+  const paths = ["/", "/account/", "/admin/", "/archive/", "/assessment/", "/chat/", "/course/", "/dashboard/", "/docs/", "/insights/", "/knowledge/", "/memory/", "/notes/", "/orchestration/", "/plan/", "/profile/", "/resources/files/", "/resources/textbooks/", "/settings/", "/tools/", "/tools/geometry/",
     ...manifest.routes.sessions.map((id: string) => `/chat/${encodeURIComponent(id)}/`),
     ...manifest.routes.notes.map((id: string) => `/notes/${encodeURIComponent(id)}/`),
     ...manifest.routes.workspaces.map((id: string) => `/workspaces/${encodeURIComponent(id)}/classroom/`),

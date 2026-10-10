@@ -1,5 +1,6 @@
 "use client";
 import { Badge } from "@/components/ui/Badge";
+import { MiniMarkdown } from "@/components/chat/markdown";
 import { useUIStore } from "@/lib/store";
 import { localeFor, type Lang } from "@/lib/i18n";
 import { verdictTone } from "@/lib/labels";
@@ -52,7 +53,9 @@ export function RecentAnswersCard({
                 <div className="truncate text-sm text-fg">
                   {r.knowledge_point || r.topic || r.stem}
                 </div>
-                <div className="mt-0.5 truncate text-[11px] text-muted">{r.stem}</div>
+                <div className="mt-0.5 truncate text-[11px] text-muted">
+                  <MiniMarkdown className="mini-md">{r.stem}</MiniMarkdown>
+                </div>
               </div>
               <div className="shrink-0 text-right">
                 <div className="tnum text-[11px] text-muted">{fmtIso(r.ts, lang)}</div>

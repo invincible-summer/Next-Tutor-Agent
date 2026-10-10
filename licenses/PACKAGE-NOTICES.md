@@ -105,6 +105,7 @@ It is not a binary or container attestation. Original bytes are retained under `
 | `npm:@babel/traverse` | 7.29.8 | MIT | installed-package | [117da2af0d](texts/117da2af0d4ce0fe1c8e19b5cff9dcd806adf973d328d27b11d4448c4ff24f76.txt) |
 | `npm:@babel/types` | 7.29.8 | MIT | installed-package | [117da2af0d](texts/117da2af0d4ce0fe1c8e19b5cff9dcd806adf973d328d27b11d4448c4ff24f76.txt) |
 | `npm:@bcoe/v8-coverage` | 0.2.3 | MIT | installed-package | [1a9c55b296](texts/1a9c55b2961f5e3062e181fa55666c44d011fc3cc03ed6d4fa4321c51f2a5ec5.txt) · [98d226d560](texts/98d226d560dfbb0a07a77c3654acc18ba6c87589c48cf00cb2a9855ad50fcd07.txt) |
+| `npm:@dimforge/rapier3d-compat` | 0.12.0 | Apache-2.0 | installed-package | [4c05555705](texts/4c05555705e3efde601fb1252ae48f1d63992af8a8fb8947745b7fa834e8f519.txt) |
 | `npm:@egjs/hammerjs` | 2.0.17 | MIT | installed-package | [68e3fbc879](texts/68e3fbc87924b2ca7f6a10d52be2ee83e86f7d2f28e74f343795e8f9e58f3ec1.txt) |
 | `npm:@emnapi/core` | 1.10.0 | MIT | registry-artifact;not-installed | [2088f55c67](texts/2088f55c6731498410b20c95ebd345ed4a4a800bf74c0fba4d282fd2a021daaa.txt) |
 | `npm:@emnapi/runtime` | 1.10.0 | MIT | registry-artifact;not-installed | [2088f55c67](texts/2088f55c6731498410b20c95ebd345ed4a4a800bf74c0fba4d282fd2a021daaa.txt) |
@@ -300,6 +301,7 @@ It is not a binary or container attestation. Original bytes are retained under `
 | `npm:@tanstack/react-query` | 5.104.1 | MIT | installed-package | [a405ee70c6](texts/a405ee70c632bb938acb7ac5f210e814409b3760ea9d2329d8ed8ffcfd11a0e7.txt) |
 | `npm:@testing-library/react-native` | 14.0.1 | MIT | installed-package | [7252e9bc5e](texts/7252e9bc5eba33ff2b205f12c581fde208fa92c94ae8dac36d8167b648ad622c.txt) |
 | `npm:@tootallnate/once` | 2.0.1 | MIT | installed-package | [737a723fe0](texts/737a723fe0ef2b0e337e330b9f42f6b9f50d13d9b1087c2b2c6fc2486b68f8c2.txt) |
+| `npm:@tweenjs/tween.js` | 23.1.3 | MIT | installed-package | [c95fecd88f](texts/c95fecd88f2709bfc34e4d1f1ccc36d17048990e6ba26c283cfecdef0432936b.txt) |
 | `npm:@tybys/wasm-util` | 0.10.4 | MIT | registry-artifact;not-installed | [09e436100b](texts/09e436100bf926e78df875ec80cf3d0c643dfec779b52cfe2aa96afa0de714cb.txt) |
 | `npm:@types/babel__core` | 7.20.5 | MIT | installed-package | [c2cfccb812](texts/c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383.txt) |
 | `npm:@types/babel__generator` | 7.27.0 | MIT | installed-package | [c2cfccb812](texts/c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383.txt) |
@@ -328,9 +330,12 @@ It is not a binary or container attestation. Original bytes are retained under `
 | `npm:@types/react` | 19.2.18 | MIT | installed-package | [c2cfccb812](texts/c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383.txt) |
 | `npm:@types/react` | 19.3.0 | MIT | installed-package | [c2cfccb812](texts/c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383.txt) |
 | `npm:@types/stack-utils` | 2.0.3 | MIT | installed-package | [c2cfccb812](texts/c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383.txt) |
+| `npm:@types/stats.js` | 0.17.4 | MIT | installed-package | [c2cfccb812](texts/c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383.txt) |
+| `npm:@types/three` | 0.186.0 | MIT | installed-package | [c2cfccb812](texts/c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383.txt) |
 | `npm:@types/tough-cookie` | 4.0.5 | MIT | installed-package | [c2cfccb812](texts/c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383.txt) |
 | `npm:@types/unist` | 2.0.11 | MIT | installed-package | [c2cfccb812](texts/c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383.txt) |
 | `npm:@types/unist` | 3.0.3 | MIT | installed-package | [c2cfccb812](texts/c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383.txt) |
+| `npm:@types/webxr` | 0.5.24 | MIT | installed-package | [c2cfccb812](texts/c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383.txt) |
 | `npm:@types/yargs-parser` | 21.0.3 | MIT | installed-package | [c2cfccb812](texts/c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383.txt) |
 | `npm:@types/yargs` | 17.0.35 | MIT | installed-package | [c2cfccb812](texts/c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383.txt) |
 | `npm:@typescript-eslint/eslint-plugin` | 8.71.0 | MIT | installed-package | [2eb5c7a0bb](texts/2eb5c7a0bba9deb77a98c81bf6b9d3fb1c67118eebf968b6b1a787b3f8928ee0.txt) |
@@ -630,6 +635,7 @@ It is not a binary or container attestation. Original bytes are retained under `
 | `npm:fb-watchman` | 2.0.2 | Apache-2.0 | installed-package | Pending artifact evidence |
 | `npm:fdir` | 6.5.0 | MIT | installed-package | [9a39f2aada](texts/9a39f2aadab11a3697edd668ff2d8ad885b649737b7ab4d3bf12b34e5ada0c86.txt) |
 | `npm:fetch-nodeshim` | 0.4.10 | MIT | installed-package | [540c425a30](texts/540c425a30eea428eb24cc9d6884982783eb89403f443db1a4ad61eb78003f04.txt) |
+| `npm:fflate` | 0.8.3 | MIT | installed-package | [0a1df3a083](texts/0a1df3a083d0c010560aa342e87959c8c1070e6fd54545741f083f22d0c8b551.txt) |
 | `npm:file-entry-cache` | 8.0.0 | MIT | installed-package | [a0e2f73971](texts/a0e2f73971f663b49d3c66cc6749fc88de0f475680ccf5b980a9cbcc0c52490f.txt) |
 | `npm:fill-range` | 7.1.1 | MIT | installed-package | [35bdd8a443](texts/35bdd8a44339719441900fb50fbefc5e2dca1ca662cbaed7a687de842c8b70f2.txt) |
 | `npm:filter-obj` | 1.1.0 | MIT | installed-package | [6fb9754611](texts/6fb9754611c20f6649f68805e8c990e83261f29316e29de9e6cedae607b8634c.txt) |
@@ -877,6 +883,7 @@ It is not a binary or container attestation. Original bytes are retained under `
 | `npm:merge-options` | 3.0.4 | MIT | installed-package | [3bdd8ad524](texts/3bdd8ad524e991a3935c66486592544527d3155e027f7645aac8483f4a8f821c.txt) |
 | `npm:merge-stream` | 2.0.0 | MIT | installed-package | [2cee71bf46](texts/2cee71bf4612fc2efe1c6261e3f2b21f3c7259ef8a4f3593b095ae7a7bd65ad9.txt) |
 | `npm:merge2` | 1.4.1 | MIT | installed-package | [b2590e53ea](texts/b2590e53ea6e050512c3993bfc746c394bbba9242fd6909245201bdc1dc6862a.txt) |
+| `npm:meshoptimizer` | 1.1.1 | MIT | installed-package | [f03037ca7b](texts/f03037ca7bad1e3eb7f4a63fa6084a8baabd5ba30d3c239a9a7f35705d873e26.txt) |
 | `npm:metro-babel-transformer` | 0.84.5 | MIT | installed-package | Pending artifact evidence |
 | `npm:metro-babel-transformer` | 0.84.6 | MIT | installed-package | Pending artifact evidence |
 | `npm:metro-cache-key` | 0.84.5 | MIT | installed-package | Pending artifact evidence |
@@ -1182,6 +1189,7 @@ It is not a binary or container attestation. Original bytes are retained under `
 | `npm:terser` | 5.51.2 | BSD-2-Clause | installed-package | [901d0a7fca](texts/901d0a7fcaccaae9917d165039c0473c354e5da2e0e94140dde67aad9ffb19da.txt) |
 | `npm:test-exclude` | 6.0.0 | ISC | installed-package | [365496ca1f](texts/365496ca1f56da40b23c9815fc40fa9005847b2f8f8fd1c1a4929ef25ec8cd1d.txt) |
 | `npm:test-renderer` | 1.2.0 | MIT | installed-package | Pending artifact evidence |
+| `npm:three` | 0.186.1 | MIT | installed-package | [8b378ebe60](texts/8b378ebe60e2fe500158cb0ac71cb5e8b7d92953c2abcc63a0eb90499653b5bc.txt) |
 | `npm:throat` | 5.0.0 | MIT | installed-package | [e21b0992cd](texts/e21b0992cd8a2e8bf3e5f2f1b392daccab5d27386fcf2bc25e336c4161b5d1f9.txt) |
 | `npm:tinyglobby` | 0.2.17 | MIT | installed-package | [22c68811e1](texts/22c68811e174cbbfb3813d4135918df4f540959c14d872e601d9abe83d3cde8f.txt) |
 | `npm:tmpl` | 1.0.5 | BSD-3-Clause | installed-package | [efd6f9e708](texts/efd6f9e708b909de1a18730b90fb6394a3125680ac2f98a87cd23d1a0c93afa2.txt) |

@@ -6,6 +6,7 @@ import Link from "next/link";
 import { ChevronRight, ClipboardList } from "lucide-react";
 import { Card, CardHeader } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
+import { MiniMarkdown } from "@/components/chat/markdown";
 import { EmptyState, ErrorNote, Skeleton } from "@/components/ui/EmptyState";
 import { Pager, paged, pageCount } from "@/components/ui/Pager";
 import { dt, verdictTone } from "@/lib/labels";
@@ -37,7 +38,7 @@ function RecentRow({
   const body = (
     <>
       <div className="min-w-0 flex-1">
-        <div className="truncate text-sm text-fg">{q.stem}</div>
+        <div className="line-clamp-2 text-sm text-fg"><MiniMarkdown className="mini-md">{q.stem}</MiniMarkdown></div>
         <div className="mt-0.5 flex items-center gap-2 text-xs text-muted">
           <span className="truncate">{q.knowledge_point || q.topic || "—"}</span>
           <span className="tnum shrink-0">{fmtIso(q.ts, lang)}</span>

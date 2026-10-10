@@ -5,7 +5,7 @@ import { useMemo } from "react";
 import type { ReactNode } from "react";
 import { useUIStore } from "@/lib/store";
 import { makePageT } from "@/lib/i18n-page";
-import { ChemLabMark, CircuitLabMark, ExportMark, PaperCompilerMark, SceneWeaveMark } from "@/components/pages/tools/ToolMarks";
+import { ChemLabMark, CircuitLabMark, ExportMark, GeometryWorkbenchMark, PaperCompilerMark, SceneWeaveMark } from "@/components/pages/tools/ToolMarks";
 import { STRINGS } from "./strings";
 
 const MODES = ["v1", "v2", "v3", "v4"] as const;
@@ -135,6 +135,25 @@ export default function ToolsPage() {
               ))}
             </div>
             <p className="mt-4 text-xs leading-5 text-muted">{tr("electricalLabHint")}</p>
+          </ToolEntry>
+
+          <ToolEntry
+            href="/tools/geometry"
+            testId="geometry-tool-entry"
+            mark={GeometryWorkbenchMark}
+            title={tr("geometryWorkbench")}
+            description={tr("geometryWorkbenchIntro")}
+            action={tr("openGeometryWorkbench")}
+            tone="terracotta"
+          >
+            <div className="grid grid-cols-3 gap-2">
+              {[tr("geometryFeat2d"), tr("geometryFeat3d"), tr("geometryFeatCalc")].map((feat) => (
+                <div key={feat} className="rounded-[10px] border border-border-light bg-bg px-3 py-2.5">
+                  <span className="block text-xs leading-5 text-fg-secondary">{feat}</span>
+                </div>
+              ))}
+            </div>
+            <p className="mt-4 text-xs leading-5 text-muted">{tr("geometryWorkbenchHint")}</p>
           </ToolEntry>
         </div>
       </div>

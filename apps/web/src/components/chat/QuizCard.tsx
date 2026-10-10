@@ -352,7 +352,7 @@ export function QuizQuestionCard({
       {/* 关键步骤提示（服务端量规派生；不含答案） */}
       {hint && !submitted && (
         <div className="mt-2 rounded-[8px] border border-warning/30 bg-warning/5 px-3 py-2">
-          <p className="whitespace-pre-wrap text-[0.75rem] leading-relaxed text-fg-secondary">{hint}</p>
+          <MiniMarkdown className="chat-prose text-[0.75rem] leading-relaxed text-fg-secondary">{hint}</MiniMarkdown>
         </div>
       )}
 
@@ -411,7 +411,9 @@ export function QuizQuestionCard({
                         {sourceLocation(ref, lang)}
                       </p>
                       {ref.excerpt && (
-                        <p className="mt-0.5 line-clamp-3 whitespace-pre-wrap text-[0.7rem] leading-relaxed text-muted">{ref.excerpt}</p>
+                        <div className="mt-0.5 line-clamp-3 text-[0.7rem] leading-relaxed text-muted">
+                          <MiniMarkdown className="mini-md">{ref.excerpt}</MiniMarkdown>
+                        </div>
                       )}
                     </div>
                   ))}

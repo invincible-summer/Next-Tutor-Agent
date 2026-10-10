@@ -2952,6 +2952,31 @@
       "version": "0.2.3"
     },
     {
+      "dependencies": [],
+      "direct_in": [],
+      "ecosystem": "npm",
+      "evidence": "installed-package",
+      "homepage": "https://rapier.rs",
+      "integrity": "sha512-uekIGetywIgopfD97oDL5PfeezkFpNhwlzlaEYNOA0N6ghdsOvh/HYjSMek5Q2O1PYvRSDFcqFVJl4r4ZBwOow==",
+      "license_declared": "Apache-2.0",
+      "license_expression": "Apache-2.0",
+      "license_files": [
+        {
+          "bytes": 11343,
+          "origin": "npm:@dimforge/rapier3d-compat@0.12.0/LICENSE",
+          "path": "licenses/texts/4c05555705e3efde601fb1252ae48f1d63992af8a8fb8947745b7fa834e8f519.txt",
+          "sha256": "4c05555705e3efde601fb1252ae48f1d63992af8a8fb8947745b7fa834e8f519"
+        }
+      ],
+      "name": "@dimforge/rapier3d-compat",
+      "optional": false,
+      "purl": "pkg:npm/%40dimforge/rapier3d-compat@0.12.0",
+      "scopes": [
+        "apps/web:devDependencies"
+      ],
+      "version": "0.12.0"
+    },
+    {
       "dependencies": [
         "@types/hammerjs@2.0.46"
       ],
@@ -8650,6 +8675,31 @@
       "version": "2.0.1"
     },
     {
+      "dependencies": [],
+      "direct_in": [],
+      "ecosystem": "npm",
+      "evidence": "installed-package",
+      "homepage": "https://github.com/tweenjs/tween.js",
+      "integrity": "sha512-vJmvvwFxYuGnF2axRtPYocag6Clbb5YS7kLL+SO/TeVFzHqDIWrNKYtcsPMibjDx9O+bu+psAy9NKfWklassUA==",
+      "license_declared": "MIT",
+      "license_expression": "MIT",
+      "license_files": [
+        {
+          "bytes": 1166,
+          "origin": "npm:@tweenjs/tween.js@23.1.3/LICENSE",
+          "path": "licenses/texts/c95fecd88f2709bfc34e4d1f1ccc36d17048990e6ba26c283cfecdef0432936b.txt",
+          "sha256": "c95fecd88f2709bfc34e4d1f1ccc36d17048990e6ba26c283cfecdef0432936b"
+        }
+      ],
+      "name": "@tweenjs/tween.js",
+      "optional": false,
+      "purl": "pkg:npm/%40tweenjs/tween.js@23.1.3",
+      "scopes": [
+        "apps/web:devDependencies"
+      ],
+      "version": "23.1.3"
+    },
+    {
       "dependencies": [
         "tslib@2.8.1"
       ],
@@ -9439,6 +9489,65 @@
       "direct_in": [],
       "ecosystem": "npm",
       "evidence": "installed-package",
+      "homepage": "https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/stats.js",
+      "integrity": "sha512-jIBvWWShCvlBqBNIZt0KAshWpvSjhkwkEu4ZUcASoAvhmrgAUI2t1dXrjSL4xXVLB4FznPrIsX3nKXFl/Dt4vA==",
+      "license_declared": "MIT",
+      "license_expression": "MIT",
+      "license_files": [
+        {
+          "bytes": 1141,
+          "origin": "npm:@types/stats.js@0.17.4/LICENSE",
+          "path": "licenses/texts/c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383.txt",
+          "sha256": "c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383"
+        }
+      ],
+      "name": "@types/stats.js",
+      "optional": false,
+      "purl": "pkg:npm/%40types/stats.js@0.17.4",
+      "scopes": [
+        "apps/web:devDependencies"
+      ],
+      "version": "0.17.4"
+    },
+    {
+      "dependencies": [
+        "@dimforge/rapier3d-compat@0.12.0",
+        "@tweenjs/tween.js@23.1.3",
+        "@types/stats.js@0.17.4",
+        "@types/webxr@0.5.24",
+        "fflate@0.8.3",
+        "meshoptimizer@1.1.1"
+      ],
+      "direct_in": [
+        "apps/web:devDependencies"
+      ],
+      "ecosystem": "npm",
+      "evidence": "installed-package",
+      "homepage": "https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/three",
+      "integrity": "sha512-mxYSBpDC+D0pLfSP6sW4WZTcT+nrtmZcimMqnVmy36Hte3XpeYSrvgg4TRdaM1GemGog1AWzI5qL2VoIfMXbJQ==",
+      "license_declared": "MIT",
+      "license_expression": "MIT",
+      "license_files": [
+        {
+          "bytes": 1141,
+          "origin": "npm:@types/three@0.186.0/LICENSE",
+          "path": "licenses/texts/c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383.txt",
+          "sha256": "c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383"
+        }
+      ],
+      "name": "@types/three",
+      "optional": false,
+      "purl": "pkg:npm/%40types/three@0.186.0",
+      "scopes": [
+        "apps/web:devDependencies"
+      ],
+      "version": "0.186.0"
+    },
+    {
+      "dependencies": [],
+      "direct_in": [],
+      "ecosystem": "npm",
+      "evidence": "installed-package",
       "homepage": "https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/tough-cookie",
       "integrity": "sha512-/Ad8+nIOV7Rl++6f1BdKxFSMgmoqEoYbHRpPcx3JEfv8VRsQe9Z4mCXeJBzxs7mbHY/XOZZuXlRNfhpVPbs6ZA==",
       "license_declared": "MIT",
@@ -9508,6 +9617,31 @@
         "apps/web:dependencies"
       ],
       "version": "3.0.3"
+    },
+    {
+      "dependencies": [],
+      "direct_in": [],
+      "ecosystem": "npm",
+      "evidence": "installed-package",
+      "homepage": "https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/webxr",
+      "integrity": "sha512-h8fgEd/DpoS9CBrjEQXR+dIDraopAEfu4wYVNY2tEPwk60stPWhvZMf4Foo5FakuQ7HFZoa8WceaWFervK2Ovg==",
+      "license_declared": "MIT",
+      "license_expression": "MIT",
+      "license_files": [
+        {
+          "bytes": 1141,
+          "origin": "npm:@types/webxr@0.5.24/LICENSE",
+          "path": "licenses/texts/c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383.txt",
+          "sha256": "c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383"
+        }
+      ],
+      "name": "@types/webxr",
+      "optional": false,
+      "purl": "pkg:npm/%40types/webxr@0.5.24",
+      "scopes": [
+        "apps/web:devDependencies"
+      ],
+      "version": "0.5.24"
     },
     {
       "dependencies": [],
@@ -17949,6 +18083,31 @@
       "version": "0.4.10"
     },
     {
+      "dependencies": [],
+      "direct_in": [],
+      "ecosystem": "npm",
+      "evidence": "installed-package",
+      "homepage": "https://101arrowz.github.io/fflate",
+      "integrity": "sha512-tbZNuJrLwGUp3zshBtdy4W+ORxZuIh8a5ilyIEQDC5rY1f3U20JMry0Ll3WBzU58EZKsEuJFXhb5gwv8CsPvgA==",
+      "license_declared": "MIT",
+      "license_expression": "MIT",
+      "license_files": [
+        {
+          "bytes": 1069,
+          "origin": "npm:fflate@0.8.3/LICENSE",
+          "path": "licenses/texts/0a1df3a083d0c010560aa342e87959c8c1070e6fd54545741f083f22d0c8b551.txt",
+          "sha256": "0a1df3a083d0c010560aa342e87959c8c1070e6fd54545741f083f22d0c8b551"
+        }
+      ],
+      "name": "fflate",
+      "optional": false,
+      "purl": "pkg:npm/fflate@0.8.3",
+      "scopes": [
+        "apps/web:devDependencies"
+      ],
+      "version": "0.8.3"
+    },
+    {
       "dependencies": [
         "flat-cache@4.0.1"
       ],
@@ -25068,6 +25227,31 @@
         "apps/web:devDependencies"
       ],
       "version": "1.4.1"
+    },
+    {
+      "dependencies": [],
+      "direct_in": [],
+      "ecosystem": "npm",
+      "evidence": "installed-package",
+      "homepage": "https://github.com/zeux/meshoptimizer",
+      "integrity": "sha512-oRFNWJRDA/WTrVj7NWvqa5HqE1t9MYDj2VaWirQCzCCrAd2GHrqR/sQezCxiWATPNlKTcRaPRHPJwIRoPBAp5g==",
+      "license_declared": "MIT",
+      "license_expression": "MIT",
+      "license_files": [
+        {
+          "bytes": 1079,
+          "origin": "npm:meshoptimizer@1.1.1/LICENSE.md",
+          "path": "licenses/texts/f03037ca7bad1e3eb7f4a63fa6084a8baabd5ba30d3c239a9a7f35705d873e26.txt",
+          "sha256": "f03037ca7bad1e3eb7f4a63fa6084a8baabd5ba30d3c239a9a7f35705d873e26"
+        }
+      ],
+      "name": "meshoptimizer",
+      "optional": false,
+      "purl": "pkg:npm/meshoptimizer@1.1.1",
+      "scopes": [
+        "apps/web:devDependencies"
+      ],
+      "version": "1.1.1"
     },
     {
       "dependencies": [
@@ -34523,6 +34707,33 @@
         "apps/mobile:devDependencies"
       ],
       "version": "1.2.0"
+    },
+    {
+      "dependencies": [],
+      "direct_in": [
+        "apps/web:dependencies"
+      ],
+      "ecosystem": "npm",
+      "evidence": "installed-package",
+      "homepage": "https://threejs.org/",
+      "integrity": "sha512-blFeqb49wRCSGUGj7gtpfnSGHy2lwDk94RhUmS1c/hTby70kvChbWpkJ4Pm1390LqzzvTmzgXKHPEafJwCb8jA==",
+      "license_declared": "MIT",
+      "license_expression": "MIT",
+      "license_files": [
+        {
+          "bytes": 1081,
+          "origin": "npm:three@0.186.1/LICENSE",
+          "path": "licenses/texts/8b378ebe60e2fe500158cb0ac71cb5e8b7d92953c2abcc63a0eb90499653b5bc.txt",
+          "sha256": "8b378ebe60e2fe500158cb0ac71cb5e8b7d92953c2abcc63a0eb90499653b5bc"
+        }
+      ],
+      "name": "three",
+      "optional": false,
+      "purl": "pkg:npm/three@0.186.1",
+      "scopes": [
+        "apps/web:dependencies"
+      ],
+      "version": "0.186.1"
     },
     {
       "dependencies": [],
@@ -44019,7 +44230,7 @@
   ],
   "inputs": {
     "apps/mobile/package.json": "62c347de1b8bd4f66faba6fd5d959d476938322cfd0db401731e37142551dcb1",
-    "apps/web/package.json": "63b04c687e09669c6a83e22319ff35db15140a2f5da9c08ce46b2a78e44ebdbd",
+    "apps/web/package.json": "04b7d0d09e018534186264952324f4ef51d7b9193e420007b62c8bc04b908bc3",
     "deploy/local/docker-compose.yml": "5fce70d80e194f468eb32aa980cda1522bd634158a80c539f6937c04209166e4",
     "deploy/self-hosted/install_voice.sh": "637ffeb563130e322ca643019079c7784570216f748e4a8f1ba0dc1783078a3f",
     "licenses/external-components.json": "95664170776f494f0bdabe75e8a965cc3b515530126022ca2e31b7e10d3f0f26",
@@ -44029,7 +44240,7 @@
     "packages/design-tokens/package.json": "596f9a833711781177a2d39e501747abf0bebac0554f82cbe158935298f189c6",
     "packages/domain/package.json": "920c82314b48c436a393528c30d5e81495f0d7e5160b84eccf07b576e5033a42",
     "packages/i18n/package.json": "083352089840c679af58f02ea3cb59d64741fbc728e37dfa2a524a6f00eb3f9a",
-    "pnpm-lock.yaml": "4618e54c975123e205f7178f4762673f4a6806d6e3b72858de7a3a33b89203f5",
+    "pnpm-lock.yaml": "884cfa2fa55a35810fe7fbd054072ec3eefbba31a0bbaaa694b06490daeb40dd",
     "pnpm-workspace.yaml": "a75b798dcab6be5a1af6331998790f193595d169bc19af888cd8671c527c7e8b",
     "services/api/constraints.txt": "aa696a017e68f5cbd2e9a2c41e031aece307ed625a1ebb2f19729fc7ad60d1d0",
     "services/api/requirements-observability.txt": "a6deaa638de34c7f065027613357fa345a7abc3ad37bd4e4cb532dec479fe061",

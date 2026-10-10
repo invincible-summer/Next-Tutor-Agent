@@ -32,6 +32,7 @@ import { EpisodeTimeline } from "@/components/pages/memory/EpisodeTimeline";
 import { SemanticFacts } from "@/components/pages/memory/SemanticFacts";
 import { StrategyBars } from "@/components/pages/memory/StrategyBars";
 import { EvidenceTimeline } from "@/components/learning-evaluation/EvidenceTimeline";
+import { MiniMarkdown } from "@/components/chat/markdown";
 import { NextProbeAction } from "@/components/learning-evaluation/NextProbeAction";
 import { SemanticEvaluationPanel } from "@/components/learning-evaluation/SemanticEvaluationPanel";
 import { StatusNote } from "@/components/learning-evaluation/StatusNote";
@@ -801,9 +802,9 @@ function LearningArchiveRegion({ tr, lang, deepSignal = 0 }: {
                                     {fmtIso(it.observed_at)}
                                   </span>
                                 </div>
-                                <p className="line-clamp-2 text-[0.72rem] leading-relaxed text-fg-secondary">
-                                  {it.canonical_text}
-                                </p>
+                                <div className="line-clamp-2 text-[0.72rem] leading-relaxed text-fg-secondary">
+                                  <MiniMarkdown className="mini-md">{it.canonical_text}</MiniMarkdown>
+                                </div>
                               </div>
                             ))
                           )}

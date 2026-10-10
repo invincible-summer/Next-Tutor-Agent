@@ -128,6 +128,7 @@ Particular asset and native boundaries:
 | Component | Terms and retained attribution | Use |
 |---|---|---|
 | KaTeX | MIT, upstream authors identified in the preserved package LICENSE | Web math, generated offline classroom JS/CSS/fonts, mobile offline math fallback. The generated assets derive from the same pinned npm package. |
+| three (`three@0.186.1`) | MIT, preserved package LICENSE under `licenses/texts/` | Web 3D presentation layer for the math workbench (`/tools/geometry`); `@types/three@0.186.0` stays a devDependency. No Three example assets (models/HDRI/fonts/demo scenes) are vendored or redistributed. |
 | `@fontsource/playfair-display` | OFL-1.1; Playfair Display Project Authors and Reserved Font Name retained in original LICENSE | Web display font files |
 | `lucide-react`, `lucide-react-native` | ISC plus MIT for Feather-derived icons, both notices retained | Web and mobile icon sets |
 | React / React Native / Expo / Hermes | Package originals and native bundled notices; preserve final CocoaPods/Gradle/Hermes artifact notices | JS source dependency inventory does not replace a native binary inventory |

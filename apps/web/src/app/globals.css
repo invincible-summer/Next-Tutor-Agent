@@ -81,6 +81,14 @@ input:focus, textarea:focus, select:focus {
 .chat-prose .katex .mfrac .frac-line { border-color: rgb(var(--fg)); }
 .dark .chat-prose .katex .frac-line { border-color: rgb(var(--fg)); }
 
+/* mini-md: 紧凑内联 Markdown。题干/答案等短文本出现在 truncate 或
+   line-clamp 裁剪行（最近习题、错题本、证据摘要）时，MiniMarkdown 的
+   根节点与段落内联化，外层省略号/行数裁剪才能继续生效；公式字号与
+   chat-prose 对齐，颜色继承所在行。 */
+.mini-md { display: inline; }
+.mini-md p { display: inline; margin: 0; }
+.mini-md .katex { font-size: 1.05em; color: inherit; }
+
 /* Worksheet paper text reuses the chat Markdown/KaTeX parser but keeps the
    compact spacing expected on a printed sheet. */
 .worksheet-markdown { color: inherit; }

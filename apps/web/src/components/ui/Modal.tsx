@@ -14,6 +14,7 @@ export function Modal({
   children,
   footer,
   width = 420,
+  testId,
 }: {
   open: boolean;
   onClose: () => void;
@@ -22,6 +23,9 @@ export function Modal({
   children: ReactNode;
   footer?: ReactNode;
   width?: number;
+  /** Forwarded as `data-testid` on the dialog element (custom components
+   *  silently drop JSX `data-*` attributes, so it must be explicit). */
+  testId?: string;
 }) {
   const overlayId = useId();
   useEffect(() => {
@@ -47,6 +51,7 @@ export function Modal({
       <div className="motion-fade absolute inset-0 bg-black/30 backdrop-blur-[2px]" onClick={onClose} />
       <div
         role="dialog" aria-modal="true" aria-label={ariaLabel} aria-labelledby={title ? `${overlayId}-title` : undefined}
+        data-testid={testId}
         className="motion-modal relative flex max-h-[calc(100vh-2rem)] flex-col rounded-[14px] border border-border bg-surface p-5 shadow-lg"
         style={{ width: `min(${width}px, 94vw)` }}
       >

@@ -77,6 +77,7 @@ export const NAV_SUBTITLES: Record<string, string> = {
   "/tools/illustration": "nav.toolsIllustration",
   "/tools/lab": "nav.toolsLab",
   "/tools/worksheet": "nav.toolsWorksheet",
+  "/tools/geometry": "nav.toolsGeometry",
 };
 
 /** 由路径反查当前导航项（TopBar 标题用）。 */

@@ -9,6 +9,7 @@ import { QuestionIllustration } from "@/components/quiz/QuestionIllustration";
 import { useCallback, useEffect, useState } from "react";
 import { FileQuestion, MessagesSquare, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/Badge";
+import { MiniMarkdown } from "@/components/chat/markdown";
 import { Button } from "@/components/ui/Button";
 import { Drawer } from "@/components/ui/Drawer";
 import { Modal, ConfirmModal } from "@/components/ui/Modal";
@@ -247,9 +248,9 @@ export function EvidenceDetailDrawer({
           {detail.canonical_text && (
             <section>
               <p className="mb-1 text-[0.7rem] font-medium text-fg-secondary">{t.raw}</p>
-              <pre className="max-h-40 overflow-y-auto rounded-[8px] bg-surface-sunken p-2.5 text-[0.72rem] leading-relaxed whitespace-pre-wrap text-fg">
-                {detail.canonical_text}
-              </pre>
+              <div className="max-h-40 overflow-y-auto rounded-[8px] bg-surface-sunken p-2.5 text-[0.72rem] leading-relaxed whitespace-pre-wrap text-fg">
+                <MiniMarkdown className="mini-md">{detail.canonical_text}</MiniMarkdown>
+              </div>
             </section>
           )}
 
@@ -257,12 +258,12 @@ export function EvidenceDetailDrawer({
             <section>
               <p className="mb-1 text-[0.7rem] font-medium text-fg-secondary">{t.task}</p>
               <div className="rounded-[8px] border border-border-light bg-surface px-2.5 py-2 text-xs leading-relaxed text-fg">
-                <p className="whitespace-pre-wrap">{detail.task.stem}</p>
+                <MiniMarkdown className="chat-prose">{detail.task.stem}</MiniMarkdown>
                 <QuestionIllustration illustration={detail.task.illustration} questionId={detail.task.question_id} revision={detail.task.question_revision} visualRole={detail.task.visual_role} />
                 {Object.keys(detail.task.options || {}).length > 0 && (
                   <ul className="mt-1 space-y-0.5 text-fg-secondary">
                     {Object.entries(detail.task.options).map(([k, v]) => (
-                      <li key={k}>{k}. {v}</li>
+                      <li key={k}>{k}. <MiniMarkdown className="mini-md">{v}</MiniMarkdown></li>
                     ))}
                   </ul>
                 )}
@@ -288,9 +289,12 @@ export function EvidenceDetailDrawer({
             <section>
               <p className="mb-1 text-[0.7rem] font-medium text-fg-secondary">{t.revealed}</p>
               <div className="rounded-[8px] border border-border-light bg-surface px-2.5 py-2 text-xs leading-relaxed text-fg-secondary">
-                <p><span className="font-medium text-fg">{lang === "en" ? "Answer: " : "答案："}</span>{detail.revealed.answer}</p>
+                <div>
+                  <span className="font-medium text-fg">{lang === "en" ? "Answer: " : "答案："}</span>
+                  <MiniMarkdown className="mini-md">{detail.revealed.answer}</MiniMarkdown>
+                </div>
                 {detail.revealed.explanation && (
-                  <p className="mt-1 whitespace-pre-wrap">{detail.revealed.explanation}</p>
+                  <MiniMarkdown className="chat-prose mt-1">{detail.revealed.explanation}</MiniMarkdown>
                 )}
               </div>
             </section>
@@ -313,9 +317,9 @@ export function EvidenceDetailDrawer({
                   const processes = (c.cognitive_processes as string[] | undefined) || [];
                   return (
                     <li key={i} className="rounded-[8px] border border-border-light bg-surface px-2.5 py-2">
-                      <p className="text-xs leading-relaxed text-fg">
-                        {String(c.statement || "")}
-                      </p>
+                      <div className="text-xs leading-relaxed text-fg">
+                        <MiniMarkdown className="mini-md">{String(c.statement || "")}</MiniMarkdown>
+                      </div>
                       {processes.length > 0 && (
                         <div className="mt-1 flex flex-wrap items-center gap-1.5">
                           <span className="text-[0.6875rem] text-muted">{t.processes}:</span>
@@ -339,9 +343,9 @@ export function EvidenceDetailDrawer({
           )}
 
           {detail.interpretation?.feedback && (
-            <p className="rounded-[8px] bg-info/8 px-3 py-2 text-xs leading-relaxed text-info">
-              {detail.interpretation.feedback}
-            </p>
+            <div className="rounded-[8px] bg-info/8 px-3 py-2 text-xs leading-relaxed text-info">
+              <MiniMarkdown className="mini-md">{detail.interpretation.feedback}</MiniMarkdown>
+            </div>
           )}
 
           {detail.reviews.length > 0 && (
@@ -479,9 +483,9 @@ export function EvidenceTimeline({
               {it.availability === "deleted" && <Badge tone="muted">{t.deleted}</Badge>}
             </div>
             {it.summary && (
-              <p className="mb-1.5 line-clamp-3 text-xs leading-relaxed text-fg-secondary">
-                {it.summary}
-              </p>
+              <div className="mb-1.5 line-clamp-3 text-xs leading-relaxed text-fg-secondary">
+                <MiniMarkdown className="mini-md">{it.summary}</MiniMarkdown>
+              </div>
             )}
             {it.concept_refs.length > 0 && (
               <p className="mb-1.5 text-[0.7rem] text-muted">

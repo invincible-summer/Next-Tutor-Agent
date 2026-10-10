@@ -8,6 +8,7 @@ import Link from "next/link";
 import { BookX, RefreshCcw } from "lucide-react";
 import { Card, CardHeader } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
+import { MiniMarkdown } from "@/components/chat/markdown";
 import { EmptyState, ErrorNote, Skeleton } from "@/components/ui/EmptyState";
 import { Pager, paged, pageCount } from "@/components/ui/Pager";
 import { EvidenceDetailDrawer } from "@/components/learning-evaluation/EvidenceTimeline";
@@ -83,7 +84,7 @@ export function ErrorNotebook({
                     onClick={() => setOpenSource(q.source_id)}
                     className="block w-full cursor-pointer text-left"
                   >
-                    <span className="line-clamp-2 text-sm text-fg">{q.stem}</span>
+                    <span className="line-clamp-2 text-sm text-fg"><MiniMarkdown className="mini-md">{q.stem}</MiniMarkdown></span>
                   </button>
                   <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted">
                     <Badge tone={verdictTone(q.verdict)}>

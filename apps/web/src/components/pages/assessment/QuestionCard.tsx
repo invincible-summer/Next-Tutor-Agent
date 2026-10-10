@@ -102,7 +102,9 @@ function QuestionBody({ tr, question, difficulty, answered, busy, onSubmit, onAb
         </button>)}
       </div> : <Textarea value={text} onChange={(event) => setText(event.target.value)}
         disabled={disabled} placeholder={tr("ask.answerPh")} rows={5} className="mt-4 resize-y" />}
-      {hint && <p className="mt-3 whitespace-pre-wrap rounded-lg bg-warning/5 p-3 text-sm">{hint}</p>}
+      {hint && (
+        <div className="chat-prose mt-3 rounded-lg bg-warning/5 p-3"><MiniMarkdown>{hint}</MiniMarkdown></div>
+      )}
       {error && <p role="alert" className="mt-3 text-sm text-danger">{error}</p>}
       <div className="mt-4 flex flex-wrap justify-end gap-2">
         {draft ? <Button type="button" variant="outline" disabled={disabled} onClick={onAbandon}>
@@ -119,7 +121,9 @@ function QuestionBody({ tr, question, difficulty, answered, busy, onSubmit, onAb
         </>}
       </div>
       {revealed && <section className="mt-3 rounded-lg border border-border-light p-3 text-sm">
-        <p>{tr("ask.revealed.answer", "答案")}: {revealed.answer}</p>
+        <div>
+          {tr("ask.revealed.answer", "答案")}: <MiniMarkdown className="mini-md">{revealed.answer}</MiniMarkdown>
+        </div>
         <div className="chat-prose mt-2"><MiniMarkdown>{revealed.explanation}</MiniMarkdown></div>
       </section>}
     </Card>
