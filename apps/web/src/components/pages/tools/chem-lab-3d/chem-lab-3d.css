@@ -1,0 +1,117 @@
+/* 化学实验台 3D（chem-lab-3d）局部样式。颜色全部来自现有主题令牌，
+   不另建第二套配色；沉浸式 canvas 区与小型 HUD/气泡在此定义。 */
+
+.chem-scene-viewport {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  background: var(--color-bg, #f6f5f1);
+}
+
+.chem-scene-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* WebGL 不可用降级页（内容层级清晰，不黑屏） */
+.chem-scene-fallback {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-bg, #f6f5f1);
+}
+
+.chem-scene-fallback-card {
+  max-width: 420px;
+  padding: 28px 32px;
+  border-radius: 14px;
+  border: 1px solid var(--color-border, #d8d4c8);
+  background: var(--color-surface, #fffefa);
+  text-align: center;
+}
+
+.chem-scene-fallback-title {
+  margin: 0 0 8px;
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--color-fg, #26241f);
+}
+
+.chem-scene-fallback-hint {
+  margin: 0 0 18px;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--color-fg-secondary, #5b5850);
+}
+
+.chem-scene-fallback-link {
+  display: inline-block;
+  padding: 8px 18px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #fff;
+  background: var(--color-accent, #256d66);
+  text-decoration: none;
+}
+
+/* 上下文丢失瞬时提示 */
+.chem-scene-lost {
+  position: absolute;
+  left: 50%;
+  top: 72px;
+  transform: translateX(-50%);
+  padding: 8px 16px;
+  border-radius: 999px;
+  font-size: 12px;
+  color: var(--color-fg, #26241f);
+  background: var(--color-surface, #fffefa);
+  border: 1px solid var(--color-border, #d8d4c8);
+  box-shadow: 0 4px 16px rgb(0 0 0 / 0.08);
+  pointer-events: none;
+}
+
+/* 工作台骨架（Phase B：极简返回 + 关卡名；HUD 在交互阶段补全） */
+.chem-workbench {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  background: var(--color-bg, #f6f5f1);
+}
+
+.chem-workbench-loading {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  color: var(--color-fg-secondary, #5b5850);
+}
+
+/* Phase B 极简返回入口（Phase C 替换为完整 HUD） */
+.chem-workbench-back {
+  position: absolute;
+  left: 14px;
+  top: 14px;
+  z-index: 4;
+  padding: 6px 14px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+  color: var(--color-fg, #26241f);
+  background: var(--color-surface, #fffefa);
+  border: 1px solid var(--color-border, #d8d4c8);
+  box-shadow: 0 2px 10px rgb(0 0 0 / 0.06);
+}
+
+.chem-workbench-back:hover {
+  color: var(--color-accent, #256d66);
+  border-color: var(--color-accent, #256d66);
+}
