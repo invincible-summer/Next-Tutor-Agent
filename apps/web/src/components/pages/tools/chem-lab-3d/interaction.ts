@@ -17,7 +17,7 @@
  */
 import * as THREE from "three";
 import {
-  connectionBlockReason, equipmentCenterY, getEquipmentSpec, type ControlSpec, type CueTrigger,
+  connectionBlockReason, equipmentBenchY, equipmentCenterY, getEquipmentSpec, type ControlSpec, type CueTrigger,
   type LabAction, type LabDocument, type PortRef,
 } from "@next-tutor/domain";
 import type { ChemSceneController } from "./scene/SceneController.ts";
@@ -676,9 +676,15 @@ export class InteractionController {
       type: "add",
       id,
       kind: gesture.rackKind,
-      pose: { position: { x: position.x, y: 0, z: position.z }, rotation: [0, 0, 0, 1] },
+      pose: { position: { x: position.x, y: this.benchYFor(gesture.rackKind), z: position.z }, rotation: [0, 0, 0, 1] },
     });
     if (accepted) this.hooks.setSelection({ type: "equipment", id });
+  }
+
+  /** 落台目标高度：底面原点器材贴台面，中心原点器材（卧式冷凝器等）抬半高。 */
+  private benchYFor(kind: string): number {
+    const spec = getEquipmentSpec(kind);
+    return spec ? equipmentBenchY(spec) : 0;
   }
 
   private moveDrag(gesture: DragObject, event: PointerEvent): void {
@@ -707,11 +713,13 @@ export class InteractionController {
     this.tmpV.copy(hit).sub(gesture.grabOffset);
     this.tmpV.x = THREE.MathUtils.clamp(this.tmpV.x, -BENCH_X, BENCH_X);
     this.tmpV.z = THREE.MathUtils.clamp(this.tmpV.z, -BENCH_Z, BENCH_Z);
-    const targetY = eq.parentMountId ? this.detachDropY(gesture, event) : 0;
+    const benchY = this.benchYFor(eq.kind);
+    const targetY = eq.parentMountId ? this.detachDropY(gesture, event, benchY) : benchY;
     // Once the pointer clears the clamp, make the detach intent explicit so a
     // quick release cannot leave a half-detached object in an invalid pose.
-    gesture.dropY = eq.parentMountId && targetY <= 0.001
-      ? 0
+    const detachIntended = eq.parentMountId && targetY <= benchY + 0.001;
+    gesture.dropY = detachIntended
+      ? benchY
       : gesture.dropY + (targetY - gesture.dropY) * 0.25;
     this.tmpV.y = gesture.dropY;
 
@@ -739,17 +747,17 @@ export class InteractionController {
     this.controller.invalidate();
   }
 
-  /** 挂架件横向拖离支架：超过屏幕阈值后目标高度落到台面（Y=0）。 */
-  private detachDropY(gesture: DragObject, event: PointerEvent): number {
-    if (!gesture.standId) return 0;
+  /** 挂架件横向拖离支架：超过屏幕阈值后目标高度落到台面（按规格落台高度）。 */
+  private detachDropY(gesture: DragObject, event: PointerEvent, benchY: number): number {
+    if (!gesture.standId) return benchY;
     const standGroup = this.sync.equipmentGroup(gesture.standId);
-    if (!standGroup) return 0;
+    if (!standGroup) return benchY;
     const h = this.sync.clawVisualHeight(gesture.standId) ?? 2.6;
     this.tmpV.copy(standGripLocal()).setY(h).applyQuaternion(standGroup.quaternion).add(standGroup.position);
     const grip = this.projectToScreen(this.tmpV);
     const pointer = this.pointerScreen(event);
     if (!grip || !pointer) return gesture.basePos.y;
-    return Math.hypot(grip.x - pointer.x, grip.y - pointer.y) > DETACH_PX ? 0 : gesture.basePos.y;
+    return Math.hypot(grip.x - pointer.x, grip.y - pointer.y) > DETACH_PX ? benchY : gesture.basePos.y;
   }
 
   private previewRailHeight(gesture: DragObject, h: number): void {
@@ -848,7 +856,7 @@ export class InteractionController {
 
     if (eq.parentMountId) {
       // 仍在夹具附近：把预览还原到挂载姿态。只有明确拖离夹具才脱挂。
-      if (gesture.dropY > 0.05) {
+      if (gesture.dropY > this.benchYFor(eq.kind) + 0.05) {
         this.restoreFromDrag(gesture);
         return;
       }
@@ -859,7 +867,7 @@ export class InteractionController {
           type: "detach",
           id: eq.id,
           pose: {
-            position: { x: group.position.x, y: 0, z: group.position.z },
+            position: { x: group.position.x, y: this.benchYFor(eq.kind), z: group.position.z },
             rotation: [gesture.baseQuat.x, gesture.baseQuat.y, gesture.baseQuat.z, gesture.baseQuat.w],
           },
         });

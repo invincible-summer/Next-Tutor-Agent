@@ -4,15 +4,18 @@
  * 布局遵守统一世界尺度（台面 Y=0，X∈[-8,8]，Z∈[-4,4]，后方为 -Z），按关卡构图
  * 前后错落、不同高度，避免把设备排成一条直线。
  */
+import { equipmentBenchY, getEquipmentSpec } from "./equipment.ts";
 import type { Connection, EquipmentInstance, Quat, StageDefinition, Vec3 } from "./types.ts";
 
 const v = (x: number, y: number, z: number): Vec3 => ({ x, y, z });
 const qYaw = (a: number): Quat => [0, Math.sin(a / 2), 0, Math.cos(a / 2)];
 const qTiltZ = (a: number): Quat => [0, 0, Math.sin(a / 2), Math.cos(a / 2)];
 
-/** 台面独立器材（底面中心落台）。 */
+/** 台面独立器材：底面中心落台；中心原点器材（卧式冷凝器等）自动抬升半高。 */
 function eq(id: string, kind: string, x: number, z: number, yaw = 0): EquipmentInstance {
-  return { id, kind, pose: { position: v(x, 0, z), rotation: qYaw(yaw) }, controls: {} };
+  const spec = getEquipmentSpec(kind);
+  const y = spec ? equipmentBenchY(spec) : 0;
+  return { id, kind, pose: { position: v(x, y, z), rotation: qYaw(yaw) }, controls: {} };
 }
 /**
  * 挂载到铁架台的器材：localPose 相对支架原点（支架底面中心）。

@@ -222,6 +222,8 @@ function buildGraduatedCylinder(ctx: Ctx): void {
   ctx.notes.noteGeo("chem:geo:cyl-scale");
   strip.renderOrder = 3;
   strip.name = "scale";
+  // 刻度条几何以自身中心为原点（高 2.2），抬到筒身中段，否则下半没入台面。
+  strip.position.y = 1.3;
   addMesh(ctx, strip);
   ctx.liquidSpec = { bottom: 0.12, liquidTop: 2.3, innerR: () => 0.18 };
 }
@@ -473,15 +475,15 @@ function buildExpansionBall(ctx: Ctx): void {
 
 function buildReservoir(ctx: Ctx): void {
   const bottom = glassPart(ctx, "chem:geo:res-bottom", () => roundedBoxOf("chem:geo:res-bottom", 1.36, 0.96, 0.06, 0.03));
-  bottom.position.y = 0.04;
+  bottom.position.y = 0.03;
   addMesh(ctx, bottom);
   const wallH = 1.16;
   for (const side of [-1, 1] as const) {
     const front = glassPart(ctx, "chem:geo:res-wallx", () => new THREE.BoxGeometry(1.4, wallH, 0.05));
-    front.position.set(0, 0.07 + wallH / 2, side * 0.475);
+    front.position.set(0, 0.06 + wallH / 2, side * 0.475);
     addMesh(ctx, front);
     const end = glassPart(ctx, "chem:geo:res-wallz", () => new THREE.BoxGeometry(0.05, wallH, 0.9));
-    end.position.set(side * 0.675, 0.07 + wallH / 2, 0);
+    end.position.set(side * 0.675, 0.06 + wallH / 2, 0);
     addMesh(ctx, end);
     const rail = solidPart(ctx, "chem:geo:res-rail", () => new THREE.CylinderGeometry(0.018, 0.018, 1.4, 10), MAT.steel);
     rail.rotation.z = Math.PI / 2;
@@ -525,23 +527,34 @@ function buildStopper(ctx: Ctx): void {
   }
 }
 
+// 三通/四通：水平管轴在 y=0.13（球体半径），底面触台，与规格端口坐标一致。
+const CONNECTOR_AXIS_Y = 0.13;
+
 function buildTee(ctx: Ctx): void {
-  addMesh(ctx, glassPart(ctx, "chem:geo:tee-chamber", () => new THREE.SphereGeometry(0.13, 24, 16)));
+  addMesh(ctx, glassPart(ctx, "chem:geo:tee-chamber", () => {
+    const geo = new THREE.SphereGeometry(0.13, 24, 16);
+    geo.translate(0, CONNECTOR_AXIS_Y, 0);
+    return geo;
+  }));
   const stubs: [THREE.Vector3, THREE.Vector3][] = [
-    [new THREE.Vector3(-0.12, 0, 0), new THREE.Vector3(-0.46, 0, 0)],
-    [new THREE.Vector3(0.12, 0, 0), new THREE.Vector3(0.46, 0, 0)],
-    [new THREE.Vector3(0, 0.12, 0), new THREE.Vector3(0, 0.52, 0)],
+    [new THREE.Vector3(-0.12, CONNECTOR_AXIS_Y, 0), new THREE.Vector3(-0.46, CONNECTOR_AXIS_Y, 0)],
+    [new THREE.Vector3(0.12, CONNECTOR_AXIS_Y, 0), new THREE.Vector3(0.46, CONNECTOR_AXIS_Y, 0)],
+    [new THREE.Vector3(0, CONNECTOR_AXIS_Y + 0.12, 0), new THREE.Vector3(0, CONNECTOR_AXIS_Y + 0.52, 0)],
   ];
   for (const [from, to] of stubs) addMesh(ctx, tubeBetween(ctx, "g5", 0.062, from, to, ctx.glass));
 }
 
 function buildCross(ctx: Ctx): void {
-  addMesh(ctx, glassPart(ctx, "chem:geo:cross-chamber", () => new THREE.SphereGeometry(0.13, 24, 16)));
+  addMesh(ctx, glassPart(ctx, "chem:geo:cross-chamber", () => {
+    const geo = new THREE.SphereGeometry(0.13, 24, 16);
+    geo.translate(0, CONNECTOR_AXIS_Y, 0);
+    return geo;
+  }));
   const stubs: [THREE.Vector3, THREE.Vector3][] = [
-    [new THREE.Vector3(-0.12, 0, 0), new THREE.Vector3(-0.46, 0, 0)],
-    [new THREE.Vector3(0.12, 0, 0), new THREE.Vector3(0.46, 0, 0)],
-    [new THREE.Vector3(0, 0.12, 0), new THREE.Vector3(0, 0.52, 0)],
-    [new THREE.Vector3(0, 0, -0.12), new THREE.Vector3(0, 0, -0.46)],
+    [new THREE.Vector3(-0.12, CONNECTOR_AXIS_Y, 0), new THREE.Vector3(-0.46, CONNECTOR_AXIS_Y, 0)],
+    [new THREE.Vector3(0.12, CONNECTOR_AXIS_Y, 0), new THREE.Vector3(0.46, CONNECTOR_AXIS_Y, 0)],
+    [new THREE.Vector3(0, CONNECTOR_AXIS_Y + 0.12, 0), new THREE.Vector3(0, CONNECTOR_AXIS_Y + 0.52, 0)],
+    [new THREE.Vector3(0, CONNECTOR_AXIS_Y, -0.12), new THREE.Vector3(0, CONNECTOR_AXIS_Y, -0.46)],
   ];
   for (const [from, to] of stubs) addMesh(ctx, tubeBetween(ctx, "g5", 0.062, from, to, ctx.glass));
 }
@@ -670,10 +683,10 @@ function buildAlcoholLamp(ctx: Ctx): void {
 
 function buildHotPlate(ctx: Ctx): void {
   const body = solidPart(ctx, "chem:geo:plate-body", () => roundedBoxOf("chem:geo:plate-body", 1.2, 0.86, 0.24, 0.06), MAT.plasticDark);
-  body.position.y = 0.16;
+  body.position.y = 0.12;
   addMesh(ctx, body);
   const top = solidPart(ctx, "chem:geo:plate-top", () => roundedBoxOf("chem:geo:plate-top", 1.14, 0.8, 0.05, 0.04), MAT.ceramic);
-  top.position.y = 0.3;
+  top.position.y = 0.265;
   addMesh(ctx, top);
   const dial = solidPart(ctx, "chem:geo:plate-dial", () => new THREE.CylinderGeometry(0.09, 0.095, 0.06, 18), MAT.steel);
   dial.rotation.x = Math.PI / 2;
@@ -687,10 +700,10 @@ function buildHotPlate(ctx: Ctx): void {
 
 function buildPump(ctx: Ctx): void {
   const base = solidPart(ctx, "chem:geo:pump-base", () => roundedBoxOf("chem:geo:pump-base", 0.9, 0.66, 0.14, 0.05), MAT.plasticDark);
-  base.position.y = 0.09;
+  base.position.y = 0.07;
   addMesh(ctx, base);
   const shell = solidPart(ctx, "chem:geo:pump-shell", () => roundedBoxOf("chem:geo:pump-shell", 0.8, 0.58, 0.34, 0.08), MAT.plastic);
-  shell.position.y = 0.42;
+  shell.position.y = 0.31;
   addMesh(ctx, shell);
   // 透明泵头 + 可见叶轮（特效层旋转）。
   const dome = glassPart(ctx, "chem:geo:pump-dome", () => new THREE.SphereGeometry(0.17, 22, 14, 0, Math.PI * 2, 0, Math.PI / 2));
@@ -803,9 +816,15 @@ export function createEquipmentModel(kind: string, opts: CreateModelOptions): Eq
     node.position.copy(v3(p.localPosition));
     node.quaternion.setFromUnitVectors(UP, v3(p.localDirection).normalize());
     if (p.socketClass !== "liquid") {
-      node.add(portRingMesh(p.id, p.visualRadius));
+      // 端口提示环外径 ≈ 1.09 × scale（环半径 1 + 管径 0.09）。底面原点器材的
+      // 低端口把环外径钳进离台高度内，避免环下沿切进台面；中心原点器材
+      // （卧式冷凝器，挂架/抬升半高）不做本地钳制。
+      const ringScale = spec.boundsOrigin === "center"
+        ? p.visualRadius * 1.5
+        : Math.min(p.visualRadius * 1.5, Math.max(0.04, (p.localPosition.y - 0.03) / 1.09));
+      node.add(portRingMesh(p.id, ringScale / 1.5));
       // portRingMesh uses the same ref-count registry as the rest of the model.
-      ctx.notes.noteGeo(`chem:port-ring:${p.visualRadius.toFixed(2)}`);
+      ctx.notes.noteGeo(`chem:port-ring:${(ringScale / 1.5).toFixed(2)}`);
       ctx.notes.noteMat(MAT.portRing);
     }
     ctx.group.add(node);

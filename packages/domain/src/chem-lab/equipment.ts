@@ -190,23 +190,23 @@ const SPECS: EquipmentSpec[] = [
   },
   {
     kind: "tee", family: "connector", label: { zh: "三通", en: "Tee" },
-    bounds: { width: 1.0, depth: 0.4, height: 0.55 },
+    bounds: { width: 1.0, depth: 0.4, height: 0.72 },
     ports: [
-      port("a", v(-0.45, 0, 0), v(-1, 0, 0), "tube", 0.085),
-      port("b", v(0.45, 0, 0), v(1, 0, 0), "tube", 0.085),
-      port("c", v(0, 0.5, 0), v(0, 1, 0), "tube", 0.085),
+      port("a", v(-0.45, 0.13, 0), v(-1, 0, 0), "tube", 0.085),
+      port("b", v(0.45, 0.13, 0), v(1, 0, 0), "tube", 0.085),
+      port("c", v(0, 0.63, 0), v(0, 1, 0), "tube", 0.085),
     ],
     anchors: {}, clampable: false, controls: [],
     internalEdges: fullyLinked(["a", "b", "c"]),
   },
   {
     kind: "cross", family: "connector", label: { zh: "四通", en: "Cross" },
-    bounds: { width: 1.0, depth: 1.0, height: 0.55 },
+    bounds: { width: 1.0, depth: 1.0, height: 0.72 },
     ports: [
-      port("a", v(-0.45, 0, 0), v(-1, 0, 0), "tube", 0.085),
-      port("b", v(0.45, 0, 0), v(1, 0, 0), "tube", 0.085),
-      port("c", v(0, 0.5, 0), v(0, 1, 0), "tube", 0.085),
-      port("d", v(0, 0, -0.45), v(0, 0, -1), "tube", 0.085),
+      port("a", v(-0.45, 0.13, 0), v(-1, 0, 0), "tube", 0.085),
+      port("b", v(0.45, 0.13, 0), v(1, 0, 0), "tube", 0.085),
+      port("c", v(0, 0.63, 0), v(0, 1, 0), "tube", 0.085),
+      port("d", v(0, 0.13, -0.45), v(0, 0, -1), "tube", 0.085),
     ],
     anchors: {}, clampable: false, controls: [],
     internalEdges: fullyLinked(["a", "b", "c", "d"]),
@@ -294,6 +294,15 @@ export function equipmentCenterY(spec: EquipmentSpec): number {
 /** 包围盒上沿的局部 Y：供气泡锚点与聚焦镜头使用。 */
 export function equipmentTopY(spec: EquipmentSpec): number {
   return spec.boundsOrigin === "center" ? spec.bounds.height / 2 : spec.bounds.height;
+}
+
+/**
+ * 独立落台时 group 的世界 Y（台面 Y=0）：底面中心原点的器材直接落 0，
+ * 中心原点器材（卧式冷凝器等）需抬升半高，否则网格下半会没入台面。
+ * 所有"从架上取下/脱挂/移除后落台"的落点都必须经过这里。
+ */
+export function equipmentBenchY(spec: EquipmentSpec): number {
+  return spec.boundsOrigin === "center" ? spec.bounds.height / 2 : 0;
 }
 
 export function equipmentLabel(kind: string, lang: "zh" | "en"): string {

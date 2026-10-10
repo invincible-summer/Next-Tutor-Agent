@@ -209,7 +209,7 @@ export function latheOf(key: string, profile: ProfilePoint[], segments = 56): TH
   return acquireGeometry(key, () => new THREE.LatheGeometry(profile.map(([r, y]) => new THREE.Vector2(r, y)), segments));
 }
 
-/** 圆角矩形拉伸体（台面/底座/机壳用），中心在原点、高度沿 Y。 */
+/** 圆角矩形拉伸体（台面/底座/机壳用），实体恰为 height 高、范围 [-height/2, +height/2]。 */
 export function roundedBoxOf(key: string, width: number, depth: number, height: number, radius: number): THREE.BufferGeometry {
   return acquireGeometry(key, () => {
     const shape = new THREE.Shape();
@@ -224,12 +224,16 @@ export function roundedBoxOf(key: string, width: number, depth: number, height: 
     shape.quadraticCurveTo(-w - radius, d + radius, -w - radius, d);
     shape.lineTo(-w - radius, -d + radius);
     shape.quadraticCurveTo(-w - radius, -d, -w, -d);
-    const geo = new THREE.ExtrudeGeometry(shape, { depth: height, bevelEnabled: true, bevelThickness: height * 0.18, bevelSize: radius * 0.35, bevelSegments: 2, curveSegments: 6 });
+    // Extrude 的 bevel 会从挤出两端各外扩 bevelThickness；若直接以 height 作挤出
+    // 深度，实体总高会变成 1.36×height（台面顶面因此整体没入器材）。核心深度
+    // 缩为 height − 2×bevelThickness，保证旋转后实体总高恰为 height。
+    const bevelThickness = height * 0.18;
+    const coreDepth = Math.max(height - bevelThickness * 2, height * 0.2);
+    const geo = new THREE.ExtrudeGeometry(shape, { depth: coreDepth, bevelEnabled: true, bevelThickness, bevelSize: radius * 0.35, bevelSegments: 2, curveSegments: 6 });
     geo.rotateX(-Math.PI / 2);
-    // Extrude 沿 +Z 深度，旋转后 Y 范围是 [0, height]。模型局部原点
-    // 约定为底面中心，所以要向下半个高度；此前向上平移会把台面/柜体
-    // 抬到工作区上方，遮住玻璃器材并让拾取射线命中错误的实体。
-    geo.translate(0, -height / 2, 0);
+    // 旋转后 Y ∈ [-bevelThickness, coreDepth + bevelThickness]，中心在 coreDepth/2；
+    // 平移后实体中心落在原点，调用方按 ±height/2 定位顶面/底面即可。
+    geo.translate(0, -coreDepth / 2, 0);
     return geo;
   });
 }

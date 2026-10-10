@@ -4,8 +4,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
-  applyAuto, applyLabAction, createStageDocument, getStage, listStages,
-  validateStageScene,
+  applyAuto, applyLabAction, createStageDocument, equipmentBenchY, getEquipmentSpec,
+  getStage, listStages, validateStageScene,
 } from "../src/chem-lab/index.ts";
 import type { LabDocument, StageDefinition } from "../src/chem-lab/index.ts";
 
@@ -49,6 +49,33 @@ test("六关模板器材在可见工作区内且不排成一条直线", () => {
       zs.add(Math.round(p.z * 2) / 2);
     }
     assert.ok(zs.size >= 3, `${id} 器材应前后错落（Z 深度分层）`);
+  }
+});
+
+test("equipmentBenchY：底面原点落 0，中心原点抬半高", () => {
+  const beaker = getEquipmentSpec("beaker")!;
+  assert.equal(beaker.boundsOrigin ?? "base", "base");
+  assert.equal(equipmentBenchY(beaker), 0);
+  const coil = getEquipmentSpec("condenser-coil")!;
+  assert.equal(coil.boundsOrigin, "center");
+  assert.equal(equipmentBenchY(coil), coil.bounds.height / 2);
+});
+
+test("六关模板台面独立器材精确落在规格落台高度（不没入台面）", () => {
+  for (const id of STAGE_IDS) {
+    const stage = getStage(id)!;
+    for (const scene of [stage.starterScene, stage.assembledTemplate]) {
+      for (const e of scene.equipment) {
+        if (e.parentMountId) continue;
+        const spec = getEquipmentSpec(e.kind);
+        assert.ok(spec, `${id}:${e.id} 未知器材 ${e.kind}`);
+        const benchY = equipmentBenchY(spec!);
+        assert.equal(
+          e.pose.position.y, benchY,
+          `${id}:${e.id}(${e.kind}) 台面 Y=${e.pose.position.y} ≠ 落台高度 ${benchY}`,
+        );
+      }
+    }
   }
 });
 

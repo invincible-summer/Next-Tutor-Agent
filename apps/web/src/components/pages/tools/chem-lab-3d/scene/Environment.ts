@@ -45,13 +45,14 @@ const THEMES: Record<"light" | "dark", ThemeConfig> = {
   },
 };
 
-/** 确定性小伪随机（架上物件布局稳定，不闪烁）。 */
-function seeded(seed: number): () => number {
-  let s = seed >>> 0;
-  return () => {
-    s = (s * 1664525 + 1013904223) >>> 0;
-    return s / 0x100000000;
-  };
+/** 器材架布局常量：可点击清单（SceneSync）与装饰陈设共用同一坐标系，避免魔法数漂移。 */
+export const RACK_Z = -5.7;
+/** 三层层板中心 Y；板厚 0.09，层间距 1.75 可容纳 0.34 缩放的整架清单不顶到上层板。 */
+export const SHELF_BOARD_Y = [1.35, 3.1, 4.85];
+
+/** 第 i 层层板顶面的世界 Y。 */
+export function shelfTopY(i: number): number {
+  return SHELF_BOARD_Y[i]! + 0.045;
 }
 
 export class LabEnvironment {
@@ -134,11 +135,11 @@ export class LabEnvironment {
       handle.position.set(-6.05 + i * 4.03 + (i < 2 ? 1.5 : -1.5), -1.35, 3.66);
       this.group.add(handle);
     }
-    const casterGeo = mkGeo(new THREE.CylinderGeometry(0.09, 0.09, 0.12, 12));
+    const casterGeo = mkGeo(new THREE.SphereGeometry(0.1, 14, 10));
     for (const x of [-7.6, -2.6, 2.6, 7.6]) {
       for (const z of [-2.8, 2.8]) {
         const caster = new THREE.Mesh(casterGeo, trimMat);
-        caster.position.set(x, -2.9, z);
+        caster.position.set(x, -2.86, z);
         this.group.add(caster);
       }
     }
@@ -180,7 +181,7 @@ export class LabEnvironment {
       this.group.add(panel);
     }
 
-    this.buildShelfRack(mkGeo, mkMat, trimMat);
+    this.buildShelfRack(mkGeo, mkMat);
 
     // ── 灯光 ─────────────────────────────────────────────────────────────
     this.hemi = new THREE.HemisphereLight(0xfff6ea, 0x8b8578, 0.55);
@@ -208,26 +209,23 @@ export class LabEnvironment {
   private buildShelfRack(
     mkGeo: <T extends THREE.BufferGeometry>(geo: T) => T,
     mkMat: (params: THREE.MeshStandardMaterialParameters) => THREE.MeshStandardMaterial,
-    trimMat: THREE.Material,
   ): void {
-    const rackZ = -5.7;
     const columnMat = sharedMaterial(MAT.steel);
     this.noteMaterial(MAT.steel);
     const columnGeo = mkGeo(new THREE.CylinderGeometry(0.06, 0.06, 6.4, 12));
     for (const x of [-7.1, -2.5, 2.5, 7.1]) {
       for (const dz of [-0.5, 0.5]) {
         const column = new THREE.Mesh(columnGeo, columnMat);
-        column.position.set(x, 3.2, rackZ + dz);
+        column.position.set(x, 3.2, RACK_Z + dz);
         column.castShadow = true;
         this.group.add(column);
       }
     }
     const boardMat = mkMat({ color: 0xa8916f, roughness: 0.68, metalness: 0 });
     const boardGeo = mkGeo(new THREE.BoxGeometry(14.6, 0.09, 1.15));
-    const shelfYs = [1.35, 2.95, 4.55];
-    for (const y of shelfYs) {
+    for (const y of SHELF_BOARD_Y) {
       const board = new THREE.Mesh(boardGeo, boardMat);
-      board.position.set(0, y, rackZ);
+      board.position.set(0, y, RACK_Z);
       board.castShadow = true;
       board.receiveShadow = true;
       this.group.add(board);
@@ -235,92 +233,97 @@ export class LabEnvironment {
       const ledMat = mkMat({ color: 0xf6f2e8, emissive: 0xf3ead6, emissiveIntensity: 0.7, roughness: 1 });
       this.ledMaterials.push(ledMat);
       const led = new THREE.Mesh(mkGeo(new THREE.BoxGeometry(14.2, 0.025, 0.03)), ledMat);
-      led.position.set(0, y - 0.07, rackZ + 0.56);
+      led.position.set(0, y - 0.07, RACK_Z + 0.56);
       this.group.add(led);
     }
-    this.populateShelves(mkGeo, mkMat, trimMat, rackZ, shelfYs);
+      this.populateShelves(mkGeo, mkMat);
   }
 
-  /** 架上陈列：小试剂瓶、试管格栅、软管卷、接头盒、备用烧瓶（确定性布局）。 */
+  /**
+   * 架上装饰陈列：只占顶层，把一、二层整段板长让给 SceneSync 的可点击清单。
+   * 从左到右分区——接头盒+铜接头 / 试剂瓶双排 / 备用圆底烧瓶 / 试管格栅 / 软管卷，
+   * 全部对齐网格、无随机抖动，读起来像分格收纳而不是散堆。
+   */
   private populateShelves(
     mkGeo: <T extends THREE.BufferGeometry>(geo: T) => T,
     mkMat: (params: THREE.MeshStandardMaterialParameters) => THREE.MeshStandardMaterial,
-    _trimMat: THREE.Material,
-    rackZ: number,
-    shelfYs: number[],
   ): void {
     const glassMat = sharedMaterial(MAT.glassPlain);
     this.noteMaterial(MAT.glassPlain);
-    const rand = seeded(20261010);
-    const top = (y: number) => y + 0.045;
+    const top = shelfTopY(2);
 
-    // 小试剂瓶排（一、二层左段）。
-    const bottleGeo = mkGeo(new THREE.CylinderGeometry(0.19, 0.21, 0.92, 14));
-    const capGeo = mkGeo(new THREE.CylinderGeometry(0.115, 0.115, 0.1, 12));
-    const bandColors = [0x2fa39a, 0x58a8dd, 0xd6983c, 0x8f6fc8, 0xc85a9e];
-    const bandGeo = mkGeo(new THREE.CylinderGeometry(0.216, 0.216, 0.1, 14));
-    for (const level of [0, 1]) {
-      for (let i = 0; i < 5; i++) {
-        const x = -6.7 + i * 0.56 + level * 2.1;
-        const bottle = new THREE.Mesh(bottleGeo, glassMat);
-        bottle.position.set(x, top(shelfYs[level]!) + 0.46, rackZ - 0.12);
-        bottle.renderOrder = 2;
-        this.group.add(bottle);
-        this.noteMaterial(MAT.plasticDark);
-        const cap = new THREE.Mesh(capGeo, sharedMaterial(MAT.plasticDark));
-        cap.position.set(x, top(shelfYs[level]!) + 0.97, rackZ - 0.12);
-        this.group.add(cap);
-        const band = new THREE.Mesh(bandGeo, mkMat({ color: bandColors[(i + level) % bandColors.length]!, roughness: 0.5 }));
-        band.position.set(x, top(shelfYs[level]!) + 0.2, rackZ - 0.12);
-        this.group.add(band);
-      }
-    }
-    // 试管格栅（一层右段）。
-    const rackBox = new THREE.Mesh(mkGeo(new THREE.BoxGeometry(1.5, 0.12, 0.55)), sharedMaterial(MAT.oak));
-    this.noteMaterial(MAT.oak);
-    rackBox.position.set(4.6, top(shelfYs[0]!) + 0.05, rackZ + 0.05);
-    this.group.add(rackBox);
-    const tubeGeo = mkGeo(new THREE.CylinderGeometry(0.055, 0.055, 1.1, 10));
-    for (let i = 0; i < 6; i++) {
-      const tube = new THREE.Mesh(tubeGeo, glassMat);
-      tube.position.set(4.1 + (i % 3) * 0.5, top(shelfYs[0]!) + 0.65, rackZ + (i < 3 ? -0.08 : 0.14));
-      tube.renderOrder = 2;
-      this.group.add(tube);
-    }
-    // 软管卷（二层右段）：三圈堆叠的半透明卷。
-    const hoseMat = sharedMaterial(MAT.hose);
-    this.noteMaterial(MAT.hose);
-    const coilGeo = mkGeo(new THREE.TorusGeometry(0.42, 0.085, 10, 30));
-    for (let i = 0; i < 3; i++) {
-      const coil = new THREE.Mesh(coilGeo, hoseMat);
-      coil.rotation.x = Math.PI / 2;
-      coil.position.set(4.9 + rand() * 0.15, top(shelfYs[1]!) + 0.1 + i * 0.19, rackZ);
-      coil.renderOrder = 2;
-      this.group.add(coil);
-    }
-    // 接头盒（三层左段）+ 备用圆底烧瓶（三层中段）。
+    // ── 最左：接头盒 + 黄铜接头 ──────────────────────────────────────────
     const tray = new THREE.Mesh(mkGeo(new THREE.BoxGeometry(1.3, 0.07, 0.7)), sharedMaterial(MAT.plastic));
     this.noteMaterial(MAT.plastic);
-    tray.position.set(-6.2, top(shelfYs[2]!) + 0.035, rackZ + 0.05);
+    tray.position.set(-6.5, top + 0.035, RACK_Z);
     this.group.add(tray);
     const stubGeo = mkGeo(new THREE.CylinderGeometry(0.05, 0.05, 0.16, 10));
     for (let i = 0; i < 5; i++) {
       const stub = new THREE.Mesh(stubGeo, sharedMaterial(MAT.brass));
       this.noteMaterial(MAT.brass);
-      stub.position.set(-6.6 + i * 0.22, top(shelfYs[2]!) + 0.15, rackZ + (i % 2 === 0 ? -0.1 : 0.12));
+      stub.position.set(-6.9 + i * 0.2, top + 0.15, RACK_Z + (i % 2 === 0 ? -0.14 : 0.14));
       this.group.add(stub);
     }
+
+    // ── 左段：小试剂瓶前后双排（6×2，色环交替）───────────────────────────
+    const bottleGeo = mkGeo(new THREE.CylinderGeometry(0.19, 0.21, 0.92, 14));
+    const capGeo = mkGeo(new THREE.CylinderGeometry(0.115, 0.115, 0.1, 12));
+    const bandColors = [0x2fa39a, 0x58a8dd, 0xd6983c, 0x8f6fc8, 0xc85a9e, 0x6aa84f];
+    const bandGeo = mkGeo(new THREE.CylinderGeometry(0.216, 0.216, 0.1, 14));
+    for (const rowZ of [RACK_Z - 0.18, RACK_Z + 0.18]) {
+      for (let i = 0; i < 6; i++) {
+        const x = -5.35 + i * 0.56;
+        const bottle = new THREE.Mesh(bottleGeo, glassMat);
+        bottle.position.set(x, top + 0.46, rowZ);
+        bottle.renderOrder = 2;
+        this.group.add(bottle);
+        this.noteMaterial(MAT.plasticDark);
+        const cap = new THREE.Mesh(capGeo, sharedMaterial(MAT.plasticDark));
+        cap.position.set(x, top + 0.97, rowZ);
+        this.group.add(cap);
+        const band = new THREE.Mesh(bandGeo, mkMat({ color: bandColors[i % bandColors.length]!, roughness: 0.5 }));
+        band.position.set(x, top + 0.2, rowZ);
+        this.group.add(band);
+      }
+    }
+
+    // ── 中段：备用圆底烧瓶 ────────────────────────────────────────────────
     const bulbGeo = mkGeo(new THREE.SphereGeometry(0.34, 20, 14));
     const neckGeo = mkGeo(new THREE.CylinderGeometry(0.09, 0.12, 0.34, 14));
-    for (const x of [-1.4, 0.6]) {
+    for (const x of [-1.5, -0.5, 0.5]) {
       const bulb = new THREE.Mesh(bulbGeo, glassMat);
-      bulb.position.set(x, top(shelfYs[2]!) + 0.34, rackZ - 0.05);
+      bulb.position.set(x, top + 0.34, RACK_Z - 0.05);
       bulb.renderOrder = 2;
       this.group.add(bulb);
       const neck = new THREE.Mesh(neckGeo, glassMat);
-      neck.position.set(x, top(shelfYs[2]!) + 0.64, rackZ - 0.05);
+      neck.position.set(x, top + 0.64, RACK_Z - 0.05);
       neck.renderOrder = 2;
       this.group.add(neck);
+    }
+
+    // ── 右中段：试管格栅 ─────────────────────────────────────────────────
+    const rackBox = new THREE.Mesh(mkGeo(new THREE.BoxGeometry(1.5, 0.12, 0.55)), sharedMaterial(MAT.oak));
+    this.noteMaterial(MAT.oak);
+    rackBox.position.set(2.7, top + 0.05, RACK_Z + 0.05);
+    this.group.add(rackBox);
+    const tubeGeo = mkGeo(new THREE.CylinderGeometry(0.055, 0.055, 1.1, 10));
+    for (let i = 0; i < 6; i++) {
+      const tube = new THREE.Mesh(tubeGeo, glassMat);
+      tube.position.set(2.2 + (i % 3) * 0.5, top + 0.65, RACK_Z + (i < 3 ? -0.08 : 0.14));
+      tube.renderOrder = 2;
+      this.group.add(tube);
+    }
+
+    // ── 最右：软管卷一字排开 ─────────────────────────────────────────────
+    const hoseMat = sharedMaterial(MAT.hose);
+    this.noteMaterial(MAT.hose);
+    const coilGeo = mkGeo(new THREE.TorusGeometry(0.42, 0.085, 10, 30));
+    for (const x of [4.8, 5.65, 6.5]) {
+      const coil = new THREE.Mesh(coilGeo, hoseMat);
+      coil.rotation.x = Math.PI / 2;
+      coil.position.set(x, top + 0.085, RACK_Z);
+      coil.renderOrder = 2;
+      this.group.add(coil);
     }
   }
 

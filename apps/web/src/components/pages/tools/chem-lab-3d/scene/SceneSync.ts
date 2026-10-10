@@ -12,14 +12,18 @@
  */
 import * as THREE from "three";
 import {
-  equipmentTopY, getEquipmentSpec, instanceWorldPose, type EquipmentInstance, type LabDocument,
+  equipmentBenchY, equipmentTopY, getEquipmentSpec, instanceWorldPose, type EquipmentInstance, type LabDocument,
 } from "@next-tutor/domain";
 import { createEquipmentModel, type EquipmentModelHandle } from "./EquipmentFactory.ts";
 import { MAT, releaseMaterial, sharedMaterial } from "./EquipmentModels.ts";
+import { RACK_Z, shelfTopY } from "./Environment.ts";
 import type { QualityTier } from "./SceneController.ts";
 import { TubeSystem, type TubePortAnchor } from "./TubeSystem.ts";
 
 const UP = new THREE.Vector3(0, 1, 0);
+
+/** 器材架缩略模型比例；落层板高度按此折算半高（中心原点器材）。 */
+const RACK_MINI_SCALE = 0.34;
 
 export type PickKind = "equipment" | "tube" | "port" | "control" | "claw" | "rack";
 
@@ -215,7 +219,9 @@ export class SceneSync {
     const item = this.rackItems.get(slot);
     if (!item) return;
     item.handle.group.position.copy(position);
-    item.handle.group.position.y = 0;
+    // 预览模型仍是缩放件：落台高度按当前缩放折算，落点与提交后的整尺寸一致。
+    const spec = getEquipmentSpec(item.kind);
+    item.handle.group.position.y = spec ? equipmentBenchY(spec) * item.handle.group.scale.x : 0;
     item.handle.group.updateMatrixWorld(true);
   }
 
@@ -319,7 +325,14 @@ export class SceneSync {
   private applyPose(handle: EquipmentModelHandle, doc: LabDocument, instance: EquipmentInstance): void {
     const world = instanceWorldPose(doc, instance.id);
     if (!world) return;
-    handle.group.position.set(world.position.x, world.position.y, world.position.z);
+    // 台面下限保护：顶层实例不允许低于其落台高度（纠正旧存档里沉入台面的
+    // 中心原点器材）；挂载子件的世界姿态由父合成，不参与。
+    let y = world.position.y;
+    if (!instance.parentMountId) {
+      const spec = getEquipmentSpec(instance.kind);
+      if (spec) y = Math.max(y, equipmentBenchY(spec));
+    }
+    handle.group.position.set(world.position.x, y, world.position.z);
     handle.group.quaternion.set(world.rotation[0], world.rotation[1], world.rotation[2], world.rotation[3]);
   }
 
@@ -382,20 +395,32 @@ export class SceneSync {
     // 器材架是“取用来源”，不是第二份文档。小比例模型保留真实轮廓，
     // 点击槽位后才通过 add action 生成可移动的工作台实例。
     const unique = [...new Set(kinds)].filter(kind => Boolean(getEquipmentSpec(kind))).slice(0, 18);
+    // 按 family 分组排序（玻璃仪器 → 试剂 → 加热 → 动力 → 连接件 → 支架），架上成组可读。
+    const familyRank = (kind: string): number => {
+      const order = ["glassware", "reagent", "heat", "machine", "connector", "stand"];
+      const i = order.indexOf(getEquipmentSpec(kind)?.family ?? "");
+      return i === -1 ? order.length : i;
+    };
+    unique.sort((a, b) => familyRank(a) - familyRank(b) || a.localeCompare(b));
     const columns = 9;
     unique.forEach((kind, index) => {
+      const spec = getEquipmentSpec(kind)!;
       const handle = createEquipmentModel(kind, { tier: this.tier, hero: false });
       if (!handle) return;
       const row = Math.floor(index / columns);
       const column = index % columns;
       const slot = `rack-${index}`;
       handle.group.name = `rack:${slot}:${kind}`;
-      handle.group.scale.setScalar(0.34);
-      // The interactive rack models sit on the two reachable middle shelves.
-      // Keeping them below the upper light band makes them visible in the
-      // default workbench framing instead of leaving the hit targets above
-      // the viewport.
-      handle.group.position.set(-6.9 + column * 1.72, 1.30 + row * 0.68, -4.95 + row * 0.7);
+      handle.group.scale.setScalar(RACK_MINI_SCALE);
+      // 可点击清单占一、二层：模型底面精确落在层板顶面，x/z 收进板沿之内
+      //（最宽的蛇形冷凝器缩放后半宽 0.7 也不出板）；顶层整段让给装饰陈设。
+      // 层间距 1.75 保证缩放后的铁架台（约 1.56 高）不顶到上一层层板。
+      // 中心原点器材（卧式冷凝器）按缩放折算抬升半高，否则陷进层板。
+      handle.group.position.set(
+        -6.2 + column * 1.55,
+        shelfTopY(row) + equipmentBenchY(spec) * RACK_MINI_SCALE,
+        RACK_Z + 0.1,
+      );
       for (const part of handle.pickParts) {
         part.userData.pickRef = { kind: "rack", rackKind: kind, rackSlot: slot } satisfies PickRef;
       }

@@ -2,7 +2,7 @@
  * 文档操作入口：装配/交互动作的唯一轻量状态层。
  * 所有 apply* 返回新文档（失败保留原文档）；不联网、不做化学评价。
  */
-import { defaultControls, getEquipmentSpec } from "./equipment.ts";
+import { defaultControls, equipmentBenchY, getEquipmentSpec } from "./equipment.ts";
 import { connectionBlockReason, findEquipment } from "./graph.ts";
 import {
   IDENTITY_QUAT, LIMITS, type EquipmentInstance, type LabAction, type LabDocument,
@@ -205,8 +205,10 @@ function applyActionInner(doc: LabDocument, action: LabAction, stage: StageDefin
       const children = doc.equipment.filter(e => e.parentMountId === action.id);
       const landed = children.map(child => {
         const world = instanceWorldPose(doc, child.id) ?? child.pose;
+        const spec = getEquipmentSpec(child.kind);
+        const benchY = spec ? equipmentBenchY(spec) : 0;
         const { parentMountId: _p, localPose: _l, ...rest } = child;
-        return { ...rest, pose: { position: { x: world.position.x, y: 0, z: world.position.z }, rotation: world.rotation } };
+        return { ...rest, pose: { position: { x: world.position.x, y: benchY, z: world.position.z }, rotation: world.rotation } };
       });
       return {
         ...bumped(),

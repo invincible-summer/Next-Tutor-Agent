@@ -24,6 +24,9 @@ export interface TubeConnectionSpec {
 
 const UP = new THREE.Vector3(0, 1, 0);
 
+/** 软管采样点的最低高度：台面 Y=0 上方留出管径（0.072）与样条过冲余量，防止切进台面。 */
+const TUBE_MIN_Y = 0.14;
+
 /** 端点曲线：p0 出发沿法线抬出、p4 沿对向法线进入，中段受重力下垂。 */
 export function tubeCurveFor(a: TubePortAnchor, b: TubePortAnchor, slack: number): THREE.CatmullRomCurve3 {
   const lead = 0.34 + slack * 0.3;
@@ -35,7 +38,13 @@ export function tubeCurveFor(a: TubePortAnchor, b: TubePortAnchor, slack: number
   const sag = Math.min(0.5 + span * 0.07 + slack * 0.9, 1.8);
   const mid = p1.clone().add(p3).multiplyScalar(0.5);
   mid.y -= sag;
-  return new THREE.CatmullRomCurve3([p0, p1, mid, p3, p4], false, "catmullrom", 0.6);
+  // 低端口之间/下向端口（如沉降瓶下嘴）引出的控制点可能低于台面，且样条在
+  // 控制点之间还会轻微过冲：重采样整条曲线并把每点钳到台面上方一个管径处，
+  // 保证软管全程不穿台。端口 y 均 ≥ 0.1，钳位不会移动接管端点。
+  const rough = new THREE.CatmullRomCurve3([p0, p1, mid, p3, p4], false, "catmullrom", 0.6);
+  const pts = rough.getPoints(64);
+  for (const pt of pts) pt.y = Math.max(TUBE_MIN_Y, pt.y);
+  return new THREE.CatmullRomCurve3(pts, false, "catmullrom", 0.5);
 }
 
 interface TubeEntry {
